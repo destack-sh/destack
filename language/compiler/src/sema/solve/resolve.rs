@@ -129,7 +129,7 @@ impl CheckState<'_> {
         let kind = match (variable.kind, variable.parameter) {
             (VariableKind::Memory(kind), _) => Some(kind),
             (_, Some(parameter)) => self
-                .generic_parameter(parameter)
+                .generic_parameter(parameter)?
                 .and_then(|binding| binding.memory_parameter()),
             (_, None) => None,
         };
@@ -284,7 +284,7 @@ impl CheckState<'_> {
         // keep literals the owner's return type exposes through the parameter
         let template = dir::GlobalGenericTemplateId::new(parameter.module_id, binding.template);
         let Some(owner) = self
-            .generic_template(template)
+            .generic_template(template)?
             .and_then(|template| template.symbol)
         else {
             return Ok(false);
@@ -322,13 +322,13 @@ impl CheckState<'_> {
         // read the arms the named type offers
         let bound = self.normalize(origin, ty)?;
         let arms = match self.ty(bound)? {
-            dir::Type::Union(union) => self.type_ids(bound.module_id, union.elements)?.to_vec(),
-            _ => vec![bound],
+            dir::Type::Union(union) => self.type_ids(bound.module_id, union.elements)?,
+            _ => std::slice::from_ref(&bound),
         };
 
         // accept any arm naming the same domain
         for arm in arms {
-            let arm = self.shallow_resolve(arm)?;
+            let arm = self.shallow_resolve(*arm)?;
             let keeps = match self.ty(arm)? {
                 dir::Type::Literal(_) => self.ty(arm)?.scalar_domain() == domain,
                 dir::Type::Primitive(_) => is_bound && self.ty(arm)?.scalar_domain() == domain,
@@ -599,31 +599,30 @@ impl CheckState<'_> {
         Ok(!self.infer.variable(variable)?.state.is_open())
     }
 
-    /// Return whether some primitive of a numeric kind can satisfy one upper bound.
+    /// Return whether some primitive of a numeric variable's kind can satisfy one upper bound.
     fn numeric_bound_admits(
         &mut self,
         origin: Origin,
-        kind: VariableKind,
+        variable: dir::TypeVariableId,
         bound: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // admit a bound some primitive of the kind inhabits
+        let kind = self.infer.variable(variable)?.kind;
         let bound = self.normalize(origin, bound)?;
         let admits = match self.ty(bound)? {
             dir::Type::Intersection(intersection) => {
-                let members = self
-                    .type_ids(bound.module_id, intersection.elements)?
-                    .to_vec();
+                let members = self.type_ids(bound.module_id, intersection.elements)?;
                 let mut admits = true;
                 for member in members {
-                    admits &= self.numeric_bound_admits(origin, kind, member)?;
+                    admits &= self.numeric_bound_admits(origin, variable, *member)?;
                 }
                 admits
             }
             dir::Type::Union(union) => {
-                let arms = self.type_ids(bound.module_id, union.elements)?.to_vec();
+                let arms = self.type_ids(bound.module_id, union.elements)?;
                 let mut admits = false;
                 for arm in arms {
-                    admits |= self.numeric_bound_admits(origin, kind, arm)?;
+                    admits |= self.numeric_bound_admits(origin, variable, *arm)?;
                 }
                 admits
             }
@@ -639,17 +638,22 @@ impl CheckState<'_> {
             | dir::Type::Undefined
             | dir::Type::Void
             | dir::Type::Never => false,
-            dir::Type::Application(_) => self.is_conformance_target(bound)?,
+            // refuse a rigid parameter for a numeric variable
+            dir::Type::Parameter(_) => false,
+            // admit an interface some primitive of the kind conforms to
+            dir::Type::Application(_) => {
+                self.is_conformance_target(bound)?
+                    && self.kind_primitive_conforms(origin, variable, bound)?
+            }
             dir::Type::Literal(_) | dir::Type::Range(_) | dir::Type::Key(_) => {
                 let widened = self.widen_type(bound)?;
 
                 self.is_candidate_kind(kind, widened)?
             }
-            dir::Type::Form(form) => self.numeric_bound_admits(origin, kind, form.value)?,
+            dir::Type::Form(form) => self.numeric_bound_admits(origin, variable, form.value)?,
             dir::Type::Unknown
             | dir::Type::Error
             | dir::Type::Variable(_)
-            | dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::Member(_)
             | dir::Type::Operation(_)
@@ -659,6 +663,52 @@ impl CheckState<'_> {
         };
 
         Ok(admits)
+    }
+
+    /// Return whether some primitive of a numeric variable's kind conforms to one interface bound.
+    fn kind_primitive_conforms(
+        &mut self,
+        origin: Origin,
+        variable: dir::TypeVariableId,
+        bound: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let kind = self.infer.variable(variable)?.kind;
+        let variable = self.variable_type(variable)?;
+        for domain in kind.domains() {
+            for primitive in domain.primitives() {
+                let primitive = self.intern_type(dir::Type::Primitive(*primitive))?;
+                let bound = self.replace_type(bound, variable, primitive)?;
+                if self.decide_relation(origin, Relation::Subtype, primitive, bound)?
+                    != Verdict::Fails
+                {
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Return whether one variable's bounds on one side reach another variable.
+    fn bounds_reach(
+        &mut self,
+        variable: dir::TypeVariableId,
+        side: BoundSide,
+        target: dir::TypeVariableId,
+    ) -> CompilerResult<bool> {
+        let known: SmallVec<[_; 4]> = self
+            .infer
+            .variables
+            .side_bounds(variable, side)?
+            .map(|known| known.ty)
+            .collect();
+        for ty in known {
+            if self.root_variable(ty)? == Some(target) {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return the arms of one bound a variable kind can take, none when no arm fits.
@@ -672,16 +722,16 @@ impl CheckState<'_> {
         let ty = self.structurally_normalize(origin, ty)?;
         let arms = match self.ty(ty)? {
             dir::Type::Union(union) if kind != VariableKind::Type => {
-                self.type_ids(ty.module_id, union.elements)?.to_vec()
+                self.type_ids(ty.module_id, union.elements)?
             }
-            _ => vec![ty],
+            _ => std::slice::from_ref(&ty),
         };
 
         // keep the arms the kind can take
         let mut candidates = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for arm in arms {
-            if self.is_candidate_kind(kind, arm)? {
-                candidates.push(arm);
+            if self.is_candidate_kind(kind, *arm)? {
+                candidates.push(*arm);
             }
         }
 
@@ -718,14 +768,11 @@ impl CheckState<'_> {
                 found => found == Some(memory),
             }),
 
-            // solve a numeric variable to a primitive of its own domain
-            VariableKind::Integer | VariableKind::Float => {
-                let dir::Type::Primitive(primitive) = self.ty(ty)? else {
-                    return Ok(false);
-                };
-
-                Ok(kind.domains().contains(&primitive.scalar_domain()))
-            }
+            // solve a numeric variable to a scalar of its domain
+            VariableKind::Integer | VariableKind::Float => Ok(self
+                .ty(ty)?
+                .scalar_domain()
+                .is_some_and(|domain| kind.domains().contains(&domain))),
         }
     }
 
@@ -1128,7 +1175,7 @@ impl CheckState<'_> {
         if side == BoundSide::Upper
             && kind.is_numeric()
             && self.root_variable(bound)?.is_none()
-            && !self.numeric_bound_admits(origin, kind, bound)?
+            && !self.numeric_bound_admits(origin, variable, bound)?
         {
             return Ok(Verdict::Fails);
         }
@@ -1146,17 +1193,8 @@ impl CheckState<'_> {
                     VariableKind::Memory(dir::MemoryParameter::Access),
                     VariableKind::Memory(dir::MemoryParameter::Access),
                 );
-            let mut is_cycle = false;
-            for known in self.infer.variables.side_bounds(other, side)? {
-                is_cycle |= self.root_variable(known.ty)? == Some(variable);
-            }
-            for known in self
-                .infer
-                .variables
-                .side_bounds(variable, side.opposite())?
-            {
-                is_cycle |= self.root_variable(known.ty)? == Some(other);
-            }
+            let is_cycle = self.bounds_reach(other, side, variable)?
+                || self.bounds_reach(variable, side.opposite(), other)?;
             if is_numeric || is_access || is_cycle {
                 self.alias_variable(variable, other)?;
                 if is_numeric || is_cycle {
@@ -1169,7 +1207,7 @@ impl CheckState<'_> {
 
         // keep the space of a region slot's first closed region, meeting its extents
         if side == BoundSide::Lower
-            && let dir::Type::Region(region) = self.ty(self.shallow_resolve(bound)?)?
+            && let dir::Type::Region(region) = self.resolved_ty(bound)?
             && let Some(space) = self.place_space(region.space)?
         {
             let known = self

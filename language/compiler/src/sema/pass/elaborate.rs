@@ -6,82 +6,123 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
-    CandidateOutcome, CheckState, ExtensionCoherenceObligation, ImplementationCoherenceObligation,
-    InterfaceConformanceObligation, Origin, Relation,
+    CandidateOutcome, CheckState, ExtensionCoherenceObligation, GenericTemplateId,
+    ImplementationCoherenceObligation, InterfaceConformanceObligation, Origin,
 };
 
 impl CheckState<'_> {
-    /// Run the elaborate pass: flatten every declared owner into stored bindings.
+    /// Run the elaborate pass: translate the declared surface, derive the module-wide template
+    /// facts, then elaborate every declaration once.
     pub(in crate::sema) fn run_elaborate(&mut self) -> CompilerResult<()> {
         let recorder = self.recorder;
         self.with_scope(|state| {
-            state.import_external_modules()?;
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "imports", || {
+                state.import_external_modules()
+            })?;
 
-            // translate the declared types into the semantic tables
-            state.translate_declared_types()?;
-
-            state.flatten_declared_owners()?;
-            state.decide_declared_implementations()?;
+            // translate the declared types into the semantic tables and flatten every owner's
+            // bindings, which the decorator walk reads
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "translate", || {
+                state.translate_declared_types()?;
+                state.flatten_declared_owners()
+            })?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "decorators", || {
                 state.apply_decorators()
             })?;
 
-            // derive variances and constructor entries
+            // derive the template facts every declaration reads across the module
             let module = state.module_id;
-            state.derive_module_variances(module)?;
-            state.derive_native_cardinalities(module)?;
-            state.derive_module_constructors(module)?;
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "derive", || {
+                state.derive_module_variances(module)?;
+                state.derive_module_dependents()?;
+                state.derive_native_cardinalities(module)
+            })?;
 
-            // check every declaration against its declared shape
-            state.check_declarations(module)?;
-
-            // commit conformances once the declared selections are in place
-            state.commit_definition_conformances(module)?;
-            state.commit_parameter_conformances(module)?;
-            state.commit_instance_conformances(module)
+            // elaborate each declaration once
+            ArtifactAttemptRecorder::breakdown_maybe(recorder, "declarations", || {
+                state.elaborate_declarations(module)
+            })
         })
     }
 
-    /// Decide each concrete owner's most general implementation winners once.
-    fn decide_declared_implementations(&mut self) -> CompilerResult<()> {
-        // collect the module's nominal owners
-        let module = self.module_id;
-        let mut owners = Vec::new();
-        for (symbol, definition) in self.module(module).iter_definitions() {
-            let is_nominal = matches!(
-                definition,
-                dir::Definition::Struct(_)
-                    | dir::Definition::Class(_)
-                    | dir::Definition::Enum(_)
-                    | dir::Definition::Newtype(_)
-            );
-            if is_nominal {
-                owners.push(symbol);
-            }
+    /// Elaborate every declaration of one module once.
+    fn elaborate_declarations(&mut self, module: ModuleId) -> CompilerResult<()> {
+        let symbols = self
+            .module(module)
+            .iter_definitions()
+            .map(|(symbol, _)| symbol)
+            .collect::<Vec<_>>();
+        for symbol in symbols {
+            self.elaborate_declaration(module, symbol)?;
         }
 
-        // decide each nongeneric owner once
-        for symbol in owners {
-            // generic owners decide under their parameters, which stay per-site
-            if self.symbol_template(symbol)?.is_some() {
-                continue;
-            }
+        Ok(())
+    }
 
-            // read the canonical type the owner declares
-            let Some(canonical) = self
-                .module(module)
-                .types_tail
-                .get_symbol_type_id(symbol)
-                .or_else(|| self.module(module).types.get_symbol_type_id(symbol))
-            else {
-                continue;
-            };
-            let origin = Origin::Symbol(symbol);
+    /// Elaborate one declaration: its implementation winners, constructors, checks, and layout
+    /// policies.
+    fn elaborate_declaration(
+        &mut self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let Some(definition) = self.definition(symbol)? else {
+            return Ok(());
+        };
+        let is_nominal = definition.is_nominal();
+        let is_value = matches!(
+            *definition,
+            dir::Definition::Struct(_) | dir::Definition::Enum(_) | dir::Definition::Newtype(_)
+        );
+        let is_newtype = matches!(*definition, dir::Definition::Newtype(_));
+        let is_extension = matches!(*definition, dir::Definition::Extension(_));
+        let is_alias = matches!(*definition, dir::Definition::TypeAlias(_));
+        let scope = self.symbol_template(symbol)?;
 
-            // decide the most general winner per declared conformance root
-            for root in self.implementation_roots(symbol)? {
-                self.decide_general_implementation(origin, canonical, root)?;
-            }
+        // decide a concrete nominal's most general implementation winners once
+        if is_nominal && scope.is_none() {
+            self.decide_declared_implementations(symbol)?;
+        }
+
+        // derive the constructors beside a newtype
+        if is_newtype {
+            self.derive_newtype_constructors(symbol)?;
+        }
+
+        // check the declaration against its declared shape
+        self.check_declaration(module, symbol, scope, is_extension, is_alias)?;
+
+        // commit the layout policies the lowered representation reads
+        if is_value {
+            self.commit_copy_derivation(symbol)?;
+        }
+        if is_nominal {
+            self.commit_nominal_space(symbol)?;
+        }
+
+        Ok(())
+    }
+
+    /// Decide one concrete owner's most general implementation winners.
+    fn decide_declared_implementations(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        // read the canonical type the owner declares
+        let module = self.module_id;
+        let Some(canonical) = self
+            .module(module)
+            .types_tail
+            .get_symbol_type_id(symbol)
+            .or_else(|| self.module(module).types.get_symbol_type_id(symbol))
+        else {
+            return Ok(());
+        };
+        let origin = Origin::Symbol(symbol);
+
+        // decide the most general winner per declared conformance root
+        for root in self.implementation_roots(symbol)? {
+            self.decide_general_implementation(origin, canonical, root)?;
         }
 
         Ok(())
@@ -95,7 +136,7 @@ impl CheckState<'_> {
         let mut roots = Vec::new();
 
         // read the conformances the owner declares
-        let conformances: Vec<_> = match self.definition(symbol)? {
+        let conformances: Vec<_> = match self.definition(symbol)?.as_deref() {
             Some(definition) => definition
                 .implementations()
                 .iter()
@@ -147,14 +188,7 @@ impl CheckState<'_> {
             };
 
             // land the decision in the goal memo, which the artifact persists
-            state.decide_extension_implementation(
-                origin,
-                Relation::Subtype,
-                module,
-                canonical,
-                &instance,
-                None,
-            )?;
+            state.decide_extension_implementation(origin, module, canonical, &instance, None)?;
 
             Ok(CandidateOutcome::<(), ()>::Rejected(()))
         })?;
@@ -162,55 +196,48 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Check every declaration against its declared shape.
-    fn check_declarations(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let symbols = self
+    /// Check one declaration against its declared shape.
+    fn check_declaration(
+        &mut self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+        scope: Option<GenericTemplateId>,
+        is_extension: bool,
+        is_alias: bool,
+    ) -> CompilerResult<()> {
+        let source = self
             .module(module)
-            .iter_definitions()
-            .map(|(symbol, definition)| {
-                let is_extension = matches!(definition, dir::Definition::Extension(_));
-                let is_alias = matches!(definition, dir::Definition::TypeAlias(_));
-                (symbol, is_extension, is_alias)
-            })
-            .collect::<Vec<_>>();
+            .symbol_declaration_node(symbol.local_id)?
+            .into_global(module);
+        let origin = Origin::Node(source, scope);
 
-        // elaborate each declared symbol
-        for (symbol, is_extension, is_alias) in symbols {
-            let source = self
-                .module(module)
-                .symbol_declaration_node(symbol.local_id)?
-                .into_global(module);
-            let scope = self.symbol_template(symbol)?;
-            let origin = Origin::Node(source, scope);
+        // check heritage, conformance, and coherence per declaration
+        let mut checks = Vec::new();
+        checks.push(self.check_declaration_heritage(origin, symbol)?);
+        let conformance = InterfaceConformanceObligation { source, symbol };
+        checks.push(self.check_interface_conformance(origin, &conformance)?);
+        if is_extension {
+            let coherence = ImplementationCoherenceObligation { source, symbol };
+            checks.push(self.check_implementation_coherence(origin, &coherence)?);
+            let coherence = ExtensionCoherenceObligation { source, symbol };
+            checks.push(self.check_extension_coherence(&coherence)?);
+        }
 
-            // heritage, conformance, and coherence per declaration
-            let mut checks = Vec::new();
-            checks.push(self.check_declaration_heritage(origin, symbol)?);
-            let conformance = InterfaceConformanceObligation { source, symbol };
-            checks.push(self.check_interface_conformance(origin, &conformance)?);
-            if is_extension {
-                let coherence = ImplementationCoherenceObligation { source, symbol };
-                checks.push(self.check_implementation_coherence(origin, &coherence)?);
-                let coherence = ExtensionCoherenceObligation { source, symbol };
-                checks.push(self.check_extension_coherence(&coherence)?);
-            }
+        // check parameter use on generic declarations
+        if scope.is_some() && !is_extension && !is_alias {
+            checks.push(self.check_parameter_use(symbol)?);
+        }
 
-            // parameter use for generic declarations, coherence covers extensions
-            if scope.is_some() && !is_extension && !is_alias {
-                checks.push(self.check_parameter_use(symbol)?);
-            }
+        // check the layout of concrete nominals
+        if scope.is_none() && !is_extension {
+            let instance = self.declaration_instance(symbol)?;
+            let target = self.intern_type(dir::Type::Application(instance))?;
+            checks.push(self.check_representation(origin, target)?);
+        }
 
-            // layout for concrete nominals
-            if scope.is_none() && !is_extension {
-                let instance = self.declaration_instance(symbol)?;
-                let target = self.intern_type(dir::Type::Application(instance))?;
-                checks.push(self.check_representation(origin, target)?);
-            }
-
-            for decided in checks {
-                for failure in decided.into_failures() {
-                    self.report_obligation_failure(failure)?;
-                }
+        for decided in checks {
+            for failure in decided.into_failures() {
+                self.report_obligation_failure(failure)?;
             }
         }
 
@@ -222,12 +249,16 @@ impl CheckState<'_> {
         mut self,
         module: ModuleId,
     ) -> CompilerResult<(DirElaborated, Vec<DiagnosticRecord>)> {
-        self.write_back()?;
-
-        // resolve every member site this pass stored before the artifact publishes it
-        self.resolve_member_subjects(module)?;
-        let diagnostics = self.collect_diagnostics()?;
+        let diagnostics = self.write_elaborated(module)?;
 
         Ok((self.into_elaborated(module)?, diagnostics))
+    }
+
+    /// Write the elaborated module back with its member sites resolved.
+    fn write_elaborated(&mut self, module: ModuleId) -> CompilerResult<Vec<DiagnosticRecord>> {
+        self.write_back()?;
+        self.resolve_member_subjects(module)?;
+
+        self.collect_diagnostics()
     }
 }

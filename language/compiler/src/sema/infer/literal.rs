@@ -386,7 +386,7 @@ impl CheckState<'_> {
         };
         let symbol = *symbol;
         let binding = self
-            .binding_table(symbol.module_id)
+            .binding_table(symbol.module_id)?
             .get_symbol(symbol.local_id)
             .clone();
         if binding.binding_mutability != Some(dir::Mutability::Immutable) {
@@ -399,7 +399,7 @@ impl CheckState<'_> {
         };
         if self.module_maybe(declaration.module_id).is_none() {
             return Ok(self
-                .symbol_type_maybe(symbol)
+                .symbol_type_maybe(symbol)?
                 .map(|ty| self.is_literal_shape(ty))
                 .transpose()?
                 .unwrap_or(false));

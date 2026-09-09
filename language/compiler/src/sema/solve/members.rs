@@ -86,7 +86,7 @@ impl CheckState<'_> {
                 if !self.type_flags(ty)?.has_variable() {
                     return Ok(ty);
                 }
-                let ty = self.erase_instantiations(module, ty)?;
+                let ty = self.erase_instantiations(ty)?;
 
                 self.fully_resolve(ty)
             })?;
@@ -98,7 +98,6 @@ impl CheckState<'_> {
     /// Replace instantiation variables in one type with erased parameter holes.
     pub(in crate::sema) fn erase_instantiations(
         &mut self,
-        module: ModuleId,
         mut id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         for variable in self.type_variables(id)? {
@@ -107,7 +106,7 @@ impl CheckState<'_> {
             };
             let from = self.intern_type(dir::Type::Variable(variable))?;
             let to = self.intern_type(dir::Type::Erased(parameter))?;
-            id = self.replace_type(module, id, from, to)?;
+            id = self.replace_type(id, from, to)?;
         }
 
         Ok(id)
@@ -138,10 +137,11 @@ impl CheckState<'_> {
         let receiver = self.strip_form(origin, subject.receiver)?;
 
         // reference declaration-backed subjects by their owner and arguments
-        let instance = self.apparent_instance(subject.key_source)?;
+        let core = self.strip_form(origin, subject.key_source)?;
+        let instance = self.apparent_instance(core)?;
         let is_newtype = match &instance {
             Some(instance) => matches!(
-                self.definition(instance.symbol)?,
+                self.definition(instance.symbol)?.as_deref(),
                 Some(dir::Definition::Newtype(_))
             ),
             None => false,
@@ -163,7 +163,6 @@ impl CheckState<'_> {
             };
 
             // reference the matching extensions as sources beside the owner
-            let core = self.strip_form(origin, subject.key_source)?;
             let root = dir::TypeRoot::Declaration(instance.symbol);
             let extensions =
                 self.subject_extensions(origin, module, subject.receiver, core, root)?;

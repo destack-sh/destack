@@ -64,8 +64,9 @@ const plain: Required = { ...required, only: true } as Required;
 
 === dir ===
 interface Options {
+/// @generic.template symbol=Options parameters=(this: Options)
 /// @type.symbol symbol=Options type=Options
-/// @definition.interface symbol=Options
+/// @definition.interface symbol=Options template=(this: Options)
 /// @definition.where symbol=Options relation=satisfies left=this right=Options
 /// @definition.field symbol=Options.name source="name?: string" key=name type=string
 /// @definition.field symbol=Options.only source="only: boolean" key=only type=boolean
@@ -114,8 +115,9 @@ const widened = { only: "yes", ...options };
 /// @resolution.access source=options root=options
 
 interface Required {
+/// @generic.template symbol=Required parameters=(this: Required)
 /// @type.symbol symbol=Required type=Required
-/// @definition.interface symbol=Required
+/// @definition.interface symbol=Required template=(this: Required)
 /// @definition.where symbol=Required relation=satisfies left=this right=Required
 /// @definition.field symbol=Required.only source="only: boolean" key=only type=boolean
 /// @definition.field symbol=Required.retries source="retries: int32" key=retries type=int32
@@ -188,8 +190,9 @@ const fromRequired: Named = full as Named;
 
 === dir ===
 interface Named {
+/// @generic.template symbol=Named parameters=(this: Named)
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named
+/// @definition.interface symbol=Named template=(this: Named)
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name?: string" key=name type=string
 /// @definition.field symbol=Named.only source="only: boolean" key=only type=boolean
@@ -235,7 +238,7 @@ const fromRequired: Named = full;
 /// @resolution.pattern source=fromRequired kind=binding target=fromRequired
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=full target=full
-/// @resolution.place source=full placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=full placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=full root=full
 "#,
         r#"

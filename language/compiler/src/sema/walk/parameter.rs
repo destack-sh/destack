@@ -43,7 +43,7 @@ impl WalkState<'_, '_> {
         }
         let symbol = self.generic_parameter_symbol(id)?;
 
-        if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
+        if let Some(parameter) = self.check.parameter_by_symbol(symbol)? {
             return Ok(Some(parameter));
         }
 
@@ -131,7 +131,7 @@ impl WalkState<'_, '_> {
 
                 // induce elided bound borrows on the declaring template
                 let previous_owner = self.induced_owner;
-                if let Some(declared) = self.check.generic_template(template) {
+                if let Some(declared) = self.check.generic_template(template)? {
                     let induction =
                         InducedParameterOwner::new(declared.source, None, declared.symbol);
                     self.induced_owner = Some(induction);
@@ -192,6 +192,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Parameter>,
         parameter: &dir::Parameter,
         is_annotation_required: bool,
+        is_ambient: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         if !self.walk_decorators(id.into_any())? {
             return Ok(None);
@@ -216,8 +217,16 @@ impl WalkState<'_, '_> {
 
                 let parameter_type = self.walk_parameter_type(id)?;
 
+                // reject a default on an ambient signature
+                if let Some(default) = default.filter(|_| is_ambient) {
+                    self.check
+                        .report_parameter_initializer_outside_implementation(
+                            self.module,
+                            default.into_any(),
+                        );
+                }
                 // validate defaults while checking, the declaring pass copies them as written
-                if let Some(default) = default.filter(|_| !self.check.is_declaring()) {
+                else if let Some(default) = default.filter(|_| !self.check.is_declaring()) {
                     let before_default = self.fork_flow();
                     self.walk_expression(default, self.tree.get(default))?;
                     if let Some(parameter_type) = parameter_type {

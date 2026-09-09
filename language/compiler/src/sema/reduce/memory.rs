@@ -15,6 +15,8 @@ pub(in crate::sema) struct FormChain {
     base: dir::GlobalTypeId,
     /// The outermost reference form's referent place, or the declared nominal space.
     place: Option<dir::GlobalTypeId>,
+    /// The outermost borrow form's region.
+    region: Option<dir::GlobalTypeId>,
     /// Whether the base can still gain forms at instantiation.
     is_open: bool,
 }
@@ -38,8 +40,18 @@ impl FormChain {
     }
 
     /// Return the outermost referent place the chain records.
+    pub(in crate::sema) fn region(&self) -> Option<dir::GlobalTypeId> {
+        self.region
+    }
+
+    /// Return the outermost reference form's referent place.
     pub(in crate::sema) fn place(&self) -> Option<dir::GlobalTypeId> {
         self.place
+    }
+
+    /// Return the memory forms, outermost first.
+    pub(in crate::sema) fn forms(&self) -> &[dir::FormType] {
+        &self.forms
     }
 
     /// Return the outer ownership form and its payload.
@@ -219,7 +231,7 @@ impl CheckState<'_> {
         }
 
         // start from the space the declaration itself writes
-        let Some(definition) = self.definition(symbol)?.cloned() else {
+        let Some(definition) = self.definition(symbol)? else {
             active.shift_remove(&symbol);
 
             return Ok(None);
@@ -591,7 +603,7 @@ impl CheckState<'_> {
 
         // a managed form is the default only at the value's own pinned space
         if let dir::Form::Managed { place } = form {
-            let pinned = match self.ty(self.shallow_resolve(value)?)? {
+            let pinned = match self.resolved_ty(value)? {
                 dir::Type::Application(instance) => self.nominal_space(instance.symbol)?,
                 dir::Type::Reference(reference) => self.nominal_space(reference.symbol)?,
                 _ => None,
@@ -818,8 +830,9 @@ impl CheckState<'_> {
         let mut forms = SmallVec::<[dir::FormType; 2]>::new();
         let mut current = element;
         let mut place = None;
+        let mut region = None;
 
-        // collect memory forms outermost first, recording the first referent place
+        // collect memory forms outermost first, recording the first referent place and region
         loop {
             let root = self.shallow_resolve(current)?;
 
@@ -843,6 +856,9 @@ impl CheckState<'_> {
             let head = match form.form {
                 dir::Form::Borrowed(borrow) => {
                     let borrow = self.type_borrow(current.module_id, borrow)?;
+                    if region.is_none() {
+                        region = Some(borrow.region);
+                    }
                     if place.is_none()
                         && let resolved = self.shallow_resolve(borrow.region)?
                         && let dir::Type::Region(region) = self.ty(resolved)?
@@ -903,6 +919,7 @@ impl CheckState<'_> {
             forms,
             base: current,
             place,
+            region,
             is_open,
         })
     }
@@ -958,10 +975,10 @@ impl CheckState<'_> {
                     Some(dir::Ownership::Owned)
                 }
             }
-            // a nominal follows the declaration it instantiates
-            dir::Type::Application(instance) => {
-                let symbol = instance.symbol;
-                match self.definition(symbol)?.cloned() {
+            // a nominal follows the declaration it names
+            dir::Type::Application(dir::GenericApplication { symbol, .. })
+            | dir::Type::Reference(dir::TypeReference { symbol }) => {
+                match self.definition(symbol)?.as_deref() {
                     Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
                         Some(dir::Ownership::Managed)
                     }
@@ -992,8 +1009,7 @@ impl CheckState<'_> {
                 | dir::Form::Raw => form.form.ownership(),
             },
             // the open and symbolic types answer once inference settles them
-            dir::Type::Reference(_)
-            | dir::Type::Parameter(_)
+            dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::Variable(_)
             | dir::Type::This
@@ -1005,9 +1021,9 @@ impl CheckState<'_> {
             // intersections take the ownership their elements agree on
             dir::Type::Intersection(intersection) => {
                 let mut agreed = None;
-                let elements = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
+                let elements = self.type_ids(ty.module_id, intersection.elements)?;
                 for element in elements {
-                    let Some(default) = self.default_ownership(origin, element)? else {
+                    let Some(default) = self.default_ownership(origin, *element)? else {
                         continue;
                     };
                     match agreed {
@@ -1096,17 +1112,17 @@ impl CheckState<'_> {
     }
 
     /// Rebuild one form chain over a new base, innermost first.
-    fn wrap_forms(
+    pub(in crate::sema) fn wrap_forms(
         &mut self,
-        forms: &[dir::FormType],
+        forms: &[dir::Form],
         base: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut current = base;
 
         // layer the forms back on from the innermost outward
-        for entry in forms.iter().rev() {
+        for form in forms.iter().rev() {
             current = self.intern_type(dir::Type::Form(dir::FormType {
-                form: entry.form,
+                form: *form,
                 value: current,
             }))?;
         }
@@ -1154,11 +1170,12 @@ impl CheckState<'_> {
                 {
                     Ok(Some(element))
                 } else {
-                    let mut forms = chain.forms.clone();
-                    forms.push(dir::FormType {
-                        form: dir::Form::Readonly,
-                        value: chain.base,
-                    });
+                    let mut forms = chain
+                        .forms
+                        .iter()
+                        .map(|entry| entry.form)
+                        .collect::<SmallVec<[_; 2]>>();
+                    forms.push(dir::Form::Readonly);
 
                     Ok(Some(self.wrap_forms(&forms, chain.base)?))
                 }
@@ -1168,14 +1185,12 @@ impl CheckState<'_> {
                 let forms = chain
                     .forms
                     .iter()
-                    .copied()
-                    .filter(|entry| !matches!(entry.form, dir::Form::Readonly))
+                    .map(|entry| entry.form)
+                    .filter(|form| !matches!(form, dir::Form::Readonly))
                     .collect::<SmallVec<[_; 2]>>();
 
                 Ok(Some(self.wrap_forms(&forms, chain.base)?))
             }
-            // only a borrow reaches exclusive access
-            Some(dir::Access::Exclusive) => Ok(Some(self.intern_type(dir::Type::Never)?)),
             // stay stuck while the requested access is opaque
             _ => Ok(None),
         }
@@ -1198,10 +1213,14 @@ impl CheckState<'_> {
         };
 
         // rebuild the borrow, keeping every component the caller left out
-        let mut forms = chain.forms.clone();
-        if let dir::Form::Borrowed(borrow) = forms[position].form {
+        let mut forms = chain
+            .forms
+            .iter()
+            .map(|entry| entry.form)
+            .collect::<SmallVec<[_; 2]>>();
+        if let dir::Form::Borrowed(borrow) = forms[position] {
             let borrow = self.type_borrow(self.module_id, borrow)?;
-            forms[position].form = self.intern_borrow(
+            forms[position] = self.intern_borrow(
                 lifetime.unwrap_or(borrow.region),
                 access.unwrap_or(borrow.access),
             )?;

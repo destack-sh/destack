@@ -6,12 +6,12 @@ use crate::sema::{Bound, CheckId, CheckState, ExpectedType, Origin, Relation};
 /// Formatter for values recorded in check trace events.
 pub(in crate::sema) struct EventFormatter<'a, 'b> {
     /// The check state that owns tables referenced by trace ids.
-    pub(super) check: &'a CheckState<'b>,
+    pub(super) check: &'a mut CheckState<'b>,
 }
 
 impl<'a, 'b> EventFormatter<'a, 'b> {
     /// Create an event formatter for one check state.
-    pub(in crate::sema) fn new(check: &'a CheckState<'b>) -> Self {
+    pub(in crate::sema) fn new(check: &'a mut CheckState<'b>) -> Self {
         Self { check }
     }
 
@@ -173,11 +173,11 @@ impl<'a, 'b> EventFormatter<'a, 'b> {
                 .and_then(|binding| binding.declaration);
         }
 
-        // read the declaration from the loaded foreign module
-        let external = self.check.external_modules.get(&symbol.module_id)?;
+        // read the declaration from an already read foreign module
+        let external = self.check.external_modules.read(symbol.module_id)?;
 
         external
-            .bindings
+            .bindings()
             .get_symbol_maybe(symbol.local_id)
             .and_then(|binding| binding.declaration)
     }

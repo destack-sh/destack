@@ -59,7 +59,8 @@ impl CheckState<'_> {
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
+        let declared = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Newtype(definition)) = declared.as_deref() else {
             return Ok(None);
         };
         let symbol = instance.symbol;

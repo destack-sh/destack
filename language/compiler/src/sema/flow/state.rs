@@ -145,6 +145,8 @@ impl FlowBranch {
 /// One place assignment tracked by flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) enum AssignedPlace {
+    /// The base constructor call of a derived class constructor.
+    Delegated,
     /// A local or member declaration symbol.
     Symbol(dir::GlobalSymbolId),
     /// A member identified by receiver type and key.
@@ -308,6 +310,14 @@ impl FlowState {
     /// Return the current function body.
     pub(in crate::sema) fn current_function(&self) -> Option<&FunctionFrame> {
         self.functions.last()
+    }
+
+    /// Return the class the nearest enclosing constructor frame initializes.
+    pub(in crate::sema) fn enclosing_initializes(&self) -> Option<dir::GlobalSymbolId> {
+        self.functions
+            .iter()
+            .rev()
+            .find_map(|function| function.initializes)
     }
 
     /// Return the current function receiver.
@@ -547,6 +557,11 @@ impl FlowState {
             // allow every try target at module scope
             None => 0,
         }
+    }
+
+    /// Return whether one place is definitely assigned at the current point.
+    pub(in crate::sema) fn is_assigned(&self, place: AssignedPlace) -> bool {
+        self.assigned.contains(&place)
     }
 
     /// Add one place to the definitely assigned set.

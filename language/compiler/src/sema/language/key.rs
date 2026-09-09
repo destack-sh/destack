@@ -62,9 +62,8 @@ impl CheckState<'_> {
             // accept a shape key admitted by one of its index signatures
             dir::Type::Object(shape) => {
                 let key_type = self.static_key_type(key)?;
-                let signatures = self
-                    .object_index_signatures(ty.module_id, shape.index_signatures)?
-                    .to_vec();
+                let signatures =
+                    self.object_index_signatures(ty.module_id, shape.index_signatures)?;
                 for signature in signatures {
                     if self
                         .decide_relation(origin, Relation::Subtype, key_type, signature.key_type)?
@@ -79,9 +78,9 @@ impl CheckState<'_> {
 
             // accept when any union alternative may supply the member
             dir::Type::Union(union) => {
-                let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
+                let elements = self.type_ids(ty.module_id, union.elements)?;
                 for element in elements {
-                    if self.type_may_have_additional_member(origin, element, key, active)? {
+                    if self.type_may_have_additional_member(origin, *element, key, active)? {
                         return Ok(true);
                     }
                 }
@@ -91,9 +90,9 @@ impl CheckState<'_> {
 
             // accept when any conjunct may contribute the member
             dir::Type::Intersection(intersection) => {
-                let elements = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
+                let elements = self.type_ids(ty.module_id, intersection.elements)?;
                 for element in elements {
-                    if self.type_may_have_additional_member(origin, element, key, active)? {
+                    if self.type_may_have_additional_member(origin, *element, key, active)? {
                         return Ok(true);
                     }
                 }
@@ -115,18 +114,20 @@ impl CheckState<'_> {
             }
 
             // read extensibility from the nominal declaration
-            dir::Type::Application(instance) => match self.definition(instance.symbol)?.cloned() {
-                Some(dir::Definition::Interface(_)) => Ok(true),
-                Some(dir::Definition::Class(definition)) => Ok(!definition.is_final),
-                Some(dir::Definition::Newtype(_)) => {
-                    let Some(instance) = self.decompose_newtype(origin, ty)? else {
-                        return Ok(false);
-                    };
+            dir::Type::Application(instance) => {
+                match self.definition(instance.symbol)?.as_deref() {
+                    Some(dir::Definition::Interface(_)) => Ok(true),
+                    Some(dir::Definition::Class(definition)) => Ok(!definition.is_final),
+                    Some(dir::Definition::Newtype(_)) => {
+                        let Some(instance) = self.decompose_newtype(origin, ty)? else {
+                            return Ok(false);
+                        };
 
-                    self.type_may_have_additional_member(origin, instance.backing, key, active)
+                        self.type_may_have_additional_member(origin, instance.backing, key, active)
+                    }
+                    _ => Ok(false),
                 }
-                _ => Ok(false),
-            },
+            }
 
             // reject every remaining type, their member sets are closed
             _ => Ok(false),
@@ -174,7 +175,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::StaticKey>> {
         // read the key the referenced declaration denotes
         let source = expression.into_global_any(module);
-        let Some(symbol) = self.reference_symbol(source) else {
+        let Some(symbol) = self.reference_symbol(source)? else {
             return Ok(None);
         };
 
@@ -186,13 +187,8 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
-        // load static values from foreign declarations
-        if !self.is_own_module(symbol.module_id) {
-            self.import_external_module(symbol.module_id)?;
-        }
-
         // read the singleton value recorded during declaration checking
-        let Some(value) = self.static_value(symbol) else {
+        let Some(value) = self.static_value(symbol)? else {
             return Ok(None);
         };
 

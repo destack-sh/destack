@@ -49,8 +49,9 @@ const label: string = describe<int32>(&readonly one);
 
 === dir ===
 newtype interface Show {
+/// @generic.template symbol=Show parameters=(this: Show)
 /// @type.symbol symbol=Show type=Show
-/// @definition.interface symbol=Show nominal=true
+/// @definition.interface symbol=Show template=(this: Show) nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(&readonly this): string" slot=show type=<Show.show.'a>(this: &Show.show.'a readonly this) => string
 
@@ -88,7 +89,7 @@ function describe<T: Show>(value: &readonly T): string {
     return value.show();
     /// @resolution.name source=value target=describe.value
     /// @resolution.member source=value.show receiver=&describe.'a readonly T type=<Show.show.'a>(this: &Show.show.'a readonly T) => string kind=symbol target_receiver=&describe.'a readonly T target=Show.show
-    /// @resolution.call source=value.show() parameters=() return=string kind=symbol target=Show.show receiver=&describe.'a readonly T
+    /// @resolution.call source=value.show() parameters=() return=string regions=(describe.'a) kind=symbol target=Show.show receiver=&describe.'a readonly T
     /// @resolution.place source=value placement=describe.'a lifetime=describe.'a access="readonly"
     /// @resolution.access source=value root=describe.value
     /// @generic.instantiation id=Show.show<T> template=Show.show arguments=() owner=describe
@@ -103,7 +104,7 @@ const label = describe(&readonly one);
 /// @type.symbol symbol=label source=label type=string
 /// @resolution.pattern source=label kind=binding target=label
 /// @resolution.name source=describe target=describe
-/// @resolution.call source="describe(&readonly one)" parameters=(&'static readonly constant int32) arguments=(provided(&readonly one) as &'static readonly constant int32) return=string kind=symbol target=describe instance=describe<int32>
+/// @resolution.call source="describe(&readonly one)" parameters=(&'static readonly constant int32) arguments=(provided(&readonly one) as &'static readonly constant int32) return=string regions=("static" & "constant") kind=symbol target=describe instance=describe<int32>
 /// @generic.instantiation id=describe<int32> template=describe arguments=(int32)
 /// @resolution.name source=one target=one
 /// @resolution.place source=one placement="constant" lifetime="static" access="readonly"
@@ -709,8 +710,9 @@ const heard: string = bell.sound();
 
 === dir ===
 newtype interface Loud {
+/// @generic.template symbol=Loud parameters=(this: Loud)
 /// @type.symbol symbol=Loud type=Loud
-/// @definition.interface symbol=Loud nominal=true
+/// @definition.interface symbol=Loud template=(this: Loud) nominal=true
 /// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.sound source="sound(this): string" slot=sound type=(this: this) => string
 
@@ -721,8 +723,9 @@ newtype interface Loud {
 }
 
 newtype interface Quiet {
+/// @generic.template symbol=Quiet parameters=(this: Quiet)
 /// @type.symbol symbol=Quiet type=Quiet
-/// @definition.interface symbol=Quiet nominal=true
+/// @definition.interface symbol=Quiet template=(this: Quiet) nominal=true
 /// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.sound source="sound(this): string" slot=sound type=(this: this) => string
 

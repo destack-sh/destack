@@ -29,9 +29,11 @@ const byte = bytes[1];
 /// @resolution.place source=bytes placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.access source=bytes[1] root=bytes keys=[1]
-/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'static constant uint8, \"readonly\">)"
+/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'static constant uint8, \"readonly\">, regions=(\"static\" & \"constant\"))"
 /// @generic.instantiation id="index#1<uint8, 4, \"readonly\">" template=index#1 arguments=(uint8, 4, "readonly")
-/// @generic.instance id="index#1<uint8, 4, \"readonly\">" template=index#1 arguments=(uint8, 4, "readonly") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a FixedArray<T#1, N#1>, index.A>, isize) => WithAccess<&index#1.'a T#1, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a readonly FixedArray<uint8, 4>, isize) => &index#1.'a readonly uint8)
+/// @generic.instance id="WithAccess<&'bound0 FixedArray<uint8, 4>, \"readonly\">" template=WithAccess arguments=(&'bound0 FixedArray<uint8, 4>, "readonly")
+/// @generic.instance id="WithAccess<&'bound0 uint8, \"readonly\">" template=WithAccess arguments=(&'bound0 uint8, "readonly")
+/// @generic.instance id="index#1<uint8, 4, \"readonly\">" template=index#1 arguments=(uint8, 4, "readonly")
 "#,
     );
 }
@@ -112,7 +114,7 @@ const size = bytes.size;
 /// @type.node source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=bytes.size type=isize
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="size(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="size(parameters=(), arguments=(), return=isize, regions=(\"static\" & \"constant\"))"
 /// @resolution.place source=bytes placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
 /// @generic.instantiation id="size<uint8, 4>" template=size arguments=(uint8, 4)

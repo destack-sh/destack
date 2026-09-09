@@ -195,19 +195,15 @@ impl CheckState<'_> {
         }
 
         // read both element lists
-        let source_elements = self
-            .tuple_elements(source.module_id, source_tuple.elements)?
-            .to_vec();
-        let target_elements = self
-            .tuple_elements(target.module_id, target_tuple.elements)?
-            .to_vec();
+        let source_elements = self.tuple_elements(source.module_id, source_tuple.elements)?;
+        let target_elements = self.tuple_elements(target.module_id, target_tuple.elements)?;
         let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
 
         // consume source elements from the end for fixed targets after a rest
         let rest_index = target_elements.iter().position(|target| target.is_rest);
         let (target_elements, trailing_targets) = match rest_index {
             Some(rest_index) => target_elements.split_at(rest_index + 1),
-            None => (target_elements.as_slice(), &[][..]),
+            None => (target_elements, &[][..]),
         };
         let mut source_end = source_elements.len();
         for target in trailing_targets.iter().rev() {
@@ -713,14 +709,15 @@ impl CheckState<'_> {
         source: dir::TypeReference,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
         // read constructors from a class declaration only
-        let constructors: SmallVec<[dir::GlobalTypeId; 2]> = match self.definition(source.symbol)? {
-            Some(dir::Definition::Class(class)) => class
-                .constructors
-                .iter()
-                .map(|constructor| constructor.ty)
-                .collect(),
-            _ => SmallVec::new(),
-        };
+        let constructors: SmallVec<[dir::GlobalTypeId; 2]> =
+            match self.definition(source.symbol)?.as_deref() {
+                Some(dir::Definition::Class(class)) => class
+                    .constructors
+                    .iter()
+                    .map(|constructor| constructor.ty)
+                    .collect(),
+                _ => SmallVec::new(),
+            };
 
         // constructors return the declared instance in place of `this`
         let instance = self.declaration_instance(source.symbol)?;
@@ -946,7 +943,7 @@ impl CheckState<'_> {
         if !self.extend_generic_substitution(origin, &parameters, &mut substitution, &pairs)? {
             return Ok(None);
         }
-        if !self.relate_substitution_constraints(origin, template, &substitution)? {
+        if !self.relate_substitution_constraints(origin, template, &substitution, None)? {
             return Ok(None);
         }
 
@@ -954,7 +951,7 @@ impl CheckState<'_> {
         let mut arguments = Some(Vec::with_capacity(parameters.len()));
         for parameter in parameters.iter().copied() {
             // skip lifetimes, which erase from instance identity
-            let is_lifetime = self.generic_parameter(parameter).is_some_and(|binding| {
+            let is_lifetime = self.generic_parameter(parameter)?.is_some_and(|binding| {
                 binding.memory_parameter() == Some(dir::MemoryParameter::Region)
             });
             if is_lifetime {
@@ -992,6 +989,7 @@ impl CheckState<'_> {
         mut source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         receiver: Option<dir::GlobalTypeId>,
+        assumed: Option<&TypeSubstitution>,
     ) -> CompilerResult<Verdict> {
         // accept when any overload of an intersected callable satisfies it
         if let dir::Type::Intersection(intersection) = self.ty(source)? {
@@ -1000,8 +998,8 @@ impl CheckState<'_> {
                 .into();
             let mut verdict = Verdict::Fails;
             for element in elements {
-                verdict = verdict
-                    .or(self.relate_method(origin, cause, relation, element, target, receiver)?);
+                verdict = verdict.or(self
+                    .relate_method(origin, cause, relation, element, target, receiver, assumed)?);
                 if verdict == Verdict::Holds {
                     return Ok(Verdict::Holds);
                 }
@@ -1019,6 +1017,12 @@ impl CheckState<'_> {
             )
         ) {
             return self.constrain_type(origin, cause, relation, source, target);
+        }
+
+        // the found signature reads `this` as the receiver it is checked at
+        if let Some(receiver) = receiver {
+            let receiver = TypeSubstitution::default().with_receiver(receiver);
+            source = self.substitute_type(source, &receiver)?;
         }
 
         // bind the source's own generics against the required signature
@@ -1071,7 +1075,12 @@ impl CheckState<'_> {
                     &pairs,
                 )?;
                 if !is_bound
-                    || !self.relate_substitution_constraints(origin, template, &substitution)?
+                    || !self.relate_substitution_constraints(
+                        origin,
+                        template,
+                        &substitution,
+                        assumed,
+                    )?
                 {
                     return Ok(Verdict::Fails);
                 }
@@ -1228,7 +1237,7 @@ impl CheckState<'_> {
                 continue;
             }
             let kind = self
-                .generic_parameter(parameter)
+                .generic_parameter(parameter)?
                 .and_then(|binding| binding.memory_parameter());
             let fill = match kind {
                 Some(dir::MemoryParameter::Region) => {
@@ -1464,7 +1473,10 @@ impl CheckState<'_> {
             let rest = self.shallow_resolve(parameter.ty)?;
             match self.ty(rest)? {
                 dir::Type::Tuple(tuple) => {
-                    for element in self.tuple_elements(rest.module_id, tuple.elements)? {
+                    for element in self
+                        .tuple_elements(rest.module_id, tuple.elements)?
+                        .to_vec()
+                    {
                         expanded.push(ExpandedParameter {
                             ty: element.ty,
                             is_optional: element.is_optional,

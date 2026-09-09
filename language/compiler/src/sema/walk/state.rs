@@ -436,12 +436,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.import_external_module(symbol.module_id)?;
         let committed = self
             .check
-            .external_modules
-            .get(&symbol.module_id)
-            .and_then(|external| external.types.get_symbol_type_id(symbol));
+            .external(symbol.module_id)?
+            .and_then(|external| external.types().get_symbol_type_id(symbol));
         let Some(ty) = committed else {
             return Err(CompilerError::Internal {
                 message: format!("external symbol {symbol:?} has no imported type"),

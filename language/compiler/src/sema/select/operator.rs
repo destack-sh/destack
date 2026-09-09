@@ -5,8 +5,7 @@ use destack_dir as dir;
 use crate::sema::{
     Cause, CauseKind, CheckState, Expectation, FlowSite, InferMode, Obligation,
     OperatorExpressionResult, Origin, PlaceUse, ProtocolCall, Relation, RelationCheck, ValueUse,
-    VariableKind, Verdict, WritableTargetObligation, binary_operator_protocols,
-    unary_operator_protocols,
+    VariableKind, WritableTargetObligation, binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -107,7 +106,8 @@ impl CheckState<'_> {
                     );
                 }
 
-                let overlaps = self.types_may_overlap(origin, left_value, right_value)?;
+                let overlaps = self.has_strict_equality_witness(origin, left_value, right_value)?
+                    || self.types_may_overlap(origin, left_value, right_value)?;
                 if !overlaps {
                     self.report_invalid_strict_equality(origin, left, right)?;
                 }
@@ -219,8 +219,10 @@ impl CheckState<'_> {
         let left_site = self.visit_site(left_source)?;
         let left_value = self.expression_value(left_site, left)?;
 
-        // an owned operand selects the protocol of its family-default form
-        let protocol_operand = self.family_default_of_owned(right)?.unwrap_or(right);
+        // the operand selects the protocol at its value, an owned one at its family-default form
+        let protocol_operand = self
+            .family_default_of_owned(right_value)?
+            .unwrap_or(right_value);
         let protocols = binary_operator_protocols(operator);
         for protocol in protocols.iter() {
             let key = protocol.method.key(self.strings());
@@ -248,32 +250,6 @@ impl CheckState<'_> {
                 call,
                 writeback,
             );
-        }
-
-        // dispatch equality through the intrinsic partial equality conformance
-        if matches!(
-            operator,
-            dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
-        ) {
-            let left_operand = self.strip_form(origin, left)?;
-            let right = self.strip_form(origin, right)?;
-            let target = self.language_type(dir::LanguageItem::PartialEqual, &[right])?;
-            let decided = self.decide_relation(origin, Relation::Subtype, left_operand, target)?;
-            if decided != Verdict::Fails {
-                // commit the selection so later passes reuse this dispatch
-                let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
-
-                return self.commit_builtin_operands(
-                    origin,
-                    node,
-                    operator,
-                    (left_source, left),
-                    (right_source, right),
-                    [left_operand, right],
-                    result,
-                    writeback,
-                );
-            }
         }
 
         self.report_rejected_operator(node, origin, operator.text().to_string(), &[left, right])
@@ -879,21 +855,6 @@ impl CheckState<'_> {
         // visit the operand at its own site
         let operand_site = self.visit_site(source)?;
 
-        // parametric literal adaptation belongs only to the selected builtin
-        if matches!(self.ty(source_type)?, dir::Type::Literal(_))
-            && matches!(self.ty(target)?, dir::Type::Parameter(_))
-        {
-            let is_accepted =
-                self.is_builtin_scalar_representable(operand_site.origin(), source_type, target)?;
-            if !is_accepted {
-                return Err(CompilerError::Internal {
-                    message: "selected builtin operation rejects its literal operand".to_string(),
-                });
-            }
-
-            return Ok(());
-        }
-
         // concrete operands keep the ordinary checked value relation
         let cause = self.intern_cause(Cause::root(operand_site.origin(), CauseKind::Expression));
         let expectation = Expectation {
@@ -1054,26 +1015,16 @@ impl CheckState<'_> {
                 Ok(Some(widened))
             }
             (Some(_), None) => {
-                let adapts = match self.ty(right)? {
-                    dir::Type::Parameter(_) => {
-                        self.is_builtin_scalar_representable(origin, left, right)?
-                    }
-                    _ => self
-                        .decide_relation(origin, Relation::Subtype, left, right)?
-                        .holds(),
-                };
+                let adapts = self
+                    .decide_relation(origin, Relation::Subtype, left, right)?
+                    .holds();
 
                 Ok(adapts.then_some(right))
             }
             (None, Some(_)) => {
-                let adapts = match self.ty(left)? {
-                    dir::Type::Parameter(_) => {
-                        self.is_builtin_scalar_representable(origin, right, left)?
-                    }
-                    _ => self
-                        .decide_relation(origin, Relation::Subtype, right, left)?
-                        .holds(),
-                };
+                let adapts = self
+                    .decide_relation(origin, Relation::Subtype, right, left)?
+                    .holds();
 
                 Ok(adapts.then_some(left))
             }

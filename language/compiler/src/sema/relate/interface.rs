@@ -99,7 +99,7 @@ impl CheckState<'_> {
 
         // read the target interface declaration
         let (_, target_instance) = self.nominal_application(target)?;
-        let is_nominal = match self.definition(target_instance.symbol)? {
+        let is_nominal = match self.definition(target_instance.symbol)?.as_deref() {
             Some(dir::Definition::Interface(interface)) => interface.is_nominal,
             _ => {
                 return Err(CompilerError::Internal {
@@ -118,6 +118,15 @@ impl CheckState<'_> {
             return self.decide_relation(origin, Relation::Subtype, residual, source);
         }
 
+        // answer a rigid parameter through its bounds ahead of the implementations
+        if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)?
+            && self
+                .relate_parameter_bounds(origin, cause, relation, parameter, target)?
+                .holds()
+        {
+            return Ok(Verdict::Holds);
+        }
+
         // classify the interfaces the compiler decides itself
         let auto_interface = self
             .language_item(target_instance.symbol)?
@@ -125,20 +134,11 @@ impl CheckState<'_> {
             .filter(|interface| interface.has_builtin_implementation());
 
         // find the target interface in the source heritage closure
-        let application = if let dir::Type::Application(source_instance) = self.ty(source)? {
-            if source_instance.symbol == target_instance.symbol {
-                Some((source.module_id, source_instance))
-            } else {
-                let inherited =
-                    self.heritage_instance(origin, source, source, target_instance.symbol)?;
-
-                match inherited {
-                    Some(inherited) => Some(self.nominal_application(inherited)?),
-                    None => None,
-                }
+        let application = match self.ty(source)? {
+            dir::Type::Application(source_instance) => {
+                self.heritage_application(origin, source, &source_instance, target_instance.symbol)?
             }
-        } else {
-            None
+            _ => None,
         };
 
         // compare the selected interface arguments by their declared variance
@@ -165,7 +165,6 @@ impl CheckState<'_> {
         // select a visible extension implementation
         let implementation = self.decide_extension_implementation(
             origin,
-            relation,
             target.module_id,
             written_source,
             &target_instance,
@@ -176,12 +175,22 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // use intrinsic conformance when no declaration provides it
-        if let Some(auto_interface) = auto_interface {
-            let decided =
-                self.decide_intrinsic_interface(origin, source, target, auto_interface)?;
+        // decide intrinsic conformance on stored values
+        let decides_intrinsically = auto_interface == Some(dir::AutoInterface::DynamicSafe)
+            || !self.is_nominal_interface(source)?;
+        if decides_intrinsically {
+            // use the intrinsic conformance the compiler decides itself
+            if let Some(auto_interface) = auto_interface {
+                let decided =
+                    self.decide_intrinsic_interface(origin, source, target, auto_interface)?;
 
-            return Ok(decided.join_undecided(implemented));
+                return Ok(decided.join_undecided(implemented));
+            }
+
+            // conform through the heritage of an intrinsically implemented interface
+            if self.inherits_intrinsic_interface(origin, source, target_instance.symbol)? {
+                return Ok(Verdict::Holds);
+            }
         }
 
         // dynamic values carry their erased interface constraint
@@ -197,6 +206,59 @@ impl CheckState<'_> {
         Ok(implemented)
     }
 
+    /// Return whether one type applies a nominal interface.
+    fn is_nominal_interface(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let Some((_, instance)) = self.nominal_application_maybe(ty)? else {
+            return Ok(false);
+        };
+
+        Ok(matches!(
+            self.definition(instance.symbol)?.as_deref(),
+            Some(dir::Definition::Interface(interface)) if interface.is_nominal
+        ))
+    }
+
+    /// Return whether one type reaches an interface through an intrinsically implemented one.
+    pub(in crate::sema) fn inherits_intrinsic_interface(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        for interface in self.intrinsic_inheritors(origin, target)? {
+            let ty = self.language_type(dir::LanguageItem::from(interface), &[])?;
+            if self.decide_intrinsic_interface(origin, source, ty, interface)? == Verdict::Holds {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Return the intrinsically implemented interfaces extending one interface.
+    fn intrinsic_inheritors(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalSymbolId,
+    ) -> CompilerResult<SmallVec<[dir::AutoInterface; 2]>> {
+        // scan the builtin-implemented interfaces
+        let mut inheritors = SmallVec::new();
+        for interface in dir::AutoInterface::ALL {
+            if !interface.has_builtin_implementation() {
+                continue;
+            }
+            let item = dir::LanguageItem::from(interface);
+            if self.language_symbol(item)? == target {
+                continue;
+            }
+            let ty = self.language_type(item, &[])?;
+            if self.declared_conformance(origin, ty, ty, target)?.is_some() {
+                inheritors.push(interface);
+            }
+        }
+        Ok(inheritors)
+    }
+
     /// Relate two declaration members structurally.
     pub(in crate::sema) fn relate_member(
         &mut self,
@@ -206,11 +268,12 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         receiver: Option<dir::GlobalTypeId>,
+        assumed: Option<&TypeSubstitution>,
     ) -> CompilerResult<Verdict> {
         if role.is_callable() {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-            self.relate_method(origin, cause, relation, source, target, receiver)
+            self.relate_method(origin, cause, relation, source, target, receiver, assumed)
         } else {
             self.decide_relation(origin, relation, source, target)
         }
@@ -220,7 +283,6 @@ impl CheckState<'_> {
     pub(in crate::sema) fn match_implemented_interface(
         &mut self,
         origin: Origin,
-        relation: Relation,
         interface_module: ModuleId,
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
@@ -264,64 +326,35 @@ impl CheckState<'_> {
             let implemented = self.substitute_type(declared, &scratch)?;
             let implemented = self.shallow_resolve(implemented)?;
 
-            // select the implemented application naming the requested interface
+            // unify the header naming the requested interface with the requested arguments
             let (implemented_module, implemented_instance) =
                 self.nominal_application(implemented)?;
-            let (instance, matched) = if implemented_instance.symbol == interface.symbol {
-                (
-                    Some((implemented_module, implemented_instance)),
-                    implemented,
-                )
-            } else if let Some(inherited) = self.heritage_instance(
-                origin,
-                implemented,
-                scratch.receiver.unwrap_or(implemented),
-                interface.symbol,
-            )? {
-                (Some(self.nominal_application(inherited)?), inherited)
-            } else {
-                (None, implemented)
-            };
-
-            // bind the candidate's open arguments, then relate under the declared variance
-            let is_matched = match instance {
-                Some((instance_module, instance)) => {
-                    let arguments: SmallVec<[_; 8]> =
-                        self.type_ids(instance_module, instance.arguments)?.into();
-                    let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                    let form = self.default_variance_form(interface.symbol)?;
-                    let mut bound = Verdict::Holds;
-                    for (declared, requested) in arguments.iter().zip(&interface_arguments) {
-                        if self.root_variable(*declared)?.is_some() {
-                            bound = bound.and(self.constrain_type(
-                                origin,
-                                cause,
-                                Relation::Equal,
-                                *declared,
-                                *requested,
-                            )?);
-                        }
-                    }
-
-                    bound.holds()
-                        && self
-                            .relate_type_arguments(
-                                origin,
-                                cause,
-                                interface.symbol,
-                                form,
-                                relation,
-                                &arguments,
-                                &interface_arguments,
-                            )?
-                            .holds()
-                }
-                None => false,
-            };
+            if implemented_instance.symbol != interface.symbol {
+                continue;
+            }
+            let arguments: SmallVec<[_; 8]> = self
+                .type_ids(implemented_module, implemented_instance.arguments)?
+                .into();
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            let is_matched = self
+                .match_header_arguments(
+                    origin,
+                    cause,
+                    interface.symbol,
+                    &arguments,
+                    &interface_arguments,
+                )?
+                .holds();
 
             // commit the bindings of the first implementation that matched
             if is_matched {
                 *substitution = scratch;
+                let arguments = self.intern_type_ids(&arguments)?;
+                let matched =
+                    self.intern_type(dir::Type::Application(dir::GenericApplication {
+                        symbol: interface.symbol,
+                        arguments,
+                    }))?;
 
                 return Ok(Some(matched));
             }
@@ -358,8 +391,8 @@ impl CheckState<'_> {
                 message: format!("filled interface {base:?} has no application"),
             });
         };
-        let Some(dir::Definition::Interface(definition)) = self.definition(application.symbol)?
-        else {
+        let declared = self.definition(application.symbol)?;
+        let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "implementation target has no interface definition: {:?}",
@@ -512,7 +545,15 @@ impl CheckState<'_> {
                         return Ok(Verdict::Fails);
                     };
 
-                    self.relate_method(origin, cause, Relation::Storable, found, member_type, None)?
+                    self.relate_method(
+                        origin,
+                        cause,
+                        Relation::Storable,
+                        found,
+                        member_type,
+                        None,
+                        None,
+                    )?
                 }
                 // associated members use their selected value type
                 None => {
@@ -626,9 +667,15 @@ impl CheckState<'_> {
         };
         if is_function {
             return match family {
-                SignatureFamily::Call => {
-                    self.relate_method(origin, cause, Relation::Storable, source, required, None)
-                }
+                SignatureFamily::Call => self.relate_method(
+                    origin,
+                    cause,
+                    Relation::Storable,
+                    source,
+                    required,
+                    None,
+                    None,
+                ),
                 SignatureFamily::Construct => Ok(Verdict::Fails),
             };
         }
@@ -651,6 +698,7 @@ impl CheckState<'_> {
                 signature.ty,
                 required,
                 None,
+                None,
             )?);
             if verdict == Verdict::Holds {
                 return Ok(Verdict::Holds);
@@ -669,7 +717,8 @@ impl CheckState<'_> {
         // read the named interface definition
         let (_, instance) = self.nominal_application(interface)?;
         let symbol = instance.symbol;
-        let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? else {
+        let declared = self.definition(symbol)?;
+        let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!("interface requirements target {interface:?} is not an interface"),
             });
@@ -787,7 +836,8 @@ impl CheckState<'_> {
         required: &mut SmallVec<[InterfaceMember; 8]>,
     ) -> CompilerResult<()> {
         // read the interface declaration owning these members
-        let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? else {
+        let declared = self.definition(symbol)?;
+        let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!("interface member source {symbol:?} is not an interface"),
             });
@@ -816,7 +866,7 @@ impl CheckState<'_> {
                 dir::DefinitionMember::AssociatedType(associated) => associated.constraint,
                 _ => self.definition_member_type(&member)?,
             };
-            let has_default = self.definition_member_has_default(&member);
+            let has_default = self.definition_member_has_default(&member)?;
 
             // apply the interface arguments to the declared type
             let ty = match declared {
@@ -924,6 +974,7 @@ impl CheckState<'_> {
             applied.push(HeritageApplication {
                 source: heritage.source,
                 ty,
+                implementer: receiver,
             });
         }
 

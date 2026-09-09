@@ -247,6 +247,22 @@ impl CheckState<'_> {
         if propagates {
             self.propagate_try_residual(node.into_any(), value, site, Some(value_site))?;
         }
+        // trap must on the residual its branch splits off
+        else {
+            let origin = site.origin();
+            let residual = self.intern_operation(dir::TypeOperation::TryResidual { value })?;
+            let branch = self.select_try_branch(origin, value_site, value)?;
+            self.commit_decision(
+                node.into_any(),
+                dir::Decision::Residual(Box::new(dir::ResidualDecision {
+                    target: dir::ResidualTarget::Trap,
+                    residual,
+                    branch,
+                    from_residual: None,
+                })),
+            )?;
+        }
+
         self.commit_node_type(node.into_any(), output)?;
 
         Ok(())

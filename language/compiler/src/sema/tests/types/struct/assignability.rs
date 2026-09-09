@@ -36,8 +36,9 @@ value satisfies HasX;
 
 === dir ===
 interface HasX {
+/// @generic.template symbol=HasX parameters=(this: HasX)
 /// @type.symbol symbol=HasX type=HasX
-/// @definition.interface symbol=HasX
+/// @definition.interface symbol=HasX template=(this: HasX)
 /// @definition.where symbol=HasX relation=satisfies left=this right=HasX
 /// @definition.field symbol=HasX.x source="x: int32" key=x type=int32
 
@@ -66,7 +67,7 @@ const value: HasX = Point { x: 1 };
 
 value satisfies HasX;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
 /// @resolution.name source=HasX target=HasX
 "#,
@@ -119,8 +120,9 @@ picture satisfies Drawable;
 
 === dir ===
 newtype interface Named {
+/// @generic.template symbol=Named parameters=(this: Named)
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named nominal=true
+/// @definition.interface symbol=Named template=(this: Named) nominal=true
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
@@ -130,8 +132,9 @@ newtype interface Named {
 }
 
 interface Drawable extends Named {
+/// @generic.template symbol=Drawable parameters=(this: Drawable)
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable
+/// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.field symbol=Drawable.opacity source="opacity: float32" key=opacity type=float32
@@ -220,8 +223,9 @@ picture satisfies Drawable;
 
 === dir ===
 newtype interface Named {
+/// @generic.template symbol=Named parameters=(this: Named)
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named nominal=true
+/// @definition.interface symbol=Named template=(this: Named) nominal=true
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
@@ -231,8 +235,9 @@ newtype interface Named {
 }
 
 interface Drawable extends Named {
+/// @generic.template symbol=Drawable parameters=(this: Drawable)
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable
+/// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.field symbol=Drawable.opacity source="opacity: float32" key=opacity type=float32
@@ -330,7 +335,7 @@ const value: { readonly x: int32 } = point;
 
 value satisfies { readonly x: int32 };
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
 /// @type.symbol symbol=x#2 source="readonly x: int32" type=int32
 "#,
@@ -379,8 +384,9 @@ counter satisfies HasCount;
 
 === dir ===
 interface HasCount {
+/// @generic.template symbol=HasCount parameters=(this: HasCount)
 /// @type.symbol symbol=HasCount type=HasCount
-/// @definition.interface symbol=HasCount
+/// @definition.interface symbol=HasCount template=(this: HasCount)
 /// @definition.where symbol=HasCount relation=satisfies left=this right=HasCount
 /// @definition.field symbol=HasCount.count source="count?: int32" key=count type=int32
 
@@ -407,7 +413,7 @@ const counter: HasCount = Counter { count: 1 };
 
 counter satisfies HasCount;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=counter root=counter
 /// @resolution.name source=HasCount target=HasCount
 "#,
@@ -444,8 +450,9 @@ struct Point implements Drawable {
 
 === dir ===
 interface Drawable {
+/// @generic.template symbol=Drawable parameters=(this: Drawable)
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable
+/// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
@@ -500,22 +507,24 @@ struct Point implements Left, Right {}
 
 === dir ===
 interface Base<in out T> {}
-/// @generic.template symbol=Base parameters=(in out T)
+/// @generic.template symbol=Base parameters=(in out T, this: Base<T>)
 /// @type.symbol symbol=Base source="interface Base<in out T> {}" type=Base
-/// @definition.interface symbol=Base source="interface Base<in out T> {}" template=(in out T)
+/// @definition.interface symbol=Base source="interface Base<in out T> {}" template=(in out T, this: Base<T>)
 /// @definition.where symbol=Base source="interface Base<in out T> {}" relation=satisfies left=this right=Base<T>
 /// @type.symbol symbol=Base.T source="in out T" type=T
 
 interface Left extends Base<string> {}
+/// @generic.template symbol=Left parameters=(this: Left)
 /// @type.symbol symbol=Left source="interface Left extends Base<string> {}" type=Left
-/// @definition.interface symbol=Left source="interface Left extends Base<string> {}"
+/// @definition.interface symbol=Left source="interface Left extends Base<string> {}" template=(this: Left)
 /// @definition.where symbol=Left source="interface Left extends Base<string> {}" relation=satisfies left=this right=Left
 /// @definition.extends symbol=Left source=Base<string> target=Base<string>
 /// @resolution.name source=Base target=Base
 
 interface Right extends Base<int32> {}
+/// @generic.template symbol=Right parameters=(this: Right)
 /// @type.symbol symbol=Right source="interface Right extends Base<int32> {}" type=Right
-/// @definition.interface symbol=Right source="interface Right extends Base<int32> {}"
+/// @definition.interface symbol=Right source="interface Right extends Base<int32> {}" template=(this: Right)
 /// @definition.where symbol=Right source="interface Right extends Base<int32> {}" relation=satisfies left=this right=Right
 /// @definition.extends symbol=Right source=Base<int32> target=Base<int32>
 /// @resolution.name source=Base target=Base
@@ -679,7 +688,7 @@ const value: Point = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 "#,
         r#"

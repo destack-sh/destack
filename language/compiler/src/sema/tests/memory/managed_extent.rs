@@ -71,7 +71,7 @@ class World {
 
         this.player = Player { score: 1 };
         /// @resolution.receiver source=this kind=this declaration=World type=World
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.player kind=place
         /// @resolution.access source=this.player root=this keys=[player]
@@ -91,9 +91,9 @@ function read(world: World): int32 {
     /// @resolution.pattern source=player kind=binding target=read.player
     /// @resolution.name source=world target=read.world
     /// @resolution.member source=world.player receiver=World type=Player kind=field target_receiver=World key=player target=World.player target_type=Player
-    /// @resolution.place source=world placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=world placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=world root=read.world
-    /// @resolution.place source=world.player placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=world.player placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=world.player root=read.world keys=[player]
 
     return player.score;
@@ -187,7 +187,7 @@ class World {
 
         this.player = Player { score: 1 };
         /// @resolution.receiver source=this kind=this declaration=World type=World
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.player kind=place
         /// @resolution.access source=this.player root=this keys=[player]
@@ -212,9 +212,9 @@ function spawn(): &Player {
     return &world.player;
     /// @resolution.name source=world target=spawn.world
     /// @resolution.member source=world.player receiver=local World type=Player kind=field target_receiver=local World key=player target=World.player target_type=Player
-    /// @resolution.place source=world placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=world placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=world root=spawn.world
-    /// @resolution.place source=world.player placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=world.player placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=world.player root=spawn.world keys=[player]
 
 }

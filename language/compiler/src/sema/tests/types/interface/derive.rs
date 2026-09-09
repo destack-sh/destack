@@ -62,7 +62,7 @@ function requireEqual<T: Equal>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireEqual.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireEqual.value
 
 }
@@ -73,6 +73,8 @@ const value = requireEqual(Point { x: 1, y: 2 });
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(Point { x: 1, y: 2 })" parameters=(Point) arguments=(provided(Point { x: 1, y: 2 }) as Point) return=Point kind=symbol target=requireEqual instance=requireEqual<Point>
 /// @generic.instantiation id=requireEqual<Point> template=requireEqual arguments=(Point)
+/// @generic.instance id=PartialEqual.equal<Point> template=PartialEqual.equal arguments=()
+/// @generic.instance id=equal<int32> template=equal arguments=(int32)
 /// @generic.instance id=requireEqual<Point> template=requireEqual arguments=(Point)
 /// @resolution.name source=Point target=Point
 
@@ -81,6 +83,10 @@ value satisfies Point;
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @resolution.name source=Point target=Point
+
+/// @generic.template symbol=PartialEqual.equal parameters=('a, 'b)
+/// @type.symbol symbol=PartialEqual.equal type=<PartialEqual.equal.'a, PartialEqual.equal.'b>(this: &PartialEqual.equal.'a readonly Point, &PartialEqual.equal.'b readonly PartialEqual.T) => boolean
+/// @type.symbol symbol=PartialEqual.equal.other type=&PartialEqual.equal.'b readonly PartialEqual.T
 "#,
     );
 }
@@ -155,7 +161,7 @@ function requireEqual<T: Equal>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireEqual.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireEqual.value
 
 }
@@ -171,7 +177,7 @@ function requirePartial<T: PartialEqual>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requirePartial.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requirePartial.value
 
 }
@@ -239,8 +245,6 @@ node satisfies Node;
 === dir ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
-/// @generic.instance id=Box<Node> template=Box arguments=(Node)
-/// @generic.instance id=Unique<^Node> template=Unique arguments=(^Node)
 /// @definition.struct symbol=Node
 /// @definition.field symbol=Node.next source="next: Box<Node> | null" key=next type=Box<Node> | null
 /// @definition.field symbol=Node.value source="value: int32" key=value type=int32
@@ -250,6 +254,7 @@ struct Node {
 
     next: Box<Node> | null;
     /// @type.symbol symbol=Node.next source="next: Box<Node> | null" type=Box<Node> | null
+    /// @generic.instance id=Box<Node> template=Box arguments=(Node)
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=Node target=Node
 
@@ -266,7 +271,7 @@ function requireClone<T: Clone>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireClone.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireClone.value
 
 }
@@ -277,6 +282,11 @@ const node = requireClone(Node { value: 1, next: null });
 /// @resolution.name source=requireClone target=requireClone
 /// @resolution.call source="requireClone(Node { value: 1, next: null })" parameters=(Node) arguments=(provided(Node { value: 1, next: null }) as Node) return=Node kind=symbol target=requireClone instance=requireClone<Node>
 /// @generic.instantiation id=requireClone<Node> template=requireClone arguments=(Node)
+/// @generic.instance id="Clone.clone#2<Box<Node> | null>" template=Clone.clone#2 arguments=()
+/// @generic.instance id=Clone.clone#1<Node> template=Clone.clone#1 arguments=()
+/// @generic.instance id=Clone.clone#3<Node> template=Clone.clone#3 arguments=()
+/// @generic.instance id=clone<Node> template=clone arguments=(Node)
+/// @generic.instance id=clone<int32> template=clone arguments=(int32)
 /// @generic.instance id=requireClone<Node> template=requireClone arguments=(Node)
 /// @resolution.name source=Node target=Node
 
@@ -285,6 +295,13 @@ node satisfies Node;
 /// @resolution.place source=node placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=node root=node
 /// @resolution.name source=Node target=Node
+
+/// @generic.template symbol=Clone.clone#1 parameters=('a)
+/// @generic.template symbol=Clone.clone#2 parameters=('a)
+/// @generic.template symbol=Clone.clone#3 parameters=('a)
+/// @type.symbol symbol=Clone.clone#1 type=<Clone.clone#1.'a>(this: &Clone.clone#1.'a readonly Node) => ^Node
+/// @type.symbol symbol=Clone.clone#2 type=<Clone.clone#2.'a>(this: &Clone.clone#2.'a readonly Box<Node> | null) => ^Box<Node> | null
+/// @type.symbol symbol=Clone.clone#3 type=<Clone.clone#3.'a>(this: &Clone.clone#3.'a readonly Node) => ^Node
 "#,
     );
 }
@@ -369,7 +386,7 @@ function requireHash<T: Hash>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireHash.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireHash.value
 
 }
@@ -458,7 +475,7 @@ function requireCompare<T: Compare>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireCompare.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireCompare.value
 
 }
@@ -543,7 +560,7 @@ function requireEqual<T: Equal>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireEqual.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireEqual.value
 
 }
@@ -559,7 +576,7 @@ function requireHash<T: Hash>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireHash.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireHash.value
 
 }
@@ -570,6 +587,7 @@ const session = requireEqual(new Session());
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source="requireEqual(new Session())" parameters=(Session) arguments=(provided(new Session()) as Session) return=Session kind=symbol target=requireEqual instance=requireEqual<Session>
 /// @generic.instantiation id=requireEqual<Session> template=requireEqual arguments=(Session)
+/// @generic.instance id=PartialEqual.equal<Session> template=PartialEqual.equal arguments=()
 /// @generic.instance id=requireEqual<Session> template=requireEqual arguments=(Session)
 /// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=default
 /// @resolution.name source=Session target=Session
@@ -583,6 +601,10 @@ const hashed = requireHash(new Session());
 /// @generic.instance id=requireHash<Session> template=requireHash arguments=(Session)
 /// @resolution.construct source="new Session()" parameters=() return=Session kind=class target=Session constructor=default
 /// @resolution.name source=Session target=Session
+
+/// @generic.template symbol=PartialEqual.equal parameters=('a, 'b)
+/// @type.symbol symbol=PartialEqual.equal type=<PartialEqual.equal.'a, PartialEqual.equal.'b>(this: &PartialEqual.equal.'a readonly Session, &PartialEqual.equal.'b readonly PartialEqual.T) => boolean
+/// @type.symbol symbol=PartialEqual.equal.other type=&PartialEqual.equal.'b readonly PartialEqual.T
 "#,
     );
 }
@@ -894,7 +916,7 @@ function requireClone<T: Clone>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireClone.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireClone.value
 
 }
@@ -910,7 +932,7 @@ function requireEqual<T: Equal>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireEqual.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireEqual.value
 
 }
@@ -1026,11 +1048,12 @@ const same = a == b;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=a target=a
-/// @resolution.operator source="a == b" type=boolean operator="==" kind=call parameters=(&'static readonly constant Point) arguments=(provided(b) as &'static readonly constant Point) return=boolean kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance=PartialEqual<Point>.equal
+/// @resolution.operator source="a == b" type=boolean operator="==" kind=call parameters=(&'static readonly constant Point) arguments=(provided(b) as &'static readonly constant Point) return=boolean regions=("static" & "constant", "static" & "constant") kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance=PartialEqual<Point>.equal
 /// @resolution.place source=a placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=a root=a
 /// @generic.instantiation id="PartialEqual.equal<Point, Point>" template=PartialEqual.equal arguments=(Point)
-/// @generic.instance id="PartialEqual.equal<Point, Point>" template=PartialEqual.equal arguments=(Point)
+/// @generic.instance id=PartialEqual.equal#1<Point> template=PartialEqual.equal#1 arguments=()
+/// @generic.instance id=equal<int32> template=equal arguments=(int32)
 /// @resolution.name source=b target=b
 /// @resolution.place source=b placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=b root=b
@@ -1056,13 +1079,13 @@ const csame = s1 == s2;
 /// @type.symbol symbol=csame source=csame type=boolean
 /// @resolution.pattern source=csame kind=binding target=csame
 /// @resolution.name source=s1 target=s1
-/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(Borrowed<Session, "managed" & "local", "readonly">) arguments=(provided(s2) as Borrowed<Session, "managed" & "local", "readonly">) return=boolean kind=symbol target=PartialEqual.equal receiver=Session adjustments=(borrow(Borrowed<Session, "managed" & "local", "readonly">)) instance=PartialEqual<Session>.equal
-/// @resolution.place source=s1 placement="local" lifetime="managed" access="exclusive"
+/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(Borrowed<Session, "managed" & "local", "readonly">) arguments=(provided(s2) as Borrowed<Session, "managed" & "local", "readonly">) return=boolean regions=("managed" & "local", "managed" & "local") kind=symbol target=PartialEqual.equal receiver=Session adjustments=(borrow(Borrowed<Session, "managed" & "local", "readonly">)) instance=PartialEqual<Session>.equal
+/// @resolution.place source=s1 placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=s1 root=s1
 /// @generic.instantiation id="PartialEqual.equal<Session, Session>" template=PartialEqual.equal arguments=(Session)
-/// @generic.instance id="PartialEqual.equal<Session, Session>" template=PartialEqual.equal arguments=(Session)
+/// @generic.instance id=PartialEqual.equal#2<Session> template=PartialEqual.equal#2 arguments=()
 /// @resolution.name source=s2 target=s2
-/// @resolution.place source=s2 placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=s2 placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=s2 root=s2
 
 const cstrict = s1 === s2;
@@ -1070,10 +1093,10 @@ const cstrict = s1 === s2;
 /// @resolution.pattern source=cstrict kind=binding target=cstrict
 /// @resolution.name source=s1 target=s1
 /// @resolution.operator source="s1 === s2" type=boolean operator="===" kind=builtin operands=[s1 as Session, s2 as Session]
-/// @resolution.place source=s1 placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=s1 placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=s1 root=s1
 /// @resolution.name source=s2 target=s2
-/// @resolution.place source=s2 placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=s2 placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=s2 root=s2
 
 csame satisfies boolean;
@@ -1085,6 +1108,13 @@ cstrict satisfies boolean;
 /// @resolution.name source=cstrict target=cstrict
 /// @resolution.place source=cstrict placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=cstrict root=cstrict
+
+/// @generic.template symbol=PartialEqual.equal#1 parameters=('a, 'b)
+/// @generic.template symbol=PartialEqual.equal#2 parameters=('a, 'b)
+/// @type.symbol symbol=PartialEqual.equal#1 type=<PartialEqual.equal#1.'a, PartialEqual.equal#1.'b>(this: &PartialEqual.equal#1.'a readonly Point, &PartialEqual.equal#1.'b readonly Point) => boolean
+/// @type.symbol symbol=PartialEqual.equal#2 type=<PartialEqual.equal#2.'a, PartialEqual.equal#2.'b>(this: &PartialEqual.equal#2.'a readonly Session, &PartialEqual.equal#2.'b readonly Session) => boolean
+/// @type.symbol symbol=PartialEqual.equal.other#1 type=&PartialEqual.equal#1.'b readonly Point
+/// @type.symbol symbol=PartialEqual.equal.other#2 type=&PartialEqual.equal#2.'b readonly Session
 "#,
     );
 }
@@ -1248,7 +1278,7 @@ function requireClone<T: Clone>(value: T, seed: T): T {
 
     return value;
     /// @resolution.name source=value target=requireClone.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireClone.value
 
 }
@@ -1356,7 +1386,7 @@ function requireClone<T: Clone>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireClone.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireClone.value
 
 }
@@ -1437,7 +1467,7 @@ function requireClone<T: Clone>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=requireClone.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=requireClone.value
 
 }

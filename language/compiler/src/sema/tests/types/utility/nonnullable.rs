@@ -19,24 +19,24 @@ present satisfies string;
 === annotated ===
 type Present = NonNullable<string | null | undefined>;
 
-declare const present: string;
+declare const present: Present;
 
 present satisfies string;
 
 === dir ===
 type Present = NonNullable<string | null | undefined>;
-/// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=string
-/// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=string
+/// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=NonNullable<string | null | undefined>
+/// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=NonNullable<string | null | undefined>
 /// @resolution.name source=NonNullable target=NonNullable
 
 declare const present: Present;
-/// @type.symbol symbol=present source=present type=string
+/// @type.symbol symbol=present source=present type=Present
 /// @resolution.pattern source=present kind=binding target=present
 /// @resolution.name source=Present target=Present
 
 present satisfies string;
 /// @resolution.name source=present target=present
-/// @resolution.place source=present placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=present placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=present root=present
 "#,
     );
@@ -59,23 +59,24 @@ const bad: Present = null;
 === annotated ===
 type Present = NonNullable<string | null | undefined>;
 
-const bad: string = null;
+const bad: Present = null;
 
 === dir ===
 type Present = NonNullable<string | null | undefined>;
-/// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=string
-/// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=string
+/// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=NonNullable<string | null | undefined>
+/// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=NonNullable<string | null | undefined>
 /// @resolution.name source=NonNullable target=NonNullable
 
 const bad: Present = null;
-/// @type.symbol symbol=bad source=bad type=string
+/// @type.symbol symbol=bad source=bad type=Present
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Present target=Present
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'null' is not assignable to type 'string'"
+/// @diagnostic.error id=not-assignable message="type 'null' is not assignable to type 'Present'"
 /// @diagnostic.label line=4 column=22 span="null" line_source="const bad: Present = null;"
 /// @diagnostic.related line=4 column=12 span="Present" line_source="const bad: Present = null;" message="expected due to this annotation"
+/// @diagnostic.note message="'Present' reduces to 'string'"
 "#,
     );
 }
@@ -97,23 +98,24 @@ let bad: Present = "no";
 === annotated ===
 type Present = NonNullable<never>;
 
-let bad: never = "no";
+let bad: Present = "no";
 
 === dir ===
 type Present = NonNullable<never>;
-/// @type.symbol symbol=Present source="type Present = NonNullable<never>" type=never
-/// @definition.type symbol=Present source="type Present = NonNullable<never>" value=never
+/// @type.symbol symbol=Present source="type Present = NonNullable<never>" type=NonNullable<never>
+/// @definition.type symbol=Present source="type Present = NonNullable<never>" value=NonNullable<never>
 /// @resolution.name source=NonNullable target=NonNullable
 
 let bad: Present = "no";
-/// @type.symbol symbol=bad source=bad type=never
+/// @type.symbol symbol=bad source=bad type=Present
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Present target=Present
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'never'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Present'"
 /// @diagnostic.label line=4 column=20 span="\"no\"" line_source="let bad: Present = \"no\";"
 /// @diagnostic.related line=4 column=10 span="Present" line_source="let bad: Present = \"no\";" message="expected due to this annotation"
+/// @diagnostic.note message="'Present' reduces to 'never'"
 "#,
     );
 }
@@ -154,7 +156,7 @@ function keep<T: {}>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=keep.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=keep.value
 
 }

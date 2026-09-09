@@ -12,6 +12,7 @@ mod table;
 mod trace;
 
 pub(in crate::sema) use capture::*;
+pub(crate) use check::Pass;
 pub(in crate::sema) use check::*;
 pub(in crate::sema) use coroutine::*;
 pub(in crate::sema) use external::*;

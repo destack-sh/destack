@@ -72,7 +72,7 @@ impl DeclaredMember {
     /// Return the operations this member exposes over its substituted type.
     pub(in crate::sema) fn access(
         &self,
-        check: &CheckState<'_>,
+        check: &mut CheckState<'_>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::PropertyAccess> {
         let access = check.property_access(self.role, ty, !self.is_writable)?;
@@ -140,6 +140,8 @@ pub(in crate::sema) struct DeclaredSource {
     pub(in crate::sema) requirement: Option<dir::GlobalSymbolId>,
     /// The generic arguments matched through the owner.
     pub(in crate::sema) generic_arguments: Vec<dir::GenericArgumentBinding>,
+    /// The region arguments matched through the owner, erased from the instance key.
+    pub(in crate::sema) region_arguments: Vec<dir::GenericArgumentBinding>,
     /// The member static value when it carries one.
     pub(in crate::sema) value: Option<dir::GlobalStaticId>,
     /// The substituted static value of the member, when it has one.
@@ -166,6 +168,7 @@ impl DeclaredSource {
             origin,
             requirement: None,
             generic_arguments,
+            region_arguments: Vec::new(),
             value: None,
             value_type: None,
             bounds: Vec::new(),
@@ -349,12 +352,11 @@ impl MemberCandidate {
         let parameters = std::mem::take(&mut declared.site_parameters);
 
         // open one site variable per erased parameter
-        let module = origin.module();
         for parameter in parameters {
             let variable = body.open_instantiation(origin, parameter, VariableKind::Type)?;
             let fresh = body.variable_type(variable)?;
             let from = body.intern_type(dir::Type::Erased(parameter))?;
-            candidate.map_types(&mut |ty| body.replace_type(module, ty, from, fresh))?;
+            candidate.map_types(&mut |ty| body.replace_type(ty, from, fresh))?;
         }
 
         Ok(candidate)
@@ -408,6 +410,7 @@ impl MemberCandidate {
             access_type: ty,
             callable_type: self.callable,
             key: dir::InstanceKey::new(declared.symbol, declared.generic_arguments.clone()),
+            regions: declared.region_arguments.clone(),
         }
     }
 
@@ -904,7 +907,7 @@ impl CheckState<'_> {
 
             // expose the static space of a type held in a static term
             dir::Type::Static(value) => {
-                let term = self.r#static(value).clone();
+                let term = self.r#static(value)?.clone();
                 match term {
                     dir::StaticTerm::Type { ty } => self.lookup_subject_member(
                         origin,
@@ -1097,14 +1100,18 @@ impl CheckState<'_> {
                 )])
             }
 
-            // unions join member lookups across their elements
+            // unions join member lookups across their elements, else derive over the whole union
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(subject.module_id, union.elements)?.into();
-
-                self.lookup_union_member(
+                let lookup = self.lookup_union_member(
                     origin, module, receiver, subject, &elements, space, key, extensions, active,
-                )
+                )?;
+                if !lookup.is_empty() {
+                    return Ok(lookup);
+                }
+
+                self.lookup_derived_member(origin, subject, space, key)
             }
 
             // intersections expose each element's members
@@ -1186,13 +1193,13 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         extensions: ExtensionFilter,
     ) -> CompilerResult<MemberLookup> {
-        // consult the extensions rooted at a structural subject's constructor
+        // consult the extensions at a structural subject's constructor, then its derived members
         let Some(instance) = self.apparent_instance(lookup_type)? else {
             let value = self.strip_form(origin, lookup_type)?;
             if extensions == ExtensionFilter::Include
                 && let Some(root) = self.structural_root(value)?
             {
-                return self.lookup_extension_member(
+                let lookup = self.lookup_extension_member(
                     origin,
                     module,
                     receiver,
@@ -1200,10 +1207,12 @@ impl CheckState<'_> {
                     root,
                     space,
                     key,
-                );
+                )?;
+                if !lookup.is_empty() {
+                    return Ok(lookup);
+                }
             }
-
-            return Ok(Vec::new());
+            return self.lookup_derived_member(origin, value, space, key);
         };
 
         // look the key up on the named declaration
@@ -1241,18 +1250,13 @@ impl CheckState<'_> {
 
         // name a type alias's root declaration for statics, keeping the body for its own members
         let mut alias_body = None;
-        if let Some(dir::Definition::TypeAlias(alias)) = self.definition(symbol)? {
+        if let Some(dir::Definition::TypeAlias(alias)) = self.definition(symbol)?.as_deref() {
             let body = alias.value;
             alias_body = Some(body);
             if let Some(named) = self.type_symbol(body)? {
                 symbol = named;
                 arguments = &[];
             }
-        }
-
-        // load the declaration's module before reading its members
-        if !self.is_own_module(symbol.module_id) {
-            self.import_external_module(symbol.module_id)?;
         }
 
         // search inherent members first
@@ -1461,10 +1465,6 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         extensions: ExtensionFilter,
     ) -> CompilerResult<MemberLookup> {
-        if !self.is_own_module(instance.symbol.module_id) {
-            self.import_external_module(instance.symbol.module_id)?;
-        }
-
         // search inherent members first, from stored bindings for closed subjects
         let is_closed = !self.type_flags(subject)?.has_variable();
         let inherent = if is_closed {
@@ -1663,12 +1663,13 @@ impl CheckState<'_> {
                 Some(ty) if !(is_associated && is_rigid) => ty,
                 _ if is_associated => {
                     let arguments = self.intern_type_ids(&[])?;
+                    let qualifier = Some(instance.qualifier(self)?);
 
                     self.intern_member(dir::MemberType {
                         owner: receiver,
                         key,
                         arguments,
-                        qualifier: None,
+                        qualifier,
                     })?
                 }
                 _ => continue,
@@ -1711,7 +1712,7 @@ impl CheckState<'_> {
             let access = self.projected_member_access(origin, Some(receiver), &member, ty)?;
 
             // substitute static value types for projections
-            let written = match self.static_value(symbol) {
+            let written = match self.static_value(symbol)? {
                 Some(written) => Some(self.substitute_type(written, &substitution)?),
                 None => None,
             };
@@ -1721,6 +1722,7 @@ impl CheckState<'_> {
                 dir::MemberOrigin::Declaration,
                 generic_arguments,
             );
+            declared.region_arguments = self.resolved_region_bindings(&substitution.bindings)?;
             declared.value_type = written;
             candidates.push(MemberCandidate::declared(
                 declared, &member, access, callable,
@@ -1798,7 +1800,7 @@ impl CheckState<'_> {
                 if space == dir::MemberSpace::Instance
                     && let Some(instance) = self.apparent_instance(subject)?
                     && matches!(
-                        self.definition(instance.symbol)?,
+                        self.definition(instance.symbol)?.as_deref(),
                         Some(dir::Definition::Newtype(_))
                     )
                     && let Some(payload) = self.newtype_payload(origin, subject)?
@@ -1918,7 +1920,7 @@ impl CheckState<'_> {
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
         let symbol = reference.symbol;
-        let alias = match self.definition(symbol)? {
+        let alias = match self.definition(symbol)?.as_deref() {
             Some(dir::Definition::TypeAlias(alias)) => Some(alias.value),
             _ => None,
         };
@@ -2000,7 +2002,7 @@ impl CheckState<'_> {
         self.collect_definition_keys(symbol, space, keys)?;
 
         // read the base declarations and interfaces this declaration inherits
-        let heritages = match self.definition(symbol)? {
+        let heritages = match self.definition(symbol)?.as_deref() {
             Some(definition) => {
                 let mut heritages = definition
                     .bases()
@@ -2121,6 +2123,7 @@ impl dir::TypeFold for CandidateSource {
             Self::Declared(declared) => {
                 declared.value_type.map_types(map)?;
                 declared.generic_arguments.map_types(map)?;
+                declared.region_arguments.map_types(map)?;
                 declared.bounds.map_types(map)?;
                 declared.target.map_types(map)
             }

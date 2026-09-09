@@ -20,7 +20,7 @@ declare const name: Name;
 type User = { name: string; age: int32 };
 type Name = User["name"];
 
-declare const name: string;
+declare const name: Name;
 
 === dir ===
 type User = { name: string; age: int32 };
@@ -31,11 +31,11 @@ type User = { name: string; age: int32 };
 
 type Name = User["name"];
 /// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=string
-/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=string
+/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=User["name"]
 /// @resolution.name source=User target=User
 
 declare const name: Name;
-/// @type.symbol symbol=name source=name type=string
+/// @type.symbol symbol=name source=name type=Name
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 "#,
@@ -62,7 +62,7 @@ declare const value: Right;
 type Pair = { 0: string; 1: int32 };
 type Right = Pair[1];
 
-declare const value: int32;
+declare const value: Right;
 
 === dir ===
 type Pair = { 0: string; 1: int32 };
@@ -73,11 +73,11 @@ type Pair = { 0: string; 1: int32 };
 
 type Right = Pair[1];
 /// @type.symbol symbol=Right source="type Right = Pair[1]" type=int32
-/// @definition.type symbol=Right source="type Right = Pair[1]" value=int32
+/// @definition.type symbol=Right source="type Right = Pair[1]" value=Pair[1]
 /// @resolution.name source=Pair target=Pair
 
 declare const value: Right;
-/// @type.symbol symbol=value source=value type=int32
+/// @type.symbol symbol=value source=value type=Right
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Right target=Right
 "#,
@@ -110,7 +110,7 @@ type ObjectLike = { label: string };
 
 type Missing = ObjectLike[5];
 /// @type.symbol symbol=Missing source="type Missing = ObjectLike[5]" type=<error>
-/// @definition.type symbol=Missing source="type Missing = ObjectLike[5]" value=<error>
+/// @definition.type symbol=Missing source="type Missing = ObjectLike[5]" value=ObjectLike[5]
 /// @resolution.name source=ObjectLike target=ObjectLike
 "#,
         r#"
@@ -139,7 +139,7 @@ type Missing = int32["name"];
 === dir ===
 type Missing = int32["name"];
 /// @type.symbol symbol=Missing source="type Missing = int32[\"name\"]" type=<error>
-/// @definition.type symbol=Missing source="type Missing = int32[\"name\"]" value=<error>
+/// @definition.type symbol=Missing source="type Missing = int32[\"name\"]" value=int32["name"]
 "#,
         r#"
 /// @diagnostic.error id=invalid-index-receiver message="type 'int32' cannot be indexed"
@@ -168,7 +168,7 @@ declare const value: Value;
 type User = { name: string; age: int32 };
 type Value = User["name" | "age"];
 
-declare const value: string | int32;
+declare const value: Value;
 
 === dir ===
 type User = { name: string; age: int32 };
@@ -179,11 +179,11 @@ type User = { name: string; age: int32 };
 
 type Value = User["name" | "age"];
 /// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=string | int32
-/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=string | int32
+/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=User["name" | "age"]
 /// @resolution.name source=User target=User
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=string | int32
+/// @type.symbol symbol=value source=value type=Value
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
@@ -210,7 +210,7 @@ const bad: Value = true;
 type User = { name: string; age: int32 };
 type Value = User["name" | "age"];
 
-const bad: string | int32 = true;
+const bad: Value = true;
 
 === dir ===
 type User = { name: string; age: int32 };
@@ -221,18 +221,19 @@ type User = { name: string; age: int32 };
 
 type Value = User["name" | "age"];
 /// @type.symbol symbol=Value source="type Value = User[\"name\" | \"age\"]" type=string | int32
-/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=string | int32
+/// @definition.type symbol=Value source="type Value = User[\"name\" | \"age\"]" value=User["name" | "age"]
 /// @resolution.name source=User target=User
 
 const bad: Value = true;
-/// @type.symbol symbol=bad source=bad type=string | int32
+/// @type.symbol symbol=bad source=bad type=Value
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'string | int32'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
 /// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = true;" message="expected due to this annotation"
+/// @diagnostic.note message="'Value' reduces to 'string | int32'"
 "#,
     );
 }
@@ -260,8 +261,8 @@ type Left = { kind: "left"; value: int32 };
 type Right = { kind: "right"; value: string };
 type Value = (Left | Right)["value"];
 
-const number: int32 | string = 1 as int32 | string;
-const text: int32 | string = "hello" as int32 | string;
+const number: Value = 1 as Value;
+const text: Value = "hello" as Value;
 
 === dir ===
 type Left = { kind: "left"; value: int32 };
@@ -278,17 +279,17 @@ type Right = { kind: "right"; value: string };
 
 type Value = (Left | Right)["value"];
 /// @type.symbol symbol=Value source="type Value = (Left | Right)[\"value\"]" type=int32 | string
-/// @definition.type symbol=Value source="type Value = (Left | Right)[\"value\"]" value=int32 | string
+/// @definition.type symbol=Value source="type Value = (Left | Right)[\"value\"]" value=Left | Right["value"]
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
 
 const number: Value = 1;
-/// @type.symbol symbol=number source=number type=int32 | string
+/// @type.symbol symbol=number source=number type=Value
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Value target=Value
 
 const text: Value = "hello";
-/// @type.symbol symbol=text source=text type=int32 | string
+/// @type.symbol symbol=text source=text type=Value
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Value target=Value
 "#,
@@ -317,9 +318,9 @@ const text: Value = "hello";
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 type Value = Input["value"];
 
-const missing: float64 | string | undefined = undefined as float64 | string | undefined;
-const number: float64 | string | undefined = 1 as float64 | string | undefined;
-const text: float64 | string | undefined = "hello" as float64 | string | undefined;
+const missing: Value = undefined as Value;
+const number: Value = 1 as Value;
+const text: Value = "hello" as Value;
 
 === dir ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
@@ -332,21 +333,21 @@ type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 
 type Value = Input["value"];
 /// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | string | undefined
-/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=float64 | string | undefined
+/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=Input["value"]
 /// @resolution.name source=Input target=Input
 
 const missing: Value = undefined;
-/// @type.symbol symbol=missing source=missing type=float64 | string | undefined
+/// @type.symbol symbol=missing source=missing type=Value
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=Value target=Value
 
 const number: Value = 1;
-/// @type.symbol symbol=number source=number type=float64 | string | undefined
+/// @type.symbol symbol=number source=number type=Value
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Value target=Value
 
 const text: Value = "hello";
-/// @type.symbol symbol=text source=text type=float64 | string | undefined
+/// @type.symbol symbol=text source=text type=Value
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Value target=Value
 "#,
@@ -373,7 +374,7 @@ const bad: Value = true;
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 type Value = Input["value"];
 
-const bad: float64 | string | undefined = true;
+const bad: Value = true;
 
 === dir ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
@@ -386,18 +387,19 @@ type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 
 type Value = Input["value"];
 /// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | string | undefined
-/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=float64 | string | undefined
+/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=Input["value"]
 /// @resolution.name source=Input target=Input
 
 const bad: Value = true;
-/// @type.symbol symbol=bad source=bad type=float64 | string | undefined
+/// @type.symbol symbol=bad source=bad type=Value
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'float64 | string | undefined'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
 /// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = true;" message="expected due to this annotation"
+/// @diagnostic.note message="'Value' reduces to 'float64 | string | undefined'"
 "#,
     );
 }
@@ -429,7 +431,7 @@ type User = { name: string; age: int32 };
 
 type Missing = User["missing"];
 /// @type.symbol symbol=Missing source="type Missing = User[\"missing\"]" type=<error>
-/// @definition.type symbol=Missing source="type Missing = User[\"missing\"]" value=<error>
+/// @definition.type symbol=Missing source="type Missing = User[\"missing\"]" value=User["missing"]
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -459,7 +461,7 @@ declare const first: First;
 type Pair = (string, int32);
 type First = Pair[0];
 
-declare const first: string;
+declare const first: First;
 
 === dir ===
 type Pair = (string, int32);
@@ -468,11 +470,11 @@ type Pair = (string, int32);
 
 type First = Pair[0];
 /// @type.symbol symbol=First source="type First = Pair[0]" type=string
-/// @definition.type symbol=First source="type First = Pair[0]" value=string
+/// @definition.type symbol=First source="type First = Pair[0]" value=Pair[0]
 /// @resolution.name source=Pair target=Pair
 
 declare const first: First;
-/// @type.symbol symbol=first source=first type=string
+/// @type.symbol symbol=first source=first type=First
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=First target=First
 "#,
@@ -499,7 +501,7 @@ declare const value: Value;
 type Element<T: string[]> = T[usize];
 type Value = Element<string[]>;
 
-declare const value: string;
+declare const value: Value;
 
 === dir ===
 type Element<T: string[]> = T[usize];
@@ -507,32 +509,29 @@ type Element<T: string[]> = T[usize];
 /// @type.symbol symbol=Element source="type Element<T: string[]> = T[usize]" type=T[usize]
 /// @definition.type symbol=Element source="type Element<T: string[]> = T[usize]" template=(T: string[]) value=T[usize]
 /// @type.symbol symbol=Element.T source="T: string[]" type=T
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<string, \"exclusive\">" template=elementSlot arguments=(string, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive string[], usize) => &elementSlot.'a exclusive MaybeUninit<string>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<string>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<string>>, usize) => &elementSlot.'a exclusive MaybeUninit<string>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<string>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<string>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<string>>, usize) => &elementSlot.'a exclusive MaybeUninit<string>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive string[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<string>>)
-/// @generic.instance id="initAsPointer<string, \"exclusive\">" template=initAsPointer arguments=(string, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<string>) => Raw<string>)
-/// @generic.instance id="sliceIndex<MaybeUninit<string>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<string>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<string>>, usize) => &sliceIndex.'a exclusive MaybeUninit<string>)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id=Array<string> template=Array arguments=(string)
-/// @generic.instance id=MaybeUninit<MaybeUninit<string>> template=MaybeUninit arguments=(MaybeUninit<string>)
-/// @generic.instance id=MaybeUninit<string> template=MaybeUninit arguments=(string)
-/// @generic.instance id=assumeInitDrop#1<string> template=assumeInitDrop#1 arguments=(string)
-/// @generic.instance id=assumeInitDrop<string> template=assumeInitDrop arguments=(string) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<string>) => Raw<string>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<string>)
-/// @generic.instance id=clear<string> template=clear arguments=(string)
-/// @generic.instance id=drop<string> template=drop arguments=(string)
-/// @generic.instance id=dropInPlace<string> template=dropInPlace arguments=(string)
-/// @generic.instance id=new<MaybeUninit<string>> template=new arguments=(MaybeUninit<string>)
-/// @generic.instance id=sliceAssumeInit<MaybeUninit<string>> template=sliceAssumeInit arguments=(MaybeUninit<string>)
-/// @generic.instance id=sliceUninit<MaybeUninit<string>> template=sliceUninit arguments=(MaybeUninit<string>)
-/// @generic.instance id=truncate<string> template=truncate arguments=(string) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<string>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive string[], usize) => &truncate.'a exclusive MaybeUninit<string>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive string[])
 /// @resolution.name source=T target=Element.T
 
 type Value = Element<string[]>;
-/// @type.symbol symbol=Value source="type Value = Element<string[]>" type=string
-/// @definition.type symbol=Value source="type Value = Element<string[]>" value=string
+/// @type.symbol symbol=Value source="type Value = Element<string[]>" type=Element<string[]>
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="elementSlot<string, \"mutable\">" template=elementSlot arguments=(string, "mutable")
+/// @generic.instance id="initAsPointer<string, \"mutable\">" template=initAsPointer arguments=(string, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<string>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<string>, "mutable")
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @generic.instance id=Array<string> template=Array arguments=(string)
+/// @generic.instance id=assumeInitDrop#1<string> template=assumeInitDrop#1 arguments=(string)
+/// @generic.instance id=assumeInitDrop<string> template=assumeInitDrop arguments=(string)
+/// @generic.instance id=clear<string> template=clear arguments=(string)
+/// @generic.instance id=drop<string> template=drop arguments=(string)
+/// @generic.instance id=dropInPlace<string> template=dropInPlace arguments=(string)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<string>> template=sliceAssumeInit arguments=(MaybeUninit<string>)
+/// @generic.instance id=sliceUninit<MaybeUninit<string>> template=sliceUninit arguments=(MaybeUninit<string>)
+/// @generic.instance id=truncate<string> template=truncate arguments=(string)
+/// @definition.type symbol=Value source="type Value = Element<string[]>" value=Element<string[]>
 /// @resolution.name source=Element target=Element
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=string
+/// @type.symbol symbol=value source=value type=Value
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
@@ -561,7 +560,7 @@ type ValueAt<T, K: keyof T> = T[K];
 type User = { name: string; age: int32 };
 type Name = ValueAt<User, "name">;
 
-declare const name: string;
+declare const name: Name;
 
 === dir ===
 type ValueAt<T, K: keyof T> = T[K];
@@ -581,13 +580,13 @@ type User = { name: string; age: int32 };
 /// @type.symbol symbol=User.age source="age: int32" type=int32
 
 type Name = ValueAt<User, "name">;
-/// @type.symbol symbol=Name source="type Name = ValueAt<User, \"name\">" type=string
-/// @definition.type symbol=Name source="type Name = ValueAt<User, \"name\">" value=string
+/// @type.symbol symbol=Name source="type Name = ValueAt<User, \"name\">" type=ValueAt<User, "name">
+/// @definition.type symbol=Name source="type Name = ValueAt<User, \"name\">" value=ValueAt<User, "name">
 /// @resolution.name source=ValueAt target=ValueAt
 /// @resolution.name source=User target=User
 
 declare const name: Name;
-/// @type.symbol symbol=name source=name type=string
+/// @type.symbol symbol=name source=name type=Name
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 "#,
@@ -660,11 +659,11 @@ type User = {
     readonly age: int32;
 };
 
-function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }, key: K): User[K] {
+function get<K: keyof User>(user: User, key: K): User[K] {
     return user[key];
 }
 
-declare const user: { readonly name: string; readonly age: int32 };
+declare const user: User;
 const name: string = get<"name">(user, "name");
 const age: int32 = get<"age">(user, "age");
 
@@ -689,7 +688,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 /// @type.symbol symbol=get type=<K: keyof User>(User, K) => User[K]
 /// @type.symbol symbol=get.K source="K: keyof User" type=K
 /// @resolution.name source=User target=User
-/// @type.symbol symbol=get.user source="user: User" type={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=get.user source="user: User" type=User
 /// @resolution.name source=User target=User
 /// @type.symbol symbol=get.key source="key: K" type=K
 /// @resolution.name source=K target=get.K
@@ -697,22 +696,22 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 /// @resolution.name source=K target=get.K
 
     return user[key];
-    /// @type.node source=user type={ readonly name: string; readonly age: int32 }
+    /// @type.node source=user type=User
     /// @type.node source=user[key] type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.name source=user target=get.user
-    /// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=user root=get.user
-    /// @resolution.place source=user[key] placement="local" lifetime="managed" access="exclusive"
-    /// @resolution.subscript source=user[key] type={ readonly name: string; readonly age: int32 }[K] kind=member target="receiver={ readonly name: string; readonly age: int32 }, target=index(keyof { readonly name: string; readonly age: int32 }), type={ readonly name: string; readonly age: int32 }[K]"
+    /// @resolution.place source=user[key] placement="local" lifetime="managed" access="mutable"
+    /// @resolution.subscript source=user[key] type={ readonly name: string; readonly age: int32 }[K] kind=member target="receiver=User, target=index(keyof { readonly name: string; readonly age: int32 }), type={ readonly name: string; readonly age: int32 }[K]"
     /// @type.node source=key type=K
     /// @resolution.name source=key target=get.key
-    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=key placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=key root=get.key
 
 }
 
 declare const user: User;
-/// @type.symbol symbol=user source=user type={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
@@ -724,10 +723,10 @@ const name = get(user, "name");
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"name\")" parameters=(User, "name") arguments=(provided(user) as User, provided("name") as "name") return=User["name"] kind=symbol target=get instance="get<\"name\">"
 /// @generic.instantiation id="get<\"name\">" template=get arguments=("name")
-/// @generic.instance id="get<\"name\">" template=get arguments=("name") evaluated=({ readonly name: string; readonly age: int32 }[K] => string)
-/// @type.node source=user type={ readonly name: string; readonly age: int32 }
+/// @generic.instance id="get<\"name\">" template=get arguments=("name") dependents=(string)
+/// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 /// @type.node source="\"name\"" type="name"
 
@@ -739,10 +738,10 @@ const age = get(user, "age");
 /// @resolution.name source=get target=get
 /// @resolution.call source="get(user, \"age\")" parameters=(User, "age") arguments=(provided(user) as User, provided("age") as "age") return=User["age"] kind=symbol target=get instance="get<\"age\">"
 /// @generic.instantiation id="get<\"age\">" template=get arguments=("age")
-/// @generic.instance id="get<\"age\">" template=get arguments=("age") evaluated=({ readonly name: string; readonly age: int32 }[K] => int32)
-/// @type.node source=user type={ readonly name: string; readonly age: int32 }
+/// @generic.instance id="get<\"age\">" template=get arguments=("age") dependents=(int32)
+/// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 /// @type.node source="\"age\"" type="age"
 
@@ -750,7 +749,7 @@ name satisfies string;
 /// @type.node source="name satisfies string" type=string
 /// @type.node source=name type=string
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=name root=name
 
 age satisfies int32;
@@ -783,7 +782,7 @@ declare const name: Name;
 type User = { name?: string };
 type Name = User["name"];
 
-declare const name: string | undefined;
+declare const name: Name;
 
 === dir ===
 type User = { name?: string };
@@ -793,11 +792,11 @@ type User = { name?: string };
 
 type Name = User["name"];
 /// @type.symbol symbol=Name source="type Name = User[\"name\"]" type=string | undefined
-/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=string | undefined
+/// @definition.type symbol=Name source="type Name = User[\"name\"]" value=User["name"]
 /// @resolution.name source=User target=User
 
 declare const name: Name;
-/// @type.symbol symbol=name source=name type=string | undefined
+/// @type.symbol symbol=name source=name type=Name
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=Name target=Name
 "#,
@@ -824,7 +823,7 @@ declare const value: Value;
 type Bag = { readonly [key: string]: int32 };
 type Value = Bag["name"];
 
-declare const value: int32;
+declare const value: Value;
 
 === dir ===
 type Bag = { readonly [key: string]: int32 };
@@ -833,11 +832,11 @@ type Bag = { readonly [key: string]: int32 };
 
 type Value = Bag["name"];
 /// @type.symbol symbol=Value source="type Value = Bag[\"name\"]" type=int32
-/// @definition.type symbol=Value source="type Value = Bag[\"name\"]" value=int32
+/// @definition.type symbol=Value source="type Value = Bag[\"name\"]" value=Bag["name"]
 /// @resolution.name source=Bag target=Bag
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=int32
+/// @type.symbol symbol=value source=value type=Value
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
@@ -868,35 +867,35 @@ type Pair = keyof (string, int32);
 type Open = keyof [int32];
 type Fixed = keyof [int32; 3];
 
-declare const pair: 0 | 1;
-declare const open: usize;
-declare const fixed: 0 | 1 | 2;
+declare const pair: Pair;
+declare const open: Open;
+declare const fixed: Fixed;
 
 === dir ===
 type Pair = keyof (string, int32);
 /// @type.symbol symbol=Pair source="type Pair = keyof (string, int32)" type=0 | 1
-/// @definition.type symbol=Pair source="type Pair = keyof (string, int32)" value=0 | 1
+/// @definition.type symbol=Pair source="type Pair = keyof (string, int32)" value=keyof (string, int32)
 
 type Open = keyof [int32];
 /// @type.symbol symbol=Open source="type Open = keyof [int32]" type=usize
-/// @definition.type symbol=Open source="type Open = keyof [int32]" value=usize
+/// @definition.type symbol=Open source="type Open = keyof [int32]" value=keyof Slice<int32>
 
 type Fixed = keyof [int32; 3];
 /// @type.symbol symbol=Fixed source="type Fixed = keyof [int32; 3]" type=0 | 1 | 2
-/// @definition.type symbol=Fixed source="type Fixed = keyof [int32; 3]" value=0 | 1 | 2
+/// @definition.type symbol=Fixed source="type Fixed = keyof [int32; 3]" value=keyof FixedArray<int32, 3>
 
 declare const pair: Pair;
-/// @type.symbol symbol=pair source=pair type=0 | 1
+/// @type.symbol symbol=pair source=pair type=Pair
 /// @resolution.pattern source=pair kind=binding target=pair
 /// @resolution.name source=Pair target=Pair
 
 declare const open: Open;
-/// @type.symbol symbol=open source=open type=usize
+/// @type.symbol symbol=open source=open type=Open
 /// @resolution.pattern source=open kind=binding target=open
 /// @resolution.name source=Open target=Open
 
 declare const fixed: Fixed;
-/// @type.symbol symbol=fixed source=fixed type=0 | 1 | 2
+/// @type.symbol symbol=fixed source=fixed type=Fixed
 /// @resolution.pattern source=fixed kind=binding target=fixed
 /// @resolution.name source=Fixed target=Fixed
 "#,

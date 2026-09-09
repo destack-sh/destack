@@ -42,7 +42,7 @@ value satisfies int32;
 /// @type.node source="value satisfies int32" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -83,7 +83,7 @@ let { [key]: value } = point;
 /// @resolution.pattern source={ [key]: value } kind=object fields={}
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=key root=key
 /// @type.symbol symbol=value source=value type=<error>
 /// @type.node source=point type={ x: int32 }
@@ -136,7 +136,7 @@ declare const key: string;
 /// @resolution.pattern source=key kind=binding target=key
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type={ [key: string]: int32 }
+/// @type.symbol symbol=bag source=bag type=Bag
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -144,11 +144,11 @@ let { [key]: value } = bag;
 /// @resolution.pattern source={ [key]: value } kind=object fields={ subscript(member(receiver={ [key: string]: int32 }, target=index(string), type=int32 | undefined), int32 | undefined): value }
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=key root=key
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source=bag type={ [key: string]: int32 }
+/// @type.node source=bag type=Bag
 /// @resolution.name source=bag target=bag
 /// @resolution.access source=bag root=bag
 
@@ -156,7 +156,7 @@ value satisfies int32 | undefined;
 /// @type.node source="value satisfies int32 | undefined" type=int32 | undefined
 /// @type.node source=value type=int32 | undefined
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -188,7 +188,7 @@ type User = {
     readonly age: int32;
 };
 
-function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }, key: K): User[K] {
+function get<K: keyof User>(user: User, key: K): User[K] {
     let { [key]: value } = user;
     return value;
 }
@@ -211,7 +211,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
 /// @type.symbol symbol=get type=<K: keyof User>(User, K) => User[K]
 /// @type.symbol symbol=get.K source="K: keyof User" type=K
 /// @resolution.name source=User target=User
-/// @type.symbol symbol=get.user source="user: User" type={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=get.user source="user: User" type=User
 /// @resolution.name source=User target=User
 /// @type.symbol symbol=get.key source="key: K" type=K
 /// @resolution.name source=K target=get.K
@@ -222,18 +222,18 @@ function get<K: keyof User>(user: User, key: K): User[K] {
     /// @resolution.pattern source={ [key]: value } kind=object fields={ subscript(member(receiver={ readonly name: string; readonly age: int32 }, target=index(keyof { readonly name: string; readonly age: int32 }), type={ readonly name: string; readonly age: int32 }[K]), { readonly name: string; readonly age: int32 }[K]): get.value }
     /// @type.node source=key type=K
     /// @resolution.name source=key target=get.key
-    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=key placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=key root=get.key
     /// @type.symbol symbol=get.value source=value type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.pattern source=value kind=binding target=get.value
-    /// @type.node source=user type={ readonly name: string; readonly age: int32 }
+    /// @type.node source=user type=User
     /// @resolution.name source=user target=get.user
     /// @resolution.access source=user root=get.user
 
     return value;
     /// @type.node source=value type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.name source=value target=get.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=get.value
 
 }
@@ -284,7 +284,7 @@ value satisfies int32;
 /// @type.node source="value satisfies int32" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=value root=value
 "#,
     );

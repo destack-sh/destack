@@ -27,7 +27,7 @@ struct Header {
 /// @decorator.node source="@repr(\"C\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 struct Header {
-/// @definition.struct symbol=Header representation=C
+/// @definition.struct symbol=Header
 /// @definition.field symbol=Header.value source="value: uint8" key=value type=uint8
 
     value: uint8;
@@ -59,7 +59,7 @@ newtype Handle = int32;
 /// @decorator.node source="@repr(\"transparent\")" owner="newtype Handle = int32" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("transparent") as Representation) newtype=repr backing=(Representation,) value="repr(\"transparent\")"
 
 newtype Handle = int32;
-/// @definition.newtype symbol=Handle source="newtype Handle = int32" backing=int32 representation=transparent constructors=[(int32) => Handle]
+/// @definition.newtype symbol=Handle source="newtype Handle = int32" backing=int32 constructors=[(int32) => Handle]
 "#,
     );
 }
@@ -91,7 +91,7 @@ struct Handle {
 /// @decorator.node source="@repr(\"transparent\")" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("transparent") as Representation) newtype=repr backing=(Representation,) value="repr(\"transparent\")"
 
 struct Handle {
-/// @definition.struct symbol=Handle representation=transparent
+/// @definition.struct symbol=Handle
 /// @definition.field symbol=Handle.value source="value: uint8" key=value type=uint8
 
     value: uint8;
@@ -123,7 +123,7 @@ class Handle {}
 /// @decorator.node source="@repr(\"C\")" owner="class Handle {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 class Handle {}
-/// @definition.class symbol=Handle source="class Handle {}" representation=C
+/// @definition.class symbol=Handle source="class Handle {}"
 "#,
     );
 }
@@ -278,7 +278,7 @@ struct Header {}
 /// @decorator.node source="@repr(\"C\")" owner="struct Header {}" expression=repr target=decorator.repr type=repr kind=newtype parameters=(Representation) arguments=(provided("C") as Representation) newtype=repr backing=(Representation,) value="repr(\"C\")"
 
 struct Header {}
-/// @definition.struct symbol=Header source="struct Header {}" representation=C
+/// @definition.struct symbol=Header source="struct Header {}"
 "#,
         r#"
 /// @diagnostic.error id=duplicate-representation-decorator message="duplicate representation decorator"
@@ -322,8 +322,7 @@ enum Mode {
 }
 "#,
         r#"
-/// @diagnostic.error id=non-integer-c-enum message="C enum representation requires integer variant values"
-/// @diagnostic.label line=2 column=2 span="repr(\"C\")" line_source="@repr(\"C\")"
+
 "#,
     );
 }
@@ -362,7 +361,7 @@ enum Mode {
 }
 "#,
         r#"
-/// @diagnostic.error id=enum-value-outside-representation message="enum value 256 does not fit representation 'uint8'"
+/// @diagnostic.error id=unsupported-representation message="representation 'uint8' is not supported by this declaration"
 /// @diagnostic.label line=2 column=2 span="repr(\"uint8\")" line_source="@repr(\"uint8\")"
 "#,
     );

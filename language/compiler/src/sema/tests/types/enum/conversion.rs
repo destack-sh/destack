@@ -35,7 +35,7 @@ const mode: Mode = 1;
 
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
-/// @definition.enum symbol=Mode backing=uint8 representation=uint8
+/// @definition.enum symbol=Mode
 /// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
 /// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
 
@@ -65,6 +65,8 @@ const mode: Mode = 1;
 /// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'Mode'"
 /// @diagnostic.label line=9 column=20 span="1" line_source="const mode: Mode = 1;"
 /// @diagnostic.related line=9 column=13 span="Mode" line_source="const mode: Mode = 1;" message="expected due to this annotation"
+/// @diagnostic.error id=unsupported-representation message="representation 'uint8' is not supported by this declaration"
+/// @diagnostic.label line=2 column=2 span="repr(\"uint8\")" line_source="@repr(\"uint8\")"
 "#,
     );
 }
@@ -122,7 +124,7 @@ const backing: uint8 = mode as uint8;
 
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
-/// @definition.enum symbol=Mode backing=uint8 representation=uint8
+/// @definition.enum symbol=Mode
 /// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
 /// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
 
@@ -183,7 +185,12 @@ const backing = mode as uint8;
 /// @resolution.name source=mode target=mode
 /// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=mode root=mode
-"#, r#""#);
+"#, r#"
+/// @diagnostic.error id=invalid-cast message="type 'Mode' cannot be cast to 'uint8'"
+/// @diagnostic.label line=19 column=17 span="mode" line_source="const backing = mode as uint8;"
+/// @diagnostic.error id=unsupported-representation message="representation 'uint8' is not supported by this declaration"
+/// @diagnostic.label line=2 column=2 span="repr(\"uint8\")" line_source="@repr(\"uint8\")"
+"#);
 }
 
 /// An enum rejects casts to a mismatched literal or from an undecided value.
@@ -237,7 +244,7 @@ const undecided: 1 = mode as 1;
 
 enum Mode {
 /// @type.symbol symbol=Mode type=Mode
-/// @definition.enum symbol=Mode backing=uint8 representation=uint8
+/// @definition.enum symbol=Mode
 /// @definition.variant symbol=Mode.Read source="Read = 1" key=Read value=1
 /// @definition.variant symbol=Mode.Write source="Write = 2" key=Write value=2
 
@@ -299,6 +306,8 @@ const undecided = mode as 1;
 /// @diagnostic.label line=17 column=17 span="direction" line_source="const guessed = direction as \"UP\";"
 /// @diagnostic.error id=invalid-cast message="type 'Mode' cannot be cast to '1'"
 /// @diagnostic.label line=18 column=19 span="mode" line_source="const undecided = mode as 1;"
+/// @diagnostic.error id=unsupported-representation message="representation 'uint8' is not supported by this declaration"
+/// @diagnostic.label line=2 column=2 span="repr(\"uint8\")" line_source="@repr(\"uint8\")"
 "#);
 }
 
@@ -356,7 +365,7 @@ function pick(kind?: Kind): Kind {
     return kind ?? Kind.Internal;
     /// @resolution.name source=kind target=pick.kind
     /// @resolution.operator source="kind ?? Kind.Internal" type=Kind operator="??" kind=builtin operands=[kind as Kind | undefined families=(Kind | undefined), Kind.Internal as Kind.Internal families=(Kind)]
-    /// @resolution.place source=kind placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=kind placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=kind root=pick.kind
     /// @resolution.name source=Kind target=Kind
     /// @resolution.member source=Kind.Internal receiver=Kind type=Kind.Internal kind=symbol target_receiver=Kind target=Kind.Internal

@@ -32,16 +32,7 @@ impl CheckState<'_> {
         mut self,
         module: ModuleId,
     ) -> CompilerResult<(DirChecked, Vec<DiagnosticRecord>)> {
-        self.write_back()?;
-
-        // commit conformances and the module, then collect its diagnostics
-        let recorder = self.recorder;
-        ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || {
-            self.commit_instance_conformances(module)?;
-
-            self.write_module(module)
-        })?;
-        let diagnostics = self.collect_diagnostics()?;
+        let diagnostics = self.write_checked(module)?;
 
         // keep only resolutions the declared stage already carries
         if let Some(stage) = self.module.declared.clone() {
@@ -51,5 +42,15 @@ impl CheckState<'_> {
         let checked = self.into_checked(module)?;
 
         Ok((checked, diagnostics))
+    }
+
+    /// Write the checked module back and collect its diagnostics.
+    fn write_checked(&mut self, module: ModuleId) -> CompilerResult<Vec<DiagnosticRecord>> {
+        self.write_back()?;
+        self.write_copies(module)?;
+        let recorder = self.recorder;
+        ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || self.write_module(module))?;
+
+        self.collect_diagnostics()
     }
 }

@@ -306,8 +306,10 @@ impl CheckState<'_> {
                 (
                     dir::TypeOperation::TemplateLiteral(source),
                     dir::TypeOperation::TemplateLiteral(target),
-                ) if self.template_strings(source_module, source.strings)?
-                    == self.template_strings(target_module, target.strings)? =>
+                ) if {
+                    let source_strings = self.template_strings(source_module, source.strings)?;
+                    source_strings == self.template_strings(target_module, target.strings)?
+                } =>
                 {
                     (
                         SmallVec::from_slice(self.type_ids(source_module, source.spans)?),
@@ -569,14 +571,23 @@ impl CheckState<'_> {
                 self.match_generic_type(origin, parameters, substitution, pattern, wrapped)
             }
 
-            // decompose fixed slots beneath one shared constructor
+            // match fixed slots under one shared constructor first
             (pattern_type, actual_type) => {
                 if let Some(pairs) = self.decompose_type_pair(pattern, actual)? {
-                    return self.match_generic_arguments(origin, parameters, substitution, &pairs);
-                }
+                    if self.match_generic_arguments(origin, parameters, substitution, &pairs)? {
+                        return Ok(true);
+                    }
 
+                    // relate two stuck computations once reduced
+                    let computes = |ty: &dir::Type| {
+                        matches!(ty, dir::Type::Member(_) | dir::Type::Operation(_))
+                    };
+                    if !computes(&pattern_type) && !computes(&actual_type) {
+                        return Ok(false);
+                    }
+                }
                 // accept two heads that already name the same constructor
-                if pattern_type == actual_type {
+                else if pattern_type == actual_type {
                     return Ok(true);
                 }
 

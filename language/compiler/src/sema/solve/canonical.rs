@@ -26,7 +26,7 @@ impl CheckState<'_> {
         }
 
         // key assumed operands under their assuming scope
-        let Some(scope) = self.decision_scope(origin, flags)? else {
+        let Some(scope) = self.decision_scope(origin, &resolved)? else {
             return Ok(None);
         };
         let operands = self.intern_type_ids(&resolved)?;
@@ -58,13 +58,16 @@ impl CheckState<'_> {
         self.goal_key(origin, goal, &keyed)
     }
 
-    /// Return the scope closed operands decide under: the assuming template of parameter or
-    /// this content, none for such content outside checking.
+    /// Return the scope closed operands decide under.
     pub(in crate::sema) fn decision_scope(
         &mut self,
         origin: Origin,
-        flags: dir::TypeFlags,
+        operands: &[dir::GlobalTypeId],
     ) -> CompilerResult<Option<Option<dir::GlobalGenericTemplateId>>> {
+        let mut flags = dir::TypeFlags::EMPTY;
+        for operand in operands {
+            flags |= self.type_flags(*operand)?;
+        }
         if !flags.has_parameter() && !flags.has_this() {
             return Ok(Some(None));
         }

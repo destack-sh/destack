@@ -11,7 +11,7 @@ const REIFY_DEPTH: usize = 32;
 /// Synthesizes type and static expression nodes from solved check types.
 pub(super) struct TypeReifier<'a, 'b> {
     /// The solved module state read for type structure.
-    check: &'a CheckState<'b>,
+    pub(super) check: &'a mut CheckState<'b>,
     /// The amended output tree receiving synthesized nodes.
     pub(super) tree: dir::Tree,
     /// The string pool shared with the formatted module.
@@ -22,7 +22,11 @@ pub(super) struct TypeReifier<'a, 'b> {
 
 impl<'a, 'b> TypeReifier<'a, 'b> {
     /// Create a type reifier for one cloned module tree.
-    pub(super) fn new(check: &'a CheckState<'b>, tree: dir::Tree, strings: &'a StringPool) -> Self {
+    pub(super) fn new(
+        check: &'a mut CheckState<'b>,
+        tree: dir::Tree,
+        strings: &'a StringPool,
+    ) -> Self {
         Self {
             check,
             tree,
@@ -83,7 +87,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     ) -> CompilerResult<bool> {
         let is_place = self
             .check
-            .generic_parameter(binding.parameter)
+            .generic_parameter(binding.parameter)?
             .is_some_and(|parameter| {
                 parameter.memory_parameter() == Some(dir::MemoryParameter::Place)
             });
@@ -133,9 +137,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     /// Reify one generic parameter binding into a synthesized parameter node.
     pub(super) fn reify_generic_parameter(
         &mut self,
+        parameter: dir::GlobalGenericParameterId,
         binding: &dir::GenericParameterBinding,
     ) -> CompilerResult<Option<dir::LocalNodeId<dir::GenericParameter>>> {
-        let Some(name) = self.generic_parameter_name(binding) else {
+        let Some(name) = self.generic_parameter_name(parameter)? else {
             return Ok(None);
         };
 
@@ -178,26 +183,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let mutability = match access {
             dir::Access::Mutable => dir::Mutability::Mutable,
             dir::Access::Readonly => dir::Mutability::Immutable,
-            dir::Access::Exclusive => dir::Mutability::Exclusive,
         };
 
         // name the tick parameter or reserved lifetime literal
-        let name = match self.check.ty(self.check.shallow_resolve(lifetime)?)? {
+        let name = match self.check.resolved_ty(lifetime)? {
             // read a tick parameter back through its binding
             dir::Type::Parameter(parameter) => {
-                let Some(binding) = self.check.generic_parameter(parameter) else {
+                let Some(name) = self.generic_parameter_name(parameter)? else {
                     return Ok(None);
-                };
-
-                let name = match binding.key {
-                    dir::GenericParameterKey::Symbol(symbol) => {
-                        let Some(name) = self.symbol_name(symbol) else {
-                            return Ok(None);
-                        };
-
-                        name
-                    }
-                    dir::GenericParameterKey::Generated(name) => name,
                 };
                 if !self.check.strings().get(name).starts_with('\'') {
                     return Ok(None);
@@ -336,7 +329,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 dir::TypeExpression::Literal { value }
             }
             // a static singleton reifies through its literal term
-            dir::Type::Static(value) => match self.check.r#static(value) {
+            dir::Type::Static(value) => match self.check.r#static(value)? {
                 dir::StaticTerm::Literal { value } => {
                     dir::TypeExpression::Literal { value: *value }
                 }
@@ -365,14 +358,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
             // parameters and declaration references reify by their source name
             dir::Type::Parameter(parameter) => {
-                let Some(name) = self.generic_parameter_name_by_id(parameter) else {
+                let Some(name) = self.generic_parameter_name(parameter)? else {
                     return Ok(None);
                 };
 
                 Self::reference(name)
             }
             dir::Type::Reference(reference) => {
-                let Some(name) = self.symbol_name(reference.symbol) else {
+                let Some(name) = self.symbol_name(reference.symbol)? else {
                     return Ok(None);
                 };
 
@@ -388,7 +381,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
             // every other nominal instance reifies as a named reference with arguments
             dir::Type::Application(instance) => {
-                let Some(name) = self.symbol_name(instance.symbol) else {
+                let Some(name) = self.symbol_name(instance.symbol)? else {
                     return Ok(None);
                 };
 
@@ -564,8 +557,8 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
             // set constructors reify over their elements
             dir::Type::Union(union) => {
-                let union_elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
-                let Some(elements) = self.reify_elements(&union_elements, next)? else {
+                let union_elements = self.check.type_ids(id.module_id, union.elements)?;
+                let Some(elements) = self.reify_elements(union_elements, next)? else {
                     return Ok(None);
                 };
 
@@ -661,7 +654,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                                 let place = self.check.shallow_resolve(spaces)?;
                                 let is_induced = match self.check.ty(place)? {
                                     dir::Type::Parameter(parameter) => {
-                                        self.check.generic_parameter(parameter).is_some_and(
+                                        self.check.generic_parameter(parameter)?.is_some_and(
                                             |binding| binding.induced_memory_parameter().is_some(),
                                         )
                                     }
@@ -767,11 +760,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let dir::Type::Union(union) = self.check.ty(id)? else {
             return self.reify_depth(id, depth);
         };
-        let union_elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
+        let union_elements = self.check.type_ids(id.module_id, union.elements)?;
 
         // reify every arm apart from undefined
         let mut elements = Vec::new();
-        for element in &union_elements {
+        for element in union_elements {
             let element = self.check.shallow_resolve(*element)?;
             if self.check.ty(element)?.is_undefined() {
                 continue;
@@ -889,11 +882,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     .check
                     .template_strings(module, template.strings)?
                     .to_vec();
-                let span_types = self.check.type_ids(module, template.spans)?.to_vec();
+                let span_types = self.check.type_ids(module, template.spans)?;
 
                 let mut spans = Vec::with_capacity(span_types.len());
                 for span in span_types {
-                    let Some(span) = self.reify_depth(span, depth)? else {
+                    let Some(span) = self.reify_depth(*span, depth)? else {
                         return Ok(None);
                     };
 
@@ -1127,14 +1120,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::Expression::Literal(value)
             }
-            dir::Type::Static(value) => match self.check.r#static(value) {
+            dir::Type::Static(value) => match self.check.r#static(value)? {
                 dir::StaticTerm::Literal { value } => dir::Expression::Literal(*value),
                 _ => return Ok(None),
             },
             // a static union folds into an elementwise-or chain
             dir::Type::Union(union) => {
-                let elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
-                let Some(expression) = self.reify_static_union(&elements, depth - 1)? else {
+                let elements = self.check.type_ids(id.module_id, union.elements)?;
+                let Some(expression) = self.reify_static_union(elements, depth - 1)? else {
                     return Ok(None);
                 };
 
@@ -1142,7 +1135,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
             // a const parameter reifies as its own identifier
             dir::Type::Parameter(parameter) => {
-                let Some(name) = self.generic_parameter_name_by_id(parameter) else {
+                let Some(name) = self.generic_parameter_name(parameter)? else {
                     return Ok(None);
                 };
 
@@ -1215,19 +1208,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         Ok(Some(elements))
     }
 
-    /// Return the source name of one generic parameter.
-    fn generic_parameter_name_by_id(
-        &self,
-        parameter: dir::GlobalGenericParameterId,
-    ) -> Option<dir::StringId> {
-        let binding = self.check.generic_parameter(parameter)?;
-
-        match binding.key {
-            dir::GenericParameterKey::Symbol(symbol) => self.symbol_name(symbol),
-            dir::GenericParameterKey::Generated(name) => Some(name),
-        }
-    }
-
     /// Allocate one keyword type literal at the anchor span.
     pub(super) fn insert_keyword(
         &mut self,
@@ -1236,14 +1216,21 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         self.insert(Self::literal(keyword))
     }
 
-    /// Return the source name of one generic parameter binding.
+    /// Return the source name of one generic parameter, an anonymous one by its printed name.
     pub(super) fn generic_parameter_name(
         &self,
-        binding: &dir::GenericParameterBinding,
-    ) -> Option<dir::StringId> {
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CompilerResult<Option<dir::StringId>> {
+        let Some(binding) = self.check.generic_parameter(parameter)? else {
+            return Ok(None);
+        };
         match binding.key {
             dir::GenericParameterKey::Symbol(symbol) => self.symbol_name(symbol),
-            dir::GenericParameterKey::Generated(name) => Some(name),
+            dir::GenericParameterKey::Anonymous => {
+                let name = self.check.format_parameter(parameter);
+
+                Ok(Some(self.check.strings().intern(&name)))
+            }
         }
     }
 
@@ -1260,24 +1247,26 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     pub(super) fn reify_symbol_expression(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::LocalNodeId<dir::Expression>> {
-        let name = self.symbol_name(symbol)?;
+    ) -> CompilerResult<Option<dir::LocalNodeId<dir::Expression>>> {
+        let Some(name) = self.symbol_name(symbol)? else {
+            return Ok(None);
+        };
 
-        Some(self.insert(dir::Expression::Identifier { name }))
+        Ok(Some(self.insert(dir::Expression::Identifier { name })))
     }
 
     /// Return the source name of one symbol.
-    fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
+    fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<Option<dir::StringId>> {
         if let Some(item) = self.check.environment_bound.language.item(symbol) {
-            return Some(self.language_item_name(item));
+            return Ok(Some(self.language_item_name(item)));
         }
 
         // print plain name keys as identifiers
-        let bindings = self.check.binding_table(symbol.module_id);
-        match bindings.get_symbol(symbol.local_id).key {
+        let bindings = self.check.binding_table(symbol.module_id)?;
+        Ok(match bindings.get_symbol(symbol.local_id).key {
             Some(dir::StaticKey::Name(name)) => Some(name),
             _ => None,
-        }
+        })
     }
 
     /// Return the interned source export name of one language item.

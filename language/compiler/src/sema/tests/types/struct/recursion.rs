@@ -21,8 +21,8 @@ const tree: TreeB = source;
 type TreeA = { value: float64; child: TreeA | null };
 type TreeB = { value: float64; child: TreeB | null };
 
-declare const source: { value: float64; child: TreeA | null };
-const tree: { value: float64; child: TreeB | null } = source;
+declare const source: TreeA;
+const tree: TreeB = source;
 
 === dir ===
 type TreeA = { value: float64; child: TreeA | null };
@@ -40,17 +40,17 @@ type TreeB = { value: float64; child: TreeB | null };
 /// @resolution.name source=TreeB target=TreeB
 
 declare const source: TreeA;
-/// @type.symbol symbol=source source=source type={ value: float64; child: TreeA | null }
+/// @type.symbol symbol=source source=source type=TreeA
 /// @resolution.pattern source=source kind=binding target=source
 /// @resolution.name source=TreeA target=TreeA
 
 const tree: TreeB = source;
-/// @type.symbol symbol=tree source=tree type={ value: float64; child: TreeB | null }
+/// @type.symbol symbol=tree source=tree type=TreeB
 /// @resolution.pattern source=tree kind=binding target=tree
 /// @resolution.name source=TreeB target=TreeB
-/// @type.node source=source type={ value: float64; child: TreeA | null }
+/// @type.node source=source type=TreeA
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=source root=source
 "#,
     );
@@ -189,13 +189,13 @@ export class Player {
 
         this.world = world;
         /// @resolution.receiver source=this kind=this declaration=Player type=Player
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.world kind=place
         /// @resolution.access source=this.world root=this keys=[world]
         /// @resolution.assignment source=this.world write="receiver=Player, target=field(receiver=Player, target=Player.world, type=world.World), type=world.World" type=world.World
         /// @resolution.name source=world target=Player.constructor.world
-        /// @resolution.place source=world placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=world placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=world root=Player.constructor.world
 
     }
@@ -236,13 +236,13 @@ export class World {
 
         this.player = player;
         /// @resolution.receiver source=this kind=this declaration=World type=World
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.player kind=place
         /// @resolution.access source=this.player root=this keys=[player]
         /// @resolution.assignment source=this.player write="receiver=World, target=field(receiver=World, target=World.player, type=player.Player), type=player.Player" type=player.Player
         /// @resolution.name source=player target=World.constructor.player
-        /// @resolution.place source=player placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=player placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=player root=World.constructor.player
 
     }

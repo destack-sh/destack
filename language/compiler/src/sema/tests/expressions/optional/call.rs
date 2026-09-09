@@ -32,9 +32,9 @@ function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
     /// @resolution.name source=service target=invoke.service
     /// @resolution.member source=service?.callback receiver={ callback?: Function<(), int32> } | null type=Function<(), int32> | undefined kind=field target_receiver={ callback?: Function<(), int32> } | null adjustments=(union.payload({ callback?: Function<(), int32> } | null, { callback?: Function<(), int32> }, { callback?: Function<(), int32> })) key=callback target_type=Function<(), int32> | undefined
     /// @resolution.call source=service?.callback?.() parameters=() return=int32 kind=expression target=expression
-    /// @resolution.place source=service placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=service placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=service root=invoke.service
-    /// @resolution.place source=service?.callback placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=service?.callback placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=service?.callback root=invoke.service keys=[callback]
 
 }
@@ -70,7 +70,7 @@ function invoke(callback: (() => int32) | undefined): int32 {
     /// @type.node source=callback() type=int32
     /// @resolution.name source=callback target=invoke.callback
     /// @resolution.call source=callback() parameters=() return=int32 kind=expression target=expression
-    /// @resolution.place source=callback placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=callback placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=callback root=invoke.callback
 
 }

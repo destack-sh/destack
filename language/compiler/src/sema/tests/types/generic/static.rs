@@ -311,7 +311,7 @@ const fallback: int32 | undefined = Registry.fallback;
 /// @resolution.pattern source=fallback kind=binding target=fallback
 /// @resolution.name source=Registry target=Registry
 /// @resolution.member source=Registry.fallback receiver=Registry type=int32 | undefined kind=field target_receiver=Registry key=fallback target=Registry.fallback target_type=int32 | undefined
-/// @resolution.place source=Registry.fallback placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=Registry.fallback placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=Registry.fallback root=Registry keys=[fallback]
 "#, r#""#);
 }

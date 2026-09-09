@@ -191,10 +191,17 @@ impl CheckState<'_> {
         }
 
         // reuse decided relations, in flight through their cycle or memoized once closed
-        let cycle = if self.is_conformance_target(target)? {
-            Cycle::Inductive
-        } else {
-            Cycle::Coinductive
+        let interface = self.conformance_target_symbol(target)?;
+        let is_auto = match interface {
+            Some(symbol) => self
+                .language_item(symbol)?
+                .and_then(dir::AutoInterface::from_language_item)
+                .is_some(),
+            None => false,
+        };
+        let cycle = match interface.is_some() && !is_auto {
+            true => Cycle::Inductive,
+            false => Cycle::Coinductive,
         };
         let key = (relation, source, target);
         if let Some(is_holds) = self.decided_relations.get(&key) {
@@ -232,10 +239,8 @@ impl CheckState<'_> {
     /// Return one stuck conditional's then branch with each infer binder at its constraint.
     fn substitute_infer_binders(
         &mut self,
-        origin: Origin,
         conditional: dir::ConditionalType,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = origin.module();
         let mut branch = conditional.then_type;
 
         // replace each binder occurrence with the constraint it declares
@@ -246,7 +251,7 @@ impl CheckState<'_> {
                 None => self.intern_type(dir::Type::Unknown)?,
             };
             for occurrence in binder.occurrences {
-                branch = self.replace_type(module, branch, occurrence, constraint)?;
+                branch = self.replace_type(branch, occurrence, constraint)?;
             }
         }
 
@@ -323,7 +328,7 @@ impl CheckState<'_> {
             && let Some(dir::TypeOperation::Conditional(conditional)) =
                 self.operation_head(source)?
         {
-            let then_type = self.substitute_infer_binders(origin, conditional)?;
+            let then_type = self.substitute_infer_binders(conditional)?;
             let then_branch = self.constrain_type(origin, cause, relation, then_type, target)?;
             if then_branch == Verdict::Fails {
                 return Ok(Some(Verdict::Fails));
@@ -376,18 +381,28 @@ impl CheckState<'_> {
         &mut self,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        Ok(self.conformance_target_symbol(target)?.is_some())
+    }
+
+    /// Return the interface symbol one conformance target names.
+    fn conformance_target_symbol(
+        &mut self,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         // read the nominal symbol the target names
         let symbol = match self.ty(target)? {
             dir::Type::Application(application) => application.symbol,
             dir::Type::Reference(reference) => reference.symbol,
-            _ => return Ok(false),
+            _ => return Ok(None),
         };
 
         // read whether the symbol declares an interface
-        Ok(matches!(
-            self.definition(symbol)?,
+        let is_interface = matches!(
+            self.definition(symbol)?.as_deref(),
             Some(dir::Definition::Interface(_))
-        ))
+        );
+
+        Ok(is_interface.then_some(symbol))
     }
 
     /// Evaluate one relation: the operator heads shared by every relation, then its own rule.
@@ -470,7 +485,7 @@ impl CheckState<'_> {
         };
         let is_identity = self.shallow_resolve(index.left)? == variable
             && matches!(
-                self.ty(self.shallow_resolve(index.index)?)?,
+                self.resolved_ty(index.index)?,
                 dir::Type::Parameter(parameter) if parameter == mapped.parameter.parameter
             );
 

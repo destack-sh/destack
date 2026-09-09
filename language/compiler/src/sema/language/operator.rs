@@ -144,12 +144,46 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // decide the exact capability through the ordinary interface relation
-        let target = self.language_type(dir::LanguageItem::StrictEqual, &[right])?;
-        if self.decide_relation(origin, Relation::Subtype, left, target)? != Verdict::Fails {
+        let verdict = self.strict_equality_witness_verdict(origin, left, right)?;
+        if verdict == Verdict::Holds {
+            return Ok(true);
+        }
+
+        // require a parameter operand's witness, its instantiations comparing through it
+        let left = self.normalize(origin, left)?;
+        let right = self.normalize(origin, right)?;
+        if matches!(self.ty(left)?, dir::Type::Parameter(_))
+            || matches!(self.ty(right)?, dir::Type::Parameter(_))
+        {
+            return Ok(false);
+        }
+        if verdict == Verdict::Ambiguous {
             return Ok(true);
         }
 
         self.has_builtin_strict_equality(origin, left, right)
+    }
+
+    /// Return whether one operand's declared `StrictEqual<R>` witness covers the other.
+    pub(in crate::sema) fn has_strict_equality_witness(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        Ok(self.strict_equality_witness_verdict(origin, left, right)? == Verdict::Holds)
+    }
+
+    /// Decide whether one operand conforms to `StrictEqual<R>` over the other.
+    fn strict_equality_witness_verdict(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<Verdict> {
+        let target = self.language_type(dir::LanguageItem::StrictEqual, &[right])?;
+
+        self.decide_relation(origin, Relation::Subtype, left, target)
     }
 
     /// Return whether every overlapping operand pair has builtin strict equality.
@@ -178,9 +212,9 @@ impl CheckState<'_> {
 
         // require builtin equality for every overlapping union pairing
         if let dir::Type::Union(union) = self.ty(left)? {
-            let elements = self.type_ids(left.module_id, union.elements)?.to_vec();
+            let elements = self.type_ids(left.module_id, union.elements)?;
             for element in elements {
-                if !self.has_builtin_strict_equality(origin, element, right)? {
+                if !self.has_builtin_strict_equality(origin, *element, right)? {
                     return Ok(false);
                 }
             }
@@ -188,9 +222,9 @@ impl CheckState<'_> {
             return Ok(true);
         }
         if let dir::Type::Union(union) = self.ty(right)? {
-            let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
+            let elements = self.type_ids(right.module_id, union.elements)?;
             for element in elements {
-                if !self.has_builtin_strict_equality(origin, left, element)? {
+                if !self.has_builtin_strict_equality(origin, left, *element)? {
                     return Ok(false);
                 }
             }
@@ -232,10 +266,14 @@ impl CheckState<'_> {
         protocol: &OperatorProtocol,
         type_arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Protocol> {
-        // start from the written type arguments
+        // collect the arguments the protocol instance binds
         let module = origin.module();
         let mut arguments = Vec::with_capacity(type_arguments.len() + protocol.arguments.len());
-        arguments.extend_from_slice(type_arguments);
+
+        // start from the written type arguments, each asked as the implemented header binds it
+        for argument in type_arguments {
+            arguments.push(self.ask_argument(origin, *argument)?);
+        }
 
         // append static protocol arguments from the operator form
         for argument in &protocol.arguments {

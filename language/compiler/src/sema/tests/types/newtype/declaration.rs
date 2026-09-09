@@ -42,8 +42,9 @@ const writer: NamedWriter = Buffer {};
 
 === dir ===
 interface Writer {
+/// @generic.template symbol=Writer parameters=(this: Writer)
 /// @type.symbol symbol=Writer type=Writer
-/// @definition.interface symbol=Writer
+/// @definition.interface symbol=Writer template=(this: Writer)
 /// @definition.where symbol=Writer relation=satisfies left=this right=Writer
 /// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: this, readonly uint8[]) => usize
 
@@ -71,7 +72,7 @@ struct Buffer {
 
         bytes.length
         /// @resolution.name source=bytes target=Buffer.write.bytes
-        /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+        /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"managed\" & \"local\"))"
         /// @resolution.place source=bytes placement="local" lifetime="managed" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
         /// @generic.instantiation id=length<uint8> template=length arguments=(uint8)

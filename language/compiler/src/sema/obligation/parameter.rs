@@ -19,7 +19,7 @@ impl CheckState<'_> {
         }
 
         // accept intrinsic newtypes, their parameters are compiler storage
-        let backing = match self.definition(symbol)? {
+        let backing = match self.definition(symbol)?.as_deref() {
             Some(dir::Definition::Newtype(newtype)) => Some(newtype.backing),
             Some(_) => None,
             None => return Ok(ObligationCheck::holds()),
@@ -34,7 +34,7 @@ impl CheckState<'_> {
         let types = self.definition_parameter_types(symbol)?;
         let mut failures = Vec::new();
         for parameter in parameters {
-            let Some(binding) = self.generic_parameter(parameter) else {
+            let Some(binding) = self.generic_parameter(parameter)? else {
                 continue;
             };
 
@@ -91,7 +91,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let Some(definition) = self.definition(symbol)?.cloned() else {
+        let Some(definition) = self.definition(symbol)? else {
             return Ok(Vec::new());
         };
         let mut types = Vec::new();
@@ -109,10 +109,22 @@ impl CheckState<'_> {
 
                         continue;
                     };
-                    let parameters = self
-                        .signature_parameters(ty.module_id, signature.parameters)?
-                        .to_vec();
+                    let parameters =
+                        self.signature_parameters(ty.module_id, signature.parameters)?;
                     types.extend(parameters.iter().map(|parameter| parameter.ty));
+
+                    // expose the bounds and predicates the method's own template writes
+                    if let Some(template) = signature.template {
+                        for parameter in self.generic_template_parameters(template)? {
+                            if let Some(binding) = self.generic_parameter(parameter)? {
+                                types.extend(binding.constraint);
+                            }
+                        }
+                        for predicate in self.template_predicates(Some(template))? {
+                            types.push(predicate.left);
+                            types.push(predicate.right);
+                        }
+                    }
 
                     // skip constructor returns, they restate the receiver instance
                     let constructs = matches!(
@@ -145,7 +157,7 @@ impl CheckState<'_> {
         }
 
         // include newtype backings and complete base types
-        if let dir::Definition::Newtype(newtype) = &definition {
+        if let dir::Definition::Newtype(newtype) = &*definition {
             types.push(newtype.backing);
         }
         for heritage in definition.bases() {

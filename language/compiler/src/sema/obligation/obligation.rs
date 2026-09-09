@@ -217,7 +217,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The assignment target expression.
         source: dir::GlobalNodeIdAny,
         /// The selected member.
-        member: dir::MemberTarget,
+        member: Box<dir::MemberTarget>,
     },
     /// A computed key cannot be assigned through a structural signature.
     CannotAssignStructuralIndex {
@@ -225,13 +225,6 @@ pub(in crate::sema) enum ObligationFailure {
         source: dir::GlobalNodeIdAny,
         /// The structural receiver type.
         receiver: dir::GlobalTypeId,
-    },
-    /// A non-exclusive overwrite requires overwrite-stable values.
-    OverwriteStabilityNotSatisfied {
-        /// The assignment target expression.
-        source: dir::GlobalNodeIdAny,
-        /// The overwritten value type.
-        ty: dir::GlobalTypeId,
     },
     /// A type lacks finite by-value storage.
     CircularType {

@@ -45,8 +45,8 @@ impl CheckState<'_> {
         // decide memory forms before their payload types
         if let dir::Type::Form(form) = kind {
             return match form.form {
-                // clone handles and views by duplicating the reference
-                dir::Form::Managed { .. } | dir::Form::Readonly | dir::Form::Borrowed(_)
+                // clone views by duplicating the reference, a managed handle by its object
+                dir::Form::Readonly | dir::Form::Borrowed(_)
                     if interface == dir::AutoInterface::Clone =>
                 {
                     Ok(Verdict::Holds)
@@ -133,7 +133,7 @@ impl CheckState<'_> {
                 Ok(Verdict::decided(interface == dir::AutoInterface::Unpin))
             }
             // accept memory parameters, they qualify storage alone
-            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter) => {
+            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter)? => {
                 Ok(Verdict::Holds)
             }
             // fail the interface for type parameters that survived substitution
@@ -147,10 +147,11 @@ impl CheckState<'_> {
                 message: format!("memory form {ty:?} reached structural derivability"),
             }),
 
-            // decide a nominal instance through its declaration
-            dir::Type::Application(instance) => {
-                self.decide_derivable_instance(origin, ty.module_id, instance, interface)
-            }
+            // decide a nominal instance through its declaration, a stuck head staying opaque
+            dir::Type::Application(instance) => match self.is_stuck_head(origin, ty)? {
+                true => Ok(Verdict::Fails),
+                false => self.decide_derivable_instance(origin, ty.module_id, instance, interface),
+            },
 
             // decide structural containers by unpin, their library declares the rest
             dir::Type::Slice(_) | dir::Type::Object(_) => {
@@ -192,12 +193,12 @@ impl CheckState<'_> {
         interface: dir::AutoInterface,
     ) -> CompilerResult<Verdict> {
         // read the declaration the instance applies
-        let Some(definition) = self.definition(instance.symbol)?.cloned() else {
+        let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(Verdict::Fails);
         };
 
         // decide by the declaration's own storage
-        match definition {
+        match &*definition {
             // fail loudly, normalization unfolds aliases before this decision
             dir::Definition::TypeAlias(_) => Err(CompilerError::Internal {
                 message: format!(

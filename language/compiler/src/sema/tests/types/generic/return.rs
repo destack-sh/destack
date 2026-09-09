@@ -35,6 +35,42 @@ function make<T: int8 | int64>(): T {
     );
 }
 
+/// A fitting literal constructs a scalar-bounded generic result through the scalar's intrinsic
+/// heritage.
+#[test]
+fn test_construct_a_scalar_bounded_result_from_a_fitting_literal() {
+    let session = TestSession::single(
+        r#"
+function make<T: int8>(): T {
+    return 1;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function make<T: int8>(): T {
+    return 1;
+}
+
+=== dir ===
+function make<T: int8>(): T {
+/// @generic.template symbol=make parameters=(T: int8)
+/// @type.symbol symbol=make type=<T: int8>() => T
+/// @type.symbol symbol=make.T source="T: int8" type=T
+/// @resolution.name source=T target=make.T
+
+    return 1;
+}
+"#,
+        r#"
+"#,
+    );
+}
+
 /// A generic return type contextualizes an empty array field literal.
 #[test]
 fn test_generic_return_contextualizes_empty_array_field() {
@@ -59,6 +95,9 @@ function capture<T>(value: T): { reactions: T[] } {
 function capture<T>(value: T): { reactions: T[] } {
 /// @generic.template symbol=capture parameters=(T)
 /// @type.symbol symbol=capture type=<T>(T) => { reactions: T[] }
+/// @generic.instance id=Array<T> template=Array arguments=(T)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<T>> template=sliceAssumeInit arguments=(MaybeUninit<T>)
+/// @generic.instance id=sliceUninit<MaybeUninit<T>> template=sliceUninit arguments=(MaybeUninit<T>)
 /// @type.symbol symbol=capture.T source=T type=T
 /// @type.symbol symbol=capture.value source="value: T" type=T
 /// @resolution.name source=T target=capture.T
@@ -70,6 +109,16 @@ function capture<T>(value: T): { reactions: T[] } {
     /// @type.node source=[] type=T[]
     /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
     /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=capture
+    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+    /// @generic.instance id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T)
+    /// @generic.instance id=fromOwnedSlice<T> template=fromOwnedSlice arguments=(T)
+    /// @generic.instance id=intoUninit<T> template=intoUninit arguments=(T)
+    /// @generic.instance id=size<T> template=size arguments=(T)
+    /// @generic.instance id=sliceIntoUninit<T> template=sliceIntoUninit arguments=(T)
+    /// @generic.instance id=sliceLength<T> template=sliceLength arguments=(T)
 
 }
 "#,
@@ -122,9 +171,9 @@ function pending<T>(): State<T> {
 
 === dir ===
 interface Pending<T> {
-/// @generic.template symbol=Pending parameters=(in out T#1)
+/// @generic.template symbol=Pending parameters=(in out T#1, this: Pending<T#1>)
 /// @type.symbol symbol=Pending type=Pending
-/// @definition.interface symbol=Pending template=(in out T#1)
+/// @definition.interface symbol=Pending template=(in out T#1, this: Pending<T#1>)
 /// @definition.where symbol=Pending relation=satisfies left=this right=Pending<T#1>
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.reactions source="reactions: T[]" key=reactions type=T#1[]
@@ -135,14 +184,17 @@ interface Pending<T> {
 
     reactions: T[];
     /// @type.symbol symbol=Pending.reactions source="reactions: T[]" type=T#1[]
+    /// @generic.instance id=Array<T#1> template=Array arguments=(T#1)
+    /// @generic.instance id=sliceAssumeInit<MaybeUninit<T#1>> template=sliceAssumeInit arguments=(MaybeUninit<T#1>)
+    /// @generic.instance id=sliceUninit<MaybeUninit<T#1>> template=sliceUninit arguments=(MaybeUninit<T#1>)
     /// @resolution.name source=T target=Pending.T
 
 }
 
 interface Done<T> {
-/// @generic.template symbol=Done parameters=(in out T#2)
+/// @generic.template symbol=Done parameters=(in out T#2, this: Done<T#2>)
 /// @type.symbol symbol=Done type=Done
-/// @definition.interface symbol=Done template=(in out T#2)
+/// @definition.interface symbol=Done template=(in out T#2, this: Done<T#2>)
 /// @definition.where symbol=Done relation=satisfies left=this right=Done<T#2>
 /// @definition.field symbol=Done.kind source="kind: \"done\"" key=kind type="done"
 /// @definition.field symbol=Done.value source="value: T" key=value type=T#2
@@ -160,6 +212,8 @@ interface Done<T> {
 type State<T> = Pending<T> | Done<T>;
 /// @generic.template symbol=State parameters=(T#3)
 /// @type.symbol symbol=State source="type State<T> = Pending<T> | Done<T>" type=Pending<T#3> | Done<T#3>
+/// @generic.instance id=Done<T#3> template=Done arguments=(T#3)
+/// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
 /// @definition.type symbol=State source="type State<T> = Pending<T> | Done<T>" template=(T#3) value=Pending<T#3> | Done<T#3>
 /// @type.symbol symbol=State.T source=T type=T#3
 /// @resolution.name source=Pending target=Pending
@@ -169,7 +223,9 @@ type State<T> = Pending<T> | Done<T>;
 
 function pending<T>(): State<T> {
 /// @generic.template symbol=pending parameters=(T#4)
-/// @type.symbol symbol=pending type=<T#4>() => State<T#4>
+/// @type.symbol symbol=pending type=<T#4>() => Pending<T#4> | Done<T#4>
+/// @generic.instance id=Done<T#4> template=Done arguments=(T#4)
+/// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)
 /// @type.symbol symbol=pending.T source=T type=T#4
 /// @resolution.name source=State target=State
 /// @resolution.name source=T target=pending.T
@@ -180,6 +236,19 @@ function pending<T>(): State<T> {
     /// @type.node source=[] type=T#4[]
     /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T#4) return=T#4[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#4>
     /// @generic.instantiation id=arrayFromOwnedSlice<T#4> template=arrayFromOwnedSlice arguments=(T#4) owner=pending
+    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+    /// @generic.instance id=Array<T#4> template=Array arguments=(T#4)
+    /// @generic.instance id=arrayFromOwnedSlice<T#4> template=arrayFromOwnedSlice arguments=(T#4)
+    /// @generic.instance id=fromOwnedSlice<T#4> template=fromOwnedSlice arguments=(T#4)
+    /// @generic.instance id=intoUninit<T#4> template=intoUninit arguments=(T#4)
+    /// @generic.instance id=size<T#4> template=size arguments=(T#4)
+    /// @generic.instance id=sliceAssumeInit<MaybeUninit<T#4>> template=sliceAssumeInit arguments=(MaybeUninit<T#4>)
+    /// @generic.instance id=sliceIntoUninit<T#4> template=sliceIntoUninit arguments=(T#4)
+    /// @generic.instance id=sliceLength<T#4> template=sliceLength arguments=(T#4)
+    /// @generic.instance id=sliceUninit<MaybeUninit<T#4>> template=sliceUninit arguments=(MaybeUninit<T#4>)
 
 }
 "#,
@@ -214,16 +283,16 @@ function countdown(n: float64) {
     return n > 0 ? countdown(n - 1) : n;
     /// @resolution.name source=n target=countdown.n
     /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=countdown.n
     /// @resolution.name source=countdown target=countdown
     /// @resolution.call source="countdown(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=countdown
     /// @resolution.name source=n target=countdown.n
     /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=countdown.n
     /// @resolution.name source=n target=countdown.n
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=countdown.n
 
 }
@@ -271,16 +340,16 @@ function ping(n: float64) {
     return n > 0 ? pong(n - 1) : n;
     /// @resolution.name source=n target=ping.n
     /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=ping.n
     /// @resolution.name source=pong target=pong
     /// @resolution.call source="pong(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=pong
     /// @resolution.name source=n target=ping.n
     /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=ping.n
     /// @resolution.name source=n target=ping.n
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=ping.n
 
 }
@@ -292,16 +361,16 @@ function pong(n: float64) {
     return n > 0 ? ping(n - 1) : n;
     /// @resolution.name source=n target=pong.n
     /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=pong.n
     /// @resolution.name source=ping target=ping
     /// @resolution.call source="ping(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=ping
     /// @resolution.name source=n target=pong.n
     /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=pong.n
     /// @resolution.name source=n target=pong.n
-    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=n root=pong.n
 
 }
@@ -388,6 +457,7 @@ declare class Promise<in out T> {
     static resolve<T>(value: Promise<T>): Promise<T>;
     /// @generic.template symbol=Promise.resolve#1 parent=template#0 parameters=(T#2)
     /// @type.symbol symbol=Promise.resolve#1 source="static resolve<T>(value: Promise<T>): Promise<T>" type=<T#2>(Promise<T#2>) => Promise<T#2>
+    /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
     /// @type.symbol symbol=Promise.resolve.T#1 source=T type=T#2
     /// @type.symbol symbol=Promise.resolve.value#1 source="value: Promise<T>" type=Promise<T#2>
     /// @resolution.name source=Promise target=Promise
@@ -398,6 +468,7 @@ declare class Promise<in out T> {
     static resolve<T>(value: T): Promise<T>;
     /// @generic.template symbol=Promise.resolve#2 parent=template#0 parameters=(T#3)
     /// @type.symbol symbol=Promise.resolve#2 source="static resolve<T>(value: T): Promise<T>" type=<T#3>(T#3) => Promise<T#3>
+    /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
     /// @type.symbol symbol=Promise.resolve.T#2 source=T type=T#3
     /// @type.symbol symbol=Promise.resolve.value#2 source="value: T" type=T#3
     /// @resolution.name source=T target=Promise.resolve.T#2
@@ -445,6 +516,8 @@ struct Err<E> {
 newtype Result<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Result parameters=(out T#5, out E#2)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
+/// @generic.instance id=Err<E#2> template=Err arguments=(E#2)
+/// @generic.instance id=Ok<T#5> template=Ok arguments=(T#5)
 /// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#5, out E#2) backing=Ok<T#5> | Err<E#2> constructors=[<T#5, E#2>(Ok<T#5>) => Result<T#5, E#2>, <T#5, E#2>(Err<E#2>) => Result<T#5, E#2>, <T#5, E#2>(Ok<T#5> | Err<E#2>) => Result<T#5, E#2>]
 /// @type.symbol symbol=Result.T source=T type=T#5
 /// @type.symbol symbol=Result.E source=E type=E#2
@@ -456,6 +529,9 @@ newtype Result<T, E> = Ok<T> | Err<E>;
 declare function ok<T, E>(value: T): Result<T, E>;
 /// @generic.template symbol=ok parameters=(T#6, E#3)
 /// @type.symbol symbol=ok source="declare function ok<T, E>(value: T): Result<T, E>" type=<T#6, E#3>(T#6) => Result<T#6, E#3>
+/// @generic.instance id="Result<T#6, E#3>" template=Result arguments=(T#6, E#3)
+/// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
+/// @generic.instance id=Ok<T#6> template=Ok arguments=(T#6)
 /// @type.symbol symbol=ok.T source=T type=T#6
 /// @type.symbol symbol=ok.E source=E type=E#3
 /// @type.symbol symbol=ok.value source="value: T" type=T#6
@@ -467,6 +543,10 @@ declare function ok<T, E>(value: T): Result<T, E>;
 newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 /// @generic.template symbol=AsyncResult parameters=(in out T#7, in out E#4)
 /// @type.symbol symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" type=AsyncResult
+/// @generic.instance id="Promise<Result<T#7, E#4>>" template=Promise arguments=(Result<T#7, E#4>)
+/// @generic.instance id="Result<T#7, E#4>" template=Result arguments=(T#7, E#4)
+/// @generic.instance id=Err<E#4> template=Err arguments=(E#4)
+/// @generic.instance id=Ok<T#7> template=Ok arguments=(T#7)
 /// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(in out T#7, in out E#4) backing=Promise<Result<T#7, E#4>> constructors=[<T#7, E#4>(Promise<Result<T#7, E#4>>) => AsyncResult<T#7, E#4>]
 /// @type.symbol symbol=AsyncResult.T source=T type=T#7
 /// @type.symbol symbol=AsyncResult.E source=E type=E#4
@@ -478,6 +558,7 @@ newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 function make<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.template symbol=make parameters=(T#8, E#5)
 /// @type.symbol symbol=make type=<T#8, E#5>(T#8) => AsyncResult<T#8, E#5>
+/// @generic.instance id="AsyncResult<T#8, E#5>" template=AsyncResult arguments=(T#8, E#5)
 /// @type.symbol symbol=make.T source=T type=T#8
 /// @type.symbol symbol=make.E source=E type=E#5
 /// @type.symbol symbol=make.value source="value: T" type=T#8
@@ -499,16 +580,110 @@ function make<T, E>(value: T): AsyncResult<T, E> {
     /// @resolution.member source=Promise.resolve receiver=Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=overload-set targets=[Promise.resolve#1, Promise.resolve#2]
     /// @resolution.call source=Promise.resolve(ok(value)) parameters=(Result<T#8, E#5>) arguments=(provided(ok(value)) as Result<T#8, E#5>) return=Promise<Result<T#8, E#5>> kind=symbol target=Promise.resolve#2 instance="Promise.resolve#2<Result<T#8, E#5>>"
     /// @generic.instantiation id="Promise.resolve#2<Result<T#8, E#5>>" template=Promise.resolve#2 arguments=(Result<T#8, E#5>) owner=make
+    /// @generic.instance id="Promise.resolve#2<Result<T#8, E#5>>" template=Promise.resolve#2 arguments=(Result<T#8, E#5>)
+    /// @generic.instance id="Promise<Result<T#8, E#5>>" template=Promise arguments=(Result<T#8, E#5>)
     /// @type.node source=ok type=(T#8) => Result<T#8, E#5>
     /// @type.node source=ok(value) type=Result<T#8, E#5>
     /// @resolution.name source=ok target=ok
     /// @resolution.call source=ok(value) parameters=(T#8) arguments=(provided(value) as T#8) return=Result<T#8, E#5> kind=symbol target=ok instance="ok<T#8, E#5>"
     /// @generic.instantiation id="ok<T#8, E#5>" template=ok arguments=(T#8, E#5) owner=make
+    /// @generic.instance id="Result<T#8, E#5>" template=Result arguments=(T#8, E#5)
+    /// @generic.instance id="ok<T#8, E#5>" template=ok arguments=(T#8, E#5)
+    /// @generic.instance id=Err<E#5> template=Err arguments=(E#5)
+    /// @generic.instance id=Ok<T#8> template=Ok arguments=(T#8)
     /// @type.node source=value type=T#8
     /// @resolution.name source=value target=make.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=make.value
 
 }
 "#);
+}
+
+/// Return a generic call's union result into the declared union, the union binding whole.
+#[test]
+fn test_return_a_generic_union_result_into_its_declared_union() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function identity<T>(value: T): T {
+    return value;
+}
+
+function copy(value: Point | int32): Point | int32 {
+    return identity(value);
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+function identity<T>(value: T): T {
+    return value;
+}
+
+function copy(value: Point | int32): Point | int32 {
+    return identity<Point | int32>(value);
+}
+
+=== dir ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+    y: int32;
+    /// @type.symbol symbol=Point.y source="y: int32" type=int32
+
+}
+
+function identity<T>(value: T): T {
+/// @generic.template symbol=identity parameters=(T)
+/// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=identity.value source="value: T" type=T
+/// @resolution.name source=T target=identity.T
+/// @resolution.name source=T target=identity.T
+
+    return value;
+    /// @resolution.name source=value target=identity.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=value root=identity.value
+
+}
+
+function copy(value: Point | int32): Point | int32 {
+/// @type.symbol symbol=copy type=(Point | int32) => Point | int32
+/// @type.symbol symbol=copy.value source="value: Point | int32" type=Point | int32
+/// @resolution.name source=Point target=Point
+/// @resolution.name source=Point target=Point
+
+    return identity(value);
+    /// @resolution.name source=identity target=identity
+    /// @resolution.call source=identity(value) parameters=(Point | int32) arguments=(provided(value) as Point | int32) return=Point | int32 kind=symbol target=identity instance="identity<Point | int32>"
+    /// @generic.instantiation id="identity<Point | int32>" template=identity arguments=(Point | int32)
+    /// @generic.instance id="identity<Point | int32>" template=identity arguments=(Point | int32)
+    /// @resolution.name source=value target=copy.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=value root=copy.value
+
+}
+"#,
+    );
 }

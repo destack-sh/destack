@@ -102,7 +102,7 @@ impl FunctionBody {
                 .constructor_branches
                 .entry(class)
                 .or_default()
-                .push(branch);
+                .push((self.symbol, branch));
         }
 
         Ok(checked)

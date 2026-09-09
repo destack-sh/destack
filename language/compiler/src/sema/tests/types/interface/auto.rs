@@ -119,7 +119,7 @@ const cloned = point.clone();
 /// @resolution.pattern source=cloned kind=binding target=cloned
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.clone receiver=Point type=<Clone.clone.'a>(this: &Clone.clone.'a readonly Point) => ^Point kind=symbol target_receiver=Point target=Clone.clone
-/// @resolution.call source=point.clone() parameters=() return=^Point kind=symbol target=Clone.clone receiver=Point adjustments=(borrow(&'static readonly constant Point))
+/// @resolution.call source=point.clone() parameters=() return=^Point regions=("static" & "constant") kind=symbol target=Clone.clone receiver=Point adjustments=(borrow(&'static readonly constant Point))
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @generic.instantiation id=Clone.clone<Point> template=Clone.clone arguments=()
@@ -130,13 +130,14 @@ const defaulted = Point.default();
 /// @resolution.name source=Point target=Point
 /// @resolution.member source=Point.default receiver=Point type=() => ^Point kind=symbol target_receiver=Point target=Default.default
 /// @resolution.call source=Point.default() parameters=() return=^Point kind=symbol target=Default.default
+/// @generic.instantiation id=Default.default<Point> template=Default.default arguments=()
 
 const same = point.equal(cloned);
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.equal receiver=Point type=<PartialEqual.equal.'a, PartialEqual.equal.'b>(this: &PartialEqual.equal.'a readonly Point, &PartialEqual.equal.'b readonly Point) => boolean kind=symbol target_receiver=Point target=PartialEqual.equal
-/// @resolution.call source=point.equal(cloned) parameters=(&'static readonly constant Point) arguments=(provided(cloned) as &'static readonly constant Point) return=boolean kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance=PartialEqual<Point>.equal
+/// @resolution.call source=point.equal(cloned) parameters=(&'static readonly constant Point) arguments=(provided(cloned) as &'static readonly constant Point) return=boolean regions=("static" & "constant", "static" & "constant") kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance=PartialEqual<Point>.equal
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @generic.instantiation id="PartialEqual.equal<Point, Point>" template=PartialEqual.equal arguments=(Point)
@@ -369,7 +370,7 @@ import { Clone } from "destack:memory";
 declare function requireClone<T: Clone>(value: T): T;
 
 const number: 1 = 1;
-const clonedNumber: int64 = number.clone();
+const clonedNumber: int64 = number.clone<int64>();
 const viaBound: int64 = requireClone<int64>(2);
 const text: string = "a";
 const clonedText: string = text.clone() as string;
@@ -394,11 +395,11 @@ const clonedNumber = number.clone();
 /// @type.symbol symbol=clonedNumber source=clonedNumber type=int64
 /// @resolution.pattern source=clonedNumber kind=binding target=clonedNumber
 /// @resolution.name source=number target=number
-/// @resolution.member source=number.clone receiver=1 type=<Clone.clone.'a>(this: &Clone.clone.'a readonly int64) => ^int64 kind=symbol target_receiver=1 target=Clone.clone
-/// @resolution.call source=number.clone() parameters=() return=^int64 kind=symbol target=Clone.clone receiver=1 adjustments=(borrow(&'static readonly constant 1))
+/// @resolution.member source=number.clone receiver=1 type=<clone.'a>(this: &clone.'a readonly int64) => ^int64 kind=symbol target_receiver=1 target=clone
+/// @resolution.call source=number.clone() parameters=() return=^int64 regions=("static" & "constant") kind=symbol target=clone receiver=1 adjustments=(borrow(&'static readonly constant 1)) instance=int64.<extension#1>.clone
 /// @resolution.place source=number placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=number root=number
-/// @generic.instantiation id=Clone.clone<int64> template=Clone.clone arguments=()
+/// @generic.instantiation id=clone<int64> template=clone arguments=(int64)
 
 const viaBound = requireClone(2);
 /// @type.symbol symbol=viaBound source=viaBound type=int64
@@ -416,8 +417,8 @@ const clonedText = text.clone();
 /// @resolution.pattern source=clonedText kind=binding target=clonedText
 /// @resolution.name source=text target=text
 /// @resolution.member source=text.clone receiver=string type=<Clone.clone.'a>(this: &Clone.clone.'a readonly string) => ^string kind=symbol target_receiver=string target=Clone.clone
-/// @resolution.call source=text.clone() parameters=() return=^string kind=symbol target=Clone.clone receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
-/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
+/// @resolution.call source=text.clone() parameters=() return=^string regions=("managed" & "local") kind=symbol target=Clone.clone receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
+/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=text root=text
 /// @generic.instantiation id=Clone.clone<string> template=Clone.clone arguments=()
 "#,
@@ -511,6 +512,69 @@ witness(cursor);
     );
 }
 
+/// A parameter satisfies Copy through a bound naming it, its other bounds granting nothing.
+#[test]
+fn test_decide_copy_for_a_parameter_by_its_bounds() {
+    let session = TestSession::single(
+        r#"
+import { Clone, Copy } from "destack:memory";
+
+function witness<T: Copy>(value: T): T {
+    return value;
+}
+
+function copying<T: Copy>(value: T): T {
+    return witness(value);
+}
+
+function cloning<T: Clone>(value: T): T {
+    return witness(value);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+import { Clone, Copy } from "destack:memory";
+
+function witness<T: Copy>(value: T): T {
+    return value;
+}
+
+function copying<T: Copy>(value: T): T {
+    return witness<T>(value);
+}
+
+function cloning<T: Clone>(value: T): T {
+    return witness<T>(value);
+}
+
+=== dir ===
+import { Clone, Copy } from "destack:memory";
+
+function witness<T: Copy>(value: T): T {
+    return value;
+}
+
+function copying<T: Copy>(value: T): T {
+    return witness(value);
+}
+
+function cloning<T: Clone>(value: T): T {
+    return witness(value);
+}
+"#,
+        r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'T' does not satisfy 'Copy'"
+/// @diagnostic.label line=13 column=12 span="witness(value)" line_source="return witness(value);"
+/// @diagnostic.related line=4 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
+"#,
+    );
+}
+
 /// A repeatable function value satisfies Copy, a once function does not.
 #[test]
 fn test_copy_a_function_value_by_its_invocation_count() {
@@ -535,10 +599,10 @@ function witness<T: Copy>(value: T): T {
 }
 
 declare const repeatable: () => void;
-declare const once: ^Function<(), void, "once">;
+declare const once: ^(() => void);
 
 witness<() => void>(repeatable);
-witness<^Function<(), void, "once">>(once);
+witness<^(() => void)>(once);
 
 === dir ===
 function witness<T: Copy>(value: T): T {
@@ -552,7 +616,7 @@ function witness<T: Copy>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=witness.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=witness.value
 
 }
@@ -571,7 +635,7 @@ witness(repeatable);
 /// @resolution.call source=witness(repeatable) parameters=(Function<(), void>) arguments=(provided(repeatable) as Function<(), void>) return=Function<(), void> kind=symbol target=witness instance="witness<Function<(), void>>"
 /// @generic.instantiation id="witness<Function<(), void>>" template=witness arguments=(Function<(), void>)
 /// @resolution.name source=repeatable target=repeatable
-/// @resolution.place source=repeatable placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=repeatable placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=repeatable root=repeatable
 
 witness(once);
@@ -589,10 +653,9 @@ witness(once);
 "#,
     );
 }
-
-/// Commit conformances on definitions, instances, and bounded parameters.
+/// Structs copy when every field copies, with their own parameters assumed to.
 #[test]
-fn test_commit_conformances_on_declarations_instances_and_parameters() {
+fn test_copy_a_struct_whose_every_field_copies() {
     let session = TestSession::single(
         r#"
 struct Point {
@@ -604,21 +667,21 @@ struct Holder<Value> {
     value: Value;
 }
 
-declare function bound<T: Compare>(value: T): T;
+struct Tag<out Kind> {
+    id: int32;
+}
+
+struct Owner<Value> {
+    values: ^Array<Value>;
+}
 
 declare const held: Holder<Point>;
-
-function read(): int32 {
-    const holder = Holder { value: Point { x: 1, y: 2 } };
-
-    return holder.value.x;
-}
 "#,
     );
 
     session.assert_dir(
         "main.ds",
-        DirRows::none().with_conformances(),
+        DirRows::none().with_copy(),
         r#"
 === annotated ===
 struct Point {
@@ -630,39 +693,43 @@ struct Holder<out Value> {
     value: Value;
 }
 
-declare function bound<T: Compare>(value: T): T;
+struct Tag<out Kind> {
+    id: int32;
+}
+
+struct Owner<in out Value> {
+    values: ^Value[];
+}
 
 declare const held: Holder<Point>;
 
-function read(): int32 {
-    const holder: Holder<Point> = Holder<Point> { value: Point { x: 1, y: 2 } };
-
-    return holder.value.x;
-}
-
 === dir ===
 struct Point {
-/// @conformance.definition symbol=Point conformances=(SuspendSafe, Concrete, Copy, Clone, Debug, Display, Default, DynamicSafe, Equal, Hash, OverwriteStable, PartialEqual, SharedSafe, Unpin, Zeroable)
+/// @copy.definition symbol=Point
 
     x: int32;
     y: int32;
 }
 
 struct Holder<Value> {
+/// @copy.definition symbol=Holder
+
     value: Value;
 }
 
-declare function bound<T: Compare>(value: T): T;
-/// @conformance.parameter parameter=T conformances=(Compare)
+struct Tag<out Kind> {
+/// @copy.definition symbol=Tag
+
+    id: int32;
+}
+
+struct Owner<Value> {
+/// @copy.definition symbol=Owner
+
+    values: ^Array<Value>;
+}
 
 declare const held: Holder<Point>;
-/// @conformance.instance id=Holder<Point> conformances=(SuspendSafe, Concrete, Copy, Clone, Debug, Display, Default, DynamicSafe, Equal, Hash, OverwriteStable, PartialEqual, SharedSafe, Unpin, Zeroable)
-
-function read(): int32 {
-    const holder = Holder { value: Point { x: 1, y: 2 } };
-
-    return holder.value.x;
-}
 "#,
     );
 }
@@ -684,7 +751,7 @@ function duplicate(value: int32): int32 {
         r#"
 === annotated ===
 function duplicate(value: int32): int32 {
-    return value.clone();
+    return value.clone<int32>();
 }
 
 === dir ===
@@ -694,11 +761,11 @@ function duplicate(value: int32): int32 {
 
     return value.clone();
     /// @resolution.name source=value target=duplicate.value
-    /// @resolution.member source=value.clone receiver=int32 type=<Clone.clone.'a>(this: &Clone.clone.'a readonly int32) => ^int32 kind=symbol target_receiver=int32 target=Clone.clone
-    /// @resolution.call source=value.clone() parameters=() return=^int32 kind=symbol target=Clone.clone receiver=int32 adjustments=(borrow(&'frame readonly int32))
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.member source=value.clone receiver=int32 type=<clone.'a>(this: &clone.'a readonly int32) => ^int32 kind=symbol target_receiver=int32 target=clone
+    /// @resolution.call source=value.clone() parameters=() return=^int32 regions=("frame" & "local") kind=symbol target=clone receiver=int32 adjustments=(borrow(&'frame readonly int32)) instance=int32.<extension#1>.clone
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=duplicate.value
-    /// @generic.instantiation id=Clone.clone<int32> template=Clone.clone arguments=()
+    /// @generic.instantiation id=clone<int32> template=clone arguments=(int32)
 
 }
 "#,

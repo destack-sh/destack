@@ -93,11 +93,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<MemberLookup> {
         // offer the step by value, then through each borrow of it
         let mut targets = vec![step];
-        for access in [
-            dir::Access::Readonly,
-            dir::Access::Mutable,
-            dir::Access::Exclusive,
-        ] {
+        for access in [dir::Access::Readonly, dir::Access::Mutable] {
             if let Some(borrowed) = self.frame_borrow_of(step, access)? {
                 targets.push(borrowed);
             }
@@ -168,7 +164,7 @@ impl CheckState<'_> {
                     self.receiver_form(this)?.unwrap_or(ReceiverForm::MANAGED)
                 }
                 // an implicit this takes its declaring extension's target form
-                _ => match self.definition(declared.owner)?.cloned() {
+                _ => match self.definition(declared.owner)?.as_deref() {
                     Some(dir::Definition::Extension(extension)) => {
                         let target = self.normalize(origin, extension.target.r#type())?;
                         self.receiver_form(target)?.unwrap_or(ReceiverForm::MANAGED)
@@ -370,7 +366,7 @@ impl CheckState<'_> {
     }
 
     /// Return the frame-lived borrow of one receiver type under the given access.
-    fn frame_borrow_of(
+    pub(in crate::sema) fn frame_borrow_of(
         &mut self,
         receiver: dir::GlobalTypeId,
         access: dir::Access,
@@ -405,8 +401,6 @@ impl CheckState<'_> {
     }
 
     /// Return the mode one callable value's receiver term names.
-    ///
-    /// An open term reads as a readonly borrow.
     pub(in crate::sema) fn receiver_mode(
         &self,
         receiver: dir::GlobalTypeId,
@@ -499,6 +493,20 @@ impl CheckState<'_> {
         // bound the value's requirement by the mode its slot grants
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Receiver));
         self.constrain_type(origin, cause, Relation::Storable, source, target)
+    }
+
+    /// Return the extent one region names, a bare region term naming itself.
+    pub(in crate::sema) fn region_extent(
+        &mut self,
+        region: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let region = self.shallow_resolve(region)?;
+        let extent = match self.ty(region)? {
+            dir::Type::Region(pair) => pair.extent,
+            _ => region,
+        };
+
+        self.shallow_resolve(extent)
     }
 
     /// Return the strongest access the found members require of their receiver.

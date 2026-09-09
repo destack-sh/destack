@@ -26,15 +26,16 @@ interface Person {
     age?: int32;
 }
 
-declare const person: { name: string; age: int32 };
+declare const person: Required<Person>;
 
 person.name satisfies string;
 person.age satisfies int32;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age?: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -48,25 +49,25 @@ interface Person {
 }
 
 declare const person: Required<Person>;
-/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type=Required<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=Required
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string; age: int32 } type=string kind=field target_receiver={ name: string; age: int32 } key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.name receiver=Required<Person> type=string kind=field target_receiver=Required<Person> key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
 
 person.age satisfies int32;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver={ name: string; age: int32 } type=int32 kind=field target_receiver={ name: string; age: int32 } key=age target_type=int32
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.age receiver=Required<Person> type=int32 kind=field target_receiver=Required<Person> key=age target_type=int32
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.age placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.age placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.age root=person keys=[age]
 "#,
     );
@@ -95,12 +96,13 @@ interface Person {
     age?: int32;
 }
 
-const person: { name: string; age: int32 } = { name: "Ada" };
+const person: Required<Person> = { name: "Ada" };
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age?: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -114,13 +116,13 @@ interface Person {
 }
 
 const person: Required<Person> = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type=Required<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=Required
 /// @resolution.name source=Person target=Person
 "#,
         r#"
-/// @diagnostic.error id=missing-required-property message="missing required property 'age' for type '{ name: string; age: int32 }'"
+/// @diagnostic.error id=missing-required-property message="missing required property 'age' for type 'Required<Person>'"
 /// @diagnostic.label line=7 column=34 span="{ name: \"Ada\" }" line_source="const person: Required<Person> = { name: \"Ada\" };"
 /// @diagnostic.related line=7 column=15 span="Required" line_source="const person: Required<Person> = { name: \"Ada\" };" message="expected due to this annotation"
 "#,
@@ -149,13 +151,14 @@ interface Person {
     name?: string | undefined;
 }
 
-const person: { name: string | undefined } = { name: undefined as string | undefined };
+const person: Required<Person> = { name: undefined as string | undefined };
 person.name satisfies string | undefined;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.name source="name?: string | undefined" key=name type=string | undefined
 
@@ -165,17 +168,17 @@ interface Person {
 }
 
 const person: Required<Person> = { name: undefined };
-/// @type.symbol symbol=person source=person type={ name: string | undefined }
+/// @type.symbol symbol=person source=person type=Required<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=Required
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string | undefined } type=string | undefined kind=field target_receiver={ name: string | undefined } key=name target_type=string | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.name receiver=Required<Person> type=string | undefined kind=field target_receiver=Required<Person> key=name target_type=string | undefined
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
 "#,
     );
@@ -203,13 +206,14 @@ interface Person {
     readonly name?: string;
 }
 
-const person: { readonly name: string } = { name: "Ada" };
+const person: Required<Person> = { name: "Ada" };
 person.name = "Grace";
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.name source="readonly name?: string" key=name type=string
 
@@ -219,14 +223,14 @@ interface Person {
 }
 
 const person: Required<Person> = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ readonly name: string }
+/// @type.symbol symbol=person source=person type=Required<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Required target=Required
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
 "#,

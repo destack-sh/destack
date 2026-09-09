@@ -646,7 +646,8 @@ impl CheckState<'_> {
 
         // look the name up outside the pattern's own binding scope
         let lookup =
-            self.binding_table(module)
+            self.module
+                .binding_table()
                 .lookup_symbol_at(&view, anchor, dir::StaticKey::Name(name));
         let symbols: SmallVec<[dir::LocalSymbolId; 2]> = match lookup {
             dir::SymbolLookup::Missing => return Ok(()),
@@ -656,7 +657,7 @@ impl CheckState<'_> {
 
         // resolve local declarations and imports to their declared kinds
         for symbol in symbols {
-            let kind = self.binding_table(module).get_symbol(symbol).kind;
+            let kind = self.binding_table(module)?.get_symbol(symbol).kind;
             if kind.is_type_definition() {
                 let name = self.strings().get(name).to_string();
 
@@ -677,9 +678,6 @@ impl CheckState<'_> {
                 let dir::ReferenceTarget::Symbol(target) = target else {
                     continue;
                 };
-                if !self.is_own_module(target.module_id) {
-                    self.import_external_module(target.module_id)?;
-                }
                 if self.symbol_kind(target)?.is_type_definition() {
                     let name = self.strings().get(name).to_string();
 

@@ -1,12 +1,19 @@
-use destack_core::FxIndexSet;
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{
-    CandidateOutcome, Cause, CauseKind, CheckState, Origin, Relation, TypeSubstitution, Verdict,
-};
+use crate::sema::{Cause, CauseKind, CheckState, Origin, Relation, TypeSubstitution, Verdict};
 use crate::{CompilerError, CompilerResult};
+
+/// The key one auto interface decision memoizes under.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) struct DecisionKey {
+    /// The canonical type.
+    pub(in crate::sema) ty: dir::GlobalTypeId,
+    /// The decided interface.
+    pub(in crate::sema) interface: dir::AutoInterface,
+    /// The assuming template.
+    pub(in crate::sema) assumes: Option<dir::GlobalGenericTemplateId>,
+}
 
 impl CheckState<'_> {
     /// Decide one applied compiler-known interface intrinsically.
@@ -50,35 +57,20 @@ impl CheckState<'_> {
                 let other = self.shallow_resolve(other)?;
                 let substitution = TypeSubstitution::default().with_receiver(ty);
                 let other = self.substitute_type(other, &substitution)?;
-                if !self.collect_open_variables([ty, other])?.is_empty() {
-                    return Ok(Verdict::Ambiguous);
-                }
 
                 // decide strict equality from both exact operands
                 if interface == dir::AutoInterface::StrictEqual {
+                    if !self.collect_open_variables([ty, other])?.is_empty() {
+                        return Ok(Verdict::Ambiguous);
+                    }
                     let is_equatable = self.has_strict_equal_conformance(origin, ty, other)?;
 
                     return Ok(Verdict::decided(is_equatable));
                 }
 
-                // compare numeric scalars across their exact domains
-                let domains = (
-                    self.ty(ty)?.scalar_domain(),
-                    self.ty(other)?.scalar_domain(),
-                );
-                let numeric = matches!(
-                    domains,
-                    (
-                        Some(dir::ScalarDomain::Integer | dir::ScalarDomain::Float),
-                        Some(dir::ScalarDomain::Integer | dir::ScalarDomain::Float),
-                    )
-                );
-
-                // require the argument to equal the receiver otherwise
-                let receiver = match numeric {
-                    true => Verdict::Holds,
-                    false => self.decide_relation(origin, Relation::Equal, ty, other)?,
-                };
+                // a derived binary interface compares the receiver with itself
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                let receiver = self.constrain_type(origin, cause, Relation::Equal, other, ty)?;
                 if receiver != Verdict::Holds {
                     return Ok(receiver);
                 }
@@ -113,15 +105,19 @@ impl CheckState<'_> {
         let key = if flags.has_variable() {
             None
         } else {
-            self.decision_scope(origin, flags)?
-                .map(|assumes| (ty, interface, assumes))
+            self.decision_scope(origin, &[ty])?
+                .map(|assumes| DecisionKey {
+                    ty,
+                    interface,
+                    assumes,
+                })
         };
 
         // serve the memoized verdict
         if let Some(key) = &key
-            && let Some(is_holds) = self.conformances.get(key)
+            && let Some(holds) = self.conformances.get(key)
         {
-            return Ok(Verdict::decided(*is_holds));
+            return Ok(Verdict::decided(*holds));
         }
 
         // use bounds declared by generic types
@@ -139,6 +135,7 @@ impl CheckState<'_> {
         {
             let excluded = self
                 .definition(instance.symbol)?
+                .as_deref()
                 .and_then(dir::Definition::derives)
                 .is_some_and(|derives| !derives.contains(&interface));
             if excluded {
@@ -155,9 +152,6 @@ impl CheckState<'_> {
         let verdict = match interface {
             dir::AutoInterface::AtomicSafe => self.is_atomic_safe(ty).map(Verdict::decided),
             dir::AutoInterface::DynamicSafe => self.decide_dynamic_safe(origin, ty, &mut active),
-            dir::AutoInterface::OverwriteStable => {
-                self.decide_overwrite_stable(origin, ty, &mut active)
-            }
             dir::AutoInterface::Integer => self
                 .has_scalar_representation(ty, dir::ScalarDomain::Integer)
                 .map(Verdict::decided),
@@ -180,9 +174,12 @@ impl CheckState<'_> {
             dir::AutoInterface::StrictEqual => self
                 .has_strict_equal_conformance(origin, ty, ty)
                 .map(Verdict::decided),
+            dir::AutoInterface::Clone => match self.decide_copy(origin, ty, &mut active)? {
+                Verdict::Holds => Ok(Verdict::Holds),
+                _ => self.decide_derivable(origin, ty, interface),
+            },
             dir::AutoInterface::Equal
             | dir::AutoInterface::PartialEqual
-            | dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
             | dir::AutoInterface::Display
             | dir::AutoInterface::Hash
@@ -297,208 +294,5 @@ impl CheckState<'_> {
         let is_only_domain = families.is_some_and(|families| families.is_only_domain(domain));
 
         Ok(is_only_domain)
-    }
-
-    /// Decide the auto interfaces one closed type satisfies.
-    fn decided_conformances(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::AutoInterfaceSet> {
-        // reduce compiler-known applications to the representations they decide as
-        let ty = self.normalize(origin, ty)?;
-
-        // record each decided conformance, leaving undecided interfaces unset
-        let mut conformances = dir::AutoInterfaceSet::new();
-        for interface in dir::AutoInterface::ALL {
-            // decide without committing bindings or reports
-            let mut verdict = Verdict::Fails;
-            self.decide_candidate(|state| {
-                verdict = state.decide_auto_interface(origin, ty, interface)?;
-
-                Ok(CandidateOutcome::<(), ()>::Rejected(()))
-            })?;
-            if verdict == Verdict::Holds {
-                conformances.insert(interface);
-            }
-        }
-
-        Ok(conformances)
-    }
-
-    /// Commit the auto conformances of each instantiation-invariant nominal declaration.
-    pub(in crate::sema) fn commit_definition_conformances(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
-        // collect the nominal declarations whose conformances stay instantiation-invariant
-        let mut candidates = Vec::new();
-        for (symbol, definition) in self.module(module).iter_definitions() {
-            let is_nominal = matches!(
-                definition,
-                dir::Definition::Struct(_)
-                    | dir::Definition::Class(_)
-                    | dir::Definition::Enum(_)
-                    | dir::Definition::Newtype(_)
-            );
-            if is_nominal {
-                candidates.push((symbol, definition.template()));
-            }
-        }
-
-        // conformances are region and space invariant, so memory-only templates commit here
-        let mut nominals = Vec::new();
-        for (symbol, template) in candidates {
-            let is_invariant = match template {
-                None => true,
-                Some(template) => {
-                    let template = dir::GlobalGenericTemplateId::new(module, template);
-                    self.generic_template_parameters(template)?
-                        .iter()
-                        .all(|parameter| {
-                            self.generic_parameter(*parameter)
-                                .is_some_and(|row| row.memory_parameter().is_some())
-                        })
-                }
-            };
-            if is_invariant {
-                nominals.push(symbol);
-            }
-        }
-
-        // decide and commit the satisfied set on each declaration
-        for symbol in nominals {
-            let instance = self.declaration_instance(symbol)?;
-            let target = self.intern_type(dir::Type::Application(instance))?;
-            let origin = Origin::Symbol(symbol);
-            let conformances = self.decided_conformances(origin, target)?;
-            if let Some(definition) = self.module_mut(module).definition_mut(symbol) {
-                definition.set_conformances(conformances);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Commit the assumed auto conformances of each declared generic parameter.
-    pub(in crate::sema) fn commit_parameter_conformances(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
-        // collect the constrained parameters of the pass segment
-        let mut constrained = Vec::new();
-        for (parameter_id, binding) in self.module(module).generics_tail.iter_parameters() {
-            if let Some(constraint) = binding.constraint {
-                constrained.push((parameter_id, binding.source, constraint));
-            }
-        }
-
-        // commit the interface closure each written bound assumes
-        for (parameter_id, source, constraint) in constrained {
-            let origin = Origin::Node(source, None);
-            let conformances = self.assumed_auto_interfaces(origin, constraint)?;
-            self.module_mut(module)
-                .generics_tail
-                .set_parameter_conformances(parameter_id, conformances);
-        }
-
-        Ok(())
-    }
-
-    /// Collect the auto interfaces one written bound assumes, closing over interface heritage.
-    fn assumed_auto_interfaces(
-        &mut self,
-        origin: Origin,
-        constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::AutoInterfaceSet> {
-        // seed the walk at the written bound
-        let mut conformances = dir::AutoInterfaceSet::new();
-        let mut pending = vec![constraint];
-        let mut visited = FxIndexSet::default();
-
-        // walk each bound and the interfaces it inherits
-        while let Some(ty) = pending.pop() {
-            let ty = self.normalize(origin, ty)?;
-            match self.ty(ty)? {
-                // intersection bounds assume every element
-                dir::Type::Intersection(intersection) => {
-                    pending.extend(self.type_ids(ty.module_id, intersection.elements)?);
-                }
-                // applied interfaces assume their identity and their heritage
-                dir::Type::Application(dir::GenericApplication { symbol, .. })
-                | dir::Type::Reference(dir::TypeReference { symbol }) => {
-                    if !visited.insert(symbol) {
-                        continue;
-                    }
-                    if let Some(item) = self.language_item(symbol)?
-                        && let Some(interface) = dir::AutoInterface::from_language_item(item)
-                    {
-                        conformances.insert(interface);
-                    }
-                    if let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? {
-                        let inherited: Vec<_> = definition
-                            .extends
-                            .iter()
-                            .map(|heritage| heritage.ty)
-                            .collect();
-                        pending.extend(inherited);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        Ok(conformances)
-    }
-
-    /// Commit the auto conformances of each nominal instance this pass materialized.
-    pub(in crate::sema) fn commit_instance_conformances(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
-        // collect the nominal instances of the pass segment
-        let mut nominals = Vec::new();
-        for (instance_id, instance) in self.module(module).generics_tail.iter_instances() {
-            nominals.push((instance_id, instance.key.clone(), instance.source));
-        }
-
-        // decide and commit the satisfied set on each closed nominal
-        for (instance_id, key, source) in nominals {
-            let is_nominal = matches!(
-                self.definition(key.symbol)?,
-                Some(
-                    dir::Definition::Struct(_)
-                        | dir::Definition::Class(_)
-                        | dir::Definition::Enum(_)
-                        | dir::Definition::Newtype(_)
-                )
-            );
-            if !is_nominal {
-                continue;
-            }
-
-            // apply the declaration at the instance's closed type arguments
-            let mut arguments = Vec::with_capacity(key.arguments.len());
-            for binding in &key.arguments {
-                let is_induced = self
-                    .generic_parameter(binding.parameter)
-                    .is_some_and(|row| row.induced_memory_parameter().is_some());
-                if !is_induced {
-                    arguments.push(binding.argument);
-                }
-            }
-            let arguments = self.intern_type_ids(&arguments)?;
-            let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
-                symbol: key.symbol,
-                arguments,
-            }))?;
-            let origin = Origin::Node(source, None);
-            let conformances = self.decided_conformances(origin, target)?;
-            self.module_mut(module)
-                .generics_tail
-                .set_instance_conformances(instance_id, conformances);
-        }
-
-        Ok(())
     }
 }

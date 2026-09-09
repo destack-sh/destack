@@ -36,7 +36,7 @@ function first(values: &readonly [int32]): &readonly int32 {
     /// @resolution.access source=values root=first.values
     /// @resolution.place source=values[0] placement=first.'a lifetime=first.'a access="readonly"
     /// @resolution.access source=values[0] root=first.values keys=[0]
-    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&first.'a int32, \"readonly\">)"
+    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&first.'a int32, \"readonly\">, regions=(first.'a))"
     /// @generic.instantiation id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
 
 }
@@ -48,7 +48,7 @@ function inspect(values: &readonly [int32]): void {
 
     first(values) satisfies &readonly int32;
     /// @resolution.name source=first target=first
-    /// @resolution.call source=first(values) parameters=(&inspect.'a readonly Slice<int32>) arguments=(provided(values) as &inspect.'a readonly Slice<int32>) return=&inspect.'a readonly int32 kind=symbol target=first
+    /// @resolution.call source=first(values) parameters=(&inspect.'a readonly Slice<int32>) arguments=(provided(values) as &inspect.'a readonly Slice<int32>) return=&inspect.'a readonly int32 regions=(inspect.'a) kind=symbol target=first
     /// @resolution.name source=values target=inspect.values
     /// @resolution.place source=values placement=inspect.'a lifetime=inspect.'a access="readonly"
     /// @resolution.access source=values root=inspect.values
@@ -88,7 +88,7 @@ function pick(left: &readonly int32, right: &readonly int32, takeLeft: boolean):
 
     return takeLeft ? left : right;
     /// @resolution.name source=takeLeft target=pick.takeLeft
-    /// @resolution.place source=takeLeft placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=takeLeft placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=takeLeft root=pick.takeLeft
     /// @resolution.name source=left target=pick.left
     /// @resolution.place source=left placement=pick.'a lifetime=pick.'a access="readonly"
@@ -187,9 +187,9 @@ class Store {
         return &readonly this.value;
         /// @resolution.member source=this.value receiver=Store type=int32 kind=field target_receiver=Store key=value target=Store.value target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Store type=Store
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -239,7 +239,7 @@ function first(values: &readonly [int32]): &readonly int32 {
     /// @resolution.access source=values root=first.values
     /// @resolution.place source=values[0] placement=first.'a lifetime=first.'a access="readonly"
     /// @resolution.access source=values[0] root=first.values keys=[0]
-    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&first.'a int32, \"readonly\">)"
+    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&first.'a int32, \"readonly\">, regions=(first.'a))"
     /// @generic.instantiation id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
 
 }
@@ -255,7 +255,7 @@ function escape(): &readonly int32 {
 
     return first(&readonly values);
     /// @resolution.name source=first target=first
-    /// @resolution.call source="first(&readonly values)" parameters=(&'frame readonly Slice<int32>) arguments=(provided(&readonly values) as &'frame readonly Slice<int32>) return=&'frame readonly int32 kind=symbol target=first
+    /// @resolution.call source="first(&readonly values)" parameters=(&'frame readonly Slice<int32>) arguments=(provided(&readonly values) as &'frame readonly Slice<int32>) return=&'frame readonly int32 regions=("frame" & "local") kind=symbol target=first
     /// @resolution.name source=values target=escape.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=values root=escape.values

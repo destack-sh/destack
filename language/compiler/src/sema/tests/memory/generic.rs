@@ -40,7 +40,7 @@ function identity(value: User): User {
 
     return value;
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -108,12 +108,12 @@ consume(user);
 }
 
 #[test]
-fn test_acquire_exclusive_borrow_from_default_local_parameter() {
+fn test_acquire_a_mutable_borrow_from_a_default_local_parameter() {
     let session = TestSession::single(
         r#"
 class User {}
 
-declare function consume(value: &exclusive User): void;
+declare function consume(value: &User): void;
 
 function replace(user: User): void {
     consume(user);
@@ -128,10 +128,10 @@ function replace(user: User): void {
 === annotated ===
 class User {}
 
-declare function consume<'a>(value: &'a exclusive User): void;
+declare function consume<'a>(value: &'a User): void;
 
 function replace(user: User): void {
-    consume(user as &'managed exclusive User);
+    consume(user as &'managed User);
 }
 
 === dir ===
@@ -139,10 +139,10 @@ class User {}
 /// @type.symbol symbol=User source="class User {}" type=User
 /// @definition.class symbol=User source="class User {}"
 
-declare function consume(value: &exclusive User): void;
+declare function consume(value: &User): void;
 /// @generic.template symbol=consume parameters=('a)
-/// @type.symbol symbol=consume source="declare function consume(value: &exclusive User): void" type=<consume.'a>(&consume.'a exclusive User) => void
-/// @type.symbol symbol=consume.value source="value: &exclusive User" type=&consume.'a exclusive User
+/// @type.symbol symbol=consume source="declare function consume(value: &User): void" type=<consume.'a>(&consume.'a User) => void
+/// @type.symbol symbol=consume.value source="value: &User" type=&consume.'a User
 /// @resolution.name source=User target=User
 
 function replace(user: User): void {
@@ -152,9 +152,9 @@ function replace(user: User): void {
 
     consume(user);
     /// @resolution.name source=consume target=consume
-    /// @resolution.call source=consume(user) parameters=(Borrowed<User, "managed" & "local", "exclusive">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "exclusive">) return=void kind=symbol target=consume
+    /// @resolution.call source=consume(user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "mutable">) return=void regions=("managed" & "local") kind=symbol target=consume
     /// @resolution.name source=user target=replace.user
-    /// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=user root=replace.user
 
 }
@@ -217,7 +217,7 @@ function identity<const S: Space>(value: Managed<User, S>): Managed<User, S> {
 
     return value;
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement=S lifetime="managed" access="exclusive"
+    /// @resolution.place source=value placement=S lifetime="managed" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -236,9 +236,8 @@ identity(localUser) satisfies local User;
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(localUser) parameters=(local User) arguments=(provided(localUser) as local User) return=local User kind=symbol target=identity instance="identity<\"local\">"
 /// @generic.instantiation id="identity<\"local\">" template=identity arguments=("local")
-/// @generic.instance id="identity<\"local\">" template=identity arguments=("local")
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localUser root=localUser
 /// @resolution.name source=User target=User
 
@@ -246,7 +245,6 @@ identity(sharedUser) satisfies shared User;
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(sharedUser) parameters=(shared User) arguments=(provided(sharedUser) as shared User) return=shared User kind=symbol target=identity instance="identity<\"shared\">"
 /// @generic.instantiation id="identity<\"shared\">" template=identity arguments=("shared")
-/// @generic.instance id="identity<\"shared\">" template=identity arguments=("shared")
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedUser root=sharedUser
@@ -305,7 +303,7 @@ function identity<T>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -326,7 +324,7 @@ identity(localUser) satisfies local User;
 /// @generic.instantiation id="identity<local User>" template=identity arguments=(local User)
 /// @generic.instance id="identity<local User>" template=identity arguments=(local User)
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localUser root=localUser
 /// @resolution.name source=User target=User
 
@@ -477,7 +475,7 @@ function negate(value: boolean): boolean {
     return !value;
     /// @resolution.operator source=!value type=boolean operator="!" kind=builtin operands=[value as boolean families=(boolean)]
     /// @resolution.name source=value target=negate.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=negate.value
 
 }
@@ -515,7 +513,7 @@ function inspect(value: int32): void {
     /// @type.symbol symbol=inspect.borrow source=borrow type=&'frame readonly int32
     /// @resolution.pattern source=borrow kind=binding target=inspect.borrow
     /// @resolution.name source=value target=inspect.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=inspect.value
 
     borrow satisfies local &readonly int32;
@@ -695,7 +693,7 @@ class Box<T> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T) => Managed<this, Box.constructor.P0>
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T) => Managed<Box<T>, Box.constructor.P0>
 /// @type.symbol symbol=Box.T source=T type=T
 
     value: T;
@@ -704,20 +702,20 @@ class Box<T> {
 
     constructor(value: T) {
     /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T) => Managed<Box<T>, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.this type=Box<T>
     /// @type.symbol symbol=Box.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Box.T
 
         this.value = value;
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<T>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Box<T>, target=field(receiver=Box<T>, target=Box.value, type=T), type=T" type=T
         /// @resolution.name source=value target=Box.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Box.constructor.value
 
     }
@@ -746,7 +744,7 @@ const localBox: local Box<User> = new Box(localUser);
 /// @generic.instance id="Box<User, \"local\">" template=Box arguments=(User, "local")
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localUser root=localUser
 
 const sharedBox: shared Box<User> = new Box(sharedUser);
@@ -838,9 +836,9 @@ mixedBox.borrow<shared User>() satisfies shared &readonly User;
 
 === dir ===
 interface Box<T> { value: T; }
-/// @generic.template symbol=Box parameters=(in out T#1)
+/// @generic.template symbol=Box parameters=(in out T#1, this: Box<T#1>)
 /// @type.symbol symbol=Box source="interface Box<T> { value: T; }" type=Box
-/// @definition.interface symbol=Box source="interface Box<T> { value: T; }" template=(in out T#1)
+/// @definition.interface symbol=Box source="interface Box<T> { value: T; }" template=(in out T#1, this: Box<T#1>)
 /// @definition.where symbol=Box source="interface Box<T> { value: T; }" relation=satisfies left=this right=Box<T#1>
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Box.T source=T type=T#1
@@ -849,16 +847,17 @@ interface Box<T> { value: T; }
 
 extension<T> of Box<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
-/// @definition.method symbol=borrow slot=borrow type=<borrow.'a>(this: &borrow.'a readonly this) => &borrow.'a readonly T#2
-/// @definition.method symbol=forward slot=forward type=<forward.'a>(this: &forward.'a readonly this) => &forward.'a readonly T#2
+/// @definition.method symbol=borrow slot=borrow type=<borrow.'a>(this: &borrow.'a readonly Box<T#2>) => &borrow.'a readonly T#2
+/// @definition.method symbol=forward slot=forward type=<forward.'a>(this: &forward.'a readonly Box<T#2>) => &forward.'a readonly T#2
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
 
     borrow(&readonly this): &readonly T {
     /// @generic.template symbol=borrow parent=template#1 parameters=('a)
-    /// @type.symbol symbol=borrow type=<borrow.'a>(this: &borrow.'a readonly this) => &borrow.'a readonly T#2
+    /// @type.symbol symbol=borrow type=<borrow.'a>(this: &borrow.'a readonly Box<T#2>) => &borrow.'a readonly T#2
     /// @type.symbol symbol=borrow.this source="&readonly this" type=&borrow.'a readonly this
     /// @resolution.name source=T target=T
 
@@ -870,13 +869,13 @@ extension<T> of Box<T> {
 
     forward(&readonly this): &readonly T {
     /// @generic.template symbol=forward parent=template#1 parameters=('a)
-    /// @type.symbol symbol=forward type=<forward.'a>(this: &forward.'a readonly this) => &forward.'a readonly T#2
+    /// @type.symbol symbol=forward type=<forward.'a>(this: &forward.'a readonly Box<T#2>) => &forward.'a readonly T#2
     /// @type.symbol symbol=forward.this source="&readonly this" type=&forward.'a readonly this
     /// @resolution.name source=T target=T
 
         this.borrow()
         /// @resolution.member source=this.borrow receiver=&forward.'a readonly Box<T#2> type=<borrow.'a>(this: &borrow.'a readonly Box<T#2>) => &borrow.'a readonly T#2 kind=symbol target_receiver=&forward.'a readonly Box<T#2> dispatch=dynamic constraint=Box<T#2> target=borrow
-        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 kind=dynamic target=borrow receiver=&forward.'a readonly Box<T#2> constraint=Box<T#2> generic_arguments=(T#2)
+        /// @resolution.call source=this.borrow() parameters=() return=&forward.'a readonly T#2 regions=(forward.'a) kind=dynamic target=borrow receiver=&forward.'a readonly Box<T#2> constraint=Box<T#2> generic_arguments=(T#2)
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&forward.'a readonly Box<T#2>
         /// @resolution.place source=this placement=forward.'a lifetime=forward.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -906,8 +905,8 @@ declare const mixedBox: local Box<shared User>;
 localBox.borrow() satisfies local &readonly User;
 /// @resolution.name source=localBox target=localBox
 /// @resolution.member source=localBox.borrow receiver=local Box<User> type=<borrow.'a>(this: &borrow.'a readonly Box<User>) => &borrow.'a readonly User kind=symbol target_receiver=local Box<User> dispatch=dynamic constraint=Box<User> target=borrow
-/// @resolution.call source=localBox.borrow() parameters=() return=Borrowed<User, "managed" & "local", "readonly"> kind=dynamic target=borrow receiver=local Box<User> constraint=Box<User> adjustments=(borrow(Borrowed<local Box<User>, "managed" & "local", "readonly">)) generic_arguments=(User)
-/// @resolution.place source=localBox placement="local" lifetime="managed" access="exclusive"
+/// @resolution.call source=localBox.borrow() parameters=() return=Borrowed<User, "managed" & "local", "readonly"> regions=("managed" & "local") kind=dynamic target=borrow receiver=local Box<User> constraint=Box<User> adjustments=(borrow(Borrowed<local Box<User>, "managed" & "local", "readonly">)) generic_arguments=(User)
+/// @resolution.place source=localBox placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localBox root=localBox
 /// @generic.instantiation id=borrow<User> template=borrow arguments=(User)
 /// @generic.instance id=borrow<User> template=borrow arguments=(User)
@@ -916,8 +915,8 @@ localBox.borrow() satisfies local &readonly User;
 mixedBox.borrow() satisfies shared &readonly User;
 /// @resolution.name source=mixedBox target=mixedBox
 /// @resolution.member source=mixedBox.borrow receiver=local Box<shared User> type=<borrow.'a>(this: &borrow.'a readonly Box<shared User>) => &borrow.'a readonly shared User kind=symbol target_receiver=local Box<shared User> dispatch=dynamic constraint=Box<shared User> target=borrow
-/// @resolution.call source=mixedBox.borrow() parameters=() return=Borrowed<shared User, "managed" & "local", "readonly"> kind=dynamic target=borrow receiver=local Box<shared User> constraint=Box<shared User> adjustments=(borrow(Borrowed<local Box<shared User>, "managed" & "local", "readonly">)) generic_arguments=(shared User)
-/// @resolution.place source=mixedBox placement="local" lifetime="managed" access="exclusive"
+/// @resolution.call source=mixedBox.borrow() parameters=() return=Borrowed<shared User, "managed" & "local", "readonly"> regions=("managed" & "local") kind=dynamic target=borrow receiver=local Box<shared User> constraint=Box<shared User> adjustments=(borrow(Borrowed<local Box<shared User>, "managed" & "local", "readonly">)) generic_arguments=(shared User)
+/// @resolution.place source=mixedBox placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=mixedBox root=mixedBox
 /// @generic.instantiation id="borrow<shared User>" template=borrow arguments=(shared User)
 /// @generic.instance id="borrow<shared User>" template=borrow arguments=(shared User)
@@ -959,7 +958,7 @@ struct Pair<'a, T> {
 /// @type.symbol symbol=Pair type=Pair
 /// @definition.struct symbol=Pair template=('a, out T)
 /// @definition.field symbol=Pair.value source="value: &'a readonly T" key=value type=&'a readonly T
-/// @definition.method symbol=Pair.read slot=read type=(this: this) => void
+/// @definition.method symbol=Pair.read slot=read type=(this: Pair<'a, T>) => void
 /// @type.symbol symbol=Pair.'a source='a type='a
 /// @type.symbol symbol=Pair.T source=T type=T
 
@@ -969,7 +968,7 @@ struct Pair<'a, T> {
     /// @resolution.name source=T target=Pair.T
 
     read(this): void {
-    /// @type.symbol symbol=Pair.read type=(this: this) => void
+    /// @type.symbol symbol=Pair.read type=(this: Pair<'a, T>) => void
     /// @type.symbol symbol=Pair.read.this source=this type=this
 
         let v = this.value;
@@ -977,7 +976,7 @@ struct Pair<'a, T> {
         /// @resolution.pattern source=v kind=binding target=Pair.read.v
         /// @resolution.member source=this.value receiver=Pair<'a, T> type=&'a readonly T kind=field target_receiver=Pair<'a, T> key=value target=Pair.value target_type=&'a readonly T
         /// @resolution.receiver source=this kind=this declaration=Pair type=Pair<'a, T>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.access source=this.value root=this keys=[value]
 

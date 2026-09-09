@@ -45,14 +45,14 @@ function make(): () => int64 {
     /// @type.node source=count type=int64
     /// @resolution.name source=count target=make.count
     /// @resolution.operator source="count + 1" type=int64 operator="+" kind=builtin operands=[count as int64 families=(integer), 1 as int64 families=(integer)]
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=count root=make.count
     /// @type.node source=1 type=1
 
     return next;
     /// @type.node source=next type=Function<(), int64, "readonly">
     /// @resolution.name source=next target=make.next
-    /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=next placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=next root=make.next
 
 }
@@ -130,10 +130,10 @@ function run(): void {
     /// @type.node source=0 type=0
 
     const foo = () => {
-    /// @type.symbol symbol=run.foo source=foo type=Function<(), void, "mutable">
+    /// @type.symbol symbol=run.foo source=foo type=Function<(), void>
     /// @resolution.pattern source=foo kind=binding target=run.foo
-    /// @type.symbol symbol=run.symbol5 type=Function<(), void, "mutable">
-    /// @type.node type=Function<(), void, "mutable">
+    /// @type.symbol symbol=run.symbol5 type=Function<(), void>
+    /// @type.node type=Function<(), void>
     /// @capture.function function=run.symbol5 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=run.symbol5 symbol=a mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=run.symbol5 symbol=b mode=manage type=int64 frame=main.<frame0>
@@ -145,7 +145,7 @@ function run(): void {
         /// @resolution.name source=a target=run.a
         /// @resolution.operator source="a += 1" type=int64 operator="+" kind=builtin operands=[a as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=a kind=place
-        /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=a placement="local" lifetime="frame" access="mutable"
         /// @resolution.assignment source=a read=binding(run.a) write=binding(run.a) type=int64
         /// @resolution.access source=a root=run.a
         /// @type.node source=1 type=1
@@ -156,7 +156,7 @@ function run(): void {
         /// @resolution.name source=b target=run.b
         /// @resolution.operator source="b += 1" type=int64 operator="+" kind=builtin operands=[b as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=b kind=place
-        /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=b placement="local" lifetime="frame" access="mutable"
         /// @resolution.assignment source=b read=binding(run.b) write=binding(run.b) type=int64
         /// @resolution.access source=b root=run.b
         /// @type.node source=1 type=1
@@ -164,10 +164,10 @@ function run(): void {
     };
 
     const boo = () => {
-    /// @type.symbol symbol=run.boo source=boo type=Function<(), void, "mutable">
+    /// @type.symbol symbol=run.boo source=boo type=Function<(), void>
     /// @resolution.pattern source=boo kind=binding target=run.boo
-    /// @type.symbol symbol=run.symbol7 type=Function<(), void, "mutable">
-    /// @type.node type=Function<(), void, "mutable">
+    /// @type.symbol symbol=run.symbol7 type=Function<(), void>
+    /// @type.node type=Function<(), void>
     /// @capture.function function=run.symbol7 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=run.symbol7 symbol=b mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=run.symbol7 symbol=c mode=manage type=int64 frame=main.<frame0>
@@ -178,7 +178,7 @@ function run(): void {
         /// @resolution.name source=b target=run.b
         /// @resolution.operator source="b += 1" type=int64 operator="+" kind=builtin operands=[b as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=b kind=place
-        /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=b placement="local" lifetime="frame" access="mutable"
         /// @resolution.assignment source=b read=binding(run.b) write=binding(run.b) type=int64
         /// @resolution.access source=b root=run.b
         /// @type.node source=1 type=1
@@ -189,7 +189,7 @@ function run(): void {
         /// @resolution.name source=c target=run.c
         /// @resolution.operator source="c += 1" type=int64 operator="+" kind=builtin operands=[c as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=c kind=place
-        /// @resolution.place source=c placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=c placement="local" lifetime="frame" access="mutable"
         /// @resolution.assignment source=c read=binding(run.c) write=binding(run.c) type=int64
         /// @resolution.access source=c root=run.c
         /// @type.node source=1 type=1
@@ -197,19 +197,19 @@ function run(): void {
     };
 
     foo();
-    /// @type.node source=foo type=Function<(), void, "mutable">
+    /// @type.node source=foo type=Function<(), void>
     /// @type.node source=foo() type=void
     /// @resolution.name source=foo target=run.foo
     /// @resolution.call source=foo() parameters=() return=void kind=expression target=expression
-    /// @resolution.place source=foo placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=foo placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=foo root=run.foo
 
     boo();
-    /// @type.node source=boo type=Function<(), void, "mutable">
+    /// @type.node source=boo type=Function<(), void>
     /// @type.node source=boo() type=void
     /// @resolution.name source=boo target=run.boo
     /// @resolution.call source=boo() parameters=() return=void kind=expression target=expression
-    /// @resolution.place source=boo placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=boo placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=boo root=run.boo
 
 }
@@ -294,17 +294,17 @@ function make(): () => int64 {
     /// @type.node source=count type=int64
     /// @resolution.name source=count target=make.count
     /// @resolution.operator source="count + step" type=int64 operator="+" kind=builtin operands=[count as int64 families=(integer), step as int64 families=(integer)]
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=count root=make.count
     /// @type.node source=step type=int64
     /// @resolution.name source=step target=make.step
-    /// @resolution.place source=step placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=step placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=step root=make.step
 
     return next;
     /// @type.node source=next type=Function<(), int64, "readonly">
     /// @resolution.name source=next target=make.next
-    /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=next placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=next root=make.next
 
 }
@@ -355,10 +355,10 @@ function connect(): void {
         default: "manage",
         socket: "move",
     } as CaptureDirective)
-    let send: ^((arg0: string) => void) = ((message: string): void => {
+    let send: ^Function<(string,), void, "mutable"> = ((message: string): void => {
         count += 1;
         socket.write(message);
-    }) as ^((arg0: string) => void);
+    }) as ^Function<(string,), void, "mutable">;
 
     send("ping");
 }
@@ -406,11 +406,12 @@ function connect(): void {
 
     })
     let send: ^Function<(string,), void> = (message) => {
-    /// @type.symbol symbol=connect.send source=send type=^Function<(string,), void>
+    /// @type.symbol symbol=connect.send source=send type=^Function<(string,), void, "mutable">
     /// @resolution.pattern source=send kind=binding target=connect.send
+    /// @generic.instance id="Function<(string,), void, \"mutable\">" template=Function arguments=((string,), void, "mutable")
     /// @resolution.name source=Function target=Function
-    /// @type.symbol symbol=connect.symbol8 type=Function<(string,), void, "mutable">
-    /// @type.node type=Function<(string,), void, "mutable">
+    /// @type.symbol symbol=connect.symbol8 type=Function<(string,), void>
+    /// @type.node type=Function<(string,), void>
     /// @capture.function function=connect.symbol8 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=connect.symbol8 symbol=count mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=connect.symbol8 symbol=socket mode=move type=Socket
@@ -425,7 +426,7 @@ function connect(): void {
         /// @resolution.name source=count target=connect.count
         /// @resolution.operator source="count += 1" type=int64 operator="+" kind=builtin operands=[count as int64 families=(integer), 1 as int64 families=(integer)]
         /// @resolution.pattern.assign source=count kind=place
-        /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
         /// @resolution.assignment source=count read=binding(connect.count) write=binding(connect.count) type=int64
         /// @resolution.access source=count root=connect.count
         /// @type.node source=1 type=1
@@ -436,22 +437,22 @@ function connect(): void {
         /// @type.node source=socket.write(message) type=void
         /// @resolution.name source=socket target=connect.socket
         /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
-        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame readonly Socket))
-        /// @resolution.place source=socket placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void regions=("frame" & "local") kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame readonly Socket))
+        /// @resolution.place source=socket placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=socket root=connect.socket
         /// @type.node source=message type=string
         /// @resolution.name source=message target=connect.symbol8.message
-        /// @resolution.place source=message placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=message placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=message root=connect.symbol8.message
 
     };
 
     send("ping");
     /// @type.node source="send(\"ping\")" type=void
-    /// @type.node source=send type=^Function<(string,), void>
+    /// @type.node source=send type=^Function<(string,), void, "mutable">
     /// @resolution.name source=send target=connect.send
     /// @resolution.call source="send(\"ping\")" parameters=(string) arguments=(provided("ping") as string) return=void kind=expression target=expression
-    /// @resolution.place source=send placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=send placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=send root=connect.send
     /// @type.node source="\"ping\"" type="ping"
 
@@ -504,53 +505,13 @@ declare class Client {
     read(): Promise<string>;
     /// @generic.template symbol=Client.read parameters=(P0: Place)
     /// @type.symbol symbol=Client.read source="read(): Promise<string>" type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string>
+    /// @generic.instance id=Promise<string> template=Promise arguments=(string)
     /// @resolution.name source=Promise target=Promise
 
 }
 
 function make(): () => Promise<string> {
 /// @type.symbol symbol=make type=() => Function<(), Promise<string>>
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
-/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
-/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
-/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
-/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
-/// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
-/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
-/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
-/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
-/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
-/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
-/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
-/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
-/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
-/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
-/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
-/// @generic.instance id=Promise<string> template=Promise arguments=(string)
-/// @generic.instance id=Promise<void> template=Promise arguments=(void)
-/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
-/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
-/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
-/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
-/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
-/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
-/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
-/// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
-/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
-/// @generic.instance id=PromiseState<string> template=PromiseState arguments=(string)
-/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
-/// @generic.instance id=PromiseWaiter<string> template=PromiseWaiter arguments=(string)
-/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
 /// @capture.function function=make bindings=0
 /// @resolution.name source=Promise target=Promise
 
@@ -571,10 +532,15 @@ function make(): () => Promise<string> {
     /// @resolution.pattern source=load kind=binding target=make.load
     /// @type.symbol symbol=make.symbol6 source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
     /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
-    /// @resolution.call source="async () => await client.read()" parameters=(^Function<(), Promise.create.T, "once">) arguments=(supplied as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<string>
+    /// @resolution.call source="async () => await client.read()" parameters=(^Function<(), string, "once">) arguments=(supplied as ^Function<(), string, "once">) return=Promise<string> kind=symbol target=Promise.create instance=Promise.create<string>
     /// @generic.instantiation id=Promise.create<string> template=Promise.create arguments=(string)
     /// @generic.instance id="Function<(), string, \"once\">" template=Function arguments=((), string, "once")
+    /// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
+    /// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
     /// @generic.instance id=Promise.create<string> template=Promise.create arguments=(string)
+    /// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+    /// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+    /// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
     /// @capture.function function=make.symbol6 bindings=1
     /// @capture.binding function=make.symbol6 symbol=client mode=copy type=Client
     /// @capture.directive function=make.symbol6 default=copy rules=0
@@ -584,22 +550,25 @@ function make(): () => Promise<string> {
     /// @generic.instance id="Promise.park<string, string>" template=Promise.park arguments=(string, string)
     /// @generic.instance id="PromiseAwaiter.symbol161<string, \"local\">" template=PromiseAwaiter.symbol161 arguments=(string, "local")
     /// @generic.instance id="PromiseAwaiter<string, \"local\">" template=PromiseAwaiter arguments=(string, "local")
-    /// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
+    /// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+    /// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
+    /// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+    /// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
+    /// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
     /// @type.node source=client type=Client
     /// @type.node source=client.read type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string>
     /// @type.node source=client.read() type=Promise<string>
     /// @resolution.name source=client target=make.client
     /// @resolution.member source=client.read receiver=Client type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string> kind=symbol target_receiver=Client target=Client.read
     /// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client instance="Client.read<\"local\">"
-    /// @resolution.place source=client placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=client placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=client root=make.client
     /// @generic.instantiation id="Client.read<\"local\">" template=Client.read arguments=("local")
-    /// @generic.instance id="Client.read<\"local\">" template=Client.read arguments=("local")
 
     return load;
     /// @type.node source=load type=Function<(), Promise<string>, "readonly">
     /// @resolution.name source=load target=make.load
-    /// @resolution.place source=load placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=load placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=load root=make.load
 
 }

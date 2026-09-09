@@ -20,9 +20,9 @@ const hexadecimal: Numeric = "0x1";
 === annotated ===
 type Numeric = `${number}`;
 
-const decimal: `${float64}` = "42";
-const exponent: `${float64}` = "1e3";
-const hexadecimal: `${float64}` = "0x1";
+const decimal: Numeric = "42";
+const exponent: Numeric = "1e3";
+const hexadecimal: Numeric = "0x1";
 
 === dir ===
 type Numeric = `${number}`;
@@ -30,17 +30,17 @@ type Numeric = `${number}`;
 /// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${float64}`
 
 const decimal: Numeric = "42";
-/// @type.symbol symbol=decimal source=decimal type=`${float64}`
+/// @type.symbol symbol=decimal source=decimal type=Numeric
 /// @resolution.pattern source=decimal kind=binding target=decimal
 /// @resolution.name source=Numeric target=Numeric
 
 const exponent: Numeric = "1e3";
-/// @type.symbol symbol=exponent source=exponent type=`${float64}`
+/// @type.symbol symbol=exponent source=exponent type=Numeric
 /// @resolution.pattern source=exponent kind=binding target=exponent
 /// @resolution.name source=Numeric target=Numeric
 
 const hexadecimal: Numeric = "0x1";
-/// @type.symbol symbol=hexadecimal source=hexadecimal type=`${float64}`
+/// @type.symbol symbol=hexadecimal source=hexadecimal type=Numeric
 /// @resolution.pattern source=hexadecimal kind=binding target=hexadecimal
 /// @resolution.name source=Numeric target=Numeric
 "#,
@@ -65,7 +65,7 @@ const bad: Numeric = "NaN";
 === annotated ===
 type Numeric = `${number}`;
 
-const bad: `${float64}` = "NaN";
+const bad: Numeric = "NaN";
 
 === dir ===
 type Numeric = `${number}`;
@@ -73,14 +73,15 @@ type Numeric = `${number}`;
 /// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${float64}`
 
 const bad: Numeric = "NaN";
-/// @type.symbol symbol=bad source=bad type=`${float64}`
+/// @type.symbol symbol=bad source=bad type=Numeric
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Numeric target=Numeric
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"NaN\"' is not assignable to type '`${float64}`'"
+/// @diagnostic.error id=not-assignable message="type '\"NaN\"' is not assignable to type 'Numeric'"
 /// @diagnostic.label line=4 column=22 span="\"NaN\"" line_source="const bad: Numeric = \"NaN\";"
 /// @diagnostic.related line=4 column=12 span="Numeric" line_source="const bad: Numeric = \"NaN\";" message="expected due to this annotation"
+/// @diagnostic.note message="'Numeric' reduces to '`${float64}`'"
 "#,
     );
 }
@@ -105,9 +106,9 @@ const hexadecimal: Big = "0x1";
 === annotated ===
 type Big = `${bigint}`;
 
-const decimal: `${bigint}` = "900";
-const negative: `${bigint}` = "-1";
-const hexadecimal: `${bigint}` = "0x1";
+const decimal: Big = "900";
+const negative: Big = "-1";
+const hexadecimal: Big = "0x1";
 
 === dir ===
 type Big = `${bigint}`;
@@ -115,17 +116,17 @@ type Big = `${bigint}`;
 /// @definition.type symbol=Big source="type Big = `${bigint}`" value=`${bigint}`
 
 const decimal: Big = "900";
-/// @type.symbol symbol=decimal source=decimal type=`${bigint}`
+/// @type.symbol symbol=decimal source=decimal type=Big
 /// @resolution.pattern source=decimal kind=binding target=decimal
 /// @resolution.name source=Big target=Big
 
 const negative: Big = "-1";
-/// @type.symbol symbol=negative source=negative type=`${bigint}`
+/// @type.symbol symbol=negative source=negative type=Big
 /// @resolution.pattern source=negative kind=binding target=negative
 /// @resolution.name source=Big target=Big
 
 const hexadecimal: Big = "0x1";
-/// @type.symbol symbol=hexadecimal source=hexadecimal type=`${bigint}`
+/// @type.symbol symbol=hexadecimal source=hexadecimal type=Big
 /// @resolution.pattern source=hexadecimal kind=binding target=hexadecimal
 /// @resolution.name source=Big target=Big
 "#,
@@ -150,7 +151,7 @@ const bad: Small = "128";
 === annotated ===
 type Small = `${int8}`;
 
-const bad: `${int8}` = "128";
+const bad: Small = "128";
 
 === dir ===
 type Small = `${int8}`;
@@ -158,14 +159,15 @@ type Small = `${int8}`;
 /// @definition.type symbol=Small source="type Small = `${int8}`" value=`${int8}`
 
 const bad: Small = "128";
-/// @type.symbol symbol=bad source=bad type=`${int8}`
+/// @type.symbol symbol=bad source=bad type=Small
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Small target=Small
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"128\"' is not assignable to type '`${int8}`'"
+/// @diagnostic.error id=not-assignable message="type '\"128\"' is not assignable to type 'Small'"
 /// @diagnostic.label line=4 column=20 span="\"128\"" line_source="const bad: Small = \"128\";"
 /// @diagnostic.related line=4 column=12 span="Small" line_source="const bad: Small = \"128\";" message="expected due to this annotation"
+/// @diagnostic.note message="'Small' reduces to '`${int8}`'"
 "#,
     );
 }
@@ -207,7 +209,7 @@ const value = parse("1e3");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"1e3\")" parameters=(`${1000}`) arguments=(provided("1e3") as `${1000}`) return=1000 kind=symbol target=parse instance=parse<1000>
 /// @generic.instantiation id=parse<1000> template=parse arguments=(1000)
-/// @generic.instance id=parse<1000> template=parse arguments=(1000)
+/// @generic.instance id=parse<1000> template=parse arguments=(1000) dependents=(`${1000}`)
 
 value satisfies number;
 /// @resolution.name source=value target=value
@@ -296,11 +298,11 @@ const value = parse("-1");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"-1\")" parameters=(`${-1n}`) arguments=(provided("-1") as `${-1n}`) return=-1n kind=symbol target=parse instance=parse<-1n>
 /// @generic.instantiation id=parse<-1n> template=parse arguments=(-1n)
-/// @generic.instance id=parse<-1n> template=parse arguments=(-1n)
+/// @generic.instance id=parse<-1n> template=parse arguments=(-1n) dependents=(`${-1n}`)
 
 value satisfies -1n;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -385,9 +387,9 @@ const octal: Count = "0o12";
 === annotated ===
 type Count = `${int32}`;
 
-const decimal: `${int32}` = "10";
-const binary: `${int32}` = "0b1010";
-const octal: `${int32}` = "0o12";
+const decimal: Count = "10";
+const binary: Count = "0b1010";
+const octal: Count = "0o12";
 
 === dir ===
 type Count = `${int32}`;
@@ -395,17 +397,17 @@ type Count = `${int32}`;
 /// @definition.type symbol=Count source="type Count = `${int32}`" value=`${int32}`
 
 const decimal: Count = "10";
-/// @type.symbol symbol=decimal source=decimal type=`${int32}`
+/// @type.symbol symbol=decimal source=decimal type=Count
 /// @resolution.pattern source=decimal kind=binding target=decimal
 /// @resolution.name source=Count target=Count
 
 const binary: Count = "0b1010";
-/// @type.symbol symbol=binary source=binary type=`${int32}`
+/// @type.symbol symbol=binary source=binary type=Count
 /// @resolution.pattern source=binary kind=binding target=binary
 /// @resolution.name source=Count target=Count
 
 const octal: Count = "0o12";
-/// @type.symbol symbol=octal source=octal type=`${int32}`
+/// @type.symbol symbol=octal source=octal type=Count
 /// @resolution.pattern source=octal kind=binding target=octal
 /// @resolution.name source=Count target=Count
 "#,
@@ -428,15 +430,15 @@ declare const width: Width;
 === annotated ===
 type Width = `int${1..=3}` | `uint${8..10}`;
 
-declare const width: "int1" | "int2" | "int3" | "uint8" | "uint9";
+declare const width: Width;
 
 === dir ===
 type Width = `int${1..=3}` | `uint${8..10}`;
-/// @type.symbol symbol=Width source="type Width = `int${1..=3}` | `uint${8..10}`" type=`int${1..=3}` | `uint${8..10}`
+/// @type.symbol symbol=Width source="type Width = `int${1..=3}` | `uint${8..10}`" type="int1" | "int2" | "int3" | "uint8" | "uint9"
 /// @definition.type symbol=Width source="type Width = `int${1..=3}` | `uint${8..10}`" value=`int${1..=3}` | `uint${8..10}`
 
 declare const width: Width;
-/// @type.symbol symbol=width source=width type="int1" | "int2" | "int3" | "uint8" | "uint9"
+/// @type.symbol symbol=width source=width type=Width
 /// @resolution.pattern source=width kind=binding target=width
 /// @resolution.name source=Width target=Width
 "#);
@@ -461,16 +463,16 @@ declare const wide: Wide;
 === dir ===
 type Wide = `${0..=1000000}`;
 /// @type.symbol symbol=Wide source="type Wide = `${0..=1000000}`" type=<error>
-/// @definition.type symbol=Wide source="type Wide = `${0..=1000000}`" value=<error>
+/// @definition.type symbol=Wide source="type Wide = `${0..=1000000}`" value=`${0..=1000000}`
 
 declare const wide: Wide;
-/// @type.symbol symbol=wide source=wide type=<error>
+/// @type.symbol symbol=wide source=wide type=Wide
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Wide target=Wide
 "#, r#"
 /// @diagnostic.error id=template-literal-too-complex message="template literal type expands to a union that is too complex to represent"
-/// @diagnostic.label line=2 column=6 span="Wide" line_source="type Wide = `${0..=1000000}`;"
-/// @diagnostic.error id=template-literal-too-complex message="template literal type expands to a union that is too complex to represent"
 /// @diagnostic.label line=4 column=15 span="wide" line_source="declare const wide: Wide;"
+/// @diagnostic.error id=template-literal-too-complex message="template literal type expands to a union that is too complex to represent"
+/// @diagnostic.label line=2 column=6 span="Wide" line_source="type Wide = `${0..=1000000}`;"
 "#);
 }

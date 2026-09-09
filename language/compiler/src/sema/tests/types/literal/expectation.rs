@@ -29,7 +29,7 @@ type Mode = "fast" | "slow";
 
 declare const quick: boolean;
 
-const ternary: "fast" | "slow" = quick ? "fast" : "slow";
+const ternary: Mode = quick ? "fast" : "slow";
 const closure: () => Mode = (): Mode => {
     if (quick) {
         return "fast";
@@ -48,7 +48,7 @@ declare const quick: boolean;
 /// @resolution.pattern source=quick kind=binding target=quick
 
 const ternary: Mode = quick ? "fast" : "slow";
-/// @type.symbol symbol=ternary source=ternary type="fast" | "slow"
+/// @type.symbol symbol=ternary source=ternary type=Mode
 /// @resolution.pattern source=ternary kind=binding target=ternary
 /// @resolution.name source=Mode target=Mode
 /// @resolution.name source=quick target=quick
@@ -149,7 +149,7 @@ function count(values: &readonly int32[]): int32 {
         /// @resolution.name source=total target=count.total
         /// @resolution.operator source="total += value" type=int32 operator="+" kind=builtin operands=[total as int32 families=(integer), value as int32 families=(integer)]
         /// @resolution.pattern.assign source=total kind=place
-        /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=total placement="local" lifetime="frame" access="mutable"
         /// @resolution.assignment source=total read=binding(count.total) write=binding(count.total) type=int32
         /// @resolution.access source=total root=count.total
         /// @resolution.name source=value target=count.value
@@ -159,7 +159,7 @@ function count(values: &readonly int32[]): int32 {
     }
     return total;
     /// @resolution.name source=total target=count.total
-    /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=total placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=total root=count.total
 
 }
@@ -176,8 +176,8 @@ function fallback(result: Result<int32, string>): int32 {
     if (result.isOk()) {
     /// @resolution.name source=result target=fallback.result
     /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<isOk.'a>(this: &isOk.'a readonly Result<int32, string>) => boolean kind=symbol target_receiver=Result<int32, string> target=isOk
-    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'frame readonly Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk"
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.call source=result.isOk() parameters=() return=boolean regions=("frame" & "local") kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'frame readonly Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=fallback.result
     /// @generic.instantiation id="isOk<int32, string>" template=isOk arguments=(int32, string)
 
@@ -189,14 +189,14 @@ function fallback(result: Result<int32, string>): int32 {
         /// @resolution.name source=result target=fallback.result
         /// @resolution.member source=result.unwrap receiver=Result<int32, string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> target=unwrap
         /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.unwrap"
-        /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=result root=fallback.result
         /// @generic.instantiation id="unwrap<int32, string>" template=unwrap arguments=(int32, string)
 
     }
     return value;
     /// @resolution.name source=value target=fallback.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=fallback.value
 
 }
@@ -278,13 +278,13 @@ function value(result: Result<int32, string>): int32 {
 
         value
         /// @resolution.name source=value target=value.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=value.value
 
     } else {
         fallback
         /// @resolution.name source=fallback target=value.fallback
-        /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=fallback placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=fallback root=value.fallback
 
     };
@@ -302,7 +302,7 @@ function count(): int32 {
     /// @resolution.pattern source=index kind=binding target=count.index
     /// @resolution.name source=index target=count.index
     /// @resolution.operator source="index < 3" type=boolean operator="<" kind=builtin operands=[index as int32 families=(integer), 3 as int32 families=(integer)]
-    /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=index placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=index root=count.index
     /// @resolution.name source=index target=count.index
     /// @resolution.assignment source=index read=binding(count.index) write=binding(count.index) type=int32
@@ -316,16 +316,16 @@ function count(): int32 {
         /// @resolution.assignment source=total write=binding(count.total) type=int32
         /// @resolution.name source=total target=count.total
         /// @resolution.operator source="total - index" type=int32 operator="-" kind=builtin operands=[total as int32 families=(integer), index as int32 families=(integer)]
-        /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=total placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=total root=count.total
         /// @resolution.name source=index target=count.index
-        /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=index placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=index root=count.index
 
     }
     return total;
     /// @resolution.name source=total target=count.total
-    /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=total placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=total root=count.total
 
 }
@@ -390,7 +390,7 @@ function value(result: Result<int32, string>): int32 {
     return match (result) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=result target=value.result
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=value.result
 
         Ok { value } => value
@@ -460,20 +460,20 @@ function sequence(depth: isize): string {
     /// @resolution.pattern source=output kind=binding target=sequence.output
 
     for (const index of 0..depth) {
-    /// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<isize>)" next="next(parameters=(), arguments=(), return=IteratorResult<isize, void>)"
+    /// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<isize>)" next="next(parameters=(), arguments=(), return=IteratorResult<isize, void>, regions=(\"frame\" & \"local\"))"
     /// @generic.instantiation id=iterator#1<isize> template=iterator#1 arguments=(isize)
     /// @generic.instantiation id=next<isize> template=next arguments=(isize)
     /// @type.symbol symbol=sequence.index source=index type=isize
     /// @resolution.pattern source=index kind=binding target=sequence.index
     /// @resolution.name source=depth target=sequence.depth
-    /// @resolution.place source=depth placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=depth placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=depth root=sequence.depth
 
         output += index == 0 ? "a" : "b";
         /// @resolution.name source=output target=sequence.output
-        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
+        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
         /// @resolution.pattern.assign source=output kind=place
-        /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
         /// @resolution.assignment source=output read=binding(sequence.output) write=binding(sequence.output) type=string
         /// @resolution.access source=output root=sequence.output
         /// @resolution.name source=index target=sequence.index
@@ -484,7 +484,7 @@ function sequence(depth: isize): string {
     }
     return output;
     /// @resolution.name source=output target=sequence.output
-    /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=output root=sequence.output
 
 }
@@ -594,7 +594,7 @@ function settle(): void {
     /// @type.symbol symbol=settle.text source=text type=MaybeOwned<"frame" & "local", string>
     /// @resolution.pattern source=text kind=binding target=settle.text
     /// @resolution.member source=(1).toString receiver=1 type=<Number.toString.'a>(this: &Number.toString.'a readonly 1, float64 | undefined?) => MaybeOwned<Number.toString.'a, string> kind=symbol target_receiver=1 target=Number.toString
-    /// @resolution.call source=(1).toString() parameters=(float64 | undefined) arguments=(omitted as float64 | undefined) return=MaybeOwned<"frame" & "local", string> kind=symbol target=Number.toString receiver=1 adjustments=(borrow(&'frame readonly 1))
+    /// @resolution.call source=(1).toString() parameters=(float64 | undefined) arguments=(omitted as float64 | undefined) return=MaybeOwned<"frame" & "local", string> regions=("frame" & "local") kind=symbol target=Number.toString receiver=1 adjustments=(borrow(&'frame readonly 1))
 
     const mixed = [1, 2.5];
     /// @type.symbol symbol=settle.mixed source=mixed type=float64[]
@@ -610,7 +610,7 @@ function settle(): void {
     /// @resolution.name source=counter target=settle.counter
     /// @resolution.operator source="counter += 2" type=int64 operator="+" kind=builtin operands=[counter as int64 families=(integer), 2 as int64 families=(integer)]
     /// @resolution.pattern.assign source=counter kind=place
-    /// @resolution.place source=counter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=counter placement="local" lifetime="frame" access="mutable"
     /// @resolution.assignment source=counter read=binding(settle.counter) write=binding(settle.counter) type=int64
     /// @resolution.access source=counter root=settle.counter
 
@@ -619,7 +619,7 @@ function settle(): void {
     /// @resolution.pattern source=compared kind=binding target=settle.compared
     /// @resolution.name source=counter target=settle.counter
     /// @resolution.operator source="counter < 10" type=boolean operator="<" kind=builtin operands=[counter as int64 families=(integer), 10 as int64 families=(integer)]
-    /// @resolution.place source=counter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=counter placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=counter root=settle.counter
 
 }

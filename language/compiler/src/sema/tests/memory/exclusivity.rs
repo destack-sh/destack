@@ -8,7 +8,7 @@ fn test_reject_copy_bound_for_inline_drop_struct() {
 import { Copy, Drop } from "destack:memory";
 
 struct Guard implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 declare function duplicate<T: Copy>(value: T): void;
@@ -26,7 +26,7 @@ duplicate(guard);
 import { Copy, Drop } from "destack:memory";
 
 struct Guard implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 declare function duplicate<T: Copy>(value: T): void;
@@ -42,14 +42,14 @@ struct Guard implements Drop {
 /// @definition.struct symbol=Guard
 /// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
 /// @definition.implements symbol=Guard source=Drop target=Drop
-/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
+/// @definition.method symbol=Guard.drop source="drop(&this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a this) => void
 /// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
 /// @resolution.name source=Drop target=Drop
 
-    drop(&exclusive this): void {}
+    drop(&this): void {}
     /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
-    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=&Guard.drop.'a exclusive this
+    /// @type.symbol symbol=Guard.drop source="drop(&this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a this) => void
+    /// @type.symbol symbol=Guard.drop.this source=&this type=&Guard.drop.'a this
 
 }
 
@@ -94,7 +94,7 @@ struct Guard {
 }
 
 extension of Guard implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 declare function duplicate<T: Copy>(value: T): void;
@@ -116,7 +116,7 @@ struct Guard {
 }
 
 extension of Guard implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 declare function duplicate<T: Copy>(value: T): void;
@@ -140,15 +140,15 @@ struct Guard {
 extension of Guard implements Drop {
 /// @definition.extension symbol=<module>#2 form=local target=Guard
 /// @definition.implements symbol=<module>#2 source=Drop target=Drop
-/// @definition.method symbol=drop source="drop(&exclusive this): void {}" slot=drop type=<drop.'a>(this: &drop.'a exclusive this) => void
+/// @definition.method symbol=drop source="drop(&this): void {}" slot=drop type=<drop.'a>(this: &drop.'a this) => void
 /// @definition.conformance symbol=<module>#2 member=drop requirement=Drop.drop
 /// @resolution.name source=Guard target=Guard
 /// @resolution.name source=Drop target=Drop
 
-    drop(&exclusive this): void {}
+    drop(&this): void {}
     /// @generic.template symbol=drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=drop source="drop(&exclusive this): void {}" type=<drop.'a>(this: &drop.'a exclusive this) => void
-    /// @type.symbol symbol=drop.this source="&exclusive this" type=&drop.'a exclusive this
+    /// @type.symbol symbol=drop source="drop(&this): void {}" type=<drop.'a>(this: &drop.'a this) => void
+    /// @type.symbol symbol=drop.this source=&this type=&drop.'a this
 
 }
 
@@ -189,7 +189,7 @@ fn test_satisfy_copy_bound_for_plain_struct() {
 import { Copy, Drop } from "destack:memory";
 
 struct Guard implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 struct Plain {
@@ -211,7 +211,7 @@ duplicate(plain);
 import { Copy, Drop } from "destack:memory";
 
 struct Guard implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 struct Plain {
@@ -231,14 +231,14 @@ struct Guard implements Drop {
 /// @definition.struct symbol=Guard
 /// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
 /// @definition.implements symbol=Guard source=Drop target=Drop
-/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
+/// @definition.method symbol=Guard.drop source="drop(&this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a this) => void
 /// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
 /// @resolution.name source=Drop target=Drop
 
-    drop(&exclusive this): void {}
+    drop(&this): void {}
     /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
-    /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=&Guard.drop.'a exclusive this
+    /// @type.symbol symbol=Guard.drop source="drop(&this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a this) => void
+    /// @type.symbol symbol=Guard.drop.this source=&this type=&Guard.drop.'a this
 
 }
 

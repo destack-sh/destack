@@ -189,13 +189,13 @@ class Holder {
 
         this.user = user;
         /// @resolution.receiver source=this kind=this declaration=Holder type=Holder
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.user kind=place
         /// @resolution.access source=this.user root=this keys=[user]
         /// @resolution.assignment source=this.user write="receiver=Holder, target=field(receiver=Holder, target=Holder.user, type=User), type=User" type=User
         /// @resolution.name source=user target=Holder.constructor.user
-        /// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=user root=Holder.constructor.user
 
     }
@@ -218,7 +218,7 @@ function run(holder: Holder): User {
 
     holder.user = make();
     /// @resolution.name source=holder target=run.holder
-    /// @resolution.place source=holder placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=holder placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=holder root=run.holder
     /// @resolution.pattern.assign source=holder.user kind=place
     /// @resolution.access source=holder.user root=run.holder keys=[user]
@@ -733,7 +733,7 @@ function run(): void {
     /// @resolution.name source=take target=take
     /// @resolution.call source=take(owned) parameters=(User) arguments=(provided(owned) as User) return=void kind=symbol target=take
     /// @resolution.name source=owned target=run.owned
-    /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=owned placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=owned root=run.owned
     /// @coercion.node source=owned from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
@@ -741,7 +741,7 @@ function run(): void {
     /// @resolution.name source=take target=take
     /// @resolution.call source=take(owned) parameters=(User) arguments=(provided(owned) as User) return=void kind=symbol target=take
     /// @resolution.name source=owned target=run.owned
-    /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=owned placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=owned root=run.owned
     /// @coercion.node source=owned from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
@@ -832,7 +832,7 @@ extension<T> of Owned<T> {
 
         return this;
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=^T#1
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @coercion.node source=this from=^T#1 adjustments=[{ kind: representation, target: T#1 }] origin=implicit
 
@@ -854,7 +854,7 @@ extension<T> of ^T {
 
         return this;
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=^T#2
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @coercion.node source=this from=^T#2 adjustments=[{ kind: representation, target: T#2 }] origin=implicit
 
@@ -960,7 +960,7 @@ function forward(input: ^User): ^User {
 
     return moved;
     /// @resolution.name source=moved target=forward.moved
-    /// @resolution.place source=moved placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=moved placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=moved root=forward.moved
 
 }
@@ -976,7 +976,7 @@ function pass(input: ^User): ^User {
     /// @resolution.call source=identity(input) parameters=(^User) arguments=(provided(input) as ^User) return=^User kind=symbol target=identity instance=identity<^User>
     /// @generic.instantiation id=identity<^User> template=identity arguments=(^User)
     /// @resolution.name source=input target=pass.input
-    /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=input placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=input root=pass.input
 
 }

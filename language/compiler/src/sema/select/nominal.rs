@@ -77,7 +77,7 @@ impl CheckState<'_> {
         }
 
         // read the selected variant from its enum definition
-        let value = match self.definition(case.owner)? {
+        let value = match self.definition(case.owner)?.as_deref() {
             Some(dir::Definition::Enum(definition)) => definition
                 .variants()
                 .find(|variant| variant.symbol == case.variant)
@@ -156,8 +156,10 @@ impl CheckState<'_> {
             _ => return self.report_rejected_pattern(node, origin, head),
         };
 
-        // bind the pattern instantiation from the matched input
+        // bind the pattern instantiation from the matched input, its fields binding through the
+        // input's borrow
         let input = self.require_node_type(node.into_any())?;
+        let binding = self.pattern_binding_form(origin, input)?;
         let input = self.strip_form(origin, input)?;
         let mut matched = input;
         if let Some(instance) = self.decompose_newtype(origin, input)? {
@@ -183,7 +185,8 @@ impl CheckState<'_> {
         }
 
         // project declared fields off the matched declaration
-        let (fields, rest) = self.project_named_fields(node, origin, flow, scope, head, fields)?;
+        let (fields, rest) =
+            self.project_named_fields(node, origin, flow, scope, head, fields, binding)?;
         let arguments: SmallVec<[_; 8]> = self.type_ids(head.module_id, instance.arguments)?.into();
         let generic_arguments =
             self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;

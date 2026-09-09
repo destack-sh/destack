@@ -56,10 +56,10 @@ impl CheckState<'_> {
         // collect the members by the value's own head
         match self.ty(resolved)? {
             dir::Type::Union(union) => {
-                let elements = self.type_ids(resolved.module_id, union.elements)?.to_vec();
+                let elements = self.type_ids(resolved.module_id, union.elements)?;
                 for element in elements {
-                    if !rejects(&self.ty(element)?) {
-                        kept.push(element);
+                    if !rejects(&self.ty(*element)?) {
+                        kept.push(*element);
                     }
                 }
             }
@@ -127,11 +127,6 @@ impl CheckState<'_> {
             return Ok(element);
         }
 
-        // import the module the resolved symbol lives in
-        if !self.is_own_module(symbol.module_id) {
-            self.import_external_module(symbol.module_id)?;
-        }
-
         self.intern_type(dir::Type::Application(dir::GenericApplication {
             symbol,
             arguments: instance.arguments,
@@ -165,7 +160,8 @@ impl CheckState<'_> {
                     let is_covered = !keys.insert(key)
                         || key_domains
                             .iter()
-                            .any(|primitive| key.widens_to_primitive(*primitive));
+                            .any(|primitive| key.widens_to_primitive(*primitive))
+                        || self.union_contains(&kept, element)?;
                     if !is_covered {
                         kept.push(element);
                     }
@@ -354,7 +350,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether two types are the same type by content.
-    fn is_same_type(
+    pub(in crate::sema) fn is_same_type(
         &self,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
@@ -387,6 +383,13 @@ impl CheckState<'_> {
                         right_instance.arguments,
                         depth,
                     )?
+            }
+            (dir::Type::Application(instance), dir::Type::Reference(reference))
+            | (dir::Type::Reference(reference), dir::Type::Application(instance)) => {
+                instance.symbol == reference.symbol
+                    && self
+                        .type_ids(left.module_id, instance.arguments)?
+                        .is_empty()
             }
             (dir::Type::Form(left_form), dir::Type::Form(right_form)) => {
                 left_form.form == right_form.form
@@ -438,6 +441,10 @@ impl CheckState<'_> {
         }
         let decision = match (self.ty(source)?, self.ty(target)?) {
             (_, dir::Type::Never) => true,
+            // a readonly view covers the literals its value covers
+            (dir::Type::Form(form), dir::Type::Literal(_)) if form.form == dir::Form::Readonly => {
+                return self.union_element_covers(form.value, target);
+            }
             (target, dir::Type::Literal(literal)) => literal.widens_to(&target),
             (target, dir::Type::Range(range)) => range.widens_to(&target),
             // an enum covers each of its own variants

@@ -38,8 +38,9 @@ extension Arithmetic<T: Scalar> of T {
 
 === dir ===
 interface Scalar {}
+/// @generic.template symbol=Scalar parameters=(this: Scalar)
 /// @type.symbol symbol=Scalar source="interface Scalar {}" type=Scalar
-/// @definition.interface symbol=Scalar source="interface Scalar {}"
+/// @definition.interface symbol=Scalar source="interface Scalar {}" template=(this: Scalar)
 /// @definition.where symbol=Scalar source="interface Scalar {}" relation=satisfies left=this right=Scalar
 
 function checkedAdd<T: Scalar>(a: T, b: T): T | undefined {
@@ -81,11 +82,11 @@ extension Arithmetic<T: Scalar> of T {
         /// @generic.instantiation id=checkedAdd<T#2> template=checkedAdd arguments=(T#2) owner=Arithmetic.checkedAdd
         /// @type.node source=this type=T#2
         /// @resolution.receiver source=this kind=this declaration=Arithmetic type=T#2
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @type.node source=other type=T#2
         /// @resolution.name source=other target=Arithmetic.checkedAdd.other
-        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=other root=Arithmetic.checkedAdd.other
 
     }
@@ -156,7 +157,7 @@ function choose<T>(a: T, b: T): T {
     a
     /// @type.node source=a type=T#1
     /// @resolution.name source=a target=choose.a
-    /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=a placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=a root=choose.a
 
 }
@@ -205,7 +206,7 @@ extension Forward<T: Copy> of Pair<T> {
         /// @resolution.access source=this root=this
         /// @type.node source=other type=Pair<T#3>
         /// @resolution.name source=other target=Forward.choose.other
-        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=other root=Forward.choose.other
 
     }
@@ -254,12 +255,12 @@ declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T#1)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(out T#1)
-/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<Box.get.'a>(this: &Box.get.'a readonly this) => &Box.get.'a readonly T#1
+/// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<Box.get.'a>(this: &Box.get.'a readonly Box<T#1>) => &Box.get.'a readonly T#1
 /// @type.symbol symbol=Box.T source=T type=T#1
 
     get(&readonly this): &readonly T;
     /// @generic.template symbol=Box.get parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<Box.get.'a>(this: &Box.get.'a readonly this) => &Box.get.'a readonly T#1
+    /// @type.symbol symbol=Box.get source="get(&readonly this): &readonly T" type=<Box.get.'a>(this: &Box.get.'a readonly Box<T#1>) => &Box.get.'a readonly T#1
     /// @type.symbol symbol=Box.get.this source="&readonly this" type=&Box.get.'a readonly this
     /// @resolution.name source=T target=Box.T
 
@@ -268,6 +269,7 @@ declare class Box<T> {
 function read<T>(source: &readonly Box<T>): &readonly T {
 /// @generic.template symbol=read parameters=(T#2, 'a)
 /// @type.symbol symbol=read type=<T#2, read.'a>(&read.'a readonly Box<T#2>) => &read.'a readonly T#2
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @type.symbol symbol=read.T source=T type=T#2
 /// @type.symbol symbol=read.source source="source: &readonly Box<T>" type=&read.'a readonly Box<T#2>
 /// @resolution.name source=Box target=Box
@@ -280,10 +282,11 @@ function read<T>(source: &readonly Box<T>): &readonly T {
     /// @type.node source=source.get() type=&read.'a readonly T#2
     /// @resolution.name source=source target=read.source
     /// @resolution.member source=source.get receiver=&read.'a readonly Box<T#2> type=<Box.get.'a>(this: &Box.get.'a readonly Box<T#2>) => &Box.get.'a readonly T#2 kind=symbol target_receiver=&read.'a readonly Box<T#2> target=Box.get
-    /// @resolution.call source=source.get() parameters=() return=&read.'a readonly T#2 kind=symbol target=Box.get receiver=&read.'a readonly Box<T#2> instance=Box<T#2>.get
+    /// @resolution.call source=source.get() parameters=() return=&read.'a readonly T#2 regions=(read.'a) kind=symbol target=Box.get receiver=&read.'a readonly Box<T#2> instance=Box<T#2>.get
     /// @resolution.place source=source placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=source root=read.source
     /// @generic.instantiation id=Box.get<T#2> template=Box.get arguments=(T#2) owner=read
+    /// @generic.instance id=Box.get<T#2> template=Box.get arguments=(T#2)
 
 }
 "#,

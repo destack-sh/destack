@@ -256,7 +256,7 @@ const value: Status = Status.Default;
 /// @resolution.name source=Status target=Status
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Default receiver=Status type=Status kind=field target_receiver=Status key=Default target=Status.Default target_type=Status
-/// @resolution.place source=Status.Default placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=Status.Default placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=Status.Default root=Status keys=[Default]
 "#,
     );
@@ -341,7 +341,7 @@ const value = Status.Active.isActive();
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Active receiver=Status type=Status.Active kind=symbol target_receiver=Status target=Status.Active
 /// @resolution.member source=Status.Active.isActive receiver=Status.Active type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status.Active) => boolean kind=symbol target_receiver=Status.Active target=Status.isActive
-/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow(&'frame readonly Status.Active))
+/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean regions=("frame" & "local") kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow(&'frame readonly Status.Active))
 "#,
     );
 }
@@ -445,7 +445,7 @@ const value: Status = Status.Default;
 /// @resolution.name source=Status target=Status
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Default receiver=Status type=Status kind=field target_receiver=Status key=Default target=Status.Default target_type=Status
-/// @resolution.place source=Status.Default placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=Status.Default placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=Status.Default root=Status keys=[Default]
 "#,
     );

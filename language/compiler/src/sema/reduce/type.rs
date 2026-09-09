@@ -30,7 +30,8 @@ impl CheckState<'_> {
             if self.language_item(instance.symbol)?.is_some() {
                 break;
             }
-            let Some(dir::Definition::TypeAlias(alias)) = self.definition(instance.symbol)? else {
+            let definition = self.definition(instance.symbol)?;
+            let Some(dir::Definition::TypeAlias(alias)) = definition.as_deref() else {
                 break;
             };
             let body = alias.value;
@@ -289,6 +290,33 @@ impl CheckState<'_> {
         self.normalize(origin, id)
     }
 
+    /// Return whether one normalized head stays stuck on a variable.
+    pub(in crate::sema) fn is_stuck_head(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        Ok(match self.ty(id)? {
+            dir::Type::Variable(_)
+            | dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
+            | dir::Type::This
+            | dir::Type::Operation(_)
+            | dir::Type::Member(_) => true,
+            // an intrinsic alias its arguments leave unreduced, or a bare generic parameter name
+            dir::Type::Application(instance) => {
+                (self.is_intrinsic_alias(instance.symbol)?
+                    && self
+                        .reduce_intrinsic_reference(origin, id.module_id, &instance)?
+                        .is_none())
+                    || instance.arguments.is_empty()
+                        && self.symbol_kind(instance.symbol)?
+                            == dir::SymbolKind::GenericTypeParameter
+            }
+            _ => false,
+        })
+    }
+
     /// Normalize the head of one type to its simplest available form, memoizing closed heads.
     pub(in crate::sema) fn normalize(
         &mut self,
@@ -300,7 +328,7 @@ impl CheckState<'_> {
         let flags = self.type_flags(id)?;
 
         // reduce parameter and This heads under their assuming template
-        let assumes = self.decision_scope(origin, flags)?;
+        let assumes = self.decision_scope(origin, &[id])?;
 
         // reuse decided reductions
         if let Some(assumes) = assumes
@@ -390,11 +418,6 @@ impl CheckState<'_> {
         // read the head through its solution
         let id = self.shallow_resolve(id)?;
 
-        // load foreign heads before their chains expand
-        if !self.is_own_module(id.module_id) {
-            self.import_external_module(id.module_id)?;
-        }
-
         // follow the chain by the head the type carries
         match self.ty(id)? {
             // block the chain on an open variable
@@ -411,7 +434,7 @@ impl CheckState<'_> {
                 if let Some(template) = self.symbol_template(reference.symbol)? {
                     let parameters = self.generic_template_parameters(template)?;
                     for parameter in parameters {
-                        let Some(binding) = self.generic_parameter(parameter).cloned() else {
+                        let Some(binding) = self.generic_parameter(parameter)?.cloned() else {
                             continue;
                         };
                         if binding.is_writable()
@@ -469,9 +492,9 @@ impl CheckState<'_> {
                     return self.normalize(origin, filled);
                 }
 
-                // reduce intrinsic references to their builtin forms
+                // reduce nominal declarations standing for builtin types
                 if let Some(reduced) =
-                    self.reduce_intrinsic_reference(origin, id.module_id, &instance)?
+                    self.reduce_representation_declaration(origin, id.module_id, &instance)?
                 {
                     return self.normalize(origin, reduced);
                 }
@@ -756,7 +779,7 @@ impl CheckState<'_> {
         }
 
         // keep an unchanged local root as it stands
-        let target = origin.module();
+        let target = self.module_id;
         let is_union = matches!(root, dir::Type::Union(_));
         let is_computation = matches!(root, dir::Type::Operation(_));
         if replacements.is_empty() && id.module_id == target && !is_union && !is_computation {
@@ -843,46 +866,10 @@ impl CheckState<'_> {
         Ok(Some(filled))
     }
 
-    /// Return whether one application elides parameters carrying semantic identity.
-    pub(in crate::sema) fn is_partial_application(
+    /// Return the substituted body of one transparent alias application.
+    pub(in crate::sema) fn type_alias_body(
         &mut self,
-        module: ModuleId,
-        instance: &dir::GenericApplication,
-    ) -> CompilerResult<bool> {
-        // read the declared parameters beside the written arguments
-        let Some(template) = self.symbol_template(instance.symbol)? else {
-            return Ok(false);
-        };
-        let parameters = self.generic_template_parameters(template)?;
-        let written = self.type_ids(module, instance.arguments)?.to_vec();
-
-        // slot the written arguments over the parameters like an application
-        let mut supplied = written.iter().copied().peekable();
-        let mut elides_value = false;
-        for parameter in parameters {
-            let Some(binding) = self.generic_parameter(parameter).cloned() else {
-                continue;
-            };
-            match supplied.peek() {
-                // consume the written argument the parameter takes
-                Some(argument) if self.argument_fills_parameter(&binding, *argument)? => {
-                    supplied.next();
-                }
-                // elide memory parameters freely
-                _ if binding.memory_parameter().is_some() => {}
-                // leave a value parameter without a written argument open
-                _ => elides_value = true,
-            }
-        }
-
-        // keep a bare reference elided for its scope to select
-        Ok(!written.is_empty() && elides_value)
-    }
-
-    /// Return the substituted body of one transparent type alias application.
-    pub(super) fn type_alias_body(
-        &mut self,
-        _origin: Origin,
+        origin: Origin,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -891,12 +878,15 @@ impl CheckState<'_> {
             let Some(definition) = self.definition(instance.symbol)? else {
                 return Ok(None);
             };
-            let dir::Definition::TypeAlias(definition) = definition else {
+            let dir::Definition::TypeAlias(definition) = &*definition else {
                 return Ok(None);
             };
 
             definition.value
         };
+        if matches!(self.ty(value)?, dir::Type::Intrinsic) {
+            return self.reduce_intrinsic_reference(origin, instance_module, instance);
+        }
 
         // apply the instance arguments to the alias body
         let substitution = self.instance_substitution(instance_module, instance)?;
@@ -905,5 +895,34 @@ impl CheckState<'_> {
         let substituted = self.substitute_type(value, &substitution)?;
 
         Ok(Some(substituted))
+    }
+
+    /// Return whether one declared name is an alias whose body is the intrinsic type.
+    pub(in crate::sema) fn is_intrinsic_alias(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let value = match self.definition(symbol)?.as_deref() {
+            Some(dir::Definition::TypeAlias(alias)) => alias.value,
+            _ => return Ok(false),
+        };
+
+        Ok(matches!(self.ty(value)?, dir::Type::Intrinsic))
+    }
+
+    /// Return the substituted backing of one newtype application, the storage its values share.
+    pub(in crate::sema) fn newtype_backing_body(
+        &mut self,
+        instance_module: ModuleId,
+        instance: &dir::GenericApplication,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let declared = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Newtype(definition)) = declared.as_deref() else {
+            return Ok(None);
+        };
+        let backing = definition.backing;
+        let substitution = self.instance_substitution(instance_module, instance)?;
+
+        Ok(Some(self.substitute_type(backing, &substitution)?))
     }
 }

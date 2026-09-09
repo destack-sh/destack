@@ -196,7 +196,7 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 
     return flag ? a : b;
     /// @resolution.name source=flag target=choose.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=flag root=choose.flag
     /// @resolution.name source=a target=choose.a
     /// @resolution.place source=a placement=choose.'a lifetime=choose.'a access="mutable"
@@ -434,17 +434,20 @@ interface Viewing {
 import { Access, WithAccess } from "destack:memory";
 
 interface Viewing {
+/// @generic.template symbol=Viewing parameters=(this: Viewing)
 /// @type.symbol symbol=Viewing type=Viewing
-/// @definition.interface symbol=Viewing
+/// @definition.interface symbol=Viewing template=(this: Viewing)
 /// @definition.where symbol=Viewing relation=satisfies left=this right=Viewing
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
-/// @definition.method symbol=Viewing.view slot=view type=<const A: Access = "readonly", Viewing.view.'a>(this: WithAccess<&Viewing.view.'a Viewing, A>) => WithAccess<&Viewing.view.'a Viewing.View, A>
+/// @definition.method symbol=Viewing.view slot=view type=<const A: Access = "readonly", Viewing.view.'a>(this: WithAccess<&Viewing.view.'a this, A>) => WithAccess<&Viewing.view.'a this.View, A>
 
     type View;
 
     view<const A: Access = "readonly">(
     /// @generic.template symbol=Viewing.view parent=template#0 parameters=(const A: Access = "readonly", 'a)
-    /// @type.symbol symbol=Viewing.view type=<const A: Access = "readonly", Viewing.view.'a>(this: WithAccess<&Viewing.view.'a Viewing, A>) => WithAccess<&Viewing.view.'a Viewing.View, A>
+    /// @type.symbol symbol=Viewing.view type=<const A: Access = "readonly", Viewing.view.'a>(this: WithAccess<&Viewing.view.'a this, A>) => WithAccess<&Viewing.view.'a this.View, A>
+    /// @generic.instance id="WithAccess<&'bound0 this, A>" template=WithAccess arguments=(&'bound0 this, A)
+    /// @generic.instance id="WithAccess<&'bound0 this.View, A>" template=WithAccess arguments=(&'bound0 this.View, A)
     /// @type.symbol symbol=Viewing.view.A source="const A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=Access
 
@@ -518,8 +521,8 @@ type Options<'a> = {
 
 function log(options?: Options): void {}
 /// @generic.template symbol=log parameters=('a)
-/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<log.'a>(Options<log.'a> | undefined?) => void
-/// @type.symbol symbol=log.options source="options?: Options" type=Options<log.'a> | undefined
+/// @type.symbol symbol=log source="function log(options?: Options): void {}" type=<log.'a>({ count?: int32 | undefined; message?: &log.'a readonly string; error?: unknown } | undefined?) => void
+/// @type.symbol symbol=log.options source="options?: Options" type={ count?: int32 | undefined; message?: &log.'a readonly string; error?: unknown } | undefined
 /// @resolution.name source=Options target=Options
 
 function warn(count?: int32, cause?: unknown): void {
@@ -529,12 +532,12 @@ function warn(count?: int32, cause?: unknown): void {
 
     log({ count, error: cause });
     /// @resolution.name source=log target=log
-    /// @resolution.call source="log({ count, error: cause })" parameters=(Options<"frame"> | undefined) arguments=(provided({ count, error: cause }) as Options<"frame"> | undefined) return=void kind=symbol target=log
+    /// @resolution.call source="log({ count, error: cause })" parameters=(Options<"frame"> | undefined) arguments=(provided({ count, error: cause }) as Options<"frame"> | undefined) return=void regions=("frame") kind=symbol target=log
     /// @resolution.name source=count target=warn.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=count root=warn.count
     /// @resolution.name source=cause target=warn.cause
-    /// @resolution.place source=cause placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=cause placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=cause root=warn.cause
 
 }
@@ -954,7 +957,7 @@ function pick(): void {
     /// @type.symbol symbol=pick.widest source=widest type=&'frame readonly Label
     /// @resolution.pattern source=widest kind=binding target=pick.widest
     /// @resolution.name source=longest target=longest
-    /// @resolution.call source="longest(&readonly near, &readonly stored)" parameters=(&'frame readonly Label, &'frame readonly Label) arguments=(provided(&readonly near) as &'frame readonly Label, provided(&readonly stored) as &'frame readonly Label) return=&'frame readonly Label kind=symbol target=longest
+    /// @resolution.call source="longest(&readonly near, &readonly stored)" parameters=(&'frame readonly Label, &'frame readonly Label) arguments=(provided(&readonly near) as &'frame readonly Label, provided(&readonly stored) as &'frame readonly Label) return=&'frame readonly Label regions=("frame" & "local") kind=symbol target=longest
     /// @resolution.name source=near target=pick.near
     /// @resolution.place source=near placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=near root=pick.near
@@ -1098,9 +1101,9 @@ struct Buffer { size: int32; }
 /// @type.symbol symbol=Buffer.size source="size: int32" type=int32
 
 interface Source<T> {
-/// @generic.template symbol=Source parameters=(out T)
+/// @generic.template symbol=Source parameters=(out T, this: Source<T>)
 /// @type.symbol symbol=Source type=Source
-/// @definition.interface symbol=Source template=(out T)
+/// @definition.interface symbol=Source template=(out T, this: Source<T>)
 /// @definition.where symbol=Source relation=satisfies left=this right=Source<T>
 /// @definition.method symbol=Source.read source="read(): T" slot=read type=(this: this) => T
 /// @type.symbol symbol=Source.T source=T type=T
@@ -1210,7 +1213,6 @@ import { Region, Access } from "destack:memory";
 struct Pair<const R: Region, const A: Access = "mutable"> {
 /// @generic.template symbol=Pair parameters=(const R: Region, const A: Access = "mutable")
 /// @type.symbol symbol=Pair type=Pair
-/// @generic.instance id="Pair<\"mutable\">" template=Pair arguments=("mutable")
 /// @definition.struct symbol=Pair template=(const R: Region, const A: Access = "mutable")
 /// @definition.field symbol=Pair.size source="size: int32" key=size type=int32
 /// @type.symbol symbol=Pair.R source="const R: Region" type=R
@@ -1226,7 +1228,6 @@ struct Pair<const R: Region, const A: Access = "mutable"> {
 declare function read(pair: Pair<"readonly">): int32;
 /// @generic.template symbol=read parameters=('a)
 /// @type.symbol symbol=read source="declare function read(pair: Pair<\"readonly\">): int32" type=<read.'a>(Pair<read.'a, "readonly">) => int32
-/// @generic.instance id="Pair<\"readonly\">" template=Pair arguments=("readonly")
 /// @type.symbol symbol=read.pair source="pair: Pair<\"readonly\">" type=Pair<read.'a, "readonly">
 /// @resolution.name source=Pair target=Pair
 "#,

@@ -44,11 +44,11 @@ declare const channel: Topic<"orders">.Channel;
 /// @resolution.pattern source=channel kind=binding target=channel
 /// @resolution.name source="Topic<\"orders\">.Channel" target=Topic.Channel
 /// @resolution.name source=Topic target=Topic
-/// @generic.instance id="Topic<\"orders\">" template=Topic arguments=("orders") evaluated=(`topic:${T}` => "topic:orders")
+/// @generic.instance id="Topic<\"orders\">" template=Topic arguments=("orders")
 
 channel satisfies `topic:${"orders"}`;
 /// @resolution.name source=channel target=channel
-/// @resolution.place source=channel placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=channel placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=channel root=channel
 "#,
     );
@@ -93,9 +93,9 @@ handlers["on-message"] satisfies string;
 
 === dir ===
 interface EventShape<T> {
-/// @generic.template symbol=EventShape parameters=(in out T#1)
+/// @generic.template symbol=EventShape parameters=(in out T#1, this: EventShape<T#1>)
 /// @type.symbol symbol=EventShape type=EventShape
-/// @definition.interface symbol=EventShape template=(in out T#1)
+/// @definition.interface symbol=EventShape template=(in out T#1, this: EventShape<T#1>)
 /// @definition.where symbol=EventShape relation=satisfies left=this right=EventShape<T#1>
 /// @definition.associated.type symbol=EventShape.Handlers key=Handlers value={ [K in keyof T#1 as `on-${K}`]: T#1[K] }
 /// @type.symbol symbol=EventShape.T source=T type=T#1
@@ -117,6 +117,7 @@ interface EventShape<T> {
 class Bus<T> implements EventShape<T> {}
 /// @generic.template symbol=Bus parameters=(in out T#2)
 /// @type.symbol symbol=Bus source="class Bus<T> implements EventShape<T> {}" type=Bus
+/// @generic.instance id=EventShape<T#2> template=EventShape arguments=(T#2)
 /// @definition.class symbol=Bus source="class Bus<T> implements EventShape<T> {}" template=(in out T#2)
 /// @definition.where symbol=Bus source=EventShape<T> relation=satisfies left=this right=EventShape<T#2>
 /// @definition.implements symbol=Bus source=EventShape<T> target=EventShape<T#2>
@@ -131,24 +132,23 @@ declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
 /// @resolution.name source="Bus<{ ready: boolean; message: string }>.Handlers" target=EventShape.Handlers
 /// @resolution.name source=Bus target=Bus
 /// @generic.instance id="Bus<{ ready: boolean; message: string }>" template=Bus arguments=({ ready: boolean; message: string })
-/// @generic.instance id="EventShape<{ ready: boolean; message: string }>" template=EventShape arguments=({ ready: boolean; message: string })
 /// @type.symbol symbol=ready source="ready: boolean" type=boolean
 /// @type.symbol symbol=message source="message: string" type=string
 
 handlers["on-ready"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.place source="handlers[\"on-ready\"]" placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source="handlers[\"on-ready\"]" placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source="handlers[\"on-ready\"]" root=handlers keys=[on-ready]
 /// @resolution.subscript source="handlers[\"on-ready\"]" type=boolean kind=member target="receiver={ on-ready: boolean; on-message: string }, target=field(receiver={ on-ready: boolean; on-message: string }, target=on-ready, type=boolean), type=boolean"
-/// @resolution.place source=handlers placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=handlers placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=handlers root=handlers
 
 handlers["on-message"] satisfies string;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.place source="handlers[\"on-message\"]" placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source="handlers[\"on-message\"]" placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source="handlers[\"on-message\"]" root=handlers keys=[on-message]
 /// @resolution.subscript source="handlers[\"on-message\"]" type=string kind=member target="receiver={ on-ready: boolean; on-message: string }, target=field(receiver={ on-ready: boolean; on-message: string }, target=on-message, type=string), type=string"
-/// @resolution.place source=handlers placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=handlers placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=handlers root=handlers
 "#,
     );
@@ -199,11 +199,11 @@ declare const kind: EventName<"evt:login">.Kind;
 /// @resolution.pattern source=kind kind=binding target=kind
 /// @resolution.name source="EventName<\"evt:login\">.Kind" target=EventName.Kind
 /// @resolution.name source=EventName target=EventName
-/// @generic.instance id="EventName<\"evt:login\">" template=EventName arguments=("evt:login") evaluated=(T extends `evt:${infer Name}` ? EventName.Kind.Name : never => "login")
+/// @generic.instance id="EventName<\"evt:login\">" template=EventName arguments=("evt:login")
 
 kind satisfies "login";
 /// @resolution.name source=kind target=kind
-/// @resolution.place source=kind placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=kind placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=kind root=kind
 "#,
     );

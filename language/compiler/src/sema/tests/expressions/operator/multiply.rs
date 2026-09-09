@@ -90,7 +90,7 @@ extension of Force implements Multiply<float64> {
         /// @resolution.place source=this.value placement=multiply.'a lifetime=multiply.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=multiply.other
-        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=other root=multiply.other
 
     }
@@ -105,7 +105,7 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=Force
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.operator source="force * 2.0" type=Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force kind=symbol target=multiply receiver=Force adjustments=(borrow(&'static readonly constant Force))
+/// @resolution.operator source="force * 2.0" type=Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force regions=("static" & "constant") kind=symbol target=multiply receiver=Force adjustments=(borrow(&'static readonly constant Force))
 /// @resolution.place source=force placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=force root=force
 "#,
@@ -205,7 +205,7 @@ const area = width * height;
 /// @type.symbol symbol=area source=area type=float64
 /// @resolution.pattern source=area kind=binding target=area
 /// @resolution.name source=width target=width
-/// @resolution.operator source="width * height" type=float64 operator="*" kind=call parameters=(Meters) arguments=(provided(height) as Meters) return=float64 kind=symbol target=multiply receiver=Meters adjustments=(borrow(&'static readonly constant Meters))
+/// @resolution.operator source="width * height" type=float64 operator="*" kind=call parameters=(Meters) arguments=(provided(height) as Meters) return=float64 regions=("static" & "constant") kind=symbol target=multiply receiver=Meters adjustments=(borrow(&'static readonly constant Meters))
 /// @resolution.place source=width placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=width root=width
 /// @resolution.name source=height target=height

@@ -66,12 +66,12 @@ impl CheckState<'_> {
                 let Some(definition) = self.definition(instance.symbol)? else {
                     return Ok(Verdict::Fails);
                 };
-                let is_type_reference = !matches!(definition, dir::Definition::Extension(_));
+                let is_type_reference = !matches!(*definition, dir::Definition::Extension(_));
 
                 Ok(Verdict::decided(is_type_reference))
             }
             // accept memory parameters, they qualify storage alone
-            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter) => {
+            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter)? => {
                 Ok(Verdict::Holds)
             }
             // fail the interface for type parameters that survived substitution

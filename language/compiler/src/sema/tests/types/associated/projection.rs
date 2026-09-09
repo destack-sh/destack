@@ -53,15 +53,16 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 import { Numeric } from "destack:math";
 
 interface Doubles {
+/// @generic.template symbol=Doubles parameters=(this: Doubles)
 /// @type.symbol symbol=Doubles type=Doubles
-/// @definition.interface symbol=Doubles
+/// @definition.interface symbol=Doubles template=(this: Doubles)
 /// @definition.where symbol=Doubles relation=satisfies left=this right=Doubles
 /// @definition.associated.type symbol=Doubles.Output source="type Output" key=Output
-/// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=(this: Doubles) => Doubles.Output
+/// @definition.method symbol=Doubles.double source="double(): this.Output" slot=double type=(this: this) => this.Output
 
     type Output;
     double(): this.Output;
-    /// @type.symbol symbol=Doubles.double source="double(): this.Output" type=(this: Doubles) => Doubles.Output
+    /// @type.symbol symbol=Doubles.double source="double(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -81,10 +82,11 @@ struct Pair<T: Numeric> {
 
 extension<T: Numeric> of Pair<T> implements Doubles {
 /// @generic.template symbol=<module>#2 parameters=(T#2: Numeric)
+/// @generic.instance id=Pair<T#2> template=Pair arguments=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Pair<T#2>
 /// @definition.implements symbol=<module>#2 source=Doubles target=Doubles
 /// @definition.associated.type symbol=Output source="type Output = Pair<T>" key=Output value=Pair<T#2>
-/// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a readonly this) => this.Output
+/// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a readonly Pair<T#2>) => Pair<T#2>
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Doubles.Output
 /// @definition.conformance symbol=<module>#2 member=double requirement=Doubles.double
 /// @type.symbol symbol=T source="T: Numeric" type=T#2
@@ -100,7 +102,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 
     double(): this.Output {
     /// @generic.template symbol=double parent=template#2 parameters=('a)
-    /// @type.symbol symbol=double type=<double.'a>(this: &double.'a readonly this) => this.Output
+    /// @type.symbol symbol=double type=<double.'a>(this: &double.'a readonly Pair<T#2>) => Pair<T#2>
     /// @type.symbol symbol=double.this type=&double.'a readonly Pair<T#2>
 
         Pair { x: this.x + this.x }

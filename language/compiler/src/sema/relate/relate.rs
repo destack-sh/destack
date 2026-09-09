@@ -321,7 +321,7 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
-        match self.ty(self.shallow_resolve(id)?)? {
+        match self.resolved_ty(id)? {
             dir::Type::Variable(variable) => self.open_root(variable),
             _ => Ok(None),
         }
@@ -333,6 +333,8 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::GlobalTypeId, Option<dir::TypeVariableId>)> {
+        // read the operand through its solutions and normal form
+        let id = self.shallow_resolve(id)?;
         let id = self.structurally_normalize(origin, id)?;
         match self.ty(id)? {
             // an open variable stands as the comparison root
@@ -367,13 +369,12 @@ impl CheckState<'_> {
                 }
 
                 // read foreign declarations from the imported external tables
-                let external = self
-                    .external_modules
-                    .get(&symbol.module_id)
-                    .ok_or_else(|| CompilerError::Internal {
-                        message: format!("origin symbol {symbol:?} has no loaded module"),
-                    })?;
-                let binding = external.bindings.get_symbol(symbol.local_id);
+                let external =
+                    self.external(symbol.module_id)?
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!("origin symbol {symbol:?} has no loaded module"),
+                        })?;
+                let binding = external.bindings().get_symbol(symbol.local_id);
                 binding
                     .declaration
                     .map(|declaration| declaration.local_id)

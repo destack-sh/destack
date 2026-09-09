@@ -1,7 +1,9 @@
 use destack_dir as dir;
 
+use smallvec::SmallVec;
+
 use crate::CompilerResult;
-use crate::sema::{CheckState, FlowSite, PlaceUse};
+use crate::sema::{CheckState, FlowSite, PlaceUse, Value};
 
 impl CheckState<'_> {
     /// Infer one borrow expression from its borrowed value and lifetime.
@@ -18,6 +20,24 @@ impl CheckState<'_> {
         let value = self.expression_value(right_site, ty)?;
         let place = self.value_place(right_site.origin(), value)?;
 
+        // borrow an inline Copy payload narrowed outside frame storage as a readonly frame copy,
+        // which a case change through an alias never reaches
+        let place = match self.is_copied_payload(right_site, &value, &place)? {
+            true => {
+                let mut copy = self.root_place(
+                    right_site.origin(),
+                    node.module_id,
+                    value.ty,
+                    dir::Space::Local,
+                    dir::Lifetime::Frame,
+                )?;
+                copy.access = self.access_literal(dir::Access::Readonly)?;
+
+                copy
+            }
+            false => place,
+        };
+
         // derive borrow form parameters from the place and written mutability
         let lifetime = place.lifetime;
         let requested = match mutability {
@@ -28,17 +48,9 @@ impl CheckState<'_> {
 
         // require the requested access from the selected place
         let origin = site.origin();
-        let mut is_granted = self
+        let is_granted = self
             .constrain_access_assignable(origin, place.access, access)?
             .holds();
-
-        // grant exclusivity over a mutable frame binding's own cell
-        if !is_granted
-            && requested == dir::Access::Exclusive
-            && self.is_exclusive_slot(node.module_id, right)?
-        {
-            is_granted = true;
-        }
 
         // report a place that withholds the requested access
         if !is_granted {
@@ -67,39 +79,38 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return whether one borrowed expression names a mutable frame binding directly.
-    fn is_exclusive_slot(
+    /// Return whether one borrowed value is an inline Copy union payload read outside frame
+    /// storage: narrowed, neither a handle nor a reference, and copyable.
+    fn is_copied_payload(
         &mut self,
-        module: destack_source::ModuleId,
-        expression: dir::LocalNodeId<dir::Expression>,
+        site: FlowSite,
+        value: &Value,
+        place: &dir::PlaceResolution,
     ) -> CompilerResult<bool> {
-        // slot exclusivity applies to bare binding references alone
-        if !self.module(module).view().get(expression).is_reference() {
+        let origin = site.origin();
+        if self
+            .decisions(site.node.module_id)
+            .narrowing(site.node)
+            .is_none()
+        {
+            return Ok(false);
+        }
+        let frame = self.lifetime_literal(dir::Lifetime::Frame)?;
+        if self.shallow_resolve(place.lifetime)? == frame {
+            return Ok(false);
+        }
+        if self.type_is_aliased(origin, value.ty)?
+            || self
+                .form_chain(origin, value.ty)?
+                .ownership_form()
+                .is_some()
+        {
             return Ok(false);
         }
 
-        // require the reference to resolve to a single binding symbol
-        let Some(resolution) = self
-            .name_decision(expression.into_global_any(module))
-            .cloned()
-        else {
-            return Ok(false);
-        };
-
-        let [symbol] = resolution.symbols() else {
-            return Ok(false);
-        };
-        if !self.symbol_kind(*symbol)?.is_binding() {
-            return Ok(false);
-        }
-
-        // require a mutable binding declared outside module scope
-        let bindings = self.binding_table(symbol.module_id);
-        let binding = bindings.get_symbol(symbol.local_id);
-        let is_static = binding.scope.id == bindings.module_scope().id;
-        let is_mutable = binding.binding_mutability != Some(dir::Mutability::Immutable);
-
-        Ok(!is_static && is_mutable)
+        Ok(self
+            .decide_copy(origin, value.ty, &mut SmallVec::new())?
+            .holds())
     }
 
     /// Commit the binding uses one borrow of a binding value requires from it.
@@ -109,13 +120,12 @@ impl CheckState<'_> {
         requested: dir::Access,
         is_aliased: bool,
     ) {
-        // exclusive access is a place requirement apart from binding mutability
-        if requested == dir::Access::Exclusive {
-            self.commit_access_use(node, dir::BindingUse::EXCLUSIVE);
+        // commit the mutable access, mutating the binding storage when it holds the value itself
+        if requested == dir::Access::Readonly {
+            return;
         }
-
-        // commit mutable access to directly stored binding values
-        if requested != dir::Access::Readonly && !is_aliased {
+        self.commit_access_use(node, dir::BindingUse::MUTABLE);
+        if !is_aliased {
             self.commit_access_use(node, dir::BindingUse::MUTATE);
         }
     }

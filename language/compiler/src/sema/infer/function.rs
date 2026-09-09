@@ -27,15 +27,13 @@ impl CheckState<'_> {
         };
         let callable = self.symbol_type(body.symbol)?;
         self.commit_node_type(node, callable)?;
-        self.schedule_function_body(node)?;
+        self.queue_check_function_body(node)?;
 
         Ok(callable)
     }
 
     /// Check one function value's body in place once its slots close.
-    ///
-    /// A body with open slots waits behind them under the current flow.
-    pub(in crate::sema) fn schedule_function_body(
+    pub(in crate::sema) fn queue_check_function_body(
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<()> {
@@ -149,9 +147,7 @@ impl CheckState<'_> {
             if !captured.contains(&occurrence.symbol) {
                 continue;
             }
-            if occurrence.uses.contains(dir::BindingUse::EXCLUSIVE) {
-                required = required.max(dir::Access::Exclusive);
-            } else if occurrence.uses.contains(dir::BindingUse::WRITE)
+            if occurrence.uses.contains(dir::BindingUse::WRITE)
                 || occurrence.uses.contains(dir::BindingUse::MUTATE)
             {
                 required = required.max(dir::Access::Mutable);

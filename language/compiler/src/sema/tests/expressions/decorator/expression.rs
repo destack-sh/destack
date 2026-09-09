@@ -31,10 +31,11 @@ newtype mark = (string,);
 /// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
 
 interface Reader {
+/// @generic.template symbol=Reader parameters=(this: Reader)
 /// @type.symbol symbol=Reader type=Reader
-/// @definition.interface symbol=Reader
+/// @definition.interface symbol=Reader template=(this: Reader)
 /// @definition.where symbol=Reader relation=satisfies left=this right=Reader
-/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(this: Reader, string) => string
+/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(this: this, string) => string
 
     @mark("checked")
     /// @decorator.node source="@mark(\"checked\")" owner="read(@mark(\"parameter\") value: string): string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("checked") as string) newtype=mark backing=(string,) value="mark(\"checked\")"
@@ -43,7 +44,7 @@ interface Reader {
     /// @type.node source="\"checked\"" type="checked"
 
     read(@mark("parameter") value: string): string;
-    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(this: Reader, string) => string
+    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(this: this, string) => string
     /// @decorator.node source="@mark(\"parameter\")" owner="value: string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("parameter") as string) newtype=mark backing=(string,) value="mark(\"parameter\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -318,8 +319,6 @@ function run(): void {
     /// @resolution.construct source="new Sink(@mark(\"construct\") 2)" parameters=(int32) arguments=(provided(@mark("construct") 2) as int32) return=local Sink kind=class target=Sink constructor=Sink.constructor
     /// @generic.instantiation id="Sink.constructor<\"local\">" template=Sink.constructor arguments=("local")
     /// @generic.instantiation id="Sink<\"local\">" template=Sink arguments=("local")
-    /// @generic.instance id="Sink.constructor<\"local\">" template=Sink.constructor arguments=("local")
-    /// @generic.instance id="Sink<\"local\">" template=Sink arguments=("local")
     /// @resolution.name source=Sink target=Sink
     /// @decorator.node source="@mark(\"construct\")" owner="@mark(\"construct\") 2" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("construct") as string) newtype=mark backing=(string,) value="mark(\"construct\")"
     /// @type.node source=mark type=mark
@@ -330,21 +329,18 @@ function run(): void {
     const array = [@mark("array") 3];
     /// @type.symbol symbol=run.array source=array type=int64[]
     /// @resolution.pattern source=array kind=binding target=run.array
-    /// @generic.instance id="elementSlot<int64, \"exclusive\">" template=elementSlot arguments=(int64, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int64[], usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int64>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int64>>, usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int64>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int64>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int64>>, usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int64[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int64>>)
-    /// @generic.instance id="initAsPointer<int64, \"exclusive\">" template=initAsPointer arguments=(int64, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int64>) => Raw<int64>)
-    /// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int64>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int64>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int64>)
+    /// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
+    /// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
+    /// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
     /// @generic.instance id=Array<int64> template=Array arguments=(int64)
-    /// @generic.instance id=MaybeUninit<MaybeUninit<int64>> template=MaybeUninit arguments=(MaybeUninit<int64>)
-    /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
     /// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-    /// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int64>) => Raw<int64>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int64>)
+    /// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
     /// @generic.instance id=clear<int64> template=clear arguments=(int64)
     /// @generic.instance id=drop<int64> template=drop arguments=(int64)
     /// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
-    /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
     /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
-    /// @generic.instance id=truncate<int64> template=truncate arguments=(int64) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int64>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int64[], usize) => &truncate.'a exclusive MaybeUninit<int64>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int64[])
+    /// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
     /// @type.node source=[@mark("array") 3] type=int64[]
     /// @resolution.call source=[@mark("array") 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(3) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
     /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
@@ -352,7 +348,6 @@ function run(): void {
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
     /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
-    /// @generic.instance id=Slice<int64> template=Slice arguments=(int64)
     /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
     /// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
     /// @generic.instance id=intoUninit<int64> template=intoUninit arguments=(int64)
@@ -421,13 +416,11 @@ function run(): void {
     /// @type.symbol symbol=run.text source=text type=string
     /// @resolution.pattern source=text kind=binding target=run.text
     /// @type.node source="`value ${@mark(\"interpolation\") 6}`" type=string
-    /// @resolution.template source="`value ${@mark(\"interpolation\") 6}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>)] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+    /// @resolution.template source="`value ${@mark(\"interpolation\") 6}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
     /// @generic.instantiation id=Display.display<int64> template=Display.display arguments=()
     /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
     /// @generic.instance id=Cow<string> template=Cow arguments=(string)
     /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
-    /// @generic.instance id=Display.display<int64> template=Display.display arguments=()
-    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
     /// @decorator.node source="@mark(\"interpolation\")" owner="@mark(\"interpolation\") 6" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("interpolation") as string) newtype=mark backing=(string,) value="mark(\"interpolation\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark

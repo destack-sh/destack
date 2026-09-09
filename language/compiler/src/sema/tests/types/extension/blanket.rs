@@ -65,25 +65,27 @@ sound satisfies string;
 
 === dir ===
 newtype interface Loud {
+/// @generic.template symbol=Loud parameters=(this: Loud)
 /// @type.symbol symbol=Loud type=Loud
-/// @definition.interface symbol=Loud nominal=true
+/// @definition.interface symbol=Loud template=(this: Loud) nominal=true
 /// @definition.where symbol=Loud relation=satisfies left=this right=Loud
-/// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: Loud) => string
+/// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
 
     shout(this): string;
-    /// @type.symbol symbol=Loud.shout source="shout(this): string" type=(this: Loud) => string
+    /// @type.symbol symbol=Loud.shout source="shout(this): string" type=(this: this) => string
     /// @type.symbol symbol=Loud.shout.this source=this type=this
 
 }
 
 newtype interface Quiet {
+/// @generic.template symbol=Quiet parameters=(this: Quiet)
 /// @type.symbol symbol=Quiet type=Quiet
-/// @definition.interface symbol=Quiet nominal=true
+/// @definition.interface symbol=Quiet template=(this: Quiet) nominal=true
 /// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
-/// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: Quiet) => string
+/// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
 
     whisper(this): string;
-    /// @type.symbol symbol=Quiet.whisper source="whisper(this): string" type=(this: Quiet) => string
+    /// @type.symbol symbol=Quiet.whisper source="whisper(this): string" type=(this: this) => string
     /// @type.symbol symbol=Quiet.whisper.this source=this type=this
 
 }
@@ -92,7 +94,7 @@ extension<I: Loud> of I implements Quiet {
 /// @generic.template symbol=<module>#2 parameters=(I: Loud)
 /// @definition.extension symbol=<module>#2 form=local target=I
 /// @definition.implements symbol=<module>#2 source=Quiet target=Quiet
-/// @definition.method symbol=whisper slot=whisper type=(this: this) => string
+/// @definition.method symbol=whisper slot=whisper type=(this: I) => string
 /// @definition.conformance symbol=<module>#2 member=whisper requirement=Quiet.whisper
 /// @type.symbol symbol=I source="I: Loud" type=I
 /// @resolution.name source=Loud target=Loud
@@ -100,16 +102,17 @@ extension<I: Loud> of I implements Quiet {
 /// @resolution.name source=Quiet target=Quiet
 
     whisper(this): string {
-    /// @type.symbol symbol=whisper type=(this: this) => string
+    /// @type.symbol symbol=whisper type=(this: I) => string
     /// @type.symbol symbol=whisper.this source=this type=this
 
         return this.shout();
         /// @resolution.member source=this.shout receiver=I type=(this: I) => string kind=symbol target_receiver=I target=Loud.shout
         /// @resolution.call source=this.shout() parameters=() return=string kind=symbol target=Loud.shout receiver=I
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=Loud.shout<I> template=Loud.shout arguments=() owner=whisper
+        /// @generic.instance id=Loud.shout<I> template=Loud.shout arguments=()
 
     }
 }
@@ -148,12 +151,11 @@ const sound = horn.whisper();
 /// @resolution.place source=horn placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=horn root=horn
 /// @generic.instantiation id=whisper<Horn> template=whisper arguments=(Horn)
-/// @generic.instance id=shout<Horn> template=shout arguments=()
 /// @generic.instance id=whisper<Horn> template=whisper arguments=(Horn)
 
 sound satisfies string;
 /// @resolution.name source=sound target=sound
-/// @resolution.place source=sound placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=sound placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=sound root=sound
 "#,
     );
@@ -228,8 +230,9 @@ extension of Bell implements Quiet {
 
 === dir ===
 newtype interface Loud {
+/// @generic.template symbol=Loud parameters=(this: Loud)
 /// @type.symbol symbol=Loud type=Loud
-/// @definition.interface symbol=Loud nominal=true
+/// @definition.interface symbol=Loud template=(this: Loud) nominal=true
 /// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
 
@@ -240,8 +243,9 @@ newtype interface Loud {
 }
 
 newtype interface Quiet {
+/// @generic.template symbol=Quiet parameters=(this: Quiet)
 /// @type.symbol symbol=Quiet type=Quiet
-/// @definition.interface symbol=Quiet nominal=true
+/// @definition.interface symbol=Quiet template=(this: Quiet) nominal=true
 /// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
 
@@ -270,7 +274,7 @@ extension<I: Loud> of I implements Quiet {
         /// @resolution.member source=this.shout receiver=I type=(this: I) => string kind=symbol target_receiver=I target=Loud.shout
         /// @resolution.call source=this.shout() parameters=() return=string kind=symbol target=Loud.shout receiver=I
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=Loud.shout<I> template=Loud.shout arguments=() owner=whisper#1
 
@@ -372,8 +376,9 @@ const sound = stone.whisper();
 
 === dir ===
 newtype interface Loud {
+/// @generic.template symbol=Loud parameters=(this: Loud)
 /// @type.symbol symbol=Loud type=Loud
-/// @definition.interface symbol=Loud nominal=true
+/// @definition.interface symbol=Loud template=(this: Loud) nominal=true
 /// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
 
@@ -384,8 +389,9 @@ newtype interface Loud {
 }
 
 newtype interface Quiet {
+/// @generic.template symbol=Quiet parameters=(this: Quiet)
 /// @type.symbol symbol=Quiet type=Quiet
-/// @definition.interface symbol=Quiet nominal=true
+/// @definition.interface symbol=Quiet template=(this: Quiet) nominal=true
 /// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
 
@@ -414,7 +420,7 @@ extension<I: Loud> of I implements Quiet {
         /// @resolution.member source=this.shout receiver=I type=(this: I) => string kind=symbol target_receiver=I target=Loud.shout
         /// @resolution.call source=this.shout() parameters=() return=string kind=symbol target=Loud.shout receiver=I
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=Loud.shout<I> template=Loud.shout arguments=() owner=whisper
 
@@ -577,9 +583,9 @@ struct Outcome<T, E> {
 }
 
 newtype interface Parse<T> {
-/// @generic.template symbol=Parse parameters=(in T#2)
+/// @generic.template symbol=Parse parameters=(in T#2, this: Parse<T#2>)
 /// @type.symbol symbol=Parse type=Parse
-/// @definition.interface symbol=Parse template=(in T#2) nominal=true
+/// @definition.interface symbol=Parse template=(in T#2, this: Parse<T#2>) nominal=true
 /// @definition.where symbol=Parse relation=satisfies left=this right=Parse<T#2>
 /// @definition.associated.type symbol=Parse.Failure source="type Failure = string" key=Failure value=string
 /// @definition.method symbol=Parse.parse source="static parse(value: T): Outcome<this, this.Failure>" slot=parse static=true type=(T#2) => Outcome<this, this.Failure>
@@ -590,6 +596,7 @@ newtype interface Parse<T> {
 
     static parse(value: T): Outcome<this, this.Failure>;
     /// @type.symbol symbol=Parse.parse source="static parse(value: T): Outcome<this, this.Failure>" type=(T#2) => Outcome<this, this.Failure>
+    /// @generic.instance id="Outcome<this, this.Failure>" template=Outcome arguments=(this, this.Failure)
     /// @type.symbol symbol=Parse.parse.value source="value: T" type=T#2
     /// @resolution.name source=T target=Parse.T
     /// @resolution.name source=Outcome target=Outcome
@@ -597,9 +604,9 @@ newtype interface Parse<T> {
 }
 
 newtype interface ParseInto<T> {
-/// @generic.template symbol=ParseInto parameters=(in out T#3)
+/// @generic.template symbol=ParseInto parameters=(in out T#3, this: ParseInto<T#3>)
 /// @type.symbol symbol=ParseInto type=ParseInto
-/// @definition.interface symbol=ParseInto template=(in out T#3) nominal=true
+/// @definition.interface symbol=ParseInto template=(in out T#3, this: ParseInto<T#3>) nominal=true
 /// @definition.where symbol=ParseInto relation=satisfies left=this right=ParseInto<T#3>
 /// @definition.associated.type symbol=ParseInto.Failure source="type Failure = string" key=Failure value=string
 /// @definition.method symbol=ParseInto.parseInto source="parseInto(this): Outcome<T, this.Failure>" slot=parseInto type=(this: this) => Outcome<T#3, this.Failure>
@@ -610,6 +617,7 @@ newtype interface ParseInto<T> {
 
     parseInto(this): Outcome<T, this.Failure>;
     /// @type.symbol symbol=ParseInto.parseInto source="parseInto(this): Outcome<T, this.Failure>" type=(this: this) => Outcome<T#3, this.Failure>
+    /// @generic.instance id="Outcome<T#3, this.Failure>" template=Outcome arguments=(T#3, this.Failure)
     /// @type.symbol symbol=ParseInto.parseInto.this source=this type=this
     /// @resolution.name source=Outcome target=Outcome
     /// @resolution.name source=T target=ParseInto.T
@@ -618,11 +626,12 @@ newtype interface ParseInto<T> {
 
 extension<T, U> of T implements ParseInto<U> where U: Parse<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#4, U)
+/// @generic.instance id=ParseInto<U> template=ParseInto arguments=(U)
 /// @definition.extension symbol=<module>#2 form=local target=T#4
 /// @definition.where symbol=<module>#2 source="U: Parse<T>" relation=satisfies left=U right=Parse<T#4>
 /// @definition.implements symbol=<module>#2 source=ParseInto<U> target=ParseInto<U>
 /// @definition.associated.type symbol=Failure#1 source="type Failure = U.Failure" key=Failure value=U.Failure
-/// @definition.method symbol=parseInto slot=parseInto type=(this: this) => Outcome<U, U.Failure>
+/// @definition.method symbol=parseInto slot=parseInto type=(this: T#4) => Outcome<U, U.Failure>
 /// @definition.conformance symbol=<module>#2 member=Failure#1 requirement=ParseInto.Failure
 /// @definition.conformance symbol=<module>#2 member=parseInto requirement=ParseInto.parseInto
 /// @type.symbol symbol=T source=T type=T#4
@@ -632,6 +641,7 @@ extension<T, U> of T implements ParseInto<U> where U: Parse<T> {
 /// @resolution.name source=U target=U
 /// @resolution.name source=U target=U
 /// @resolution.name source=Parse target=Parse
+/// @generic.instance id=Parse<T#4> template=Parse arguments=(T#4)
 /// @resolution.name source=T target=T
 
     type Failure = U.Failure;
@@ -640,7 +650,8 @@ extension<T, U> of T implements ParseInto<U> where U: Parse<T> {
     /// @resolution.path source=U.Failure index=1 target=Parse.Failure
 
     parseInto(this): Outcome<U, U.Failure> {
-    /// @type.symbol symbol=parseInto type=(this: this) => Outcome<U, U.Failure>
+    /// @type.symbol symbol=parseInto type=(this: T#4) => Outcome<U, U.Failure>
+    /// @generic.instance id="Outcome<U, U.Failure>" template=Outcome arguments=(U, U.Failure)
     /// @type.symbol symbol=parseInto.this source=this type=this
     /// @resolution.name source=Outcome target=Outcome
     /// @resolution.name source=U target=U
@@ -650,10 +661,12 @@ extension<T, U> of T implements ParseInto<U> where U: Parse<T> {
         return U.parse(this);
         /// @resolution.name source=U target=U
         /// @resolution.member source=U.parse receiver=U type=(T#4) => Outcome<U, U.Failure> kind=symbol target_receiver=U target=Parse.parse
-        /// @resolution.call source=U.parse(this) parameters=(T#4) arguments=(provided(this) as T#4) return=Outcome<U, U.Failure> kind=symbol target=Parse.parse
+        /// @resolution.call source=U.parse(this) parameters=(T#4) arguments=(provided(this) as T#4) return=Outcome<U, U.Failure> kind=symbol target=Parse.parse instance=Parse<T#4>.parse
+        /// @generic.instantiation id="Parse.parse<U, T#4>" template=Parse.parse arguments=(T#4) owner=parseInto
         /// @generic.instantiation id=Parse.parse<T#4> template=Parse.parse arguments=(T#4) owner=parseInto
+        /// @generic.instance id="Parse.parse<U, T#4>" template=Parse.parse arguments=(T#4)
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=T#4
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
 
     }
@@ -664,7 +677,6 @@ struct Flag {}
 /// @definition.struct symbol=Flag source="struct Flag {}"
 
 extension of Flag implements Parse<int32> {
-/// @generic.instance id="Outcome<Parse<int32>, string>" template=Outcome arguments=(Parse<int32>, string)
 /// @generic.instance id=Parse<int32> template=Parse arguments=(int32)
 /// @definition.extension symbol=<module>#3 form=local target=Flag
 /// @definition.implements symbol=<module>#3 source=Parse<int32> target=Parse<int32>
@@ -729,10 +741,10 @@ function decode(value: int32): Outcome<Flag, boolean> {
     /// @resolution.name source=value target=decode.value
     /// @resolution.member source=value.parseInto receiver=int32 type=(this: int32) => Outcome<Flag, boolean> kind=symbol target_receiver=int32 target=parseInto
     /// @resolution.call source=value.parseInto() parameters=() return=Outcome<Flag, boolean> kind=symbol target=parseInto receiver=int32 instance=int32.<extension#1>.parseInto
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=decode.value
     /// @generic.instantiation id="parseInto<int32, Flag>" template=parseInto arguments=(int32, Flag)
-    /// @generic.instance id="parseInto<int32, Flag>" template=parseInto arguments=(int32, Flag) evaluated=(Outcome<U, U.Failure> => Outcome<Flag, boolean>, (T#4) => Outcome<U, U.Failure> => (int32) => Outcome<Flag, boolean>)
+    /// @generic.instance id="parseInto<int32, Flag>" template=parseInto arguments=(int32, Flag)
 
 }
 
@@ -746,10 +758,10 @@ function label(value: int32): Outcome<Tag, string> {
     /// @resolution.name source=value target=label.value
     /// @resolution.member source=value.parseInto receiver=int32 type=(this: int32) => Outcome<Tag, string> kind=symbol target_receiver=int32 target=parseInto
     /// @resolution.call source=value.parseInto() parameters=() return=Outcome<Tag, string> kind=symbol target=parseInto receiver=int32 instance=int32.<extension#1>.parseInto
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=label.value
     /// @generic.instantiation id="parseInto<int32, Tag>" template=parseInto arguments=(int32, Tag)
-    /// @generic.instance id="parseInto<int32, Tag>" template=parseInto arguments=(int32, Tag) evaluated=(Outcome<U, U.Failure> => Outcome<Tag, string>, (T#4) => Outcome<U, U.Failure> => (int32) => Outcome<Tag, string>)
+    /// @generic.instance id="parseInto<int32, Tag>" template=parseInto arguments=(int32, Tag)
 
 }
 "#);
@@ -849,9 +861,9 @@ function label(value: int32): (Tag, string) {
 
 === dir ===
 newtype interface Give<T> {
-/// @generic.template symbol=Give parameters=(out T#1)
+/// @generic.template symbol=Give parameters=(out T#1, this: Give<T#1>)
 /// @type.symbol symbol=Give type=Give
-/// @definition.interface symbol=Give template=(out T#1) nominal=true
+/// @definition.interface symbol=Give template=(out T#1, this: Give<T#1>) nominal=true
 /// @definition.where symbol=Give relation=satisfies left=this right=Give<T#1>
 /// @definition.method symbol=Give.give source="give(this): T" slot=give type=(this: this) => T#1
 /// @type.symbol symbol=Give.T source=T type=T#1
@@ -864,9 +876,9 @@ newtype interface Give<T> {
 }
 
 newtype interface Seed<T> {
-/// @generic.template symbol=Seed parameters=(in T#2)
+/// @generic.template symbol=Seed parameters=(in T#2, this: Seed<T#2>)
 /// @type.symbol symbol=Seed type=Seed
-/// @definition.interface symbol=Seed template=(in T#2) nominal=true
+/// @definition.interface symbol=Seed template=(in T#2, this: Seed<T#2>) nominal=true
 /// @definition.where symbol=Seed relation=satisfies left=this right=Seed<T#2>
 /// @definition.associated.type symbol=Seed.Mark source="type Mark = string" key=Mark value=string
 /// @definition.method symbol=Seed.seed source="static seed(value: T): this" slot=seed static=true type=(T#2) => this
@@ -884,10 +896,11 @@ newtype interface Seed<T> {
 
 extension<T, U> of T implements Give<(U, U.Mark)> where U: Seed<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3, U)
+/// @generic.instance id="Give<(U, U.Mark)>" template=Give arguments=((U, U.Mark))
 /// @definition.extension symbol=<module>#2 form=local target=T#3
 /// @definition.implements symbol=<module>#2 source="Give<(U, U.Mark)>" target="Give<(U, U.Mark)>"
 /// @definition.where symbol=<module>#2 source="U: Seed<T>" relation=satisfies left=U right=Seed<T#3>
-/// @definition.method symbol=give slot=give type=(this: this) => (U, U.Mark)
+/// @definition.method symbol=give slot=give type=(this: T#3) => (U, U.Mark)
 /// @definition.conformance symbol=<module>#2 member=give requirement=Give.give
 /// @type.symbol symbol=T source=T type=T#3
 /// @type.symbol symbol=U source=U type=U
@@ -898,10 +911,11 @@ extension<T, U> of T implements Give<(U, U.Mark)> where U: Seed<T> {
 /// @resolution.path source=U.Mark index=1 target=Seed.Mark
 /// @resolution.name source=U target=U
 /// @resolution.name source=Seed target=Seed
+/// @generic.instance id=Seed<T#3> template=Seed arguments=(T#3)
 /// @resolution.name source=T target=T
 
     give(this): (U, U.Mark) {
-    /// @type.symbol symbol=give type=(this: this) => (U, U.Mark)
+    /// @type.symbol symbol=give type=(this: T#3) => (U, U.Mark)
     /// @type.symbol symbol=give.this source=this type=this
     /// @resolution.name source=U target=U
     /// @resolution.name source=U.Mark target=U
@@ -986,7 +1000,7 @@ function label(value: int32): (Tag, string) {
     /// @resolution.name source=value target=label.value
     /// @resolution.member source=value.give receiver=int32 type=(this: int32) => (Tag, string) kind=symbol target_receiver=int32 target=give
     /// @resolution.call source=value.give() parameters=() return=(Tag, string) kind=symbol target=give receiver=int32 instance=int32.<extension#1>.give
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=label.value
     /// @generic.instantiation id="give<int32, Tag>" template=give arguments=(int32, Tag)
     /// @generic.instance id="give<int32, Tag>" template=give arguments=(int32, Tag)
@@ -1048,8 +1062,6 @@ struct Token {}
 /// @definition.struct symbol=Token source="struct Token {}"
 
 extension of Token implements TryFrom<string> {
-/// @generic.instance id="Result<TryFrom<string>, Error>" template=Result arguments=(TryFrom<string>, Error)
-/// @generic.instance id=Ok<TryFrom<string>> template=Ok arguments=(TryFrom<string>)
 /// @generic.instance id=TryFrom<string> template=TryFrom arguments=(string)
 /// @definition.extension symbol=<module>#2 form=local target=Token
 /// @definition.implements symbol=<module>#2 source=TryFrom<string> target=TryFrom<string>
@@ -1093,7 +1105,7 @@ function parse(value: string): Result<Token, Token.Error> {
     /// @resolution.member source=Token.tryFrom receiver=Token type=(string) => Result<Token, Error> kind=symbol target_receiver=Token target=tryFrom
     /// @resolution.call source=Token.tryFrom(value) parameters=(string) arguments=(provided(value) as string) return=Result<Token, Error> kind=symbol target=tryFrom
     /// @resolution.name source=value target=parse.value
-    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value root=parse.value
 
 }
@@ -1106,7 +1118,7 @@ declare const failure: Token.Error;
 
 failure satisfies Error;
 /// @resolution.name source=failure target=failure
-/// @resolution.place source=failure placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=failure placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=failure root=failure
 /// @resolution.name source=Error target=Error
 "#);
@@ -1197,8 +1209,9 @@ extension of Bell implements Loud, Bright {
 
 === dir ===
 newtype interface Loud {
+/// @generic.template symbol=Loud parameters=(this: Loud)
 /// @type.symbol symbol=Loud type=Loud
-/// @definition.interface symbol=Loud nominal=true
+/// @definition.interface symbol=Loud template=(this: Loud) nominal=true
 /// @definition.where symbol=Loud relation=satisfies left=this right=Loud
 /// @definition.method symbol=Loud.shout source="shout(this): string" slot=shout type=(this: this) => string
 
@@ -1209,8 +1222,9 @@ newtype interface Loud {
 }
 
 newtype interface Bright {
+/// @generic.template symbol=Bright parameters=(this: Bright)
 /// @type.symbol symbol=Bright type=Bright
-/// @definition.interface symbol=Bright nominal=true
+/// @definition.interface symbol=Bright template=(this: Bright) nominal=true
 /// @definition.where symbol=Bright relation=satisfies left=this right=Bright
 /// @definition.method symbol=Bright.shine source="shine(this): string" slot=shine type=(this: this) => string
 
@@ -1221,8 +1235,9 @@ newtype interface Bright {
 }
 
 newtype interface Quiet {
+/// @generic.template symbol=Quiet parameters=(this: Quiet)
 /// @type.symbol symbol=Quiet type=Quiet
-/// @definition.interface symbol=Quiet nominal=true
+/// @definition.interface symbol=Quiet template=(this: Quiet) nominal=true
 /// @definition.where symbol=Quiet relation=satisfies left=this right=Quiet
 /// @definition.method symbol=Quiet.whisper source="whisper(this): string" slot=whisper type=(this: this) => string
 
@@ -1251,7 +1266,7 @@ extension<T: Loud> of T implements Quiet {
         /// @resolution.member source=this.shout receiver=T#1 type=(this: T#1) => string kind=symbol target_receiver=T#1 target=Loud.shout
         /// @resolution.call source=this.shout() parameters=() return=string kind=symbol target=Loud.shout receiver=T#1
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=T#1
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=Loud.shout<T#1> template=Loud.shout arguments=() owner=whisper#1
 
@@ -1277,7 +1292,7 @@ extension<T: Bright> of T implements Quiet {
         /// @resolution.member source=this.shine receiver=T#2 type=(this: T#2) => string kind=symbol target_receiver=T#2 target=Bright.shine
         /// @resolution.call source=this.shine() parameters=() return=string kind=symbol target=Bright.shine receiver=T#2
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=T#2
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=Bright.shine<T#2> template=Bright.shine arguments=() owner=whisper#2
 
@@ -1319,6 +1334,167 @@ extension of Bell implements Loud, Bright {
 /// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'Bell'"
 /// @diagnostic.label line=20 column=25 span="T" line_source="extension<T: Bright> of T implements Quiet {"
 /// @diagnostic.related line=14 column=23 span="T" line_source="extension<T: Loud> of T implements Quiet {" message="conflicting implementation"
+"#,
+    );
+}
+
+/// A blanket over a bounded parameter records the members implementing its interface.
+#[test]
+fn test_record_member_conformances_of_a_blanket_over_a_bounded_parameter() {
+    let session = TestSession::single(
+        r#"
+import { Integer } from "destack:math";
+
+newtype interface Dup {
+    dup(&readonly this): ^this;
+}
+
+export extension<T: Integer> of T implements Dup {
+    dup(&readonly this): ^this {
+        *this
+    }
+}
+
+const copied = (1 as int32).dup();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Integer } from "destack:math";
+
+newtype interface Dup {
+    dup(&readonly this): ^this;
+}
+
+export extension<T: Integer> of T implements Dup {
+    dup(&readonly this): ^this {
+        *this as ^T
+    }
+}
+
+const copied: int32 = (1 as int32).dup<int32>();
+
+=== dir ===
+import { Integer } from "destack:math";
+
+newtype interface Dup {
+/// @generic.template symbol=Dup parameters=(this: Dup)
+/// @type.symbol symbol=Dup type=Dup
+/// @definition.interface symbol=Dup template=(this: Dup) nominal=true
+/// @definition.where symbol=Dup relation=satisfies left=this right=Dup
+/// @definition.method symbol=Dup.dup source="dup(&readonly this): ^this" slot=dup type=<Dup.dup.'a>(this: &Dup.dup.'a readonly this) => ^this
+
+    dup(&readonly this): ^this;
+    /// @generic.template symbol=Dup.dup parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Dup.dup source="dup(&readonly this): ^this" type=<Dup.dup.'a>(this: &Dup.dup.'a readonly this) => ^this
+    /// @type.symbol symbol=Dup.dup.this source="&readonly this" type=&Dup.dup.'a readonly this
+
+}
+
+export extension<T: Integer> of T implements Dup {
+/// @generic.template symbol=<module>#2 parameters=(T: Integer)
+/// @definition.extension symbol=<module>#2 form=exported target=T
+/// @definition.implements symbol=<module>#2 source=Dup target=Dup
+/// @definition.method symbol=dup slot=dup type=<dup.'a>(this: &dup.'a readonly T) => ^T
+/// @definition.conformance symbol=<module>#2 member=dup requirement=Dup.dup
+/// @type.symbol symbol=T source="T: Integer" type=T
+/// @resolution.name source=Integer target=Integer
+/// @resolution.name source=T target=T
+/// @resolution.name source=Dup target=Dup
+
+    dup(&readonly this): ^this {
+    /// @generic.template symbol=dup parent=template#1 parameters=('a)
+    /// @type.symbol symbol=dup type=<dup.'a>(this: &dup.'a readonly T) => ^T
+    /// @type.symbol symbol=dup.this source="&readonly this" type=&dup.'a readonly this
+
+        *this
+        /// @resolution.place source=*this placement=dup.'a lifetime=dup.'a access="readonly"
+        /// @resolution.operator source=*this type=T operator="*" kind=builtin operands=[this as &dup.'a readonly T]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&dup.'a readonly T
+        /// @resolution.place source=this placement=dup.'a lifetime=dup.'a access="readonly"
+        /// @resolution.access source=this root=this
+
+    }
+}
+
+const copied = (1 as int32).dup();
+/// @type.symbol symbol=copied source=copied type=int32
+/// @resolution.pattern source=copied kind=binding target=copied
+/// @resolution.member source="(1 as int32).dup" receiver=int32 type=<dup.'a>(this: &dup.'a readonly int32) => ^int32 kind=symbol target_receiver=int32 target=dup
+/// @resolution.call source=(1 as int32).dup() parameters=() return=^int32 regions=("frame" & "local") kind=symbol target=dup receiver=int32 adjustments=(borrow(&'frame readonly int32)) instance=int32.<extension#1>.dup
+/// @generic.instantiation id=dup<int32> template=dup arguments=(int32)
+/// @generic.instance id=dup<int32> template=dup arguments=(int32)
+"#,
+    );
+}
+
+/// A static requirement called through a parameter closes on the parameter's argument.
+#[test]
+fn test_close_a_static_requirement_through_a_parameter_on_its_argument() {
+    let session = TestSession::single(
+        r#"
+import { From } from "destack:convert";
+
+function build<E: From<string>>(residual: string): E {
+    return E.from(residual);
+}
+
+const built: string = build<string>("a");
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_witnesses(),
+        r#"
+=== annotated ===
+import { From } from "destack:convert";
+
+function build<E: From<string>>(residual: string): E {
+    return E.from<string>(residual);
+}
+
+const built: string = build<string>("a");
+
+=== dir ===
+import { From } from "destack:convert";
+
+function build<E: From<string>>(residual: string): E {
+/// @generic.template symbol=build parameters=(E: From<string>)
+/// @type.symbol symbol=build type=<E: From<string>>(string) => E
+/// @type.symbol symbol=build.E source="E: From<string>" type=E
+/// @resolution.name source=From target=From
+/// @generic.instance id=From<string> template=From arguments=(string)
+/// @type.symbol symbol=build.residual source="residual: string" type=string
+/// @resolution.name source=E target=build.E
+
+    return E.from(residual);
+    /// @resolution.name source=E target=build.E
+    /// @resolution.member source=E.from receiver=E type=(string) => E kind=symbol target_receiver=E target=From.from
+    /// @resolution.call source=E.from(residual) parameters=(string) arguments=(provided(residual) as string) return=E kind=symbol target=From.from instance=From<string>.from
+    /// @generic.instantiation id="From.from<E, string>" template=From.from arguments=(string) owner=build
+    /// @generic.instantiation id=From.from<string> template=From.from arguments=(string) owner=build
+    /// @generic.instance id="From.from<E, string>" template=From.from arguments=(string)
+    /// @resolution.name source=residual target=build.residual
+    /// @resolution.place source=residual placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=residual root=build.residual
+
+}
+
+const built: string = build<string>("a");
+/// @type.symbol symbol=built source=built type=string
+/// @resolution.pattern source=built kind=binding target=built
+/// @resolution.name source=build target=build
+/// @resolution.call source="build<string>(\"a\")" parameters=(string) arguments=(provided("a") as string) return=string kind=symbol target=build instance=build<string>
+/// @generic.instantiation id=build<string> template=build arguments=(string)
+/// @generic.instance id=build<string> template=build arguments=(string)
+/// @generic.instance id=from<string> template=from arguments=(string)
+
+/// @generic.witness type=string interface=From<string> functions=(From.from: from<string>)
 "#,
     );
 }

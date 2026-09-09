@@ -18,16 +18,17 @@ const ok: Value = "hello";
 === annotated ===
 type Value = Uncapitalize<"Hello">;
 
-const ok: "hello" = "hello";
+const ok: Value = "hello";
 
 === dir ===
 type Value = Uncapitalize<"Hello">;
 /// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type="hello"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value="hello"
+/// @generic.instance id="Uncapitalize<\"Hello\">" template=Uncapitalize arguments=("Hello")
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value=Uncapitalize<"Hello">
 /// @resolution.name source=Uncapitalize target=Uncapitalize
 
 const ok: Value = "hello";
-/// @type.symbol symbol=ok source=ok type="hello"
+/// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 "#,
@@ -54,18 +55,19 @@ value satisfies "yes" | "no";
 === annotated ===
 type Value = Uncapitalize<"Yes" | "No">;
 
-declare const value: "yes" | "no";
+declare const value: Value;
 
 value satisfies "yes" | "no";
 
 === dir ===
 type Value = Uncapitalize<"Yes" | "No">;
 /// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" type="yes" | "no"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" value="yes" | "no"
+/// @generic.instance id="Uncapitalize<\"Yes\" | \"No\">" template=Uncapitalize arguments=("Yes" | "No")
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" value=Uncapitalize<"Yes" | "No">
 /// @resolution.name source=Uncapitalize target=Uncapitalize
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type="yes" | "no"
+/// @type.symbol symbol=value source=value type=Value
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 
@@ -95,23 +97,24 @@ const bad: Value = "Hello";
 === annotated ===
 type Value = Uncapitalize<"Hello">;
 
-const bad: "hello" = "Hello";
+const bad: Value = "Hello";
 
 === dir ===
 type Value = Uncapitalize<"Hello">;
 /// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type="hello"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value="hello"
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value=Uncapitalize<"Hello">
 /// @resolution.name source=Uncapitalize target=Uncapitalize
 
 const bad: Value = "Hello";
-/// @type.symbol symbol=bad source=bad type="hello"
+/// @type.symbol symbol=bad source=bad type=Value
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"Hello\"' is not assignable to type '\"hello\"'"
+/// @diagnostic.error id=not-assignable message="type '\"Hello\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="\"Hello\"" line_source="const bad: Value = \"Hello\";"
 /// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = \"Hello\";" message="expected due to this annotation"
+/// @diagnostic.note message="'Value' reduces to '\"hello\"'"
 "#,
     );
 }

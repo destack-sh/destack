@@ -18,8 +18,8 @@ const bad: LowerAscii = 'A';
 === annotated ===
 type LowerAscii = 'a'..='z';
 
-const letter: 'a'..='z' = 'm';
-const bad: 'a'..='z' = 'A';
+const letter: LowerAscii = 'm';
+const bad: LowerAscii = 'A';
 
 === dir ===
 type LowerAscii = 'a'..='z';
@@ -27,19 +27,20 @@ type LowerAscii = 'a'..='z';
 /// @definition.type symbol=LowerAscii source="type LowerAscii = 'a'..='z'" value='a'..='z'
 
 const letter: LowerAscii = 'm';
-/// @type.symbol symbol=letter source=letter type='a'..='z'
+/// @type.symbol symbol=letter source=letter type=LowerAscii
 /// @resolution.pattern source=letter kind=binding target=letter
 /// @resolution.name source=LowerAscii target=LowerAscii
 
 const bad: LowerAscii = 'A';
-/// @type.symbol symbol=bad source=bad type='a'..='z'
+/// @type.symbol symbol=bad source=bad type=LowerAscii
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=LowerAscii target=LowerAscii
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type ''A'' is not assignable to type ''a'..='z''"
+/// @diagnostic.error id=not-assignable message="type ''A'' is not assignable to type 'LowerAscii'"
 /// @diagnostic.label line=5 column=25 span="'A'" line_source="const bad: LowerAscii = 'A';"
 /// @diagnostic.related line=5 column=12 span="LowerAscii" line_source="const bad: LowerAscii = 'A';" message="expected due to this annotation"
+/// @diagnostic.note message="'LowerAscii' reduces to ''a'..='z''"
 "#,
     );
 }

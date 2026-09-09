@@ -22,13 +22,17 @@ impl CheckState<'_> {
         mut self,
         module: ModuleId,
     ) -> CompilerResult<(DirDeclared, Vec<DiagnosticRecord>)> {
-        self.write_back()?;
-        self.commit_parameter_conformances(module)?;
-
-        let recorder = self.recorder;
-        ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || self.write_module(module))?;
-        let diagnostics = self.collect_diagnostics()?;
+        let diagnostics = self.write_declared(module)?;
 
         Ok((self.into_declared(module)?, diagnostics))
+    }
+
+    /// Write the declared module back and collect its diagnostics.
+    fn write_declared(&mut self, module: ModuleId) -> CompilerResult<Vec<DiagnosticRecord>> {
+        self.write_back()?;
+        let recorder = self.recorder;
+        ArtifactAttemptRecorder::breakdown_maybe(recorder, "write", || self.write_module(module))?;
+
+        self.collect_diagnostics()
     }
 }

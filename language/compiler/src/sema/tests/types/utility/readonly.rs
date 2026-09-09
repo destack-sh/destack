@@ -31,8 +31,9 @@ person.age satisfies int32;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -91,8 +92,9 @@ person.name satisfies string | undefined;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.name source="name?: string" key=name type=string
 
@@ -149,8 +151,9 @@ person.name = "Grace";
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -217,8 +220,9 @@ person.profile.name = "Grace";
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.profile key=profile type={ name: string }
 

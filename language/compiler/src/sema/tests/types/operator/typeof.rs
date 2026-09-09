@@ -22,7 +22,7 @@ const value: 42 = 42;
 
 type ValueType = typeof value;
 
-let ok: 42 = 42;
+let ok: ValueType = 42;
 
 === dir ===
 const value = 42;
@@ -31,11 +31,11 @@ const value = 42;
 
 type ValueType = typeof value;
 /// @type.symbol symbol=ValueType source="type ValueType = typeof value" type=42
-/// @definition.type symbol=ValueType source="type ValueType = typeof value" value=42
+/// @definition.type symbol=ValueType source="type ValueType = typeof value" value=typeof value
 /// @resolution.name source=value target=value
 
 let ok: ValueType = 42;
-/// @type.symbol symbol=ok source=ok type=42
+/// @type.symbol symbol=ok source=ok type=ValueType
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=ValueType target=ValueType
 "#,
@@ -64,7 +64,7 @@ const value: 42 = 42;
 
 type ValueType = typeof value;
 
-let bad: 42 = "no";
+let bad: ValueType = "no";
 
 === dir ===
 const value = 42;
@@ -73,18 +73,19 @@ const value = 42;
 
 type ValueType = typeof value;
 /// @type.symbol symbol=ValueType source="type ValueType = typeof value" type=42
-/// @definition.type symbol=ValueType source="type ValueType = typeof value" value=42
+/// @definition.type symbol=ValueType source="type ValueType = typeof value" value=typeof value
 /// @resolution.name source=value target=value
 
 let bad: ValueType = "no";
-/// @type.symbol symbol=bad source=bad type=42
+/// @type.symbol symbol=bad source=bad type=ValueType
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=ValueType target=ValueType
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type '42'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'ValueType'"
 /// @diagnostic.label line=6 column=22 span="\"no\"" line_source="let bad: ValueType = \"no\";"
 /// @diagnostic.related line=6 column=10 span="ValueType" line_source="let bad: ValueType = \"no\";" message="expected due to this annotation"
+/// @diagnostic.note message="'ValueType' reduces to '42'"
 "#,
     );
 }
@@ -155,13 +156,13 @@ class Counter {
 
         this.value = value;
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Counter, target=field(receiver=Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @resolution.name source=value target=Counter.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Counter.constructor.value
 
     }
@@ -169,7 +170,7 @@ class Counter {
 
 type CounterCtor = typeof Counter;
 /// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=Counter
-/// @definition.type symbol=CounterCtor source="type CounterCtor = typeof Counter" value=Counter
+/// @definition.type symbol=CounterCtor source="type CounterCtor = typeof Counter" value=typeof Counter
 /// @resolution.name source=Counter target=Counter
 
 declare function takesCounter(ctor: { new (value: int32): Counter }): void;

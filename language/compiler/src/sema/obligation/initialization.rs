@@ -1,3 +1,4 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 
 use crate::sema::{
@@ -12,6 +13,27 @@ impl CheckState<'_> {
         // report each declaration's uninitialized fields
         for obligation in std::mem::take(&mut self.field_initializations) {
             let origin = Origin::Node(obligation.source, obligation.scope);
+
+            // report each constructor of a derived class reaching its end ahead of the base call
+            if self.class_has_base(obligation.symbol)? {
+                let undelegated = self
+                    .constructor_branches
+                    .get(&obligation.symbol)
+                    .map(|branches| {
+                        branches
+                            .iter()
+                            .filter(|(_, branch)| !branch.is_assigned(AssignedPlace::Delegated))
+                            .map(|(constructor, _)| *constructor)
+                            .collect::<FxIndexSet<_>>()
+                    })
+                    .unwrap_or_default();
+                for constructor in undelegated {
+                    let node = self
+                        .module(constructor.module_id)
+                        .symbol_declaration_node(constructor.local_id)?;
+                    self.report_missing_super_call(constructor.module_id, node);
+                }
+            }
             let check = self.check_field_initialization(origin, &obligation)?;
             for failure in check.into_failures() {
                 self.report_obligation_failure(failure)?;
@@ -31,9 +53,22 @@ impl CheckState<'_> {
         let fields = self.initialization_fields(obligation.symbol)?;
         let mut failures = Vec::new();
 
-        // check each field that requires a runtime value
+        // record the fields every constructor assigns, for lowering to skip their defaults
+        let assigned: Vec<_> = fields
+            .iter()
+            .filter(|field| self.has_constructor_assignment(obligation, field))
+            .map(|field| field.symbol)
+            .collect();
+        self.module
+            .decisions_tail
+            .set_constructor_assignments(obligation.symbol, assigned);
+
+        // check each field without a default that requires a runtime value
         for field in fields {
-            if !self.is_initialization_required(origin, &field)? {
+            if field.initializer.is_some()
+                || field.is_optional
+                || !self.is_initialization_required(origin, &field)?
+            {
                 continue;
             }
 
@@ -70,17 +105,15 @@ impl CheckState<'_> {
                 message: format!("field initialization has no definition: {symbol:?}"),
             });
         };
-        let is_class = matches!(definition, dir::Definition::Class(_));
+        let is_class = matches!(*definition, dir::Definition::Class(_));
 
-        // collect concrete storage without direct initializers
+        // collect the concrete storage a constructor may initialize
         Ok(definition
             .members()
             .iter()
             .filter_map(|member| match member {
                 dir::DefinitionMember::Field(field)
                     if (field.space == dir::MemberSpace::Static || is_class)
-                        && field.initializer.is_none()
-                        && !field.is_optional
                         && !field.is_abstract =>
                 {
                     Some(field.clone())
@@ -120,7 +153,7 @@ impl CheckState<'_> {
 
         // require every checked constructor branch to assign the place
         match self.constructor_branches.get(&obligation.symbol) {
-            Some(branches) => branches.iter().all(|branch| branch.is_assigned(place)),
+            Some(branches) => branches.iter().all(|(_, branch)| branch.is_assigned(place)),
             None => false,
         }
     }

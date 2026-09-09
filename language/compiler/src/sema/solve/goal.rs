@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckFailure, OverloadRule, Relation, ValueUse, Verdict};
+use crate::sema::{CheckFailure, OverloadRule, ValueUse, Verdict};
 
 /// One decided goal over closed operands, keying its remembered choice.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -18,7 +18,7 @@ pub(in crate::sema) struct GoalKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) enum Goal {
     /// One implementation decision over [source, target].
-    Implementation(Relation),
+    Implementation,
     /// One extension's deduced arguments over [receiver, subject].
     Extension {
         /// The extension declaration the match decides.
@@ -50,12 +50,12 @@ pub(in crate::sema) enum Callee {
 }
 
 /// One decided choice, re-derived at each goal site.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(in crate::sema) enum Answer {
     /// The extension implementing the goal, none when every candidate fails.
     Implement(Option<dir::GlobalSymbolId>),
-    /// Whether the extension matches the goal.
-    Extension(bool),
+    /// The extension's match with its deduced arguments, none when it fails.
+    Extension(Option<ExtensionSource>),
     /// The selected union arm by target position, exact or converted, or its failure.
     Arm(Result<(u16, bool), CheckFailure>),
     /// The candidate position one selection chose.
@@ -63,12 +63,12 @@ pub(in crate::sema) enum Answer {
 }
 
 /// One decided extension implementation verdict with its winner's match.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(in crate::sema) struct Implementation {
     /// The decided verdict.
     pub(in crate::sema) verdict: Verdict,
-    /// The winning extension declaration.
-    pub(in crate::sema) winner: Option<dir::GlobalSymbolId>,
+    /// The winning extension declaration with the arguments its match binds.
+    pub(in crate::sema) winner: Option<ExtensionSource>,
     /// The winner's substituted target, constrained by each goal site's receiver.
     pub(in crate::sema) target: Option<dir::GlobalTypeId>,
     /// The winner's matched interface application, related to each goal site's request.
@@ -76,13 +76,15 @@ pub(in crate::sema) struct Implementation {
 }
 
 impl Implementation {
-    /// The decision every candidate fails.
-    pub(in crate::sema) const FAILS: Self = Self {
-        verdict: Verdict::Fails,
-        winner: None,
-        target: None,
-        interface: None,
-    };
+    /// Return the decision every candidate fails.
+    pub(in crate::sema) fn fails() -> Self {
+        Self {
+            verdict: Verdict::Fails,
+            winner: None,
+            target: None,
+            interface: None,
+        }
+    }
 }
 
 /// One matched extension with the arguments its template deduces.

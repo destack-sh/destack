@@ -36,8 +36,9 @@ impl CheckState<'_> {
         module: ModuleId,
         strings: dir::TypeListId,
     ) -> CompilerResult<Vec<String>> {
-        Ok(self
-            .template_strings(module, strings)?
+        let segments = self.template_strings(module, strings)?;
+
+        Ok(segments
             .iter()
             .map(|segment| self.strings().get(*segment).to_string())
             .collect())
@@ -175,8 +176,11 @@ impl CheckState<'_> {
         template: &dir::TemplateLiteralType,
     ) -> CompilerResult<Verdict> {
         // accept only patterns whose segments are all empty
-        for segment in self.template_strings(template_module, template.strings)? {
-            if !self.strings().get(*segment).is_empty() {
+        for segment in self
+            .template_strings(template_module, template.strings)?
+            .to_vec()
+        {
+            if !self.strings().get(segment).is_empty() {
                 return Ok(Verdict::Fails);
             }
         }
@@ -251,12 +255,12 @@ impl CheckState<'_> {
         let root = self.root_variable(span)?;
         let mut hint = None;
         for variable in [immediate, root].into_iter().flatten() {
-            hint = self
-                .infer
-                .variable(variable)?
-                .parameter
-                .and_then(|parameter| self.generic_parameter(parameter))
-                .and_then(|binding| binding.constraint);
+            hint = match self.infer.variable(variable)?.parameter {
+                Some(parameter) => self
+                    .generic_parameter(parameter)?
+                    .and_then(|binding| binding.constraint),
+                None => None,
+            };
             if hint.is_some() {
                 break;
             }

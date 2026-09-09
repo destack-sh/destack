@@ -66,19 +66,21 @@ impl CheckState<'_> {
         if let dir::Type::Variant(variant) = self.ty(source)? {
             let owner = self.normalize(origin, variant.owner)?;
             let value = match self.ty(owner)? {
-                dir::Type::Application(instance) => match self.definition(instance.symbol)? {
-                    Some(dir::Definition::Enum(definition)) => {
-                        definition.members.iter().find_map(|member| match member {
-                            dir::DefinitionMember::EnumVariant(declared)
-                                if declared.symbol == variant.variant =>
-                            {
-                                Some(declared.value)
-                            }
-                            _ => None,
-                        })
+                dir::Type::Application(instance) => {
+                    match self.definition(instance.symbol)?.as_deref() {
+                        Some(dir::Definition::Enum(definition)) => {
+                            definition.members.iter().find_map(|member| match member {
+                                dir::DefinitionMember::EnumVariant(declared)
+                                    if declared.symbol == variant.variant =>
+                                {
+                                    Some(declared.value)
+                                }
+                                _ => None,
+                            })
+                        }
+                        _ => None,
                     }
-                    _ => None,
-                },
+                }
                 _ => None,
             };
 
@@ -106,7 +108,8 @@ impl CheckState<'_> {
                 let dir::ScalarFamily::Enum(symbol) = family else {
                     continue;
                 };
-                let Some(dir::Definition::Enum(definition)) = self.definition(symbol)? else {
+                let declared = self.definition(symbol)?;
+                let Some(dir::Definition::Enum(definition)) = declared.as_deref() else {
                     backed = Verdict::Fails;
                     break;
                 };
@@ -130,10 +133,29 @@ impl CheckState<'_> {
             }
         }
 
-        // concrete newtypes project explicitly to their backing type
+        // unwrap one newtype layer to exactly its backing
         if let Some(instance) = self.decompose_newtype(origin, source)? {
-            let backing = instance.backing;
-            verdict = verdict.or(self.relate_castable(origin, cause, backing, target)?);
+            verdict = verdict.or(self.constrain_type(
+                origin,
+                cause,
+                Relation::Equal,
+                instance.backing,
+                target,
+            )?);
+            if verdict == Verdict::Holds {
+                return Ok(Verdict::Holds);
+            }
+        }
+
+        // wrap a backing value into exactly its newtype
+        if let Some(instance) = self.decompose_newtype(origin, target)? {
+            verdict = verdict.or(self.constrain_type(
+                origin,
+                cause,
+                Relation::Equal,
+                source,
+                instance.backing,
+            )?);
             if verdict == Verdict::Holds {
                 return Ok(Verdict::Holds);
             }

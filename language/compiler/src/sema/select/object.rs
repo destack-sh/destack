@@ -49,9 +49,10 @@ impl CheckState<'_> {
             return self.commit_rejected_pattern(node);
         }
 
-        // destructure each named field, collecting the rest
+        // destructure each named field through the scrutinee's borrow, collecting the rest
+        let binding = self.pattern_binding_form(origin, scrutinee)?;
         let (fields, rest) =
-            self.project_named_fields(node, origin, flow, scope, scrutinee, fields)?;
+            self.project_named_fields(node, origin, flow, scope, scrutinee, fields, binding)?;
 
         // commit the object destructure
         self.commit_pattern(
@@ -126,6 +127,7 @@ impl CheckState<'_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         owner: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
+        binding: Option<dir::Form>,
     ) -> CompilerResult<(
         Vec<dir::PatternFieldResolution>,
         Option<dir::PatternFieldResolution>,
@@ -159,10 +161,12 @@ impl CheckState<'_> {
                             continue;
                         };
 
+                        let projected_value =
+                            self.bound_through(origin, binding, projection.ty())?;
                         self.check_pattern_projection(
                             flow,
                             scope,
-                            projection.ty(),
+                            projected_value,
                             pattern.into_global_any(module),
                         )?;
                         projected.push(dir::PatternFieldResolution {
@@ -248,7 +252,7 @@ impl CheckState<'_> {
                     continue;
                 }
             };
-            let projected_value = projection.ty();
+            let projected_value = self.bound_through(origin, binding, projection.ty())?;
 
             // flow the projected value into the nested or shorthand hole
             match pattern {

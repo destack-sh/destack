@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    CallableArgument, CheckFailure, CheckOutcome, CheckState, Expectation, FlowSite, NewtypeMatch,
-    NewtypeSignature, Origin, OverloadRule, OverloadSelection, PlaceUse, SignatureFamily,
-    SignatureMatch, SignatureRejection, SignatureSelection, TypeArgumentInference,
+    AssignedPlace, CallableArgument, CheckFailure, CheckOutcome, CheckState, Expectation, FlowSite,
+    NewtypeMatch, NewtypeSignature, Origin, OverloadRule, OverloadSelection, PlaceUse,
+    SignatureFamily, SignatureMatch, SignatureRejection, SignatureSelection, TypeArgumentInference,
     TypeSubstitution, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
@@ -249,7 +249,7 @@ impl CheckState<'_> {
         )?
         else {
             let name = self.format_symbol(symbol);
-            let expected = self.writable_parameter_count(&parameters);
+            let expected = self.writable_parameter_count(&parameters)?;
             self.report_wrong_generic_arity(module, source.local_id, name, expected, written.len());
             let error = self.intern_type(dir::Type::Error)?;
 
@@ -332,7 +332,7 @@ impl CheckState<'_> {
         };
 
         // require a class to construct through new
-        let constructors = match self.definition(instance.symbol)? {
+        let constructors = match self.definition(instance.symbol)?.as_deref() {
             Some(dir::Definition::Struct(_)) => {
                 return self.report_rejected_construct_target(
                     node,
@@ -507,7 +507,7 @@ impl CheckState<'_> {
         active.push(instance.symbol);
 
         // read the base class definition
-        let base = match self.definition(instance.symbol)? {
+        let base = match self.definition(instance.symbol)?.as_deref() {
             Some(dir::Definition::Class(base)) => base.clone(),
             _ => {
                 return Err(CompilerError::Internal {
@@ -595,7 +595,7 @@ impl CheckState<'_> {
             Some(template) if instance.arguments.is_empty() => {
                 let parameters = self.generic_template_parameters(template)?;
 
-                self.writable_parameter_count(&parameters) != 0
+                self.writable_parameter_count(&parameters)? != 0
             }
             _ => false,
         };
@@ -627,7 +627,10 @@ impl CheckState<'_> {
 
         // fall back to the constructed target as the return type
         let return_type = function.return_type.or(Some(target));
-        let carried = self.resolved_argument_bindings(&substitution.bindings)?;
+
+        // carry the class's instance and region bindings into the constructor's own template
+        let mut carried = self.resolved_argument_bindings(&substitution.bindings)?;
+        carried.extend(self.resolved_region_bindings(&substitution.bindings)?);
 
         // match the constructor signature against the written arguments
         self.match_signature(
@@ -740,6 +743,7 @@ impl CheckState<'_> {
             target,
             self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
             signature.return_type,
+            signature.region_arguments.clone(),
         );
         self.commit_decision(node, dir::Decision::Construct(resolution))?;
         self.commit_node_type(node, signature.return_type)?;
@@ -806,6 +810,7 @@ impl CheckState<'_> {
             target,
             self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
             produced,
+            signature.region_arguments.clone(),
         );
         self.commit_decision(node, dir::Decision::Construct(resolution))?;
         self.commit_node_type(node, produced)?;
@@ -940,6 +945,21 @@ impl CheckState<'_> {
         let origin = site.origin();
         let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
 
+        // delegate from the constructor of the derived class alone
+        let Some(owner) = self.current_initializes() else {
+            self.report_super_call_outside_constructor(module, node.local_id);
+            self.infer_argument_types(site, argument_nodes)?;
+
+            return self.poison_call(node, None);
+        };
+        if !self.class_has_base(owner)? {
+            self.report_super_call_outside_constructor(module, node.local_id);
+            self.infer_argument_types(site, argument_nodes)?;
+
+            return self.poison_call(node, None);
+        }
+        self.flow.insert_assigned(AssignedPlace::Delegated);
+
         // type the super callee at its first visit
         let callee_site = self.visit_site(callee.into_global_any(module))?;
         self.infer_node_type(callee_site, PlaceUse::Read)?;
@@ -954,7 +974,8 @@ impl CheckState<'_> {
 
         // read the base class this super call initializes
         let (base_module, instance) = self.nominal_application(super_ty)?;
-        let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
+        let definition = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Class(base)) = definition.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!("super target {:?} has no class definition", instance.symbol),
             });
@@ -1023,6 +1044,17 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return whether one class declares a base class.
+    pub(in crate::sema) fn class_has_base(
+        &mut self,
+        class: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        Ok(matches!(
+            self.definition(class)?.as_deref(),
+            Some(dir::Definition::Class(definition)) if definition.extends.is_some()
+        ))
+    }
+
     /// Commit one selected base constructor as the super initialization.
     fn commit_super_construct(
         &mut self,
@@ -1059,6 +1091,7 @@ impl CheckState<'_> {
             target,
             self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
             produced,
+            signature.region_arguments.clone(),
         );
         self.commit_decision(node, dir::Decision::Construct(resolution))?;
         self.commit_node_type(node, produced)?;
@@ -1094,6 +1127,7 @@ impl CheckState<'_> {
             target,
             self.selected_argument_bindings(node, module, argument_nodes, signature)?,
             produced,
+            signature.region_arguments.clone(),
         );
         self.commit_decision(node, dir::Decision::Construct(resolution))?;
         self.commit_node_type(node, produced)?;
@@ -1133,7 +1167,7 @@ impl CheckState<'_> {
         };
 
         // reject the families aggregate literals never construct
-        let hint = match self.definition(symbol)? {
+        let hint = match self.definition(symbol)?.as_deref() {
             Some(dir::Definition::Class(_)) => "; construct classes with 'new T(\u{2026})'",
             Some(dir::Definition::Enum(_)) => "; construct enum values through their variants",
             Some(dir::Definition::Newtype(_)) => "; construct newtypes with 'T(\u{2026})'",

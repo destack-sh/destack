@@ -1,9 +1,8 @@
 use destack_artifact::DiagnosticPolicy;
 use destack_dir as dir;
-use std::ptr::NonNull;
 
 use crate::sema::{
-    CauseKind, ElisionSite, FlowState, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
+    CauseKind, ElisionSite, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
     ReceiverBinding, Relation, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
@@ -17,71 +16,37 @@ pub(in crate::sema) struct MethodBody {
     pub(in crate::sema) result: dir::GlobalTypeId,
 }
 
-/// One active receiver scope.
-pub(in crate::sema) struct ReceiverGuard {
-    /// The guarded flow state.
-    flow: NonNull<FlowState>,
-}
-
-impl ReceiverGuard {
-    /// Return one active receiver scope.
-    fn new(flow: &mut FlowState) -> Self {
-        Self {
-            flow: NonNull::from(flow),
-        }
-    }
-}
-
-impl Drop for ReceiverGuard {
-    fn drop(&mut self) {
-        // pop the receiver owned by this scope
-        unsafe {
-            self.flow.as_mut().pop_receiver();
-        }
-    }
-}
-
-/// One active generic template scope.
-pub(in crate::sema) struct TemplateScopeGuard {
-    /// The guarded flow state, absent when no template was entered.
-    flow: Option<NonNull<FlowState>>,
-}
-
-impl Drop for TemplateScopeGuard {
-    fn drop(&mut self) {
-        // pop the template scope owned by this guard
-        if let Some(mut flow) = self.flow {
-            unsafe {
-                flow.as_mut().pop_template_scope();
-            }
-        }
-    }
-}
-
 impl WalkState<'_, '_> {
-    /// Enter one explicit contextual receiver scope.
-    pub(in crate::sema) fn enter_receiver_scope(
+    /// Walk under one explicit contextual receiver scope, an absent receiver inheriting.
+    pub(in crate::sema) fn with_receiver_scope<T>(
         &mut self,
         receiver: Option<Receiver>,
-    ) -> ReceiverGuard {
-        self.flow_mut().push_receiver_scope(receiver);
+        walk: impl FnOnce(&mut Self) -> CompilerResult<T>,
+    ) -> CompilerResult<T> {
+        let Some(receiver) = receiver else {
+            return walk(self);
+        };
+        self.flow_mut().push_receiver_scope(Some(receiver));
+        let value = walk(self);
+        self.flow_mut().pop_receiver();
 
-        ReceiverGuard::new(self.flow_mut())
+        value
     }
 
-    /// Enter one generic template scope; absent templates inherit.
-    pub(in crate::sema) fn enter_template_scope(
+    /// Walk under one generic template scope, an absent template inheriting.
+    pub(in crate::sema) fn with_template_scope<T>(
         &mut self,
         template: Option<GenericTemplateId>,
-    ) -> TemplateScopeGuard {
+        walk: impl FnOnce(&mut Self) -> CompilerResult<T>,
+    ) -> CompilerResult<T> {
         let Some(template) = template else {
-            return TemplateScopeGuard { flow: None };
+            return walk(self);
         };
         self.flow_mut().push_template_scope(template);
+        let value = walk(self);
+        self.flow_mut().pop_template_scope();
 
-        TemplateScopeGuard {
-            flow: Some(NonNull::from(self.flow_mut())),
-        }
+        value
     }
 
     /// Walk one literal's properties.
@@ -132,7 +97,7 @@ impl WalkState<'_, '_> {
                 let source = id.into_global_any(self.module);
                 let template = self.open_signature_template(source, signature)?;
                 let (header, result, tracked) =
-                    self.walk_signature_header(id.into_any(), template, signature, body)?;
+                    self.walk_signature_header(id.into_any(), template, signature, body, false)?;
 
                 // write the method's function type
                 let method = self.walk_function_signature_type(
@@ -184,290 +149,292 @@ impl WalkState<'_, '_> {
         if !self.declare_decorators(id.into_any())? {
             return Ok(None);
         }
-        let _receiver =
-            self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
+        self.with_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()), |walk| {
+            // declare by the member's own syntax
+            let definition: CompilerResult<Option<dir::DefinitionMember>> = match member {
+                // type Item = T
+                dir::Member::AssociatedType {
+                    name,
+                    generic_parameters,
+                    where_clauses,
+                    constraint,
+                    value,
+                    ..
+                } => {
+                    let (name, constraint, value) = (*name, *constraint, *value);
+                    let symbol = walk.declared_symbol(id.into_any());
 
-        // declare by the member's own syntax
-        let definition: CompilerResult<Option<dir::DefinitionMember>> = match member {
-            // type Item = T
-            dir::Member::AssociatedType {
-                name,
-                generic_parameters,
-                where_clauses,
-                constraint,
-                value,
-                ..
-            } => {
-                let (name, constraint, value) = (*name, *constraint, *value);
-                let symbol = self.declared_symbol(id.into_any());
+                    // walk generic parameters
+                    let source = id.into_global_any(walk.module);
+                    let template = match symbol {
+                        Some(_) => walk.walk_generic_template(source, generic_parameters)?,
+                        None => None,
+                    };
 
-                // walk generic parameters
-                let source = id.into_global_any(self.module);
-                let template = match symbol {
-                    Some(_) => self.walk_generic_template(source, generic_parameters)?,
-                    None => None,
-                };
-
-                // walk where clauses
-                for where_clause in where_clauses {
-                    self.walk_where_clause(template, *where_clause)?;
-                }
-
-                // walk constraint and value under the member's induced owner
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
-                let induction =
-                    symbol.map(|symbol| InducedParameterOwner::new(source, parent, Some(symbol)));
-                let previous = std::mem::replace(&mut self.induced_owner, induction);
-                let constraint = constraint
-                    .map(|constraint| self.walk_type_expression(constraint))
-                    .transpose()?;
-                let value = value
-                    .map(|value| self.walk_type_expression(value))
-                    .transpose()?;
-                self.induced_owner = previous;
-
-                // write the member symbol type
-                if let (Some(value), Some(symbol)) = (value, symbol) {
-                    self.commit_symbol_type(symbol, value)?;
-                }
-
-                let Some(symbol) = symbol else {
-                    return Ok(None);
-                };
-
-                // classify how the member receives its implementation
-                let implementation = if value.is_some() {
-                    dir::MemberImplementation::Own
-                } else {
-                    dir::MemberImplementation::Required
-                };
-
-                Ok(Some(dir::DefinitionMember::AssociatedType(
-                    dir::AssociatedTypeDefinition {
-                        symbol,
-                        source,
-                        key: dir::StaticKey::Name(name),
-                        constraint,
-                        value,
-                        implementation,
-                    },
-                )))
-            }
-            // const item: T = value
-            dir::Member::AssociatedConst {
-                name,
-                declared_type,
-                value,
-                ..
-            } => self.walk_associated_constant(
-                id.into_any(),
-                *name,
-                *declared_type,
-                *value,
-                dir::MemberImplementation::Own,
-            ),
-            // field: T = value
-            dir::Member::Field {
-                name,
-                declared_type,
-                default,
-                is_optional,
-                is_readonly,
-                is_static,
-                is_abstract,
-                is_override,
-                ..
-            } => {
-                let (name, declared_type, default, is_optional, is_static) =
-                    (*name, *declared_type, *default, *is_optional, *is_static);
-                let is_readonly = *is_readonly;
-                let (is_abstract, is_override) = (*is_abstract, *is_override);
-
-                // report a field declared without an annotation and without a default
-                let is_uninferable = declared_type.is_none() && default.is_none();
-                if is_uninferable {
-                    self.check
-                        .report_missing_type_annotation(self.module, id.into_any());
-                }
-
-                // resolve the field symbol
-                let symbol = self.declared_symbol(id.into_any());
-
-                // derive the field type
-                let field_type = match declared_type {
-                    // take the written annotation
-                    Some(declared_type) => {
-                        Some(self.walk_type_expression_in(declared_type, ElisionSite::Member)?)
+                    // walk where clauses
+                    for where_clause in where_clauses {
+                        walk.walk_where_clause(template, *where_clause)?;
                     }
-                    // take the error type for the reported field
-                    None if is_uninferable => Some(self.intern_type(dir::Type::Error)?),
-                    // infer the field from its default through the field slot
-                    None => symbol
-                        .map(|symbol| self.binding_type_slot(symbol))
-                        .transpose()?,
-                };
 
-                // commit the field type
-                if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
-                    self.commit_symbol_type(symbol, field_type)?;
-                }
+                    // walk constraint and value under the member's induced owner
+                    let parent = walk.enclosing_generic_template(receiver_scope, induced_owner)?;
+                    let induction = symbol
+                        .map(|symbol| InducedParameterOwner::new(source, parent, Some(symbol)));
+                    let previous = std::mem::replace(&mut walk.induced_owner, induction);
+                    let constraint = constraint
+                        .map(|constraint| walk.walk_type_expression(constraint))
+                        .transpose()?;
+                    let value = value
+                        .map(|value| walk.walk_type_expression(value))
+                        .transpose()?;
+                    walk.induced_owner = previous;
 
-                // check an annotated default, and read the type an unannotated one supplies
-                let checks_default = declared_type.is_none() || !self.check.is_declaring();
-                if checks_default && let (Some(field_type), Some(default)) = (field_type, default) {
-                    let before_default = self.fork_flow();
-                    self.walk_expression(default, self.tree.get(default))?;
-                    let annotation =
-                        declared_type.map(|annotation| annotation.into_global_any(self.module));
-                    self.check_assignable(
-                        default,
-                        field_type,
-                        CauseKind::Initializer { annotation },
-                        ValueUse::Store,
-                    )?;
-                    self.restore_flow(before_default);
-                }
+                    // write the member symbol type
+                    if let (Some(value), Some(symbol)) = (value, symbol) {
+                        walk.commit_symbol_type(symbol, value)?;
+                    }
 
-                let (Some(symbol), Some(field_type)) = (symbol, field_type) else {
-                    return Ok(None);
-                };
-                let key = name.into();
-                let ty = self.field_storage_type(field_type, is_optional)?;
+                    let Some(symbol) = symbol else {
+                        return Ok(None);
+                    };
 
-                Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
-                    space: if is_static {
-                        dir::MemberSpace::Static
+                    // classify how the member receives its implementation
+                    let implementation = if value.is_some() {
+                        dir::MemberImplementation::Own
                     } else {
-                        dir::MemberSpace::Instance
-                    },
-                    visibility: member.visibility().unwrap_or(dir::Visibility::Public),
-                    symbol,
-                    source: id.into_global_any(self.module),
-                    key,
-                    ty,
-                    initializer: default.map(|default| default.into_global_any(self.module)),
+                        dir::MemberImplementation::Required
+                    };
+
+                    Ok(Some(dir::DefinitionMember::AssociatedType(
+                        dir::AssociatedTypeDefinition {
+                            symbol,
+                            source,
+                            key: dir::StaticKey::Name(name),
+                            constraint,
+                            value,
+                            implementation,
+                        },
+                    )))
+                }
+                // const item: T = value
+                dir::Member::AssociatedConst {
+                    name,
+                    declared_type,
+                    value,
+                    ..
+                } => walk.walk_associated_constant(
+                    id.into_any(),
+                    *name,
+                    *declared_type,
+                    *value,
+                    dir::MemberImplementation::Own,
+                ),
+                // field: T = value
+                dir::Member::Field {
+                    name,
+                    declared_type,
+                    default,
                     is_optional,
                     is_readonly,
+                    is_static,
                     is_abstract,
                     is_override,
-                    overrides: None,
-                })))
-            }
-            // method() {}
-            dir::Member::Method {
-                name,
-                signature,
-                body,
-                abstraction,
-                is_ambient,
-                is_static,
-                is_override,
-                ..
-            } => {
-                // place the method into its declaration slot
-                let Some(slot) = member.slot() else {
-                    return Ok(None);
-                };
-                let Some(symbol) = self.declared_symbol(id.into_any()) else {
-                    return Err(CompilerError::Internal {
-                        message: format!("method member {id:?} has no declaration symbol"),
-                    });
-                };
-                let source = id.into_global_any(self.module);
-                let template = self.open_signature_template(source, signature)?;
+                    ..
+                } => {
+                    let (name, declared_type, default, is_optional, is_static) =
+                        (*name, *declared_type, *default, *is_optional, *is_static);
+                    let is_readonly = *is_readonly;
+                    let (is_abstract, is_override) = (*is_abstract, *is_override);
 
-                // induce elided parameters on the method's template
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
-                let induction = InducedParameterOwner::new(source, parent, Some(symbol));
-                let previous = self.induced_owner.replace(induction);
-
-                // open signature parameters under the signature's own scope
-                let _scope = self.enter_template_scope(template);
-                let header = self.walk_function_signature(template, signature)?;
-                let this_parameter = header.this_parameter;
-
-                // classify how the method receives its implementation
-                let implementation = if body.is_some() {
-                    dir::MemberImplementation::Own
-                } else {
-                    dir::MemberImplementation::Required
-                };
-                let needs_body = implementation == dir::MemberImplementation::Required
-                    && !is_ambient_scope
-                    && !*is_ambient
-                    && !abstraction.is_abstract();
-                if needs_body {
-                    let member = self.method_body_name(*name, signature);
-                    let source = id.into_global_any(self.module);
-                    self.check.report_missing_declaration_body(source, member);
-                }
-                let implicit_receiver_scope = if *is_static { None } else { receiver_scope };
-                let receiver_form =
-                    self.implicit_receiver_form(id, signature, implicit_receiver_scope)?;
-                let receiver = self.method_receiver_binding(
-                    id,
-                    signature,
-                    implicit_receiver_scope,
-                    this_parameter,
-                    receiver_form,
-                )?;
-                let (result, tracked) =
-                    self.walk_method_result_type(id, signature, *body, receiver)?;
-
-                // write the method's function type
-                let receiver_type = match (receiver, signature.is_constructor()) {
-                    (Some(_), false) => {
-                        let this = self.intern_type(dir::Type::This)?;
-                        let this = match receiver_form {
-                            Some(form) => self.intern_type(dir::Type::Form(dir::FormType {
-                                form,
-                                value: this,
-                            }))?,
-                            None => this,
-                        };
-
-                        Some(this)
+                    // report a field declared without an annotation and without a default
+                    let is_uninferable = declared_type.is_none() && default.is_none();
+                    if is_uninferable {
+                        walk.check
+                            .report_missing_type_annotation(walk.module, id.into_any());
                     }
-                    _ => None,
-                };
-                let method = self.walk_function_signature_type(
-                    id.into_any(),
+
+                    // resolve the field symbol
+                    let symbol = walk.declared_symbol(id.into_any());
+
+                    // derive the field type
+                    let field_type = match declared_type {
+                        // take the written annotation
+                        Some(declared_type) => {
+                            Some(walk.walk_type_expression_in(declared_type, ElisionSite::Member)?)
+                        }
+                        // take the error type for the reported field
+                        None if is_uninferable => Some(walk.intern_type(dir::Type::Error)?),
+                        // infer the field from its default through the field slot
+                        None => symbol
+                            .map(|symbol| walk.binding_type_slot(symbol))
+                            .transpose()?,
+                    };
+
+                    // commit the field type
+                    if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
+                        walk.commit_symbol_type(symbol, field_type)?;
+                    }
+
+                    // check an annotated default, and read the type an unannotated one supplies
+                    let checks_default = declared_type.is_none() || !walk.check.is_declaring();
+                    if checks_default
+                        && let (Some(field_type), Some(default)) = (field_type, default)
+                    {
+                        let before_default = walk.fork_flow();
+                        walk.walk_expression(default, walk.tree.get(default))?;
+                        let annotation =
+                            declared_type.map(|annotation| annotation.into_global_any(walk.module));
+                        walk.check_assignable(
+                            default,
+                            field_type,
+                            CauseKind::Initializer { annotation },
+                            ValueUse::Store,
+                        )?;
+                        walk.restore_flow(before_default);
+                    }
+
+                    let (Some(symbol), Some(_)) = (symbol, field_type) else {
+                        return Ok(None);
+                    };
+                    let key = name.into();
+
+                    Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
+                        space: if is_static {
+                            dir::MemberSpace::Static
+                        } else {
+                            dir::MemberSpace::Instance
+                        },
+                        visibility: member.visibility().unwrap_or(dir::Visibility::Public),
+                        symbol,
+                        source: id.into_global_any(walk.module),
+                        key,
+                        initializer: default.map(|default| default.into_global_any(walk.module)),
+                        is_optional,
+                        is_readonly,
+                        is_abstract,
+                        is_override,
+                    })))
+                }
+                // method() {}
+                dir::Member::Method {
+                    name,
                     signature,
-                    header,
-                    Some(induction),
-                    receiver_type,
-                    result,
-                    tracked,
-                )?;
-                self.induced_owner = previous;
+                    body,
+                    abstraction,
+                    is_ambient,
+                    is_static,
+                    is_override,
+                    ..
+                } => {
+                    // place the method into its declaration slot
+                    let Some(slot) = member.slot() else {
+                        return Ok(None);
+                    };
+                    let Some(symbol) = walk.declared_symbol(id.into_any()) else {
+                        return Err(CompilerError::Internal {
+                            message: format!("method member {id:?} has no declaration symbol"),
+                        });
+                    };
+                    let source = id.into_global_any(walk.module);
+                    let template = walk.open_signature_template(source, signature)?;
 
-                // write the method symbol type
-                self.commit_symbol_type(symbol, method)?;
+                    // induce elided parameters on the method's template
+                    let parent = walk.enclosing_generic_template(receiver_scope, induced_owner)?;
+                    let induction = InducedParameterOwner::new(source, parent, Some(symbol));
+                    let previous = walk.induced_owner.replace(induction);
 
-                Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
-                    space: if *is_static {
-                        dir::MemberSpace::Static
-                    } else {
-                        dir::MemberSpace::Instance
-                    },
-                    visibility: member.visibility().unwrap_or(dir::Visibility::Public),
-                    symbol,
-                    source,
-                    slot,
-                    role: signature.role,
-                    abstraction: *abstraction,
-                    is_override: *is_override,
-                    overrides: None,
-                    implementation,
-                })))
-            }
-            // static { ... }, const { ... }
-            dir::Member::StaticBlock { .. } | dir::Member::ConstBlock { .. } => Ok(None),
-            // ignore damaged nodes
-            dir::Member::Error => Ok(None),
-        };
+                    // open signature parameters under the signature's own scope
+                    walk.with_template_scope(template, |walk| {
+                        let header =
+                            walk.walk_function_signature(template, signature, *is_ambient)?;
+                        let this_parameter = header.this_parameter;
 
-        definition
+                        // classify how the method receives its implementation
+                        let implementation = if body.is_some() {
+                            dir::MemberImplementation::Own
+                        } else {
+                            dir::MemberImplementation::Required
+                        };
+                        let needs_body = implementation == dir::MemberImplementation::Required
+                            && !is_ambient_scope
+                            && !*is_ambient
+                            && !abstraction.is_abstract();
+                        if needs_body {
+                            let member = walk.method_body_name(*name, signature);
+                            let source = id.into_global_any(walk.module);
+                            walk.check.report_missing_declaration_body(source, member);
+                        }
+                        let implicit_receiver_scope =
+                            if *is_static { None } else { receiver_scope };
+                        let receiver_form =
+                            walk.implicit_receiver_form(id, signature, implicit_receiver_scope)?;
+                        let receiver = walk.method_receiver_binding(
+                            id,
+                            signature,
+                            implicit_receiver_scope,
+                            this_parameter,
+                            receiver_form,
+                        )?;
+                        let (result, tracked) =
+                            walk.walk_method_result_type(id, signature, *body, receiver)?;
+
+                        // write the method's function type
+                        let receiver_type = match (receiver, signature.is_constructor()) {
+                            (Some(_), false) => {
+                                let this = walk.intern_type(dir::Type::This)?;
+                                let this = match receiver_form {
+                                    Some(form) => {
+                                        walk.intern_type(dir::Type::Form(dir::FormType {
+                                            form,
+                                            value: this,
+                                        }))?
+                                    }
+                                    None => this,
+                                };
+
+                                Some(this)
+                            }
+                            _ => None,
+                        };
+                        let method = walk.walk_function_signature_type(
+                            id.into_any(),
+                            signature,
+                            header,
+                            Some(induction),
+                            receiver_type,
+                            result,
+                            tracked,
+                        )?;
+                        walk.induced_owner = previous;
+
+                        // write the method symbol type
+                        walk.commit_symbol_type(symbol, method)?;
+
+                        Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
+                            space: if *is_static {
+                                dir::MemberSpace::Static
+                            } else {
+                                dir::MemberSpace::Instance
+                            },
+                            visibility: member.visibility().unwrap_or(dir::Visibility::Public),
+                            symbol,
+                            source,
+                            slot,
+                            role: signature.role,
+                            abstraction: *abstraction,
+                            is_override: *is_override,
+                            implementation,
+                        })))
+                    })
+                }
+                // static { ... }, const { ... }
+                dir::Member::StaticBlock { .. } | dir::Member::ConstBlock { .. } => Ok(None),
+                // ignore damaged nodes
+                dir::Member::Error => Ok(None),
+            };
+
+            definition
+        })
     }
 
     /// Assemble one declared-stage member's body context from its declared signature.
@@ -520,11 +487,9 @@ impl WalkState<'_, '_> {
             receiver_form,
         )?;
 
-        // apply the receiver scope to the declared result type
-        let result = match (receiver, head.return_type) {
-            (Some(receiver), Some(result)) => {
-                Some(self.apply_receiver_scope(Some(receiver.receiver), result)?)
-            }
+        // read the declared result type with this naming the declaration's receiver type
+        let result = match (&receiver, head.return_type) {
+            (Some(_), Some(result)) => Some(self.apply_receiver_scope(implicit, result)?),
             (_, result) => result,
         };
 
@@ -540,67 +505,66 @@ impl WalkState<'_, '_> {
         is_ambient_scope: bool,
         method_body: Option<MethodBody>,
     ) -> CompilerResult<()> {
-        let _receiver =
-            self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
-
-        // walk the body each member form declares
-        match member {
-            // method() {}
-            dir::Member::Method {
-                signature,
-                body,
-                is_ambient,
-                abstraction,
-                ..
-            } => {
-                if is_ambient_scope || *is_ambient || abstraction.is_abstract() {
-                    return Ok(());
-                }
-                let Some(body) = *body else {
-                    return Ok(());
-                };
-                let Some(symbol) = self.declared_symbol(id.into_any()) else {
-                    return Err(CompilerError::Internal {
-                        message: format!("method member {id:?} has no declaration symbol"),
-                    });
-                };
-                let Some(method_body) = method_body else {
-                    return Ok(());
-                };
-                self.walk_function_body(
-                    symbol,
+        self.with_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()), |walk| {
+            // walk the body each member form declares
+            match member {
+                // method() {}
+                dir::Member::Method {
                     signature,
                     body,
-                    method_body.result,
-                    method_body.receiver,
-                    None,
-                )?;
+                    is_ambient,
+                    abstraction,
+                    ..
+                } => {
+                    if is_ambient_scope || *is_ambient || abstraction.is_abstract() {
+                        return Ok(());
+                    }
+                    let Some(body) = *body else {
+                        return Ok(());
+                    };
+                    let Some(symbol) = walk.declared_symbol(id.into_any()) else {
+                        return Err(CompilerError::Internal {
+                            message: format!("method member {id:?} has no declaration symbol"),
+                        });
+                    };
+                    let Some(method_body) = method_body else {
+                        return Ok(());
+                    };
+                    walk.walk_function_body(
+                        symbol,
+                        signature,
+                        body,
+                        method_body.result,
+                        method_body.receiver,
+                        None,
+                    )?;
 
-                Ok(())
-            }
-            // static { ... }, const { ... }
-            dir::Member::StaticBlock { body } | dir::Member::ConstBlock { body } => {
-                let body = *body;
-
-                // queue the block interior to type after the current body completes
-                if self.check.is_checking() {
-                    self.check.blocks.push(body.into_global_any(self.module));
+                    Ok(())
                 }
-                // walk member blocks in declaration context while declaring
-                else {
-                    let before_body = self.fork_flow();
-                    self.walk_expression(body, self.tree.get(body))?;
-                    self.restore_flow(before_body);
-                }
+                // static { ... }, const { ... }
+                dir::Member::StaticBlock { body } | dir::Member::ConstBlock { body } => {
+                    let body = *body;
 
-                Ok(())
+                    // queue the block interior to type after the current body completes
+                    if walk.check.is_checking() {
+                        walk.check.blocks.push(body.into_global_any(walk.module));
+                    }
+                    // walk member blocks in declaration context while declaring
+                    else {
+                        let before_body = walk.fork_flow();
+                        walk.walk_expression(body, walk.tree.get(body))?;
+                        walk.restore_flow(before_body);
+                    }
+
+                    Ok(())
+                }
+                // declare bodiless members
+                dir::Member::Field { .. }
+                | dir::Member::AssociatedType { .. }
+                | dir::Member::AssociatedConst { .. }
+                | dir::Member::Error => Ok(()),
             }
-            // members without bodies
-            dir::Member::Field { .. }
-            | dir::Member::AssociatedType { .. }
-            | dir::Member::AssociatedConst { .. }
-            | dir::Member::Error => Ok(()),
-        }
+        })
     }
 
     /// Walk one object type member and return its checked definition member.
@@ -619,275 +583,278 @@ impl WalkState<'_, '_> {
         if !self.declare_decorators(id.into_any())? {
             return Ok(None);
         }
-        let _receiver = self.enter_receiver_scope(receiver_scope);
-        let source = id.into_global_any(self.module);
+        self.with_receiver_scope(receiver_scope, |walk| {
+            let source = id.into_global_any(walk.module);
 
-        // reject a visibility modifier written on a type member
-        if member.visibility().is_some() {
-            self.check
-                .report_interface_member_visibility(self.module, id.into_any());
-        }
+            // reject a visibility modifier written on a type member
+            if member.visibility().is_some() {
+                walk.check
+                    .report_interface_member_visibility(walk.module, id.into_any());
+            }
 
-        // declare by the type member's own syntax
-        match member {
-            // field: T
-            dir::TypeMember::Field {
-                name,
-                declared_type,
-                is_static,
-                is_optional,
-                is_readonly,
-                ..
-            } => {
-                let (name, declared_type, is_static, is_optional, is_readonly) = (
-                    *name,
-                    *declared_type,
-                    *is_static,
-                    *is_optional,
-                    *is_readonly,
-                );
-
-                // type the field from its annotation or the reported error
-                let field_type = if let Some(declared_type) = declared_type {
-                    self.walk_type_expression(declared_type)?
-                } else {
-                    self.check
-                        .report_missing_type_annotation(self.module, id.into_any());
-
-                    self.intern_type(dir::Type::Error)?
-                };
-
-                // resolve and type the field symbol
-                let Some(symbol) = self.declared_symbol(id.into_any()) else {
-                    return Err(CompilerError::Internal {
-                        message: format!("type field member {id:?} has no declaration symbol"),
-                    });
-                };
-                self.commit_symbol_type(symbol, field_type)?;
-
-                let key = name.into();
-                let ty = self.field_storage_type(field_type, is_optional)?;
-
-                Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
-                    space: if is_static {
-                        dir::MemberSpace::Static
-                    } else {
-                        dir::MemberSpace::Instance
-                    },
-                    visibility: dir::Visibility::Public,
-                    symbol,
-                    source,
-                    key,
-                    ty,
-                    initializer: None,
+            // declare by the type member's own syntax
+            match member {
+                // field: T
+                dir::TypeMember::Field {
+                    name,
+                    declared_type,
+                    is_static,
                     is_optional,
                     is_readonly,
-                    is_abstract: false,
-                    is_override: false,
-                    overrides: None,
-                })))
-            }
-            // method(): T
-            dir::TypeMember::Method {
-                signature,
-                body,
-                is_static,
-                ..
-            } => {
-                let (body, is_static) = (*body, *is_static);
-                let Some(slot) = member.slot() else {
-                    return Ok(None);
-                };
-                let Some(symbol) = self.declared_symbol(id.into_any()) else {
-                    return Err(CompilerError::Internal {
-                        message: format!("type method member {id:?} has no declaration symbol"),
-                    });
-                };
-                let template = self.open_signature_template(source, signature)?;
-                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
-                let induction = InducedParameterOwner::new(source, parent, Some(symbol));
-                let previous = self.induced_owner.replace(induction);
+                    ..
+                } => {
+                    let (name, declared_type, is_static, is_optional, is_readonly) = (
+                        *name,
+                        *declared_type,
+                        *is_static,
+                        *is_optional,
+                        *is_readonly,
+                    );
 
-                // interface members assume this satisfies their interface
-                let receiver_declaration = receiver_scope.and_then(|receiver| receiver.declaration);
-                if let Some(template) = template
-                    && let Some(interface) = receiver_declaration
-                    && self.check.symbol_kind(interface)?.is_interface()
-                {
-                    self.push_this_predicate(source, interface, template)?;
-                }
-
-                let (header, result, tracked) =
-                    self.walk_signature_header(id.into_any(), template, signature, body)?;
-                let receiver_type =
-                    match (receiver_scope.filter(|_| !is_static), header.this_parameter) {
-                        (Some(_), None) => Some(self.intern_type(dir::Type::This)?),
-                        _ => None,
-                    };
-                let header_this = header.this_parameter;
-                let method = self.walk_function_signature_type(
-                    id.into_any(),
-                    signature,
-                    header,
-                    Some(induction),
-                    receiver_type,
-                    result,
-                    tracked,
-                )?;
-                self.induced_owner = previous;
-
-                // write the method symbol type
-                self.commit_symbol_type(symbol, method)?;
-
-                // walk default method bodies under their written receiver
-                if let (Some(body), Some(result)) = (body, result) {
-                    let receiver = match (signature.this_parameter, header_this) {
-                        (Some(parameter), Some(ty)) => {
-                            Some(self.this_parameter_receiver_binding(parameter, None, ty)?)
-                        }
-                        _ => None,
-                    };
-                    self.walk_function_body(symbol, signature, body, result, receiver, None)?;
-                }
-
-                // classify how the member receives its implementation
-                let implementation = if body.is_some() {
-                    dir::MemberImplementation::Default
-                } else {
-                    dir::MemberImplementation::Required
-                };
-
-                Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
-                    space: if is_static {
-                        dir::MemberSpace::Static
+                    // type the field from its annotation or the reported error
+                    let field_type = if let Some(declared_type) = declared_type {
+                        walk.walk_type_expression(declared_type)?
                     } else {
-                        dir::MemberSpace::Instance
-                    },
-                    visibility: dir::Visibility::Public,
-                    symbol,
-                    source,
-                    slot,
-                    role: signature.role,
-                    abstraction: dir::MethodAbstraction::Concrete,
-                    is_override: false,
-                    overrides: None,
-                    implementation,
-                })))
-            }
-            // (value: T): U
-            dir::TypeMember::CallSignature { signature } => {
-                let ty = self.walk_function_type(id.into_any(), signature, None)?;
+                        walk.check
+                            .report_missing_type_annotation(walk.module, id.into_any());
 
-                Ok(Some(dir::DefinitionMember::CallSignature(
-                    dir::SignatureDefinition { source, ty },
-                )))
-            }
-            // new (value: T): U
-            dir::TypeMember::ConstructSignature { signature } => {
-                let ty = self.walk_constructor_type(id.into_any(), signature, None)?;
+                        walk.intern_type(dir::Type::Error)?
+                    };
 
-                Ok(Some(dir::DefinitionMember::ConstructSignature(
-                    dir::SignatureDefinition { source, ty },
-                )))
-            }
-            // [key: K]: V
-            dir::TypeMember::IndexSignature {
-                name,
-                key_type,
-                value_type,
-                is_optional,
-                is_readonly,
-            } => {
-                let (name, key_type, value_type, is_optional, is_readonly) =
-                    (*name, *key_type, *value_type, *is_optional, *is_readonly);
-                let key_type = self.walk_type_expression(key_type)?;
-                let value_type = self.walk_type_expression(value_type)?;
+                    // resolve and type the field symbol
+                    let Some(symbol) = walk.declared_symbol(id.into_any()) else {
+                        return Err(CompilerError::Internal {
+                            message: format!("type field member {id:?} has no declaration symbol"),
+                        });
+                    };
+                    walk.commit_symbol_type(symbol, field_type)?;
 
-                Ok(Some(dir::DefinitionMember::IndexSignature(
-                    dir::IndexSignatureDefinition {
-                        source,
-                        name,
-                        key_type,
-                        value_type,
-                        is_optional,
-                        is_readonly,
-                    },
-                )))
-            }
-            // type Item = T
-            dir::TypeMember::AssociatedType {
-                name,
-                generic_parameters,
-                where_clauses,
-                constraint,
-                value,
-                ..
-            } => {
-                let (name, constraint, value) = (*name, *constraint, *value);
-                let symbol = self.declared_symbol(id.into_any());
+                    let key = name.into();
 
-                // walk generic parameters
-                let template = match symbol {
-                    Some(_) => self.walk_generic_template(source, generic_parameters)?,
-                    None => None,
-                };
-
-                // walk where clauses
-                for where_clause in where_clauses {
-                    self.walk_where_clause(template, *where_clause)?;
-                }
-
-                // walk the written constraint and value
-                let constraint = constraint
-                    .map(|constraint| self.walk_type_expression(constraint))
-                    .transpose()?;
-                let value = value
-                    .map(|value| self.walk_type_expression(value))
-                    .transpose()?;
-
-                // write the member symbol type
-                if let (Some(value), Some(symbol)) = (value, symbol) {
-                    self.commit_symbol_type(symbol, value)?;
-                }
-
-                let Some(symbol) = symbol else {
-                    return Ok(None);
-                };
-
-                // classify how the member receives its implementation
-                let implementation = if value.is_some() {
-                    dir::MemberImplementation::Default
-                } else {
-                    dir::MemberImplementation::Required
-                };
-
-                Ok(Some(dir::DefinitionMember::AssociatedType(
-                    dir::AssociatedTypeDefinition {
+                    Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
+                        space: if is_static {
+                            dir::MemberSpace::Static
+                        } else {
+                            dir::MemberSpace::Instance
+                        },
+                        visibility: dir::Visibility::Public,
                         symbol,
                         source,
-                        key: dir::StaticKey::Name(name),
-                        constraint,
-                        value,
+                        key,
+                        initializer: None,
+                        is_optional,
+                        is_readonly,
+                        is_abstract: false,
+                        is_override: false,
+                    })))
+                }
+                // method(): T
+                dir::TypeMember::Method {
+                    signature,
+                    body,
+                    is_static,
+                    ..
+                } => {
+                    let (body, is_static) = (*body, *is_static);
+                    let Some(slot) = member.slot() else {
+                        return Ok(None);
+                    };
+                    let Some(symbol) = walk.declared_symbol(id.into_any()) else {
+                        return Err(CompilerError::Internal {
+                            message: format!("type method member {id:?} has no declaration symbol"),
+                        });
+                    };
+                    let template = walk.open_signature_template(source, signature)?;
+                    let parent = walk.enclosing_generic_template(receiver_scope, induced_owner)?;
+                    let induction = InducedParameterOwner::new(source, parent, Some(symbol));
+                    let previous = walk.induced_owner.replace(induction);
+
+                    // bind this to the interface receiver for its members
+                    let receiver_declaration =
+                        receiver_scope.and_then(|receiver| receiver.declaration);
+                    if let Some(template) = template
+                        && let Some(interface) = receiver_declaration
+                        && walk.check.symbol_kind(interface)?.is_interface()
+                    {
+                        walk.push_this_predicate(source, interface, template)?;
+                    }
+
+                    let (header, result, tracked) = walk.walk_signature_header(
+                        id.into_any(),
+                        template,
+                        signature,
+                        body,
+                        false,
+                    )?;
+                    let receiver_type =
+                        match (receiver_scope.filter(|_| !is_static), header.this_parameter) {
+                            (Some(_), None) => Some(walk.intern_type(dir::Type::This)?),
+                            _ => None,
+                        };
+                    let header_this = header.this_parameter;
+                    let method = walk.walk_function_signature_type(
+                        id.into_any(),
+                        signature,
+                        header,
+                        Some(induction),
+                        receiver_type,
+                        result,
+                        tracked,
+                    )?;
+                    walk.induced_owner = previous;
+
+                    // write the method symbol type
+                    walk.commit_symbol_type(symbol, method)?;
+
+                    // walk default method bodies under their written receiver
+                    if let (Some(body), Some(result)) = (body, result) {
+                        let receiver = match (signature.this_parameter, header_this) {
+                            (Some(parameter), Some(ty)) => {
+                                Some(walk.this_parameter_receiver_binding(parameter, None, ty)?)
+                            }
+                            _ => None,
+                        };
+                        walk.walk_function_body(symbol, signature, body, result, receiver, None)?;
+                    }
+
+                    // classify how the member receives its implementation
+                    let implementation = if body.is_some() {
+                        dir::MemberImplementation::Default
+                    } else {
+                        dir::MemberImplementation::Required
+                    };
+
+                    Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
+                        space: if is_static {
+                            dir::MemberSpace::Static
+                        } else {
+                            dir::MemberSpace::Instance
+                        },
+                        visibility: dir::Visibility::Public,
+                        symbol,
+                        source,
+                        slot,
+                        role: signature.role,
+                        abstraction: dir::MethodAbstraction::Concrete,
+                        is_override: false,
                         implementation,
-                    },
-                )))
+                    })))
+                }
+                // (value: T): U
+                dir::TypeMember::CallSignature { signature } => {
+                    let ty = walk.walk_function_type(id.into_any(), signature, None)?;
+
+                    Ok(Some(dir::DefinitionMember::CallSignature(
+                        dir::SignatureDefinition { source, ty },
+                    )))
+                }
+                // new (value: T): U
+                dir::TypeMember::ConstructSignature { signature } => {
+                    let ty = walk.walk_constructor_type(id.into_any(), signature, None)?;
+
+                    Ok(Some(dir::DefinitionMember::ConstructSignature(
+                        dir::SignatureDefinition { source, ty },
+                    )))
+                }
+                // [key: K]: V
+                dir::TypeMember::IndexSignature {
+                    name,
+                    key_type,
+                    value_type,
+                    is_optional,
+                    is_readonly,
+                } => {
+                    let (name, key_type, value_type, is_optional, is_readonly) =
+                        (*name, *key_type, *value_type, *is_optional, *is_readonly);
+                    let key_type = walk.walk_type_expression(key_type)?;
+                    let value_type = walk.walk_type_expression(value_type)?;
+
+                    Ok(Some(dir::DefinitionMember::IndexSignature(
+                        dir::IndexSignatureDefinition {
+                            source,
+                            name,
+                            key_type,
+                            value_type,
+                            is_optional,
+                            is_readonly,
+                        },
+                    )))
+                }
+                // type Item = T
+                dir::TypeMember::AssociatedType {
+                    name,
+                    generic_parameters,
+                    where_clauses,
+                    constraint,
+                    value,
+                    ..
+                } => {
+                    let (name, constraint, value) = (*name, *constraint, *value);
+                    let symbol = walk.declared_symbol(id.into_any());
+
+                    // walk generic parameters
+                    let template = match symbol {
+                        Some(_) => walk.walk_generic_template(source, generic_parameters)?,
+                        None => None,
+                    };
+
+                    // walk where clauses
+                    for where_clause in where_clauses {
+                        walk.walk_where_clause(template, *where_clause)?;
+                    }
+
+                    // walk the written constraint and value
+                    let constraint = constraint
+                        .map(|constraint| walk.walk_type_expression(constraint))
+                        .transpose()?;
+                    let value = value
+                        .map(|value| walk.walk_type_expression(value))
+                        .transpose()?;
+
+                    // write the member symbol type
+                    if let (Some(value), Some(symbol)) = (value, symbol) {
+                        walk.commit_symbol_type(symbol, value)?;
+                    }
+
+                    let Some(symbol) = symbol else {
+                        return Ok(None);
+                    };
+
+                    // classify how the member receives its implementation
+                    let implementation = if value.is_some() {
+                        dir::MemberImplementation::Default
+                    } else {
+                        dir::MemberImplementation::Required
+                    };
+
+                    Ok(Some(dir::DefinitionMember::AssociatedType(
+                        dir::AssociatedTypeDefinition {
+                            symbol,
+                            source,
+                            key: dir::StaticKey::Name(name),
+                            constraint,
+                            value,
+                            implementation,
+                        },
+                    )))
+                }
+                // const item: T = value
+                dir::TypeMember::AssociatedConst {
+                    name,
+                    declared_type,
+                    value,
+                    ..
+                } => walk.walk_associated_constant(
+                    id.into_any(),
+                    *name,
+                    *declared_type,
+                    *value,
+                    dir::MemberImplementation::Default,
+                ),
+                // ignore damaged nodes
+                dir::TypeMember::Error => Ok(None),
             }
-            // const item: T = value
-            dir::TypeMember::AssociatedConst {
-                name,
-                declared_type,
-                value,
-                ..
-            } => self.walk_associated_constant(
-                id.into_any(),
-                *name,
-                *declared_type,
-                *value,
-                dir::MemberImplementation::Default,
-            ),
-            // ignore damaged nodes
-            dir::TypeMember::Error => Ok(None),
-        }
+        })
     }
 
     /// Walk one associated constant.
@@ -913,10 +880,10 @@ impl WalkState<'_, '_> {
         let is_transcribable =
             value.is_some_and(|value| self.check.is_transcribable_literal(self.module, value));
 
-        // take the member type from its annotation or from its literal value
+        // take the member type from its annotation or from the value its literal holds
         let ty = match (declared, written) {
             (Some(declared), _) => declared,
-            (None, Some(written)) if is_transcribable => written,
+            (None, Some(written)) if is_transcribable => self.check.static_value_type(written)?,
             (None, _) => {
                 self.check.report_missing_type_annotation(self.module, id);
 
@@ -1048,7 +1015,7 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         // commit while checking, where the receiver components resolve
-        if !self.check.is_checking() || self.check.symbol_type_maybe(symbol).is_some() {
+        if !self.check.is_checking() || self.check.symbol_type_maybe(symbol)?.is_some() {
             return Ok(());
         }
         self.check.commit_binding_type(symbol, ty)?;
@@ -1117,12 +1084,12 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
-        // bare value methods borrow readonly, setters exclusively
+        // bare value methods borrow readonly, setters mutably
         if scope.ownership != Some(dir::Ownership::Owned) {
             return Ok(None);
         }
         let requested = match signature.role {
-            Some(dir::FunctionRole::Setter) => dir::Access::Exclusive,
+            Some(dir::FunctionRole::Setter) => dir::Access::Mutable,
             _ => dir::Access::Readonly,
         };
         let region = self.induce_receiver_borrow_region(id.into_any())?;
@@ -1166,6 +1133,14 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::TypeVariableId>)> {
         // reject source result annotations and use the receiver result
         if signature.is_constructor() {
+            if signature.this_form.is_some() || signature.this_parameter.is_some() {
+                let source = signature
+                    .this_parameter
+                    .map(|parameter| parameter.into_any())
+                    .unwrap_or(id.into_any());
+                self.check
+                    .report_constructor_receiver_annotation(self.module, source);
+            }
             if let Some(return_type) = signature.return_type {
                 self.walk_type_expression(return_type)?;
                 self.check
@@ -1201,19 +1176,5 @@ impl WalkState<'_, '_> {
         }
 
         self.walk_function_result_type(id.into_any(), signature, body)
-    }
-
-    /// Return the type one field stores, holding undefined beside an optional field's value.
-    fn field_storage_type(
-        &mut self,
-        declared: dir::GlobalTypeId,
-        is_optional: bool,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        if !is_optional {
-            Ok(declared)
-        } else {
-            let undefined = self.intern_type(dir::Type::Undefined)?;
-            self.check.normalized_union_type([declared, undefined])
-        }
     }
 }

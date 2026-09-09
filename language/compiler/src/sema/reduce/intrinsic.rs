@@ -5,7 +5,27 @@ use crate::CompilerResult;
 use crate::sema::{CheckState, Origin};
 
 impl CheckState<'_> {
-    /// Reduce one compiler-recognized intrinsic application.
+    /// Reduce one nominal declaration standing for a builtin type in type space.
+    pub(in crate::sema) fn reduce_representation_declaration(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        instance: &dir::GenericApplication,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let primitive = match self.language_item(instance.symbol)? {
+            Some(dir::LanguageItem::String) => dir::PrimitiveType::String,
+            Some(dir::LanguageItem::BigInt) => dir::PrimitiveType::Bigint,
+            Some(dir::LanguageItem::Slice) => {
+                return self.reduce_slice_application(origin, module, instance);
+            }
+            _ => return Ok(None),
+        };
+        let ty = self.intern_type(dir::Type::Primitive(primitive))?;
+
+        Ok(Some(ty))
+    }
+
+    /// Reduce one intrinsic alias application.
     pub(in crate::sema) fn reduce_intrinsic_reference(
         &mut self,
         origin: Origin,
@@ -17,22 +37,7 @@ impl CheckState<'_> {
         };
 
         match item {
-            // primitive representation classes are aliases in type space
-            dir::LanguageItem::String => {
-                let ty = dir::Type::Primitive(dir::PrimitiveType::String);
-                let ty = self.intern_type(ty)?;
-
-                Ok(Some(ty))
-            }
-            dir::LanguageItem::BigInt => {
-                let ty = dir::Type::Primitive(dir::PrimitiveType::Bigint);
-                let ty = self.intern_type(ty)?;
-
-                Ok(Some(ty))
-            }
-
             // reduce collection aliases to structural types
-            dir::LanguageItem::Slice => self.reduce_slice_application(origin, module, instance),
             dir::LanguageItem::FixedArray => {
                 self.reduce_fixed_array_application(origin, module, instance)
             }
@@ -76,7 +81,8 @@ impl CheckState<'_> {
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let [target] = self.type_ids(module, instance.arguments)? else {
+        let arguments = self.type_ids(module, instance.arguments)?;
+        let [target] = arguments else {
             return Ok(None);
         };
 
@@ -93,20 +99,14 @@ impl CheckState<'_> {
         Ok(Some(ty))
     }
 
-    /// Return whether one declaration is a transparent compiler-known intrinsic alias.
+    /// Return whether one declaration is a compiler-known alias reducing when applied.
     pub(in crate::sema) fn is_transparent_intrinsic_alias(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
-        let is_transparent = self.language_item(symbol)?.is_some_and(|item| {
-            matches!(
-                item,
-                dir::LanguageItem::Awaited
-                    | dir::LanguageItem::NoInfer
-                    | dir::LanguageItem::Readonly
-                    | dir::LanguageItem::Unsigned
-            ) || item.string_mapping().is_some()
-        });
+        let is_transparent = self
+            .language_item(symbol)?
+            .is_some_and(|item| item.kind() == dir::LanguageItemKind::Type);
 
         Ok(is_transparent)
     }

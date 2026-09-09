@@ -4,7 +4,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::sema::{Capture, CheckState};
+use crate::sema::{Capture, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -51,11 +51,14 @@ impl CheckState<'_> {
                 .annotation
                 .take()
                 .map(|annotation| annotation.directive);
-            let capture = self.write_capture(module, capture, directive, &frames)?;
+            let (function, capture) =
+                self.write_capture(module, capture, directive.clone(), &frames)?;
 
-            self.module_mut(module)
-                .captures
-                .set_capture(capture.0, capture.1);
+            let captures = &mut self.module_mut(module).captures;
+            captures.set_capture(function, capture);
+            if let Some(directive) = directive {
+                captures.set_capture_directive(function, directive);
+            }
         }
 
         Ok(())
@@ -203,14 +206,41 @@ impl CheckState<'_> {
         };
 
         // assemble the function's capture record
+        let ownership = self.closure_environment_ownership(module, function)?;
         let capture = dir::Capture {
             frames: used_frames.into_iter().collect(),
             captures: captured,
             this,
-            directive,
+            ownership,
         };
 
         Ok((function, capture))
+    }
+
+    /// Return the ownership the closure expression's callable form gives its environment.
+    fn closure_environment_ownership(
+        &mut self,
+        module: ModuleId,
+        function: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::Ownership> {
+        // read the closure expression above the declaration and the form it converts into
+        let declaration = self
+            .module(module)
+            .symbol_declaration_node(function.local_id)?;
+        let Some(closure) = self.module(module).view().get_parent_any(declaration) else {
+            return Ok(dir::Ownership::Managed);
+        };
+        let node = closure.into_global(module);
+        let Some(coercion) = self.module(module).coercions_tail.coercion(node).cloned() else {
+            return Ok(dir::Ownership::Managed);
+        };
+        let origin = Origin::Node(node, None);
+        let form = self.form_chain(origin, coercion.target())?.ownership_form();
+
+        Ok(match form.map(|form| form.form) {
+            Some(dir::Form::Owned) => dir::Ownership::Owned,
+            _ => dir::Ownership::Managed,
+        })
     }
 
     /// Return one capture mode from an optional directive.
@@ -237,7 +267,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(ty) = self.symbol_type_maybe(symbol) else {
+        let Some(ty) = self.symbol_type_maybe(symbol)? else {
             let module = self.module(symbol.module_id);
             let binding = module.bindings.get_symbol(symbol.local_id);
             let name = binding

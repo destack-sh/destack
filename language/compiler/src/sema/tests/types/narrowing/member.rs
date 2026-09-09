@@ -48,7 +48,7 @@ function run(): int32 {
     if (result.isOk()) {
     /// @resolution.name source=result target=result
     /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<isOk.'a>(this: &isOk.'a readonly Result<int32, string>) => boolean kind=symbol target_receiver=Result<int32, string> target=isOk
-    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'static readonly constant Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk"
+    /// @resolution.call source=result.isOk() parameters=() return=boolean regions=("static" & "constant") kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'static readonly constant Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk"
     /// @resolution.place source=result placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=result root=result
     /// @generic.instantiation id="isOk<int32, string>" template=isOk arguments=(int32, string)
@@ -166,7 +166,7 @@ function run(value: Base): int32 {
     if (value instanceof Derived) {
     /// @resolution.name source=value target=run.value
     /// @resolution.guard source="value instanceof Derived" kind=instanceof value=Base target=Derived target_type=Derived predicate="Base is subtype(Derived)" narrowed=Narrow<Base, Derived>
-    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value root=run.value
     /// @resolution.name source=Derived target=Derived
 
@@ -175,13 +175,13 @@ function run(value: Base): int32 {
         /// @resolution.member source=value.extra receiver=Narrow<Base, Derived> type=<Derived.extra.P0: Place>(this: Managed<Derived, Derived.extra.P0>) => int32 kind=symbol target_receiver=Narrow<Base, Derived> target=Derived.extra
         /// @resolution.call source=value.extra() parameters=() return=int32 kind=symbol target=Derived.extra receiver=Narrow<Base, Derived> instance="Derived.extra<\"local\">"
         /// @resolution.operator source="value.extra() + value.shared()" type=int32 operator="+" kind=builtin operands=[value.extra() as int32 families=(integer), value.shared() as int32 families=(integer)]
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=run.value
         /// @generic.instantiation id="Derived.extra<\"local\">" template=Derived.extra arguments=("local")
         /// @resolution.name source=value target=run.value
         /// @resolution.member source=value.shared receiver=Narrow<Base, Derived> type=<Base.shared.P0: Place>(this: Managed<Derived, Base.shared.P0>) => int32 kind=symbol target_receiver=Narrow<Base, Derived> target=Base.shared
         /// @resolution.call source=value.shared() parameters=() return=int32 kind=symbol target=Base.shared receiver=Narrow<Base, Derived> instance="Base.shared<\"local\">"
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=run.value
         /// @generic.instantiation id="Base.shared<\"local\">" template=Base.shared arguments=("local")
 
@@ -190,7 +190,7 @@ function run(value: Base): int32 {
     /// @resolution.name source=value target=run.value
     /// @resolution.member source=value.shared receiver=Base type=<Base.shared.P0: Place>(this: Managed<Base, Base.shared.P0>) => int32 kind=symbol target_receiver=Base target=Base.shared
     /// @resolution.call source=value.shared() parameters=() return=int32 kind=symbol target=Base.shared receiver=Base instance="Base.shared<\"local\">"
-    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value root=run.value
 
 }
@@ -236,18 +236,18 @@ function value(result: Result<int32, string>): int32 {
     /// @resolution.name source=result target=value.result
     /// @resolution.member source=result.kind receiver=Result<int32, string> type="Ok" | "Err" kind=projection target="discriminant(Ok<int32> | Err<string>, kind, cases=[Ok<int32>: Ok, Err<string>: Err], \"Ok\" | \"Err\")" adjustments=(newtype.payload(Result, Ok<int32> | Err<string>))
     /// @resolution.operator source="result.kind === \"Ok\"" type=boolean operator="===" kind=builtin operands=[result.kind as "Ok" | "Err" families=(string), "Ok" as "Ok" | "Err" families=(string)]
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=value.result
-    /// @resolution.place source=result.kind placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result.kind placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result.kind root=value.result keys=[kind]
     /// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
 
         return result.value;
         /// @resolution.name source=result target=value.result
         /// @resolution.member source=result.value receiver=Result<int32, string> & Ok<int32> type=int32 kind=field target_receiver=Result<int32, string> & Ok<int32> adjustments=(newtype.payload(Result, Ok<int32> | Err<string>), union.payload(Ok<int32> | Err<string>, Ok<int32>, Ok<int32>)) key=value target=Ok.value target_type=int32
-        /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=result root=value.result
-        /// @resolution.place source=result.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=result.value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=result.value root=value.result keys=[value]
 
     }
@@ -255,7 +255,7 @@ function value(result: Result<int32, string>): int32 {
     /// @resolution.name source=result target=value.result
     /// @resolution.member source=result.unwrap receiver=Result<int32, string> & Err<string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & Err<string> target=unwrap
     /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> & Err<string> instance="Result<int32, string>.<extension#1>.unwrap"
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=value.result
     /// @generic.instantiation id="unwrap<int32, string>" template=unwrap arguments=(int32, string)
 
@@ -319,9 +319,9 @@ function describe(result: Result<int32, string>): int32 {
     /// @resolution.name source=result target=describe.result
     /// @resolution.member source=result.kind receiver=Result<int32, string> type="Ok" | "Err" kind=projection target="discriminant(Ok<int32> | Err<string>, kind, cases=[Ok<int32>: Ok, Err<string>: Err], \"Ok\" | \"Err\")" adjustments=(newtype.payload(Result, Ok<int32> | Err<string>))
     /// @resolution.operator source="result.kind === \"Err\"" type=boolean operator="===" kind=builtin operands=[result.kind as "Ok" | "Err" families=(string), "Err" as "Ok" | "Err" families=(string)]
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=describe.result
-    /// @resolution.place source=result.kind placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result.kind placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result.kind root=describe.result keys=[kind]
     /// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
 
@@ -329,7 +329,7 @@ function describe(result: Result<int32, string>): int32 {
         /// @resolution.name source=result target=describe.result
         /// @resolution.member source=result.unwrap receiver=Result<int32, string> & Err<string> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & Err<string> target=unwrap
         /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> & Err<string> instance="Result<int32, string>.<extension#1>.unwrap"
-        /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=result root=describe.result
         /// @generic.instantiation id="unwrap<int32, string>" template=unwrap arguments=(int32, string)
 
@@ -339,7 +339,7 @@ function describe(result: Result<int32, string>): int32 {
     /// @resolution.member source=result.unwrap receiver=Result<int32, string> & Ok<int32> type=(this: Result<int32, string>) => int32 kind=symbol target_receiver=Result<int32, string> & Ok<int32> target=unwrap
     /// @resolution.call source=result.unwrap() parameters=() return=int32 kind=symbol target=unwrap receiver=Result<int32, string> & Ok<int32> instance="Result<int32, string>.<extension#1>.unwrap"
     /// @resolution.operator source="result.unwrap() + 1" type=int32 operator="+" kind=builtin operands=[result.unwrap() as int32 families=(integer), 1 as int32 families=(integer)]
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=describe.result
 
 }
@@ -354,11 +354,11 @@ function pick(values: Array<Result<int32, string>>): int32 {
     /// @type.symbol symbol=pick.first source=first type=Result<int32, string>
     /// @resolution.pattern source=first kind=binding target=pick.first
     /// @resolution.name source=values target=pick.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=pick.values
     /// @resolution.access source=values[0] root=pick.values keys=[0]
-    /// @resolution.subscript source=values[0] type=Result<int32, string> kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<Result<int32, string>, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
-    /// @generic.instantiation id="index#1<Result<int32, string>, \"exclusive\">" template=index#1 arguments=(Result<int32, string>, "exclusive")
+    /// @resolution.subscript source=values[0] type=Result<int32, string> kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<Result<int32, string>, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+    /// @generic.instantiation id="index#1<Result<int32, string>, \"mutable\">" template=index#1 arguments=(Result<int32, string>, "mutable")
 
     if (first.kind === "Ok") {
     /// @resolution.name source=first target=pick.first

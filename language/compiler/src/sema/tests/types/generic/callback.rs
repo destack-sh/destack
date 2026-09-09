@@ -55,7 +55,7 @@ const doubled = parsed.andThen((value) => Result.ok(value * 2));
 /// @resolution.call source="Result.ok(value * 2)" parameters=(int32) arguments=(provided(value * 2) as int32) return=Result<int32, <error>> kind=symbol target=ok#1 instance="Result<int32, <error>>.<extension#1>.ok#1"
 /// @resolution.name source=value target=symbol4.value
 /// @resolution.operator source="value * 2" type=int32 operator="*" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol4.value
 
 const wrapped = parsed.andThen((value) => Result(Ok { value: value * 2 }));
@@ -73,7 +73,7 @@ const wrapped = parsed.andThen((value) => Result(Ok { value: value * 2 }));
 /// @resolution.name source=Ok target=Ok
 /// @resolution.name source=value target=symbol7.value
 /// @resolution.operator source="value * 2" type=int32 operator="*" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol7.value
 
 const named = parsed.map((value) => value + 1);
@@ -90,7 +90,7 @@ const named = parsed.map((value) => value + 1);
 /// @type.symbol symbol=symbol10.value source=value type=int32
 /// @resolution.name source=value target=symbol10.value
 /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol10.value
 
 const unwrapped = parsed.andThen((value) => Ok { value });
@@ -105,7 +105,7 @@ const unwrapped = parsed.andThen((value) => Ok { value });
 /// @type.symbol symbol=symbol13.value source=value type=int32
 /// @resolution.name source=Ok target=Ok
 /// @resolution.name source=value target=symbol13.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol13.value
 "#,
         r#"
@@ -192,10 +192,10 @@ each([(1, 2), (3, 4)])("adds", (left, right) => {
     /// @resolution.pattern source=sum kind=binding target=symbol7.sum
     /// @resolution.name source=left target=symbol7.left
     /// @resolution.operator source="left + right" type=int64 operator="+" kind=builtin operands=[left as int64 families=(integer), right as int64 families=(integer)]
-    /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=left placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=left root=symbol7.left
     /// @resolution.name source=right target=symbol7.right
-    /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=right placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=right root=symbol7.right
 
 });
@@ -215,10 +215,10 @@ each([("a", 1)])("pairs", (text, count) => {
     /// @type.symbol symbol=symbol11.pair source=pair type=(string, int64)
     /// @resolution.pattern source=pair kind=binding target=symbol11.pair
     /// @resolution.name source=text target=symbol11.text
-    /// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=text root=symbol11.text
     /// @resolution.name source=count target=symbol11.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=count root=symbol11.count
 
 });
@@ -295,7 +295,7 @@ function normalize(result: Result<int32, string>): Result<int32, string> {
     /// @resolution.name source=result target=normalize.result
     /// @resolution.member source=result.andThen receiver=Result<int32, string> type=<andThen.U, andThen.F>(this: Result<int32, string>, Function<(int32,), Result<andThen.U, andThen.F>>) => Result<andThen.U, string | andThen.F> kind=symbol target_receiver=Result<int32, string> target=andThen
     /// @resolution.call parameters=(Function<(int32,), Result<int32, string>>) arguments=(provided(argument) as Function<(int32,), Result<int32, string>>) return=Result<int32, string> kind=symbol target=andThen receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.andThen<int32, string>"
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=normalize.result
     /// @generic.instantiation id="andThen<int32, string, int32, string>" template=andThen arguments=(int32, string, int32, string)
     /// @generic.instantiation id="andThen<int32, string>" template=andThen arguments=(int32, string)
@@ -305,7 +305,7 @@ function normalize(result: Result<int32, string>): Result<int32, string> {
         if (value < 0) {
         /// @resolution.name source=value target=normalize.symbol4.value
         /// @resolution.operator source="value < 0" type=boolean operator="<" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=normalize.symbol4.value
 
             return Result.ok(-value);
@@ -315,7 +315,7 @@ function normalize(result: Result<int32, string>): Result<int32, string> {
             /// @generic.instantiation id="ok#1<int32, string>" template=ok#1 arguments=(int32, string)
             /// @resolution.operator source=-value type=int32 operator="-" kind=builtin operands=[value as int32 families=(integer)]
             /// @resolution.name source=value target=normalize.symbol4.value
-            /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
             /// @resolution.access source=value root=normalize.symbol4.value
 
         }
@@ -325,7 +325,7 @@ function normalize(result: Result<int32, string>): Result<int32, string> {
         /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
         /// @resolution.call source=Result.ok(value) parameters=(int32) arguments=(provided(value) as int32) return=Result<int32, string> kind=symbol target=ok#1 instance="Result<int32, string>.<extension#1>.ok#1"
         /// @resolution.name source=value target=normalize.symbol4.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=normalize.symbol4.value
 
     });
@@ -362,7 +362,7 @@ import { describe, test } from "destack:test";
 
 test.each<{}, {}, {}, (int32,)>([(1,)] as Iterable<(int32,)>).only(
     "parameterized case",
-    ((value: int32): BodyResult => {}) as Function<(int32,), BodyResult, "exclusive"> | undefined,
+    ((value: int32): BodyResult => {}) as Function<(int32,), BodyResult, "mutable"> | undefined,
 );
 test.for<{}, {}, {}, int64>([1] as Iterable<int64>).only(
     "table case",
@@ -370,7 +370,7 @@ test.for<{}, {}, {}, int64>([1] as Iterable<int64>).only(
 );
 describe.each<(int32,)>([(1,)] as Iterable<(int32,)>)("parameterized suite", ((
     value: int32
-): void => {}) as Function<(int32,), void, "exclusive"> | undefined);
+): void => {}) as Function<(int32,), void, "mutable"> | undefined);
 describe.for<int32>([1] as Iterable<int32>)("table suite", ((value: int32): void => {}) as | ((
       arg0: int32,
   ) => void)
@@ -380,7 +380,7 @@ test.each<{}, {}, {}, (string, int64)>([("a", 2)] as Iterable<(string, int64)>)(
     count: int64,
 ): BodyResult => {
     const pair: (string, int64) = (text, count);
-}) as Function<(string, int64), BodyResult, "exclusive"> | undefined);
+}) as Function<(string, int64), BodyResult, "mutable"> | undefined);
 
 === dir ===
 import { describe, test } from "destack:test";
@@ -389,11 +389,11 @@ test.each([(1,)]).only("parameterized case", (value: int32) => {});
 /// @resolution.name source=test target=test
 /// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
 /// @resolution.member source=test.each([(1,)]).only receiver=ParameterizedTest<(int32,)> type=ParameterizedTest<(int32,)> kind=field target_receiver=ParameterizedTest<(int32,)> dispatch=dynamic constraint=ParameterizedTest<(int32,)> key=only target=ParameterizedTest.only target_type=ParameterizedTest<(int32,)>
-/// @resolution.call source="test.each([(1,)]).only(\"parameterized case\", (value: int32) => {})" parameters=(string, Function<(int32,), BodyResult, "exclusive"> | undefined) arguments=(provided("parameterized case") as string, provided((value: int32) => {}) as Function<(int32,), BodyResult, "exclusive"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(int32,)> constraint=ParameterizedTest<(int32,)>
+/// @resolution.call source="test.each([(1,)]).only(\"parameterized case\", (value: int32) => {})" parameters=(string, Function<(int32,), BodyResult, "mutable"> | undefined) arguments=(provided("parameterized case") as string, provided((value: int32) => {}) as Function<(int32,), BodyResult, "mutable"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(int32,)> constraint=ParameterizedTest<(int32,)>
 /// @resolution.call source=test.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedTest<(int32,)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (int32,))
-/// @resolution.place source=test placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=test placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=test root=test
-/// @resolution.place source=test.each([(1,)]).only placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=test.each([(1,)]).only placement="local" lifetime="managed" access="mutable"
 /// @generic.instantiation id="Test.each<{}, {}, {}>" template=Test.each arguments=({}, {}, {})
 /// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @generic.instantiation id=arrayFromOwnedSlice<(int32,)> template=arrayFromOwnedSlice arguments=((int32,))
@@ -404,11 +404,11 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 /// @resolution.name source=test target=test
 /// @resolution.member source=test.for receiver=Test<{}, {}, {}> type=<Test.for.T>(this: Test<{}, {}, {}>, Iterable<Test.for.T>) => TableTest<Test.for.T, {}, {}, {}> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.for
 /// @resolution.member source=test.for([1]).only receiver=TableTest<int64, {}, {}, {}> type=TableTest<int64, {}, {}, {}> kind=field target_receiver=TableTest<int64, {}, {}, {}> dispatch=dynamic constraint=TableTest<int64, {}, {}, {}> key=only target=TableTest.only target_type=TableTest<int64, {}, {}, {}>
-/// @resolution.call source="test.for([1]).only(\"table case\", (value: &readonly int64) => {})" parameters=(string, Function<(&type_expression.'a readonly int64, &type_expression.'b CaseContext & {}), BodyResult> | undefined) arguments=(provided("table case") as string, provided((value: &readonly int64) => {}) as Function<(&type_expression.'a readonly int64, &type_expression.'b CaseContext & {}), BodyResult> | undefined) return=void kind=dynamic target=call(type_member) receiver=TableTest<int64, {}, {}, {}> constraint=TableTest<int64, {}, {}, {}>
+/// @resolution.call source="test.for([1]).only(\"table case\", (value: &readonly int64) => {})" parameters=(string, Function<(&type_expression.'a readonly int64, &type_expression.'b TestContext<{}, {}, {}>), BodyResult> | undefined) arguments=(provided("table case") as string, provided((value: &readonly int64) => {}) as Function<(&type_expression.'a readonly int64, &type_expression.'b TestContext<{}, {}, {}>), BodyResult> | undefined) return=void kind=dynamic target=call(type_member) receiver=TableTest<int64, {}, {}, {}> constraint=TableTest<int64, {}, {}, {}>
 /// @resolution.call source=test.for([1]) parameters=(Iterable<int64>) arguments=(provided([1]) as Iterable<int64>) return=TableTest<int64, {}, {}, {}> kind=dynamic target=Test.for receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, int64)
-/// @resolution.place source=test placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=test placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=test root=test
-/// @resolution.place source=test.for([1]).only placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=test.for([1]).only placement="local" lifetime="managed" access="mutable"
 /// @generic.instantiation id="Test.for<{}, {}, {}>" template=Test.for arguments=({}, {}, {})
 /// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
@@ -419,9 +419,9 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 describe.each([(1,)])("parameterized suite", (value: int32) => {});
 /// @resolution.name source=describe target=describe
 /// @resolution.member source=describe.each receiver=TestSuite type=<TestSuite.each.P: (...unknown[],)>(this: TestSuite, Iterable<TestSuite.each.P>) => ParameterizedSuite<TestSuite.each.P> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.each
-/// @resolution.call source="describe.each([(1,)])(\"parameterized suite\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "exclusive"> | undefined) arguments=(provided("parameterized suite") as string, provided((value: int32) => {}) as Function<(int32,), void, "exclusive"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedSuite<(int32,)> constraint=ParameterizedSuite<(int32,)>
+/// @resolution.call source="describe.each([(1,)])(\"parameterized suite\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "mutable"> | undefined) arguments=(provided("parameterized suite") as string, provided((value: int32) => {}) as Function<(int32,), void, "mutable"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedSuite<(int32,)> constraint=ParameterizedSuite<(int32,)>
 /// @resolution.call source=describe.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedSuite<(int32,)> kind=dynamic target=TestSuite.each receiver=TestSuite constraint=TestSuite generic_arguments=((int32,))
-/// @resolution.place source=describe placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=describe placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=describe root=describe
 /// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @type.symbol symbol=symbol7 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
@@ -432,7 +432,7 @@ describe.for([1])("table suite", (value: int32) => {});
 /// @resolution.member source=describe.for receiver=TestSuite type=<TestSuite.for.T>(this: TestSuite, Iterable<TestSuite.for.T>) => TableSuite<TestSuite.for.T> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.for
 /// @resolution.call source="describe.for([1])(\"table suite\", (value: int32) => {})" parameters=(string, Function<(int32,), void> | undefined) arguments=(provided("table suite") as string, provided((value: int32) => {}) as Function<(int32,), void> | undefined) return=void kind=dynamic target=call(type_member) receiver=TableSuite<int32> constraint=TableSuite<int32>
 /// @resolution.call source=describe.for([1]) parameters=(Iterable<int32>) arguments=(provided([1]) as Iterable<int32>) return=TableSuite<int32> kind=dynamic target=TestSuite.for receiver=TestSuite constraint=TestSuite generic_arguments=(int32)
-/// @resolution.place source=describe placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=describe placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=describe root=describe
 /// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
@@ -442,9 +442,9 @@ describe.for([1])("table suite", (value: int32) => {});
 test.each([("a", 2)])("pairs", (text, count) => {
 /// @resolution.name source=test target=test
 /// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
-/// @resolution.call parameters=(string, Function<(string, int64), BodyResult, "exclusive"> | undefined) arguments=(provided("pairs") as string, provided(argument) as Function<(string, int64), BodyResult, "exclusive"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(string, int64)> constraint=ParameterizedTest<(string, int64)>
+/// @resolution.call parameters=(string, Function<(string, int64), BodyResult, "mutable"> | undefined) arguments=(provided("pairs") as string, provided(argument) as Function<(string, int64), BodyResult, "mutable"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(string, int64)> constraint=ParameterizedTest<(string, int64)>
 /// @resolution.call source="test.each([(\"a\", 2)])" parameters=(Iterable<(string, int64)>) arguments=(provided([("a", 2)]) as Iterable<(string, int64)>) return=ParameterizedTest<(string, int64)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (string, int64))
-/// @resolution.place source=test placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=test placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=test root=test
 /// @resolution.call source=[("a", 2)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(("a", 2)) as (string, int64)) return=(string, int64)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(string, int64)>"
 /// @generic.instantiation id="arrayFromOwnedSlice<(string, int64)>" template=arrayFromOwnedSlice arguments=((string, int64))
@@ -456,10 +456,10 @@ test.each([("a", 2)])("pairs", (text, count) => {
     /// @type.symbol symbol=symbol11.pair source=pair type=(string, int64)
     /// @resolution.pattern source=pair kind=binding target=symbol11.pair
     /// @resolution.name source=text target=symbol11.text
-    /// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=text root=symbol11.text
     /// @resolution.name source=count target=symbol11.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=count root=symbol11.count
 
 });
@@ -525,7 +525,7 @@ function parse(result: Result<string, string>): Result<int32, string> {
     /// @resolution.name source=result target=parse.result
     /// @resolution.member source=result.andThen receiver=Result<string, string> type=<andThen.U, andThen.F>(this: Result<string, string>, Function<(string,), Result<andThen.U, andThen.F>>) => Result<andThen.U, string | andThen.F> kind=symbol target_receiver=Result<string, string> target=andThen
     /// @resolution.call parameters=(Function<(string,), Result<int32, string>>) arguments=(provided(argument) as Function<(string,), Result<int32, string>>) return=Result<int32, string> kind=symbol target=andThen receiver=Result<string, string> instance="Result<string, string>.<extension#1>.andThen<int32, string>"
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=parse.result
     /// @generic.instantiation id="andThen<string, string, int32, string>" template=andThen arguments=(string, string, int32, string)
     /// @generic.instantiation id="andThen<string, string>" template=andThen arguments=(string, string)
@@ -534,8 +534,8 @@ function parse(result: Result<string, string>): Result<int32, string> {
 
         value.isEmpty ? Result.err("empty") : Result.ok(1)
         /// @resolution.name source=value target=parse.symbol3.value
-        /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"managed\" & \"local\"))"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=parse.symbol3.value
         /// @resolution.name source=Result target=Result
         /// @resolution.member source=Result.err receiver=Result type=(E#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=err#1
@@ -559,15 +559,15 @@ function widen(result: Result<string, string>): Result<int32, string> {
     /// @resolution.name source=result target=widen.result
     /// @resolution.member source=result.andThen receiver=Result<string, string> type=<andThen.U, andThen.F>(this: Result<string, string>, Function<(string,), Result<andThen.U, andThen.F>>) => Result<andThen.U, string | andThen.F> kind=symbol target_receiver=Result<string, string> target=andThen
     /// @resolution.call parameters=(Function<(string,), Result<int32, string>>) arguments=(provided(argument) as Function<(string,), Result<int32, string>>) return=Result<int32, string> kind=symbol target=andThen receiver=Result<string, string> instance="Result<string, string>.<extension#1>.andThen<int32, string>"
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=widen.result
     /// @type.symbol symbol=widen.symbol7 type=Function<(string,), Result<int32, string>, "readonly">
     /// @type.symbol symbol=widen.symbol7.value source=value type=string
 
         if (value.isEmpty) {
         /// @resolution.name source=value target=widen.symbol7.value
-        /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"managed\" & \"local\"))"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=widen.symbol7.value
 
             return Result.err("empty");
@@ -618,10 +618,10 @@ iterTable([1])("iter table", (value: &readonly int32) => {});
 === annotated ===
 declare function run<P: (...unknown[],)>(
     cases: P[],
-): (name: string, body?: Function<P, void, "exclusive">) => void;
+): (name: string, body?: Function<P, void, "mutable">) => void;
 declare function plain<P: (...unknown[],)>(
     cases: P[],
-): (name: string, body: Function<P, void, "exclusive">) => void;
+): (name: string, body: Function<P, void, "mutable">) => void;
 declare function table<T>(
     values: T[],
 ): <'a>(name: string, body: (arg0: &'a readonly T) => void) => void;
@@ -638,7 +638,7 @@ declare function contextTable<T>(
 run<(int32,)>([(1,)])("optional", ((value: int32): void => {}) as | Function<
       (int32,),
       void,
-      "exclusive"
+      "mutable"
   >
 | undefined);
 plain<(int32,)>([(1,)])("plain", (value: int32): void => {});
@@ -657,23 +657,23 @@ iterTable<int32>([1] as Iterable<int32>)(
 === dir ===
 declare function run<P: (...unknown[],)>(cases: P[]): (name: string, body?: Function<P, void>) => void;
 /// @generic.template symbol=run parameters=(P#1: (...unknown[],))
-/// @type.symbol symbol=run type=<P#1: (...unknown[],)>(P#1[]) => Function<(string, Function<P#1, void, "exclusive"> | undefined?), void>
+/// @type.symbol symbol=run type=<P#1: (...unknown[],)>(P#1[]) => Function<(string, Function<P#1, void, "mutable"> | undefined?), void>
 /// @type.symbol symbol=run.P source="P: (...unknown[],)" type=P#1
 /// @type.symbol symbol=run.cases source="cases: P[]" type=P#1[]
 /// @resolution.name source=P target=run.P
 /// @type.symbol symbol=run.name source="name: string" type=string
-/// @type.symbol symbol=run.body source="body?: Function<P, void>" type=Function<P#1, void, "exclusive"> | undefined
+/// @type.symbol symbol=run.body source="body?: Function<P, void>" type=Function<P#1, void, "mutable"> | undefined
 /// @resolution.name source=Function target=Function
 /// @resolution.name source=P target=run.P
 
 declare function plain<P: (...unknown[],)>(cases: P[]): (name: string, body: Function<P, void>) => void;
 /// @generic.template symbol=plain parameters=(P#2: (...unknown[],))
-/// @type.symbol symbol=plain type=<P#2: (...unknown[],)>(P#2[]) => Function<(string, Function<P#2, void, "exclusive">), void>
+/// @type.symbol symbol=plain type=<P#2: (...unknown[],)>(P#2[]) => Function<(string, Function<P#2, void, "mutable">), void>
 /// @type.symbol symbol=plain.P source="P: (...unknown[],)" type=P#2
 /// @type.symbol symbol=plain.cases source="cases: P[]" type=P#2[]
 /// @resolution.name source=P target=plain.P
 /// @type.symbol symbol=plain.name source="name: string" type=string
-/// @type.symbol symbol=plain.body source="body: Function<P, void>" type=Function<P#2, void, "exclusive">
+/// @type.symbol symbol=plain.body source="body: Function<P, void>" type=Function<P#2, void, "mutable">
 /// @resolution.name source=Function target=Function
 /// @resolution.name source=P target=plain.P
 
@@ -742,8 +742,8 @@ declare function contextTable<T>(values: T[]): <'a, 'b>(name: string, body: (val
 
 run([(1,)])("optional", (value: int32) => {});
 /// @resolution.name source=run target=run
-/// @resolution.call source="run([(1,)])(\"optional\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "exclusive"> | undefined) arguments=(provided("optional") as string, provided((value: int32) => {}) as Function<(int32,), void, "exclusive"> | undefined) return=void kind=expression target=expression
-/// @resolution.call source=run([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void, "exclusive"> | undefined?), void> kind=symbol target=run instance=run<(int32,)>
+/// @resolution.call source="run([(1,)])(\"optional\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "mutable"> | undefined) arguments=(provided("optional") as string, provided((value: int32) => {}) as Function<(int32,), void, "mutable"> | undefined) return=void kind=expression target=expression
+/// @resolution.call source=run([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void, "mutable"> | undefined?), void> kind=symbol target=run instance=run<(int32,)>
 /// @generic.instantiation id=run<(int32,)> template=run arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @generic.instantiation id=arrayFromOwnedSlice<(int32,)> template=arrayFromOwnedSlice arguments=((int32,))
@@ -752,8 +752,8 @@ run([(1,)])("optional", (value: int32) => {});
 
 plain([(1,)])("plain", (value: int32) => {});
 /// @resolution.name source=plain target=plain
-/// @resolution.call source="plain([(1,)])(\"plain\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "exclusive">) arguments=(provided("plain") as string, provided((value: int32) => {}) as Function<(int32,), void, "exclusive">) return=void kind=expression target=expression
-/// @resolution.call source=plain([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void, "exclusive">), void> kind=symbol target=plain instance=plain<(int32,)>
+/// @resolution.call source="plain([(1,)])(\"plain\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "mutable">) arguments=(provided("plain") as string, provided((value: int32) => {}) as Function<(int32,), void, "mutable">) return=void kind=expression target=expression
+/// @resolution.call source=plain([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void, "mutable">), void> kind=symbol target=plain instance=plain<(int32,)>
 /// @generic.instantiation id=plain<(int32,)> template=plain arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @type.symbol symbol=symbol45 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
@@ -761,7 +761,7 @@ plain([(1,)])("plain", (value: int32) => {});
 
 table([1])("table", (value: &readonly int32) => {});
 /// @resolution.name source=table target=table
-/// @resolution.call source="table([1])(\"table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32,), void>) arguments=(provided("table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32,), void>) return=void kind=expression target=expression
+/// @resolution.call source="table([1])(\"table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32,), void>) arguments=(provided("table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32,), void>) return=void regions=("frame") kind=expression target=expression
 /// @resolution.call source=table([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#1 readonly int32,), void>), void> kind=symbol target=table instance=table<int32>
 /// @generic.instantiation id=table<int32> template=table arguments=(int32)
 /// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
@@ -772,7 +772,7 @@ table([1])("table", (value: &readonly int32) => {});
 
 optionalTable([1])("optional table", (value: &readonly int32) => {});
 /// @resolution.name source=optionalTable target=optionalTable
-/// @resolution.call source="optionalTable([1])(\"optional table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32, &'frame string), void> | undefined) arguments=(provided("optional table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32, &'frame string), void> | undefined) return=void kind=expression target=expression
+/// @resolution.call source="optionalTable([1])(\"optional table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32, &'frame string), void> | undefined) arguments=(provided("optional table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32, &'frame string), void> | undefined) return=void regions=("frame", "frame") kind=expression target=expression
 /// @resolution.call source=optionalTable([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#2 readonly int32, &'b#1 string), void> | undefined?), void> kind=symbol target=optionalTable instance=optionalTable<int32>
 /// @generic.instantiation id=optionalTable<int32> template=optionalTable arguments=(int32)
 /// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
@@ -782,7 +782,7 @@ optionalTable([1])("optional table", (value: &readonly int32) => {});
 
 contextTable([1])("context table", (value: &readonly int32) => {});
 /// @resolution.name source=contextTable target=contextTable
-/// @resolution.call source="contextTable([1])(\"context table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32, &'frame string), void>) arguments=(provided("context table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32, &'frame string), void>) return=void kind=expression target=expression
+/// @resolution.call source="contextTable([1])(\"context table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32, &'frame string), void>) arguments=(provided("context table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32, &'frame string), void>) return=void regions=("frame", "frame") kind=expression target=expression
 /// @resolution.call source=contextTable([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#4 readonly int32, &'b#2 string), void>), void> kind=symbol target=contextTable instance=contextTable<int32>
 /// @generic.instantiation id=contextTable<int32> template=contextTable arguments=(int32)
 /// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
@@ -792,7 +792,7 @@ contextTable([1])("context table", (value: &readonly int32) => {});
 
 iterTable([1])("iter table", (value: &readonly int32) => {});
 /// @resolution.name source=iterTable target=iterTable
-/// @resolution.call source="iterTable([1])(\"iter table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32,), void>) arguments=(provided("iter table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32,), void>) return=void kind=expression target=expression
+/// @resolution.call source="iterTable([1])(\"iter table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32,), void>) arguments=(provided("iter table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32,), void>) return=void regions=("frame") kind=expression target=expression
 /// @resolution.call source=iterTable([1]) parameters=(Iterable<int32>) arguments=(provided([1]) as Iterable<int32>) return=Function<(string, Function<(&'a#3 readonly int32,), void>), void> kind=symbol target=iterTable instance=iterTable<int32>
 /// @generic.instantiation id=iterTable<int32> template=iterTable arguments=(int32)
 /// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
@@ -885,13 +885,13 @@ each([(1, "a", true)])("triple", (count, text, flag) => {
     /// @type.symbol symbol=symbol7.triple source=triple type=(int64, string, boolean)
     /// @resolution.pattern source=triple kind=binding target=symbol7.triple
     /// @resolution.name source=count target=symbol7.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=count root=symbol7.count
     /// @resolution.name source=text target=symbol7.text
-    /// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=text root=symbol7.text
     /// @resolution.name source=flag target=symbol7.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=flag root=symbol7.flag
 
 });
@@ -927,10 +927,10 @@ each([(1, "a")])("partial", (count, text: string) => {
     /// @type.symbol symbol=symbol15.pair source=pair type=(int64, string)
     /// @resolution.pattern source=pair kind=binding target=symbol15.pair
     /// @resolution.name source=count target=symbol15.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=count root=symbol15.count
     /// @resolution.name source=text target=symbol15.text
-    /// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=text root=symbol15.text
 
 });
@@ -1014,7 +1014,7 @@ function parse(result: Result<string, string>): Result<int32, string> {
     /// @resolution.name source=result target=parse.result
     /// @resolution.member source=result.andThen receiver=Result<string, string> type=<andThen.U, andThen.F>(this: Result<string, string>, Function<(string,), Result<andThen.U, andThen.F>>) => Result<andThen.U, string | andThen.F> kind=symbol target_receiver=Result<string, string> target=andThen
     /// @resolution.call parameters=(Function<(string,), Result<int32, string>>) arguments=(provided(argument) as Function<(string,), Result<int32, string>>) return=Result<int32, string> kind=symbol target=andThen receiver=Result<string, string> instance="Result<string, string>.<extension#1>.andThen<int32, string>"
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=parse.result
     /// @generic.instantiation id="andThen<string, string, int32, string>" template=andThen arguments=(string, string, int32, string)
     /// @generic.instantiation id="andThen<string, string>" template=andThen arguments=(string, string)
@@ -1025,8 +1025,8 @@ function parse(result: Result<string, string>): Result<int32, string> {
         /// @type.symbol symbol=parse.symbol3.parsed source=parsed type=Result<int32, string>
         /// @resolution.pattern source=parsed kind=binding target=parse.symbol3.parsed
         /// @resolution.name source=value target=parse.symbol3.value
-        /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"managed\" & \"local\"))"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=parse.symbol3.value
         /// @resolution.name source=Result target=Result
         /// @resolution.member source=Result.err receiver=Result type=(E#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=err#1
@@ -1055,14 +1055,14 @@ function choose(result: Result<string, string>): Result<int32, string> {
     /// @resolution.name source=result target=choose.result
     /// @resolution.member source=result.andThen receiver=Result<string, string> type=<andThen.U, andThen.F>(this: Result<string, string>, Function<(string,), Result<andThen.U, andThen.F>>) => Result<andThen.U, string | andThen.F> kind=symbol target_receiver=Result<string, string> target=andThen
     /// @resolution.call parameters=(Function<(string,), Result<int32, string>>) arguments=(provided(argument) as Function<(string,), Result<int32, string>>) return=Result<int32, string> kind=symbol target=andThen receiver=Result<string, string> instance="Result<string, string>.<extension#1>.andThen<int32, string>"
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=choose.result
     /// @type.symbol symbol=choose.symbol8 type=Function<(string,), Result<int32, string>, "readonly">
     /// @type.symbol symbol=choose.symbol8.value source=value type=string
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=value target=choose.symbol8.value
-    /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
-    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"managed\" & \"local\"))"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value root=choose.symbol8.value
 
         true => Result.err("empty")

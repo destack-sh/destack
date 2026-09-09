@@ -32,8 +32,10 @@ declare const values: [int32; 2];
 
 let [first, second] = values;
 /// @resolution.pattern source=[first, second] kind=sequence element=int32 arity=2 fields=(first, second)
-/// @generic.instantiation id="index#1<int32, 2, \"exclusive\">" template=index#1 arguments=(int32, 2, "exclusive")
-/// @generic.instance id="index#1<int32, 2, \"exclusive\">" template=index#1 arguments=(int32, 2, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a FixedArray<T#1, N#1>, index.A>, isize) => WithAccess<&index#1.'a T#1, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive FixedArray<int32, 2>, isize) => &index#1.'a exclusive int32)
+/// @generic.instantiation id="index#1<int32, 2, \"mutable\">" template=index#1 arguments=(int32, 2, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 FixedArray<int32, 2>, \"mutable\">" template=WithAccess arguments=(&'bound0 FixedArray<int32, 2>, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
+/// @generic.instance id="index#1<int32, 2, \"mutable\">" template=index#1 arguments=(int32, 2, "mutable")
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
 /// @type.symbol symbol=second source=second type=int32
@@ -46,14 +48,14 @@ first satisfies int32;
 /// @type.node source="first satisfies int32" type=int32
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
-/// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=first placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=first root=first
 
 second satisfies int32;
 /// @type.node source="second satisfies int32" type=int32
 /// @type.node source=second type=int32
 /// @resolution.name source=second target=second
-/// @resolution.place source=second placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=second placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=second root=second
 "#,
     );

@@ -86,7 +86,10 @@ impl CheckState<'_> {
             // reject every non-nominal owner
             _ => return Ok(None),
         };
-        if !matches!(self.definition(symbol)?, Some(dir::Definition::Enum(_))) {
+        if !matches!(
+            self.definition(symbol)?.as_deref(),
+            Some(dir::Definition::Enum(_))
+        ) {
             return Ok(None);
         }
 
@@ -117,7 +120,7 @@ impl CheckState<'_> {
         }
 
         // select the referenced enum case
-        let Some(owner) = self.reference_symbol(owner.into_global_any(module)) else {
+        let Some(owner) = self.reference_symbol(owner.into_global_any(module))? else {
             return Ok(None);
         };
         let case = self.variant_case(owner, dir::StaticKey::Name(name))?;
@@ -131,7 +134,7 @@ impl CheckState<'_> {
         owner: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::VariantCase>> {
-        let member = match self.definition(owner)? {
+        let member = match self.definition(owner)?.as_deref() {
             Some(dir::Definition::Enum(definition)) => {
                 definition.variant_by_key(key).map(|variant| variant.symbol)
             }

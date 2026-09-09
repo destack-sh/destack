@@ -153,7 +153,7 @@ impl CheckState<'_> {
     }
 }
 
-impl CheckModuleState {
+impl CheckModuleState<'_> {
     /// Return the function value declared by one source node.
     fn declared_function(&self, owner: dir::LocalNodeIdAny) -> Option<dir::GlobalSymbolId> {
         let view = self.view();

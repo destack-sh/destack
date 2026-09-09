@@ -23,17 +23,24 @@ impl CheckState<'_> {
             return self.commit_rejected_pattern(node);
         }
 
-        // reject non-tuple sources before building field projections
-        let dir::Type::Tuple(tuple) = self.ty(scrutinee)? else {
+        // reject non-tuple sources before building field projections, elements binding through
+        // the scrutinee's borrow
+        let binding = self.pattern_binding_form(origin, scrutinee)?;
+        let value = self.strip_form(origin, scrutinee)?;
+        let dir::Type::Tuple(tuple) = self.ty(value)? else {
             self.report_pattern_source_not_tuple_shaped(origin, scrutinee)?;
 
             return self.commit_rejected_pattern(node);
         };
-        let elements = self
-            .tuple_elements(scrutinee.module_id, tuple.elements)?
+        let element_types = self
+            .tuple_elements(value.module_id, tuple.elements)?
             .iter()
             .map(|element| element.ty)
             .collect::<SmallVec<[_; 4]>>();
+        let mut elements = SmallVec::<[_; 4]>::new();
+        for element in element_types {
+            elements.push(self.bound_through(origin, binding, element)?);
+        }
 
         // project tuple elements into positional holes
         let mut projected = Vec::with_capacity(fields.len());

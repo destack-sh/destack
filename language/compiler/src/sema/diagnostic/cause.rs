@@ -143,7 +143,7 @@ impl CheckState<'_> {
             && match self.ty(leaf.source)? {
                 dir::Type::Object(_) => true,
                 dir::Type::Application(instance) => matches!(
-                    self.definition(instance.symbol)?,
+                    self.definition(instance.symbol)?.as_deref(),
                     Some(
                         dir::Definition::Class(_)
                             | dir::Definition::Struct(_)
@@ -287,12 +287,10 @@ impl CheckState<'_> {
                 if source_tuple.form == target_tuple.form
                     && source_tuple.elements.len() == target_tuple.elements.len() =>
             {
-                let source_elements = self
-                    .tuple_elements(source.module_id, source_tuple.elements)?
-                    .to_vec();
-                let target_elements = self
-                    .tuple_elements(target.module_id, target_tuple.elements)?
-                    .to_vec();
+                let source_elements =
+                    self.tuple_elements(source.module_id, source_tuple.elements)?;
+                let target_elements =
+                    self.tuple_elements(target.module_id, target_tuple.elements)?;
                 for (index, (source_element, target_element)) in source_elements
                     .iter()
                     .zip(target_elements.iter())
@@ -316,12 +314,10 @@ impl CheckState<'_> {
             ) => {
                 let source_function = self.type_signature(source.module_id, source_function)?;
                 let target_function = self.type_signature(target.module_id, target_function)?;
-                let source_parameters = self
-                    .signature_parameters(source.module_id, source_function.parameters)?
-                    .to_vec();
-                let target_parameters = self
-                    .signature_parameters(target.module_id, target_function.parameters)?
-                    .to_vec();
+                let source_parameters =
+                    self.signature_parameters(source.module_id, source_function.parameters)?;
+                let target_parameters =
+                    self.signature_parameters(target.module_id, target_function.parameters)?;
                 let shared = source_parameters.len().min(target_parameters.len());
                 for (index, (source_parameter, target_parameter)) in source_parameters[..shared]
                     .iter()
@@ -382,9 +378,9 @@ impl CheckState<'_> {
 
             // blame each source union element against the target
             (dir::Type::Union(elements), _) if relation != Relation::Equal => {
-                let elements = self.type_ids(source.module_id, elements.elements)?.to_vec();
+                let elements = self.type_ids(source.module_id, elements.elements)?;
                 for element in elements {
-                    pairs.push((None, relation, element, target));
+                    pairs.push((None, relation, *element, target));
                 }
             }
 
@@ -394,12 +390,10 @@ impl CheckState<'_> {
                     && source_instance.arguments.len() == target_instance.arguments.len() =>
             {
                 let symbol = source_instance.symbol;
-                let source_arguments = self
-                    .type_ids(source.module_id, source_instance.arguments)?
-                    .to_vec();
-                let target_arguments = self
-                    .type_ids(target.module_id, target_instance.arguments)?
-                    .to_vec();
+                let source_arguments =
+                    self.type_ids(source.module_id, source_instance.arguments)?;
+                let target_arguments =
+                    self.type_ids(target.module_id, target_instance.arguments)?;
                 let relation = Relation::Storable;
                 let form = self.default_variance_form(symbol)?;
                 for (index, (source_argument, target_argument)) in source_arguments
@@ -501,7 +495,7 @@ impl CheckState<'_> {
                 (anchor, "in this call".to_string())
             }
             CauseKind::Bound { parameter } => {
-                let Some(binding) = self.generic_parameter(parameter) else {
+                let Some(binding) = self.generic_parameter(parameter)? else {
                     return Ok(None);
                 };
                 let dir::GenericParameterKey::Symbol(symbol) = binding.key else {

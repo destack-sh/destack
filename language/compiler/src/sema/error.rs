@@ -66,6 +66,22 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// A parameter initializer on a signature without an implementation to run it.
+    ///
+    /// ```ds
+    /// declare function read(count: int32 = 1): void;
+    /// ```
+    #[diagnostic(
+        id = "parameter-initializer-outside-implementation",
+        message = "a parameter initializer is only allowed in a function or constructor implementation"
+    )]
+    ParameterInitializerOutsideImplementation {
+        /// Report the initializer the ambient signature writes.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Export's type depends on another module and needs an annotation.
     ///
     /// ```ds
@@ -113,6 +129,78 @@ pub enum CheckError {
     )]
     ConstructorResultAnnotation {
         /// Report the result annotation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Constructor declares its receiver.
+    ///
+    /// ```ds
+    /// class User {
+    ///     constructor(&readonly this) {}
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "constructor-receiver-annotation",
+        message = "constructor cannot declare its receiver"
+    )]
+    ConstructorReceiverAnnotation {
+        /// Report the receiver annotation.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A derived class constructor reads this before calling super.
+    ///
+    /// ```ds
+    /// class Admin extends User {
+    ///     constructor() { this.level = 1; super(); }
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "this-before-super",
+        message = "'super' must be called before accessing 'this' in the constructor of a derived class"
+    )]
+    ThisBeforeSuper {
+        /// Report the this expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A derived class constructor returns without calling super.
+    ///
+    /// ```ds
+    /// class Admin extends User {
+    ///     constructor() {}
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "missing-super-call",
+        message = "constructors for derived classes must contain a 'super' call"
+    )]
+    MissingSuperCall {
+        /// Report the constructor.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A super call appears outside the constructor of a derived class.
+    ///
+    /// ```ds
+    /// class Admin extends User {
+    ///     reset(this): void { super(); }
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "super-call-outside-constructor",
+        message = "super calls are permitted only in the constructor of a derived class"
+    )]
+    SuperCallOutsideConstructor {
+        /// Report the super call.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -717,7 +805,7 @@ pub enum CheckError {
     /// ```ds
     /// declare const user: shared User;
     ///
-    /// const view = &exclusive user;
+    /// const view = &user;
     /// ```
     #[diagnostic(
         id = "borrow-access-not-granted",
@@ -1344,25 +1432,6 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// A closed instance type keeps a type computation no reduction settles.
-    ///
-    /// ```ds
-    /// type Name<T> = `${T}`;
-    /// declare const value: Name<unknown>;
-    /// ```
-    #[diagnostic(
-        id = "type-computation-not-reduced",
-        message = "type '{ty}' does not reduce to a representable type"
-    )]
-    TypeComputationNotReduced {
-        /// Report the instantiation site.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The unreduced type.
-        ty: String,
-    },
-
     /// `is` target cannot be tested at runtime.
     ///
     /// ```ds
@@ -1433,7 +1502,7 @@ pub enum CheckError {
     ///
     /// ```ds
     /// extension of Buffer {
-    ///     grow(this: &exclusive Buffer): void {}
+    ///     grow(this: &Buffer): void {}
     ///
     ///     peek(this: &readonly Buffer): void {
     ///         this.grow();
@@ -1545,22 +1614,6 @@ pub enum CheckError {
         module: ModuleId,
         /// The named value binding.
         name: String,
-    },
-
-    /// Drop conformance is declared on an extension whose parameters do not mirror its target.
-    ///
-    /// ```ds
-    /// extension<U> of Guard<Vec<U>> implements Drop { ... }
-    /// ```
-    #[diagnostic(
-        id = "unmapped-drop-conformance",
-        message = "Drop conformance requires the extension parameters to mirror its target"
-    )]
-    UnmappedDropConformance {
-        /// Report the conforming extension declaration.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
     },
 
     /// Static guard is not invoked in its intrinsic form.
@@ -2630,24 +2683,6 @@ pub enum CheckError {
         ty: String,
     },
 
-    /// Non-exclusive writes require overwrite-stable storage.
-    ///
-    /// ```ds
-    /// *borrow = value;
-    /// ```
-    #[diagnostic(
-        id = "overwrite-stability-not-satisfied",
-        message = "type '{ty}' is not safe to overwrite through non-exclusive access"
-    )]
-    OverwriteStabilityNotSatisfied {
-        /// Report the overwritten type.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The type that failed overwrite-stability checking.
-        ty: String,
-    },
-
     /// Shared storage retains a safe reference into local storage.
     ///
     /// ```ds
@@ -3245,6 +3280,27 @@ pub enum CheckError {
         module: ModuleId,
         /// The declaration that names its lifetimes.
         source: String,
+    },
+
+    /// Instantiation chain deeper than the limit, a polymorphic recursion.
+    ///
+    /// ```ds
+    /// function nest<T>(value: T): void { nest([value]); }
+    /// ```
+    #[diagnostic(
+        id = "instantiation-depth-exceeded",
+        message = "instantiating '{source}' exceeds the depth limit of {limit}",
+        help = "make the recursion monomorphic, so every call instantiates the same arguments"
+    )]
+    InstantiationDepthExceeded {
+        /// Report the instantiation reaching past the limit.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The template whose instance exceeds the limit.
+        source: String,
+        /// The depth limit.
+        limit: u32,
     },
 
     /// Extension parameter left unconstrained by the target and its conformances.

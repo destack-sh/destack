@@ -18,7 +18,7 @@ declare const count: Count;
 === annotated ===
 type Count = 0..5;
 
-declare const count: 0..5;
+declare const count: Count;
 
 === dir ===
 type Count = 0..5;
@@ -26,7 +26,7 @@ type Count = 0..5;
 /// @definition.type symbol=Count source="type Count = 0..5" value=0..5
 
 declare const count: Count;
-/// @type.symbol symbol=count source=count type=0..5
+/// @type.symbol symbol=count source=count type=Count
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=Count target=Count
 "#,

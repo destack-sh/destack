@@ -24,22 +24,9 @@ pub(in crate::sema) type GenericTemplateId = dir::GlobalGenericTemplateId;
 impl CheckState<'_> {
     /// Return one symbol's generic template.
     pub(in crate::sema) fn symbol_template(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<GenericTemplateId>> {
-        // load foreign templates before lookup
-        if !self.is_own_module(symbol.module_id) {
-            self.import_external_module(symbol.module_id)?;
-        }
-
-        Ok(self.loaded_symbol_template(symbol))
-    }
-
-    /// Return one symbol's already loaded template, skipping the import.
-    pub(in crate::sema) fn loaded_symbol_template(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<GenericTemplateId> {
+    ) -> CompilerResult<Option<GenericTemplateId>> {
         self.template_by_symbol(symbol)
     }
 
@@ -47,23 +34,23 @@ impl CheckState<'_> {
     pub(in crate::sema) fn template_by_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<GenericTemplateId> {
+    ) -> CompilerResult<Option<GenericTemplateId>> {
         let module = symbol.module_id;
 
         // read the checked module's written stages
         if let Some(state) = self.module_maybe(module) {
-            return state
+            return Ok(state
                 .written_template_by_symbol(symbol)
-                .map(|local| local.into_global(module));
+                .map(|local| local.into_global(module)));
         }
 
         // read external committed templates
-        let external = self.external_modules.get(&module)?;
-
-        external
-            .generics
-            .template_by_symbol(symbol)
-            .map(|local| local.into_global(module))
+        Ok(self.external(module)?.and_then(|external| {
+            external
+                .generics()
+                .template_by_symbol(symbol)
+                .map(|local| local.into_global(module))
+        }))
     }
 
     /// Return the template declared at one source node, through its module's generic view.
@@ -83,72 +70,75 @@ impl CheckState<'_> {
     pub(in crate::sema) fn parameter_by_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<GenericParameterId> {
+    ) -> CompilerResult<Option<GenericParameterId>> {
         let module = symbol.module_id;
 
         // read the checked module's written stages
         if let Some(state) = self.module_maybe(module) {
-            return state
+            return Ok(state
                 .written_parameter_by_symbol(symbol)
-                .map(|local| local.into_global(module));
+                .map(|local| local.into_global(module)));
         }
 
         // read external committed parameters
-        let external = self.external_modules.get(&module)?;
-
-        external
-            .generics
-            .parameter_by_symbol(symbol)
-            .map(|local| local.into_global(module))
+        Ok(self.external(module)?.and_then(|external| {
+            external
+                .generics()
+                .parameter_by_symbol(symbol)
+                .map(|local| local.into_global(module))
+        }))
     }
 
     /// Return one generic template, reading the checked view over external tables.
     pub(in crate::sema) fn generic_template(
         &self,
         id: GenericTemplateId,
-    ) -> Option<&dir::GenericTemplate> {
+    ) -> CompilerResult<Option<&dir::GenericTemplate>> {
         // read the checked module's tail over its committed base
-        if let Some(module) = self.module_maybe(id.module_id) {
-            return module.generic_template(id.local_id);
+        if self.is_own_module(id.module_id) {
+            return Ok(self.module.generic_template(id.local_id));
         }
 
         // read external committed templates
-        if let Some(external) = self.external_modules.get(&id.module_id) {
-            return Some(external.generics.get_template(id.local_id));
-        }
-
-        None
+        Ok(self
+            .external(id.module_id)?
+            .map(|external| external.generics().get_template(id.local_id)))
     }
 
     /// Return one generic parameter, reading working segments over external tables.
     pub(in crate::sema) fn generic_parameter(
         &self,
         id: GenericParameterId,
-    ) -> Option<&dir::GenericParameterBinding> {
+    ) -> CompilerResult<Option<&dir::GenericParameterBinding>> {
         // read the checked module's tail over its committed base
-        if let Some(module) = self.module_maybe(id.module_id) {
-            return module.generic_parameter(id.local_id);
+        if self.is_own_module(id.module_id) {
+            return Ok(self.module.generic_parameter(id.local_id));
         }
 
         // read external committed parameters
-        if let Some(external) = self.external_modules.get(&id.module_id) {
-            return Some(external.generics.get_parameter(id.local_id));
-        }
-
-        None
+        Ok(self
+            .external(id.module_id)?
+            .map(|external| external.generics().get_parameter(id.local_id)))
     }
 
     /// Return whether one generic parameter is a memory parameter.
-    pub(in crate::sema) fn is_memory_parameter(&self, id: GenericParameterId) -> bool {
-        self.generic_parameter(id)
-            .is_some_and(|parameter| parameter.memory_parameter().is_some())
+    pub(in crate::sema) fn is_memory_parameter(
+        &self,
+        id: GenericParameterId,
+    ) -> CompilerResult<bool> {
+        Ok(self
+            .generic_parameter(id)?
+            .is_some_and(|parameter| parameter.memory_parameter().is_some()))
     }
 
     /// Return whether one generic parameter is a lifetime.
-    pub(in crate::sema) fn is_lifetime_parameter(&self, id: GenericParameterId) -> bool {
-        self.generic_parameter(id).is_some_and(|parameter| {
+    pub(in crate::sema) fn is_lifetime_parameter(
+        &self,
+        id: GenericParameterId,
+    ) -> CompilerResult<bool> {
+        Ok(self.generic_parameter(id)?.is_some_and(|parameter| {
             parameter.memory_parameter() == Some(dir::MemoryParameter::Region)
-        })
+        }))
     }
 
     /// Return the canonical type denoting one generic parameter.
@@ -156,7 +146,7 @@ impl CheckState<'_> {
         &self,
         id: GenericParameterId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.generic_parameter(id)
+        self.generic_parameter(id)?
             .map(|parameter| parameter.ty)
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("generic parameter {id:?} is not bound"),
@@ -170,34 +160,16 @@ impl CheckState<'_> {
     ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
         let template = self.require_generic_template(id)?;
 
-        // read each parameter under the template's module
-        let parameters = template
-            .parameters
-            .iter()
-            .map(|parameter| parameter.into_global(id.module_id))
-            .collect();
+        // read each written parameter under the template's module
+        let mut parameters = SmallVec::new();
+        for parameter in template.parameters.clone() {
+            let parameter = parameter.into_global(id.module_id);
+            if self.require_generic_parameter(parameter)?.is_writable() {
+                parameters.push(parameter);
+            }
+        }
 
         Ok(parameters)
-    }
-
-    /// Return whether one symbol's template and its owners declare region parameters only.
-    pub(in crate::sema) fn symbol_template_is_region_only(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<bool> {
-        let Some(template) = self.symbol_template(symbol)? else {
-            return Ok(true);
-        };
-
-        // read the template's own and inherited parameters
-        let mut parameters = self.generic_template_parameters(template)?;
-        parameters.extend(self.owner_template_parameters(template)?);
-
-        Ok(parameters.iter().all(|parameter| {
-            self.generic_parameter(*parameter).is_some_and(|binding| {
-                binding.memory_parameter() == Some(dir::MemoryParameter::Region)
-            })
-        }))
     }
 
     /// Return the owner parameters enclosing one member template.
@@ -206,15 +178,28 @@ impl CheckState<'_> {
         id: GenericTemplateId,
     ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
         let mut parameters = SmallVec::new();
+        for owner in self.owner_templates(id)?.into_iter().rev() {
+            parameters.extend(self.generic_template_parameters(owner)?);
+        }
+
+        Ok(parameters)
+    }
+
+    /// Return the templates of the definitions enclosing one template, outermost first.
+    pub(in crate::sema) fn owner_templates(
+        &mut self,
+        id: GenericTemplateId,
+    ) -> CompilerResult<SmallVec<[GenericTemplateId; 4]>> {
+        let mut owners = SmallVec::new();
         let mut current = self.parent_generic_template(id)?;
 
-        // collect enclosing owner parameters outermost last
+        // collect enclosing owner templates innermost first, then turn them outermost first
         while let Some(id) = current {
-            let template = self.generic_template(id);
+            let template = self.generic_template(id)?;
             let symbol = template.and_then(|template| template.symbol);
             let is_owner = match symbol {
                 Some(symbol) => matches!(
-                    self.definition(symbol)?,
+                    self.definition(symbol)?.as_deref(),
                     Some(
                         dir::Definition::Extension(_)
                             | dir::Definition::Class(_)
@@ -227,12 +212,13 @@ impl CheckState<'_> {
                 None => false,
             };
             if is_owner {
-                parameters.extend(self.generic_template_parameters(id)?);
+                owners.push(id);
             }
             current = self.parent_generic_template(id)?;
         }
+        owners.reverse();
 
-        Ok(parameters)
+        Ok(owners)
     }
 
     /// Return the generic parameters owned by one callable signature.
@@ -243,20 +229,8 @@ impl CheckState<'_> {
         let Some(template_id) = signature.template else {
             return Ok(SmallVec::new());
         };
-        let Some(template) = self.generic_template(template_id) else {
-            return Err(CompilerError::Internal {
-                message: format!("signature template {template_id:?} is missing"),
-            });
-        };
 
-        // read each parameter under the template's module
-        let parameters = template
-            .parameters
-            .iter()
-            .map(|parameter| parameter.into_global(template_id.module_id))
-            .collect();
-
-        Ok(parameters)
+        self.generic_template_parameters(template_id)
     }
 
     /// Return the generic argument bindings one nominal application carries, empty for other heads.
@@ -267,9 +241,9 @@ impl CheckState<'_> {
         let Some((module, instance)) = self.nominal_application_maybe(ty)? else {
             return Ok(Vec::new());
         };
-        let arguments = self.type_ids(module, instance.arguments)?.to_vec();
+        let arguments = self.type_ids(module, instance.arguments)?;
 
-        self.symbol_generic_argument_bindings(instance.symbol, &arguments)
+        self.symbol_generic_argument_bindings(instance.symbol, arguments)
     }
 
     /// Return applied generic argument bindings for one ordered parameter list.
@@ -284,7 +258,7 @@ impl CheckState<'_> {
 
         // drop lifetime arguments from the erased instance identity
         for binding in substitution.bindings {
-            if self.is_lifetime_parameter(binding.parameter) {
+            if self.is_lifetime_parameter(binding.parameter)? {
                 continue;
             }
 
@@ -302,14 +276,18 @@ impl CheckState<'_> {
     pub(in crate::sema) fn writable_parameter_count(
         &self,
         parameters: &[GenericParameterId],
-    ) -> usize {
-        parameters
-            .iter()
-            .filter(|parameter| {
-                self.generic_parameter(**parameter)
-                    .is_some_and(dir::GenericParameterBinding::is_writable)
-            })
-            .count()
+    ) -> CompilerResult<usize> {
+        let mut count = 0;
+        for parameter in parameters {
+            if self
+                .generic_parameter(*parameter)?
+                .is_some_and(dir::GenericParameterBinding::is_writable)
+            {
+                count += 1;
+            }
+        }
+
+        Ok(count)
     }
 
     /// Return one generic template that must already be loaded.
@@ -317,7 +295,7 @@ impl CheckState<'_> {
         &self,
         id: GenericTemplateId,
     ) -> CompilerResult<&dir::GenericTemplate> {
-        self.generic_template(id)
+        self.generic_template(id)?
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("generic template {id:?} is missing"),
             })
@@ -328,7 +306,7 @@ impl CheckState<'_> {
         &self,
         id: GenericParameterId,
     ) -> CompilerResult<&dir::GenericParameterBinding> {
-        self.generic_parameter(id)
+        self.generic_parameter(id)?
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("generic parameter {id:?} is not bound"),
             })
@@ -372,7 +350,7 @@ impl CheckState<'_> {
             return Ok(argument);
         }
         if !matches!(state.kind, VariableKind::Memory(_)) {
-            let Some(binding) = self.generic_parameter(parameter) else {
+            let Some(binding) = self.generic_parameter(parameter)? else {
                 return Ok(argument);
             };
             if binding.induced_memory_parameter().is_none() {
@@ -436,7 +414,6 @@ impl CheckState<'_> {
         }
 
         // allocate the template in its owning module, dropping the caches it invalidates
-        self.assuming_scopes.clear();
         self.argument_ranks.clear();
         let module = self
             .module_maybe_mut(module_id)
@@ -473,14 +450,13 @@ impl CheckState<'_> {
                 message: format!("check module {module:?} has no working generics"),
             });
         }
-        self.assuming_scopes.clear();
         self.argument_ranks.clear();
         let local = dir::LocalGenericParameterId::new(self.module.generics_tail.parameter_count());
         let id = local.into_global(module);
         let ty = self
             .module
             .types_tail
-            .intern_type(dir::Type::Parameter(id), dir::TypeFlags::EMPTY)
+            .intern_type(dir::Type::Parameter(id), kind.parameter_flags())
             .into_global(module);
         let binding = dir::GenericParameterBinding {
             template: template.local_id,
@@ -495,7 +471,6 @@ impl CheckState<'_> {
             kind,
             is_variadic,
             is_const,
-            conformances: dir::AutoInterfaceSet::new(),
         };
 
         // allocate the parameter in its template's working segment
@@ -637,7 +612,7 @@ impl CheckState<'_> {
         let id = self.shallow_resolve(id)?;
         // read the memory kind each term carries
         match self.ty(id)? {
-            // regions are lifetime-kinded pairs
+            // build the region pair at the lifetime kind
             dir::Type::Region(_) => Ok(Some(dir::MemoryParameter::Region)),
 
             // reserved lifetime, space, and access names write as string literals
@@ -655,7 +630,7 @@ impl CheckState<'_> {
 
             // parameters inhabit their declared kind or the kind their constraint names
             dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
-                let Some(binding) = self.generic_parameter(parameter) else {
+                let Some(binding) = self.generic_parameter(parameter)? else {
                     return Ok(None);
                 };
                 match (binding.memory_parameter(), binding.constraint) {
@@ -729,31 +704,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<GenericParameterId> {
         let constraint = self.memory_parameter_constraint(kind)?;
 
-        // reuse the parameter this site already induced
-        if let Some(parameter) = self.reuse_induced_parameter(template, site, kind)? {
-            return Ok(parameter);
-        }
-
-        // generate a kind-shaped name from the template position
-        let number = self
-            .generic_template(template)
-            .map_or(0, |template| template.parameters.len());
-        // name the induced parameter after its kind
-        let generated = match kind {
-            dir::MemoryParameter::Access => format!("A{number}"),
-            dir::MemoryParameter::Ownership => format!("O{number}"),
-            dir::MemoryParameter::Place => format!("P{number}"),
-            dir::MemoryParameter::Space => format!("S{number}"),
-            dir::MemoryParameter::Region => self.next_induced_lifetime_name(template),
-        };
-        let name = self.strings().intern(&generated);
-
         // push the induced parameter onto the template
-        let parameter = self.push_generic_parameter(
+        self.push_generic_parameter(
             template,
             site,
             None,
-            dir::GenericParameterKey::Generated(name),
+            dir::GenericParameterKey::Anonymous,
             None,
             constraint,
             None,
@@ -761,115 +717,7 @@ impl CheckState<'_> {
             dir::GenericParameterKind::Memory(kind),
             false,
             false,
-        )?;
-        self.claimed_induced.insert(parameter);
-
-        Ok(parameter)
-    }
-
-    /// Reuse the induced parameter one site opened on a template, once per hole.
-    fn reuse_induced_parameter(
-        &mut self,
-        template: GenericTemplateId,
-        site: dir::GlobalNodeIdAny,
-        kind: dir::MemoryParameter,
-    ) -> CompilerResult<Option<GenericParameterId>> {
-        // claim the first parameter this site induced and left free
-        let parameters = self.generic_template_parameters(template)?;
-        for parameter in parameters {
-            let Some(binding) = self.generic_parameter(parameter) else {
-                continue;
-            };
-            if binding.origin != dir::GenericParameterOrigin::Induced
-                || binding.source != site
-                || binding.kind != dir::GenericParameterKind::Memory(kind)
-                || self.claimed_induced.contains(&parameter)
-            {
-                continue;
-            }
-            self.claimed_induced.insert(parameter);
-
-            return Ok(Some(parameter));
-        }
-
-        Ok(None)
-    }
-
-    /// Return the first free tick name for one induced lifetime parameter.
-    fn next_induced_lifetime_name(&self, template: GenericTemplateId) -> String {
-        // collect the tick names the template already declares
-        let mut taken = Vec::new();
-        if let Some(declared) = self.generic_template(template) {
-            for parameter in &declared.parameters {
-                let id = parameter.into_global(template.module_id);
-                let Some(binding) = self.generic_parameter(id) else {
-                    continue;
-                };
-                let name = match binding.key {
-                    dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
-                    dir::GenericParameterKey::Generated(name) => {
-                        self.strings().get(name).to_string()
-                    }
-                };
-                taken.push(name);
-            }
-        }
-
-        // take the first free single letter tick
-        for letter in 'a'..='z' {
-            let candidate = format!("'{letter}");
-            if !taken.contains(&candidate) {
-                return candidate;
-            }
-        }
-
-        format!("'l{}", taken.len())
-    }
-}
-
-impl CheckState<'_> {
-    /// Update one declared parameter's walked bounds.
-    pub(in crate::sema) fn update_generic_parameter_bounds(
-        &mut self,
-        parameter: GenericParameterId,
-        constraint: Option<dir::GlobalTypeId>,
-        default: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<()> {
-        let current =
-            self.generic_parameter(parameter)
-                .cloned()
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("generic parameter {parameter:?} is not bound"),
-                })?;
-        // store memory defaults canonically, like written memory arguments
-        let default = match (current.kind, default) {
-            (dir::GenericParameterKind::Memory(_), Some(default)) => {
-                let origin = Origin::Node(current.source, None);
-
-                Some(self.normalize_memory_component(origin, default)?)
-            }
-            _ => default,
-        };
-
-        // commit the completed binding after classification
-        let module = parameter.module_id;
-        let working = self
-            .module_maybe_mut(module)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("check module {module:?} has no working generics"),
-            })?;
-
-        // skip parameters the declared stage closed
-        let Some(binding) = working
-            .generics_tail
-            .get_local_parameter_mut(parameter.local_id)
-        else {
-            return Ok(());
-        };
-        binding.constraint = constraint;
-        binding.default = default;
-
-        Ok(())
+        )
     }
 
     /// Push one walked where-clause predicate onto its declaring template.
@@ -905,11 +753,15 @@ impl CheckState<'_> {
     pub(in crate::sema) fn template_predicates(
         &self,
         template: Option<GenericTemplateId>,
-    ) -> SmallVec<[dir::WherePredicate; 2]> {
-        template
-            .and_then(|template| self.generic_template(template))
+    ) -> CompilerResult<SmallVec<[dir::WherePredicate; 2]>> {
+        let Some(template) = template else {
+            return Ok(SmallVec::new());
+        };
+
+        Ok(self
+            .generic_template(template)?
             .map(|template| SmallVec::from_slice(&template.predicates))
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
     /// Return the assuming generic template of one work origin.
@@ -940,7 +792,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
         let mut bounds = SmallVec::new();
         let constraint = self
-            .generic_parameter(parameter)
+            .generic_parameter(parameter)?
             .and_then(|binding| binding.constraint);
         bounds.extend(constraint);
         bounds.extend(self.assumed_parameter_bounds(origin, parameter)?);
@@ -988,7 +840,7 @@ impl CheckState<'_> {
     }
 
     /// Collect the bounds one predicate set grants a matching subject.
-    fn subject_bounds(
+    pub(in crate::sema) fn subject_bounds(
         &self,
         predicates: &[dir::WherePredicate],
         subject: impl Fn(&dir::Type) -> bool,
@@ -1062,7 +914,7 @@ impl CheckState<'_> {
         let mut substitution = TypeSubstitution::default();
         let mut cursor = 0usize;
         for parameter in parameters.iter().copied() {
-            let binding = self.generic_parameter(parameter).cloned().ok_or_else(|| {
+            let binding = self.generic_parameter(parameter)?.cloned().ok_or_else(|| {
                 CompilerError::Internal {
                     message: format!("generic parameter {parameter:?} is missing"),
                 }
@@ -1120,18 +972,17 @@ impl CheckState<'_> {
                 return Ok(TypeSubstitution::default());
             }
 
-            // keep unloaded foreign applications symbolic
-            if !self.is_loaded_module(instance.symbol.module_id) {
+            // keep foreign applications symbolic while declaring
+            if !self.reads_module(instance.symbol.module_id) {
                 return Ok(TypeSubstitution::default());
             }
 
             let name = self.format_symbol(instance.symbol);
-            let rendered = self
-                .type_ids(module, instance.arguments)?
-                .iter()
-                .map(|argument| self.format_type(*argument))
-                .collect::<Vec<_>>()
-                .join(", ");
+            let mut rendered = Vec::new();
+            for argument in self.type_ids(module, instance.arguments)? {
+                rendered.push(self.format_type(*argument));
+            }
+            let rendered = rendered.join(", ");
 
             return Err(CompilerError::Internal {
                 message: format!(
@@ -1176,8 +1027,9 @@ impl CheckState<'_> {
 
         // collect predicates on the parameter's declaring template
         let template = binding.template.into_global(parameter.module_id);
+        let predicates = self.require_generic_template(template)?.predicates.clone();
         for bound in self.subject_bounds(
-            &self.require_generic_template(template)?.predicates.clone(),
+            &predicates,
             |ty| matches!(ty, dir::Type::Parameter(subject) if *subject == parameter),
         )? {
             if !bounds.contains(&bound) {
@@ -1214,29 +1066,12 @@ impl CheckState<'_> {
         Ok(bounds)
     }
 
-    /// Return the nearest scope carrying assumptions at one origin.
+    /// Return the innermost template one origin decides under, its parent chain assumed with it.
     pub(in crate::sema) fn assuming_scope(
         &mut self,
         origin: Origin,
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        // the walk is a pure function of the declared scope
-        let scope = self.origin_scope(origin)?;
-        if let Some(assuming) = self.assuming_scopes.get(&scope) {
-            return Ok(*assuming);
-        }
-
-        // climb to the nearest template declaring parameters or predicates
-        let mut template = scope;
-        while let Some(id) = template {
-            let declared = self.require_generic_template(id)?;
-            if !declared.parameters.is_empty() || !declared.predicates.is_empty() {
-                break;
-            }
-            template = self.parent_generic_template(id)?;
-        }
-        self.assuming_scopes.insert(scope, template);
-
-        Ok(template)
+        self.origin_scope(origin)
     }
 
     /// Return the nearest template enclosing one template's lexical scope.
@@ -1244,12 +1079,16 @@ impl CheckState<'_> {
         &self,
         template_id: GenericTemplateId,
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        let template = self.require_generic_template(template_id)?;
-        let bindings = self.binding_table(template_id.module_id);
+        let scope = self.require_generic_template(template_id)?.scope;
+        let ancestors: Vec<_> = self
+            .binding_table(template_id.module_id)?
+            .scope_ancestors(scope)
+            .map(|current| current.id)
+            .collect();
 
         // find the nearest ancestor governed by another template
-        for current in bindings.scope_ancestors(template.scope) {
-            if let Some(parent) = self.scope_template(template_id.module_id, current.id) {
+        for current in ancestors {
+            if let Some(parent) = self.scope_template(template_id.module_id, current)? {
                 return Ok(Some(parent));
             }
         }
@@ -1257,23 +1096,132 @@ impl CheckState<'_> {
         Ok(None)
     }
 
+    /// Update one declared parameter's walked bounds.
+    pub(in crate::sema) fn update_generic_parameter_bounds(
+        &mut self,
+        parameter: GenericParameterId,
+        constraint: Option<dir::GlobalTypeId>,
+        default: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
+        let current =
+            self.generic_parameter(parameter)?
+                .cloned()
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("generic parameter {parameter:?} is not bound"),
+                })?;
+        // store memory defaults canonically, like written memory arguments
+        let default = match (current.kind, default) {
+            (dir::GenericParameterKind::Memory(_), Some(default)) => {
+                let origin = Origin::Node(current.source, None);
+
+                Some(self.normalize_memory_component(origin, default)?)
+            }
+            _ => default,
+        };
+
+        // commit the completed binding after classification
+        let module = parameter.module_id;
+        let working = self
+            .module_maybe_mut(module)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("check module {module:?} has no working generics"),
+            })?;
+
+        // skip parameters the declared stage closed
+        let Some(binding) = working
+            .generics_tail
+            .get_local_parameter_mut(parameter.local_id)
+        else {
+            return Err(CompilerError::Internal {
+                message: format!("generic parameter {parameter:?} is outside the working generics"),
+            });
+        };
+        binding.constraint = constraint;
+        binding.default = default;
+
+        Ok(())
+    }
+
+    /// Push the receiver parameter an interface template declares implicitly, bounded by itself.
+    pub(in crate::sema) fn push_receiver_parameter(
+        &mut self,
+        template: GenericTemplateId,
+        source: dir::GlobalNodeIdAny,
+        interface: dir::GlobalSymbolId,
+    ) -> CompilerResult<GenericParameterId> {
+        let application = self.declaration_instance(interface)?;
+        let constraint = self.intern_type(dir::Type::Application(application))?;
+
+        self.push_generic_parameter(
+            template,
+            source,
+            None,
+            dir::GenericParameterKey::Anonymous,
+            None,
+            Some(constraint),
+            None,
+            dir::GenericParameterOrigin::Receiver,
+            dir::GenericParameterKind::Type,
+            false,
+            false,
+        )
+    }
+
+    /// Return whether one node lies inside an interface template, `this` being its receiver.
+    pub(in crate::sema) fn is_within_interface(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<bool> {
+        let mut current = self.template_at_node(node)?;
+        while let Some(id) = current {
+            let symbol = self
+                .generic_template(id)?
+                .and_then(|template| template.symbol);
+            if let Some(symbol) = symbol
+                && self.symbol_kind(symbol)?.is_interface()
+            {
+                return Ok(true);
+            }
+            current = self.parent_generic_template(id)?;
+        }
+
+        Ok(false)
+    }
+
+    /// Return one origin anchored at a node under the template in effect there.
+    pub(in crate::sema) fn anchored_origin(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Origin> {
+        Ok(Origin::Node(node, self.template_at_node(node)?))
+    }
+
     /// Return the template in effect at one node of a loaded module.
     pub(in crate::sema) fn template_at_node(
         &self,
         node: dir::GlobalNodeIdAny,
-    ) -> Option<GenericTemplateId> {
-        // read the scope the node sits in of a loaded module
+    ) -> CompilerResult<Option<GenericTemplateId>> {
+        // read the scope the node sits in of a readable module
         let module = node.module_id;
-        if !self.is_loaded_module(module) {
-            return None;
+        if !self.reads_module(module) {
+            return Ok(None);
         }
-        let bindings = self.binding_table(module);
-        let scope = bindings.scope_for_node(node)?.id;
+        let bindings = self.binding_table(module)?;
+        let Some(scope) = bindings.scope_for_node(node) else {
+            return Ok(None);
+        };
+        let scopes: Vec<_> = std::iter::once(scope.id)
+            .chain(bindings.scope_ancestors(scope.id).map(|scope| scope.id))
+            .collect();
 
         // take the nearest template governing that scope or an ancestor
-        std::iter::once(scope)
-            .chain(bindings.scope_ancestors(scope).map(|scope| scope.id))
-            .find_map(|scope| self.scope_template(module, scope))
+        for scope in scopes {
+            if let Some(template) = self.scope_template(module, scope)? {
+                return Ok(Some(template));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Return the template governing one scope of a loaded module.
@@ -1281,17 +1229,16 @@ impl CheckState<'_> {
         &self,
         module: ModuleId,
         scope: dir::LocalScopeId,
-    ) -> Option<GenericTemplateId> {
+    ) -> CompilerResult<Option<GenericTemplateId>> {
         // read the template the scope writes
         let local = match self.module_maybe(module) {
             Some(state) => state.written_template_by_scope(scope),
             None => self
-                .external_modules
-                .get(&module)
-                .and_then(|external| external.generics.template_by_scope(scope)),
+                .external(module)?
+                .and_then(|external| external.generics().template_by_scope(scope)),
         };
 
-        local.map(|id| id.into_global(module))
+        Ok(local.map(|id| id.into_global(module)))
     }
 
     /// Settle applied generic argument bindings for checked DIR.
@@ -1304,7 +1251,7 @@ impl CheckState<'_> {
         for applied in applied {
             let parameter = applied.parameter;
             let argument = self.shallow_resolve(applied.argument)?;
-            if self.is_lifetime_parameter(parameter) {
+            if self.is_lifetime_parameter(parameter)? {
                 continue;
             }
             bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
@@ -1319,6 +1266,26 @@ impl CheckState<'_> {
         keyed.sort_by_key(|(rank, binding)| (*rank, binding.parameter));
 
         Ok(keyed.into_iter().map(|(_, binding)| binding).collect())
+    }
+
+    /// Return the region bindings one substitution solved, the lifetimes an instance key erases.
+    pub(in crate::sema) fn resolved_region_bindings(
+        &mut self,
+        applied: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        let mut bindings = Vec::new();
+        for applied in applied {
+            if !self.is_lifetime_parameter(applied.parameter)? {
+                continue;
+            }
+            let argument = self.shallow_resolve(applied.argument)?;
+            bindings.push(dir::GenericArgumentBinding::new(
+                applied.parameter,
+                argument,
+            ));
+        }
+
+        Ok(bindings)
     }
 
     /// Return one parameter's written argument rank.
@@ -1342,12 +1309,12 @@ impl CheckState<'_> {
         parameter: GenericParameterId,
     ) -> CompilerResult<(usize, Option<GenericTemplateId>, usize)> {
         // read the parameter's position in the template that declares it
-        let Some(declared) = self.generic_parameter(parameter) else {
+        let Some(declared) = self.generic_parameter(parameter)? else {
             return Ok((usize::MAX, None, usize::MAX));
         };
         let template = declared.template.into_global(parameter.module_id);
         let position = self
-            .generic_template(template)
+            .generic_template(template)?
             .map(|template| {
                 template
                     .parameters

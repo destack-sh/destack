@@ -71,7 +71,7 @@ impl CheckState<'_> {
                     // walk a method that inference reaches before its own walk
                     if let Some(symbol) =
                         self.module(module).declaration_symbol(property.into_any())
-                        && self.symbol_type_maybe(symbol).is_none()
+                        && self.symbol_type_maybe(symbol)?.is_none()
                     {
                         let (parsed, expanded) = self.patched_inputs(module);
                         let tree = dir::View::with_patches(

@@ -75,6 +75,8 @@ struct Err<E> {
 newtype Outcome<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
+/// @generic.instance id=Err<E#2> template=Err arguments=(E#2)
+/// @generic.instance id=Ok<T#2> template=Ok arguments=(T#2)
 /// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2> constructors=[<T#2, E#2>(Ok<T#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Err<E#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Ok<T#2> | Err<E#2>) => Outcome<T#2, E#2>]
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
@@ -86,6 +88,9 @@ newtype Outcome<T, E> = Ok<T> | Err<E>;
 function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 /// @generic.template symbol=unwrapOr parameters=(T#3, E#3)
 /// @type.symbol symbol=unwrapOr type=<T#3, E#3>(Outcome<T#3, E#3>, T#3) => T#3
+/// @generic.instance id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3)
+/// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
+/// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 /// @type.symbol symbol=unwrapOr.T source=T type=T#3
 /// @type.symbol symbol=unwrapOr.E source=E type=E#3
 /// @type.symbol symbol=unwrapOr.outcome source="outcome: Outcome<T, E>" type=Outcome<T#3, E#3>
@@ -101,7 +106,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrapOr.outcome
-    /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=outcome placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=outcome root=unwrapOr.outcome
 
         Ok { value } => value
@@ -121,7 +126,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
         /// @type.symbol symbol=unwrapOr.error source=error type=E#3
         /// @type.node source=fallback type=T#3
         /// @resolution.name source=fallback target=unwrapOr.fallback
-        /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=fallback placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=fallback root=unwrapOr.fallback
 
     }
@@ -227,7 +232,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
     /// @resolution.coverage exhaustive=false disjoint=true
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrap.outcome
-    /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=outcome placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=outcome root=unwrap.outcome
 
         Ok { value } => value
@@ -285,7 +290,7 @@ function finish(value: (int32, boolean)): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=value target=finish.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=finish.value
 
         (left, true) => left
@@ -349,7 +354,7 @@ function finish(value: (int32, boolean)): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=false disjoint=false
     /// @resolution.name source=value target=finish.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=finish.value
 
         (left, true) => left
@@ -415,7 +420,7 @@ function pick(value: ((int32, boolean), string)): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=value target=pick.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=pick.value
 
         ((left, true), first) => left
@@ -485,7 +490,7 @@ function label(value: (int32, "on" | "off")): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=value target=label.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=label.value
 
         (first, "on") => first
@@ -547,7 +552,7 @@ function pick(value: ((int32, boolean), string)): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=false disjoint=true
     /// @resolution.name source=value target=pick.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=pick.value
 
         ((left, true), first) => left

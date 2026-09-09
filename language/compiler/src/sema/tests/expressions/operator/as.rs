@@ -21,6 +21,7 @@ const value = 1 as int32;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="1 as int32" type=int32
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int32 }] origin=explicit
 "#,
     );
 }

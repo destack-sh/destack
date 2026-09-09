@@ -61,7 +61,7 @@ const count = pair.count();
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=pair target=pair
 /// @resolution.member source=pair.count receiver=(int32, string) type=<count#1.'a>(this: &count#1.'a readonly (int32, string)) => int32 kind=symbol target_receiver=(int32, string) target=count#1
-/// @resolution.call source=pair.count() parameters=() return=int32 kind=symbol target=count#1 receiver=(int32, string) adjustments=(borrow(&'static readonly constant (int32, string)))
+/// @resolution.call source=pair.count() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=count#1 receiver=(int32, string) adjustments=(borrow(&'static readonly constant (int32, string)))
 /// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
 "#,
@@ -148,7 +148,7 @@ const swapped = pair.swap();
 /// @resolution.pattern source=swapped kind=binding target=swapped
 /// @resolution.name source=pair target=pair
 /// @resolution.member source=pair.swap receiver=(int32, boolean) type=<swap.'a>(this: &swap.'a readonly (int32, boolean)) => (boolean, int32) kind=symbol target_receiver=(int32, boolean) target=swap
-/// @resolution.call source=pair.swap() parameters=() return=(boolean, int32) kind=symbol target=swap receiver=(int32, boolean) adjustments=(borrow(&'static readonly constant (int32, boolean))) instance="(First, Second).<extension#1>.swap"
+/// @resolution.call source=pair.swap() parameters=() return=(boolean, int32) regions=("static" & "constant") kind=symbol target=swap receiver=(int32, boolean) adjustments=(borrow(&'static readonly constant (int32, boolean))) instance="(First, Second).<extension#1>.swap"
 /// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=pair root=pair
 /// @generic.instantiation id="swap<int32, boolean>" template=swap arguments=(int32, boolean)
@@ -235,7 +235,7 @@ const first = same.head();
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=same target=same
 /// @resolution.member source=same.head receiver=(int32, int32) type=<head.'a>(this: &head.'a readonly (int32, int32)) => int32 kind=symbol target_receiver=(int32, int32) target=head
-/// @resolution.call source=same.head() parameters=() return=int32 kind=symbol target=head receiver=(int32, int32) adjustments=(borrow(&'static readonly constant (int32, int32))) instance="(T, T).<extension#1>.head"
+/// @resolution.call source=same.head() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=head receiver=(int32, int32) adjustments=(borrow(&'static readonly constant (int32, int32))) instance="(T, T).<extension#1>.head"
 /// @resolution.place source=same placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=same root=same
 /// @generic.instantiation id=head<int32> template=head arguments=(int32)
@@ -303,7 +303,7 @@ extension of [int32; 3] {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this[0] placement=head#1.'a lifetime=head#1.'a access="readonly"
         /// @resolution.access source=this[0] root=this keys=[0]
-        /// @resolution.subscript source=this[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&head#1.'a int32, \"readonly\">)"
+        /// @resolution.subscript source=this[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&head#1.'a int32, \"readonly\">, regions=(head#1.'a))"
         /// @generic.instantiation id="index#1<int32, 3, \"readonly\">" template=index#1 arguments=(int32, 3, "readonly")
 
     }
@@ -318,7 +318,7 @@ const head = triple.head();
 /// @resolution.pattern source=head kind=binding target=head
 /// @resolution.name source=triple target=triple
 /// @resolution.member source=triple.head receiver=FixedArray<int32, 3> type=<head#1.'a>(this: &head#1.'a readonly FixedArray<int32, 3>) => int32 kind=symbol target_receiver=FixedArray<int32, 3> target=head#1
-/// @resolution.call source=triple.head() parameters=() return=int32 kind=symbol target=head#1 receiver=FixedArray<int32, 3> adjustments=(borrow(&'static readonly constant FixedArray<int32, 3>))
+/// @resolution.call source=triple.head() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=head#1 receiver=FixedArray<int32, 3> adjustments=(borrow(&'static readonly constant FixedArray<int32, 3>))
 /// @resolution.place source=triple placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=triple root=triple
 "#,
@@ -368,10 +368,10 @@ extension of [int32] {
     /// @type.symbol symbol=hasNone.this type=Slice<int32>
 
         return this.length == 0;
-        /// @resolution.member source=this.length receiver=Slice<int32> type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+        /// @resolution.member source=this.length receiver=Slice<int32> type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"frame\" & \"local\"))"
         /// @resolution.operator source="this.length == 0" type=boolean operator="==" kind=builtin operands=[this.length as isize families=(integer), 0 as isize families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Slice<int32>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=length<int32> template=length arguments=(int32)
 
@@ -452,7 +452,7 @@ const arity = increment.arity();
 /// @resolution.name source=increment target=increment
 /// @resolution.member source=increment.arity receiver=Function<(int32,), int32> type=(this: Function<(int32,), int32>) => int32 kind=symbol target_receiver=Function<(int32,), int32> target=arity#1
 /// @resolution.call source=increment.arity() parameters=() return=int32 kind=symbol target=arity#1 receiver=Function<(int32,), int32>
-/// @resolution.place source=increment placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=increment placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=increment root=increment
 "#,
         r#"
@@ -554,8 +554,9 @@ extension of Named & Aged {
 
 === dir ===
 interface Named {
+/// @generic.template symbol=Named parameters=(this: Named)
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named
+/// @definition.interface symbol=Named template=(this: Named)
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
@@ -564,8 +565,9 @@ interface Named {
 
 }
 interface Aged {
+/// @generic.template symbol=Aged parameters=(this: Aged)
 /// @type.symbol symbol=Aged type=Aged
-/// @definition.interface symbol=Aged
+/// @definition.interface symbol=Aged template=(this: Aged)
 /// @definition.where symbol=Aged relation=satisfies left=this right=Aged
 /// @definition.field symbol=Aged.age source="age: int32" key=age type=int32
 
@@ -706,14 +708,14 @@ type Account = User;
 /// @resolution.name source=User target=User
 
 extension of Account {
-/// @definition.extension symbol=<module>#2 form=local target=User
+/// @definition.extension symbol=<module>#2 form=local target=Account
 /// @definition.method symbol=label slot=label type=<label.'a>(this: &label.'a readonly this) => string
 /// @resolution.name source=Account target=Account
 
     label(): string {
     /// @generic.template symbol=label parameters=('a)
     /// @type.symbol symbol=label type=<label.'a>(this: &label.'a readonly this) => string
-    /// @type.symbol symbol=label.this type=&label.'a readonly User
+    /// @type.symbol symbol=label.this type=&label.'a readonly Account
 
         return "account";
     }
@@ -808,8 +810,9 @@ extension of User where int32: Show {
 
 === dir ===
 newtype interface Show {
+/// @generic.template symbol=Show parameters=(this: Show)
 /// @type.symbol symbol=Show type=Show
-/// @definition.interface symbol=Show nominal=true
+/// @definition.interface symbol=Show template=(this: Show) nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.method symbol=Show.show source="show(this): string" slot=show type=(this: this) => string
 

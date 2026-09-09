@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::sema::{CheckState, Origin, VariableKind};
-use crate::{CompilerError, CompilerResult};
 
 /// Scalar interpretation requested from one type.
 #[derive(Clone, Copy)]
@@ -49,53 +49,6 @@ impl CheckState<'_> {
         self.type_scalar_families(origin, ty, ScalarUse::Builtin, &mut parameters)
     }
 
-    /// Return whether one literal is representable by a builtin scalar operand.
-    pub(in crate::sema) fn is_builtin_scalar_representable(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let dir::Type::Literal(literal) = self.ty(source)? else {
-            return Err(CompilerError::Internal {
-                message: format!("builtin scalar operand {source:?} is not a literal"),
-            });
-        };
-        let Some(families) = self.builtin_scalar_families(origin, target)? else {
-            return Ok(false);
-        };
-        let mut formats = SmallVec::new();
-        let mut parameters = SmallVec::new();
-        self.collect_builtin_scalar_formats(
-            origin,
-            target,
-            &families,
-            &mut parameters,
-            &mut formats,
-        )?;
-
-        // require representability in every exact format each family names
-        for family in families.iter().copied() {
-            let dir::ScalarFamily::Domain(domain) = family else {
-                return Ok(false);
-            };
-            let mut family_formats = formats
-                .iter()
-                .copied()
-                .filter(|format| format.scalar_domain() == domain)
-                .peekable();
-            if family_formats.peek().is_some() {
-                if !family_formats.all(|format| literal.widens_to_primitive(format)) {
-                    return Ok(false);
-                }
-            } else if !literal.widens_to_domain(domain) {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
     /// Return the scalar families admitted for one requested use.
     fn type_scalar_families(
         &mut self,
@@ -134,6 +87,13 @@ impl CheckState<'_> {
                 parameters.pop();
 
                 families?
+            }
+
+            // read an alias through the value it names
+            dir::Type::Application(instance)
+                if let Some(value) = self.type_alias_body(origin, root.module_id, &instance)? =>
+            {
+                self.type_scalar_families(origin, value, use_, parameters)?
             }
 
             // classify the remaining leaf for the requested behavior
@@ -248,7 +208,7 @@ impl CheckState<'_> {
             let symbol = match self.ty(owner)? {
                 dir::Type::Application(instance)
                     if matches!(
-                        self.definition(instance.symbol)?,
+                        self.definition(instance.symbol)?.as_deref(),
                         Some(dir::Definition::Enum(_))
                     ) =>
                 {
@@ -261,7 +221,7 @@ impl CheckState<'_> {
         }
         if let dir::Type::Application(instance) = ty
             && matches!(
-                self.definition(instance.symbol)?,
+                self.definition(instance.symbol)?.as_deref(),
                 Some(dir::Definition::Enum(_))
             )
         {

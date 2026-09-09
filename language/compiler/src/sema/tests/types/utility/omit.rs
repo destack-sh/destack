@@ -28,15 +28,16 @@ interface Person {
     active: boolean;
 }
 
-declare const person: { name: string; active: boolean };
+declare const person: Omit<Person, "age">;
 
 person.name satisfies string;
 person.active satisfies boolean;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.active source="active: boolean" key=active type=boolean
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
@@ -54,25 +55,25 @@ interface Person {
 }
 
 declare const person: Omit<Person, "age">;
-/// @type.symbol symbol=person source=person type={ name: string; active: boolean }
+/// @type.symbol symbol=person source=person type=Omit<Person, "age">
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string; active: boolean } type=string kind=field target_receiver={ name: string; active: boolean } key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.name receiver=Omit<Person, "age"> type=string kind=field target_receiver=Omit<Person, "age"> key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
 
 person.active satisfies boolean;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.active receiver={ name: string; active: boolean } type=boolean kind=field target_receiver={ name: string; active: boolean } key=active target_type=boolean
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.active receiver=Omit<Person, "age"> type=boolean kind=field target_receiver=Omit<Person, "age"> key=active target_type=boolean
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.active placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.active placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.active root=person keys=[active]
 "#,
     );
@@ -104,13 +105,14 @@ interface Person {
     active: boolean;
 }
 
-declare const person: { name: string; active: boolean };
+declare const person: Omit<Person, "age">;
 const age = person.age;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.active source="active: boolean" key=active type=boolean
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
@@ -128,7 +130,7 @@ interface Person {
 }
 
 declare const person: Omit<Person, "age">;
-/// @type.symbol symbol=person source=person type={ name: string; active: boolean }
+/// @type.symbol symbol=person source=person type=Omit<Person, "age">
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
@@ -137,12 +139,12 @@ const age = person.age;
 /// @type.symbol symbol=age source=age type=<error>
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.age
 "#,
         r#"
-/// @diagnostic.error id=missing-member message="member 'age' does not exist on type '{ name: string; active: boolean }'"
+/// @diagnostic.error id=missing-member message="member 'age' does not exist on type 'Omit<Person, \"age\">'"
 /// @diagnostic.label line=9 column=20 span="age" line_source="const age = person.age;"
 "#,
     );
@@ -176,13 +178,14 @@ interface Person {
 
 type WithoutAge = Omit<Person, "age">;
 
-const person: { name: string } = { name: "Ada" };
+const person: WithoutAge = { name: "Ada" };
 person satisfies WithoutAge;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -196,19 +199,19 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "age">;
-/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
-/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value={ name: string }
+/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type=Omit<Person, "age">
+/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value=Omit<Person, "age">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAge = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ name: string }
+/// @type.symbol symbol=person source=person type=WithoutAge
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAge target=WithoutAge
 
 person satisfies WithoutAge;
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
 /// @resolution.name source=WithoutAge target=WithoutAge
 "#,
@@ -242,12 +245,13 @@ interface Person {
 
 type WithoutAge = Omit<Person, "age">;
 
-const person: { name: string } = { name: "Ada", age: 42 };
+const person: WithoutAge = { name: "Ada", age: 42 };
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -261,18 +265,18 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "age">;
-/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
-/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value={ name: string }
+/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type=Omit<Person, "age">
+/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value=Omit<Person, "age">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAge = { name: "Ada", age: 42 };
-/// @type.symbol symbol=person source=person type={ name: string }
+/// @type.symbol symbol=person source=person type=WithoutAge
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAge target=WithoutAge
 "#,
         r#"
-/// @diagnostic.error id=excess-property message="unknown property 'age' in object literal for type '{ name: string }'"
+/// @diagnostic.error id=excess-property message="unknown property 'age' in object literal for type 'WithoutAge'"
 /// @diagnostic.label line=9 column=28 span="{ name: \"Ada\", age: 42 }" line_source="const person: WithoutAge = { name: \"Ada\", age: 42 };"
 /// @diagnostic.related line=9 column=15 span="WithoutAge" line_source="const person: WithoutAge = { name: \"Ada\", age: 42 };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
@@ -307,12 +311,13 @@ interface Person {
 
 type WithoutAll = Omit<Person, "name" | "age">;
 
-const person: {} = {};
+const person: WithoutAll = {};
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -326,13 +331,13 @@ interface Person {
 }
 
 type WithoutAll = Omit<Person, "name" | "age">;
-/// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type={}
-/// @definition.type symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" value={}
+/// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type=Omit<Person, "name" | "age">
+/// @definition.type symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" value=Omit<Person, "name" | "age">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAll = {};
-/// @type.symbol symbol=person source=person type={}
+/// @type.symbol symbol=person source=person type=WithoutAll
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=WithoutAll target=WithoutAll
 "#,
@@ -367,13 +372,14 @@ interface Person {
 
 type Same = Omit<Person, "missing">;
 
-const person: { name: string; age: int32 } = { name: "Ada", age: 42 };
+const person: Same = { name: "Ada", age: 42 };
 person satisfies Person;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -387,19 +393,19 @@ interface Person {
 }
 
 type Same = Omit<Person, "missing">;
-/// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type={ name: string; age: int32 }
-/// @definition.type symbol=Same source="type Same = Omit<Person, \"missing\">" value={ name: string; age: int32 }
+/// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type=Omit<Person, "missing">
+/// @definition.type symbol=Same source="type Same = Omit<Person, \"missing\">" value=Omit<Person, "missing">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: Same = { name: "Ada", age: 42 };
-/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type=Same
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Same target=Same
 
 person satisfies Person;
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
 /// @resolution.name source=Person target=Person
 "#,
@@ -434,13 +440,14 @@ interface Person {
 
 type NameOnly = Omit<Person, "age">;
 
-const person: { readonly name: string } = { name: "Ada" };
+const person: NameOnly = { name: "Ada" };
 person.name = "Grace";
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="readonly name: string" key=name type=string
@@ -454,19 +461,19 @@ interface Person {
 }
 
 type NameOnly = Omit<Person, "age">;
-/// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type={ readonly name: string }
-/// @definition.type symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" value={ readonly name: string }
+/// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type=Omit<Person, "age">
+/// @definition.type symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" value=Omit<Person, "age">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
 
 const person: NameOnly = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ readonly name: string }
+/// @type.symbol symbol=person source=person type=NameOnly
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=NameOnly target=NameOnly
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
 "#,

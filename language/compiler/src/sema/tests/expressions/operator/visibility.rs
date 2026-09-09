@@ -54,7 +54,7 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=force.multiply receiver=force.Force adjustments=(borrow(&'static readonly constant force.Force))
+/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force regions=("static" & "constant") kind=symbol target=force.multiply receiver=force.Force adjustments=(borrow(&'static readonly constant force.Force))
 /// @resolution.place source=force placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=force root=force
 "#,
@@ -164,7 +164,7 @@ extension of Force implements Multiply<float64> {
         /// @resolution.place source=this.value placement=multiply.'a lifetime=multiply.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=multiply.other
-        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=other root=multiply.other
 
     }
@@ -180,7 +180,7 @@ export const doubled: Force = inside * 2.0;
 /// @resolution.pattern source=doubled kind=binding target=doubled
 /// @resolution.name source=Force target=Force
 /// @resolution.name source=inside target=inside
-/// @resolution.operator source="inside * 2.0" type=Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force kind=symbol target=multiply receiver=Force adjustments=(borrow(&'static readonly constant Force))
+/// @resolution.operator source="inside * 2.0" type=Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force regions=("static" & "constant") kind=symbol target=multiply receiver=Force adjustments=(borrow(&'static readonly constant Force))
 /// @resolution.place source=inside placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=inside root=inside
 "#,
@@ -301,12 +301,12 @@ extension of Force implements Multiply<float64> {
         /// @resolution.member source=this.value receiver=force.Force type=float64 kind=field target_receiver=force.Force key=value target=force.Force.value target_type=float64
         /// @resolution.operator source="this.value * other" type=float64 operator="*" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=force.Force
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=multiply.other
-        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=other root=multiply.other
 
     }

@@ -34,9 +34,9 @@ struct User {}
 
 === dir ===
 interface Holder<'a, T: View<'a>> {
-/// @generic.template symbol=Holder parameters=('a#1, in out T: View<'a#1>)
+/// @generic.template symbol=Holder parameters=('a#1, in out T: View<'a#1>, this: Holder<'a#1, T>)
 /// @type.symbol symbol=Holder type=Holder
-/// @definition.interface symbol=Holder template=('a#1, in out T: View<'a#1>)
+/// @definition.interface symbol=Holder template=('a#1, in out T: View<'a#1>, this: Holder<'a#1, T>)
 /// @definition.where symbol=Holder relation=satisfies left=this right=Holder<'a#1, T>
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @type.symbol symbol=Holder.'a source='a type='a#1
@@ -221,9 +221,9 @@ export interface Box<in out T> {
 
 === dir ===
 export interface Box<T> {
-/// @generic.template symbol=Box parameters=(in out T)
+/// @generic.template symbol=Box parameters=(in out T, this: Box<T>)
 /// @type.symbol symbol=Box type=Box
-/// @definition.interface symbol=Box template=(in out T)
+/// @definition.interface symbol=Box template=(in out T, this: Box<T>)
 /// @definition.where symbol=Box relation=satisfies left=this right=Box<T>
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
@@ -247,6 +247,7 @@ import { Box } from "./lib.ds";
 type Wrapped<T> = Box<T>;
 /// @generic.template symbol=Wrapped parameters=(T)
 /// @type.symbol symbol=Wrapped source="type Wrapped<T> = Box<T>" type=lib.Box<T>
+/// @generic.instance id=lib.Box<T> template=lib.Box arguments=(T)
 /// @definition.type symbol=Wrapped source="type Wrapped<T> = Box<T>" template=(T) value=lib.Box<T>
 /// @type.symbol symbol=Wrapped.T source=T type=T
 /// @resolution.name source=Box target=lib.Box
@@ -294,9 +295,10 @@ export newtype interface Equal<in T = this> extends PartialEqual<T> {}
 
 === dir ===
 export newtype interface PartialEqual<T = this> {
-/// @generic.template symbol=PartialEqual parameters=(in T#1 = this)
+/// @generic.template symbol=PartialEqual parameters=(in T#1 = this, this: PartialEqual<T#1>)
 /// @type.symbol symbol=PartialEqual type=PartialEqual
-/// @definition.interface symbol=PartialEqual template=(in T#1 = this) nominal=true
+/// @generic.instance id=PartialEqual<this> template=PartialEqual arguments=(this)
+/// @definition.interface symbol=PartialEqual template=(in T#1 = this, this: PartialEqual<T#1>) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
 /// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: this, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
@@ -309,9 +311,11 @@ export newtype interface PartialEqual<T = this> {
 }
 
 export newtype interface Equal<T = this> extends PartialEqual<T> {}
-/// @generic.template symbol=Equal parameters=(in T#2 = this)
+/// @generic.template symbol=Equal parameters=(in T#2 = this, this: Equal<T#2>)
 /// @type.symbol symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" type=Equal
-/// @definition.interface symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(in T#2 = this) nominal=true
+/// @generic.instance id=Equal<this> template=Equal arguments=(this)
+/// @generic.instance id=PartialEqual<T#2> template=PartialEqual arguments=(T#2)
+/// @definition.interface symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(in T#2 = this, this: Equal<T#2>) nominal=true
 /// @definition.where symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" relation=satisfies left=this right=Equal<T#2>
 /// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual<T#2>
 /// @type.symbol symbol=Equal.T source="T = this" type=T#2
@@ -331,7 +335,6 @@ import { Equal } from "./ops.ds";
 type Used = Equal<string>;
 /// @type.symbol symbol=Used source="type Used = Equal<string>" type=ops.Equal<string>
 /// @generic.instance id=ops.Equal<string> template=ops.Equal arguments=(string)
-/// @generic.instance id=ops.PartialEqual<string> template=ops.PartialEqual arguments=(string)
 /// @definition.type symbol=Used source="type Used = Equal<string>" value=ops.Equal<string>
 /// @resolution.name source=Equal target=ops.Equal
 "#,
@@ -384,7 +387,7 @@ export function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -463,7 +466,7 @@ export function identity<T>(value: T) {
 
     return value;
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -533,9 +536,9 @@ const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
 interface Iter<T, in out R = unknown> {
-/// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
+/// @generic.template symbol=Iter parameters=(out T, in out R = unknown, this: Iter<T, R>)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(out T, in out R = unknown)
+/// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
@@ -606,9 +609,9 @@ export newtype interface Iter<out T, in out R = unknown> {
 
 === dir ===
 export newtype interface Iter<T, in out R = unknown> {
-/// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
+/// @generic.template symbol=Iter parameters=(out T, in out R = unknown, this: Iter<T, R>)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(out T, in out R = unknown) nominal=true
+/// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>) nominal=true
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
 /// @type.symbol symbol=Iter.T source=T type=T
@@ -706,8 +709,9 @@ const value: boolean = probe(todo("iter" as string | undefined));
 import { Iter } from "./b.ds";
 
 export interface Marker {
+/// @generic.template symbol=Marker parameters=(this: Marker)
 /// @type.symbol symbol=Marker type=Marker
-/// @definition.interface symbol=Marker
+/// @definition.interface symbol=Marker template=(this: Marker)
 /// @definition.where symbol=Marker relation=satisfies left=this right=Marker
 /// @definition.field symbol=Marker.marked source="marked: boolean" key=marked type=boolean
 
@@ -744,9 +748,9 @@ export interface Iter<out T, in out R = unknown> {
 import { Marker } from "./a.ds";
 
 export interface Iter<T, in out R = unknown> {
-/// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
+/// @generic.template symbol=Iter parameters=(out T, in out R = unknown, this: Iter<T, R>)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(out T, in out R = unknown)
+/// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: this) => a.Marker
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
@@ -826,7 +830,7 @@ function unwrap(wrapped: Wrap<int64>): int64 {
     match (wrapped) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=wrapped target=unwrap.wrapped
-    /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=wrapped placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=wrapped root=unwrap.wrapped
 
         Wrap { value } => value
@@ -974,9 +978,9 @@ declare let scenario: Scenario;
 scenario.trigger satisfies Trigger;
 /// @resolution.name source=scenario target=scenario
 /// @resolution.member source=scenario.trigger receiver=Scenario type=trigger.Trigger kind=field target_receiver=Scenario key=trigger target=Scenario.trigger target_type=trigger.Trigger
-/// @resolution.place source=scenario placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=scenario placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=scenario root=scenario
-/// @resolution.place source=scenario.trigger placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=scenario.trigger placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=scenario.trigger root=scenario keys=[trigger]
 /// @resolution.name source=Trigger target=trigger.Trigger
 "#,
@@ -1077,7 +1081,7 @@ const value = boxed.value;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=boxed target=boxed
 /// @resolution.member source=boxed.value receiver=a.Box<a.Marker> type=a.Marker kind=field target_receiver=a.Box<a.Marker> key=value target_type=a.Marker
-/// @resolution.place source=boxed placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=boxed placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=boxed root=boxed
 /// @resolution.access source=boxed.value root=boxed keys=[value]
 "#,

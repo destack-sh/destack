@@ -1,73 +1,57 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed, DirResolved,
-};
+use destack_artifact::{DirResolved, DirView};
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use rustc_hash::FxHashMap;
+use elsa::FrozenMap;
 use smallvec::SmallVec;
 
-use super::{CheckState, Pass};
+use super::CheckState;
 use crate::{CompilerError, CompilerResult};
 
-/// Committed tables loaded for one external module.
-pub(in crate::sema) struct CheckExternalModuleState {
-    /// The parsed module tree.
-    pub(in crate::sema) parsed: Arc<DirParsed>,
-    /// The resolved external module holding the import alias targets.
-    pub(in crate::sema) resolved: Arc<DirResolved>,
-    /// The committed binding table.
-    pub(in crate::sema) bindings: dir::BindingTable<'static>,
-    /// The committed type table.
-    pub(in crate::sema) types: dir::TypeTable<'static>,
-    /// The committed static table.
-    pub(in crate::sema) statics: dir::StaticTable<'static>,
-    /// The committed generic table.
-    pub(in crate::sema) generics: dir::GenericTable<'static>,
-    /// The committed decision table, populated while materializing.
-    pub(in crate::sema) decisions: dir::DecisionTable<'static>,
-    /// The committed coercion table, populated while materializing.
-    pub(in crate::sema) coercions: dir::CoercionTable<'static>,
-    /// The committed definition table.
-    pub(in crate::sema) definitions: dir::DefinitionTable<'static>,
-    /// The committed member table, elaborated while checking.
-    pub(in crate::sema) members: dir::MemberTable<'static>,
-    /// The modules the loaded entries mention, empty while elaborating.
-    pub(in crate::sema) references: Vec<ModuleId>,
-}
-
-/// External module states keyed by module id.
-#[derive(Default)]
+/// External modules keyed by module id, read on first use through shared references.
 pub(in crate::sema) struct ExternalModuleTable {
-    /// One state per loaded external module.
-    slots: FxHashMap<ModuleId, CheckExternalModuleState>,
+    /// One read external module per id.
+    slots: FrozenMap<ModuleId, Box<DirView>>,
 }
 
 impl ExternalModuleTable {
-    /// Return one loaded external module state.
-    pub(in crate::sema) fn get(&self, module: &ModuleId) -> Option<&CheckExternalModuleState> {
-        self.slots.get(module)
-    }
-
-    /// Return whether one external module is loaded.
-    pub(in crate::sema) fn contains_key(&self, module: &ModuleId) -> bool {
-        self.slots.contains_key(module)
-    }
-
-    /// Store one loaded external module state.
-    pub(in crate::sema) fn insert(&mut self, module: ModuleId, state: CheckExternalModuleState) {
-        self.slots.insert(module, state);
+    /// Return one external module already read by this pass.
+    pub(in crate::sema) fn read(&self, module: ModuleId) -> Option<&DirView> {
+        self.slots.get(&module)
     }
 }
 
-impl CheckState<'_> {
-    /// Return loaded state for one external module.
-    pub(in crate::sema) fn external_module(&self, module: ModuleId) -> &CheckExternalModuleState {
-        self.external_modules
-            .get(&module)
-            .unwrap_or_else(|| panic!("external module {module:?} was not loaded"))
+impl Default for ExternalModuleTable {
+    fn default() -> Self {
+        Self {
+            slots: FrozenMap::new(),
+        }
+    }
+}
+
+impl<'a> CheckState<'a> {
+    /// Return one external module's stages at this pass.
+    pub(in crate::sema) fn external(
+        &self,
+        module: ModuleId,
+    ) -> CompilerResult<Option<&'a DirView>> {
+        if self.is_declaring() || self.is_own_module(module) {
+            return Ok(None);
+        }
+        if let Some(view) = self.external_modules.slots.get(&module) {
+            return Ok(Some(view));
+        }
+
+        // read the stages this pass reaches, a blocked stage yielding to the engine
+        let view = self
+            .pass
+            .read_stages(self.artifacts, (module, self.profile))?;
+
+        Ok(Some(
+            self.external_modules.slots.insert(module, Box::new(view)),
+        ))
     }
 
     /// Read one external module's resolved import targets.
@@ -75,8 +59,10 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<Arc<DirResolved>> {
-        if let Some(state) = self.external_modules.get(&module) {
-            return Ok(Arc::clone(&state.resolved));
+        if let Some(external) = self.external_modules.slots.get(&module)
+            && let Some(resolved) = &external.resolved
+        {
+            return Ok(Arc::clone(resolved));
         }
         if let Some(resolved) = self.external_resolutions.get(&module) {
             return Ok(Arc::clone(resolved));
@@ -116,25 +102,6 @@ impl CheckState<'_> {
             .collect::<SmallVec<[_; 4]>>();
 
         Ok(symbols)
-    }
-
-    /// Import and return state for one external module while checking.
-    pub(in crate::sema) fn import_external_module(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<Option<&CheckExternalModuleState>> {
-        // skip external reads while declaring
-        if self.is_declaring() {
-            return Ok(None);
-        }
-
-        // load each external module once
-        if !self.external_modules.contains_key(&module) {
-            let external = self.import_external_module_state(module)?;
-            self.external_modules.insert(module, external);
-        }
-
-        Ok(Some(self.external_module(module)))
     }
 
     /// Settle one symbol through import alias chains.
@@ -197,7 +164,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         // read the binder's kind and key before releasing the table
-        let table = self.binding_table(symbol.module_id);
+        let table = self.binding_table(symbol.module_id)?;
         let binding = table.get_symbol(symbol.local_id);
         let kind = binding.kind;
         let key = binding.key;
@@ -238,10 +205,7 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Import external modules and store the direct imports' visibility.
-    ///
-    /// Elaborated member bindings embed types from their module's own
-    /// imports, so the load walks the import closure to a fixpoint.
+    /// Record which modules the checked module's direct imports make visible.
     pub(in crate::sema) fn import_external_modules(&mut self) -> CompilerResult<()> {
         // store the direct imports' visibility in every pass
         let module = self.module_id;
@@ -249,47 +213,6 @@ impl CheckState<'_> {
         self.module_mut(module)
             .external_modules
             .extend(visible.iter().copied());
-
-        // skip external reads while declaring
-        if self.is_declaring() {
-            return Ok(());
-        }
-
-        // seed with every module the own stage rows mention
-        let mut visible = visible;
-        if self.pass == Pass::Materialize {
-            let state = self.module(module);
-            let mentions = [
-                state.declared.as_ref().map(|stage| &stage.references),
-                state.elaborated.as_ref().map(|stage| &stage.references),
-                state.checked.as_ref().map(|stage| &stage.references),
-            ];
-            for stage in mentions.into_iter().flatten() {
-                visible.extend(
-                    stage
-                        .iter()
-                        .copied()
-                        .filter(|mentioned| *mentioned != module),
-                );
-            }
-        }
-
-        // load the modules the loaded tables mention, to a fixpoint
-        let mut queue = visible.iter().copied().collect::<Vec<_>>();
-        for external in &visible {
-            self.import_external_module(*external)?;
-        }
-
-        // follow each loaded module's own references
-        while let Some(loaded) = queue.pop() {
-            for referenced in self.external_module(loaded).references.clone() {
-                if referenced == self.module_id || self.external_modules.contains_key(&referenced) {
-                    continue;
-                }
-                self.import_external_module(referenced)?;
-                queue.push(referenced);
-            }
-        }
 
         Ok(())
     }
@@ -299,177 +222,15 @@ impl CheckState<'_> {
         let mut external_modules = FxIndexSet::default();
         let imports = &self.module(module).resolved.imports;
 
-        // collect resolved target modules outside the checked module
-        for external_module in imports.target_modules() {
+        // collect the modules the imports target and the modules their resolved names live in
+        let targets = imports.target_modules();
+        let homes = imports.symbol_targets().map(|(_, symbol)| symbol.module_id);
+        for external_module in targets.chain(homes) {
             if !self.is_own_module(external_module) {
                 external_modules.insert(external_module);
             }
         }
 
         external_modules
-    }
-
-    /// Import external module state from committed artifacts.
-    fn import_external_module_state(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<CheckExternalModuleState> {
-        // read the stages every pass reaches
-        let bound = self
-            .artifacts
-            .read::<DirBound>((module, self.profile))
-            .map_err(CompilerError::from)?;
-        let expanded = self
-            .artifacts
-            .read::<DirExpanded>((module, self.profile))
-            .map_err(CompilerError::from)?;
-        let resolved = self
-            .artifacts
-            .read::<DirResolved>((module, self.profile))
-            .map_err(CompilerError::from)?;
-
-        // read the parsed tree and the module's declared artifact
-        let parsed = self
-            .artifacts
-            .read::<DirParsed>(module)
-            .map_err(CompilerError::from)?;
-        let declared = self
-            .artifacts
-            .read::<DirDeclared>((module, self.profile))
-            .map_err(CompilerError::from)?;
-
-        // each pass loads external modules up to the stage its reads may reach
-        match self.pass {
-            Pass::Declare | Pass::Elaborate => Ok(Self::declared_external(
-                module, parsed, bound, expanded, resolved, declared,
-            )),
-            Pass::Check => {
-                let elaborated = self
-                    .artifacts
-                    .read::<DirElaborated>((module, self.profile))
-                    .map_err(CompilerError::from)?;
-
-                Ok(Self::elaborated_external(
-                    module, parsed, bound, expanded, resolved, declared, elaborated,
-                ))
-            }
-            Pass::Materialize => {
-                let elaborated = self
-                    .artifacts
-                    .read::<DirElaborated>((module, self.profile))
-                    .map_err(CompilerError::from)?;
-                let checked = self
-                    .artifacts
-                    .read::<DirChecked>((module, self.profile))
-                    .map_err(CompilerError::from)?;
-
-                Ok(Self::checked_external(
-                    parsed, bound, expanded, resolved, declared, elaborated, checked,
-                ))
-            }
-        }
-    }
-
-    /// Build external state over declared faces, for the elaborating passes.
-    fn declared_external(
-        module: ModuleId,
-        parsed: Arc<DirParsed>,
-        bound: Arc<DirBound>,
-        expanded: Arc<DirExpanded>,
-        resolved: Arc<DirResolved>,
-        declared: Arc<DirDeclared>,
-    ) -> CheckExternalModuleState {
-        CheckExternalModuleState {
-            bindings: declared.binding_table(bound.as_ref(), expanded.as_ref()),
-            types: declared.type_table(bound.as_ref(), expanded.as_ref()),
-            statics: declared.static_table(bound.as_ref(), expanded.as_ref()),
-            generics: declared.generic_table(),
-            decisions: Self::empty_decisions(module),
-            coercions: Self::empty_coercions(module),
-            definitions: declared.definition_table(),
-            members: declared.member_table(),
-            references: declared.references.clone(),
-            resolved,
-            parsed,
-        }
-    }
-
-    /// Return an empty decision table for the passes below materialize.
-    fn empty_decisions(module: ModuleId) -> dir::DecisionTable<'static> {
-        dir::DecisionTable::from_segment(Arc::new(dir::DecisionSegment::new(module)))
-    }
-
-    /// Return an empty coercion table for the passes below materialize.
-    fn empty_coercions(module: ModuleId) -> dir::CoercionTable<'static> {
-        dir::CoercionTable::from_segment(Arc::new(dir::CoercionSegment::new(module)))
-    }
-
-    /// Build external state over elaborated faces, for the checking pass.
-    fn elaborated_external(
-        module: ModuleId,
-        parsed: Arc<DirParsed>,
-        bound: Arc<DirBound>,
-        expanded: Arc<DirExpanded>,
-        resolved: Arc<DirResolved>,
-        declared: Arc<DirDeclared>,
-        elaborated: Arc<DirElaborated>,
-    ) -> CheckExternalModuleState {
-        let mut references = declared.references.clone();
-        references.extend(elaborated.references.iter().copied());
-
-        // read the module's declared and elaborated rows
-        CheckExternalModuleState {
-            bindings: elaborated.binding_table(bound.as_ref(), expanded.as_ref(), &declared),
-            types: elaborated.type_table(bound.as_ref(), expanded.as_ref(), &declared),
-            statics: elaborated.static_table(bound.as_ref(), expanded.as_ref(), &declared),
-            generics: elaborated.generic_table(&declared),
-            decisions: Self::empty_decisions(module),
-            coercions: Self::empty_coercions(module),
-            definitions: elaborated.definition_table(&declared),
-            members: elaborated.member_table(&declared),
-            references,
-            resolved,
-            parsed,
-        }
-    }
-
-    /// Build external state over checked bodies, for the materializing pass.
-    fn checked_external(
-        parsed: Arc<DirParsed>,
-        bound: Arc<DirBound>,
-        expanded: Arc<DirExpanded>,
-        resolved: Arc<DirResolved>,
-        declared: Arc<DirDeclared>,
-        elaborated: Arc<DirElaborated>,
-        checked: Arc<DirChecked>,
-    ) -> CheckExternalModuleState {
-        let mut references = declared.references.clone();
-        references.extend(elaborated.references.iter().copied());
-        references.extend(checked.references.iter().copied());
-
-        // read the module's checked rows over its earlier stages
-        CheckExternalModuleState {
-            bindings: checked.binding_table(
-                bound.as_ref(),
-                expanded.as_ref(),
-                &declared,
-                &elaborated,
-            ),
-            types: checked.type_table(bound.as_ref(), expanded.as_ref(), &declared, &elaborated),
-            statics: checked.static_table(
-                bound.as_ref(),
-                expanded.as_ref(),
-                &declared,
-                &elaborated,
-            ),
-            generics: checked.generic_table(&declared, &elaborated),
-            decisions: checked.decision_table(&declared, &elaborated),
-            coercions: checked.coercion_table(),
-            definitions: checked.definition_table(&declared, &elaborated),
-            members: checked.member_table(&declared, &elaborated),
-            references,
-            resolved,
-            parsed,
-        }
     }
 }

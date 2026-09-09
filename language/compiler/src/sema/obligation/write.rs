@@ -1,8 +1,7 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    Cause, CauseKind, CheckState, ObligationCheck, ObligationFailure, Origin, Relation, Verdict,
-    WritableTargetObligation,
+    CheckState, ObligationCheck, ObligationFailure, Origin, WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -40,11 +39,6 @@ pub(in crate::sema) enum WriteMode {
         /// The declaration being initialized.
         owner: dir::GlobalSymbolId,
     },
-    /// The write crosses potentially shared indirection.
-    Indirect {
-        /// The value whose access determines whether the write is exclusive.
-        receiver: dir::GlobalTypeId,
-    },
 }
 
 impl CheckState<'_> {
@@ -62,22 +56,14 @@ impl CheckState<'_> {
             return Ok(check);
         }
 
-        // validate writes that cross potentially shared indirection
-        let check = match target.mode {
-            WriteMode::Direct | WriteMode::Initialize { .. } => ObligationCheck::holds(),
-            WriteMode::Indirect { receiver } => {
-                self.check_indirect_write(origin, target.source, receiver, obligation.ty)?
-            }
-        };
-
         // commit direct mutation below a binding, rebinding counts as its own write
         let mutates_direct_value = target.mode == WriteMode::Direct
             && !matches!(target.write, dir::WriteResolution::Binding { .. });
-        if matches!(check, ObligationCheck::Holds) && mutates_direct_value {
+        if mutates_direct_value {
             self.commit_access_use(target.source, dir::BindingUse::MUTATE);
         }
 
-        Ok(check)
+        Ok(ObligationCheck::holds())
     }
 
     /// Check one write target tree for writable leaves.
@@ -153,7 +139,7 @@ impl CheckState<'_> {
                 if self.is_readonly_receiver_projection(receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
-                        member: target.clone(),
+                        member: Box::new(target.clone()),
                     };
 
                     return Ok(ObligationCheck::fail(failure));
@@ -183,7 +169,7 @@ impl CheckState<'_> {
                 if self.is_readonly_receiver_projection(receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
-                        member: target.clone(),
+                        member: Box::new(target.clone()),
                     };
 
                     return Ok(ObligationCheck::fail(failure));
@@ -227,78 +213,6 @@ impl CheckState<'_> {
         Ok(ObligationCheck::holds())
     }
 
-    /// Check one write across potentially shared indirection.
-    fn check_indirect_write(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalNodeIdAny,
-        receiver: dir::GlobalTypeId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<ObligationCheck> {
-        // accept an exclusive receiver, only the writer sees the overwrite
-        if self.is_exclusive_receiver(receiver)? {
-            return Ok(ObligationCheck::holds());
-        }
-
-        // require a value that overwrites atomically for a shared receiver
-        let ty = self.normalize(origin, ty)?;
-        match self.decide_auto_interface(origin, ty, dir::AutoInterface::OverwriteStable)? {
-            Verdict::Holds => return Ok(ObligationCheck::holds()),
-            // stall the obligation while an open variable leaves the rule undecided
-            Verdict::Ambiguous => {
-                return Ok(ObligationCheck::Ambiguous(
-                    self.collect_open_variables([ty])?,
-                ));
-            }
-            Verdict::Fails => {}
-        }
-
-        // solve an open receiver place as local, which grants exclusivity
-        if let Some(place) = self.form_chain(origin, receiver)?.place() {
-            let place = self.shallow_resolve(place)?;
-            if matches!(self.ty(place)?, dir::Type::Variable(_)) {
-                let local = self.local_place()?;
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.constrain_type(origin, cause, Relation::Equal, place, local)?;
-
-                return Ok(ObligationCheck::holds());
-            }
-        }
-        let failure = ObligationFailure::OverwriteStabilityNotSatisfied { source, ty };
-
-        Ok(ObligationCheck::fail(failure))
-    }
-
-    /// Return whether one receiver grants exclusive access.
-    fn is_exclusive_receiver(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<bool> {
-        // read the access a borrowed receiver carries
-        let access = match self.ty(receiver)? {
-            dir::Type::Variable(variable) => {
-                return Err(CompilerError::Internal {
-                    message: format!("open variable {variable:?} reached a write obligation"),
-                });
-            }
-            dir::Type::Form(form) => match form.form {
-                dir::Form::Borrowed(borrow) => {
-                    Some(self.type_borrow(receiver.module_id, borrow)?.access)
-                }
-                dir::Form::Managed { .. }
-                | dir::Form::Owned
-                | dir::Form::Readonly
-                | dir::Form::Raw => None,
-            },
-            _ => None,
-        };
-        let Some(access) = access else {
-            return Ok(false);
-        };
-
-        // report whether the borrow grants exclusive access
-        let is_exclusive = self.access_of(access)? == Some(dir::Access::Exclusive);
-
-        Ok(is_exclusive)
-    }
-
     /// Check one binding write.
     fn check_writable_binding(
         &mut self,
@@ -330,12 +244,9 @@ impl CheckState<'_> {
         }
 
         // reject writes to immutable bindings
-        let is_mutable = local_symbol.binding_mutability.is_some_and(|mutability| {
-            matches!(
-                mutability,
-                dir::Mutability::Mutable | dir::Mutability::Exclusive
-            )
-        });
+        let is_mutable = local_symbol
+            .binding_mutability
+            .is_some_and(|mutability| matches!(mutability, dir::Mutability::Mutable));
         if !is_mutable {
             let failure = ObligationFailure::CannotAssignImmutableBinding { source, symbol };
 
@@ -404,7 +315,7 @@ impl CheckState<'_> {
             Ok(ObligationCheck::fail(
                 ObligationFailure::CannotAssignReadonlyMember {
                     source,
-                    member: dir::MemberTarget::Field(field.clone()),
+                    member: Box::new(dir::MemberTarget::Field(field.clone())),
                 },
             ))
         }
@@ -423,7 +334,7 @@ impl CheckState<'_> {
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
         // read the declaration that owns the written field
-        let bindings = self.binding_table(symbol.module_id);
+        let bindings = self.binding_table(symbol.module_id)?;
         let owner = bindings
             .symbol_path(symbol.local_id)
             .owner()
@@ -452,7 +363,7 @@ impl CheckState<'_> {
             Ok(ObligationCheck::fail(
                 ObligationFailure::CannotAssignReadonlyMember {
                     source,
-                    member: dir::MemberTarget::Field(field.clone()),
+                    member: Box::new(dir::MemberTarget::Field(field.clone())),
                 },
             ))
         }
@@ -511,7 +422,7 @@ impl CheckState<'_> {
         if is_readonly {
             let failure = ObligationFailure::CannotAssignReadonlyMember {
                 source,
-                member: dir::MemberTarget::Index(index.clone()),
+                member: Box::new(dir::MemberTarget::Index(index.clone())),
             };
 
             return Ok(ObligationCheck::fail(failure));

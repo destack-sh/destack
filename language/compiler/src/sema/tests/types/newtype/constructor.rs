@@ -338,6 +338,7 @@ newtype Result<T, E> = T | E;
 function from<T, E>(value: E): Result<T, E> {
 /// @generic.template symbol=from parameters=(T#2, E#2)
 /// @type.symbol symbol=from type=<T#2, E#2>(E#2) => Result<T#2, E#2>
+/// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @type.symbol symbol=from.T source=T type=T#2
 /// @type.symbol symbol=from.E source=E type=E#2
 /// @type.symbol symbol=from.value source="value: E" type=E#2
@@ -354,7 +355,7 @@ function from<T, E>(value: E): Result<T, E> {
     /// @generic.instantiation id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2) owner=from
     /// @type.node source=value type=E#2
     /// @resolution.name source=value target=from.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=from.value
 
 }

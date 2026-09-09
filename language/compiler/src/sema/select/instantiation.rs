@@ -37,7 +37,7 @@ impl CheckState<'_> {
 
         // resolve a const slot's binding to its committed static value
         if binding.is_const {
-            if let Some(value) = self.static_value(reference.symbol) {
+            if let Some(value) = self.static_value(reference.symbol)? {
                 return Ok(Some(value));
             }
 
@@ -58,7 +58,7 @@ impl CheckState<'_> {
         written: &[dir::GlobalTypeId],
     ) -> CompilerResult<Option<TypeSubstitution>> {
         let parameters = self.generic_template_parameters(template)?;
-        if written.len() > self.writable_parameter_count(&parameters) {
+        if written.len() > self.writable_parameter_count(&parameters)? {
             return Ok(None);
         }
 
@@ -114,15 +114,16 @@ impl CheckState<'_> {
         self.counters.instantiations += 1;
 
         // reject more written arguments than the template can take
-        let writable = parameters
-            .iter()
-            .filter(|parameter| {
-                substitution.argument(**parameter).is_none()
-                    && self
-                        .generic_parameter(**parameter)
-                        .is_some_and(dir::GenericParameterBinding::is_writable)
-            })
-            .count();
+        let mut writable = 0;
+        for parameter in parameters {
+            if substitution.argument(*parameter).is_none()
+                && self
+                    .generic_parameter(*parameter)?
+                    .is_some_and(dir::GenericParameterBinding::is_writable)
+            {
+                writable += 1;
+            }
+        }
         if written.len() > writable {
             return Ok(None);
         }
@@ -280,7 +281,7 @@ impl CheckState<'_> {
                     self.bind_explicit_arguments(module, template, &applied)?
                 else {
                     let name = self.format_symbol(symbol);
-                    let written_count = self.writable_parameter_count(&parameters);
+                    let written_count = self.writable_parameter_count(&parameters)?;
                     self.report_wrong_generic_arity(
                         module,
                         source,

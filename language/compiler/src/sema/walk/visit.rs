@@ -161,12 +161,13 @@ impl CheckState<'_> {
             // oblige the argument bounds and predicates of a built application
             let mut head = self.shallow_resolve(ty)?;
             while let dir::Type::Refined(refined) = self.ty(head)? {
-                head = self.shallow_resolve(self.type_refined(head.module_id, refined)?.base)?;
+                let base = self.type_refined(head.module_id, refined)?.base;
+                head = self.shallow_resolve(base)?;
             }
             if let dir::Type::Application(instance) = self.ty(head)?
                 && obliged.insert(head)
             {
-                let scope = self.template_at_node(source);
+                let scope = self.template_at_node(source)?;
                 self.collect_application_bounds(source, head, instance, scope)?;
             }
 
@@ -186,7 +187,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let scope = self.template_at_node(source);
+            let scope = self.template_at_node(source)?;
             self.push_obligation(
                 Obligation::WellFormedType(WellFormedTypeObligation { source, ty }),
                 scope,
@@ -197,13 +198,13 @@ impl CheckState<'_> {
         for (symbol, ty) in symbols {
             if let dir::Type::Application(instance) = self.ty(ty)? {
                 // commit written symbol values so bound failures close them
-                let existing = self.symbol_type_maybe(symbol);
+                let existing = self.symbol_type_maybe(symbol)?;
                 if existing.is_none() || existing == Some(ty) {
                     self.commit_declaration_type(symbol, ty)?;
                 }
                 if obliged.insert(ty) {
                     let source = self.symbol_source(symbol)?;
-                    let scope = self.loaded_symbol_template(symbol);
+                    let scope = self.symbol_template(symbol)?;
                     self.collect_application_bounds(source, ty, instance, scope)?;
                 }
             }
@@ -220,21 +221,19 @@ impl CheckState<'_> {
         instance: dir::GenericApplication,
         scope: Option<GenericTemplateId>,
     ) -> CompilerResult<()> {
-        let Some(template) = self.loaded_symbol_template(instance.symbol) else {
+        let Some(template) = self.symbol_template(instance.symbol)? else {
             return Ok(());
         };
 
         // resolve the template's declared parameters and applied arguments
         let parameters = self.generic_template_parameters(template)?;
-        let arguments = self
-            .type_ids(application.module_id, instance.arguments)?
-            .to_vec();
+        let arguments = self.type_ids(application.module_id, instance.arguments)?;
 
         // build the substitution mapping parameters onto their arguments
         let substitution = TypeSubstitution {
             bindings: parameters
                 .iter()
-                .zip(&arguments)
+                .zip(arguments)
                 .map(|(parameter, argument)| {
                     dir::GenericArgumentBinding::new(*parameter, *argument)
                 })
@@ -252,7 +251,7 @@ impl CheckState<'_> {
             self.report_argument_cardinality(source, index, scope, parameter, argument)?;
 
             let Some(constraint) = self
-                .generic_parameter(parameter)
+                .generic_parameter(parameter)?
                 .filter(|binding| binding.memory_parameter().is_none())
                 .and_then(|binding| binding.constraint)
             else {
@@ -283,7 +282,7 @@ impl CheckState<'_> {
         }
 
         // collect the declared where predicates with substituted sides
-        for predicate in self.template_predicates(Some(template)) {
+        for predicate in self.template_predicates(Some(template))? {
             if self.type_flags(predicate.left)?.has_this() {
                 continue;
             }
@@ -320,6 +319,7 @@ impl CheckState<'_> {
             .written_generic_argument(source, index)
             .unwrap_or(source);
         let origin = Origin::Node(argument_source, scope);
+
         if !self.has_one_cardinality(origin, argument)? {
             self.report_argument_not_exact_value(argument_source, argument, parameter)?;
         }

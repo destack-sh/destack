@@ -94,7 +94,7 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
         /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=^Pack<T#3> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @resolution.name source=values target=from.values#2
-        /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=values root=from.values#2
 
     }
@@ -296,7 +296,7 @@ declare const message: local Message;
 Channel.send(message);
 /// @resolution.name source=Channel target=Channel
 /// @resolution.member source=Channel.send receiver=Channel type=<send.'a>(&send.'a readonly shared Message) => void kind=symbol target_receiver=Channel target=send
-/// @resolution.call source=Channel.send(message) parameters=(&'frame readonly shared Message) arguments=(provided(message) as &'frame readonly shared Message) return=void kind=symbol target=send
+/// @resolution.call source=Channel.send(message) parameters=(&'frame readonly shared Message) arguments=(provided(message) as &'frame readonly shared Message) return=void regions=("frame") kind=symbol target=send
 /// @resolution.name source=message target=message
 /// @resolution.place source=message placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=message root=message
@@ -379,7 +379,7 @@ declare const message: local Message;
 channel.send(message);
 /// @resolution.name source=channel target=channel
 /// @resolution.member source=channel.send receiver=Channel type=<send.'a, send.'b>(this: &send.'a Channel, &send.'b readonly Message) => void kind=symbol target_receiver=Channel target=send
-/// @resolution.call source=channel.send(message) parameters=(&'static readonly constant Message) arguments=(provided(message) as &'static readonly constant Message) return=void kind=symbol target=send receiver=Channel adjustments=(borrow(Borrowed<Channel, "managed" & "shared", "mutable">))
+/// @resolution.call source=channel.send(message) parameters=(&'static readonly constant Message) arguments=(provided(message) as &'static readonly constant Message) return=void regions=("managed" & "shared", "static" & "constant") kind=symbol target=send receiver=Channel adjustments=(borrow(Borrowed<Channel, "managed" & "shared", "mutable">))
 /// @resolution.place source=channel placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=channel root=channel
 /// @resolution.name source=message target=message
@@ -505,7 +505,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @type.node source=values type=Iterable<T#3>
         /// @resolution.name source=values target=from.values#2
-        /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=values root=from.values#2
 
     }
@@ -718,7 +718,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.name source=Ok target=Ok
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=ok.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=ok.value
 
     }
@@ -741,7 +741,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.name source=Err target=Err
         /// @type.node source=error type=E#3
         /// @resolution.name source=error target=err.error
-        /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=error placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=error root=err.error
 
     }
@@ -764,7 +764,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.coverage exhaustive=true disjoint=true
         /// @type.node source=this type=Outcome<T#3, E#3>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
 
             Ok { value } => Outcome.ok(f(value))
@@ -783,7 +783,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=f(value) type=U
             /// @resolution.name source=f target=map.f
             /// @resolution.call source=f(value) parameters=(T#3) arguments=(provided(value) as T#3) return=U kind=expression target=expression
-            /// @resolution.place source=f placement="local" lifetime="managed" access="exclusive"
+            /// @resolution.place source=f placement="local" lifetime="managed" access="mutable"
             /// @resolution.access source=f root=map.f
             /// @type.node source=value type=T#3
             /// @resolution.name source=value target=map.value#2
@@ -894,7 +894,7 @@ export extension<T> of Pack<T> {
         /// @resolution.name source=Pack target=Pack
         /// @type.node source=value type=T#2
         /// @resolution.name source=value target=of.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=of.value
 
     }
@@ -1090,7 +1090,7 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
     /// @resolution.access source=pack.value root=check.pack keys=[value]
     /// @type.node source=expected type=T#3
     /// @resolution.name source=expected target=check.expected
-    /// @resolution.place source=expected placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=expected placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=expected root=check.expected
 
 }

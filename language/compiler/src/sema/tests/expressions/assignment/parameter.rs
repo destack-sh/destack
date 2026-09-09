@@ -38,7 +38,7 @@ function bump(value: int32): int32 {
     return value;
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=bump.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=bump.value
 
 }
@@ -84,7 +84,7 @@ function bump(value: int32): int32 {
     /// @resolution.name source=value target=bump.value
     /// @resolution.operator source="value += 2" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
     /// @resolution.pattern.assign source=value kind=place
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.assignment source=value read=binding(bump.value) write=binding(bump.value) type=int32
     /// @resolution.access source=value root=bump.value
     /// @type.node source=2 type=2
@@ -92,7 +92,7 @@ function bump(value: int32): int32 {
     return value;
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=bump.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=bump.value
 
 }
@@ -139,14 +139,14 @@ function bump(value: int32): int32 {
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=bump.value#1
     /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=bump.value#1
     /// @type.node source=1 type=1
 
     return value;
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=bump.value#2
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=bump.value#2
 
 }

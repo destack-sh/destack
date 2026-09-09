@@ -43,8 +43,8 @@ impl CheckState<'_> {
 
         // preserve transparent aliases and nominal wrappers around an owner
         let backing = if let dir::Type::Application(instance) = self.ty(target)? {
-            let definition = self.definition(instance.symbol)?.cloned();
-            let declared = match definition {
+            let definition = self.definition(instance.symbol)?;
+            let declared = match definition.as_deref() {
                 Some(dir::Definition::TypeAlias(definition)) => Some(definition.value),
                 Some(dir::Definition::Newtype(definition)) => Some(definition.backing),
                 _ => None,
@@ -324,9 +324,7 @@ impl CheckState<'_> {
                 message: "a generator producer outside an applied struct".to_string(),
             });
         };
-        let arguments = self
-            .type_ids(producer.module_id, application.arguments)?
-            .to_vec();
+        let arguments = self.type_ids(producer.module_id, application.arguments)?;
         let Some(template) = self.symbol_template(function.key.symbol)? else {
             return Err(CompilerError::Internal {
                 message: "a yield method without a template".to_string(),
@@ -343,7 +341,7 @@ impl CheckState<'_> {
             function
                 .key
                 .arguments
-                .push(dir::GenericArgumentBinding::new(*parameter, argument));
+                .push(dir::GenericArgumentBinding::new(*parameter, *argument));
         }
 
         // close the signature at the producer and the key's bindings
@@ -384,11 +382,6 @@ impl CheckState<'_> {
                 message: "a generator creation without its body closure slot".to_string(),
             });
         };
-        let dir::CallableTarget::Symbol { function, .. } = &create.target else {
-            return Err(CompilerError::Internal {
-                message: "a generator creation outside a direct symbol target".to_string(),
-            });
-        };
 
         // take the closure's first parameter, the producer
         let closure = self.shallow_strip_forms(slot.parameter_type)?;
@@ -397,9 +390,7 @@ impl CheckState<'_> {
                 message: "a generator body slot outside a function application".to_string(),
             });
         };
-        let arguments = self
-            .type_ids(closure.module_id, application.arguments)?
-            .to_vec();
+        let arguments = self.type_ids(closure.module_id, application.arguments)?;
         let Some(parameters) = arguments.first().copied() else {
             return Err(CompilerError::Internal {
                 message: "a generator body slot without its parameter list".to_string(),
@@ -410,22 +401,14 @@ impl CheckState<'_> {
                 message: "a generator body slot outside a parameter tuple".to_string(),
             });
         };
-        let elements = self
-            .tuple_elements(parameters.module_id, tuple.elements)?
-            .to_vec();
+        let elements = self.tuple_elements(parameters.module_id, tuple.elements)?;
         let Some(producer) = elements.first().map(|element| element.ty) else {
             return Err(CompilerError::Internal {
                 message: "a generator body slot without its producer parameter".to_string(),
             });
         };
 
-        // close the producer at the creation's bound arguments
-        let substitution = TypeSubstitution {
-            bindings: function.key.arguments.iter().copied().collect(),
-            receiver: None,
-        };
-
-        self.substitute_type(producer, &substitution)
+        Ok(producer)
     }
 
     /// Build one creation call instantiated at the body's solved targets.
@@ -446,7 +429,7 @@ impl CheckState<'_> {
         let mut index = 0;
         for parameter in parameters {
             // bind memory parameters to the local place the machinery runs in
-            if self.is_memory_parameter(parameter) || self.is_lifetime_parameter(parameter) {
+            if self.is_memory_parameter(parameter)? || self.is_lifetime_parameter(parameter)? {
                 let local = self.local_place()?;
                 bindings.push(dir::GenericArgumentBinding::new(parameter, local));
 
@@ -461,8 +444,12 @@ impl CheckState<'_> {
             index += 1;
         }
         let key = dir::InstanceKey::new(symbol, bindings);
+        let substitution = TypeSubstitution {
+            bindings: key.arguments.iter().copied().collect(),
+            receiver: None,
+        };
 
-        // bind the body closure slot the lowered function supplies
+        // bind the body closure slot the lowered function supplies, closed at the bound arguments
         let Some(callable_type) = self.adopt_symbol_type_maybe(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "a coroutine creation item declares no type".to_string(),
@@ -478,19 +465,24 @@ impl CheckState<'_> {
                 });
             }
         };
-        let parameters = self
-            .signature_parameters(callable_type.module_id, signature.parameters)?
-            .to_vec();
-        let arguments = parameters
-            .iter()
-            .map(|parameter| dir::ArgumentBinding {
-                parameter_type: parameter.ty,
-                argument_type: parameter.ty,
+        let parameters =
+            self.signature_parameters(callable_type.module_id, signature.parameters)?;
+        let mut arguments = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            let ty = self.substitute_type(parameter.ty, &substitution)?;
+            arguments.push(dir::ArgumentBinding {
+                parameter_type: ty,
+                argument_type: ty,
                 source: dir::ArgumentSource::Supplied,
-            })
-            .collect();
+            });
+        }
+        let return_type = match signature.return_type {
+            Some(return_type) => self.substitute_type(return_type, &substitution)?,
+            None => callable_type,
+        };
 
         Ok(dir::Call {
+            regions: self.resolved_region_bindings(&substitution.bindings)?,
             target: dir::CallableTarget::Symbol {
                 function: dir::FunctionTarget {
                     receiver: None,
@@ -501,7 +493,7 @@ impl CheckState<'_> {
             },
             callable_type,
             arguments,
-            return_type: signature.return_type.unwrap_or(callable_type),
+            return_type,
         })
     }
 }

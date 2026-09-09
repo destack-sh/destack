@@ -136,7 +136,7 @@ const same = value as int32;
         r#"
 /// @diagnostic.warning id=redundant-cast message="cast to 'int32' has no effect"
 /// @diagnostic.label line=3 column=20 span="as" line_source="const same = value as int32;"
-/// @diagnostic.suggestion message="remove the cast" applicability=automatic patched="const same = value int32;"
+/// @diagnostic.suggestion message="remove the cast" applicability=automatic patched="const same = value;"
 "#,
     );
 }

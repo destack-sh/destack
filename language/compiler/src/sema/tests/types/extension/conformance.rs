@@ -57,18 +57,19 @@ empty satisfies boolean;
 
 === dir ===
 newtype interface Sized {
+/// @generic.template symbol=Sized parameters=(this: Sized)
 /// @type.symbol symbol=Sized type=Sized
-/// @definition.interface symbol=Sized nominal=true
+/// @definition.interface symbol=Sized template=(this: Sized) nominal=true
 /// @definition.where symbol=Sized relation=satisfies left=this right=Sized
-/// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: Sized) => boolean
-/// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: Sized) => int32
+/// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: this) => boolean
+/// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: this) => int32
 
     length(this): int32;
-    /// @type.symbol symbol=Sized.length source="length(this): int32" type=(this: Sized) => int32
+    /// @type.symbol symbol=Sized.length source="length(this): int32" type=(this: this) => int32
     /// @type.symbol symbol=Sized.length.this source=this type=this
 
     isEmpty(this): boolean {
-    /// @type.symbol symbol=Sized.isEmpty type=(this: Sized) => boolean
+    /// @type.symbol symbol=Sized.isEmpty type=(this: this) => boolean
     /// @type.symbol symbol=Sized.isEmpty.this source=this type=this
 
         return this.length() == 0;
@@ -76,9 +77,10 @@ newtype interface Sized {
         /// @resolution.member source=this.length receiver=this type=(this: this) => int32 kind=symbol target_receiver=this target=Sized.length
         /// @resolution.call source=this.length() parameters=() return=int32 kind=symbol target=Sized.length receiver=this
         /// @resolution.operator source="this.length() == 0" type=boolean operator="==" kind=builtin operands=[this.length() as int32 families=(integer), 0 as int32 families=(integer)]
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=Sized.length<this> template=Sized.length arguments=()
+        /// @generic.instantiation id=Sized.length<this> template=Sized.length arguments=() owner=Sized
+        /// @generic.instance id=Sized.length<this> template=Sized.length arguments=()
 
     }
 }
@@ -109,9 +111,9 @@ extension of Buffer implements Sized {
         return this.length;
         /// @resolution.member source=this.length receiver=Buffer type=int32 kind=field target_receiver=Buffer key=length target=Buffer.length target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Buffer
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.length placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.length placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this.length root=this keys=[length]
 
     }
@@ -204,18 +206,19 @@ empty satisfies boolean;
 
 === dir ===
 newtype interface Sized {
+/// @generic.template symbol=Sized parameters=(this: Sized)
 /// @type.symbol symbol=Sized type=Sized
-/// @definition.interface symbol=Sized nominal=true
+/// @definition.interface symbol=Sized template=(this: Sized) nominal=true
 /// @definition.where symbol=Sized relation=satisfies left=this right=Sized
-/// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: Sized) => boolean
-/// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: Sized) => int32
+/// @definition.method symbol=Sized.isEmpty slot=isEmpty type=(this: this) => boolean
+/// @definition.method symbol=Sized.length source="length(this): int32" slot=length type=(this: this) => int32
 
     length(this): int32;
-    /// @type.symbol symbol=Sized.length source="length(this): int32" type=(this: Sized) => int32
+    /// @type.symbol symbol=Sized.length source="length(this): int32" type=(this: this) => int32
     /// @type.symbol symbol=Sized.length.this source=this type=this
 
     isEmpty(this): boolean {
-    /// @type.symbol symbol=Sized.isEmpty type=(this: Sized) => boolean
+    /// @type.symbol symbol=Sized.isEmpty type=(this: this) => boolean
     /// @type.symbol symbol=Sized.isEmpty.this source=this type=this
 
         return this.length() == 0;
@@ -223,9 +226,10 @@ newtype interface Sized {
         /// @resolution.member source=this.length receiver=this type=(this: this) => int32 kind=symbol target_receiver=this target=Sized.length
         /// @resolution.call source=this.length() parameters=() return=int32 kind=symbol target=Sized.length receiver=this
         /// @resolution.operator source="this.length() == 0" type=boolean operator="==" kind=builtin operands=[this.length() as int32 families=(integer), 0 as int32 families=(integer)]
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=Sized.length<this> template=Sized.length arguments=()
+        /// @generic.instantiation id=Sized.length<this> template=Sized.length arguments=() owner=Sized
+        /// @generic.instance id=Sized.length<this> template=Sized.length arguments=()
 
     }
 }
@@ -257,9 +261,9 @@ extension of Buffer implements Sized {
         return this.length;
         /// @resolution.member source=this.length receiver=Buffer type=int32 kind=field target_receiver=Buffer key=length target=Buffer.length target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Buffer
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.length placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.length placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this.length root=this keys=[length]
 
     }

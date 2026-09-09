@@ -208,7 +208,7 @@ extension of Attempt implements Try {
         return Attempt { value: output };
         /// @resolution.name source=Attempt target=Attempt
         /// @resolution.name source=output target=fromOutput.output
-        /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=output placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=output root=fromOutput.output
 
     }
@@ -227,10 +227,10 @@ extension of Attempt implements Try {
     /// @generic.template symbol=branch parent=template#0 parameters=('a)
     /// @type.symbol symbol=branch type=<branch.'a>(this: &branch.'a readonly Attempt) => ControlFlow<string, int32>
     /// @type.symbol symbol=branch.this type=&branch.'a readonly Attempt
-    /// @resolution.name source=ControlFlow target=ControlFlow
     /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
     /// @generic.instance id=Break<string> template=Break arguments=(string)
     /// @generic.instance id=Continue<int32> template=Continue arguments=(int32)
+    /// @resolution.name source=ControlFlow target=ControlFlow
 
         return ControlFlow.continue(this.value);
         /// @resolution.name source=ControlFlow target=ControlFlow
@@ -306,19 +306,20 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
     /// @resolution.pattern source=total kind=binding target=passthrough.total
     /// @type.node source=value? type=int32
     /// @resolution.name source=value target=passthrough.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=passthrough.value
-    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(string), arguments=(supplied as string), return=Result<int32, string>)"
+    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
     /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
-    /// @generic.instantiation id="fromResidual<int32, string>" template=fromResidual arguments=(int32, string)
+    /// @generic.instantiation id="fromResidual<int32, string, TryResidual<Result<int32, string>>>" template=fromResidual arguments=(int32, string, TryResidual<Result<int32, string>>)
     /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
     /// @generic.instance id="branch<int32, string>" template=branch arguments=(int32, string)
     /// @generic.instance id="break<string, int32>" template=break arguments=(string, int32)
     /// @generic.instance id="continue<string, int32>" template=continue arguments=(string, int32)
     /// @generic.instance id="err#1<int32, string>" template=err#1 arguments=(int32, string)
-    /// @generic.instance id="fromResidual<int32, string>" template=fromResidual arguments=(int32, string)
+    /// @generic.instance id="fromResidual<int32, string, string>" template=fromResidual arguments=(int32, string, string)
     /// @generic.instance id=Break<string> template=Break arguments=(string)
     /// @generic.instance id=Continue<int32> template=Continue arguments=(int32)
+    /// @generic.instance id=from<string> template=from arguments=(string)
 
     return Result.ok(total);
     /// @type.node source=Result.ok type=(T#1) => Result<T#1, E#1>
@@ -367,7 +368,7 @@ function value(maybe: int32 | undefined): int32 | undefined {
 
     maybe?;
     /// @resolution.name source=maybe target=value.maybe
-    /// @resolution.place source=maybe placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=maybe placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=maybe root=value.maybe
     /// @resolution.residual source=maybe? target=callable residual=TryResidual<int32 | undefined>
 

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::sema::{CheckState, Origin, TypeSubstitution};
+use crate::sema::{CheckState, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
 
 use super::instance::InstanceWorklist;
@@ -10,14 +10,8 @@ use super::instance::InstanceWorklist;
 pub(super) struct Materialization<'a> {
     /// The substitution closing parameters and the receiver, absent over the module's own entries.
     pub(super) substitution: Option<&'a TypeSubstitution>,
-    /// The interface owner's self application the receiver stands in for.
-    pub(super) owner_self: Option<dir::GlobalTypeId>,
-    /// The instance recording the moved types, the module's own tails when absent.
-    pub(super) instance: Option<dir::LocalInstanceId>,
-    /// The node every entry anchors at, the instance source under an instance.
+    /// The node every entry anchors at.
     pub(super) anchor: Option<dir::GlobalNodeIdAny>,
-    /// The instantiation chain depth the reached applications intern at.
-    pub(super) depth: u32,
 }
 
 /// One committed entry carrying types, with the node it anchors at.
@@ -31,9 +25,9 @@ pub(super) enum Entry {
     /// One node's type.
     Node(dir::GlobalNodeIdAny, dir::GlobalTypeId),
     /// One definition with its source.
-    Definition(dir::GlobalSymbolId, dir::GlobalNodeIdAny, dir::Definition),
+    Definition(dir::GlobalNodeIdAny, Box<dir::Definition>),
     /// One node's decision.
-    Decision(dir::GlobalNodeIdAny, dir::Decision),
+    Decision(dir::GlobalNodeIdAny, Box<dir::Decision>),
     /// One node's place resolution.
     Place(dir::GlobalNodeIdAny, dir::PlaceResolution),
     /// One node's coercion.
@@ -48,10 +42,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let materialization = Materialization {
             substitution: None,
-            owner_self: None,
-            instance: None,
             anchor: None,
-            depth: 0,
         };
         let entries = self.module_entries()?;
 
@@ -71,18 +62,24 @@ impl CheckState<'_> {
     }
 
     /// Return every committed entry of the checked module.
-    fn module_entries(&self) -> CompilerResult<Vec<Entry>> {
-        let module = &self.module;
-        let bindings = module.binding_table();
+    fn module_entries(&mut self) -> CompilerResult<Vec<Entry>> {
         let mut entries = Vec::new();
 
         // the definitions with their sources
-        for (symbol, definition) in module.iter_definitions() {
-            let Some(source) = module.definition_source_maybe(symbol) else {
-                continue;
-            };
-            entries.push(Entry::Definition(symbol, source, definition.clone()));
+        let definitions: Vec<_> = self
+            .module
+            .iter_definitions()
+            .filter_map(|(symbol, definition)| {
+                let source = self.module.definition_source_maybe(symbol)?;
+
+                Some((source, definition.clone()))
+            })
+            .collect();
+        for (source, definition) in definitions {
+            entries.push(Entry::Definition(source, Box::new(definition)));
         }
+        let module = &self.module;
+        let bindings = module.binding_table();
 
         // the symbol types at their declarations
         for (symbol, ty) in module.types.symbol_types() {
@@ -101,7 +98,7 @@ impl CheckState<'_> {
             module
                 .decisions
                 .decision_entries()
-                .map(|(node, decision)| Entry::Decision(node, decision.clone())),
+                .map(|(node, decision)| Entry::Decision(node, Box::new(decision.clone()))),
         );
         entries.extend(
             module
@@ -120,18 +117,21 @@ impl CheckState<'_> {
     }
 
     /// Return the committed entries one template reaches: its definition or its body.
-    fn template_entries(&mut self, template: dir::GlobalSymbolId) -> CompilerResult<Vec<Entry>> {
+    pub(super) fn template_entries(
+        &mut self,
+        template: dir::GlobalSymbolId,
+    ) -> CompilerResult<Vec<Entry>> {
         let mut entries = Vec::new();
 
         // a type template reaches its definition and the field and method types lowering lays out
-        if let Some(definition) = self.definition(template)?.cloned() {
+        if let Some(definition) = self.definition(template)? {
             for member in definition.members() {
                 let symbol = match member {
                     dir::DefinitionMember::Field(field) => field.symbol,
                     dir::DefinitionMember::Method(method) => method.symbol,
                     _ => continue,
                 };
-                if let Some(entry) = self.symbol_entry(symbol) {
+                if let Some(entry) = self.symbol_entry(symbol)? {
                     entries.push(entry);
                 }
             }
@@ -141,13 +141,16 @@ impl CheckState<'_> {
             entries.extend(self.entries_at(template.module_id, nodes)?);
 
             let source = self.committed_definition_source(template)?;
-            entries.push(Entry::Definition(template, source, definition));
+            entries.push(Entry::Definition(
+                source,
+                Box::new(dir::Definition::clone(&definition)),
+            ));
 
             return Ok(entries);
         }
 
         // a callable template reaches its own type and the entries of its body nodes
-        if let Some(entry) = self.symbol_entry(template) {
+        if let Some(entry) = self.symbol_entry(template)? {
             entries.push(entry);
         }
         let Some(nodes) = self.template_body(template)? else {
@@ -164,7 +167,7 @@ impl CheckState<'_> {
         module: ModuleId,
         nodes: Vec<dir::GlobalNodeIdAny>,
     ) -> CompilerResult<Vec<Entry>> {
-        let Some(committed) = self.committed(module) else {
+        let Some(committed) = self.committed(module)? else {
             return Ok(Vec::new());
         };
 
@@ -174,13 +177,22 @@ impl CheckState<'_> {
             if let Some(ty) = committed.types.get_node_type_id(node) {
                 entries.push(Entry::Node(node, ty));
             }
-            if let Some(decision) = committed.decisions.decision(node) {
-                entries.push(Entry::Decision(node, decision.clone()));
+            if let Some(decision) = committed
+                .decisions
+                .and_then(|decisions| decisions.decision(node))
+            {
+                entries.push(Entry::Decision(node, Box::new(decision.clone())));
             }
-            if let Some(place) = committed.decisions.place_resolution(node) {
+            if let Some(place) = committed
+                .decisions
+                .and_then(|decisions| decisions.place_resolution(node))
+            {
                 entries.push(Entry::Place(node, *place));
             }
-            if let Some(coercion) = committed.coercions.coercion(node) {
+            if let Some(coercion) = committed
+                .coercions
+                .and_then(|coercions| coercions.coercion(node))
+            {
                 entries.push(Entry::Coercion(node, coercion.clone()));
             }
         }
@@ -189,12 +201,16 @@ impl CheckState<'_> {
     }
 
     /// Return one symbol's committed type entry at its declaration.
-    fn symbol_entry(&self, symbol: dir::GlobalSymbolId) -> Option<Entry> {
-        let committed = self.committed(symbol.module_id)?;
-        let ty = committed.types.get_symbol_type_id(symbol)?;
+    fn symbol_entry(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<Option<Entry>> {
+        let Some(committed) = self.committed(symbol.module_id)? else {
+            return Ok(None);
+        };
+        let Some(ty) = committed.types.get_symbol_type_id(symbol) else {
+            return Ok(None);
+        };
         let declaration = committed.bindings.get_symbol(symbol.local_id).declaration;
 
-        Some(Entry::Symbol(symbol, ty, declaration))
+        Ok(Some(Entry::Symbol(symbol, ty, declaration)))
     }
 
     /// Materialize every type of each entry, writing the entries the materialization moves.
@@ -205,46 +221,58 @@ impl CheckState<'_> {
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
         for entry in entries {
+            // record the dependents of each own symbol lowering lays out
+            if let Entry::Symbol(symbol, ..) = &entry
+                && symbol.module_id == self.module_id
+            {
+                self.symbol_dependents(*symbol)?;
+            }
+
             match entry {
                 Entry::Symbol(symbol, ty, declaration) => {
                     let Some(anchor) = materialization.anchor.or(declaration) else {
                         continue;
                     };
                     let resolved = self.materialize_type(materialization, anchor, ty, worklist)?;
-                    match materialization.instance {
-                        Some(instance) => self
-                            .module
-                            .generics_tail
-                            .bind_instance_symbol(instance, symbol, resolved),
-                        None if resolved != ty => {
-                            self.module.types_tail.set_symbol_type(symbol, resolved);
-                        }
-                        None => {}
+                    if resolved != ty {
+                        self.module.types_tail.set_symbol_type(symbol, resolved);
                     }
                 }
                 Entry::Node(node, ty) => {
                     let anchor = materialization.anchor.unwrap_or(node);
                     let resolved = self.materialize_type(materialization, anchor, ty, worklist)?;
-                    if materialization.instance.is_none() && resolved != ty {
+                    if resolved != ty {
                         self.module.types_tail.set_node_type(node, resolved);
                     }
                 }
-                Entry::Definition(symbol, source, definition) => {
+                Entry::Definition(source, definition) => {
                     let anchor = materialization.anchor.unwrap_or(source);
-                    if let Some(resolved) =
-                        self.materialize_payload(materialization, anchor, definition, worklist)?
-                    {
-                        self.module
-                            .definitions_tail
-                            .insert_definition(symbol, source, resolved);
+
+                    // lowering reads the module's own definitions as written, keyed at their heads
+                    if materialization.substitution.is_none() {
+                        let mut written = Vec::new();
+                        dir::TypeFold::map_types(&mut definition.clone(), &mut |ty| {
+                            written.push(ty);
+                            Ok::<_, CompilerError>(ty)
+                        })?;
+                        for ty in written {
+                            self.walk_type_graph(ty, anchor, worklist)?;
+                        }
                     }
+
+                    self.materialize_payload(materialization, anchor, *definition, worklist)?;
                 }
                 Entry::Decision(node, decision) => {
                     let anchor = materialization.anchor.unwrap_or(node);
-                    if let Some(resolved) =
-                        self.materialize_payload(materialization, anchor, decision, worklist)?
-                    {
-                        self.module.decisions_tail.set_decision(node, resolved);
+                    let moved = self.materialize_payload(
+                        materialization,
+                        anchor,
+                        (*decision).clone(),
+                        worklist,
+                    )?;
+                    self.intern_selections(moved.as_ref().unwrap_or(&decision), anchor, worklist)?;
+                    if let Some(moved) = moved {
+                        self.module.decisions_tail.set_decision(node, moved);
                     }
                 }
                 Entry::Place(node, place) => {
@@ -272,7 +300,7 @@ impl CheckState<'_> {
     }
 
     /// Materialize the types one payload carries, returning the payload when the module takes it.
-    fn materialize_payload<T: dir::TypeFold>(
+    pub(super) fn materialize_payload<T: dir::TypeFold>(
         &mut self,
         materialization: &Materialization<'_>,
         anchor: dir::GlobalNodeIdAny,
@@ -288,21 +316,18 @@ impl CheckState<'_> {
             Ok(resolved)
         })?;
 
-        // an instance records the moved types alone
-        let is_written = materialization.instance.is_none() && is_moved;
-
-        Ok(is_written.then_some(payload))
+        Ok(is_moved.then_some(payload))
     }
 
     /// Materialize one committed type, interning the applications it reaches.
-    fn materialize_type(
+    pub(super) fn materialize_type(
         &mut self,
         materialization: &Materialization<'_>,
         anchor: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let origin = Origin::Node(anchor, None);
+        let origin = self.anchored_origin(anchor)?;
         let mut ty = ty;
         let mut flags = self.type_flags(ty)?;
 
@@ -312,73 +337,70 @@ impl CheckState<'_> {
             flags = self.type_flags(ty)?;
         }
 
-        // leave open inference types and unbound receivers to the materialization binding them
-        let has_receiver = materialization
-            .substitution
-            .is_some_and(|substitution| substitution.receiver.is_some());
-        if flags.has_variable() || (flags.has_this() && !has_receiver) {
+        // leave open inference types to their later passes
+        if flags.has_variable() {
             return Ok(ty);
         }
 
         let resolved = match materialization.substitution {
-            // keep a written template type written, interning its closable applications
-            None if flags.has_parameter() => {
-                self.intern_applications(ty, anchor, materialization.depth, worklist)?;
-
-                return Ok(ty);
-            }
-            // evaluate the module's own computation results, keeping written aliases
-            None => match self.has_reachable_computation(ty)? {
-                true => self.evaluate_type(origin, ty)?,
-                false => ty,
-            },
-            // closed types are identical across instances and stay as written
-            Some(_)
-                if !flags.has_parameter()
-                    && !flags.has_this()
-                    && materialization.owner_self.is_none() =>
-            {
-                return Ok(ty);
-            }
-            // substitute, closing the owner's self application at the receiver
+            // reduce the module's own types as far as their inputs allow
+            None => self.evaluate_type(origin, ty)?,
+            // closed types are identical under every receiver and stay as written
+            Some(_) if !flags.has_parameter() && !flags.has_this() => return Ok(ty),
             Some(substitution) => {
-                let mut substituted = self.substitute_type(ty, substitution)?;
-                if let (Some(receiver), Some(base)) =
-                    (substitution.receiver, materialization.owner_self)
-                {
-                    substituted = self.replace_type(self.module_id, substituted, base, receiver)?;
-                }
-                let resolved = self.evaluate_closed_type(origin, substituted)?;
+                let substituted = self.substitute_type(ty, substitution)?;
 
-                // record the type wherever the instance moves the written one
-                if let Some(instance) = materialization.instance
-                    && resolved != ty
-                {
-                    let is_evaluated = resolved != substituted;
-                    self.module.generics_tail.bind_instance_type(
-                        instance,
-                        ty,
-                        resolved,
-                        is_evaluated,
-                    );
-                }
-
-                resolved
+                self.evaluate_type(origin, substituted)?
             }
         };
 
-        // admit the concrete applications the closed type reaches
-        self.intern_applications(resolved, anchor, materialization.depth, worklist)?;
+        // admit the applications the type reaches
+        self.walk_type_graph(resolved, anchor, worklist)?;
+        if resolved != ty {
+            self.walk_reduction_graph(ty)?;
+        }
 
         Ok(resolved)
     }
 
+    /// Intern the instance behind every selection one decision carries, recorded beside it.
+    fn intern_selections(
+        &mut self,
+        decision: &dir::Decision,
+        anchor: dir::GlobalNodeIdAny,
+        worklist: &mut InstanceWorklist,
+    ) -> CompilerResult<()> {
+        let mut written = Vec::new();
+        dir::InstanceKeyVisit::visit_instance_keys(decision, &mut |key| {
+            if !key.arguments.is_empty() || key.receiver.is_some() {
+                written.push(key.clone());
+            }
+        });
+        for key in written {
+            let instance = self.intern_instance(
+                key.symbol,
+                key.receiver,
+                key.arguments.clone(),
+                anchor,
+                dir::InstanceOrigin::Instantiation,
+                worklist,
+            )?;
+            if let Some(instance) = instance {
+                self.module
+                    .generics_tail
+                    .bind_selection_instance(key, instance);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Return one definition's committed source node in its module.
-    fn committed_definition_source(
+    pub(super) fn committed_definition_source(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalNodeIdAny> {
-        self.committed(symbol.module_id)
+        self.committed(symbol.module_id)?
             .and_then(|committed| committed.definitions.definition_source(symbol))
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("a definition without its committed source {symbol:?}"),

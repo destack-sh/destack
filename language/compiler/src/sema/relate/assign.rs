@@ -41,8 +41,8 @@ impl CheckState<'_> {
 
                 // capture the text into open spans, else match the closed pattern
                 let mut is_open = false;
-                for &span in self.type_ids(target.module_id, template.spans)? {
-                    is_open = is_open || self.type_flags(span)?.has_variable();
+                for span in self.type_ids(target.module_id, template.spans)? {
+                    is_open = is_open || self.type_flags(*span)?.has_variable();
                 }
                 if is_open {
                     self.relate_template_captures(
@@ -126,13 +126,16 @@ impl CheckState<'_> {
                 }
             }
 
-            // relate a rigid parameter through the union arm it enters, else through its bounds
+            // conform a rigid parameter to an interface target
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
-                let decision = self
-                    .relate_into_union(origin, cause, relation, source, target)?
-                    .or_else(|| {
-                        self.relate_parameter_bounds(origin, cause, relation, parameter, target)
-                    })?;
+                let decision = match self.is_conformance_target(target)? {
+                    true => self.relate_interface(origin, cause, relation, source, target)?,
+                    false => self
+                        .relate_into_union(origin, cause, relation, source, target)?
+                        .or_else(|| {
+                            self.relate_parameter_bounds(origin, cause, relation, parameter, target)
+                        })?,
+                };
                 match decision {
                     Verdict::Holds => Verdict::Holds,
                     decision => self
@@ -324,11 +327,6 @@ impl CheckState<'_> {
             (_, dir::Type::Dynamic(_)) => Verdict::Fails,
             (dir::Type::Dynamic(_), _) if !self.is_conformance_target(target)? => Verdict::Fails,
 
-            // adapt a literal to a rigid parameter whose scalar bound represents it
-            (dir::Type::Literal(_), dir::Type::Parameter(_)) => {
-                Verdict::decided(self.is_builtin_scalar_representable(origin, source, target)?)
-            }
-
             // scalar sources decide interface targets before literal widening
             (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
                 if self.symbol_kind(instance.symbol)?.is_interface() =>
@@ -431,7 +429,7 @@ impl CheckState<'_> {
             // relate a static struct term by the type it holds
             (dir::Type::Static(value), _)
                 if !matches!(self.ty(target)?, dir::Type::Static(_))
-                    && let dir::StaticTerm::Struct { ty, .. } = self.r#static(value).clone() =>
+                    && let dir::StaticTerm::Struct { ty, .. } = self.r#static(value)?.clone() =>
             {
                 self.constrain_type(origin, cause, relation, ty, target)?
             }
@@ -440,7 +438,7 @@ impl CheckState<'_> {
                 if self
                     .signature_head(target)?
                     .is_some_and(|head| head.is_construct)
-                    && let dir::StaticTerm::Type { ty } = self.r#static(value).clone()
+                    && let dir::StaticTerm::Type { ty } = self.r#static(value)?.clone()
                     && matches!(self.ty(ty)?, dir::Type::Reference(_)) =>
             {
                 self.relate_reference_construct_assignable(origin, cause, relation, ty, target)?
@@ -462,7 +460,7 @@ impl CheckState<'_> {
             (dir::Type::Application(instance), dir::Type::Object(_))
                 if relation == Relation::Storable
                     && matches!(
-                        self.definition(instance.symbol)?,
+                        self.definition(instance.symbol)?.as_deref(),
                         Some(dir::Definition::Struct(_) | dir::Definition::Class(_))
                     ) =>
             {

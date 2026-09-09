@@ -9,6 +9,7 @@ mod narrow;
 mod newtype;
 mod operation;
 mod scalar;
+mod r#static;
 mod substitute;
 mod r#try;
 mod r#type;

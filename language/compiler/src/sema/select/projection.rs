@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     CandidateOutcome, CheckState, DeclaredMember, ExtensionMatch, MemberCandidate, MemberLookup,
-    OpenBounds, Origin, Relation, TypeSubstitution, UnboundParameters, Verdict, member_arms,
+    OpenBounds, Origin, TypeSubstitution, UnboundParameters, Verdict, member_arms,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -120,10 +120,21 @@ impl CheckState<'_> {
             return Ok(Some(*value));
         }
 
+        // a rigid owner reduces through the refinements its bounds write, staying a projection
+        // otherwise
+        if self.is_rigid_projection_owner(member.owner)? {
+            for bound in self.rigid_owner_bounds(origin, member.owner)? {
+                let (_, bindings) = self.refinements(bound)?;
+                if let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key) {
+                    return Ok(Some(*value));
+                }
+            }
+
+            return Ok(None);
+        }
+
         // select the implementation for applied interface scopes
-        if let Some((base, _)) = refinement
-            && !self.is_rigid_projection_owner(member.owner)?
-        {
+        if let Some((base, _)) = refinement {
             return match self.ty(base)? {
                 // project the applied interface's selected implementation
                 dir::Type::Application(_) => self.project_selected_member(origin, member, base),
@@ -177,18 +188,13 @@ impl CheckState<'_> {
         // project a declaring class scope's own associated member
         let scope = interface.symbol;
         if let Some(definition) = self.definition(scope)?
-            && !matches!(definition, dir::Definition::Interface(_))
+            && !matches!(*definition, dir::Definition::Interface(_))
         {
-            let members = definition.members().to_vec();
+            let members = definition.members();
             let substitution =
                 self.qualified_instance_substitution(interface_module, &interface, owner)?;
 
-            return self.project_declared_associated_member(
-                origin,
-                member,
-                &members,
-                &substitution,
-            );
+            return self.project_declared_associated_member(origin, member, members, &substitution);
         }
 
         // enumerate candidate extensions by receiver family
@@ -196,8 +202,8 @@ impl CheckState<'_> {
         let extensions =
             self.implementations_over(origin, module, Some(apparent), interface.symbol)?;
         for (extension_symbol, _) in extensions {
-            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
-            else {
+            let definition = self.definition(extension_symbol)?;
+            let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
                 continue;
             };
 
@@ -219,7 +225,6 @@ impl CheckState<'_> {
             let verdict = self.decide_candidate(|state| {
                 let matched = state.match_extension_implementation(
                     origin,
-                    Relation::Storable,
                     interface_module,
                     owner,
                     owner,
@@ -246,7 +251,6 @@ impl CheckState<'_> {
             // rerun the match to commit its substitution
             let matched = self.match_extension_implementation(
                 origin,
-                Relation::Storable,
                 interface_module,
                 owner,
                 owner,
@@ -279,14 +283,13 @@ impl CheckState<'_> {
                 .iter()
                 .map(|conformance| conformance.interface)
                 .collect::<SmallVec<[_; 2]>>();
-            let members = definition.members().to_vec();
+            let members = definition.members();
 
             if !interfaces.is_empty() {
                 let mut substitution =
                     self.instance_substitution(application_module, &application)?;
                 let matched = self.match_implemented_interface(
                     origin,
-                    Relation::Storable,
                     interface_module,
                     &[],
                     &mut substitution,
@@ -298,7 +301,7 @@ impl CheckState<'_> {
                     let projected = self.project_declared_associated_member(
                         origin,
                         member,
-                        &members,
+                        members,
                         &substitution,
                     )?;
                     if projected.is_some() {
@@ -321,14 +324,14 @@ impl CheckState<'_> {
         member: &dir::MemberType,
         scope: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(definition) = self.definition(scope)?.cloned() else {
+        let Some(definition) = self.definition(scope)? else {
             return Err(CompilerError::Internal {
                 message: format!("associated type scope {scope:?} has no definition"),
             });
         };
 
         // bind an extension scope's parameters through its matched target
-        let substitution = match &definition {
+        let substitution = match &*definition {
             dir::Definition::Extension(extension) => {
                 let template = self.symbol_template(scope)?;
                 let target = extension.target.r#type();
@@ -351,9 +354,9 @@ impl CheckState<'_> {
         };
 
         // project the scope's own members against the written owner
-        let members = definition.members().to_vec();
+        let members = definition.members();
 
-        self.project_declared_associated_member(origin, member, &members, &substitution)
+        self.project_declared_associated_member(origin, member, members, &substitution)
     }
 
     /// Project one associated type declared by a selected scope.
@@ -403,11 +406,11 @@ impl CheckState<'_> {
         };
 
         // apply the interface arguments to its declared members
-        let members = definition.members().to_vec();
+        let members = definition.members();
         let substitution =
             self.qualified_instance_substitution(interface_module, &interface, member.owner)?;
 
-        self.project_declared_associated_member(origin, member, &members, &substitution)
+        self.project_declared_associated_member(origin, member, members, &substitution)
     }
 
     /// Return the type projected by one selected member lookup.
@@ -451,7 +454,7 @@ impl CheckState<'_> {
         // project associated values through their applied arguments
         if declared.value_type.is_some() {
             let written =
-                self.static_value(declared.symbol)
+                self.static_value(declared.symbol)?
                     .ok_or_else(|| CompilerError::Internal {
                         message: format!(
                             "associated member {:?} lost its declared value",
@@ -497,10 +500,6 @@ impl CheckState<'_> {
         origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        if self.is_rigid_projection_owner(member.owner)? {
-            return Ok(None);
-        }
-
         // read the interface holding the default from a qualified projection only
         let Some(qualifier) = member.qualifier else {
             return Ok(None);
@@ -510,7 +509,7 @@ impl CheckState<'_> {
         };
 
         // select the declared interface default
-        let associated = match self.definition(interface.symbol)? {
+        let associated = match self.definition(interface.symbol)?.as_deref() {
             Some(dir::Definition::Interface(definition)) => {
                 definition
                     .members
@@ -576,6 +575,21 @@ impl CheckState<'_> {
         Ok(is_rigid)
     }
 
+    /// Return the bounds one rigid projection owner assumes: a parameter's declared and
+    /// assumed bounds, this's assumed bounds.
+    fn rigid_owner_bounds(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        let owner = self.shallow_resolve(owner)?;
+        match self.ty(owner)? {
+            dir::Type::Parameter(parameter) => self.parameter_bounds(origin, parameter),
+            dir::Type::This => self.assumed_bounds(origin, |ty| matches!(ty, dir::Type::This)),
+            _ => Ok(SmallVec::new()),
+        }
+    }
+
     /// Select the unique interface application declaring one associated member.
     pub(in crate::sema) fn select_associated_qualifier(
         &mut self,
@@ -591,9 +605,23 @@ impl CheckState<'_> {
             return Ok(Some(owner));
         }
 
-        // parameter projections select from their declared bounds
-        if let dir::Type::Parameter(parameter) = self.ty(owner)? {
-            interfaces.extend(self.parameter_bounds(origin, parameter)?);
+        // rigid owners select from their bounds and the interfaces those extend
+        let bounds = match self.ty(owner)? {
+            dir::Type::Parameter(parameter) => Some(self.parameter_bounds(origin, parameter)?),
+            dir::Type::This => Some(self.this_bounds(origin)?),
+            _ => None,
+        };
+        if let Some(bounds) = bounds {
+            for bound in bounds {
+                interfaces.push(bound);
+                let closure = self.heritage_closure(origin, bound)?;
+                interfaces.extend(
+                    closure
+                        .applications
+                        .into_iter()
+                        .map(|application| application.ty),
+                );
+            }
         }
         // other owners select from their checked heritage and extension conformances
         else {
@@ -609,11 +637,15 @@ impl CheckState<'_> {
             interfaces.extend(self.conformed_interfaces(origin, owner, key)?);
         }
 
-        // keep only interfaces declaring this associated member
-        let mut qualifier = None;
+        // keep only interfaces declaring this associated member, one application per interface
+        let mut qualifier: Option<dir::GlobalTypeId> = None;
         for interface in interfaces {
             let declares = self.has_associated_type(interface, key)?;
-            if !declares || qualifier == Some(interface) {
+            let same = match qualifier {
+                Some(selected) => self.ty(selected)?.symbol() == self.ty(interface)?.symbol(),
+                None => false,
+            };
+            if !declares || same {
                 continue;
             }
 
@@ -637,7 +669,8 @@ impl CheckState<'_> {
         let Some((_, instance)) = self.nominal_application_maybe(interface)? else {
             return Ok(false);
         };
-        let Some(dir::Definition::Interface(definition)) = self.definition(instance.symbol)? else {
+        let declared = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
             return Ok(false);
         };
 
@@ -670,7 +703,7 @@ impl CheckState<'_> {
             let dir::Type::Application(instance) = self.ty(bound)? else {
                 continue;
             };
-            let members = match self.definition(instance.symbol)? {
+            let members = match self.definition(instance.symbol)?.as_deref() {
                 Some(dir::Definition::Interface(definition)) => definition.members.clone(),
                 _ => continue,
             };

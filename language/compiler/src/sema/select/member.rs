@@ -56,7 +56,7 @@ impl CheckState<'_> {
         // look the member up in the receiver's own space by default
         let space = self.member_receiver_space(receiver_node, target)?;
         let mut subject = self.member_subject(origin, receiver, target, space)?;
-        if let dir::Type::Literal(_) = self.ty(self.shallow_resolve(target)?)? {
+        if let dir::Type::Literal(_) = self.resolved_ty(target)? {
             let primitive = self.widen_type(target)?;
             subject = subject.with_key_source(primitive);
         }
@@ -174,7 +174,8 @@ impl CheckState<'_> {
         origin: Origin,
         newtype: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(newtype)? else {
+        let declared = self.definition(newtype)?;
+        let Some(dir::Definition::Newtype(definition)) = declared.as_deref() else {
             return Ok(());
         };
         let visibility = definition.backing_visibility;
@@ -211,29 +212,49 @@ impl CheckState<'_> {
         self.reaches_heritage(declaration, owner)
     }
 
-    /// Return the receiver closing one this-polymorphic interface member, absent elsewhere.
+    /// Return the receiver one interface member closes its instance at, absent outside interfaces.
     pub(in crate::sema) fn interface_member_receiver(
         &mut self,
         owner: dir::GlobalSymbolId,
         callable: dir::GlobalTypeId,
+        called_on: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // interface members close their receiver into the instance identity
-        let is_interface = matches!(self.definition(owner)?, Some(dir::Definition::Interface(_)));
+        let is_interface = matches!(
+            self.definition(owner)?.as_deref(),
+            Some(dir::Definition::Interface(_))
+        );
         if !is_interface {
             return Ok(None);
         }
 
-        // read the closed receiver off the substituted this parameter
-        let Some(this_parameter) = self
+        // read the receiver off the substituted this parameter, a static member's off its call
+        let this_parameter = self
             .signature_head(callable)?
-            .and_then(|signature| signature.this_parameter)
-        else {
-            return Ok(None);
-        };
-        let origin = Origin::Symbol(owner);
-        let receiver = self.strip_form(origin, this_parameter)?;
+            .and_then(|signature| signature.this_parameter);
+        match (this_parameter, called_on) {
+            (Some(this_parameter), _) => {
+                let origin = Origin::Symbol(owner);
 
-        Ok(Some(receiver))
+                Ok(Some(self.strip_form(origin, this_parameter)?))
+            }
+            (None, Some(called_on)) => Ok(Some(self.static_receiver_type(called_on)?)),
+            (None, None) => Ok(None),
+        }
+    }
+
+    /// Return the type one static member was called on, a type held in a static term unwrapped.
+    pub(in crate::sema) fn static_receiver_type(
+        &self,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let receiver = self.shallow_resolve(receiver)?;
+        let dir::Type::Static(value) = self.ty(receiver)? else {
+            return Ok(receiver);
+        };
+        match self.r#static(value)?.clone() {
+            dir::StaticTerm::Type { ty } => Ok(ty),
+            _ => Ok(receiver),
+        }
     }
 
     /// Return the declaration one receiver expression names.
@@ -543,13 +564,21 @@ impl CheckState<'_> {
             ty: selection_type,
             ..receiver
         };
+
+        let carried = self.member_call_arguments(
+            origin,
+            Some(declared.symbol),
+            &declared.generic_arguments,
+            &declared.region_arguments,
+            selection_type,
+        )?;
         let selected = self.match_callable(
             origin,
             callable,
             Some(declared.owner),
             Some(selection_receiver),
             None,
-            &declared.generic_arguments,
+            &carried,
             &[],
             arguments,
             None,
@@ -560,7 +589,8 @@ impl CheckState<'_> {
 
         // bind the sources and the receiver the signature selected
         let bound = self.bind_argument_sources(origin, &signature, sources)?;
-        let key_receiver = self.interface_member_receiver(declared.owner, signature.callable)?;
+        let key_receiver =
+            self.interface_member_receiver(declared.owner, signature.callable, None)?;
         let call = signature.member_call(
             resolution,
             declared.owner,

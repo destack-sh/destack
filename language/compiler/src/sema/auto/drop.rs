@@ -6,198 +6,106 @@ use crate::CompilerResult;
 use crate::sema::{CheckState, Origin, Verdict};
 
 impl CheckState<'_> {
+    /// Return whether one nominal or one of its extensions declares the Drop conformance.
+    pub(in crate::sema) fn declares_drop(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        for conformer in self.drop_conformers(symbol)? {
+            if self.drop_conformance(conformer)?.is_some() {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Return the drop hook member one nominal's Drop conformance selects.
     pub(in crate::sema) fn drop_hook_member(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         // serve the memo
-        if let Some(known) = self.drop_conformers.get(&symbol) {
+        if let Some(known) = self.drop_hooks.get(&symbol) {
             return Ok(*known);
         }
 
-        // inspect the declaration's own conformances, then its same-module extensions
-        let mut member = match self.definition(symbol)?.cloned() {
-            Some(definition) => self.drop_interface_member(definition.implementations())?,
-            None => None,
-        };
-        if member.is_none() {
-            let root = dir::TypeRoot::Declaration(symbol);
-            let mut extensions = Vec::new();
-            let mut is_owner_loaded = true;
-            if let Some(module) = self.module_maybe(symbol.module_id) {
-                extensions.extend(module.root_extensions(root));
-            } else if let Some(external) = self.external_modules.get(&symbol.module_id) {
-                extensions.extend(external.definitions.root_extensions(root));
-            } else {
-                is_owner_loaded = false;
-            }
-            for extension in extensions {
-                let Some(definition) = self.definition(extension)?.cloned() else {
-                    continue;
-                };
-                member = self.drop_interface_member(definition.implementations())?;
-                if member.is_some() {
-                    break;
-                }
-            }
-
-            // cache nothing while the owning module stays unloaded
-            if !is_owner_loaded {
-                return Ok(None);
-            }
+        // select the member the first Drop conformance answers the requirement with
+        let mut member = None;
+        for conformer in self.drop_conformers(symbol)? {
+            let Some(conformance) = self.drop_conformance(conformer)? else {
+                continue;
+            };
+            member = self.drop_requirement_member(&conformance)?;
+            break;
         }
-
-        self.drop_conformers.insert(symbol, member);
+        self.drop_hooks.insert(symbol, member);
 
         Ok(member)
     }
 
-    /// Bind one drop hook's owner parameters to a nominal instance's arguments.
-    pub(in crate::sema) fn bind_drop_hook(
+    /// Return the declarations whose conformances may drop one nominal.
+    fn drop_conformers(
         &mut self,
-        member: dir::GlobalSymbolId,
-        arguments: &[dir::GenericArgumentBinding],
-    ) -> CompilerResult<Option<Vec<dir::GenericArgumentBinding>>> {
-        // read the hook owner's parameters
-        let Some((owner, parameters)) = self.hook_owner_parameters(member)? else {
-            return Ok(Some(Vec::new()));
-        };
-
-        // an unparameterized owner closes without arguments
-        if parameters.is_empty() {
-            return Ok(Some(Vec::new()));
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Vec<dir::GlobalSymbolId>> {
+        let root = dir::TypeRoot::Declaration(symbol);
+        let mut conformers = vec![symbol];
+        if let Some(module) = self.module_maybe(symbol.module_id) {
+            conformers.extend(module.root_extensions(root));
+        } else if let Some(external) = self.external(symbol.module_id)? {
+            conformers.extend(external.definitions().root_extensions(root));
         }
-        if parameters.len() != arguments.len() {
+
+        Ok(conformers)
+    }
+
+    /// Return the conformance one declaration writes naming the Drop interface.
+    fn drop_conformance(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::NominalConformance>> {
+        let Some(definition) = self.definition(symbol)? else {
             return Ok(None);
-        }
-
-        // an inline hook rides the nominal's own bindings
-        let is_inline = parameters
-            .iter()
-            .zip(arguments)
-            .all(|(parameter, binding)| *parameter == binding.parameter);
-        if is_inline {
-            return Ok(Some(arguments.to_vec()));
-        }
-
-        // an extension repeating its parameters takes the arguments positionally
-        if self.target_repeats_parameters(owner, &parameters)? {
-            let bindings = parameters
-                .iter()
-                .zip(arguments)
-                .map(|(parameter, binding)| {
-                    dir::GenericArgumentBinding::new(*parameter, binding.argument)
-                })
-                .collect();
-
-            return Ok(Some(bindings));
+        };
+        for conformance in definition.implementations() {
+            let Some(interface) = self.ty(conformance.interface)?.symbol() else {
+                continue;
+            };
+            if self.language_item(interface)? == Some(dir::LanguageItem::Drop) {
+                return Ok(Some(conformance.clone()));
+            }
         }
 
         Ok(None)
     }
 
-    /// Return one hook's owner declaration and its non-lifetime parameters.
-    fn hook_owner_parameters(
+    /// Return the member one Drop conformance selects for the interface's requirement.
+    fn drop_requirement_member(
         &mut self,
-        member: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<(dir::GlobalSymbolId, Vec<dir::GlobalGenericParameterId>)>> {
-        // require the hook's own template
-        let Some(template) = self.symbol_template(member)? else {
-            return Ok(None);
-        };
-
-        // walk to the enclosing declaration template
-        let mut current = self.parent_generic_template(template)?;
-        while let Some(id) = current {
-            let symbol = self
-                .generic_template(id)
-                .and_then(|template| template.symbol);
-            if let Some(symbol) = symbol
-                && self.definition(symbol)?.is_some()
-            {
-                let parameters = self
-                    .generic_template_parameters(id)?
-                    .into_iter()
-                    .filter(|parameter| !self.is_lifetime_parameter(*parameter))
-                    .collect();
-
-                return Ok(Some((symbol, parameters)));
-            }
-            current = self.parent_generic_template(id)?;
-        }
-
-        Ok(None)
-    }
-
-    /// Return whether one extension's target repeats its parameters in order.
-    fn target_repeats_parameters(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-        parameters: &[dir::GlobalGenericParameterId],
-    ) -> CompilerResult<bool> {
-        // require an extension whose target applies a declaration
-        let Some(dir::Definition::Extension(extension)) = self.definition(owner)?.cloned() else {
-            return Ok(false);
-        };
-        let target = extension.target.r#type();
-        let dir::Type::Application(instance) = self.ty(target)? else {
-            return Ok(false);
-        };
-
-        // require each target argument to spell the matching parameter
-        let arguments = self
-            .type_ids(target.module_id, instance.arguments)?
-            .to_vec();
-        if arguments.len() != parameters.len() {
-            return Ok(false);
-        }
-        for (argument, parameter) in arguments.iter().zip(parameters) {
-            if !matches!(self.ty(*argument)?, dir::Type::Parameter(spelled) if spelled == *parameter)
-            {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Return the member one conformance list selects for a Drop requirement.
-    fn drop_interface_member(
-        &mut self,
-        implementations: &[dir::NominalConformance],
+        conformance: &dir::NominalConformance,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        // find the conformance naming the Drop interface
-        for conformance in implementations {
-            let Some(symbol) = self.ty(conformance.interface)?.symbol() else {
-                continue;
-            };
-            if self.language_item(symbol)? != Some(dir::LanguageItem::Drop) {
-                continue;
-            }
+        let Some(interface) = self.ty(conformance.interface)?.symbol() else {
+            return Ok(None);
+        };
+        let Some(definition) = self.definition(interface)? else {
+            return Ok(None);
+        };
+        let requirements: Vec<_> = definition
+            .members()
+            .iter()
+            .filter_map(|member| match member {
+                dir::DefinitionMember::Method(method) => Some(method.symbol),
+                _ => None,
+            })
+            .collect();
+        let member = self
+            .conformance_members(conformance.source)?
+            .into_iter()
+            .find(|member| requirements.contains(&member.requirement))
+            .map(|member| member.member);
 
-            // select the member satisfying one of the interface's own requirements
-            let Some(definition) = self.definition(symbol)?.cloned() else {
-                continue;
-            };
-            let requirements: Vec<_> = definition
-                .members()
-                .iter()
-                .filter_map(|member| match member {
-                    dir::DefinitionMember::Method(method) => Some(method.symbol),
-                    _ => None,
-                })
-                .collect();
-            let member = conformance
-                .members
-                .iter()
-                .find(|member| requirements.contains(&member.requirement))
-                .map(|member| member.member);
-
-            return Ok(member);
-        }
-
-        Ok(None)
+        Ok(member)
     }
 
     /// Decide whether one type runs a drop hook when its owned storage ends.
@@ -245,10 +153,10 @@ impl CheckState<'_> {
             dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // hooks declared on the nominal drop, else any stored member drops
             dir::Type::Application(instance) => {
-                if self.drop_hook_member(instance.symbol)?.is_some() {
+                if self.declares_drop(instance.symbol)? {
                     return Ok(Verdict::Holds);
                 }
-                let fields = match self.definition(instance.symbol)?.cloned() {
+                let fields = match self.definition(instance.symbol)?.as_deref() {
                     Some(definition) => self.stored_field_types(definition.members())?,
                     None => SmallVec::new(),
                 };
@@ -267,13 +175,17 @@ impl CheckState<'_> {
                     .map(|element| element.ty)
                     .collect();
 
-                self.decide_any(ids, |state, id| state.decide_drop(origin, id, active))
+                self.decide_any(ids.iter().copied(), |state, id| {
+                    state.decide_drop(origin, id, active)
+                })
             }
             // unions drop when any alternative drops
             dir::Type::Union(union) => {
-                let ids: Vec<_> = self.type_ids(ty.module_id, union.elements)?.to_vec();
+                let ids = self.type_ids(ty.module_id, union.elements)?;
 
-                self.decide_any(ids, |state, id| state.decide_drop(origin, id, active))
+                self.decide_any(ids.iter().copied(), |state, id| {
+                    state.decide_drop(origin, id, active)
+                })
             }
             // refinements drop through their base
             dir::Type::Refined(refined) => {

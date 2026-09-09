@@ -38,11 +38,11 @@ const segment = parse("row-row");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"row-row\")" parameters=(`${"row"}-${"row"}`) arguments=(provided("row-row") as `${"row"}-${"row"}`) return="row" kind=symbol target=parse instance="parse<\"row\">"
 /// @generic.instantiation id="parse<\"row\">" template=parse arguments=("row")
-/// @generic.instance id="parse<\"row\">" template=parse arguments=("row")
+/// @generic.instance id="parse<\"row\">" template=parse arguments=("row") dependents=("row-row")
 
 segment satisfies "row";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -136,16 +136,16 @@ const segment = withParsed("id:users", (segment) => segment);
 /// @resolution.name source=withParsed target=withParsed
 /// @resolution.call source="withParsed(\"id:users\", (segment) => segment)" parameters=(`id:${"users"}`, Function<("users",), "users">) arguments=(provided("id:users") as `id:${"users"}`, provided((segment) => segment) as Function<("users",), "users">) return="users" kind=symbol target=withParsed instance="withParsed<\"users\", \"users\">"
 /// @generic.instantiation id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
-/// @generic.instance id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
+/// @generic.instance id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users") dependents=("id:users")
 /// @type.symbol symbol=symbol7 source="(segment) => segment" type=Function<("users",), "users", "readonly">
 /// @type.symbol symbol=symbol7.segment source=segment type="users"
 /// @resolution.name source=segment target=symbol7.segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=segment root=symbol7.segment
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=segment root=segment
 "#,
     );

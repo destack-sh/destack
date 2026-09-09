@@ -17,7 +17,7 @@ const value: Person = { name: "Ada", extra: true };
 === annotated ===
 type Person = { name: string };
 
-const value: { name: string } = { name: "Ada", extra: true };
+const value: Person = { name: "Ada", extra: true };
 
 === dir ===
 type Person = { name: string };
@@ -26,7 +26,7 @@ type Person = { name: string };
 /// @type.symbol symbol=Person.name source="name: string" type=string
 
 const value: Person = { name: "Ada", extra: true };
-/// @type.symbol symbol=value source=value type={ name: string }
+/// @type.symbol symbol=value source=value type=Person
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Person target=Person
 /// @type.node source={ name: "Ada", extra: true } type={ name: string; extra: boolean }
@@ -34,7 +34,7 @@ const value: Person = { name: "Ada", extra: true };
 /// @type.node source=true type=true
 "#,
         r#"
-/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type '{ name: string }'"
+/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Person'"
 /// @diagnostic.label line=4 column=23 span="{ name: \"Ada\", extra: true }" line_source="const value: Person = { name: \"Ada\", extra: true };"
 /// @diagnostic.related line=4 column=14 span="Person" line_source="const value: Person = { name: \"Ada\", extra: true };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
@@ -62,7 +62,7 @@ const value: Person = source;
 type Person = { name: string };
 
 const source: { name: string; extra: boolean } = { name: "Ada", extra: true };
-const value: { name: string } = source;
+const value: Person = source;
 
 === dir ===
 type Person = { name: string };
@@ -78,18 +78,19 @@ const source = { name: "Ada", extra: true };
 /// @type.node source=true type=true
 
 const value: Person = source;
-/// @type.symbol symbol=value source=value type={ name: string }
+/// @type.symbol symbol=value source=value type=Person
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=source root=source
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ name: string; extra: boolean }' is not assignable to type '{ name: string }'"
+/// @diagnostic.error id=not-assignable message="type '{ name: string; extra: boolean }' is not assignable to type 'Person'"
 /// @diagnostic.label line=5 column=23 span="source" line_source="const value: Person = source;"
 /// @diagnostic.related line=5 column=14 span="Person" line_source="const value: Person = source;" message="expected due to this annotation"
+/// @diagnostic.note message="'Person' reduces to '{ name: string }'"
 /// @diagnostic.note message="'{ name: string }' stores its exact object type, declare an interface to accept structurally wider values"
 "#,
     );
@@ -136,7 +137,7 @@ function keep<T: { name: string }>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=keep.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=keep.value
 
 }
@@ -161,7 +162,7 @@ const extra = value.extra;
 /// @type.node source=value.extra type=boolean
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.extra receiver={ name: string; extra: boolean } type=boolean kind=field target_receiver={ name: string; extra: boolean } key=extra target_type=boolean
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
 /// @resolution.access source=value.extra root=value keys=[extra]
 "#,

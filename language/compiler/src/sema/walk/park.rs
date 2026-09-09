@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_core::StringId;
 use destack_dir as dir;
 
@@ -5,19 +7,22 @@ use crate::CompilerResult;
 use crate::sema::{CheckState, WalkState};
 
 impl WalkState<'_, '_> {
-    /// Return whether one declared callable parks the current fiber: a binding declared with the park option, the
-    /// awaitable protocol's park and its implementations, the fiber park and yield entries, or a generator yield.
+    /// Return whether one declared callable parks the current fiber.
     pub(in crate::sema) fn declaration_parks(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<bool> {
         let module = self.module;
         let node = source.into_global(module);
-        let bindings = self.check.binding_table(module);
+        let bindings = self.check.binding_table(module)?;
         let Some(symbol) = bindings.declaration_symbol(node) else {
             return Ok(false);
         };
         let symbol = symbol.into_global(module);
+        let key = bindings.get_symbol(symbol.local_id).key;
+        let owner = bindings
+            .symbol_owner(symbol.local_id)
+            .map(|owner| owner.into_global(module));
 
         // the generator yields are language items on the yielding entries themselves
         if matches!(
@@ -28,10 +33,6 @@ impl WalkState<'_, '_> {
         }
 
         // the awaitable park and the fiber entries are members of their language items
-        let key = bindings.get_symbol(symbol.local_id).key;
-        let owner = bindings
-            .symbol_owner(symbol.local_id)
-            .map(|owner| owner.into_global(module));
         if let Some(owner) = owner {
             let awaitable = self.check.language_symbol(dir::LanguageItem::Awaitable)?;
             let fiber = self.check.language_symbol(dir::LanguageItem::Fiber)?;
@@ -59,7 +60,7 @@ impl WalkState<'_, '_> {
         owner: dir::GlobalSymbolId,
         item: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
-        let bindings = self.check.binding_table(owner.module_id);
+        let bindings = self.check.binding_table(owner.module_id)?;
         let Some(declaration) =
             bindings
                 .get_symbol(owner.local_id)
@@ -73,8 +74,8 @@ impl WalkState<'_, '_> {
         else {
             return Ok(false);
         };
+        let resolved = Arc::clone(self.check.module_resolved(owner.module_id)?);
         let view = self.check.module_view(owner.module_id);
-        let resolved = self.check.module_resolved(owner.module_id);
         let implemented = view
             .get(declaration)
             .implements_types()
@@ -96,8 +97,8 @@ impl WalkState<'_, '_> {
         let module = node.module_id;
         let park = StringId::for_text("park");
         let binding = self.check.language_symbol(dir::LanguageItem::Binding)?;
+        let resolved = Arc::clone(self.check.module_resolved(module)?);
         let view = self.check.module_view(module);
-        let resolved = self.check.module_resolved(module);
         for decorator in view.get_decorators_any(node.local_id) {
             // read a call to the binding decorator
             let expression = view.get(decorator).expression;
@@ -159,7 +160,7 @@ impl CheckState<'_> {
         let Some(function) = self.current_function_symbol() else {
             return Ok(false);
         };
-        let Some(ty) = self.symbol_type_maybe(function) else {
+        let Some(ty) = self.symbol_type_maybe(function)? else {
             return Ok(false);
         };
 

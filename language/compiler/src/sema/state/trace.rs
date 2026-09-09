@@ -31,6 +31,10 @@ pub(in crate::sema) struct CheckCounters {
     pub(in crate::sema) member_refusals: u64,
     /// Member collections closed coinductively.
     pub(in crate::sema) extension_reentries: u64,
+    /// Instances the closure materialized.
+    pub(in crate::sema) instances: u64,
+    /// Entries materialized under an instance's substitution.
+    pub(in crate::sema) instance_entries: u64,
 }
 
 /// The bounds visible when one variable event was traced.
@@ -149,8 +153,8 @@ impl CheckState<'_> {
         }
 
         // format the check before mutating its trace buffer
-        let check = self.fulfill.checks.get(id)?;
-        let event = EventFormatter::new(self).format_check(check, id, is_finished);
+        let check = self.fulfill.checks.get(id)?.clone();
+        let event = EventFormatter::new(self).format_check(&check, id, is_finished);
 
         // record the event on the live trace
         if let Some(trace) = &mut self.trace {
@@ -218,6 +222,8 @@ impl CheckCounters {
             ("check.instantiations", self.instantiations),
             ("check.interns", self.interns),
             ("check.reduces", self.reduces),
+            ("materialize.instances", self.instances),
+            ("materialize.instance_entries", self.instance_entries),
         ]);
     }
 }

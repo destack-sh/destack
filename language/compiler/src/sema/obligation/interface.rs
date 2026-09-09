@@ -23,7 +23,7 @@ impl CheckState<'_> {
         };
 
         // extensions implement for their target, nominals for themselves
-        let extension_target = match definition {
+        let extension_target = match &*definition {
             dir::Definition::Extension(extension) => Some(extension.target.r#type()),
             dir::Definition::Struct(_) | dir::Definition::Class(_) | dir::Definition::Enum(_) => {
                 None
@@ -34,7 +34,7 @@ impl CheckState<'_> {
         };
 
         // read the declared members and the interfaces they must satisfy
-        let members = definition.members().to_vec();
+        let members = definition.members();
         let implementations = definition
             .implementations()
             .iter()
@@ -75,7 +75,7 @@ impl CheckState<'_> {
                 origin,
                 interface,
                 target,
-                &members,
+                members,
                 is_unsafe_extension,
             )?;
             match selected_members {
@@ -95,33 +95,30 @@ impl CheckState<'_> {
             }
         }
 
-        // publish selected members after every interface settles
-        let definition = self
-            .definition_mut(symbol)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("interface conformance has no mutable definition: {symbol:?}"),
-            })?;
-        let conformances =
-            definition
-                .implementations_mut()
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("definition {symbol:?} cannot implement interfaces"),
-                })?;
-
-        // require the declaration to keep the queued implementation count
-        if conformances.len() != member_selections.len() {
+        // publish each interface's selected members on its `implements` clause
+        let sources: Vec<_> = self
+            .definition(symbol)?
+            .map(|definition| {
+                definition
+                    .implementations()
+                    .iter()
+                    .map(|conformance| conformance.source)
+                    .collect()
+            })
+            .unwrap_or_default();
+        if sources.len() != member_selections.len() {
             return Err(CompilerError::Internal {
                 message: format!(
                     "definition {symbol:?} has {} conformances, expected {}",
-                    conformances.len(),
+                    sources.len(),
                     member_selections.len()
                 ),
             });
         }
-
-        // write each interface's selected members onto its conformance
-        for (conformance, members) in conformances.iter_mut().zip(member_selections) {
-            conformance.members = members;
+        for (source, members) in sources.into_iter().zip(member_selections) {
+            self.module_mut(symbol.module_id)
+                .members_tail
+                .set_conformance_members(source, members);
         }
 
         Ok(ObligationCheck::from_failures(failures))
@@ -225,8 +222,15 @@ impl CheckState<'_> {
             return Ok(ConformanceSelection::Missing);
         };
 
-        // read the members, signatures, and inherited interfaces it requires
+        // read the members, signatures, and inherited interfaces it requires, and the
+        // instantiation a requirement's own generic bounds are read under
         let mut requirements = self.interface_requirements(interface, target)?;
+        let assumed = match self.ty(interface)? {
+            dir::Type::Application(instance) => {
+                self.instance_substitution(interface.module_id, &instance)?
+            }
+            _ => TypeSubstitution::default(),
+        };
 
         // project interface-owner members through this implementation's refinements
         let mut base = interface;
@@ -236,19 +240,15 @@ impl CheckState<'_> {
         if base != interface
             && let dir::Type::Application(base_instance) = self.ty(base)?
         {
-            let module = self.module_id;
-            let base_arguments = self
-                .type_ids(base.module_id, base_instance.arguments)?
-                .to_vec();
+            let base_arguments = self.type_ids(base.module_id, base_instance.arguments)?;
             for index in 0..requirements.members.len() {
                 let Some(ty) = requirements.members[index].ty else {
                     continue;
                 };
-                let plain =
-                    self.plain_applications_of(ty, base_instance.symbol, &base_arguments)?;
+                let plain = self.plain_applications_of(ty, base_instance.symbol, base_arguments)?;
                 let mut rewritten = ty;
                 for occurrence in plain {
-                    rewritten = self.replace_type(module, rewritten, occurrence, interface)?;
+                    rewritten = self.replace_type(rewritten, occurrence, interface)?;
                 }
                 requirements.members[index].ty = Some(rewritten);
             }
@@ -327,6 +327,7 @@ impl CheckState<'_> {
                         found,
                         required,
                         substitution.receiver,
+                        Some(&assumed),
                     )?;
                     if decision.holds() {
                         selected = Some(symbol);
@@ -467,7 +468,7 @@ impl CheckState<'_> {
             if is_visible
                 && (declared.origin == dir::MemberOrigin::BlanketExtension
                     || matches!(
-                        self.definition(declared.owner)?,
+                        self.definition(declared.owner)?.as_deref(),
                         Some(dir::Definition::Interface(_))
                     ))
             {

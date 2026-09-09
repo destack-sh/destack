@@ -145,7 +145,7 @@ impl CheckState<'_> {
         if self.is_absent_symbol(extension_symbol) {
             return Ok(None);
         }
-        let target_type = match self.definition(extension_symbol)? {
+        let target_type = match self.definition(extension_symbol)?.as_deref() {
             Some(dir::Definition::Extension(extension)) if extension.is_visible_from(module) => {
                 extension.target.r#type()
             }
@@ -154,7 +154,6 @@ impl CheckState<'_> {
 
         // match the receiver once, erasing the instantiations this probe left undeduced
         let template = self.symbol_template(extension_symbol)?;
-        let own_module = self.module_id;
         let baseline = self.infer.variable_count();
         let is_settled = !(self.type_flags(receiver)? | self.type_flags(subject)?).has_variable();
         let deduced = self.decide_deduction(|state| {
@@ -191,7 +190,7 @@ impl CheckState<'_> {
                                 };
                                 let from = state.intern_type(dir::Type::Variable(variable))?;
                                 let to = state.intern_type(dir::Type::Erased(parameter))?;
-                                argument = state.replace_type(own_module, argument, from, to)?;
+                                argument = state.replace_type(argument, from, to)?;
                             }
 
                             argument
@@ -250,7 +249,7 @@ impl CheckState<'_> {
             return Ok(true);
         };
         if matches!(
-            self.definition(target_symbol)?,
+            self.definition(target_symbol)?.as_deref(),
             None | Some(dir::Definition::Interface(_) | dir::Definition::TypeAlias(_))
         ) {
             return Ok(true);
@@ -291,7 +290,7 @@ impl CheckState<'_> {
         // map each implemented interface's member keys to that interface
         let mut requirements = FxIndexMap::default();
         if matches!(
-            self.definition(extension)?,
+            self.definition(extension)?.as_deref(),
             Some(dir::Definition::Extension(_))
         ) {
             let interfaces = self.declared_interfaces(extension)?;
@@ -299,15 +298,19 @@ impl CheckState<'_> {
                 let Some((_, interface)) = self.nominal_application_maybe(implemented)? else {
                     continue;
                 };
-                let Some(dir::Definition::Interface(declared)) =
-                    self.definition(interface.symbol)?
-                else {
+
+                // map the keys the interface declares
+                let definition = self.definition(interface.symbol)?;
+                let Some(dir::Definition::Interface(declared)) = definition.as_deref() else {
                     continue;
                 };
-                for member in &declared.members {
-                    if let Some(key) = member.key() {
-                        requirements.entry(key).or_insert(interface.symbol);
-                    }
+                let keys: Vec<_> = declared
+                    .members
+                    .iter()
+                    .filter_map(|member| member.key())
+                    .collect();
+                for key in keys {
+                    requirements.entry(key).or_insert(interface.symbol);
                 }
             }
         }
@@ -341,7 +344,7 @@ impl CheckState<'_> {
         // read the blanket's declared keys with its implemented interfaces
         let mut interfaces = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         let mut keys = FxIndexSet::default();
-        match self.definition(extension)? {
+        match self.definition(extension)?.as_deref() {
             Some(dir::Definition::Extension(definition)) if definition.target.is_blanket() => {
                 for member in &definition.members {
                     let Some(declared) = member.key() else {
@@ -364,8 +367,8 @@ impl CheckState<'_> {
             let Some((_, interface)) = self.nominal_application_maybe(implemented)? else {
                 continue;
             };
-            let Some(dir::Definition::Interface(definition)) = self.definition(interface.symbol)?
-            else {
+            let declared = self.definition(interface.symbol)?;
+            let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
                 continue;
             };
             for member in &definition.members {
@@ -388,12 +391,13 @@ impl CheckState<'_> {
     }
 
     /// Return whether one extension declaration is visible from one module.
-    fn is_extension_visible(
+    pub(in crate::sema) fn is_extension_visible(
         &mut self,
         extension: dir::GlobalSymbolId,
         module: ModuleId,
     ) -> CompilerResult<bool> {
-        let Some(dir::Definition::Extension(definition)) = self.definition(extension)? else {
+        let declared = self.definition(extension)?;
+        let Some(dir::Definition::Extension(definition)) = declared.as_deref() else {
             return Ok(false);
         };
 
@@ -493,16 +497,13 @@ impl CheckState<'_> {
         if let ExtensionHead::Root(root @ dir::TypeRoot::Declaration(target)) = head
             && target.module_id != module
         {
-            if !self.is_loaded_module(target.module_id) {
-                self.import_external_module(target.module_id)?;
-            }
             if let Some(state) = self.module_maybe(target.module_id) {
                 symbols.extend(state.root_extensions(root));
                 symbols.extend(state.blanket_extensions());
             }
-            if let Some(external) = self.external_modules.get(&target.module_id) {
-                symbols.extend(external.definitions.root_extensions(root));
-                symbols.extend(external.definitions.blanket_extensions());
+            if let Some(external) = self.external(target.module_id)? {
+                symbols.extend(external.definitions().root_extensions(root));
+                symbols.extend(external.definitions().blanket_extensions());
             }
         }
 
@@ -536,7 +537,7 @@ impl CheckState<'_> {
             .map(|(_, symbol)| symbol)
             .collect::<SmallVec<[_; 8]>>();
         for symbol in imported {
-            if let Some(dir::Definition::Extension(extension)) = self.definition(symbol)?
+            if let Some(dir::Definition::Extension(extension)) = self.definition(symbol)?.as_deref()
                 && head.admits(extension.target.root())
             {
                 symbols.push(symbol);
@@ -612,10 +613,11 @@ impl CheckState<'_> {
             }
         }
 
-        // keep the declarations whose conformances reach the interface, with their roots
+        // keep the declarations conforming to the interface, with their roots
         let mut implementations = SmallVec::new();
         for symbol in symbols {
-            let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
+            let definition = self.definition(symbol)?;
+            let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
                 continue;
             };
             let root = extension.target.root();
@@ -726,12 +728,12 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // skip an extension the goal already refused
+        // reuse the decided match
         let goal = self.goal_key(origin, Goal::Extension { extension }, &[receiver, subject])?;
         if let Some(goal) = &goal
-            && let Some(Answer::Extension(false)) = self.answers.get(goal)
+            && let Some(Answer::Extension(source)) = self.answers.get(goal)
         {
-            return Ok(None);
+            return Ok(source.clone());
         }
 
         // decide the match live, missing on a re-entered pair
@@ -744,17 +746,18 @@ impl CheckState<'_> {
         self.active.swap_remove(&active);
         let arguments = arguments?;
 
-        // remember the verdict for equal asks
+        // remember the match for equal asks
+        let source = arguments.map(|arguments| ExtensionSource {
+            extension,
+            arguments,
+        });
         if let Some(goal) = goal {
             self.answers
                 .entry(goal)
-                .or_insert(Answer::Extension(arguments.is_some()));
+                .or_insert_with(|| Answer::Extension(source.clone()));
         }
 
-        Ok(arguments.map(|arguments| ExtensionSource {
-            extension,
-            arguments,
-        }))
+        Ok(source)
     }
 
     /// Collect the declared members of one extension matching a selection key.
@@ -785,7 +788,6 @@ impl CheckState<'_> {
     pub(in crate::sema) fn decide_extension_implementation(
         &mut self,
         origin: Origin,
-        relation: Relation,
         interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericApplication,
@@ -821,13 +823,13 @@ impl CheckState<'_> {
             false => interface_type,
         };
         let goal = match excluded {
-            None => self.goal_key(origin, Goal::Implementation(relation), &[receiver, asked])?,
+            None => self.goal_key(origin, Goal::Implementation, &[receiver, asked])?,
             Some(_) => None,
         };
         let remembered = match &goal {
             Some(goal) => match self.answers.get(goal) {
                 Some(Answer::Implement(None)) => {
-                    return Ok(Implementation::FAILS);
+                    return Ok(Implementation::fails());
                 }
                 Some(Answer::Implement(winner)) => *winner,
                 _ => None,
@@ -836,15 +838,14 @@ impl CheckState<'_> {
         };
 
         // break inductive applicability cycles: goals reached from themselves fail
-        let active = ActiveGoal::Implementation(relation, receiver, interface_type);
+        let active = ActiveGoal::Implementation(receiver, interface_type);
         if !self.active.insert(active) {
-            return Ok(Implementation::FAILS);
+            return Ok(Implementation::fails());
         }
 
         // decide the remembered winner alone, else every visible declaration
         let decision = self.decide_visible_extensions(
             origin,
-            relation,
             module,
             instance_module,
             receiver,
@@ -864,7 +865,7 @@ impl CheckState<'_> {
                 self.constrain_type(origin, cause, Relation::Storable, receiver, target)?;
             }
             if let Some(matched) = decision.interface {
-                self.constrain_type(origin, cause, relation, matched, interface_type)?;
+                self.constrain_type(origin, cause, Relation::Equal, matched, interface_type)?;
             }
         }
 
@@ -872,9 +873,9 @@ impl CheckState<'_> {
         if let Some(goal) = goal
             && decision.verdict != Verdict::Ambiguous
         {
-            self.answers
-                .entry(goal)
-                .or_insert(Answer::Implement(decision.winner));
+            self.answers.entry(goal).or_insert(Answer::Implement(
+                decision.winner.as_ref().map(|winner| winner.extension),
+            ));
         }
 
         Ok(decision)
@@ -908,7 +909,6 @@ impl CheckState<'_> {
     fn decide_visible_extensions(
         &mut self,
         origin: Origin,
-        relation: Relation,
         module: ModuleId,
         interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
@@ -927,16 +927,14 @@ impl CheckState<'_> {
             if Some(extension_symbol) == excluded
                 || only.is_some_and(|only| only != extension_symbol)
                 || self.is_absent_symbol(extension_symbol)
+                || !self.is_extension_visible(extension_symbol, module)?
             {
                 continue;
             }
-            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
-            else {
+            let definition = self.definition(extension_symbol)?;
+            let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
                 continue;
             };
-            if !extension.is_visible_from(module) {
-                continue;
-            }
 
             // read the target and the interfaces the declaration implements
             let target_type = extension.target.r#type();
@@ -970,7 +968,6 @@ impl CheckState<'_> {
             let verdict = self.decide_candidate(|state| {
                 let matched = state.match_extension_implementation(
                     origin,
-                    relation,
                     interface_module,
                     receiver,
                     receiver,
@@ -1005,7 +1002,6 @@ impl CheckState<'_> {
         if let [(winner, template, target_type, interfaces)] = undecided.as_slice() {
             let matched = self.match_extension_implementation(
                 origin,
-                relation,
                 interface_module,
                 receiver,
                 receiver,
@@ -1017,10 +1013,14 @@ impl CheckState<'_> {
             )?;
             if let ExtensionMatch::Matched(substitution, matched_interface) = matched {
                 let target = self.substitute_type(*target_type, &substitution)?;
+                let arguments = self.template_arguments(*template, &substitution)?;
 
                 return Ok(Implementation {
                     verdict: Verdict::Holds,
-                    winner: Some(*winner),
+                    winner: Some(ExtensionSource {
+                        extension: *winner,
+                        arguments,
+                    }),
                     target: Some(target),
                     interface: Some(matched_interface),
                 });
@@ -1042,9 +1042,35 @@ impl CheckState<'_> {
         })
     }
 
+    /// Return the arguments one matched template binds, in declaration order.
+    fn template_arguments(
+        &self,
+        template: Option<GenericTemplateId>,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 4]>> {
+        let mut arguments = SmallVec::new();
+        let Some(template) = template else {
+            return Ok(arguments);
+        };
+
+        // a matched implementation binds every parameter its declaration constrains
+        for parameter in self.generic_template_parameters(template)? {
+            let Some(binding) = substitution
+                .bindings
+                .iter()
+                .find(|binding| binding.parameter == parameter)
+            else {
+                return Err(CompilerError::Internal {
+                    message: "a matched implementation with an unbound parameter".to_string(),
+                });
+            };
+            arguments.push(binding.argument);
+        }
+
+        Ok(arguments)
+    }
+
     /// Bind one extension's parameters through its declared target.
-    ///
-    /// A receiver the target leaves unreached binds nothing.
     fn match_extension_target(
         &mut self,
         origin: Origin,
@@ -1149,21 +1175,18 @@ impl CheckState<'_> {
             .map(|(_, instance)| instance.symbol))
     }
 
-    /// Return whether one declaration's conformances reach a requested interface.
+    /// Return whether one declaration's conformances name a requested interface.
     fn has_requested_interface(
         &mut self,
         interfaces: &[dir::GlobalTypeId],
         interface: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
-        // reach the requested interface from any declared conformance
         for implemented in interfaces {
-            // a conformance written over a parameter or an alias reaches every interface
+            // a conformance written over a parameter or an alias names every interface
             let Some((_, instance)) = self.nominal_application_maybe(*implemented)? else {
                 return Ok(true);
             };
-
-            // follow the heritage above the named declaration
-            if self.reaches_heritage(instance.symbol, interface)? {
+            if instance.symbol == interface {
                 return Ok(true);
             }
         }
@@ -1175,7 +1198,6 @@ impl CheckState<'_> {
     pub(in crate::sema) fn match_extension_implementation(
         &mut self,
         origin: Origin,
-        relation: Relation,
         interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
@@ -1229,7 +1251,6 @@ impl CheckState<'_> {
         };
         let implementation = self.match_implemented_interface(
             origin,
-            relation,
             interface_module,
             &parameters,
             &mut substitution,
@@ -1344,7 +1365,8 @@ impl CheckState<'_> {
         other: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read the other declaration's target and implemented interfaces
-        let Some(dir::Definition::Extension(extension)) = self.definition(other)? else {
+        let definition = self.definition(other)?;
+        let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
             return Ok(None);
         };
         let other_target = extension.target.r#type();
@@ -1362,28 +1384,131 @@ impl CheckState<'_> {
             None => SmallVec::new(),
         };
 
-        // enumerate the declared inhabitants of each interface bounded parameter
-        let predicates = self.template_predicates(template);
+        // unify the headers and read the closed bounds on each parameter left open
+        let mut open: Vec<Option<Vec<(Relation, dir::GlobalTypeId)>>> =
+            vec![None; parameters.len()];
+        let unified = self.decide_candidate(|state| {
+            let Some(substitution) = state.instantiate_parameters(
+                origin,
+                &parameters,
+                &[],
+                TypeSubstitution::default(),
+                TypeArgumentInference::Exact,
+            )?
+            else {
+                return Ok(CandidateOutcome::<(), ()>::Rejected(()));
+            };
+            let receiver = state.substitute_type(target_type, &substitution)?;
+            let interface = state.substitute_type(interface_type, &substitution)?;
+            let (interface_module, interface) = state.nominal_application(interface)?;
+            let matched = state.match_extension_implementation(
+                origin,
+                interface_module,
+                receiver,
+                receiver,
+                &interface,
+                other_template,
+                other_target,
+                &other_interfaces,
+                OpenBounds::Keep,
+            )?;
+            let other_substitution = match matched {
+                ExtensionMatch::Matched(substitution, _) => Some(substitution),
+                ExtensionMatch::Unproven => None,
+                ExtensionMatch::Unmatched => {
+                    return Ok(CandidateOutcome::<(), ()>::Rejected(()));
+                }
+            };
+
+            // collect both declarations' bounds under the unified headers
+            let mut constraints = Vec::new();
+            if let Some(template) = template {
+                constraints.extend(state.substitute_application_constraints(
+                    origin,
+                    template,
+                    &substitution,
+                )?);
+            }
+            if let (Some(other_template), Some(other_substitution)) =
+                (other_template, &other_substitution)
+            {
+                constraints.extend(state.substitute_application_constraints(
+                    origin,
+                    other_template,
+                    other_substitution,
+                )?);
+            }
+            // keep the closed bounds on each parameter left open
+            for (index, parameter) in parameters.iter().enumerate() {
+                let Some(argument) = substitution.argument(*parameter) else {
+                    continue;
+                };
+                let argument = state.shallow_resolve(argument)?;
+                if !matches!(state.ty(argument)?, dir::Type::Variable(_)) {
+                    continue;
+                }
+                let mut bounds = Vec::new();
+                for constraint in &constraints {
+                    let source = state.shallow_resolve(constraint.source)?;
+                    if source == argument && !state.type_flags(constraint.target)?.has_variable() {
+                        bounds.push((constraint.relation, constraint.target));
+                    }
+                }
+                open[index] = Some(bounds);
+            }
+
+            Ok(CandidateOutcome::<(), ()>::Accepted(()))
+        })?;
+        if unified == Verdict::Fails {
+            return Ok(None);
+        }
+
+        // enumerate the declared inhabitants satisfying each open parameter's closed bounds
+        let predicates = self.template_predicates(template)?;
         let mut inhabitants = Vec::with_capacity(parameters.len());
-        for parameter in &parameters {
-            let mut bounds = SmallVec::<[dir::GlobalTypeId; 2]>::new();
-            bounds.extend(self.require_generic_parameter(*parameter)?.constraint);
+        for (index, parameter) in parameters.iter().enumerate() {
+            let Some(bounds) = &open[index] else {
+                inhabitants.push(None);
+                continue;
+            };
+            let mut declared = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+            declared.extend(self.require_generic_parameter(*parameter)?.constraint);
             for predicate in &predicates {
                 if predicate.relation == dir::WhereRelation::Satisfies
                     && matches!(self.ty(predicate.left)?, dir::Type::Parameter(bounded) if bounded == *parameter)
                 {
-                    bounds.push(predicate.right);
+                    declared.push(predicate.right);
                 }
             }
 
             // take the inhabitants of the first bound that names an interface
             let mut witnesses = None;
-            for bound in bounds {
+            for bound in declared {
                 let mut visited = FxIndexSet::default();
                 witnesses = self.interface_inhabitants(origin, module, bound, &mut visited)?;
                 if witnesses.is_some() {
                     break;
                 }
+            }
+
+            // keep the inhabitants satisfying every closed bound
+            if let Some(witnesses) = &mut witnesses {
+                let mut kept = Vec::with_capacity(witnesses.len());
+                for witness in witnesses.drain(..) {
+                    let mut satisfies = true;
+                    for (relation, target) in bounds {
+                        if self.decide_relation(origin, *relation, witness, *target)?
+                            == Verdict::Fails
+                        {
+                            satisfies = false;
+                            break;
+                        }
+                    }
+                    if satisfies {
+                        kept.push(witness);
+                    }
+                }
+                *witnesses = kept;
             }
 
             // stop once a bound turns out uninhabited
@@ -1481,7 +1606,6 @@ impl CheckState<'_> {
             // bind the witnessed instantiation through the other implementation
             let matched = state.match_extension_implementation(
                 origin,
-                Relation::Storable,
                 interface_module,
                 receiver,
                 receiver,
@@ -1555,7 +1679,8 @@ impl CheckState<'_> {
         // take the target of each rooted implementation, descending through the blankets
         let mut inhabitants = Vec::new();
         for (implementor, _) in self.implementations_over(origin, module, None, instance.symbol)? {
-            let Some(dir::Definition::Extension(extension)) = self.definition(implementor)? else {
+            let definition = self.definition(implementor)?;
+            let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
                 continue;
             };
             match extension.target {
@@ -1571,7 +1696,7 @@ impl CheckState<'_> {
                         continue;
                     };
                     let Some(bound) = self
-                        .generic_parameter(parameter)
+                        .generic_parameter(parameter)?
                         .and_then(|binding| binding.constraint)
                     else {
                         continue;
@@ -1605,8 +1730,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Vec<(dir::StaticKey, MemberCandidate)>> {
         // read the extension's target and the interfaces it implements
         let extension_symbol = source.extension;
-        let Some(dir::Definition::Extension(extension)) = self.definition_maybe(extension_symbol)
-        else {
+        let definition = self.definition(extension_symbol)?;
+        let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "loaded extension symbol {extension_symbol:?} has no extension definition"
@@ -1648,20 +1773,15 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // load the interface declaration
-            if !self.is_loaded_module(interface.symbol.module_id) {
-                self.import_external_module(interface.symbol.module_id)?;
-            }
-            let Some(dir::Definition::Interface(definition)) =
-                self.definition_maybe(interface.symbol)
-            else {
+            let declared = self.definition(interface.symbol)?;
+            let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
                 continue;
             };
 
             // take each default member whose key the extension left open
             let first_default = members.len();
             for member in &definition.members {
-                if member.space() != space || !self.definition_member_has_default(member) {
+                if member.space() != space || !self.definition_member_has_default(member)? {
                     continue;
                 }
                 if let Some(key) = key
@@ -1784,7 +1904,8 @@ impl CheckState<'_> {
         }
 
         // read matching static members from extensions of this declaration
-        let extension = match self.definition(extension_symbol)? {
+        let declared = self.definition(extension_symbol)?;
+        let extension = match declared.as_deref() {
             Some(dir::Definition::Extension(extension)) => extension,
             Some(_) => {
                 return Err(CompilerError::Internal {
@@ -1897,7 +2018,7 @@ impl CheckState<'_> {
         members: &[DeclaredMember],
     ) -> CompilerResult<Vec<(dir::StaticKey, MemberCandidate)>> {
         // rank blanket declarations behind rooted extensions
-        let member_origin = match self.definition(extension_symbol)? {
+        let member_origin = match self.definition(extension_symbol)?.as_deref() {
             Some(dir::Definition::Extension(extension)) if extension.target.is_blanket() => {
                 dir::MemberOrigin::BlanketExtension
             }
@@ -1916,7 +2037,7 @@ impl CheckState<'_> {
             let access = self.projected_member_access(origin, substitution.receiver, member, ty)?;
 
             // substitute static projections through the same extension instance
-            let written = match self.static_value(member.symbol) {
+            let written = match self.static_value(member.symbol)? {
                 Some(written) => Some(self.substitute_type(written, substitution)?),
                 None => None,
             };
@@ -1930,6 +2051,7 @@ impl CheckState<'_> {
                 member_origin,
                 generic_arguments,
             );
+            declared.region_arguments = self.resolved_region_bindings(&substitution.bindings)?;
             declared.requirement = requirement;
             declared.value_type = written;
             let candidate = MemberCandidate::declared(declared, member, access, callable);
@@ -1955,8 +2077,8 @@ impl CheckState<'_> {
         // walk each extension declaration visible from this module
         let mut interfaces = SmallVec::new();
         for extension_symbol in symbols {
-            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
-            else {
+            let definition = self.definition(extension_symbol)?;
+            let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
                 continue;
             };
             if !extension.is_visible_from(module) {
@@ -2026,7 +2148,7 @@ impl CheckState<'_> {
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
     ) -> CompilerResult<Option<TypeSubstitution>> {
-        // match each dereference step of the receiver, then the widened subject, against the target
+        // match each form step of the receiver, then the widened subject, against the target
         let value = Value {
             ty: receiver,
             node: None,
@@ -2036,6 +2158,11 @@ impl CheckState<'_> {
         let mut subjects = self
             .builtin_steps(origin, value)?
             .into_iter()
+            .take_while(|step| {
+                !step.adjustments.iter().any(|adjustment| {
+                    matches!(adjustment, dir::ReceiverAdjustment::NewtypePayload { .. })
+                })
+            })
             .map(|step| step.ty)
             .collect::<SmallVec<[_; 4]>>();
         if !subjects.contains(&subject) {

@@ -120,11 +120,11 @@ struct Point {
 }
 
 function shift(point: &Point): int32 {
-/// @flow.use symbol=point uses=read
+/// @flow.use symbol=point uses=read+mutated
 
     point.x = point.x + 1;
     /// @flow.access source=point root=shift.point uses=read
-    /// @flow.access source=point.x root=shift.point keys=[x] uses=written
+    /// @flow.access source=point.x root=shift.point keys=[x] uses=written+mutated
     /// @flow.access source=point root=shift.point uses=read
     /// @flow.access source=point.x root=shift.point keys=[x] uses=read
 
@@ -151,7 +151,7 @@ fn test_record_mutable_binding_storage_uses() {
 struct Counter {
     value: int32;
 
-    increment(&exclusive this): void {
+    increment(&this): void {
         this.value += 1;
     }
 }
@@ -159,7 +159,7 @@ struct Counter {
 class Service {
     value: int32 = 0;
 
-    increment(&exclusive this): void {
+    increment(&this): void {
         this.value += 1;
     }
 }
@@ -191,7 +191,7 @@ referenced.increment();
 struct Counter {
     value: int32;
 
-    increment(&exclusive this): void {
+    increment(&this): void {
         this.value += 1;
     }
 }
@@ -199,7 +199,7 @@ struct Counter {
 class Service {
     value: int32 = 0;
 
-    increment(&exclusive this): void {
+    increment(&this): void {
         this.value += 1;
     }
 }
@@ -228,11 +228,11 @@ struct Counter {
     value: int32;
     /// @flow.use symbol=value#1 uses=read+written
 
-    increment(&exclusive this): void {
+    increment(&this): void {
     /// @flow.use symbol=increment#1 uses=read
 
         this.value += 1;
-        /// @flow.access source=this.value root=this keys=[value] uses=written+mutable
+        /// @flow.access source=this.value root=this keys=[value] uses=written+mutated
 
     }
 }
@@ -243,11 +243,11 @@ class Service {
     value: int32 = 0;
     /// @flow.use symbol=value#2 uses=read+written
 
-    increment(&exclusive this): void {
+    increment(&this): void {
     /// @flow.use symbol=increment#2 uses=read
 
         this.value += 1;
-        /// @flow.access source=this.value root=this keys=[value] uses=written+mutable
+        /// @flow.access source=this.value root=this keys=[value] uses=written+mutated
 
     }
 }
@@ -256,35 +256,35 @@ declare function modify(value: &int32): void;
 /// @flow.use symbol=modify uses=read
 
 let borrowed: int32 = 0;
-/// @flow.use symbol=borrowed uses=read+mutable
+/// @flow.use symbol=borrowed uses=read+mutated+mutable
 
 &borrowed;
-/// @flow.access source=borrowed root=borrowed uses=read+mutable
+/// @flow.access source=borrowed root=borrowed uses=read+mutated+mutable
 
 let passed: int32 = 0;
-/// @flow.use symbol=passed uses=read+mutable
+/// @flow.use symbol=passed uses=read+mutated+mutable
 
 modify(passed);
-/// @flow.access source=passed root=passed uses=read+mutable
+/// @flow.access source=passed root=passed uses=read+mutated+mutable
 
 let field: Counter = Counter { value: 0 };
-/// @flow.use symbol=field uses=read+mutable
+/// @flow.use symbol=field uses=read+mutated
 
 field.value = 1;
 /// @flow.access source=field root=field uses=read
-/// @flow.access source=field.value root=field keys=[value] uses=written+mutable
+/// @flow.access source=field.value root=field keys=[value] uses=written+mutated
 
 let called: Counter = Counter { value: 0 };
-/// @flow.use symbol=called uses=read+mutable+exclusive
+/// @flow.use symbol=called uses=read+mutated+mutable
 
 called.increment();
-/// @flow.access source=called root=called uses=read+mutable+exclusive
+/// @flow.access source=called root=called uses=read+mutated+mutable
 
 let referenced: Service = new Service();
-/// @flow.use symbol=referenced uses=read+exclusive
+/// @flow.use symbol=referenced uses=read+mutable
 
 referenced.increment();
-/// @flow.access source=referenced root=referenced uses=read+exclusive
+/// @flow.access source=referenced root=referenced uses=read+mutable
 "#,
         r#"
 "#,

@@ -45,14 +45,14 @@ x satisfies int32;
 /// @type.node source="x satisfies int32" type=int32
 /// @type.node source=x type=int32
 /// @resolution.name source=x target=x#2
-/// @resolution.place source=x placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=x placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=x root=x#2
 
 y satisfies string;
 /// @type.node source="y satisfies string" type=string
 /// @type.node source=y type=string
 /// @resolution.name source=y target=y#2
-/// @resolution.place source=y placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=y placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=y root=y#2
 "#,
     );
@@ -90,7 +90,7 @@ let { x }: { x: int32 } = source;
 /// @type.symbol symbol=x#2 source="x: int32" type=int32
 /// @type.node source=source type={ x: string }
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=source root=source
 "#,
         r#"
@@ -153,9 +153,7 @@ const result = match (state) {
 === annotated ===
 type State = { inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } };
 
-declare const state:
-    | { inner: { kind: "a"; value: int32 } }
-    | { inner: { kind: "b"; flag: boolean } };
+declare const state: State;
 
 const result: int32 = match (state) {
     {
@@ -182,7 +180,7 @@ type State =
     /// @type.symbol symbol=State.flag source="flag: boolean" type=boolean
 
 declare const state: State;
-/// @type.symbol symbol=state source=state type={ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }
+/// @type.symbol symbol=state source=state type=State
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
@@ -253,7 +251,7 @@ struct Ready {
 
 type State = Pending | Ready;
 
-declare const state: Pending | Ready;
+declare const state: State;
 
 const result: int32 = match (state) {
     { kind: "pending", waiting } => waiting
@@ -296,7 +294,7 @@ type State = Pending | Ready;
 /// @resolution.name source=Ready target=Ready
 
 declare const state: State;
-/// @type.symbol symbol=state source=state type=Pending | Ready
+/// @type.symbol symbol=state source=state type=State
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
@@ -305,7 +303,7 @@ const result = match (state) {
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
 /// @resolution.coverage exhaustive=true disjoint=false
-/// @type.node source=state type=Pending | Ready
+/// @type.node source=state type=State
 /// @resolution.name source=state target=state
 /// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
@@ -374,7 +372,7 @@ struct Trailer {
 
 type Frame = Header | Trailer;
 
-declare const frame: Header | Trailer;
+declare const frame: Frame;
 
 const result: int32 = match (frame) {
     { version: 1, length } => length
@@ -417,7 +415,7 @@ type Frame = Header | Trailer;
 /// @resolution.name source=Trailer target=Trailer
 
 declare const frame: Frame;
-/// @type.symbol symbol=frame source=frame type=Header | Trailer
+/// @type.symbol symbol=frame source=frame type=Frame
 /// @resolution.pattern source=frame kind=binding target=frame
 /// @resolution.name source=Frame target=Frame
 
@@ -426,7 +424,7 @@ const result = match (frame) {
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
 /// @resolution.coverage exhaustive=true disjoint=false
-/// @type.node source=frame type=Header | Trailer
+/// @type.node source=frame type=Frame
 /// @resolution.name source=frame target=frame
 /// @resolution.place source=frame placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=frame root=frame

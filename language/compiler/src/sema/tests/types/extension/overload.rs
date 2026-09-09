@@ -124,7 +124,7 @@ extension of User {
 
         return name;
         /// @resolution.name source=name target=greet.name#1
-        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=name root=greet.name#1
 
     }
@@ -155,7 +155,7 @@ extension of User {
 
         return value;
         /// @resolution.name source=value target=label.value#2
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=label.value#2
 
     }
@@ -178,7 +178,7 @@ extension of User {
 
         return right;
         /// @resolution.name source=right target=pair.right
-        /// @resolution.place source=right placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=right placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=right root=pair.right
 
     }
@@ -312,7 +312,7 @@ const fromSlice = Path.from(slice);
 /// @resolution.pattern source=fromSlice kind=binding target=fromSlice
 /// @resolution.name source=Path target=Path
 /// @resolution.member source=Path.from receiver=Path type=<from#1.'a>(&from#1.'a readonly Slice) => Path & (Builder) => Path kind=overload-set targets=[from#1, from#2]
-/// @resolution.call source=Path.from(slice) parameters=(&'static readonly constant Slice) arguments=(provided(slice) as &'static readonly constant Slice) return=Path kind=symbol target=from#1
+/// @resolution.call source=Path.from(slice) parameters=(&'static readonly constant Slice) arguments=(provided(slice) as &'static readonly constant Slice) return=Path regions=("static" & "constant") kind=symbol target=from#1
 /// @resolution.name source=slice target=slice
 /// @resolution.place source=slice placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=slice root=slice

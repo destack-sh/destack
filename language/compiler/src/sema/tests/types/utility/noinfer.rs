@@ -29,6 +29,9 @@ ok satisfies "red" | "blue";
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
 /// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(C[], NoInfer<C> | undefined?) => C
+/// @generic.instance id=Array<C> template=Array arguments=(C)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<C>> template=sliceAssumeInit arguments=(MaybeUninit<C>)
+/// @generic.instance id=sliceUninit<MaybeUninit<C>> template=sliceUninit arguments=(MaybeUninit<C>)
 /// @type.symbol symbol=choose.C source="C: string" type=C
 /// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
@@ -44,26 +47,22 @@ const ok = choose(["red", "blue"], "red");
 /// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=("red" | "blue"[], "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as "red" | "blue"[], provided("red") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 /// @generic.instance id="Array<\"red\" | \"blue\">" template=Array arguments=("red" | "blue")
-/// @generic.instance id="MaybeUninit<MaybeUninit<\"red\" | \"blue\">>" template=MaybeUninit arguments=(MaybeUninit<"red" | "blue">)
-/// @generic.instance id="MaybeUninit<\"red\" | \"blue\">" template=MaybeUninit arguments=("red" | "blue")
 /// @generic.instance id="assumeInitDrop#1<\"red\" | \"blue\">" template=assumeInitDrop#1 arguments=("red" | "blue")
-/// @generic.instance id="assumeInitDrop<\"red\" | \"blue\">" template=assumeInitDrop arguments=("red" | "blue") evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<"red" | "blue">) => Raw<"red" | "blue">, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<"red" | "blue">)
-/// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue") evaluated=(<C: string>(C[], NoInfer<C> | undefined?) => C => <C: string>("red" | "blue"[], NoInfer<"red" | "blue"> | undefined?) => "red" | "blue")
+/// @generic.instance id="assumeInitDrop<\"red\" | \"blue\">" template=assumeInitDrop arguments=("red" | "blue")
+/// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue") dependents=(NoInfer<"red" | "blue">)
 /// @generic.instance id="clear<\"red\" | \"blue\">" template=clear arguments=("red" | "blue")
 /// @generic.instance id="drop<\"red\" | \"blue\">" template=drop arguments=("red" | "blue")
 /// @generic.instance id="dropInPlace<\"red\" | \"blue\">" template=dropInPlace arguments=("red" | "blue")
-/// @generic.instance id="elementSlot<\"red\" | \"blue\", \"exclusive\">" template=elementSlot arguments=("red" | "blue", "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive "red" | "blue"[], usize) => &elementSlot.'a exclusive MaybeUninit<"red" | "blue">, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<"red" | "blue">, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<"red" | "blue">>, usize) => &elementSlot.'a exclusive MaybeUninit<"red" | "blue">, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<"red" | "blue">>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<"red" | "blue">, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<"red" | "blue">>, usize) => &elementSlot.'a exclusive MaybeUninit<"red" | "blue">, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive "red" | "blue"[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<"red" | "blue">>)
-/// @generic.instance id="initAsPointer<\"red\" | \"blue\", \"exclusive\">" template=initAsPointer arguments=("red" | "blue", "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<"red" | "blue">) => Raw<"red" | "blue">)
-/// @generic.instance id="new<MaybeUninit<\"red\" | \"blue\">>" template=new arguments=(MaybeUninit<"red" | "blue">)
+/// @generic.instance id="elementSlot<\"red\" | \"blue\", \"mutable\">" template=elementSlot arguments=("red" | "blue", "mutable")
+/// @generic.instance id="initAsPointer<\"red\" | \"blue\", \"mutable\">" template=initAsPointer arguments=("red" | "blue", "mutable")
 /// @generic.instance id="sliceAssumeInit<MaybeUninit<\"red\" | \"blue\">>" template=sliceAssumeInit arguments=(MaybeUninit<"red" | "blue">)
-/// @generic.instance id="sliceIndex<MaybeUninit<\"red\" | \"blue\">, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<"red" | "blue">, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<"red" | "blue">>, usize) => &sliceIndex.'a exclusive MaybeUninit<"red" | "blue">)
+/// @generic.instance id="sliceIndex<MaybeUninit<\"red\" | \"blue\">, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<"red" | "blue">, "mutable")
 /// @generic.instance id="sliceUninit<MaybeUninit<\"red\" | \"blue\">>" template=sliceUninit arguments=(MaybeUninit<"red" | "blue">)
-/// @generic.instance id="truncate<\"red\" | \"blue\">" template=truncate arguments=("red" | "blue") evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<"red" | "blue">, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive "red" | "blue"[], usize) => &truncate.'a exclusive MaybeUninit<"red" | "blue">, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive "red" | "blue"[])
+/// @generic.instance id="truncate<\"red\" | \"blue\">" template=truncate arguments=("red" | "blue")
 /// @resolution.call source=["red", "blue"] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="arrayFromOwnedSlice<\"red\" | \"blue\">" template=arrayFromOwnedSlice arguments=("red" | "blue")
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="Slice<\"red\" | \"blue\">" template=Slice arguments=("red" | "blue")
 /// @generic.instance id="arrayFromOwnedSlice<\"red\" | \"blue\">" template=arrayFromOwnedSlice arguments=("red" | "blue")
 /// @generic.instance id="fromOwnedSlice<\"red\" | \"blue\">" template=fromOwnedSlice arguments=("red" | "blue")
 /// @generic.instance id="intoUninit<\"red\" | \"blue\">" template=intoUninit arguments=("red" | "blue")
@@ -139,14 +138,14 @@ const picked = choose(values, "green");
 /// @resolution.call source="choose(values, \"green\")" parameters=("red"[], "red") arguments=(provided(values) as "red"[], provided("green") as "red") return="red" kind=symbol target=choose instance="choose<\"red\">"
 /// @generic.instantiation id="choose<\"red\">" template=choose arguments=("red")
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 "#,
         r#"
@@ -215,7 +214,7 @@ const kept = keep(values, ["green"]);
 /// @resolution.call source="keep(values, [\"green\"])" parameters=("red"[], "red"[]) arguments=(provided(values) as "red"[], provided(["green"]) as "red"[]) return="red" kind=symbol target=keep instance="keep<\"red\">"
 /// @generic.instantiation id="keep<\"red\">" template=keep arguments=("red")
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @resolution.call source=["green"] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest("green") as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
 /// @generic.instantiation id=arrayFromOwnedSlice<string> template=arrayFromOwnedSlice arguments=(string)
@@ -224,7 +223,7 @@ const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 "#,
         r#"
@@ -337,7 +336,7 @@ on(seeds, (value) => {});
 /// @resolution.call source="on(seeds, (value) => {})" parameters=("red"[], Function<("red",), void>) arguments=(provided(seeds) as "red"[], provided((value) => {}) as Function<("red",), void>) return=void kind=symbol target=on instance="on<\"red\">"
 /// @generic.instantiation id="on<\"red\">" template=on arguments=("red")
 /// @resolution.name source=seeds target=seeds
-/// @resolution.place source=seeds placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=seeds placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=seeds root=seeds
 /// @type.symbol symbol=symbol9 source="(value) => {}" type=Function<("red",), void, "readonly">
 /// @type.symbol symbol=symbol9.value source=value type="red"
@@ -346,7 +345,7 @@ const reds: "red"[] = seeds;
 /// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=seeds target=seeds
-/// @resolution.place source=seeds placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=seeds placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=seeds root=seeds
 "#,
         r#"

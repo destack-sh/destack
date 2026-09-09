@@ -406,7 +406,7 @@ values[0] satisfies shared int32;
 /// @resolution.access source=values root=values
 /// @resolution.place source=values[0] placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant int32, \"readonly\">)"
+/// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant int32, \"readonly\">, regions=(\"static\" & \"constant\"))"
 /// @generic.instantiation id="index#1<int32, 2, \"readonly\">" template=index#1 arguments=(int32, 2, "readonly")
 "#,
         r#"
@@ -543,7 +543,7 @@ const transform = (value: User): User => value;
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=value target=symbol4.value
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=symbol4.value
 "#,
     );
@@ -597,7 +597,7 @@ class Registry {
 Registry.current satisfies local User;
 /// @resolution.name source=Registry target=Registry
 /// @resolution.member source=Registry.current receiver=Registry type=User kind=field target_receiver=Registry key=current target=Registry.current target_type=User
-/// @resolution.place source=Registry.current placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=Registry.current placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=Registry.current root=Registry keys=[current]
 /// @resolution.name source=User target=User
 "#,

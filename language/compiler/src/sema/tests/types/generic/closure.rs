@@ -31,6 +31,7 @@ declare class Box<in out T> {}
 declare function use<T>(callback: () => T | Box<T>): T;
 /// @generic.template symbol=use parameters=(T#2)
 /// @type.symbol symbol=use source="declare function use<T>(callback: () => T | Box<T>): T" type=<T#2>(Function<(), T#2 | Box<T#2>>) => T#2
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @type.symbol symbol=use.T source=T type=T#2
 /// @type.symbol symbol=use.callback source="callback: () => T | Box<T>" type=Function<(), T#2 | Box<T#2>>
 /// @resolution.name source=T target=use.T
@@ -227,7 +228,7 @@ const value = map(1, (item) => item);
 /// @type.symbol symbol=symbol7.item source=item type=int64
 /// @type.node source=item type=int64
 /// @resolution.name source=item target=symbol7.item
-/// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=item placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=item root=symbol7.item
 "#,
     );
@@ -263,12 +264,13 @@ declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(out T)
-/// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" slot=map type=<U, Box.map.P1: Place>(this: Managed<this, Box.map.P1>, Function<(T,), U>) => Box<U>
+/// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" slot=map type=<U, Box.map.P1: Place>(this: Managed<Box<T>, Box.map.P1>, Function<(T,), U>) => Box<U>
 /// @type.symbol symbol=Box.T source=T type=T
 
     map<U>(callback: (value: T) => U): Box<U>;
     /// @generic.template symbol=Box.map parent=template#0 parameters=(U, P1: Place)
-    /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" type=<U, Box.map.P1: Place>(this: Managed<this, Box.map.P1>, Function<(T,), U>) => Box<U>
+    /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" type=<U, Box.map.P1: Place>(this: Managed<Box<T>, Box.map.P1>, Function<(T,), U>) => Box<U>
+    /// @generic.instance id=Box<U> template=Box arguments=(U)
     /// @type.symbol symbol=Box.map.U source=U type=U
     /// @type.symbol symbol=Box.map.callback source="callback: (value: T) => U" type=Function<(T,), U>
     /// @type.symbol symbol=Box.map.value source="value: T" type=T
@@ -294,7 +296,7 @@ const mapped = box.map((value) => value);
 /// @resolution.name source=box target=box
 /// @resolution.member source=box.map receiver=Box<int32> type=<U, Box.map.P1: Place>(this: Managed<Box<int32>, Box.map.P1>, Function<(int32,), U>) => Box<U> kind=symbol target_receiver=Box<int32> target=Box.map
 /// @resolution.call source="box.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Box<int32> kind=symbol target=Box.map receiver=Box<int32> instance="Box<int32>.map<int32, \"local\">"
-/// @resolution.place source=box placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=box placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=box root=box
 /// @generic.instantiation id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
@@ -304,7 +306,7 @@ const mapped = box.map((value) => value);
 /// @type.symbol symbol=symbol9.value source=value type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=symbol9.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol9.value
 "#,
     );
@@ -344,6 +346,7 @@ declare class Box<in out T> {}
 declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 /// @generic.template symbol=map parameters=(T#2, U)
 /// @type.symbol symbol=map source="declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U" type=<T#2, U>(T#2, Function<(T#2,), U | Box<U>>) => U
+/// @generic.instance id=Box<U> template=Box arguments=(U)
 /// @type.symbol symbol=map.T source=T type=T#2
 /// @type.symbol symbol=map.U source=U type=U
 /// @type.symbol symbol=map.value#1 source="value: T" type=T#2
@@ -372,7 +375,7 @@ const value = map(1, (item) => item);
 /// @type.symbol symbol=symbol9.item source=item type=int64
 /// @type.node source=item type=int64
 /// @resolution.name source=item target=symbol9.item
-/// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=item placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=item root=symbol9.item
 "#,
     );
@@ -410,12 +413,13 @@ declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(out T)
-/// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" slot=map type=<U, Box.map.P1: Place>(this: Managed<this, Box.map.P1>, Function<(T,), U | Box<U>>) => U
+/// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" slot=map type=<U, Box.map.P1: Place>(this: Managed<Box<T>, Box.map.P1>, Function<(T,), U | Box<U>>) => U
 /// @type.symbol symbol=Box.T source=T type=T
 
     map<U>(callback: (value: T) => U | Box<U>): U;
     /// @generic.template symbol=Box.map parent=template#0 parameters=(U, P1: Place)
-    /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" type=<U, Box.map.P1: Place>(this: Managed<this, Box.map.P1>, Function<(T,), U | Box<U>>) => U
+    /// @type.symbol symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" type=<U, Box.map.P1: Place>(this: Managed<Box<T>, Box.map.P1>, Function<(T,), U | Box<U>>) => U
+    /// @generic.instance id=Box<U> template=Box arguments=(U)
     /// @type.symbol symbol=Box.map.U source=U type=U
     /// @type.symbol symbol=Box.map.callback source="callback: (value: T) => U | Box<U>" type=Function<(T,), U | Box<U>>
     /// @type.symbol symbol=Box.map.value source="value: T" type=T
@@ -442,7 +446,7 @@ const value = box.map((item) => item);
 /// @resolution.name source=box target=box
 /// @resolution.member source=box.map receiver=Box<int32> type=<U, Box.map.P1: Place>(this: Managed<Box<int32>, Box.map.P1>, Function<(int32,), U | Box<U>>) => U kind=symbol target_receiver=Box<int32> target=Box.map
 /// @resolution.call source="box.map((item) => item)" parameters=(Function<(int32,), int32 | Box<int32>>) arguments=(provided((item) => item) as Function<(int32,), int32 | Box<int32>>) return=int32 kind=symbol target=Box.map receiver=Box<int32> instance="Box<int32>.map<int32, \"local\">"
-/// @resolution.place source=box placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=box placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=box root=box
 /// @generic.instantiation id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
@@ -452,7 +456,7 @@ const value = box.map((item) => item);
 /// @type.symbol symbol=symbol9.item source=item type=int32
 /// @type.node source=item type=int32
 /// @resolution.name source=item target=symbol9.item
-/// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=item placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=item root=symbol9.item
 "#,
     );
@@ -542,7 +546,7 @@ function call(): void {
 === annotated ===
 export type Handler = ((value: int32) => void) | ((value: string) => void);
 
-export function run(handler: ((arg0: int32) => void) | ((arg0: string) => void)): void {}
+export function run(handler: Handler): void {}
 
 function call(): void {
     run(((value): void => {}) as Handler);
@@ -557,7 +561,7 @@ export type Handler = ((value: int32) => void) | ((value: string) => void);
 
 export function run(handler: Handler): void {}
 /// @type.symbol symbol=run source="export function run(handler: Handler): void {}" type=(Handler) => void
-/// @type.symbol symbol=run.handler source="handler: Handler" type=Function<(int32,), void> | Function<(string,), void>
+/// @type.symbol symbol=run.handler source="handler: Handler" type=Handler
 /// @resolution.name source=Handler target=Handler
 
 function call(): void {

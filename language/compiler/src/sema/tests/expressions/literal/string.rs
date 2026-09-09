@@ -153,7 +153,7 @@ const isEmpty = "".isEmpty;
 /// @resolution.pattern source=isEmpty kind=binding target=isEmpty
 /// @type.node source="\"\"" type=""
 /// @type.node source="\"\".isEmpty" type=boolean
-/// @resolution.member source="\"\".isEmpty" receiver="" type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
+/// @resolution.member source="\"\".isEmpty" receiver="" type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"frame\" & \"local\"))"
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
@@ -201,8 +201,8 @@ const isEmpty = value.isEmpty;
 /// @type.node source=value type=string
 /// @type.node source=value.isEmpty type=boolean
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"managed\" & \"local\"))"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
 
 isEmpty satisfies boolean;

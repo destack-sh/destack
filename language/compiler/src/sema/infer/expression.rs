@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::sema::{
-    Cause, CauseKind, CheckOutcome, CheckState, Expectation, FailedCheck, FlowSite, PlaceUse,
-    Relation, ValueUse,
+    AssignedPlace, Cause, CauseKind, CheckOutcome, CheckState, Expectation, FailedCheck, FlowSite,
+    PlaceUse, Relation, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -52,7 +52,7 @@ impl CheckState<'_> {
                     }
                     // otherwise read it from the imported module's binding table
                     else {
-                        let bindings = self.binding_table(symbol.module_id);
+                        let bindings = self.binding_table(symbol.module_id)?;
                         bindings.get_symbol(symbol.local_id).scope.id == bindings.module_scope().id
                     };
 
@@ -416,6 +416,12 @@ impl CheckState<'_> {
                     self.commit_active_receiver_decision(node.into_any(), dir::ReceiverKind::This)?;
                 match receiver {
                     Some(receiver) => {
+                        if let Some(owner) = self.enclosing_initializes()
+                            && self.class_has_base(owner)?
+                            && !self.flow.is_assigned(AssignedPlace::Delegated)
+                        {
+                            self.report_this_before_super(node.module_id, node.local_id.into_any());
+                        }
                         self.commit_node_type(node.into_any(), receiver.ty)?;
                     }
                     None => {
@@ -626,8 +632,8 @@ impl CheckState<'_> {
         }
 
         // read a const parameter as its representation type
-        if let Some(parameter) = self.parameter_by_symbol(*symbol)
-            && let Some(binding) = self.generic_parameter(parameter)
+        if let Some(parameter) = self.parameter_by_symbol(*symbol)?
+            && let Some(binding) = self.generic_parameter(parameter)?
             && binding.is_const
             && binding.memory_parameter().is_none()
             && let Some(representation) = binding.constraint
@@ -645,7 +651,7 @@ impl CheckState<'_> {
         }
 
         // read identity statics as their declaration keys
-        let identity = match self.static_value(*symbol) {
+        let identity = match self.static_value(*symbol)? {
             Some(value) if matches!(self.ty(value)?, dir::Type::Key(_)) => Some(value),
             _ => None,
         };

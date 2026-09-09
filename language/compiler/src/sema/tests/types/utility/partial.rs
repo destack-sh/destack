@@ -26,15 +26,16 @@ interface Person {
     age?: int32;
 }
 
-declare const person: { name?: string; age?: int32 };
+declare const person: Partial<Person>;
 
 person.name satisfies string | undefined;
 person.age satisfies int32 | undefined;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age?: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -48,25 +49,25 @@ interface Person {
 }
 
 declare const person: Partial<Person>;
-/// @type.symbol symbol=person source=person type={ name?: string; age?: int32 }
+/// @type.symbol symbol=person source=person type=Partial<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Partial target=Partial
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name?: string; age?: int32 } type=string | undefined kind=field target_receiver={ name?: string; age?: int32 } key=name target_type=string | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.name receiver=Partial<Person> type=string | undefined kind=field target_receiver=Partial<Person> key=name target_type=string | undefined
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
 
 person.age satisfies int32 | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver={ name?: string; age?: int32 } type=int32 | undefined kind=field target_receiver={ name?: string; age?: int32 } key=age target_type=int32 | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.age receiver=Partial<Person> type=int32 | undefined kind=field target_receiver=Partial<Person> key=age target_type=int32 | undefined
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.age placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.age placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.age root=person keys=[age]
 "#,
     );
@@ -97,14 +98,15 @@ interface Person {
     age: int32;
 }
 
-const person: { name?: string; age?: int32 } = {};
+const person: Partial<Person> = {};
 
 person.name satisfies string | undefined;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -118,17 +120,17 @@ interface Person {
 }
 
 const person: Partial<Person> = {};
-/// @type.symbol symbol=person source=person type={ name?: string; age?: int32 }
+/// @type.symbol symbol=person source=person type=Partial<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Partial target=Partial
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name?: string; age?: int32 } type=string | undefined kind=field target_receiver={ name?: string; age?: int32 } key=name target_type=string | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.name receiver=Partial<Person> type=string | undefined kind=field target_receiver=Partial<Person> key=name target_type=string | undefined
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
 "#,
     );
@@ -157,12 +159,13 @@ interface Person {
     age: int32;
 }
 
-const bad: { name?: string; age?: int32 } = { name: "Ada", extra: true };
+const bad: Partial<Person> = { name: "Ada", extra: true };
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -176,13 +179,13 @@ interface Person {
 }
 
 const bad: Partial<Person> = { name: "Ada", extra: true };
-/// @type.symbol symbol=bad source=bad type={ name?: string; age?: int32 }
+/// @type.symbol symbol=bad source=bad type=Partial<Person>
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Partial target=Partial
 /// @resolution.name source=Person target=Person
 "#,
         r#"
-/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type '{ name?: string; age?: int32 }'"
+/// @diagnostic.error id=excess-property message="unknown property 'extra' in object literal for type 'Partial<Person>'"
 /// @diagnostic.label line=7 column=30 span="{ name: \"Ada\", extra: true }" line_source="const bad: Partial<Person> = { name: \"Ada\", extra: true };"
 /// @diagnostic.related line=7 column=12 span="Partial" line_source="const bad: Partial<Person> = { name: \"Ada\", extra: true };" message="expected due to this annotation"
 /// @diagnostic.note message="object literals may only specify known properties"
@@ -213,12 +216,13 @@ interface Person {
     age: int32;
 }
 
-const bad: { name?: string; age?: int32 } = { name: "Ada", age: "no" };
+const bad: Partial<Person> = { name: "Ada", age: "no" };
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
@@ -232,7 +236,7 @@ interface Person {
 }
 
 const bad: Partial<Person> = { name: "Ada", age: "no" };
-/// @type.symbol symbol=bad source=bad type={ name?: string; age?: int32 }
+/// @type.symbol symbol=bad source=bad type=Partial<Person>
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Partial target=Partial
 /// @resolution.name source=Person target=Person
@@ -270,13 +274,14 @@ interface Person {
     age: int32;
 }
 
-const person: { readonly name?: string; age?: int32 } = { name: "Ada" };
+const person: Partial<Person> = { name: "Ada" };
 person.name = "Grace";
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="readonly name: string" key=name type=string
@@ -290,14 +295,14 @@ interface Person {
 }
 
 const person: Partial<Person> = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ readonly name?: string; age?: int32 }
+/// @type.symbol symbol=person source=person type=Partial<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Partial target=Partial
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
 "#,

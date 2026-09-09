@@ -3,6 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
+use crate::sema::auto::DecisionKey;
 use crate::sema::{CheckState, ObligationCheck, ObligationFailure, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
@@ -287,7 +288,7 @@ impl CheckState<'_> {
         }
 
         Ok(self
-            .decision_scope(origin, flags)?
+            .decision_scope(origin, &[ty])?
             .map(|assumes| (ty, assumes)))
     }
 
@@ -297,22 +298,19 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
-    ) -> CompilerResult<
-        Option<(
-            dir::GlobalTypeId,
-            dir::AutoInterface,
-            Option<dir::GlobalGenericTemplateId>,
-        )>,
-    > {
+    ) -> CompilerResult<Option<DecisionKey>> {
         // decide the interface once over variable-free types under the assuming template
         let flags = self.type_flags(ty)?;
         if flags.has_variable() {
             return Ok(None);
         }
-
         Ok(self
-            .decision_scope(origin, flags)?
-            .map(|assumes| (ty, interface, assumes)))
+            .decision_scope(origin, &[ty])?
+            .map(|assumes| DecisionKey {
+                ty,
+                interface,
+                assumes,
+            }))
     }
 
     /// Return the first invalid stored representation beneath one type.
@@ -521,7 +519,7 @@ impl CheckState<'_> {
         }
 
         // collect the storage the declaration holds
-        let storage = match self.definition(instance.symbol)?.cloned() {
+        let storage = match self.definition(instance.symbol)?.as_deref() {
             Some(dir::Definition::Newtype(definition)) => {
                 SmallVec::<[_; 4]>::from_slice(&[(definition.backing, source)])
             }

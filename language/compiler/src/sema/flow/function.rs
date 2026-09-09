@@ -82,6 +82,12 @@ impl CheckState<'_> {
             .and_then(|function| function.initializes)
     }
 
+    /// Return the class the nearest enclosing constructor body initializes, nested functions
+    /// reading through.
+    pub(in crate::sema) fn enclosing_initializes(&self) -> Option<dir::GlobalSymbolId> {
+        self.flow.enclosing_initializes()
+    }
+
     /// Return the literal inference mode of the enclosing body's outputs.
     pub(in crate::sema) fn current_output_mode(&self) -> InferMode {
         self.flow

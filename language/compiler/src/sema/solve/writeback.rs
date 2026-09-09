@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use crate::sema::{CheckModuleState, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
+impl<'a> CheckState<'a> {
     /// Write every commit since the last write into the module tail.
     pub(in crate::sema) fn write_back(&mut self) -> CompilerResult<()> {
         // share normalized heads across the write, keyed by assuming scope
@@ -83,9 +83,6 @@ impl CheckState<'_> {
         self.resolve_segment_types(dir::DecisionSegment::new(module), |state| {
             &mut state.decisions_tail
         })?;
-        self.resolve_segment_types(dir::DefinitionSegment::new(module), |state| {
-            &mut state.definitions_tail
-        })?;
         self.resolve_segment_types(dir::DecoratorSegment::new(module), |state| {
             &mut state.decorators_tail
         })?;
@@ -112,36 +109,23 @@ impl CheckState<'_> {
 
     /// Commit every instantiation the committed decisions and conversions perform.
     fn commit_instantiations(&mut self) -> CompilerResult<()> {
-        // collect the selections that bind generic arguments under their template
-        let mut seen = FxIndexSet::default();
-        let mut instantiations = Vec::new();
+        // collect the selections that bind generic arguments under their template, one per key
+        let mut instantiations = FxIndexMap::default();
+        let mut selections = Vec::new();
         for (node, decision) in self.module.decisions_tail.decision_entries() {
             decision.visit_instance_keys(&mut |selection| {
-                if selection.arguments.is_empty() && selection.receiver.is_none() {
-                    return;
+                if !selection.arguments.is_empty() || selection.receiver.is_some() {
+                    selections.push((node, selection.clone()));
                 }
-
-                // dedup governed selections mentioned from several nodes
-                let owner = self.governing_template_symbol(node);
-                let key = (
-                    owner,
-                    selection.symbol,
-                    selection.receiver,
-                    selection.arguments.clone(),
-                );
-                if !seen.insert(key) {
-                    return;
-                }
-
-                instantiations.push(dir::Instantiation {
-                    owner,
-                    key: selection.clone(),
-                    source: node,
-                });
             });
+        }
+        for (node, selection) in selections {
+            let owner = self.governing_template_symbol(node)?;
+            instantiations.entry((owner, selection)).or_insert(node);
         }
 
         // collect instantiating conversions behind callable references
+        let mut instantiating = Vec::new();
         for (node, coercion) in self.module.coercions_tail.coercions() {
             for adjustment in &coercion.adjustments {
                 let dir::CoercionAdjustment::Instantiate { arguments, .. } = adjustment else {
@@ -155,20 +139,21 @@ impl CheckState<'_> {
                 let Some(symbol) = value.target.symbol() else {
                     continue;
                 };
-
-                instantiations.push(dir::Instantiation {
-                    owner: self.governing_template_symbol(node),
-                    key: dir::InstanceKey::new(symbol, arguments.clone()),
-                    source: node,
-                });
+                instantiating.push((node, symbol, arguments.clone()));
             }
+        }
+        for (node, symbol, arguments) in instantiating {
+            let owner = self.governing_template_symbol(node)?;
+            instantiations
+                .entry((owner, dir::InstanceKey::new(symbol, arguments)))
+                .or_insert(node);
         }
 
         // keep the whole instantiations, withholding records that carry a reported failure
-        for instantiation in instantiations {
+        for ((owner, key), source) in instantiations {
             let mut poisoned = false;
-            let receiver = instantiation.key.receiver.into_iter();
-            let arguments = instantiation.key.arguments.iter();
+            let receiver = key.receiver.into_iter();
+            let arguments = key.arguments.iter();
             for ty in receiver.chain(arguments.map(|binding| binding.argument)) {
                 if self.type_flags(ty)?.has_error() {
                     poisoned = true;
@@ -176,7 +161,9 @@ impl CheckState<'_> {
                 }
             }
             if !poisoned {
-                self.module.generics_tail.push_instantiation(instantiation);
+                self.module
+                    .generics_tail
+                    .push_instantiation(dir::Instantiation { owner, key, source });
             }
         }
 
@@ -184,7 +171,10 @@ impl CheckState<'_> {
     }
 
     /// Return the innermost parameterized declaration enclosing one node.
-    fn governing_template_symbol(&self, node: dir::GlobalNodeIdAny) -> Option<dir::GlobalSymbolId> {
+    fn governing_template_symbol(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         // climb from the node through its structural parents to a parameterized declaration
         let tree = &self.module.parsed.tree;
         let mut current = Some(node.local_id);
@@ -192,17 +182,26 @@ impl CheckState<'_> {
         while let Some(parent) = current {
             if let Some(symbol) = self.module.declaration_symbol(parent) {
                 // resolve parameterized owners through their selecting method
-                let is_parameterized = self
-                    .loaded_symbol_template(symbol)
-                    .and_then(|template| self.generic_template(template))
-                    .is_some_and(|template| {
-                        template.parameters.iter().any(|parameter| {
-                            self.generic_parameter(parameter.into_global(symbol.module_id))
-                                .is_some_and(|binding| binding.is_instance_parameter())
-                        })
-                    });
+                let template = self.symbol_template(symbol)?;
+                let parameters = match template {
+                    Some(template) => self
+                        .generic_template(template)?
+                        .map(|template| template.parameters.clone())
+                        .unwrap_or_default(),
+                    None => Vec::new(),
+                };
+                let mut is_parameterized = false;
+                for parameter in parameters {
+                    if self
+                        .generic_parameter(parameter.into_global(symbol.module_id))?
+                        .is_some_and(|binding| binding.is_instance_parameter())
+                    {
+                        is_parameterized = true;
+                        break;
+                    }
+                }
                 if is_parameterized {
-                    return Some(method.unwrap_or(symbol));
+                    return Ok(Some(method.unwrap_or(symbol)));
                 }
 
                 // keep the innermost method awaiting a parameterized owner
@@ -217,14 +216,14 @@ impl CheckState<'_> {
             current = tree.get_parent(parent.id);
         }
 
-        None
+        Ok(None)
     }
 
     /// Settle every type one written module segment carries.
     fn resolve_segment_types<S: TypeFold>(
         &mut self,
         replacement: S,
-        select: impl Fn(&mut CheckModuleState) -> &mut S,
+        select: impl for<'m> Fn(&'m mut CheckModuleState<'a>) -> &'m mut S,
     ) -> CompilerResult<()> {
         // fold the segment outside the module, where resolving reads the whole state
         let mut segment = std::mem::replace(select(&mut self.module), replacement);
@@ -297,7 +296,6 @@ impl CheckState<'_> {
         if !flags.has_variable()
             && !flags.has_member()
             && !flags.has_operation()
-            && !flags.has_alias()
             && !flags.has_reference()
         {
             return Ok(id);
@@ -350,14 +348,14 @@ impl CheckState<'_> {
             // renormalize solved unions like any other construction
             let rebuilt = match rebuilt {
                 dir::Type::Union(union) => {
-                    let elements = self.type_ids(id.module_id, union.elements)?.to_vec();
+                    let elements = self.type_ids(id.module_id, union.elements)?;
 
-                    self.normalized_union_type(elements)?
+                    self.normalized_union_type(elements.iter().copied())?
                 }
                 dir::Type::Intersection(intersection) => {
-                    let elements = self.type_ids(id.module_id, intersection.elements)?.to_vec();
+                    let elements = self.type_ids(id.module_id, intersection.elements)?;
 
-                    self.normalized_intersection_type(elements)?
+                    self.normalized_intersection_type(elements.iter().copied())?
                 }
                 rebuilt => self.intern_type(rebuilt)?,
             };
@@ -383,78 +381,12 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // normalize written projections and operations, plus the alias names whose values reach one
-        let computes = match self.ty(id)? {
-            dir::Type::Operation(_) | dir::Type::Member(_) => true,
-            dir::Type::Application(instance) => self.is_computed_alias(instance.symbol)?,
-            dir::Type::Reference(reference) => self.is_computed_alias(reference.symbol)?,
-            _ => false,
-        };
-        if !computes {
+        // normalize written projections and operations, a written alias head staying as written
+        if !matches!(self.ty(id)?, dir::Type::Operation(_) | dir::Type::Member(_)) {
             return Ok(id);
         }
 
         self.normalize_closed(id)
-    }
-
-    /// Return whether one type alias value requires normalization.
-    pub(in crate::sema) fn is_computed_alias(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<bool> {
-        let mut named = FxIndexSet::default();
-
-        self.is_computed_name(symbol, &mut named)
-    }
-
-    /// Return whether one declared name's family requires normalization.
-    fn is_computed_name(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        named: &mut FxIndexSet<dir::GlobalSymbolId>,
-    ) -> CompilerResult<bool> {
-        if !named.insert(symbol) {
-            return Ok(false);
-        }
-
-        // only type aliases stand for a family, every other declaration names itself
-        let value = match self.definition(symbol)? {
-            Some(dir::Definition::TypeAlias(alias)) => alias.value,
-            _ => return Ok(false),
-        };
-
-        self.is_computed_value(value, named)
-    }
-
-    /// Return whether one declared alias value requires normalization.
-    fn is_computed_value(
-        &mut self,
-        value: dir::GlobalTypeId,
-        named: &mut FxIndexSet<dir::GlobalSymbolId>,
-    ) -> CompilerResult<bool> {
-        // read whether the value computes
-        match self.ty(value)? {
-            // projections and operations compute, names compute through their value
-            dir::Type::Operation(_) | dir::Type::Member(_) => Ok(true),
-            dir::Type::Application(instance) => self.is_computed_name(instance.symbol, named),
-            dir::Type::Reference(reference) => self.is_computed_name(reference.symbol, named),
-
-            // search every union member for a computation
-            dir::Type::Union(union) => {
-                let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
-                for element in elements {
-                    if self.is_computed_value(element, named)? {
-                        return Ok(true);
-                    }
-                }
-
-                Ok(false)
-            }
-            // intersections reduce to their merged shape
-            dir::Type::Intersection(_) => Ok(true),
-
-            _ => Ok(false),
-        }
     }
 
     /// Commit the decisions that wait on resolved types while checking: array constructions and coroutine creations.
@@ -481,7 +413,7 @@ impl CheckState<'_> {
             let origin = Origin::Node(node, None);
             let union = self.fully_resolve(narrowing.union)?;
             let narrowed = self.fully_resolve(narrowing.arms[0])?;
-            let narrowed = self.evaluate_type(origin, narrowed)?;
+            let narrowed = self.normalize_type(origin, narrowed)?;
 
             // keep the declared members the narrowed type still names
             let members = self.canonical_union_members(origin, union)?;

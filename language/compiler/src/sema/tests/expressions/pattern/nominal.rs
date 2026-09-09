@@ -50,7 +50,7 @@ if (let UserId(value) = id) {
     /// @type.node source="value satisfies int64" type=int64
     /// @type.node source=value type=int64
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=value
 
 }
@@ -161,7 +161,7 @@ match (point) {
 === annotated ===
 type Point = { x: int32; y: int32 };
 
-declare const point: { x: int32; y: int32 };
+declare const point: Point;
 
 match (point) {
     Point { x, y } => x + y
@@ -175,16 +175,16 @@ type Point = { x: int32; y: int32 };
 /// @type.symbol symbol=Point.y source="y: int32" type=int32
 
 declare const point: Point;
-/// @type.symbol symbol=point source=point type={ x: int32; y: int32 }
+/// @type.symbol symbol=point source=point type=Point
 /// @resolution.pattern source=point kind=binding target=point
 /// @resolution.name source=Point target=Point
 
 match (point) {
 /// @type.node type=int32
 /// @resolution.coverage exhaustive=false disjoint=true
-/// @type.node source=point type={ x: int32; y: int32 }
+/// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 
     Point { x, y } => x + y
@@ -289,7 +289,7 @@ match (user) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 
     User { displayName } => displayName
@@ -306,6 +306,230 @@ match (user) {
         r#"
 /// @diagnostic.error id=pattern-member-not-field message="member 'displayName' on type 'User' is not a field"
 /// @diagnostic.label line=12 column=12 span="displayName" line_source="User { displayName } => displayName"
+"#,
+    );
+}
+
+/// Fields destructured beneath a borrowed scrutinee bind through its borrow.
+#[test]
+fn test_bind_destructured_fields_through_a_borrowed_scrutinee() {
+    let session = TestSession::single(
+        r#"
+import { Equal } from "destack:ops";
+
+struct Ok<T> {
+    value: T;
+}
+
+struct Err<E> {
+    error: E;
+}
+
+newtype Outcome<T, E> = Ok<T> | Err<E>;
+
+function same<T: Equal<T>, E: Equal<E>>(left: &readonly Outcome<T, E>, right: &readonly Outcome<T, E>): boolean {
+    match (left) {
+        Ok { value: a } => {
+            match (right) {
+                Ok { value: b } => a.equal(b)
+                Err { error: _ } => false
+            }
+        }
+        Err { error: a } => {
+            match (right) {
+                Err { error: b } => a.equal(b)
+                Ok { value: _ } => false
+            }
+        }
+    }
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Equal } from "destack:ops";
+
+struct Ok<out T> {
+    value: T;
+}
+
+struct Err<out E> {
+    error: E;
+}
+
+newtype Outcome<out T, out E> = Ok<T> | Err<E>;
+
+function same<T: Equal<T>, E: Equal<E>, 'a, 'b>(
+    left: &'a readonly Outcome<T, E>,
+    right: &'b readonly Outcome<T, E>,
+): boolean {
+    match (left) {
+        Ok { value: a } => {
+            match (right) {
+                Ok { value: b } => a.equal<T>(b)
+                Err { error: _ } => false
+            }
+        }
+        Err { error: a } => {
+            match (right) {
+                Err { error: b } => a.equal<E>(b)
+                Ok { value: _ } => false
+            }
+        }
+    }
+}
+
+=== dir ===
+import { Equal } from "destack:ops";
+
+struct Ok<T> {
+/// @generic.template symbol=Ok parameters=(out T#1)
+/// @type.symbol symbol=Ok type=Ok
+/// @definition.struct symbol=Ok template=(out T#1)
+/// @definition.field symbol=Ok.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Ok.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Ok.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Ok.T
+
+}
+
+struct Err<E> {
+/// @generic.template symbol=Err parameters=(out E#1)
+/// @type.symbol symbol=Err type=Err
+/// @definition.struct symbol=Err template=(out E#1)
+/// @definition.field symbol=Err.error source="error: E" key=error type=E#1
+/// @type.symbol symbol=Err.E source=E type=E#1
+
+    error: E;
+    /// @type.symbol symbol=Err.error source="error: E" type=E#1
+    /// @resolution.name source=E target=Err.E
+
+}
+
+newtype Outcome<T, E> = Ok<T> | Err<E>;
+/// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
+/// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
+/// @generic.instance id=Err<E#2> template=Err arguments=(E#2)
+/// @generic.instance id=Ok<T#2> template=Ok arguments=(T#2)
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) backing=Ok<T#2> | Err<E#2> constructors=[<T#2, E#2>(Ok<T#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Err<E#2>) => Outcome<T#2, E#2>, <T#2, E#2>(Ok<T#2> | Err<E#2>) => Outcome<T#2, E#2>]
+/// @type.symbol symbol=Outcome.T source=T type=T#2
+/// @type.symbol symbol=Outcome.E source=E type=E#2
+/// @resolution.name source=Ok target=Ok
+/// @resolution.name source=T target=Outcome.T
+/// @resolution.name source=Err target=Err
+/// @resolution.name source=E target=Outcome.E
+
+function same<T: Equal<T>, E: Equal<E>>(left: &readonly Outcome<T, E>, right: &readonly Outcome<T, E>): boolean {
+/// @generic.template symbol=same parameters=(T#3: Equal<T#3>, E#3: Equal<E#3>, 'a, 'b)
+/// @type.symbol symbol=same type=<T#3: Equal<T#3>, E#3: Equal<E#3>, same.'a, same.'b>(&same.'a readonly Outcome<T#3, E#3>, &same.'b readonly Outcome<T#3, E#3>) => boolean
+/// @generic.instance id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3)
+/// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
+/// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
+/// @type.symbol symbol=same.T source="T: Equal<T>" type=T#3
+/// @resolution.name source=Equal target=Equal
+/// @generic.instance id=Equal<T#3> template=Equal arguments=(T#3)
+/// @resolution.name source=T target=same.T
+/// @type.symbol symbol=same.E source="E: Equal<E>" type=E#3
+/// @resolution.name source=Equal target=Equal
+/// @generic.instance id=Equal<E#3> template=Equal arguments=(E#3)
+/// @resolution.name source=E target=same.E
+/// @type.symbol symbol=same.left source="left: &readonly Outcome<T, E>" type=&same.'a readonly Outcome<T#3, E#3>
+/// @resolution.name source=Outcome target=Outcome
+/// @resolution.name source=T target=same.T
+/// @resolution.name source=E target=same.E
+/// @type.symbol symbol=same.right source="right: &readonly Outcome<T, E>" type=&same.'b readonly Outcome<T#3, E#3>
+/// @resolution.name source=Outcome target=Outcome
+/// @resolution.name source=T target=same.T
+/// @resolution.name source=E target=same.E
+
+    match (left) {
+    /// @resolution.coverage exhaustive=true disjoint=true
+    /// @resolution.name source=left target=same.left
+    /// @resolution.place source=left placement=same.'a lifetime=same.'a access="readonly"
+    /// @resolution.access source=left root=same.left
+
+        Ok { value: a } => {
+        /// @resolution.name source=Ok target=Ok
+        /// @resolution.pattern source="Ok { value: a }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value: same.a#1 }
+        /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=same
+        /// @type.symbol symbol=same.a#1 source=a type=&same.'a readonly T#3
+        /// @resolution.pattern source=a kind=binding target=same.a#1
+
+            match (right) {
+            /// @resolution.coverage exhaustive=true disjoint=true
+            /// @resolution.name source=right target=same.right
+            /// @resolution.place source=right placement=same.'b lifetime=same.'b access="readonly"
+            /// @resolution.access source=right root=same.right
+
+                Ok { value: b } => a.equal(b)
+                /// @resolution.name source=Ok target=Ok
+                /// @resolution.pattern source="Ok { value: b }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value: same.b#1 }
+                /// @type.symbol symbol=same.b#1 source=b type=&same.'b readonly T#3
+                /// @resolution.pattern source=b kind=binding target=same.b#1
+                /// @resolution.name source=a target=same.a#1
+                /// @resolution.member source=a.equal receiver=&same.'a readonly T#3 type=<PartialEqual.equal.'a, PartialEqual.equal.'b>(this: &PartialEqual.equal.'a readonly T#3, &PartialEqual.equal.'b readonly T#3) => boolean kind=symbol target_receiver=&same.'a readonly T#3 target=PartialEqual.equal
+                /// @resolution.call source=a.equal(b) parameters=(&same.'b readonly T#3) arguments=(provided(b) as &same.'b readonly T#3) return=boolean regions=(same.'a, same.'b) kind=symbol target=PartialEqual.equal receiver=&same.'a readonly T#3 instance=PartialEqual<T#3>.equal
+                /// @resolution.place source=a placement=same.'a lifetime=same.'a access="readonly"
+                /// @resolution.access source=a root=same.a#1
+                /// @generic.instantiation id="PartialEqual.equal<T#3, T#3>" template=PartialEqual.equal arguments=(T#3) owner=same
+                /// @generic.instantiation id=PartialEqual.equal<T#3> template=PartialEqual.equal arguments=(T#3) owner=same
+                /// @generic.instance id="PartialEqual.equal<T#3, T#3>" template=PartialEqual.equal arguments=(T#3)
+                /// @resolution.name source=b target=same.b#1
+                /// @resolution.place source=b placement=same.'b lifetime=same.'b access="readonly"
+                /// @resolution.access source=b root=same.b#1
+
+                Err { error: _ } => false
+                /// @resolution.name source=Err target=Err
+                /// @resolution.pattern source="Err { error: _ }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error: _ }
+                /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=same
+                /// @resolution.pattern source=_ kind=wildcard
+
+            }
+        }
+        Err { error: a } => {
+        /// @resolution.name source=Err target=Err
+        /// @resolution.pattern source="Err { error: a }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error: same.a#2 }
+        /// @type.symbol symbol=same.a#2 source=a type=&same.'a readonly E#3
+        /// @resolution.pattern source=a kind=binding target=same.a#2
+
+            match (right) {
+            /// @resolution.coverage exhaustive=true disjoint=true
+            /// @resolution.name source=right target=same.right
+            /// @resolution.place source=right placement=same.'b lifetime=same.'b access="readonly"
+            /// @resolution.access source=right root=same.right
+
+                Err { error: b } => a.equal(b)
+                /// @resolution.name source=Err target=Err
+                /// @resolution.pattern source="Err { error: b }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error: same.b#2 }
+                /// @type.symbol symbol=same.b#2 source=b type=&same.'b readonly E#3
+                /// @resolution.pattern source=b kind=binding target=same.b#2
+                /// @resolution.name source=a target=same.a#2
+                /// @resolution.member source=a.equal receiver=&same.'a readonly E#3 type=<PartialEqual.equal.'a, PartialEqual.equal.'b>(this: &PartialEqual.equal.'a readonly E#3, &PartialEqual.equal.'b readonly E#3) => boolean kind=symbol target_receiver=&same.'a readonly E#3 target=PartialEqual.equal
+                /// @resolution.call source=a.equal(b) parameters=(&same.'b readonly E#3) arguments=(provided(b) as &same.'b readonly E#3) return=boolean regions=(same.'a, same.'b) kind=symbol target=PartialEqual.equal receiver=&same.'a readonly E#3 instance=PartialEqual<E#3>.equal
+                /// @resolution.place source=a placement=same.'a lifetime=same.'a access="readonly"
+                /// @resolution.access source=a root=same.a#2
+                /// @generic.instantiation id="PartialEqual.equal<E#3, E#3>" template=PartialEqual.equal arguments=(E#3) owner=same
+                /// @generic.instantiation id=PartialEqual.equal<E#3> template=PartialEqual.equal arguments=(E#3) owner=same
+                /// @generic.instance id="PartialEqual.equal<E#3, E#3>" template=PartialEqual.equal arguments=(E#3)
+                /// @resolution.name source=b target=same.b#2
+                /// @resolution.place source=b placement=same.'b lifetime=same.'b access="readonly"
+                /// @resolution.access source=b root=same.b#2
+
+                Ok { value: _ } => false
+                /// @resolution.name source=Ok target=Ok
+                /// @resolution.pattern source="Ok { value: _ }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value: _ }
+                /// @resolution.pattern source=_ kind=wildcard
+
+            }
+        }
+    }
+}
 "#,
     );
 }

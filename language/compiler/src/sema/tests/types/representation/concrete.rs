@@ -41,6 +41,7 @@ function storageSize<T: Concrete>(): usize {
     /// @resolution.name source=sizeOf target=sizeOf
     /// @resolution.call source=sizeOf<T>() parameters=() return=usize kind=symbol target=sizeOf instance=sizeOf<T>
     /// @generic.instantiation id=sizeOf<T> template=sizeOf arguments=(T) owner=storageSize
+    /// @generic.instance id=sizeOf<T> template=sizeOf arguments=(T)
     /// @resolution.name source=T target=storageSize.T
 
     return size;
@@ -183,31 +184,29 @@ size satisfies usize;
 
 === dir ===
 interface Writer {
+/// @generic.template symbol=Writer parameters=(this: Writer)
 /// @type.symbol symbol=Writer type=Writer
-/// @definition.interface symbol=Writer
+/// @definition.interface symbol=Writer template=(this: Writer)
 /// @definition.where symbol=Writer relation=satisfies left=this right=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(this: Writer, readonly uint8[]) => uint64
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(this: this, readonly uint8[]) => uint64
 
     write(bytes: readonly uint8[]): uint;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: Writer, readonly uint8[]) => uint64
-    /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: this, readonly uint8[]) => uint64
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="elementSlot<uint8, \"exclusive\">" template=elementSlot arguments=(uint8, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive uint8[], usize) => &elementSlot.'a exclusive MaybeUninit<uint8>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<uint8>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<uint8>>, usize) => &elementSlot.'a exclusive MaybeUninit<uint8>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<uint8>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<uint8>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<uint8>>, usize) => &elementSlot.'a exclusive MaybeUninit<uint8>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive uint8[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<uint8>>)
-    /// @generic.instance id="initAsPointer<uint8, \"exclusive\">" template=initAsPointer arguments=(uint8, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<uint8>) => Raw<uint8>)
-    /// @generic.instance id="sliceIndex<MaybeUninit<uint8>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<uint8>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<uint8>>, usize) => &sliceIndex.'a exclusive MaybeUninit<uint8>)
+    /// @generic.instance id="elementSlot<uint8, \"mutable\">" template=elementSlot arguments=(uint8, "mutable")
+    /// @generic.instance id="initAsPointer<uint8, \"mutable\">" template=initAsPointer arguments=(uint8, "mutable")
+    /// @generic.instance id="sliceIndex<MaybeUninit<uint8>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<uint8>, "mutable")
     /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id=Array<uint8> template=Array arguments=(uint8)
-    /// @generic.instance id=MaybeUninit<MaybeUninit<uint8>> template=MaybeUninit arguments=(MaybeUninit<uint8>)
-    /// @generic.instance id=MaybeUninit<uint8> template=MaybeUninit arguments=(uint8)
     /// @generic.instance id=assumeInitDrop#1<uint8> template=assumeInitDrop#1 arguments=(uint8)
-    /// @generic.instance id=assumeInitDrop<uint8> template=assumeInitDrop arguments=(uint8) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<uint8>) => Raw<uint8>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<uint8>)
+    /// @generic.instance id=assumeInitDrop<uint8> template=assumeInitDrop arguments=(uint8)
     /// @generic.instance id=clear<uint8> template=clear arguments=(uint8)
     /// @generic.instance id=drop<uint8> template=drop arguments=(uint8)
     /// @generic.instance id=dropInPlace<uint8> template=dropInPlace arguments=(uint8)
-    /// @generic.instance id=new<MaybeUninit<uint8>> template=new arguments=(MaybeUninit<uint8>)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<uint8>> template=sliceAssumeInit arguments=(MaybeUninit<uint8>)
     /// @generic.instance id=sliceUninit<MaybeUninit<uint8>> template=sliceUninit arguments=(MaybeUninit<uint8>)
-    /// @generic.instance id=truncate<uint8> template=truncate arguments=(uint8) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<uint8>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive uint8[], usize) => &truncate.'a exclusive MaybeUninit<uint8>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive uint8[])
+    /// @generic.instance id=truncate<uint8> template=truncate arguments=(uint8)
+    /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
 }
 
@@ -260,22 +259,19 @@ size satisfies usize;
 type Writer = {
 /// @type.symbol symbol=Writer type={ write(readonly uint8[]): uint64 }
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<uint8, \"exclusive\">" template=elementSlot arguments=(uint8, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive uint8[], usize) => &elementSlot.'a exclusive MaybeUninit<uint8>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<uint8>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<uint8>>, usize) => &elementSlot.'a exclusive MaybeUninit<uint8>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<uint8>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<uint8>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<uint8>>, usize) => &elementSlot.'a exclusive MaybeUninit<uint8>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive uint8[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<uint8>>)
-/// @generic.instance id="initAsPointer<uint8, \"exclusive\">" template=initAsPointer arguments=(uint8, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<uint8>) => Raw<uint8>)
-/// @generic.instance id="sliceIndex<MaybeUninit<uint8>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<uint8>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<uint8>>, usize) => &sliceIndex.'a exclusive MaybeUninit<uint8>)
+/// @generic.instance id="elementSlot<uint8, \"mutable\">" template=elementSlot arguments=(uint8, "mutable")
+/// @generic.instance id="initAsPointer<uint8, \"mutable\">" template=initAsPointer arguments=(uint8, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<uint8>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<uint8>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<uint8> template=Array arguments=(uint8)
-/// @generic.instance id=MaybeUninit<MaybeUninit<uint8>> template=MaybeUninit arguments=(MaybeUninit<uint8>)
-/// @generic.instance id=MaybeUninit<uint8> template=MaybeUninit arguments=(uint8)
 /// @generic.instance id=assumeInitDrop#1<uint8> template=assumeInitDrop#1 arguments=(uint8)
-/// @generic.instance id=assumeInitDrop<uint8> template=assumeInitDrop arguments=(uint8) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<uint8>) => Raw<uint8>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<uint8>)
+/// @generic.instance id=assumeInitDrop<uint8> template=assumeInitDrop arguments=(uint8)
 /// @generic.instance id=clear<uint8> template=clear arguments=(uint8)
 /// @generic.instance id=drop<uint8> template=drop arguments=(uint8)
 /// @generic.instance id=dropInPlace<uint8> template=dropInPlace arguments=(uint8)
-/// @generic.instance id=new<MaybeUninit<uint8>> template=new arguments=(MaybeUninit<uint8>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<uint8>> template=sliceAssumeInit arguments=(MaybeUninit<uint8>)
 /// @generic.instance id=sliceUninit<MaybeUninit<uint8>> template=sliceUninit arguments=(MaybeUninit<uint8>)
-/// @generic.instance id=truncate<uint8> template=truncate arguments=(uint8) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<uint8>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive uint8[], usize) => &truncate.'a exclusive MaybeUninit<uint8>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive uint8[])
+/// @generic.instance id=truncate<uint8> template=truncate arguments=(uint8)
 /// @definition.type symbol=Writer value={ write(readonly uint8[]): uint64 }
 
     write(bytes: readonly uint8[]): uint;
@@ -332,7 +328,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
         r#"
 /// @diagnostic.error id=not-erasable message="type '<T>(input: T) => T' cannot be erased into 'DynamicSafe'"
 /// @diagnostic.label line=2 column=30 span="<T>(input: T) => T" line_source="declare const value: Dynamic<<T>(input: T) => T>;"
-/// @diagnostic.related file="dynamic.ds" line=7 column=24 span="T" line_source="export newtype Dynamic<T: DynamicSafe> = intrinsic;" message="required by this bound on 'T'"
+/// @diagnostic.related file="dynamic.ds" line=7 column=21 span="T" line_source="export type Dynamic<T: DynamicSafe> = intrinsic;" message="required by this bound on 'T'"
 /// @diagnostic.help message="prove the source erasable with a DynamicSafe bound"
 "#,
     );
@@ -530,7 +526,7 @@ function makeShape(flag: boolean): Shape {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=makeShape.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=flag root=makeShape.flag
 
         return Shape(Circle { radius: 1.0 } as Circle | Rectangle);
@@ -667,7 +663,7 @@ function makeShape(flag: boolean): Shape {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=makeShape.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=flag root=makeShape.flag
 
         return Circle { radius: 1.0 };

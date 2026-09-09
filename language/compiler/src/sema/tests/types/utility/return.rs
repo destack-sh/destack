@@ -18,23 +18,23 @@ ok satisfies string;
 === annotated ===
 type Value = ReturnType<() => string>;
 
-const ok: string = "ready";
+const ok: Value = "ready";
 ok satisfies string;
 
 === dir ===
 type Value = ReturnType<() => string>;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
-/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=ReturnType<Function<(), string>>
+/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<Function<(), string>>
 /// @resolution.name source=ReturnType target=ReturnType
 
 const ok: Value = "ready";
-/// @type.symbol symbol=ok source=ok type=string
+/// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=ok placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -58,22 +58,22 @@ const second: Value = "b";
 === annotated ===
 type Value = ReturnType<() => "a" | "b">;
 
-const first: "a" | "b" = "a";
-const second: "a" | "b" = "b";
+const first: Value = "a";
+const second: Value = "b";
 
 === dir ===
 type Value = ReturnType<() => "a" | "b">;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type="a" | "b"
-/// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value="a" | "b"
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type=ReturnType<Function<(), "a" | "b">>
+/// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value=ReturnType<Function<(), "a" | "b">>
 /// @resolution.name source=ReturnType target=ReturnType
 
 const first: Value = "a";
-/// @type.symbol symbol=first source=first type="a" | "b"
+/// @type.symbol symbol=first source=first type=Value
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Value target=Value
 
 const second: Value = "b";
-/// @type.symbol symbol=second source=second type="a" | "b"
+/// @type.symbol symbol=second source=second type=Value
 /// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
 "#,
@@ -97,23 +97,24 @@ const bad: Value = 1;
 === annotated ===
 type Value = ReturnType<() => string>;
 
-const bad: string = 1;
+const bad: Value = 1;
 
 === dir ===
 type Value = ReturnType<() => string>;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
-/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=ReturnType<Function<(), string>>
+/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<Function<(), string>>
 /// @resolution.name source=ReturnType target=ReturnType
 
 const bad: Value = 1;
-/// @type.symbol symbol=bad source=bad type=string
+/// @type.symbol symbol=bad source=bad type=Value
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'string'"
+/// @diagnostic.error id=not-assignable message="type '1' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="1" line_source="const bad: Value = 1;"
 /// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = 1;" message="expected due to this annotation"
+/// @diagnostic.note message="'Value' reduces to 'string'"
 "#,
     );
 }

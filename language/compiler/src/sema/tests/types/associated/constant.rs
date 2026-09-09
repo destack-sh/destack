@@ -42,8 +42,9 @@ class Class {
 }
 
 interface Interface {
+/// @generic.template symbol=Interface parameters=(this: Interface)
 /// @type.symbol symbol=Interface type=Interface
-/// @definition.interface symbol=Interface
+/// @definition.interface symbol=Interface template=(this: Interface)
 /// @definition.where symbol=Interface relation=satisfies left=this right=Interface
 /// @definition.associated.const symbol=Interface.Value source="const Value = 1" key=Value type=1
 
@@ -104,8 +105,9 @@ class Class {
 }
 
 interface Interface {
+/// @generic.template symbol=Interface parameters=(this: Interface)
 /// @type.symbol symbol=Interface type=Interface
-/// @definition.interface symbol=Interface
+/// @definition.interface symbol=Interface template=(this: Interface)
 /// @definition.where symbol=Interface relation=satisfies left=this right=Interface
 /// @definition.associated.const symbol=Interface.Value source="const Value" key=Value type=<error>
 
@@ -173,7 +175,7 @@ declare const lane: Segment<string>.Lane;
 /// @resolution.pattern source=lane kind=binding target=lane
 /// @resolution.name source=Segment target=Segment
 /// @resolution.name source=Segment<string>.Lane target=Segment.Lane
-/// @generic.instance id=Segment<string> template=Segment arguments=(string) evaluated=(Row extends string ? 8 : 4 => 8)
+/// @generic.instance id=Segment<string> template=Segment arguments=(string)
 "#,
     );
 }
@@ -211,17 +213,18 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
 
 === dir ===
 interface RegisterBlock {
+/// @generic.template symbol=RegisterBlock parameters=(this: RegisterBlock)
 /// @type.symbol symbol=RegisterBlock type=RegisterBlock
-/// @definition.interface symbol=RegisterBlock
+/// @definition.interface symbol=RegisterBlock template=(this: RegisterBlock)
 /// @definition.where symbol=RegisterBlock relation=satisfies left=this right=RegisterBlock
 /// @definition.associated.const symbol=RegisterBlock.Width source="const Width: usize" key=Width type=usize
-/// @definition.method symbol=RegisterBlock.read source="read(): [uint8; this.Width]" slot=read type=(this: RegisterBlock) => FixedArray<uint8, usize>
+/// @definition.method symbol=RegisterBlock.read source="read(): [uint8; this.Width]" slot=read type=(this: this) => FixedArray<uint8, this.Width>
 
     const Width: usize;
     /// @type.symbol symbol=RegisterBlock.Width source="const Width: usize" type=usize
 
     read(): [uint8; this.Width];
-    /// @type.symbol symbol=RegisterBlock.read source="read(): [uint8; this.Width]" type=(this: RegisterBlock) => FixedArray<uint8, usize>
+    /// @type.symbol symbol=RegisterBlock.read source="read(): [uint8; this.Width]" type=(this: this) => FixedArray<uint8, this.Width>
 
 }
 
@@ -238,9 +241,10 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
     /// @resolution.name source=block target=readHeader.block
     /// @resolution.member source=block.read receiver=T type=(this: T) => FixedArray<uint8, T.Width> kind=symbol target_receiver=T target=RegisterBlock.read
     /// @resolution.call source=block.read() parameters=() return=FixedArray<uint8, T.Width> kind=symbol target=RegisterBlock.read receiver=T
-    /// @resolution.place source=block placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=block placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=block root=readHeader.block
     /// @generic.instantiation id=RegisterBlock.read<T> template=RegisterBlock.read arguments=() owner=readHeader
+    /// @generic.instance id=RegisterBlock.read<T> template=RegisterBlock.read arguments=() dependents=(16)
 
 }
 "#,
@@ -274,8 +278,9 @@ extension of Matrix implements Shape {}
 
 === dir ===
 interface Shape {
+/// @generic.template symbol=Shape parameters=(this: Shape)
 /// @type.symbol symbol=Shape type=Shape
-/// @definition.interface symbol=Shape
+/// @definition.interface symbol=Shape template=(this: Shape)
 /// @definition.where symbol=Shape relation=satisfies left=this right=Shape
 /// @definition.associated.const symbol=Shape.Rank source="const Rank: usize = 2" key=Rank type=usize
 

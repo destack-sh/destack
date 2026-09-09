@@ -39,11 +39,11 @@ const segment = parse("id:users");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"id:users\")" parameters=(`id:${"users"}`) arguments=(provided("id:users") as `id:${"users"}`) return="users" kind=symbol target=parse instance="parse<\"users\">"
 /// @generic.instantiation id="parse<\"users\">" template=parse arguments=("users")
-/// @generic.instance id="parse<\"users\">" template=parse arguments=("users")
+/// @generic.instance id="parse<\"users\">" template=parse arguments=("users") dependents=("id:users")
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -88,11 +88,11 @@ const key = build("users");
 /// @resolution.name source=build target=build
 /// @resolution.call source="build(\"users\")" parameters=("users") arguments=(provided("users") as "users") return=`id:${"users"}` kind=symbol target=build instance="build<\"users\">"
 /// @generic.instantiation id="build<\"users\">" template=build arguments=("users")
-/// @generic.instance id="build<\"users\">" template=build arguments=("users")
+/// @generic.instance id="build<\"users\">" template=build arguments=("users") dependents=("id:users")
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=key root=key
 "#,
     );
@@ -145,14 +145,14 @@ const text = identity(value);
 /// @resolution.name source=identity target=identity
 /// @resolution.call source=identity(value) parameters=(`${string}`) arguments=(provided(value) as `${string}`) return=string kind=symbol target=identity instance=identity<string>
 /// @generic.instantiation id=identity<string> template=identity arguments=(string)
-/// @generic.instance id=identity<string> template=identity arguments=(string)
+/// @generic.instance id=identity<string> template=identity arguments=(string) dependents=(`${string}`)
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
 
 text satisfies string;
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=text root=text
 "#,
     );
@@ -200,7 +200,7 @@ parse(key);
 /// @resolution.call source=parse(key) parameters=(`id:${string}`) arguments=(provided(key) as `id:${string}`) return=string kind=symbol target=parse instance=parse<string>
 /// @generic.instantiation id=parse<string> template=parse arguments=(string)
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=key root=key
 "#,
         r#"
@@ -250,11 +250,11 @@ const segment = parse("id:");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"id:\")" parameters=(`id:${""}`) arguments=(provided("id:") as `id:${""}`) return="" kind=symbol target=parse instance="parse<\"\">"
 /// @generic.instantiation id="parse<\"\">" template=parse arguments=("")
-/// @generic.instance id="parse<\"\">" template=parse arguments=("")
+/// @generic.instance id="parse<\"\">" template=parse arguments=("") dependents=("id:")
 
 segment satisfies "";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -299,7 +299,7 @@ const value = parse("42");
 /// @resolution.name source=parse target=parse
 /// @resolution.call source="parse(\"42\")" parameters=(`${42}`) arguments=(provided("42") as `${42}`) return=42 kind=symbol target=parse instance=parse<42>
 /// @generic.instantiation id=parse<42> template=parse arguments=(42)
-/// @generic.instance id=parse<42> template=parse arguments=(42)
+/// @generic.instance id=parse<42> template=parse arguments=(42) dependents=(`${42}`)
 
 value satisfies 42;
 /// @resolution.name source=value target=value

@@ -230,7 +230,7 @@ impl CheckState<'_> {
     }
 
     /// Select the executable predicate for one `is` guard.
-    fn select_guard_predicate(
+    pub(in crate::sema) fn select_guard_predicate(
         &mut self,
         origin: Origin,
         value: dir::GlobalTypeId,

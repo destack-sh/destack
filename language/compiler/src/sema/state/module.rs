@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use destack_artifact::{
     DiagnosticBuilder, DiagnosticControlTable, DirBound, DirChecked, DirDeclared, DirElaborated,
-    DirExpanded, DirParsed, DirResolved, ProfileKey,
+    DirExpanded, DirImported, DirParsed, DirResolved, DirView, ProfileKey,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, Module, Package, ProviderContext};
+use destack_repository::{ArtifactReader, Module, Package, ProviderError, Revision};
 
 use destack_source::{ModuleId, ProfileId, Span};
 use smallvec::SmallVec;
@@ -18,8 +18,40 @@ use crate::sema::{
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
+impl Pass {
+    /// Read the stages of one module this pass reaches, the retained stages preceding it.
+    pub(in crate::sema) fn read_stages(
+        self,
+        artifacts: &ArtifactReader<'_>,
+        key: (ModuleId, ProfileId),
+    ) -> Result<DirView, ProviderError> {
+        let (module, _) = key;
+        let declared = (self != Pass::Declare)
+            .then(|| artifacts.read::<DirDeclared>(key))
+            .transpose()?;
+        let elaborated = matches!(self, Pass::Check | Pass::Materialize)
+            .then(|| artifacts.read::<DirElaborated>(key))
+            .transpose()?;
+        let checked = (self == Pass::Materialize)
+            .then(|| artifacts.read::<DirChecked>(key))
+            .transpose()?;
+
+        Ok(DirView::new(
+            artifacts.read::<DirParsed>(module)?,
+            artifacts.read::<DirBound>(key)?,
+            artifacts.read::<DirImported>(key)?,
+            artifacts.read::<DirExpanded>(key)?,
+            Some(artifacts.read::<DirResolved>(key)?),
+            declared,
+            elaborated,
+            checked,
+            None,
+        ))
+    }
+}
+
 /// Working state owned by one checked module.
-pub(in crate::sema) struct CheckModuleState {
+pub(in crate::sema) struct CheckModuleState<'a> {
     // module context
     /// The requested source module.
     pub(in crate::sema) module: Arc<Module>,
@@ -41,8 +73,6 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) declared: Option<Arc<DirDeclared>>,
     /// The elaborated stage backing this check, when elaborating is done.
     pub(in crate::sema) elaborated: Option<Arc<DirElaborated>>,
-    /// The checked artifact materialization layers over.
-    pub(in crate::sema) checked: Option<Arc<DirChecked>>,
 
     // referenced modules
     /// The foreign modules the stored entries mention, accumulated at store time.
@@ -50,14 +80,14 @@ pub(in crate::sema) struct CheckModuleState {
     /// External modules visible from this module.
     pub(in crate::sema) external_modules: FxIndexSet<ModuleId>,
 
-    // committed bases built once at load
+    // stack the committed bases once at load
     /// The cumulative binding table.
     pub(in crate::sema) bindings: dir::BindingTable<'static>,
-    /// The committed base type table.
-    pub(in crate::sema) types: dir::TypeTable<'static>,
+    /// The committed base type table, owned past this state by the frame running the pass.
+    pub(in crate::sema) types: &'a dir::TypeTable<'static>,
     /// The committed base static table.
     pub(in crate::sema) statics: dir::StaticTable<'static>,
-    /// The committed base definition table.
+    /// The committed base definition table, empty while declaring.
     pub(in crate::sema) definitions: dir::DefinitionTable<'static>,
     /// The committed base decision table, the checked decisions materialization reads.
     pub(in crate::sema) decisions: dir::DecisionTable<'static>,
@@ -67,16 +97,20 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) members: Vec<Arc<dir::MemberSegment>>,
 
     // open tails this pass writes over the committed bases
+    /// The expansion patch and the nodes this pass synthesizes beyond it.
+    pub(in crate::sema) patches: [dir::Patch; 2],
     /// Checked symbols synthesized from resolved language features.
     pub(in crate::sema) bindings_tail: dir::BindingSegment,
     /// Open inference types layered over the committed base.
-    pub(in crate::sema) types_tail: dir::TypeTail,
+    pub(in crate::sema) types_tail: dir::TypeTail<'a>,
     /// The static terms this pass evaluated.
     pub(in crate::sema) statics_tail: dir::StaticSegment,
     /// The definitions this pass declared or rewrote.
     pub(in crate::sema) definitions_tail: dir::DefinitionSegment,
     /// The member subjects and bindings this pass selected.
     pub(in crate::sema) members_tail: dir::MemberSegment,
+    /// The layout policies this pass committed.
+    pub(in crate::sema) representations_tail: dir::RepresentationSegment,
     /// The committed base generic table.
     pub(in crate::sema) generics: dir::GenericTable<'static>,
     /// The generic templates and parameters this pass induced.
@@ -126,212 +160,121 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) warnings: Vec<DiagnosticBuilder<CheckWarning>>,
 }
 
-impl CheckModuleState {
-    /// Load the module state required by one compiler pass.
-    pub(in crate::sema) fn load(
-        compiler: &Compiler,
-        context: &dyn ProviderContext,
-        artifacts: &ArtifactReader<'_>,
-        profile: ProfileId,
-        module: ModuleId,
-        pass: Pass,
-    ) -> CompilerResult<Self> {
-        let profile_key = compiler.profile(context.revision(), profile)?.key;
-        let repository_module = compiler.module(context.revision(), module)?;
-        let package = compiler.package(context.revision(), repository_module.package_id)?;
-        let parsed = artifacts
-            .read::<DirParsed>(module)
-            .map_err(CompilerError::from)?;
-        let bound = artifacts
-            .read::<DirBound>((module, profile))
-            .map_err(CompilerError::from)?;
-        let resolved = artifacts
-            .read::<DirResolved>((module, profile))
-            .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .read::<DirExpanded>((module, profile))
-            .map_err(CompilerError::from)?;
-
-        // read the retained layers preceding this pass
-        let declared = (pass != Pass::Declare)
-            .then(|| artifacts.read::<DirDeclared>((module, profile)))
-            .transpose()
-            .map_err(CompilerError::from)?;
-        let elaborated = matches!(pass, Pass::Check | Pass::Materialize)
-            .then(|| artifacts.read::<DirElaborated>((module, profile)))
-            .transpose()
-            .map_err(CompilerError::from)?;
-        let checked = (pass == Pass::Materialize)
-            .then(|| artifacts.read::<DirChecked>((module, profile)))
-            .transpose()
-            .map_err(CompilerError::from)?;
-
-        Ok(Self::new(
-            repository_module,
-            package,
-            profile_key,
-            parsed,
-            bound,
-            resolved,
-            expanded,
-            declared,
-            elaborated,
-            checked,
-        ))
+impl<'a> CheckModuleState<'a> {
+    /// Return the patch this pass synthesizes nodes into.
+    pub(in crate::sema) fn materialize_patch(&self) -> &dir::Patch {
+        &self.patches[1]
     }
 
-    /// Create module state from loaded inputs and empty checked state.
-    pub(in crate::sema) fn new(
+    /// Return the patch this pass synthesizes nodes into, for writing.
+    pub(in crate::sema) fn materialize_patch_mut(&mut self) -> &mut dir::Patch {
+        &mut self.patches[1]
+    }
+
+    /// Load the working state of one pass over the stages one view read.
+    pub(in crate::sema) fn load(
+        compiler: &Compiler,
+        revision: Revision,
+        module: ModuleId,
+        profile: ProfileId,
+        view: DirView,
+        types: &'a dir::TypeTable<'static>,
+        lists: &'a dir::TypeListArena,
+    ) -> CompilerResult<Self> {
+        let profile = compiler.profile(revision, profile)?.key;
+        let module = compiler.module(revision, module)?;
+        let package = compiler.package(revision, module.package_id)?;
+
+        Ok(Self::new(module, package, profile, view, types, lists))
+    }
+
+    /// Create the working state of one pass over the stages one view read.
+    fn new(
         module: Arc<Module>,
         package: Arc<Package>,
         profile: ProfileKey,
-        parsed: Arc<DirParsed>,
-        bound: Arc<DirBound>,
-        resolved: Arc<DirResolved>,
-        expanded: Arc<DirExpanded>,
-        declared: Option<Arc<DirDeclared>>,
-        elaborated: Option<Arc<DirElaborated>>,
-        checked: Option<Arc<DirChecked>>,
+        view: DirView,
+        types: &'a dir::TypeTable<'static>,
+        lists: &'a dir::TypeListArena,
     ) -> Self {
-        // stack materialization over the checked segments when present
-        let checked_layer = checked.as_ref().map(|checked| {
-            let declared = declared
-                .as_ref()
-                .expect("materialization layers over declared");
-            let elaborated = elaborated
-                .as_ref()
-                .expect("materialization layers over elaborated");
+        let parsed = Arc::clone(&view.parsed);
+        let expanded = Arc::clone(&view.expanded);
+        let (declared, elaborated, checked) = (&view.declared, &view.elaborated, &view.checked);
 
-            (
-                checked.binding_table(&bound, &expanded, declared, elaborated),
-                checked.type_table(&bound, &expanded, declared, elaborated),
-                checked.static_table(&bound, &expanded, declared, elaborated),
-                dir::TypeTail::over(vec![
-                    Arc::clone(&declared.types),
-                    Arc::clone(&elaborated.types),
-                    Arc::clone(&checked.types),
-                ]),
-                dir::GenericSegment::from_base(&checked.generics),
-                dir::StaticSegment::from_base(&checked.statics),
-                dir::DecoratorSegment::from_base(&checked.decorators),
-            )
-        });
-
-        // stack this check's overlays over the declared segments, else the expanded base
-        let (bindings, types, statics, types_tail, generics_tail, statics_tail, decorators_tail) =
-            if let Some(layer) = checked_layer {
-                layer
-            } else {
-                match &declared {
-                    Some(declared) => (
-                        match &elaborated {
-                            Some(elaborated) => {
-                                elaborated.binding_table(&bound, &expanded, declared)
-                            }
-                            None => declared.binding_table(&bound, &expanded),
-                        },
-                        match &elaborated {
-                            Some(elaborated) => elaborated.type_table(&bound, &expanded, declared),
-                            None => declared.type_table(&bound, &expanded),
-                        },
-                        match &elaborated {
-                            Some(elaborated) => {
-                                elaborated.static_table(&bound, &expanded, declared)
-                            }
-                            None => declared.static_table(&bound, &expanded),
-                        },
-                        match &elaborated {
-                            Some(elaborated) => dir::TypeTail::over(vec![
-                                Arc::clone(&declared.types),
-                                Arc::clone(&elaborated.types),
-                            ]),
-                            None => dir::TypeTail::over_base(Arc::clone(&declared.types)),
-                        },
-                        match &elaborated {
-                            Some(elaborated) => {
-                                dir::GenericSegment::from_base(&elaborated.generics)
-                            }
-                            None => dir::GenericSegment::from_base(&declared.generics),
-                        },
-                        match &elaborated {
-                            Some(elaborated) => dir::StaticSegment::from_base(&elaborated.statics),
-                            None => dir::StaticSegment::from_base(&declared.statics),
-                        },
-                        match &elaborated {
-                            Some(elaborated) => {
-                                dir::DecoratorSegment::from_base(&elaborated.decorators)
-                            }
-                            None => dir::DecoratorSegment::from_base(&declared.decorators),
-                        },
-                    ),
-                    None => (
-                        expanded.binding_table(&bound),
-                        expanded.type_table(&bound),
-                        expanded.static_table(&bound),
-                        dir::TypeTail::from_base(&expanded.types),
-                        dir::GenericSegment::new(module.id),
-                        dir::StaticSegment::from_base(&expanded.statics),
-                        dir::DecoratorSegment::new(module.id),
-                    ),
-                }
+        // stack this pass's tails over the latest committed stage
+        let (types_tail, generics_tail, statics_tail, decorators_tail) =
+            match (checked, elaborated, declared) {
+                (Some(checked), _, _) => (
+                    dir::TypeTail::over(view.types().segments().to_vec(), lists),
+                    dir::GenericSegment::from_base(&checked.generics),
+                    dir::StaticSegment::from_base(&checked.statics),
+                    dir::DecoratorSegment::from_base(&checked.decorators),
+                ),
+                (None, Some(elaborated), _) => (
+                    dir::TypeTail::over(view.types().segments().to_vec(), lists),
+                    dir::GenericSegment::from_base(&elaborated.generics),
+                    dir::StaticSegment::from_base(&elaborated.statics),
+                    dir::DecoratorSegment::from_base(&elaborated.decorators),
+                ),
+                (None, None, Some(declared)) => (
+                    dir::TypeTail::over_base(Arc::clone(&declared.types), lists),
+                    dir::GenericSegment::from_base(&declared.generics),
+                    dir::StaticSegment::from_base(&declared.statics),
+                    dir::DecoratorSegment::from_base(&declared.decorators),
+                ),
+                (None, None, None) => (
+                    dir::TypeTail::from_base(&expanded.types, lists),
+                    dir::GenericSegment::new(module.id),
+                    dir::StaticSegment::from_base(&expanded.statics),
+                    dir::DecoratorSegment::new(module.id),
+                ),
             };
-        let bindings_tail = dir::BindingSegment::from_table(&bindings);
 
-        // stack the committed generic segments in stage order under one view
-        let mut generic_segments = Vec::new();
-        if let Some(declared) = &declared {
-            generic_segments.push(Arc::clone(&declared.generics));
-        }
-        if let Some(elaborated) = &elaborated {
-            generic_segments.push(Arc::clone(&elaborated.generics));
-        }
-        if let Some(checked) = &checked {
-            generic_segments.push(Arc::clone(&checked.generics));
-        }
-        if generic_segments.is_empty() {
-            generic_segments.push(Arc::new(dir::GenericSegment::new(module.id)));
-        }
-        let generics = dir::GenericTable::from_segments(generic_segments);
-
-        // stack the committed definition segments in stage order under one view
-        let mut definition_segments = Vec::new();
-        if let Some(declared) = &declared {
-            definition_segments.push(Arc::clone(&declared.definitions));
-        }
-        if let Some(elaborated) = &elaborated {
-            definition_segments.push(Arc::clone(&elaborated.definitions));
-        }
-        if let Some(checked) = &checked {
-            definition_segments.push(Arc::clone(&checked.definitions));
-        }
-        if definition_segments.is_empty() {
-            definition_segments.push(Arc::new(dir::DefinitionSegment::new(module.id)));
-        }
-        let definitions = dir::DefinitionTable::from_segments(definition_segments);
+        // open empty bases for the tables declaring writes first
+        let (generics, definitions) = match declared {
+            Some(_) => (view.generics().clone(), view.definitions().clone()),
+            None => (
+                dir::GenericTable::from_segment(Arc::new(dir::GenericSegment::new(module.id))),
+                dir::DefinitionTable::from_segment(Arc::new(dir::DefinitionSegment::new(
+                    module.id,
+                ))),
+            ),
+        };
+        let (decisions, coercions) = match checked {
+            Some(checked) => (
+                dir::DecisionTable::from_segment(Arc::clone(&checked.decisions)),
+                dir::CoercionTable::from_segment(Arc::clone(&checked.coercions)),
+            ),
+            None => (
+                dir::DecisionTable::from_segment(Arc::new(dir::DecisionSegment::new(module.id))),
+                dir::CoercionTable::from_segment(Arc::new(dir::CoercionSegment::new(module.id))),
+            ),
+        };
 
         // shadow the committed member entries, which key by site
-        let mut members = Vec::new();
-        if let Some(checked) = &checked {
-            members.push(checked.members.clone());
-        }
-        if let Some(elaborated) = &elaborated {
-            members.push(elaborated.members.clone());
-        }
-        if let Some(declared) = &declared {
-            members.push(declared.members.clone());
-        }
+        let members = [
+            checked.as_ref().map(|checked| Arc::clone(&checked.members)),
+            elaborated
+                .as_ref()
+                .map(|elaborated| Arc::clone(&elaborated.members)),
+            declared
+                .as_ref()
+                .map(|declared| Arc::clone(&declared.members)),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        let bindings_tail = dir::BindingSegment::from_table(view.bindings());
+        let patches = [
+            expanded.patch.clone(),
+            dir::Patch::following(
+                &dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch)),
+                "materialize",
+            ),
+        ];
         let definitions_tail = dir::DefinitionSegment::new(module.id);
         let members_tail = dir::MemberSegment::new(module.id);
-
-        // read the checked decisions and coercions as committed bases
-        let decisions = dir::DecisionTable::from_segment(match &checked {
-            Some(checked) => Arc::clone(&checked.decisions),
-            None => Arc::new(dir::DecisionSegment::new(module.id)),
-        });
-        let coercions = dir::CoercionTable::from_segment(match &checked {
-            Some(checked) => Arc::clone(&checked.coercions),
-            None => Arc::new(dir::CoercionSegment::new(module.id)),
-        });
+        let representations_tail = dir::RepresentationSegment::new(module.id);
 
         // open the remaining segments and this module's diagnostic controls
         let resolutions = dir::ResolutionSegment::new(module.id);
@@ -340,7 +283,7 @@ impl CheckModuleState {
         let captures = dir::CaptureSegment::new(module.id);
         let flows = dir::FlowSegment::new(module.id);
         // carry the diagnostic controls the latest stage wrote
-        let controls = match (&checked, &elaborated) {
+        let controls = match (checked, elaborated) {
             (Some(checked), _) => (*checked.controls).clone(),
             (None, Some(elaborated)) => (*elaborated.controls).clone(),
             (None, None) => {
@@ -355,26 +298,27 @@ impl CheckModuleState {
             package,
             profile,
             parsed,
-            bound,
-            resolved,
+            bound: Arc::clone(&view.bound),
+            resolved: Arc::clone(view.resolved()),
             expanded,
-            declared,
-            elaborated,
-            checked,
+            declared: declared.clone(),
+            elaborated: elaborated.clone(),
             references: FxIndexSet::default(),
             external_modules: FxIndexSet::default(),
-            bindings,
+            bindings: view.bindings().clone(),
             types,
-            statics,
+            statics: view.statics().clone(),
             definitions,
             decisions,
             coercions,
             members,
             bindings_tail,
+            patches,
             types_tail,
             statics_tail,
             definitions_tail,
             members_tail,
+            representations_tail,
             generics,
             generics_tail,
             decorators_tail,
@@ -399,7 +343,7 @@ impl CheckModuleState {
 
     /// Return the post-expansion DIR tree view visible to check.
     pub(in crate::sema) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, from_ref(&self.expanded.patch))
+        dir::View::with_patches(&self.parsed.tree, &self.patches)
     }
 
     /// Return the full source span of one visible node's authored origin.
@@ -454,6 +398,25 @@ impl CheckModuleState {
         }
 
         self.generics.get_template_maybe(id)
+    }
+
+    /// Return the reduction recorded for one written head, the pass tail over the base.
+    pub(in crate::sema) fn reduction(&self, id: dir::GlobalTypeId) -> Option<dir::GlobalTypeId> {
+        self.types_tail
+            .reduction(id)
+            .or_else(|| self.types.reduction(id))
+    }
+
+    /// Return the dependents recorded for one declaration, reading the pass tail over the base.
+    pub(in crate::sema) fn symbol_dependents(
+        &self,
+        symbol: dir::LocalSymbolId,
+    ) -> Option<&[dir::GlobalTypeId]> {
+        if let Some(dependents) = self.generics_tail.symbol_dependents(symbol) {
+            return Some(dependents);
+        }
+
+        self.generics.symbol_dependents(symbol)
     }
 
     /// Return one generic parameter, reading the pass tail over the committed base.
@@ -619,29 +582,25 @@ impl CheckModuleState {
     pub(in crate::sema) fn definition(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<&dir::Definition> {
+    ) -> Option<Arc<dir::Definition>> {
         // read this pass's own definitions first
-        if let Some(definition) = self.definitions_tail.definition(symbol) {
-            return Some(definition);
-        }
-
-        self.definitions.definition(symbol)
+        self.definitions_tail
+            .definition_handle(symbol)
+            .or_else(|| self.definitions.definition_handle(symbol))
+            .cloned()
     }
 
-    /// Return one definition for rewriting, copying the committed base in once.
-    pub(in crate::sema) fn definition_mut(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<&mut dir::Definition> {
-        // copy the committed definition into the pass tail on first write
-        if self.definitions_tail.definition(symbol).is_none() {
-            let definition = self.definitions.definition(symbol)?.clone();
-            let source = self.definitions.definition_source(symbol)?;
-            self.definitions_tail
-                .insert_definition(symbol, source, definition);
-        }
-
-        self.definitions_tail.definition_mut(symbol)
+    /// Return the members selected to satisfy one `implements` clause.
+    pub(in crate::sema) fn conformance_members(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> Option<&[dir::MemberConformance]> {
+        self.members_tail.conformance_members(source).or_else(|| {
+            self.members
+                .iter()
+                .rev()
+                .find_map(|segment| segment.conformance_members(source))
+        })
     }
 
     /// Return one definition's source node through the segments.
@@ -729,19 +688,19 @@ impl CheckModuleState {
     }
 }
 
-impl CheckState<'_> {
+impl<'a> CheckState<'a> {
     /// Return whether one module is the checked module.
     pub(in crate::sema) fn is_own_module(&self, module: ModuleId) -> bool {
         module == self.module_id
     }
 
-    /// Return whether one module's declared tables are readable.
-    pub(in crate::sema) fn is_loaded_module(&self, module: ModuleId) -> bool {
-        self.is_own_module(module) || self.external_modules.contains_key(&module)
+    /// Return whether one module's tables are readable, the declare pass reading its own alone.
+    pub(in crate::sema) fn reads_module(&self, module: ModuleId) -> bool {
+        self.is_own_module(module) || !self.is_declaring()
     }
 
     /// Return the module's working state when it is the checked module.
-    pub(in crate::sema) fn module_maybe(&self, module: ModuleId) -> Option<&CheckModuleState> {
+    pub(in crate::sema) fn module_maybe(&self, module: ModuleId) -> Option<&CheckModuleState<'a>> {
         (module == self.module_id).then_some(&self.module)
     }
 
@@ -749,7 +708,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn module_maybe_mut(
         &mut self,
         module: ModuleId,
-    ) -> Option<&mut CheckModuleState> {
+    ) -> Option<&mut CheckModuleState<'a>> {
         (module == self.module_id).then_some(&mut self.module)
     }
 
@@ -769,20 +728,17 @@ impl CheckState<'_> {
     pub(in crate::sema) fn reference_symbol(
         &self,
         source: dir::GlobalNodeIdAny,
-    ) -> Option<dir::GlobalSymbolId> {
-        let reference = self
-            .module_resolved(source.module_id)
-            .references
-            .get(source)?;
-        let dir::Reference::Bound(symbols) = reference else {
-            return None;
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        let resolved = Arc::clone(self.module_resolved(source.module_id)?);
+        let Some(dir::Reference::Bound(symbols)) = resolved.references.get(source) else {
+            return Ok(None);
         };
         let symbols = self.present_symbols(symbols);
         let [symbol] = symbols.as_slice() else {
-            return None;
+            return Ok(None);
         };
 
-        Some(*symbol)
+        Ok(Some(*symbol))
     }
 
     /// Return whether one symbol's guard decided statically false.
@@ -800,7 +756,7 @@ impl CheckState<'_> {
     }
 
     /// Return the checked module's working state.
-    pub(in crate::sema) fn module(&self, module: ModuleId) -> &CheckModuleState {
+    pub(in crate::sema) fn module(&self, module: ModuleId) -> &CheckModuleState<'a> {
         match self.module_maybe(module) {
             Some(state) => state,
             None => unreachable!("check module {module:?} was not loaded"),
@@ -808,7 +764,7 @@ impl CheckState<'_> {
     }
 
     /// Return the checked module's working state mutably.
-    pub(in crate::sema) fn module_mut(&mut self, module: ModuleId) -> &mut CheckModuleState {
+    pub(in crate::sema) fn module_mut(&mut self, module: ModuleId) -> &mut CheckModuleState<'a> {
         match self.module_maybe_mut(module) {
             Some(state) => state,
             None => unreachable!("check module {module:?} was not loaded"),
@@ -1136,29 +1092,30 @@ impl CheckState<'_> {
     pub(in crate::sema) fn symbol_type_maybe(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::GlobalTypeId> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // prefer body-owned bindings over stable declarations
         if let Some(ty) = self.binding_type_maybe(symbol) {
-            return Some(ty);
+            return Ok(Some(ty));
         }
         if let Some(ty) = self.declaration_type_maybe(symbol) {
-            return Some(ty);
+            return Ok(Some(ty));
         }
 
-        // read own declared-stage symbol types, treating open variables as absent
+        // read own symbol types as this pass spells them, treating open variables as absent
         if let Some(module) = self.module_maybe(symbol.module_id)
-            && let Some(ty) = module.types.get_symbol_type_id(symbol)
+            && let Some(ty) = module
+                .types
+                .with_tail(&module.types_tail)
+                .get_symbol_type_id(symbol)
             && !self.type_flags(ty).is_ok_and(|flags| flags.has_variable())
         {
-            return Some(ty);
+            return Ok(Some(ty));
         }
 
         // read external committed symbol types
-        if let Some(external) = self.external_modules.get(&symbol.module_id) {
-            return external.types.get_symbol_type_id(symbol);
-        }
-
-        None
+        Ok(self
+            .external(symbol.module_id)?
+            .and_then(|external| external.types().get_symbol_type_id(symbol)))
     }
 
     /// Return one symbol's checked type, importing its module as needed.
@@ -1166,10 +1123,6 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if !self.is_own_module(symbol.module_id) {
-            self.import_external_module(symbol.module_id)?;
-        }
-
         // adopt the type the symbol declares
         if let Some(ty) = self.adopt_symbol_type_maybe(symbol)? {
             return Ok(ty);
@@ -1206,12 +1159,24 @@ impl CheckState<'_> {
         variable
     }
 
+    /// Return the field symbols this module's definitions declare, their rows kept as written.
+    pub(in crate::sema) fn field_symbols(&self) -> FxIndexSet<dir::GlobalSymbolId> {
+        self.module
+            .iter_definitions()
+            .flat_map(|(_, definition)| definition.members())
+            .filter_map(|member| match member {
+                dir::DefinitionMember::Field(field) => Some(field.symbol),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Adopt one symbol's declared-stage value as its binding, returning the written type.
     pub(in crate::sema) fn adopt_symbol_type_maybe(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(ty) = self.symbol_type_maybe(symbol) else {
+        let Some(ty) = self.symbol_type_maybe(symbol)? else {
             return Ok(None);
         };
 
@@ -1236,7 +1201,7 @@ impl CheckState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(ty) = self.symbol_type_maybe(symbol) else {
+        let Some(ty) = self.symbol_type_maybe(symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("symbol {symbol:?} has no checked type"),
             });
@@ -1275,32 +1240,32 @@ impl CheckState<'_> {
     pub(in crate::sema) fn definition_member_has_default(
         &self,
         member: &dir::DefinitionMember,
-    ) -> bool {
+    ) -> CompilerResult<bool> {
         // read whether the member declares a default
-        match member {
+        Ok(match member {
             dir::DefinitionMember::Method(method) => {
                 method.implementation == dir::MemberImplementation::Default
             }
             dir::DefinitionMember::AssociatedType(associated) => associated.value.is_some(),
             dir::DefinitionMember::AssociatedConst(associated) => {
-                self.has_static_value(associated.symbol)
+                self.has_static_value(associated.symbol)?
             }
             dir::DefinitionMember::Field(_)
             | dir::DefinitionMember::EnumVariant(_)
             | dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_)
             | dir::DefinitionMember::IndexSignature(_) => false,
-        }
+        })
     }
 
     /// Return whether one symbol has an inferred or written static value.
-    fn has_static_value(&self, symbol: dir::GlobalSymbolId) -> bool {
+    fn has_static_value(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
         let has_inferred_value = self
             .module_maybe(symbol.module_id)
             .is_some_and(|module| module.static_values.contains_key(&symbol));
-        let has_static_id = self.symbol_static_id(symbol).is_some();
+        let has_static_id = self.symbol_static_id(symbol)?.is_some();
 
-        has_inferred_value || has_static_id
+        Ok(has_inferred_value || has_static_id)
     }
 
     /// Return one symbol's committed static id, if declared.
@@ -1309,7 +1274,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalStaticId> {
-        if let Some(id) = self.symbol_static_id(symbol) {
+        if let Some(id) = self.symbol_static_id(symbol)? {
             return Ok(id);
         }
         let ty = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
@@ -1325,46 +1290,56 @@ impl CheckState<'_> {
     pub(in crate::sema) fn symbol_static_id(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::GlobalStaticId> {
+    ) -> CompilerResult<Option<dir::GlobalStaticId>> {
         if let Some(module) = self.module_maybe(symbol.module_id) {
             let table = module.statics.with_tail(&module.statics_tail);
 
-            table.get_symbol_static_id(symbol)
-        } else {
-            let external = self.external_modules.get(&symbol.module_id)?;
-
-            external.statics.get_symbol_static_id(symbol)
+            return Ok(table.get_symbol_static_id(symbol));
         }
+
+        Ok(self
+            .external(symbol.module_id)?
+            .and_then(|external| external.statics().get_symbol_static_id(symbol)))
     }
 
     /// Return the inferred static value of one source symbol.
     pub(in crate::sema) fn static_value(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::GlobalTypeId> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read this pass's own committed values first
         if let Some(value) = self
             .module_maybe(symbol.module_id)
             .and_then(|module| module.static_values.get(&symbol).copied())
         {
-            return Some(value);
+            return Ok(Some(value));
         }
 
         // read own committed terms through the static table stack
         if let Some(module) = self.module_maybe(symbol.module_id) {
             let table = module.statics.with_tail(&module.statics_tail);
-            let id = table.get_symbol_static_id(symbol)?;
-            let term = table.get_static_maybe(id.local_id)?.clone();
+            let Some(id) = table.get_symbol_static_id(symbol) else {
+                return Ok(None);
+            };
+            let Some(term) = table.get_static_maybe(id.local_id).cloned() else {
+                return Ok(None);
+            };
 
-            return self.static_singleton(id, &term);
+            return Ok(self.static_singleton(id, &term));
         }
 
-        // read foreign committed terms through the loaded external tables
-        let external = self.external_modules.get(&symbol.module_id)?;
-        let id = external.statics.get_symbol_static_id(symbol)?;
-        let term = external.statics.get_static_maybe(id.local_id)?.clone();
+        // read foreign committed terms through the external tables
+        let Some(external) = self.external(symbol.module_id)? else {
+            return Ok(None);
+        };
+        let Some(id) = external.statics().get_symbol_static_id(symbol) else {
+            return Ok(None);
+        };
+        let Some(term) = external.statics().get_static_maybe(id.local_id).cloned() else {
+            return Ok(None);
+        };
 
-        self.static_singleton(id, &term)
+        Ok(self.static_singleton(id, &term))
     }
 
     /// Return the singleton type of one committed static.
@@ -1393,6 +1368,47 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return the type of the value one static type holds, the type itself outside a static.
+    pub(in crate::sema) fn static_value_type(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Static(id) = self.ty(ty)? else {
+            return Ok(ty);
+        };
+        let term = self.r#static(id)?.clone();
+
+        self.static_term_value_type(&term)
+    }
+
+    /// Return the type of the value one static term holds.
+    fn static_term_value_type(
+        &mut self,
+        term: &dir::StaticTerm,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match term {
+            dir::StaticTerm::Type { ty }
+            | dir::StaticTerm::Newtype { ty, .. }
+            | dir::StaticTerm::Struct { ty, .. } => Ok(*ty),
+            dir::StaticTerm::Literal { value } => self.intern_type(dir::Type::Literal(*value)),
+            dir::StaticTerm::Tuple { elements } => {
+                let mut types = Vec::with_capacity(elements.len());
+                for element in elements {
+                    types.push(self.static_term_value_type(element)?);
+                }
+                let elements = self.intern_type_ids(&types)?;
+
+                self.intern_type(dir::Type::Tuple(dir::TupleType {
+                    form: dir::TupleForm::Tuple,
+                    elements,
+                }))
+            }
+            _ => Err(CompilerError::Internal {
+                message: "a static term without a value type".to_string(),
+            }),
+        }
+    }
+
     /// Commit the inferred static value of one source symbol as a singleton type.
     pub(in crate::sema) fn commit_static_value(
         &mut self,
@@ -1413,12 +1429,18 @@ impl CheckState<'_> {
     }
 
     /// Return one module's resolved names, loaded or external.
-    pub(in crate::sema) fn module_resolved(&self, module: ModuleId) -> &DirResolved {
-        if let Some(module) = self.module_maybe(module) {
-            &module.resolved
-        } else {
-            &self.external_module(module).resolved
+    pub(in crate::sema) fn module_resolved(
+        &self,
+        module: ModuleId,
+    ) -> CompilerResult<&Arc<DirResolved>> {
+        if self.is_own_module(module) {
+            return Ok(&self.module.resolved);
         }
+
+        Ok(self
+            .external(module)?
+            .unwrap_or_else(|| unreachable!("resolved imports of a module outside this pass"))
+            .resolved())
     }
 
     /// Return one module's tree view.
@@ -1430,40 +1452,42 @@ impl CheckState<'_> {
     }
 
     /// Return one binding table by module, loaded or read from artifacts.
-    pub(in crate::sema) fn binding_table(&self, module: ModuleId) -> dir::BindingTable<'_> {
-        if let Some(module) = self.module_maybe(module) {
-            return module.binding_table();
+    pub(in crate::sema) fn binding_table(
+        &self,
+        module: ModuleId,
+    ) -> CompilerResult<dir::BindingTable<'_>> {
+        if self.is_own_module(module) {
+            return Ok(self.module.binding_table());
         }
-        if let Some(external) = self.external_modules.get(&module) {
-            return external.bindings.clone();
+        if let Some(external) = self.external(module)? {
+            return Ok(external.bindings().clone());
         }
 
-        // read a referenced module's bound tables for its declared artifact
-        let bound = self
-            .artifacts
-            .read::<DirBound>((module, self.profile))
-            .unwrap_or_else(|error| {
-                unreachable!("referenced module {module:?} has no bound artifact: {error}")
-            });
-        let expanded = self
-            .artifacts
-            .read::<DirExpanded>((module, self.profile))
-            .unwrap_or_else(|error| {
-                unreachable!("referenced module {module:?} has no expanded artifact: {error}")
-            });
+        // read a referenced module's bindings through its expanded stage while declaring
+        let key = (module, self.profile);
+        let bound = self.artifacts.read::<DirBound>(key)?;
+        let expanded = self.artifacts.read::<DirExpanded>(key)?;
 
-        expanded.binding_table(bound.as_ref())
+        Ok(dir::BindingTable::from_segments(vec![
+            Arc::clone(&bound.bindings),
+            Arc::clone(&expanded.bindings),
+        ]))
     }
 
     /// Return one own-module or external static.
-    pub(in crate::sema) fn r#static(&self, value: dir::GlobalStaticId) -> &dir::StaticTerm {
-        if let Some(module) = self.module_maybe(value.module_id) {
-            module.r#static(value.local_id)
-        } else {
-            self.external_module(value.module_id)
-                .statics
-                .get_static(value.local_id)
+    pub(in crate::sema) fn r#static(
+        &self,
+        value: dir::GlobalStaticId,
+    ) -> CompilerResult<&dir::StaticTerm> {
+        if self.is_own_module(value.module_id) {
+            return Ok(self.module.r#static(value.local_id));
         }
+
+        Ok(self
+            .external(value.module_id)?
+            .unwrap_or_else(|| unreachable!("static {value:?} of a module outside this pass"))
+            .statics()
+            .get_static(value.local_id))
     }
 
     /// Return one own-module symbol's kind without loading anything.
@@ -1476,11 +1500,7 @@ impl CheckState<'_> {
         }
 
         // read the kind the symbol declares
-        Some(
-            self.binding_table(symbol.module_id)
-                .get_symbol(symbol.local_id)
-                .kind,
-        )
+        Some(self.module.binding_table().get_symbol(symbol.local_id).kind)
     }
 
     /// Return the declaration kind for one symbol.
@@ -1493,9 +1513,7 @@ impl CheckState<'_> {
             return Ok(self.module.symbol(symbol.local_id).kind);
         }
 
-        // load the foreign module the classification reads
-        self.import_external_module(symbol.module_id)?;
-        let binding_table = self.binding_table(symbol.module_id);
+        let binding_table = self.binding_table(symbol.module_id)?;
         let symbol = binding_table.get_symbol(symbol.local_id);
 
         Ok(symbol.kind)
@@ -1546,7 +1564,7 @@ impl CheckState<'_> {
     }
 }
 
-impl CheckState<'_> {
+impl<'a> CheckState<'a> {
     /// Commit one node decision into its module's decision segment.
     pub(in crate::sema) fn commit_decision(
         &mut self,

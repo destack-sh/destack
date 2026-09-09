@@ -59,7 +59,7 @@ function describe(mode: Mode): int32 {
     match (mode) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=mode target=describe.mode
-    /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=mode placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=mode root=describe.mode
 
         Mode.Read => 10
@@ -135,7 +135,7 @@ function describe(mode: Mode): int32 {
     match (mode) {
     /// @resolution.coverage exhaustive=false disjoint=true
     /// @resolution.name source=mode target=describe.mode
-    /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=mode placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=mode root=describe.mode
 
         Mode.Read => 10

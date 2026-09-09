@@ -41,7 +41,7 @@ function isByte(value: int32): boolean {
     /// @resolution.coverage exhaustive=true disjoint=false
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=isByte.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=isByte.value
 
         0..=255 => {
@@ -53,7 +53,7 @@ function isByte(value: int32): boolean {
             /// @type.node source="value satisfies 0..=255" type=0..=255
             /// @type.node source=value type=0..=255
             /// @resolution.name source=value target=isByte.value
-            /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
             /// @resolution.access source=value root=isByte.value
 
             true
@@ -92,7 +92,7 @@ const label = match (value) {
 === annotated ===
 type Tiny = 0..=2;
 
-declare const value: 0..=2;
+declare const value: Tiny;
 
 const label: "low" | "two" = match (value) {
     0..=1 => "low"
@@ -105,7 +105,7 @@ type Tiny = 0..=2;
 /// @definition.type symbol=Tiny source="type Tiny = 0..=2" value=0..=2
 
 declare const value: Tiny;
-/// @type.symbol symbol=value source=value type=0..=2
+/// @type.symbol symbol=value source=value type=Tiny
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Tiny target=Tiny
 
@@ -114,7 +114,7 @@ const label = match (value) {
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="low" | "two"
 /// @resolution.coverage exhaustive=true disjoint=true
-/// @type.node source=value type=0..=2
+/// @type.node source=value type=Tiny
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
@@ -157,7 +157,7 @@ const isEarly = match (value) {
 === annotated ===
 type LowerAscii = 'a'..='z';
 
-declare const value: 'a'..='z';
+declare const value: LowerAscii;
 
 const isEarly: boolean = match (value) {
     'a'..='m' => true
@@ -170,7 +170,7 @@ type LowerAscii = 'a'..='z';
 /// @definition.type symbol=LowerAscii source="type LowerAscii = 'a'..='z'" value='a'..='z'
 
 declare const value: LowerAscii;
-/// @type.symbol symbol=value source=value type='a'..='z'
+/// @type.symbol symbol=value source=value type=LowerAscii
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=LowerAscii target=LowerAscii
 
@@ -179,7 +179,7 @@ const isEarly = match (value) {
 /// @resolution.pattern source=isEarly kind=binding target=isEarly
 /// @type.node type=boolean
 /// @resolution.coverage exhaustive=true disjoint=true
-/// @type.node source=value type='a'..='z'
+/// @type.node source=value type=LowerAscii
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
@@ -223,7 +223,7 @@ const label = match (value) {
 === annotated ===
 type Tiny = 0..=3;
 
-declare const value: 0..=3;
+declare const value: Tiny;
 
 const label: "low" | "high" = match (value) {
     0..=1 => "low"
@@ -236,7 +236,7 @@ type Tiny = 0..=3;
 /// @definition.type symbol=Tiny source="type Tiny = 0..=3" value=0..=3
 
 declare const value: Tiny;
-/// @type.symbol symbol=value source=value type=0..=3
+/// @type.symbol symbol=value source=value type=Tiny
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Tiny target=Tiny
 
@@ -245,7 +245,7 @@ const label = match (value) {
 /// @resolution.pattern source=label kind=binding target=label
 /// @type.node type="low" | "high"
 /// @resolution.coverage exhaustive=false disjoint=true
-/// @type.node source=value type=0..=3
+/// @type.node source=value type=Tiny
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value

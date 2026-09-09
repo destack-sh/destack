@@ -178,15 +178,16 @@ impl ValueUse {
 
     /// Return whether this use converts its value.
     pub(in crate::sema) fn requires_runtime_coercion(self) -> bool {
-        // convert at every value position but a logical check
+        // convert at every value position, a condition storing into the branch's boolean
         match self {
             Self::Store
             | Self::Argument
             | Self::Operand
             | Self::Output
             | Self::Cast
-            | Self::Const => true,
-            Self::Condition | Self::Satisfies => false,
+            | Self::Const
+            | Self::Condition => true,
+            Self::Satisfies => false,
         }
     }
 }
@@ -514,9 +515,10 @@ impl CheckState<'_> {
         origin: Origin,
         template: GenericTemplateId,
         substitution: &TypeSubstitution,
+        assumed: Option<&TypeSubstitution>,
     ) -> CompilerResult<bool> {
         let Some(ambiguous) =
-            self.evaluate_substitution_constraints(origin, template, substitution)?
+            self.evaluate_substitution_constraints(origin, template, substitution, assumed)?
         else {
             return Ok(false);
         };
@@ -536,17 +538,20 @@ impl CheckState<'_> {
         template: GenericTemplateId,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<bool> {
-        let ambiguous = self.evaluate_substitution_constraints(origin, template, substitution)?;
+        let ambiguous =
+            self.evaluate_substitution_constraints(origin, template, substitution, None)?;
 
         Ok(ambiguous.is_some())
     }
 
-    /// Evaluate one application's constraints, returning its undecided checks.
+    /// Evaluate one application's constraints, returning its undecided checks, a rigid argument's
+    /// declared bounds read under the instantiation assumed for its own declaration.
     fn evaluate_substitution_constraints(
         &mut self,
         origin: Origin,
         template: GenericTemplateId,
         substitution: &TypeSubstitution,
+        assumed: Option<&TypeSubstitution>,
     ) -> CompilerResult<Option<SmallVec<[RelationCheck; 4]>>> {
         // substitute the bounds and predicates this application declares
         let checks = self.substitute_constraint_checks(origin, template, substitution)?;
@@ -564,13 +569,16 @@ impl CheckState<'_> {
             // try rigid arguments through their declared bounds for transitive relations
             if !satisfied
                 && check.relation == Relation::Subtype
-                && let dir::Type::Parameter(parameter) =
-                    self.ty(self.shallow_resolve(check.source)?)?
+                && let dir::Type::Parameter(parameter) = self.resolved_ty(check.source)?
                 && let Some(declared) = self
-                    .generic_parameter(parameter)
+                    .generic_parameter(parameter)?
                     .and_then(|binding| binding.constraint)
             {
                 let declared = self.substitute_type(declared, substitution)?;
+                let declared = match assumed {
+                    Some(assumed) => self.substitute_type(declared, assumed)?,
+                    None => declared,
+                };
                 satisfied = self
                     .decide_relation(check.origin, check.relation, declared, check.target)?
                     .holds();
@@ -597,11 +605,11 @@ impl CheckState<'_> {
             .iter()
             .find(|parameter| substitution.argument(**parameter).is_none())
         {
-            let template = self.require_generic_template(template)?;
-            let declaration = template
-                .symbol
-                .map(|symbol| self.format_symbol(symbol))
-                .unwrap_or_else(|| self.node_label(template.source));
+            let template = self.require_generic_template(template)?.clone();
+            let declaration = match template.symbol {
+                Some(symbol) => self.format_symbol(symbol),
+                None => self.node_label(template.source),
+            };
             let parameter_type = self.generic_parameter_type(*parameter)?;
             let parameter = self.format_type(parameter_type);
 
@@ -641,7 +649,7 @@ impl CheckState<'_> {
             let parameter = applied.parameter;
             let argument = applied.argument;
             let Some(bound) = self
-                .generic_parameter(parameter)
+                .generic_parameter(parameter)?
                 .and_then(|binding| binding.constraint)
             else {
                 continue;
@@ -670,7 +678,7 @@ impl CheckState<'_> {
         let mut checks = SmallVec::new();
 
         // substitute every predicate free of the receiver type
-        for predicate in self.template_predicates(Some(template)) {
+        for predicate in self.template_predicates(Some(template))? {
             let requires_receiver = self.type_flags(predicate.left)?.has_this()
                 || self.type_flags(predicate.right)?.has_this();
             if requires_receiver {

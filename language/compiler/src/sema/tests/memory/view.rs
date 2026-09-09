@@ -62,13 +62,13 @@ local class Counter {
 
         this.name = name;
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
         /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=Counter, target=field(receiver=Counter, target=Counter.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Counter.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=name root=Counter.constructor.name
 
     }
@@ -153,8 +153,9 @@ local class Meter {
 
 === dir ===
 newtype interface Sink {
+/// @generic.template symbol=Sink parameters=(this: Sink)
 /// @type.symbol symbol=Sink type=Sink
-/// @definition.interface symbol=Sink nominal=true
+/// @definition.interface symbol=Sink template=(this: Sink) nominal=true
 /// @definition.where symbol=Sink relation=satisfies left=this right=Sink
 /// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
@@ -195,13 +196,13 @@ local class Meter {
 
         this.sink = sink;
         /// @resolution.receiver source=this kind=this declaration=Meter type=Meter
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.sink kind=place
         /// @resolution.access source=this.sink root=this keys=[sink]
         /// @resolution.assignment source=this.sink write="receiver=Meter, target=field(receiver=Meter, target=Meter.sink, type=Sink), type=Sink" type=Sink
         /// @resolution.name source=sink target=Meter.constructor.sink
-        /// @resolution.place source=sink placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=sink placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=sink root=Meter.constructor.sink
 
     }
@@ -305,13 +306,13 @@ local class Counter {
 
         this.name = name;
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
         /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=Counter, target=field(receiver=Counter, target=Counter.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Counter.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=name root=Counter.constructor.name
 
     }
@@ -447,18 +448,19 @@ interface Sink {
 
 type SinkAlias = Sink;
 
-declare const sink: Sink;
-function consume(value: Sink): void {}
+declare const sink: SinkAlias;
+function consume(value: SinkAlias): void {}
 
 === dir ===
 interface Sink {
+/// @generic.template symbol=Sink parameters=(this: Sink)
 /// @type.symbol symbol=Sink type=Sink
-/// @definition.interface symbol=Sink
+/// @definition.interface symbol=Sink template=(this: Sink)
 /// @definition.where symbol=Sink relation=satisfies left=this right=Sink
-/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: Sink, string) => void
+/// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: Sink, string) => void
+    /// @type.symbol symbol=Sink.write source="write(value: string): void" type=(this: this, string) => void
     /// @type.symbol symbol=Sink.write.value source="value: string" type=string
 
 }
@@ -469,13 +471,13 @@ type SinkAlias = Sink;
 /// @resolution.name source=Sink target=Sink
 
 declare const sink: SinkAlias;
-/// @type.symbol symbol=sink source=sink type=Sink
+/// @type.symbol symbol=sink source=sink type=SinkAlias
 /// @resolution.pattern source=sink kind=binding target=sink
 /// @resolution.name source=SinkAlias target=SinkAlias
 
 function consume(value: SinkAlias): void {}
 /// @type.symbol symbol=consume source="function consume(value: SinkAlias): void {}" type=(SinkAlias) => void
-/// @type.symbol symbol=consume.value source="value: SinkAlias" type=Sink
+/// @type.symbol symbol=consume.value source="value: SinkAlias" type=SinkAlias
 /// @resolution.name source=SinkAlias target=SinkAlias
 "#,
     );

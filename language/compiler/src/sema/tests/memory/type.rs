@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_with_access_sets_readonly_and_exclusive_access() {
+fn test_set_readonly_and_mutable_access_through_with_access() {
     let session = TestSession::single(
         r#"
 struct Cell {
@@ -9,13 +9,13 @@ struct Cell {
 }
 
 type ReadonlyOwned = WithAccess<^Cell, "readonly">;
-type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
+type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "mutable">;
 
 declare const readonlyOwned: ReadonlyOwned;
 declare const exclusiveBorrow: ExclusiveBorrow;
 
 readonlyOwned satisfies ^readonly Cell;
-exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
+exclusiveBorrow satisfies Borrowed<Cell, "static", "mutable">;
 "#,
     );
 
@@ -29,13 +29,13 @@ struct Cell {
 }
 
 type ReadonlyOwned = WithAccess<^Cell, "readonly">;
-type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
+type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "mutable">;
 
-declare const readonlyOwned: readonly Cell;
-declare const exclusiveBorrow: &'static exclusive Cell;
+declare const readonlyOwned: ReadonlyOwned;
+declare const exclusiveBorrow: ExclusiveBorrow;
 
 readonlyOwned satisfies ^readonly Cell;
-exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
+exclusiveBorrow satisfies Borrowed<Cell, "static", "mutable">;
 
 === dir ===
 struct Cell {
@@ -50,24 +50,26 @@ struct Cell {
 
 type ReadonlyOwned = WithAccess<^Cell, "readonly">;
 /// @type.symbol symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" type=Readonly<Cell>
-/// @definition.type symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" value=Readonly<Cell>
+/// @generic.instance id="WithAccess<Cell, \"readonly\">" template=WithAccess arguments=(Cell, "readonly")
+/// @definition.type symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" value=WithAccess<Cell, "readonly">
 /// @resolution.name source=WithAccess target=WithAccess
 /// @resolution.name source=Cell target=Cell
 
-type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
-/// @type.symbol symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" type=&'static exclusive Cell
-/// @definition.type symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"exclusive\">" value=&'static exclusive Cell
+type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "mutable">;
+/// @type.symbol symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"mutable\">" type=&'static Cell
+/// @generic.instance id="WithAccess<&'bound0 Cell, \"mutable\">" template=WithAccess arguments=(&'bound0 Cell, "mutable")
+/// @definition.type symbol=ExclusiveBorrow source="type ExclusiveBorrow = WithAccess<Borrowed<Cell, \"static\">, \"mutable\">" value=WithAccess<&'static Cell, "mutable">
 /// @resolution.name source=WithAccess target=WithAccess
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Cell target=Cell
 
 declare const readonlyOwned: ReadonlyOwned;
-/// @type.symbol symbol=readonlyOwned source=readonlyOwned type=Readonly<Cell>
+/// @type.symbol symbol=readonlyOwned source=readonlyOwned type=ReadonlyOwned
 /// @resolution.pattern source=readonlyOwned kind=binding target=readonlyOwned
 /// @resolution.name source=ReadonlyOwned target=ReadonlyOwned
 
 declare const exclusiveBorrow: ExclusiveBorrow;
-/// @type.symbol symbol=exclusiveBorrow source=exclusiveBorrow type=&'static exclusive Cell
+/// @type.symbol symbol=exclusiveBorrow source=exclusiveBorrow type=ExclusiveBorrow
 /// @resolution.pattern source=exclusiveBorrow kind=binding target=exclusiveBorrow
 /// @resolution.name source=ExclusiveBorrow target=ExclusiveBorrow
 
@@ -77,9 +79,9 @@ readonlyOwned satisfies ^readonly Cell;
 /// @resolution.access source=readonlyOwned root=readonlyOwned
 /// @resolution.name source=Cell target=Cell
 
-exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
+exclusiveBorrow satisfies Borrowed<Cell, "static", "mutable">;
 /// @resolution.name source=exclusiveBorrow target=exclusiveBorrow
-/// @resolution.place source=exclusiveBorrow placement="static" lifetime="static" access="exclusive"
+/// @resolution.place source=exclusiveBorrow placement="static" lifetime="static" access="mutable"
 /// @resolution.access source=exclusiveBorrow root=exclusiveBorrow
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Cell target=Cell
@@ -114,7 +116,7 @@ struct Cell {
 
 type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
 
-declare const borrow: &'static readonly Cell;
+declare const borrow: ReadonlyBorrow;
 
 borrow satisfies Borrowed<Cell, "static", "readonly">;
 
@@ -131,13 +133,13 @@ struct Cell {
 
 type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
 /// @type.symbol symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" type=&'static readonly Cell
-/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=&'static readonly Cell
+/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=&'static Readonly<Cell>
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Cell target=Cell
 
 declare const borrow: ReadonlyBorrow;
-/// @type.symbol symbol=borrow source=borrow type=&'static readonly Cell
+/// @type.symbol symbol=borrow source=borrow type=ReadonlyBorrow
 /// @resolution.pattern source=borrow kind=binding target=borrow
 /// @resolution.name source=ReadonlyBorrow target=ReadonlyBorrow
 

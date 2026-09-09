@@ -169,7 +169,7 @@ impl CheckState<'_> {
             // poison the symbol standing behind the variable
             let error = self.intern_type(dir::Type::Error)?;
             if let Origin::Symbol(symbol) = self.infer.origin(self.infer.variable(variable)?.origin)
-                && self.symbol_type_maybe(symbol).is_none()
+                && self.symbol_type_maybe(symbol)?.is_none()
             {
                 self.commit_symbol_type(symbol, error)?;
             }
@@ -234,8 +234,14 @@ impl CheckState<'_> {
                 continue;
             }
             for side in [BoundSide::Lower, BoundSide::Upper] {
-                for bound in self.infer.variables.side_bounds(variable, side)? {
-                    for dependency in self.type_variables(bound.ty)? {
+                let bounds: Vec<_> = self
+                    .infer
+                    .variables
+                    .side_bounds(variable, side)?
+                    .map(|bound| bound.ty)
+                    .collect();
+                for ty in bounds {
+                    for dependency in self.type_variables(ty)? {
                         if self.infer.variable(dependency)?.state.is_open() {
                             let left = find_disjoint_root(&mut parents, index as u32);
                             let right = find_disjoint_root(&mut parents, dependency.0);

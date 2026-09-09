@@ -29,6 +29,19 @@ impl ApparentInstance {
         check.intern_type(dir::Type::Application(instance))
     }
 
+    /// Intern the application this instance qualifies its associated projections with.
+    pub(in crate::sema) fn qualifier(
+        &self,
+        check: &mut CheckState<'_>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if !self.arguments.is_empty() {
+            return self.intern(check);
+        }
+        let application = check.declaration_instance(self.symbol)?;
+
+        check.intern_type(dir::Type::Application(application))
+    }
+
     /// Return the generic substitution represented by this instance.
     pub(in crate::sema) fn substitution(
         &self,
@@ -59,9 +72,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         // apply the Array declaration over the element
         let symbol = self.language_symbol(dir::LanguageItem::Array)?;
-        if !self.is_own_module(symbol.module_id) {
-            self.import_external_module(symbol.module_id)?;
-        }
         let arguments = self.intern_type_ids(&[element])?;
 
         self.intern_type(dir::Type::Application(dir::GenericApplication {
@@ -265,8 +275,7 @@ impl CheckState<'_> {
 
             // read fields from structural interfaces
             dir::Type::Application(instance)
-                if matches!(
-                    self.definition(instance.symbol)?,
+                if matches!(self.definition(instance.symbol)?.as_deref(),
                     Some(dir::Definition::Interface(interface)) if !interface.is_nominal
                 ) =>
             {
@@ -278,14 +287,12 @@ impl CheckState<'_> {
 
             // merge the fields accepted by every intersection arm
             dir::Type::Intersection(intersection) => {
-                let elements = self
-                    .type_ids(target.module_id, intersection.elements)?
-                    .to_vec();
+                let elements = self.type_ids(target.module_id, intersection.elements)?;
                 let mut fields = SmallVec::<[dir::TypeProperty; 8]>::new();
                 let mut indexes = SmallVec::new();
                 for element in elements {
                     // read the members this arm accepts
-                    let element = self.structurally_normalize(origin, element)?;
+                    let element = self.structurally_normalize(origin, *element)?;
                     let Some((arm_fields, arm_indexes)) =
                         self.apparent_object_members(origin, element)?
                     else {

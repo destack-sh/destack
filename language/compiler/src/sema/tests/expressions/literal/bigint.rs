@@ -202,7 +202,7 @@ const isZero = value.isZero;
 /// @type.node source=value.isZero type=boolean
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.isZero receiver=bigint type=boolean kind=call target="isZero(parameters=(), arguments=(), return=boolean)"
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
 
 isZero satisfies boolean;

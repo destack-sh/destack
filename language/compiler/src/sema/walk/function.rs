@@ -130,12 +130,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             };
             for return_variable in tracked {
                 let return_region = self.check.variable_type(return_variable)?;
-                return_type = self.check.replace_type(
-                    self.module,
-                    return_type,
-                    return_region,
-                    input_region,
-                )?;
+                return_type = self
+                    .check
+                    .replace_type(return_type, return_region, input_region)?;
             }
         }
 
@@ -400,158 +397,161 @@ impl<'check, 'state> WalkState<'check, 'state> {
             self.check.symbol_template(symbol)?,
         );
         let template = self.check.symbol_template(symbol)?;
-        let _scope = self.enter_template_scope(template);
-        let mut return_target = result;
-        let mut yield_target = None;
-        let mut resume_target = None;
+        self.with_template_scope(template, |walk| {
+            let mut return_target = result;
+            let mut yield_target = None;
+            let mut resume_target = None;
 
-        // open the async completion type
-        if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            // infer unannotated async functions as promises
-            if signature.return_type.is_none() {
-                let completed = self.open_type_hole(source, VariableKind::Type)?;
-                let promised =
-                    self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
-                let Some(variable) = self.check.root_variable(result)? else {
-                    return Err(CompilerError::Internal {
-                        message: "inferred async return is not an inference variable".into(),
-                    });
+            // open the async completion type
+            if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
+                // infer unannotated async functions as promises
+                if signature.return_type.is_none() {
+                    let completed = walk.open_type_hole(source, VariableKind::Type)?;
+                    let promised =
+                        walk.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
+                    let Some(variable) = walk.check.root_variable(result)? else {
+                        return Err(CompilerError::Internal {
+                            message: "inferred async return is not an inference variable".into(),
+                        });
+                    };
+                    walk.check.commit_solution(variable, promised)?;
+                    return_target = completed;
+                }
+                // retain the declared Promise, Task, or transparent owner
+                else if let Some(completed) = walk.check.async_completion_type(result)? {
+                    return_target = completed;
+                }
+                // reject every other declared async result through the established relation
+                else {
+                    let completed =
+                        walk.intern_operation(dir::TypeOperation::Awaited(dir::UnaryType {
+                            target: result,
+                        }))?;
+                    let promised =
+                        walk.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
+                    walk.relate_type(
+                        origin,
+                        CauseKind::Return { annotation: None },
+                        Relation::Storable,
+                        promised,
+                        result,
+                    )?;
+                }
+            }
+
+            // open the generator yielded, completed, and resumed types
+            if signature.is_generator {
+                let yielded = walk.open_type_hole(source, VariableKind::Type)?;
+                let completed = walk.open_type_hole(source, VariableKind::Type)?;
+                let resumed = walk.open_type_hole(source, VariableKind::Type)?;
+                let item = match signature.asynchrony {
+                    // function* f() {}
+                    dir::Asynchrony::Sync => dir::LanguageItem::Generator,
+                    // async function* f() {}
+                    dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
                 };
-                self.check.commit_solution(variable, promised)?;
-                return_target = completed;
-            }
-            // retain the declared Promise, Task, or transparent owner
-            else if let Some(completed) = self.check.async_completion_type(result)? {
-                return_target = completed;
-            }
-            // reject every other declared async result through the established relation
-            else {
-                let completed =
-                    self.intern_operation(dir::TypeOperation::Awaited(dir::UnaryType {
-                        target: result,
-                    }))?;
-                let promised =
-                    self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
-                self.relate_type(
-                    origin,
-                    CauseKind::Return { annotation: None },
-                    Relation::Storable,
-                    promised,
-                    result,
-                )?;
-            }
-        }
+                let generated =
+                    walk.language_type_reference(item, &[yielded, completed, resumed])?;
+                if signature.return_type.is_none() {
+                    let Some(variable) = walk.check.root_variable(result)? else {
+                        return Err(CompilerError::Internal {
+                            message: "inferred generator return is not an inference variable"
+                                .into(),
+                        });
+                    };
+                    walk.check.commit_solution(variable, generated)?;
+                } else {
+                    walk.relate_type(
+                        origin,
+                        CauseKind::Return { annotation: None },
+                        Relation::Storable,
+                        generated,
+                        result,
+                    )?;
+                }
 
-        // open the generator yielded, completed, and resumed types
-        if signature.is_generator {
-            let yielded = self.open_type_hole(source, VariableKind::Type)?;
-            let completed = self.open_type_hole(source, VariableKind::Type)?;
-            let resumed = self.open_type_hole(source, VariableKind::Type)?;
-            let item = match signature.asynchrony {
-                // function* f() {}
-                dir::Asynchrony::Sync => dir::LanguageItem::Generator,
-                // async function* f() {}
-                dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
+                return_target = completed;
+                yield_target = Some(yielded);
+                resume_target = Some(resumed);
+            }
+
+            // collect the entry bindings the body assigns on entry
+            let mut entries = SmallVec::<[dir::LocalNodeIdAny; 4]>::new();
+            if let Some(parameter) = signature.this_parameter {
+                entries.push(parameter.into_any());
+            }
+            for parameter in &signature.parameters {
+                entries.push(parameter.into_any());
+            }
+
+            // enter the body node alone
+            let body_site = match walk.tree.get(body) {
+                dir::Expression::Block(block) => walk.enter_node(*block)?,
+                _ => walk.enter_node(body)?,
             };
-            let generated = self.language_type_reference(item, &[yielded, completed, resumed])?;
-            if signature.return_type.is_none() {
-                let Some(variable) = self.check.root_variable(result)? else {
-                    return Err(CompilerError::Internal {
-                        message: "inferred generator return is not an inference variable".into(),
+
+            // record the body under its declaration identity
+            let return_type = (!signature.is_constructor()).then_some(return_target);
+            let generator =
+                yield_target
+                    .zip(resume_target)
+                    .map(|(yielded, resumed)| GeneratorTargets {
+                        asynchrony: signature.asynchrony,
+                        yielded,
+                        resumed,
                     });
-                };
-                self.check.commit_solution(variable, generated)?;
+
+            // bind constructor initialization to its exact declaration
+            let initializes = if signature.is_constructor() {
+                let owner = receiver
+                    .as_ref()
+                    .and_then(|receiver| receiver.receiver.declaration)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("constructor {symbol:?} has no declaring receiver"),
+                    })?;
+
+                Some(owner)
             } else {
-                self.relate_type(
-                    origin,
-                    CauseKind::Return { annotation: None },
-                    Relation::Storable,
-                    generated,
-                    result,
-                )?;
-            }
-
-            return_target = completed;
-            yield_target = Some(yielded);
-            resume_target = Some(resumed);
-        }
-
-        // collect the entry bindings the body assigns on entry
-        let mut entries = SmallVec::<[dir::LocalNodeIdAny; 4]>::new();
-        if let Some(parameter) = signature.this_parameter {
-            entries.push(parameter.into_any());
-        }
-        for parameter in &signature.parameters {
-            entries.push(parameter.into_any());
-        }
-
-        // enter the body node only: the check traversal owns its interior
-        let body_site = match self.tree.get(body) {
-            dir::Expression::Block(block) => self.enter_node(*block)?,
-            _ => self.enter_node(body)?,
-        };
-
-        // record the body under its declaration identity
-        let return_type = (!signature.is_constructor()).then_some(return_target);
-        let generator =
-            yield_target
-                .zip(resume_target)
-                .map(|(yielded, resumed)| GeneratorTargets {
-                    asynchrony: signature.asynchrony,
-                    yielded,
-                    resumed,
-                });
-
-        // bind constructor initialization to its exact declaration
-        let initializes = if signature.is_constructor() {
-            let owner = receiver
-                .as_ref()
-                .and_then(|receiver| receiver.receiver.declaration)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("constructor {symbol:?} has no declaring receiver"),
-                })?;
-
-            Some(owner)
-        } else {
-            None
-        };
-        let body = FunctionBody {
-            symbol,
-            site: body_site,
-            return_type,
-            generator,
-            initializes,
-            asynchrony: signature.asynchrony,
-            receiver,
-            enclosing_receiver,
-            entries,
-            flow: None,
-        };
-        let form = match (body.asynchrony, &body.generator, body.return_type) {
-            (dir::Asynchrony::Async, None, Some(completed)) => {
-                Some(CoroutineForm::Async { completed })
-            }
-            (_, Some(generator), Some(completed)) => Some(CoroutineForm::Generator {
-                yielded: generator.yielded,
-                completed,
-                resumed: generator.resumed,
-            }),
-            _ => None,
-        };
-        if let Some(form) = form {
-            self.check.coroutines.push(CoroutineBody {
+                None
+            };
+            let body = FunctionBody {
                 symbol,
-                asynchrony: body.asynchrony,
-                form,
-            });
-        }
-        if self.check.functions.insert(symbol, body).is_some() {
-            return Err(CompilerError::Internal {
-                message: format!("function {symbol:?} has multiple checked bodies"),
-            });
-        }
+                site: body_site,
+                return_type,
+                generator,
+                initializes,
+                asynchrony: signature.asynchrony,
+                receiver,
+                enclosing_receiver,
+                entries,
+                flow: None,
+            };
+            let form = match (body.asynchrony, &body.generator, body.return_type) {
+                (dir::Asynchrony::Async, None, Some(completed)) => {
+                    Some(CoroutineForm::Async { completed })
+                }
+                (_, Some(generator), Some(completed)) => Some(CoroutineForm::Generator {
+                    yielded: generator.yielded,
+                    completed,
+                    resumed: generator.resumed,
+                }),
+                _ => None,
+            };
+            if let Some(form) = form {
+                walk.check.coroutines.push(CoroutineBody {
+                    symbol,
+                    asynchrony: body.asynchrony,
+                    form,
+                });
+            }
+            if walk.check.functions.insert(symbol, body).is_some() {
+                return Err(CompilerError::Internal {
+                    message: format!("function {symbol:?} has multiple checked bodies"),
+                });
+            }
 
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Return the signature slot for one walked runtime parameter.

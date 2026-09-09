@@ -943,11 +943,11 @@ impl CheckState<'_> {
         // visit the condition
         let site = self.visit_site(condition.into_global_any(module))?;
 
-        // read a condition's truth, a boolean literal included
+        // store the condition into the branch's boolean, a literal materializing
         let boolean = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         let expectation = Expectation {
             target: boolean,
-            relation: Relation::Subtype,
+            relation: Relation::Storable,
             cause: self.intern_cause(Cause::root(
                 Origin::Node(condition.into_global_any(module), site.scope),
                 CauseKind::Expression,

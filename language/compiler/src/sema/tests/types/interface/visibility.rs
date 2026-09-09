@@ -19,8 +19,9 @@ interface Reader {
 
 === dir ===
 interface Reader {
+/// @generic.template symbol=Reader parameters=(this: Reader)
 /// @type.symbol symbol=Reader type=Reader
-/// @definition.interface symbol=Reader
+/// @definition.interface symbol=Reader template=(this: Reader)
 /// @definition.where symbol=Reader relation=satisfies left=this right=Reader
 /// @definition.method symbol=Reader.read source="private read(): string" slot=read type=(this: this) => string
 
@@ -56,8 +57,9 @@ interface Reader {
 
 === dir ===
 interface Reader {
+/// @generic.template symbol=Reader parameters=(this: Reader)
 /// @type.symbol symbol=Reader type=Reader
-/// @definition.interface symbol=Reader
+/// @definition.interface symbol=Reader template=(this: Reader)
 /// @definition.where symbol=Reader relation=satisfies left=this right=Reader
 /// @definition.field symbol=Reader.source source="protected source: string" key=source type=string
 

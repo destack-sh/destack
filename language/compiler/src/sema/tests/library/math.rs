@@ -30,22 +30,26 @@ import { Unsigned } from "destack:math";
 
 type SignedFixed = Unsigned<int37>;
 /// @type.symbol symbol=SignedFixed source="type SignedFixed = Unsigned<int37>" type=uint37
-/// @definition.type symbol=SignedFixed source="type SignedFixed = Unsigned<int37>" value=uint37
+/// @generic.instance id=Unsigned<int37> template=Unsigned arguments=(int37)
+/// @definition.type symbol=SignedFixed source="type SignedFixed = Unsigned<int37>" value=Unsigned<int37>
 /// @resolution.name source=Unsigned target=Unsigned
 
 type UnsignedFixed = Unsigned<uint37>;
 /// @type.symbol symbol=UnsignedFixed source="type UnsignedFixed = Unsigned<uint37>" type=uint37
-/// @definition.type symbol=UnsignedFixed source="type UnsignedFixed = Unsigned<uint37>" value=uint37
+/// @generic.instance id=Unsigned<uint37> template=Unsigned arguments=(uint37)
+/// @definition.type symbol=UnsignedFixed source="type UnsignedFixed = Unsigned<uint37>" value=Unsigned<uint37>
 /// @resolution.name source=Unsigned target=Unsigned
 
 type SignedPointer = Unsigned<isize>;
 /// @type.symbol symbol=SignedPointer source="type SignedPointer = Unsigned<isize>" type=usize
-/// @definition.type symbol=SignedPointer source="type SignedPointer = Unsigned<isize>" value=usize
+/// @generic.instance id=Unsigned<isize> template=Unsigned arguments=(isize)
+/// @definition.type symbol=SignedPointer source="type SignedPointer = Unsigned<isize>" value=Unsigned<isize>
 /// @resolution.name source=Unsigned target=Unsigned
 
 type UnsignedPointer = Unsigned<usize>;
 /// @type.symbol symbol=UnsignedPointer source="type UnsignedPointer = Unsigned<usize>" type=usize
-/// @definition.type symbol=UnsignedPointer source="type UnsignedPointer = Unsigned<usize>" value=usize
+/// @generic.instance id=Unsigned<usize> template=Unsigned arguments=(usize)
+/// @definition.type symbol=UnsignedPointer source="type UnsignedPointer = Unsigned<usize>" value=Unsigned<usize>
 /// @resolution.name source=Unsigned target=Unsigned
 "#,
     );

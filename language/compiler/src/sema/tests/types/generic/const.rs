@@ -35,7 +35,7 @@ function take<const N: uint>(value: [uint8; N]): [uint8; N] {
     return value;
     /// @type.node source=value type=FixedArray<uint8, N>
     /// @resolution.name source=value target=take.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=take.value
 
 }
@@ -91,7 +91,7 @@ function choose<const Flag: boolean = true>(value: int32): int32 {
     return value;
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=choose.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=choose.value
 
 }
@@ -138,7 +138,7 @@ type Read = <const N: uint>() => [uint8; N];
 /// @resolution.name source=N target=Read.N
 
 declare const read: Read;
-/// @type.symbol symbol=read source=read type=Function<(), FixedArray<uint8, N>>
+/// @type.symbol symbol=read source=read type=Read
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=Read target=Read
 "#,
@@ -165,8 +165,8 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 type Tagged<const Tag: string> = { tag: Tag };
 type Flagged<const Config: { name: string; enabled: boolean }> = Config;
 
-declare const tagged: { tag: "alpha" };
-declare const flagged: { name: "search"; enabled: true };
+declare const tagged: Tagged<"alpha">;
+declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 
 === dir ===
 type Tagged<const Tag: string> = { tag: Tag };
@@ -187,12 +187,13 @@ type Flagged<const Config: { name: string; enabled: boolean }> = Config;
 /// @resolution.name source=Config target=Flagged.Config
 
 declare const tagged: Tagged<"alpha">;
-/// @type.symbol symbol=tagged source=tagged type={ tag: "alpha" }
+/// @type.symbol symbol=tagged source=tagged type=Tagged<"alpha">
 /// @resolution.pattern source=tagged kind=binding target=tagged
+/// @generic.instance id="Tagged<\"alpha\">" template=Tagged arguments=("alpha")
 /// @resolution.name source=Tagged target=Tagged
 
 declare const flagged: Flagged<{ name: "search"; enabled: true }>;
-/// @type.symbol symbol=flagged source=flagged type={ name: "search"; enabled: true }
+/// @type.symbol symbol=flagged source=flagged type=Flagged<{ name: "search"; enabled: true }>
 /// @resolution.pattern source=flagged kind=binding target=flagged
 /// @resolution.name source=Flagged target=Flagged
 /// @type.symbol symbol=name source="name: \"search\"" type="search"
@@ -229,10 +230,10 @@ function f(a: usize, b: int64): boolean {
     a < b
     /// @resolution.name source=a target=f.a
     /// @resolution.rejected source="a < b"
-    /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=a placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=a root=f.a
     /// @resolution.name source=b target=f.b
-    /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=b placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=b root=f.b
 
 }
@@ -245,10 +246,10 @@ function f(a: usize, b: int64): boolean {
 }
 
 #[test]
-fn test_assign_through_an_exclusive_generic_slice_index() {
+fn test_assign_through_a_mutable_generic_slice_index() {
     let session = TestSession::single(
         r#"
-function put<T>(destination: &exclusive [T], value: T): void {
+function put<T>(destination: &[T], value: T): void {
     let lane: isize = 0;
 
     destination[lane] = value;
@@ -261,18 +262,18 @@ function put<T>(destination: &exclusive [T], value: T): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function put<T, 'a>(destination: &'a exclusive [T], value: T): void {
+function put<T, 'a>(destination: &'a [T], value: T): void {
     let lane: isize = 0;
 
     destination[lane] = value;
 }
 
 === dir ===
-function put<T>(destination: &exclusive [T], value: T): void {
+function put<T>(destination: &[T], value: T): void {
 /// @generic.template symbol=put parameters=(T, 'a)
-/// @type.symbol symbol=put type=<T, put.'a>(&put.'a exclusive Slice<T>, T) => void
+/// @type.symbol symbol=put type=<T, put.'a>(&put.'a Slice<T>, T) => void
 /// @type.symbol symbol=put.T source=T type=T
-/// @type.symbol symbol=put.destination source="destination: &exclusive [T]" type=&put.'a exclusive Slice<T>
+/// @type.symbol symbol=put.destination source="destination: &[T]" type=&put.'a Slice<T>
 /// @resolution.name source=T target=put.T
 /// @type.symbol symbol=put.value source="value: T" type=T
 /// @resolution.name source=T target=put.T
@@ -283,16 +284,30 @@ function put<T>(destination: &exclusive [T], value: T): void {
 
     destination[lane] = value;
     /// @resolution.name source=destination target=put.destination
-    /// @resolution.place source=destination placement=put.'a lifetime=put.'a access="exclusive"
+    /// @resolution.place source=destination placement=put.'a lifetime=put.'a access="mutable"
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
-    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, supplied as T), return=void)" type=T
+    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, supplied as T), return=void, regions=(put.'a))" type=T
     /// @generic.instantiation id=indexSet#1<T> template=indexSet#1 arguments=(T) owner=put
+    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+    /// @generic.instance id="index#1<T, \"mutable\">" template=index#1 arguments=(T, "mutable")
+    /// @generic.instance id="index#2<T, RangeBounds<isize>, \"mutable\" | \"readonly\">" template=index#2 arguments=(T, RangeBounds<isize>, "mutable" | "readonly")
+    /// @generic.instance id="rangeSpan<T, RangeBounds<isize>, \"mutable\" | \"readonly\">" template=rangeSpan arguments=(T, RangeBounds<isize>, "mutable" | "readonly")
+    /// @generic.instance id="sliceIndex<T, \"mutable\">" template=sliceIndex arguments=(T, "mutable")
+    /// @generic.instance id="sliceView<T, \"mutable\" | \"readonly\">" template=sliceView arguments=(T, "mutable" | "readonly")
+    /// @generic.instance id="subslice<T, \"mutable\" | \"readonly\">" template=subslice arguments=(T, "mutable" | "readonly")
+    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+    /// @generic.instance id=indexSet#1<T> template=indexSet#1 arguments=(T)
+    /// @generic.instance id=size<T> template=size arguments=(T)
+    /// @generic.instance id=sliceLength<T> template=sliceLength arguments=(T)
+    /// @generic.instance id=symbol2<T> template=symbol2 arguments=(T)
     /// @resolution.name source=lane target=put.lane
-    /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=lane placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=lane root=put.lane
     /// @resolution.name source=value target=put.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=put.value
 
 }
@@ -301,10 +316,10 @@ function put<T>(destination: &exclusive [T], value: T): void {
 }
 
 #[test]
-fn test_assign_through_an_exclusive_int32_slice_index() {
+fn test_assign_through_a_mutable_int32_slice_index() {
     let session = TestSession::single(
         r#"
-function put(destination: &exclusive [int32], value: int32): void {
+function put(destination: &[int32], value: int32): void {
     let lane: isize = 0;
 
     destination[lane] = value;
@@ -317,17 +332,17 @@ function put(destination: &exclusive [int32], value: int32): void {
         DirRows::checked(),
         r#"
 === annotated ===
-function put<'a>(destination: &'a exclusive [int32], value: int32): void {
+function put<'a>(destination: &'a [int32], value: int32): void {
     let lane: isize = 0;
 
     destination[lane] = value;
 }
 
 === dir ===
-function put(destination: &exclusive [int32], value: int32): void {
+function put(destination: &[int32], value: int32): void {
 /// @generic.template symbol=put parameters=('a)
-/// @type.symbol symbol=put type=<put.'a>(&put.'a exclusive Slice<int32>, int32) => void
-/// @type.symbol symbol=put.destination source="destination: &exclusive [int32]" type=&put.'a exclusive Slice<int32>
+/// @type.symbol symbol=put type=<put.'a>(&put.'a Slice<int32>, int32) => void
+/// @type.symbol symbol=put.destination source="destination: &[int32]" type=&put.'a Slice<int32>
 /// @type.symbol symbol=put.value source="value: int32" type=int32
 
     let lane: isize = 0;
@@ -336,35 +351,31 @@ function put(destination: &exclusive [int32], value: int32): void {
 
     destination[lane] = value;
     /// @resolution.name source=destination target=put.destination
-    /// @resolution.place source=destination placement=put.'a lifetime=put.'a access="exclusive"
+    /// @resolution.place source=destination placement=put.'a lifetime=put.'a access="mutable"
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
-    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, supplied as int32), return=void)" type=int32
+    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, supplied as int32), return=void, regions=(put.'a))" type=int32
     /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
-    /// @generic.instance id="Bound<&'bound0 readonly isize>" template=Bound arguments=(&'bound0 readonly isize)
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="RangeBounds.endBound<RangeBounds<isize>, isize>" template=RangeBounds.endBound arguments=(isize)
-    /// @generic.instance id="RangeBounds.startBound<RangeBounds<isize>, isize>" template=RangeBounds.startBound arguments=(isize)
-    /// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a Slice<T#5>, index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive Slice<int32>, isize) => &index#1.'a exclusive int32, WithAccess<&index#1.'a T#5, index.A> => &index#1.'a exclusive int32, WithAccess<&index#1.'a Slice<T#5>, index.A> => &index#1.'a exclusive Slice<int32>, (WithAccess<&index#1.'a Slice<T#5>, index.A>, usize) => WithAccess<&index#1.'a T#5, index.A> => (&index#1.'a exclusive Slice<int32>, usize) => &index#1.'a exclusive int32, WithAccess<&index#1.'a Slice<T#5>, index.A> => &index#1.'a exclusive Slice<int32>)
-    /// @generic.instance id="index#2<int32, RangeBounds<isize>, \"exclusive\" | \"readonly\" | \"mutable\">" template=index#2 arguments=(int32, RangeBounds<isize>, "exclusive" | "readonly" | "mutable") evaluated=(<index#2.'a>(this: WithAccess<&index#2.'a Slice<T#6>, A#2>, R#1) => WithAccess<&index#2.'a Slice<T#6>, A#2> => <index#2.'a>(this: Borrowed<Slice<int32>, index#2.'a, "exclusive" | "readonly" | "mutable">, RangeBounds<isize>) => Borrowed<Slice<int32>, index#2.'a, "exclusive" | "readonly" | "mutable">, WithAccess<&index#2.'a Slice<T#6>, A#2> => Borrowed<Slice<int32>, index#2.'a, "exclusive" | "readonly" | "mutable">, WithAccess<&index#2.'a Slice<T#6>, A#2> => Borrowed<Slice<int32>, index#2.'a, "exclusive" | "readonly" | "mutable">, (this: WithAccess<&index#2.'a Slice<T#6>, A#2>, usize, usize) => WithAccess<&index#2.'a Slice<T#6>, A#2> => (this: Borrowed<Slice<int32>, index#2.'a, "exclusive" | "readonly" | "mutable">, usize, usize) => Borrowed<Slice<int32>, index#2.'a, "exclusive" | "readonly" | "mutable">)
-    /// @generic.instance id="rangeSpan<int32, RangeBounds<isize>, \"exclusive\" | \"readonly\" | \"mutable\">" template=rangeSpan arguments=(int32, RangeBounds<isize>, "exclusive" | "readonly" | "mutable")
-    /// @generic.instance id="sliceIndex<int32, \"exclusive\">" template=sliceIndex arguments=(int32, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<int32>, usize) => &sliceIndex.'a exclusive int32)
-    /// @generic.instance id="sliceView<int32, \"exclusive\" | \"readonly\" | \"mutable\">" template=sliceView arguments=(int32, "exclusive" | "readonly" | "mutable") evaluated=(<sliceView.T, const sliceView.A: Access = "readonly", sliceView.'a>(WithAccess<&sliceView.'a Slice<sliceView.T>, sliceView.A>, usize, usize) => WithAccess<&sliceView.'a Slice<sliceView.T>, sliceView.A> => <sliceView.T, const sliceView.A: Access = "readonly", sliceView.'a>(Borrowed<Slice<int32>, sliceView.'a, "exclusive" | "readonly" | "mutable">, usize, usize) => Borrowed<Slice<int32>, sliceView.'a, "exclusive" | "readonly" | "mutable">)
-    /// @generic.instance id="subslice<int32, \"exclusive\" | \"readonly\" | \"mutable\">" template=subslice arguments=(int32, "exclusive" | "readonly" | "mutable") evaluated=(<const subslice.A: Access = "readonly", subslice.'a>(this: WithAccess<&subslice.'a Slice<T#1>, subslice.A>, usize, usize) => WithAccess<&subslice.'a Slice<T#1>, subslice.A> => <const subslice.A: Access = "readonly", subslice.'a>(this: Borrowed<Slice<int32>, subslice.'a, "exclusive" | "readonly" | "mutable">, usize, usize) => Borrowed<Slice<int32>, subslice.'a, "exclusive" | "readonly" | "mutable">, WithAccess<&subslice.'a Slice<T#1>, subslice.A> => Borrowed<Slice<int32>, subslice.'a, "exclusive" | "readonly" | "mutable">, (WithAccess<&subslice.'a Slice<T#1>, subslice.A>, usize, usize) => WithAccess<&subslice.'a Slice<T#1>, subslice.A> => (Borrowed<Slice<int32>, subslice.'a, "exclusive" | "readonly" | "mutable">, usize, usize) => Borrowed<Slice<int32>, subslice.'a, "exclusive" | "readonly" | "mutable">, WithAccess<&subslice.'a Slice<T#1>, subslice.A> => Borrowed<Slice<int32>, subslice.'a, "exclusive" | "readonly" | "mutable">)
+    /// @generic.instance id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
+    /// @generic.instance id="index#2<int32, RangeBounds<isize>, \"mutable\" | \"readonly\">" template=index#2 arguments=(int32, RangeBounds<isize>, "mutable" | "readonly")
+    /// @generic.instance id="rangeSpan<int32, RangeBounds<isize>, \"mutable\" | \"readonly\">" template=rangeSpan arguments=(int32, RangeBounds<isize>, "mutable" | "readonly")
+    /// @generic.instance id="sliceIndex<int32, \"mutable\">" template=sliceIndex arguments=(int32, "mutable")
+    /// @generic.instance id="sliceView<int32, \"mutable\" | \"readonly\">" template=sliceView arguments=(int32, "mutable" | "readonly")
+    /// @generic.instance id="subslice<int32, \"mutable\" | \"readonly\">" template=subslice arguments=(int32, "mutable" | "readonly")
     /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
-    /// @generic.instance id=RangeBounds<isize> template=RangeBounds arguments=(isize)
     /// @generic.instance id=Slice<int32> template=Slice arguments=(int32)
-    /// @generic.instance id=indexSet#1<int32> template=indexSet#1 arguments=(int32) evaluated=(WithAccess<&indexSet#1.'a T#5, "exclusive"> => &indexSet#1.'a exclusive int32, (this: WithAccess<&indexSet#1.'a Slice<T#5>, "exclusive">, isize) => WithAccess<&indexSet#1.'a T#5, "exclusive"> => (this: &indexSet#1.'a exclusive Slice<int32>, isize) => &indexSet#1.'a exclusive int32, <const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a Slice<T#5>, index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> & <index#2.'a>(this: WithAccess<&index#2.'a Slice<T#5>, "readonly" | "mutable" | "exclusive">, RangeBounds<isize>) => WithAccess<&index#2.'a Slice<T#5>, "readonly" | "mutable" | "exclusive"> => <const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a Slice<int32>, index.A>, isize) => WithAccess<&index#1.'a int32, index.A> & <index#2.'a>(this: Borrowed<Slice<int32>, index#2.'a, "readonly" | "mutable" | "exclusive">, RangeBounds<isize>) => Borrowed<Slice<int32>, index#2.'a, "readonly" | "mutable" | "exclusive">, <index#2.'a>(this: WithAccess<&index#2.'a Slice<T#5>, "readonly" | "mutable" | "exclusive">, RangeBounds<isize>) => WithAccess<&index#2.'a Slice<T#5>, "readonly" | "mutable" | "exclusive"> => <index#2.'a>(this: Borrowed<Slice<int32>, index#2.'a, "readonly" | "mutable" | "exclusive">, RangeBounds<isize>) => Borrowed<Slice<int32>, index#2.'a, "readonly" | "mutable" | "exclusive">, <const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a Slice<T#5>, index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> & <index#2.'a>(this: WithAccess<&index#2.'a Slice<T#5>, "readonly" | "mutable" | "exclusive">, RangeBounds<isize>) => WithAccess<&index#2.'a Slice<T#5>, "readonly" | "mutable" | "exclusive"> => <const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a Slice<int32>, index.A>, isize) => WithAccess<&index#1.'a int32, index.A> & <index#2.'a>(this: Borrowed<Slice<int32>, index#2.'a, "readonly" | "mutable" | "exclusive">, RangeBounds<isize>) => Borrowed<Slice<int32>, index#2.'a, "readonly" | "mutable" | "exclusive">)
+    /// @generic.instance id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
     /// @generic.instance id=size<int32> template=size arguments=(int32)
     /// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
     /// @generic.instance id=symbol2<int32> template=symbol2 arguments=(int32)
     /// @resolution.name source=lane target=put.lane
-    /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=lane placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=lane root=put.lane
     /// @resolution.name source=value target=put.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=put.value
 
 }

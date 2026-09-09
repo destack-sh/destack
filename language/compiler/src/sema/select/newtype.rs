@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
@@ -82,7 +81,8 @@ impl CheckState<'_> {
         };
 
         // require the nominal definition established by the declaration walk
-        let Some(dir::Definition::Newtype(definition)) = self.definition(symbol)? else {
+        let declared = self.definition(symbol)?;
+        let Some(dir::Definition::Newtype(definition)) = declared.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!("newtype selection target {symbol:?} has no newtype definition"),
             });
@@ -204,14 +204,11 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
         // read the raw declared entry without forcing constructor derivation
-        let Some(dir::Definition::Newtype(definition)) = self.definition_maybe(symbol) else {
+        let declared = self.definition(symbol)?;
+        let Some(dir::Definition::Newtype(definition)) = declared.as_deref() else {
             return Ok(());
         };
 
-        // leave already derived entries alone
-        if !definition.constructors.is_empty() {
-            return Ok(());
-        }
         let backing = definition.backing;
 
         // instantiate the nominal return over its own parameters
@@ -233,13 +230,9 @@ impl CheckState<'_> {
             })
             .collect();
 
-        // write the entries onto the checked definition
-        let Some(dir::Definition::Newtype(definition)) = self.definition_mut(symbol) else {
-            return Err(CompilerError::Internal {
-                message: format!("newtype {symbol:?} lost its definition during derivation"),
-            });
-        };
-        definition.constructors = constructors;
+        self.module_mut(symbol.module_id)
+            .members_tail
+            .set_newtype_constructors(symbol, constructors);
 
         Ok(())
     }
@@ -359,33 +352,5 @@ impl CheckState<'_> {
         Ok(self
             .type_ids(expected_return.module_id, instance.arguments)?
             .to_vec())
-    }
-}
-
-impl CheckState<'_> {
-    /// Commit each declared newtype's constructor entries.
-    pub(in crate::sema) fn derive_module_constructors(
-        &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
-        // declarations leave derived entries to their checking pass
-        if self.is_declaring() {
-            return Ok(());
-        }
-
-        // derive entries beside each declared newtype
-        let mut newtypes = Vec::new();
-        for (symbol, definition) in self.module(module).iter_definitions() {
-            if matches!(definition, dir::Definition::Newtype(_)) {
-                newtypes.push(symbol);
-            }
-        }
-
-        // derive the constructors of each collected newtype
-        for symbol in newtypes {
-            self.derive_newtype_constructors(symbol)?;
-        }
-
-        Ok(())
     }
 }

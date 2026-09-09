@@ -72,7 +72,7 @@ const cache: local Cache = Cache { localUser, sharedUser };
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localUser root=localUser
 /// @resolution.name source=sharedUser target=sharedUser
 /// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
@@ -215,7 +215,7 @@ const field: shared BoxedUser = BoxedUser { user };
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 
 const tuple: shared (local User, int32) = (user, 1);
@@ -223,7 +223,7 @@ const tuple: shared (local User, int32) = (user, 1);
 /// @resolution.pattern source=tuple kind=binding target=tuple
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 
 const union: shared (local User | undefined) = user;
@@ -231,7 +231,7 @@ const union: shared (local User | undefined) = user;
 /// @resolution.pattern source=union kind=binding target=union
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 "#,
         r#"
@@ -433,7 +433,7 @@ const rejected: shared Box<local User> = Box { value: localUser };
 /// @resolution.name source=User target=User
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localUser root=localUser
 
 const accepted: shared Box<shared User> = Box { value: sharedUser };
@@ -645,13 +645,13 @@ class Box {
     /// @type.symbol symbol=Box.constructor.user source="user: User" type=User
     /// @resolution.name source=User target=User
     /// @resolution.receiver source=this kind=this declaration=Box type=Box
-    /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=this root=this
     /// @resolution.pattern.assign source=this.user kind=place
     /// @resolution.access source=this.user root=this keys=[user]
     /// @resolution.assignment source=this.user write="receiver=Box, target=field(receiver=Box, target=Box.user, type=User), type=User" type=User
     /// @resolution.name source=user target=Box.constructor.user
-    /// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=user root=Box.constructor.user
 
 }
@@ -670,7 +670,7 @@ const box: shared Box = new Box(user);
 /// @generic.instantiation id="Box<\"shared\">" template=Box arguments=("shared")
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 "#,
         r#"
@@ -836,7 +836,7 @@ publish(handle);
 /// @resolution.call source=publish(handle) parameters=(Handle) arguments=(provided(handle) as Handle) return=void kind=symbol target=publish instance=publish<Handle>
 /// @generic.instantiation id=publish<Handle> template=publish arguments=(Handle)
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=handle placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=handle root=handle
 
 cleanEnvelope satisfies SharedSafe;
@@ -911,7 +911,7 @@ declare const handle: Handle;
 
 handle satisfies SharedSafe;
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=handle placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=handle root=handle
 /// @resolution.name source=SharedSafe target=SharedSafe
 "#,

@@ -74,15 +74,16 @@ impl CheckState<'_> {
                 // skip earlier overloads generic in a type parameter
                 let earlier = self.symbol_type(earlier)?;
                 if let Some(template) = self.signature_head(earlier)?.and_then(|head| head.template)
-                    && self
-                        .generic_template_parameters(template)?
-                        .iter()
-                        .any(|parameter| {
-                            self.generic_parameter(*parameter)
-                                .is_none_or(|binding| binding.memory_parameter().is_none())
-                        })
                 {
-                    continue;
+                    let mut has_type_parameter = false;
+                    for parameter in self.generic_template_parameters(template)? {
+                        has_type_parameter |= self
+                            .generic_parameter(parameter)?
+                            .is_none_or(|binding| binding.memory_parameter().is_none());
+                    }
+                    if has_type_parameter {
+                        continue;
+                    }
                 }
 
                 // report the later overload once the earlier signature takes its calls
@@ -146,7 +147,8 @@ impl CheckState<'_> {
         // read the extension this obligation names
         let source = obligation.source;
         let symbol = obligation.symbol;
-        let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
+        let definition = self.definition(symbol)?;
+        let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!("extension obligation has no extension definition: {symbol:?}"),
             });
@@ -268,7 +270,7 @@ impl CheckState<'_> {
             return Ok(false);
         };
         let Some(constraint) = self
-            .generic_parameter(parameter)
+            .generic_parameter(parameter)?
             .and_then(|binding| binding.constraint)
         else {
             return Ok(false);
@@ -296,14 +298,15 @@ impl CheckState<'_> {
         for implemented in interfaces {
             let (_, interface) = self.nominal_application(*implemented)?;
             if let Some(dir::Definition::Interface(definition)) =
-                self.definition(interface.symbol)?
+                self.definition(interface.symbol)?.as_deref()
             {
                 admitted.extend(definition.members.iter().filter_map(|member| member.key()));
             }
         }
 
         // read the keys the extension declares
-        let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
+        let definition = self.definition(symbol)?;
+        let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!("blanket obligation symbol {symbol:?} names no extension"),
             });
@@ -351,7 +354,7 @@ impl CheckState<'_> {
 
                 // follow the constraint this parameter declares
                 let constraint = self
-                    .generic_parameter(parameter)
+                    .generic_parameter(parameter)?
                     .and_then(|binding| binding.constraint);
                 pending.extend(constraint);
             }
@@ -359,7 +362,7 @@ impl CheckState<'_> {
 
         // reject declared type parameters outside the constrained set
         for parameter in self.generic_template_parameters(template)? {
-            let Some(binding) = self.generic_parameter(parameter).cloned() else {
+            let Some(binding) = self.generic_parameter(parameter)?.cloned() else {
                 continue;
             };
 
@@ -445,7 +448,7 @@ impl CheckState<'_> {
 
         // require a written name on everything else
         let is_unnamed = self
-            .binding_table(symbol.module_id)
+            .binding_table(symbol.module_id)?
             .get_symbol(symbol.local_id)
             .key
             .is_none();
@@ -588,7 +591,8 @@ impl CheckState<'_> {
         // read the extension being checked
         let extension_symbol = obligation.symbol;
         let module = extension_symbol.module_id;
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
+        let definition = self.definition(extension_symbol)?;
+        let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "extension coherence has no extension definition: {extension_symbol:?}"
@@ -626,9 +630,9 @@ impl CheckState<'_> {
         if let Some(dir::TypeRoot::Declaration(declaration)) = root
             && let Some(definition) = self.definition(declaration)?
         {
-            let members = definition.members().to_vec();
+            let members = definition.members();
             let inherent =
-                self.keyed_members(&members, ReceiverForm::MANAGED, &FxIndexSet::default())?;
+                self.keyed_members(members, ReceiverForm::MANAGED, &FxIndexSet::default())?;
             for member in &declared {
                 let redeclared = inherent.iter().any(|candidate| {
                     candidate.key == member.key
@@ -654,9 +658,8 @@ impl CheckState<'_> {
             }
 
             // require the competitor to extend the same target
-            let Some(dir::Definition::Extension(competitor)) =
-                self.definition(competitor_symbol)?
-            else {
+            let definition = self.definition(competitor_symbol)?;
+            let Some(dir::Definition::Extension(competitor)) = definition.as_deref() else {
                 continue;
             };
 
@@ -707,8 +710,8 @@ impl CheckState<'_> {
                 continue;
             };
 
-            let Some(dir::Definition::Interface(definition)) = self.definition(interface.symbol)?
-            else {
+            let declared = self.definition(interface.symbol)?;
+            let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
                 continue;
             };
 
@@ -794,7 +797,7 @@ impl CheckState<'_> {
             },
             // written memory applications compare like the forms they name
             dir::Type::Application(instance) => {
-                let arguments = self.type_ids(this.module_id, instance.arguments)?.to_vec();
+                let arguments = self.type_ids(this.module_id, instance.arguments)?;
                 match self.language_item(instance.symbol)? {
                     Some(dir::LanguageItem::Owned) => Some(ReceiverForm {
                         ownership: dir::Ownership::Owned,

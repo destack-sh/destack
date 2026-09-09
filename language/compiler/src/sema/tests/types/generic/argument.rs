@@ -19,7 +19,7 @@ declare const bytes: Bytes;
 type Slots<const N: usize> = [uint8; N];
 type Bytes = Slots<16>;
 
-declare const bytes: [uint8; 16];
+declare const bytes: Bytes;
 
 === dir ===
 type Slots<const N: usize> = [uint8; N];
@@ -30,12 +30,13 @@ type Slots<const N: usize> = [uint8; N];
 /// @resolution.name source=N target=Slots.N
 
 type Bytes = Slots<16>;
-/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=FixedArray<uint8, 16>
-/// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=FixedArray<uint8, 16>
+/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=Slots<16>
+/// @generic.instance id=Slots<16> template=Slots arguments=(16)
+/// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=Slots<16>
 /// @resolution.name source=Slots target=Slots
 
 declare const bytes: Bytes;
-/// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 16>
+/// @type.symbol symbol=bytes source=bytes type=Bytes
 /// @resolution.pattern source=bytes kind=binding target=bytes
 /// @resolution.name source=Bytes target=Bytes
 "#,
@@ -85,6 +86,7 @@ newtype Result<T, E> = T | E;
 
 extension<T, E> of Result<T, E> {
 /// @generic.template symbol=<module>#2 parameters=(T#2, E#2)
+/// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @definition.extension symbol=<module>#2 form=local target=Result<T#2, E#2>
 /// @definition.method symbol=ok slot=ok static=true type=(T#2) => Result<T#2, E#2>
 /// @type.symbol symbol=T source=T type=T#2
@@ -106,7 +108,7 @@ extension<T, E> of Result<T, E> {
         /// @resolution.construct source=Result(value) parameters=(T#2) arguments=(provided(value) as T#2) return=Result<T#2, E#2> kind=newtype target=Result backing=T#2 instance="Result<T#2, E#2>"
         /// @generic.instantiation id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2) owner=ok
         /// @resolution.name source=value target=ok.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=ok.value
 
     }
@@ -146,7 +148,7 @@ function print(value: Printable): string {
 === annotated ===
 type Printable = { print(): string };
 
-function print(value: { print: () => string }): string {
+function print(value: Printable): string {
     return value.print();
 }
 
@@ -157,19 +159,19 @@ type Printable = { print(): string };
 
 function print(value: Printable): string {
 /// @type.symbol symbol=print type=(Printable) => string
-/// @type.symbol symbol=print.value source="value: Printable" type={ print(): string }
+/// @type.symbol symbol=print.value source="value: Printable" type=Printable
 /// @resolution.name source=Printable target=Printable
 
     return value.print();
-    /// @type.node source=value type={ print(): string }
+    /// @type.node source=value type=Printable
     /// @type.node source=value.print type=() => string
     /// @type.node source=value.print() type=string
     /// @resolution.name source=value target=print.value
-    /// @resolution.member source=value.print receiver={ print(): string } type=() => string kind=field target_receiver={ print(): string } key=print target_type=() => string
+    /// @resolution.member source=value.print receiver=Printable type=() => string kind=field target_receiver=Printable key=print target_type=() => string
     /// @resolution.call source=value.print() parameters=() return=string kind=expression target=expression
-    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value root=print.value
-    /// @resolution.place source=value.print placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value.print placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value.print root=print.value keys=[print]
 
 }

@@ -26,9 +26,7 @@ type Unit = "year" | "month";
 
 type Round = Unit | ({ smallest: Unit } | { largest: Unit }) & { mode?: int32 };
 
-export function pick(
-    value: Unit | { smallest: Unit; mode?: int32 } | { largest: Unit; mode?: int32 },
-): int32 {
+export function pick(value: Round): int32 {
     return 1;
 }
 
@@ -45,15 +43,15 @@ type Round =
     /// @resolution.name source=Unit target=Unit
 
     | ({ smallest: Unit } | { largest: Unit }) & { mode?: int32 };
-    /// @type.symbol symbol=Round.smallest source="smallest: Unit" type="year" | "month"
+    /// @type.symbol symbol=Round.smallest source="smallest: Unit" type=Unit
     /// @resolution.name source=Unit target=Unit
-    /// @type.symbol symbol=Round.largest source="largest: Unit" type="year" | "month"
+    /// @type.symbol symbol=Round.largest source="largest: Unit" type=Unit
     /// @resolution.name source=Unit target=Unit
     /// @type.symbol symbol=Round.mode source="mode?: int32" type=int32
 
 export function pick(value: Round): int32 {
 /// @type.symbol symbol=pick type=(Round) => int32
-/// @type.symbol symbol=pick.value source="value: Round" type=Unit | { smallest: Unit; mode?: int32 } | { largest: Unit; mode?: int32 }
+/// @type.symbol symbol=pick.value source="value: Round" type=Round
 /// @resolution.name source=Round target=Round
 
     return 1;
@@ -101,7 +99,7 @@ import { Calendar, Precision } from "./options.ds";
 
 export type Both = Precision & Calendar;
 
-export function pick(value: { digits?: int32; calendarName?: int32 }): int32 {
+export function pick(value: Both): int32 {
     return 1;
 }
 
@@ -110,13 +108,13 @@ import { Calendar, Precision } from "./options.ds";
 
 export type Both = Precision & Calendar;
 /// @type.symbol symbol=Both source="export type Both = Precision & Calendar" type={ digits?: int32; calendarName?: int32 }
-/// @definition.type symbol=Both source="export type Both = Precision & Calendar" value={ digits?: int32; calendarName?: int32 }
+/// @definition.type symbol=Both source="export type Both = Precision & Calendar" value=options.Precision & options.Calendar
 /// @resolution.name source=Precision target=options.Precision
 /// @resolution.name source=Calendar target=options.Calendar
 
 export function pick(value: Both): int32 {
 /// @type.symbol symbol=pick type=(Both) => int32
-/// @type.symbol symbol=pick.value source="value: Both" type={ digits?: int32; calendarName?: int32 }
+/// @type.symbol symbol=pick.value source="value: Both" type=Both
 /// @resolution.name source=Both target=Both
 
     return 1;
@@ -171,7 +169,7 @@ export type ZonedLike = PlainLike & {
 };
 
 export class Zoned {
-    static from(value: { day?: int32; offset?: int32 }): Zoned {
+    static from(value: ZonedLike): Zoned {
         return new Zoned();
     }
 }
@@ -181,7 +179,7 @@ import { PlainLike } from "./plain.ds";
 
 export type ZonedLike = PlainLike & {
 /// @type.symbol symbol=ZonedLike type={ day?: int32; offset?: int32 }
-/// @definition.type symbol=ZonedLike value={ day?: int32; offset?: int32 }
+/// @definition.type symbol=ZonedLike value=plain.PlainLike & { offset?: int32 }
 /// @resolution.name source=PlainLike target=plain.PlainLike
 
     offset?: int32;
@@ -196,7 +194,7 @@ export class Zoned {
 
     static from(value: ZonedLike): Zoned {
     /// @type.symbol symbol=Zoned.from type=(ZonedLike) => Zoned
-    /// @type.symbol symbol=Zoned.from.value source="value: ZonedLike" type={ day?: int32; offset?: int32 }
+    /// @type.symbol symbol=Zoned.from.value source="value: ZonedLike" type=ZonedLike
     /// @resolution.name source=ZonedLike target=ZonedLike
     /// @resolution.name source=Zoned target=Zoned
 
@@ -244,7 +242,7 @@ class Plain {
 
 type Narrowed = (Zoned | Plain) & Plain;
 
-export declare function pick(value: Plain): int32;
+export declare function pick(value: Narrowed): int32;
 
 === dir ===
 class Zoned {
@@ -276,8 +274,72 @@ type Narrowed = (Zoned | Plain) & Plain;
 
 export declare function pick(value: Narrowed): int32;
 /// @type.symbol symbol=pick source="export declare function pick(value: Narrowed): int32" type=(Narrowed) => int32
-/// @type.symbol symbol=pick.value source="value: Narrowed" type=Plain
+/// @type.symbol symbol=pick.value source="value: Narrowed" type=Narrowed
 /// @resolution.name source=Narrowed target=Narrowed
+"#,
+    );
+}
+
+/// Annihilate a literal met by a callable when merged option shapes distribute.
+#[test]
+fn test_reduce_a_literal_met_by_a_callable_to_never() {
+    let session = TestSession::single(
+        r#"
+type Equality = (left: int32, right: int32) => boolean;
+
+type SignalOptions = { equals?: false | Equality };
+
+type MemoOptions = { equals?: false | Equality; name?: string };
+
+export function configure(options: SignalOptions & MemoOptions): int32 {
+    return 1;
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Equality = (left: int32, right: int32) => boolean;
+
+type SignalOptions = { equals?: false | Equality };
+
+type MemoOptions = { equals?: false | Equality; name?: string };
+
+export function configure(options: { equals?: false | Equality; name?: string }): int32 {
+    return 1;
+}
+
+=== dir ===
+type Equality = (left: int32, right: int32) => boolean;
+/// @type.symbol symbol=Equality source="type Equality = (left: int32, right: int32) => boolean" type=Function<(int32, int32), boolean>
+/// @definition.type symbol=Equality source="type Equality = (left: int32, right: int32) => boolean" value=Function<(int32, int32), boolean>
+/// @type.symbol symbol=Equality.left source="left: int32" type=int32
+/// @type.symbol symbol=Equality.right source="right: int32" type=int32
+
+type SignalOptions = { equals?: false | Equality };
+/// @type.symbol symbol=SignalOptions source="type SignalOptions = { equals?: false | Equality }" type={ equals?: false | Equality }
+/// @definition.type symbol=SignalOptions source="type SignalOptions = { equals?: false | Equality }" value={ equals?: false | Equality }
+/// @type.symbol symbol=SignalOptions.equals source="equals?: false | Equality" type=false | Equality
+/// @resolution.name source=Equality target=Equality
+
+type MemoOptions = { equals?: false | Equality; name?: string };
+/// @type.symbol symbol=MemoOptions source="type MemoOptions = { equals?: false | Equality; name?: string }" type={ equals?: false | Equality; name?: string }
+/// @definition.type symbol=MemoOptions source="type MemoOptions = { equals?: false | Equality; name?: string }" value={ equals?: false | Equality; name?: string }
+/// @type.symbol symbol=MemoOptions.equals source="equals?: false | Equality" type=false | Equality
+/// @resolution.name source=Equality target=Equality
+/// @type.symbol symbol=MemoOptions.name source="name?: string" type=string
+
+export function configure(options: SignalOptions & MemoOptions): int32 {
+/// @type.symbol symbol=configure type=({ equals?: false | Equality; name?: string }) => int32
+/// @type.symbol symbol=configure.options source="options: SignalOptions & MemoOptions" type={ equals?: false | Equality; name?: string }
+/// @resolution.name source=SignalOptions target=SignalOptions
+/// @resolution.name source=MemoOptions target=MemoOptions
+
+    return 1;
+}
 "#,
     );
 }

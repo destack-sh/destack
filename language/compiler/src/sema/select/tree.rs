@@ -71,9 +71,6 @@ impl CheckState<'_> {
         let Some(symbol) = self.environment_bound.tree else {
             return Ok(None);
         };
-        if !self.is_own_module(symbol.module_id) {
-            self.import_external_module(symbol.module_id)?;
-        }
         let arguments = self.intern_type_ids(&[])?;
 
         Ok(Some(self.intern_type(dir::Type::Application(
@@ -550,7 +547,7 @@ impl CheckState<'_> {
         // nominal components construct through their declarations
         if let Some(symbol) = named_symbol {
             let symbol = self.resolve_symbol_alias(symbol)?;
-            match self.definition(symbol)? {
+            match self.definition(symbol)?.as_deref() {
                 Some(dir::Definition::Class(_)) => {
                     return self.check_tree_class_component(
                         site,
@@ -639,6 +636,7 @@ impl CheckState<'_> {
             },
         };
         let call = dir::Call {
+            regions: selection.region_arguments.clone(),
             target,
             callable_type: selection.callable,
             arguments: vec![dir::ArgumentBinding {
@@ -681,7 +679,8 @@ impl CheckState<'_> {
         let origin = site.origin();
         let module = node.module_id;
         let callee_node = tag.into_global_any(module);
-        let Some(dir::Definition::Class(definition)) = self.definition(symbol)? else {
+        let declared = self.definition(symbol)?;
+        let Some(dir::Definition::Class(definition)) = declared.as_deref() else {
             return Err(CompilerError::Internal {
                 message: "tree class component lost its definition".to_string(),
             });
@@ -759,6 +758,7 @@ impl CheckState<'_> {
                 source: dir::ArgumentSource::Static(row),
             }],
             selection.return_type,
+            selection.region_arguments.clone(),
         );
 
         // commit the selected element decision
@@ -792,7 +792,8 @@ impl CheckState<'_> {
         let node = site.node;
         let module = node.module_id;
         let callee_node = tag.into_global_any(module);
-        let Some(dir::Definition::Struct(definition)) = self.definition(symbol)? else {
+        let declared = self.definition(symbol)?;
+        let Some(dir::Definition::Struct(definition)) = declared.as_deref() else {
             return Err(CompilerError::Internal {
                 message: "tree struct component lost its definition".to_string(),
             });

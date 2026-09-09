@@ -1,9 +1,6 @@
-use std::hash::{Hash, Hasher};
-
-use destack_core::{FxIndexMap, FxIndexSet, ensure_sufficient_stack};
+use destack_core::{FxIndexSet, ensure_sufficient_stack};
 use destack_dir as dir;
 use destack_source::ModuleId;
-use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
 use crate::sema::{CheckState, Origin};
@@ -113,8 +110,21 @@ enum SubstitutionRule<'a> {
         /// The generic arguments and qualified receiver.
         substitution: &'a TypeSubstitution,
     },
-    /// Rebuild every node so construction normalizes each head.
+    /// Rebuild the nodes flagged as reducible so construction normalizes each closed head, an
+    /// open row and a written alias application staying as written.
     Normalize {
+        /// The declaration whose entries normalize.
+        origin: Origin,
+    },
+    /// Rebuild the nodes flagged as reducible so construction reduces each head over rigid type
+    /// parameters as far as its reducer allows, a written alias application expanding to the
+    /// spelling lowering reads.
+    Evaluate {
+        /// The declaration whose entries evaluate.
+        origin: Origin,
+    },
+    /// Rebuild every node of a declared type so construction normalizes each head.
+    Translate {
         /// The declaration whose entries normalize.
         origin: Origin,
     },
@@ -142,7 +152,7 @@ impl SubstitutionRule<'_> {
     /// Return the substituted argument for one parameter.
     fn substituted(&self, parameter: dir::GlobalGenericParameterId) -> Option<dir::GlobalTypeId> {
         match self {
-            Self::Substitute { substitution } => substitution
+            Self::Substitute { substitution, .. } => substitution
                 .bindings
                 .iter()
                 .find(|binding| binding.parameter == parameter)
@@ -150,18 +160,53 @@ impl SubstitutionRule<'_> {
             Self::Replace { .. }
             | Self::SubstituteInfer { .. }
             | Self::EraseNoInfer
-            | Self::Normalize { .. } => None,
+            | Self::Normalize { .. }
+            | Self::Evaluate { .. }
+            | Self::Translate { .. } => None,
+        }
+    }
+
+    /// Return whether this rule expands written alias heads, reducing over rigid parameters.
+    fn evaluates(&self) -> bool {
+        matches!(self, Self::Evaluate { .. })
+    }
+
+    /// Return the origin one normalizing rule reduces under.
+    fn normalizing_origin(&self) -> Option<Origin> {
+        match self {
+            Self::Normalize { origin } | Self::Evaluate { origin } | Self::Translate { origin } => {
+                Some(*origin)
+            }
+            Self::SubstituteInfer {
+                origin: Some(origin),
+                ..
+            } => Some(*origin),
+            _ => None,
+        }
+    }
+
+    /// Return this rule for the branches of a deferred conditional.
+    fn suspended(self) -> Option<Self> {
+        match self {
+            Self::Normalize { .. } | Self::Translate { .. } => None,
+            Self::SubstituteInfer { captures, .. } => Some(Self::SubstituteInfer {
+                captures,
+                origin: None,
+            }),
+            rule => Some(rule),
         }
     }
 
     /// Return the receiver replacing `this` references.
     fn receiver(&self) -> Option<dir::GlobalTypeId> {
         match self {
-            Self::Substitute { substitution } => substitution.receiver,
+            Self::Substitute { substitution, .. } => substitution.receiver,
             Self::Replace { .. }
             | Self::SubstituteInfer { .. }
             | Self::EraseNoInfer
-            | Self::Normalize { .. } => None,
+            | Self::Normalize { .. }
+            | Self::Evaluate { .. }
+            | Self::Translate { .. } => None,
         }
     }
 
@@ -175,7 +220,9 @@ impl SubstitutionRule<'_> {
             Self::Substitute { .. }
             | Self::Replace { .. }
             | Self::EraseNoInfer
-            | Self::Normalize { .. } => None,
+            | Self::Normalize { .. }
+            | Self::Evaluate { .. }
+            | Self::Translate { .. } => None,
         }
     }
 }
@@ -184,22 +231,58 @@ impl CheckState<'_> {
     /// Substitute one type graph by replacing matching leaves.
     fn substitute_graph(
         &mut self,
-        target: ModuleId,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // flag every affected path once, then rebuild along the flags
-        let mut affected = FxIndexMap::default();
-        self.substitution_affects(id, rule, &mut affected)?;
-
-        // rebuild the requested root under every normalize pass
-        if matches!(rule, SubstitutionRule::Normalize { .. }) {
-            affected.insert(id, true);
-        }
-
         let mut substituting = FxIndexSet::default();
 
-        self.substitute_guarded(target, id, rule, &affected, &mut substituting)
+        self.substitute_guarded(id, rule, &mut substituting)
+    }
+
+    /// Return whether one head applies a written alias, which rows keep as written.
+    fn is_written_alias_head(&mut self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let symbol = match self.ty(id)? {
+            dir::Type::Application(application) => application.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
+            _ => return Ok(false),
+        };
+        let declared = self.definition(symbol)?;
+        let Some(dir::Definition::TypeAlias(alias)) = declared.as_deref() else {
+            return Ok(false);
+        };
+
+        Ok(!matches!(self.ty(alias.value)?, dir::Type::Intrinsic))
+    }
+
+    /// Return whether one type graph holds a leaf the rule rewrites, read off its flags.
+    fn rule_applies(
+        &self,
+        id: dir::GlobalTypeId,
+        rule: SubstitutionRule<'_>,
+    ) -> CompilerResult<bool> {
+        let flags = self.type_flags(id)?;
+        Ok(match rule {
+            SubstitutionRule::Substitute { .. } => {
+                flags.has_parameter() || flags.has_this() || flags.has_variable()
+            }
+            SubstitutionRule::Normalize { .. } => {
+                flags.has_member()
+                    || flags.has_operation()
+                    || flags.has_reference()
+                    || flags.has_variable()
+            }
+            SubstitutionRule::Evaluate { .. } => {
+                flags.has_parameter()
+                    || flags.has_this()
+                    || flags.has_variable()
+                    || flags.has_member()
+                    || flags.has_operation()
+            }
+            SubstitutionRule::Translate { .. }
+            | SubstitutionRule::Replace { .. }
+            | SubstitutionRule::SubstituteInfer { .. }
+            | SubstitutionRule::EraseNoInfer => true,
+        })
     }
 
     /// Return whether one substitution maps every parameter to itself.
@@ -244,27 +327,22 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // reuse one decided substitution of closed inputs
-        let mut hasher = FxHasher::default();
-        substitution.bindings.hash(&mut hasher);
-        let key = (id, substitution.receiver, hasher.finish());
+        // reuse the memoized result of a substitution of closed inputs
         let is_closed = !flags.has_variable() && self.is_closed_substitution(substitution)?;
-        if is_closed
-            && let Some((bindings, substituted)) = self.substitutions.get(&key)
-            && *bindings == substitution.bindings
-        {
-            return Ok(*substituted);
-        }
+        let key = is_closed.then(|| {
+            let identity = (substitution.receiver, substitution.bindings.clone());
 
-        // substitute the graph and store what it decided
-        let substituted = self.substitute_graph(
-            self.module_id,
-            id,
-            SubstitutionRule::Substitute { substitution },
-        )?;
-        if is_closed {
-            self.substitutions
-                .insert(key, (substitution.bindings.clone(), substituted));
+            self.substitution_keys.insert_full(identity).0 as u32
+        });
+        if let Some(key) = key
+            && let Some(known) = self.substituted.get(&(id, key))
+        {
+            return Ok(*known);
+        }
+        let substituted =
+            self.substitute_graph(id, SubstitutionRule::Substitute { substitution })?;
+        if let Some(key) = key {
+            self.substituted.insert((id, key), substituted);
         }
 
         Ok(substituted)
@@ -310,36 +388,47 @@ impl CheckState<'_> {
         let id = if implementation == base {
             id
         } else {
-            self.replace_type(self.module_id, id, base, implementation)?
+            self.replace_type(id, base, implementation)?
         };
 
         Ok(id)
     }
 
-    /// Evaluate one closed type graph, reducing every head that decides.
+    /// Normalize one type graph, reducing every closed head and keeping written alias
+    /// applications.
+    pub(in crate::sema) fn normalize_type(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.substitute_graph(id, SubstitutionRule::Normalize { origin })
+    }
+
+    /// Evaluate one type graph to the spelling lowering reads, reducing over rigid type
+    /// parameters and expanding written aliases.
     pub(in crate::sema) fn evaluate_type(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.substitute_graph(self.module_id, id, SubstitutionRule::Normalize { origin })
+        self.substitute_graph(id, SubstitutionRule::Evaluate { origin })
     }
 
     /// Translate the declared types into semantic types, normal by construction.
     pub(in crate::sema) fn translate_declared_types(&mut self) -> CompilerResult<()> {
-        // rebuild each declared symbol type over normalized heads
+        // rebuild each declared symbol type over normalized heads, a field row staying as written
         let module = self.module_id;
+        let fields = self.field_symbols();
         let symbol_types: Vec<_> = self
             .module
             .types
             .with_tail(&self.module.types_tail)
             .symbol_types()
-            .filter(|(symbol, _)| symbol.module_id == module)
+            .filter(|(symbol, _)| symbol.module_id == module && !fields.contains(symbol))
             .collect();
         for (symbol, ty) in symbol_types {
             let origin = Origin::Symbol(symbol);
-            let normal =
-                self.substitute_graph(module, ty, SubstitutionRule::Normalize { origin })?;
+            let normal = self.substitute_graph(ty, SubstitutionRule::Translate { origin })?;
             if normal != ty {
                 self.module.types_tail.set_symbol_type(symbol, normal);
             }
@@ -355,8 +444,7 @@ impl CheckState<'_> {
             .collect();
         for (node, ty) in node_types {
             let origin = Origin::Node(node, None);
-            let normal =
-                self.substitute_graph(module, ty, SubstitutionRule::Normalize { origin })?;
+            let normal = self.substitute_graph(ty, SubstitutionRule::Translate { origin })?;
             if normal != ty {
                 self.module.types_tail.set_node_type(node, normal);
             }
@@ -366,21 +454,12 @@ impl CheckState<'_> {
         let subjects: Vec<_> = self.module.iter_member_subjects().collect();
         for (site, mut subject, key) in subjects {
             let origin = Origin::Node(site.node(), subject.scope);
-            let receiver = self.substitute_graph(
-                module,
-                subject.receiver,
-                SubstitutionRule::Normalize { origin },
-            )?;
-            let target = self.substitute_graph(
-                module,
-                subject.target,
-                SubstitutionRule::Normalize { origin },
-            )?;
-            let key_type = self.substitute_graph(
-                module,
-                subject.key_source,
-                SubstitutionRule::Normalize { origin },
-            )?;
+            let receiver =
+                self.substitute_graph(subject.receiver, SubstitutionRule::Translate { origin })?;
+            let target =
+                self.substitute_graph(subject.target, SubstitutionRule::Translate { origin })?;
+            let key_type =
+                self.substitute_graph(subject.key_source, SubstitutionRule::Translate { origin })?;
 
             // commit the subject only when a head actually moved
             if receiver != subject.receiver
@@ -394,171 +473,15 @@ impl CheckState<'_> {
             }
         }
 
-        // rebuild each definition's stored roots the same way
-        let symbols: Vec<_> = self
-            .module
-            .iter_definitions()
-            .map(|(symbol, _)| symbol)
-            .collect();
-        for symbol in symbols {
-            let Some(source) = self.module.definition_source_maybe(symbol) else {
-                continue;
-            };
-            let Some(definition) = self.module.definition(symbol) else {
-                continue;
-            };
-
-            // re-point the definition's roots and store it back
-            let mut definition = definition.clone();
-            self.translate_definition(module, Origin::Symbol(symbol), &mut definition)?;
-            self.module
-                .definitions_tail
-                .insert_definition(symbol, source, definition);
-        }
-
-        Ok(())
-    }
-
-    /// Translate one declared definition's stored roots over normalized heads.
-    fn translate_definition(
-        &mut self,
-        module: ModuleId,
-        origin: Origin,
-        definition: &mut dir::Definition,
-    ) -> CompilerResult<()> {
-        // translate the types each definition holds
-        match definition {
-            // translate an alias's value
-            dir::Definition::TypeAlias(alias) => {
-                self.translate_root(module, origin, &mut alias.value)?;
-            }
-            // translate a struct's conformances and members
-            dir::Definition::Struct(nominal) => {
-                for conformance in &mut nominal.implements {
-                    self.translate_root(module, origin, &mut conformance.interface)?;
-                }
-
-                self.translate_members(module, origin, &mut nominal.members)?;
-            }
-            // translate a class's base, conformances, constructors, and members
-            dir::Definition::Class(nominal) => {
-                if let Some(heritage) = &mut nominal.extends {
-                    self.translate_root(module, origin, &mut heritage.ty)?;
-                }
-
-                for conformance in &mut nominal.implements {
-                    self.translate_root(module, origin, &mut conformance.interface)?;
-                }
-
-                for constructor in &mut nominal.constructors {
-                    self.translate_root(module, origin, &mut constructor.ty)?;
-                }
-
-                self.translate_members(module, origin, &mut nominal.members)?;
-            }
-            // translate an interface's bases and members
-            dir::Definition::Interface(nominal) => {
-                for heritage in &mut nominal.extends {
-                    self.translate_root(module, origin, &mut heritage.ty)?;
-                }
-
-                self.translate_members(module, origin, &mut nominal.members)?;
-            }
-            // translate an enum's conformances and members
-            dir::Definition::Enum(nominal) => {
-                for conformance in &mut nominal.implements {
-                    self.translate_root(module, origin, &mut conformance.interface)?;
-                }
-
-                self.translate_members(module, origin, &mut nominal.members)?;
-            }
-            // translate a newtype's backing, constructors, and members
-            dir::Definition::Newtype(nominal) => {
-                self.translate_root(module, origin, &mut nominal.backing)?;
-
-                for constructor in &mut nominal.constructors {
-                    self.translate_root(module, origin, &mut constructor.backing)?;
-                    self.translate_root(module, origin, &mut constructor.ty)?;
-                }
-
-                self.translate_members(module, origin, &mut nominal.members)?;
-            }
-            // translate an extension's target, conformances, and members
-            dir::Definition::Extension(extension) => {
-                let (dir::ExtensionTarget::Rooted { ty, .. }
-                | dir::ExtensionTarget::Blanket { ty, .. }) = &mut extension.target;
-                self.translate_root(module, origin, ty)?;
-
-                for conformance in &mut extension.implements {
-                    self.translate_root(module, origin, &mut conformance.interface)?;
-                }
-
-                self.translate_members(module, origin, &mut extension.members)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Translate the stored roots of one definition's members.
-    fn translate_members(
-        &mut self,
-        module: ModuleId,
-        origin: Origin,
-        members: &mut [dir::DefinitionMember],
-    ) -> CompilerResult<()> {
-        for member in members {
-            match member {
-                // skip the members whose types live on their own symbols
-                dir::DefinitionMember::Field(_)
-                | dir::DefinitionMember::Method(_)
-                | dir::DefinitionMember::AssociatedConst(_)
-                | dir::DefinitionMember::EnumVariant(_) => {}
-                // translate an associated type's constraint and value
-                dir::DefinitionMember::AssociatedType(member) => {
-                    if let Some(constraint) = &mut member.constraint {
-                        self.translate_root(module, origin, constraint)?;
-                    }
-
-                    if let Some(value) = &mut member.value {
-                        self.translate_root(module, origin, value)?;
-                    }
-                }
-                // translate a call or construct signature's type
-                dir::DefinitionMember::CallSignature(member)
-                | dir::DefinitionMember::ConstructSignature(member) => {
-                    self.translate_root(module, origin, &mut member.ty)?;
-                }
-                // translate an index signature's key and value types
-                dir::DefinitionMember::IndexSignature(member) => {
-                    self.translate_root(module, origin, &mut member.key_type)?;
-                    self.translate_root(module, origin, &mut member.value_type)?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Re-point one stored root at its normalized head.
-    fn translate_root(
-        &mut self,
-        module: ModuleId,
-        origin: Origin,
-        id: &mut dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        *id = self.substitute_graph(module, *id, SubstitutionRule::Normalize { origin })?;
-
         Ok(())
     }
 
     /// Remove inference barriers after candidate inference has closed.
     pub(in crate::sema) fn erase_inference_barriers(
         &mut self,
-        target: ModuleId,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.substitute_graph(target, id, SubstitutionRule::EraseNoInfer)
+        self.substitute_graph(id, SubstitutionRule::EraseNoInfer)
     }
 
     /// Remove the inference barriers of one contextual target whose variables closed.
@@ -572,7 +495,7 @@ impl CheckState<'_> {
                 return Ok(id);
             }
 
-            return self.erase_inference_barriers(id.module_id, id);
+            return self.erase_inference_barriers(id);
         }
 
         // reuse the decided erasure of a closed graph
@@ -581,7 +504,7 @@ impl CheckState<'_> {
         }
 
         // decide the erasure once
-        let erased = self.erase_inference_barriers(id.module_id, id)?;
+        let erased = self.erase_inference_barriers(id)?;
         self.erasures.insert(id, erased);
 
         Ok(erased)
@@ -640,14 +563,12 @@ impl CheckState<'_> {
         }
 
         // compare the arguments elementwise
-        let from_arguments = self
-            .type_ids(from.module_id, from_application.arguments)?
-            .to_vec();
-        let arguments = self.type_ids(id.module_id, application.arguments)?.to_vec();
+        let from_arguments = self.type_ids(from.module_id, from_application.arguments)?;
+        let arguments = self.type_ids(id.module_id, application.arguments)?;
         if from_arguments.len() != arguments.len() {
             return Ok(false);
         }
-        for (from_argument, argument) in from_arguments.iter().zip(&arguments) {
+        for (from_argument, argument) in from_arguments.iter().zip(arguments) {
             if from_argument == argument {
                 continue;
             }
@@ -666,21 +587,19 @@ impl CheckState<'_> {
     /// Replace one type id inside another type graph.
     pub(in crate::sema) fn replace_type(
         &mut self,
-        target: ModuleId,
         id: dir::GlobalTypeId,
         from: dir::GlobalTypeId,
         to: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let rule = SubstitutionRule::Replace { from, to };
 
-        self.substitute_graph(target, id, rule)
+        self.substitute_graph(id, rule)
     }
 
     /// Substitute conditional-infer captures inside one branch type.
     pub(in crate::sema) fn substitute_infer_captures(
         &mut self,
         origin: Option<Origin>,
-        target: ModuleId,
         id: dir::GlobalTypeId,
         captures: &[InferSubstitution],
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -688,115 +607,14 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        self.substitute_graph(
-            target,
-            id,
-            SubstitutionRule::SubstituteInfer { captures, origin },
-        )
-    }
-
-    /// Return whether one reachable id contains a leaf the substitution replaces.
-    fn substitution_affects(
-        &mut self,
-        id: dir::GlobalTypeId,
-        rule: SubstitutionRule<'_>,
-        affected: &mut FxIndexMap<dir::GlobalTypeId, bool>,
-    ) -> CompilerResult<bool> {
-        // reuse flagged ids and break cycles
-        if let Some(known) = affected.get(&id) {
-            return Ok(*known);
-        }
-        affected.insert(id, false);
-
-        // decide leaves directly and inherit composites from their children
-        let ty = self.ty_raw(id)?;
-        let hit = match (ty, rule) {
-            // hit every member or elided application a normalize pass rebuilds
-            _ if matches!(rule, SubstitutionRule::Normalize { .. }) => match ty {
-                // follow a variable to its solution
-                dir::Type::Variable(variable) => match self.infer.solution(variable)? {
-                    Some(solution) => self.substitution_affects(solution, rule, affected)?,
-                    None => false,
-                },
-                ty => {
-                    let mut hit = match &ty {
-                        dir::Type::Member(_) => true,
-                        dir::Type::Application(application) => {
-                            self.language_item(application.symbol)?
-                                .is_some_and(crate::sema::language::is_type_computation)
-                                || self.is_partial_application(id.module_id, application)?
-                        }
-                        _ => false,
-                    };
-                    let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-                    self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
-                    for child in children {
-                        hit |= self.substitution_affects(child, rule, affected)?;
-                    }
-
-                    hit
-                }
-            },
-            // hit a replace pass's own source id or an equal application
-            _ if matches!(rule, SubstitutionRule::Replace { from, .. }
-                if from == id || self.replaces_application(from, id)?) =>
-            {
-                true
-            }
-            // hit a bare reference to a conditional-infer binder
-            (dir::Type::Application(instance), _)
-                if instance.arguments.is_empty()
-                    && rule.infer_capture(instance.symbol).is_some() =>
-            {
-                true
-            }
-            // hit a direct conditional-infer binder
-            (dir::Type::Operation(operation), _)
-                if let dir::TypeOperation::Infer(dir::InferType {
-                    symbol: Some(symbol),
-                    ..
-                }) = self.type_operation(id.module_id, operation)?
-                    && rule.infer_capture(symbol).is_some() =>
-            {
-                true
-            }
-            // hit a bound generic parameter
-            (dir::Type::Parameter(parameter), SubstitutionRule::Substitute { .. }) => {
-                rule.substituted(parameter).is_some()
-            }
-            // hit a receiver reference under a receiver rewrite
-            (dir::Type::This, SubstitutionRule::Substitute { .. }) => rule.receiver().is_some(),
-            // follow a variable to its solution
-            (dir::Type::Variable(variable), _) => match self.infer.solution(variable)? {
-                Some(solution) => self.substitution_affects(solution, rule, affected)?,
-                None => false,
-            },
-            // hit an inference barrier under an erasing pass
-            (_, SubstitutionRule::EraseNoInfer) if self.no_infer_target(id)?.is_some() => true,
-            // inherit every other head from its children
-            _ => {
-                let mut hit = false;
-                let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-                self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
-                for child in children {
-                    hit |= self.substitution_affects(child, rule, affected)?;
-                }
-
-                hit
-            }
-        };
-        affected.insert(id, hit);
-
-        Ok(hit)
+        self.substitute_graph(id, SubstitutionRule::SubstituteInfer { captures, origin })
     }
 
     /// Substitute one type with the active path tracked.
     fn substitute_guarded(
         &mut self,
-        target: ModuleId,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
-        affected: &FxIndexMap<dir::GlobalTypeId, bool>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // break substitution cycles conservatively
@@ -805,9 +623,7 @@ impl CheckState<'_> {
         }
 
         // hold this id on the active path across the rebuild
-        let substituted = ensure_sufficient_stack(|| {
-            self.substitute_id(target, id, rule, affected, substituting)
-        });
+        let substituted = ensure_sufficient_stack(|| self.substitute_id(id, rule, substituting));
         substituting.swap_remove(&id);
 
         substituted
@@ -816,10 +632,8 @@ impl CheckState<'_> {
     /// Substitute one type id once the cycle guard passes it.
     fn substitute_id(
         &mut self,
-        target: ModuleId,
         id: dir::GlobalTypeId,
         rule: SubstitutionRule<'_>,
-        affected: &FxIndexMap<dir::GlobalTypeId, bool>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // replace one matched type id or an equal application
@@ -838,16 +652,16 @@ impl CheckState<'_> {
         // substitute through a solved variable
         if let Some(variable) = variable {
             return match self.infer.solution(variable)? {
-                // substitute through the solution, which flags apart from its variable entry
-                Some(solution) => {
-                    let mut affected = FxIndexMap::default();
-                    self.substitution_affects(solution, rule, &mut affected)?;
-
-                    self.substitute_guarded(target, solution, rule, &affected, substituting)
-                }
+                // substitute through the solution
+                Some(solution) => self.substitute_guarded(solution, rule, substituting),
                 // keep an open root as it stands
                 None => Ok(id),
             };
+        }
+
+        // preserve every graph without a leaf the rule rewrites
+        if !self.rule_applies(id, rule)? {
+            return Ok(id);
         }
 
         // substitute one conditional-infer binder reference
@@ -869,15 +683,10 @@ impl CheckState<'_> {
         }
 
         // substitute one generic parameter reference
-        if let dir::Type::Parameter(parameter) = self.ty(id)? {
-            if let Some(replacement) = rule.substituted(parameter) {
-                return Ok(replacement);
-            }
-
-            // leave an unbound parameter in place under a substitution
-            if matches!(rule, SubstitutionRule::Substitute { .. }) {
-                return Ok(id);
-            }
+        if let dir::Type::Parameter(parameter) = self.ty(id)?
+            && let Some(replacement) = rule.substituted(parameter)
+        {
+            return Ok(replacement);
         }
 
         // substitute one qualified receiver reference
@@ -891,29 +700,24 @@ impl CheckState<'_> {
         if matches!(rule, SubstitutionRule::EraseNoInfer)
             && let Some(target_id) = self.no_infer_target(id)?
         {
-            return self.substitute_guarded(target, target_id, rule, affected, substituting);
+            return self.substitute_guarded(target_id, rule, substituting);
         }
 
-        // preserve every graph without a requested substitution
-        if !affected.get(&id).copied().unwrap_or(false) {
-            return Ok(id);
-        }
-
-        // read type records from their owner and intern the result in the target module
+        // read type records from their owner and intern the result in the checked module
         let ty = self.ty(id)?;
-        let substituted =
-            self.substitute_children(id.module_id, target, ty, rule, affected, substituting)?;
+        let substituted = self.substitute_children(id.module_id, ty, rule, substituting)?;
 
         // rebuild set constructors through their normalizing builders
         let rebuilt = match substituted {
             dir::Type::Union(union) => {
-                let elements: SmallVec<[_; 8]> = self.type_ids(target, union.elements)?.into();
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(self.module_id, union.elements)?.into();
 
                 self.normalized_union_type(elements)
             }
             dir::Type::Intersection(intersection) => {
                 let elements: SmallVec<[_; 8]> =
-                    self.type_ids(target, intersection.elements)?.into();
+                    self.type_ids(self.module_id, intersection.elements)?.into();
 
                 self.normalized_intersection_type(elements)
             }
@@ -921,12 +725,7 @@ impl CheckState<'_> {
         }?;
 
         // normalize the rebuilt entry under a normalizing rule
-        if let SubstitutionRule::Normalize { origin }
-        | SubstitutionRule::SubstituteInfer {
-            origin: Some(origin),
-            ..
-        } = rule
-        {
+        if let Some(origin) = rule.normalizing_origin() {
             // complete an elided application even under rigid arguments
             if let dir::Type::Application(application) = self.ty(rebuilt)?
                 && let Some(filled) =
@@ -935,12 +734,17 @@ impl CheckState<'_> {
                 return Ok(filled);
             }
 
-            // normalize once every parameter, this, and variable the entry holds is closed
+            // keep a written alias application as written under every rule but evaluation
+            let evaluates = rule.evaluates();
+            if !evaluates && self.is_written_alias_head(rebuilt)? {
+                return Ok(rebuilt);
+            }
+
+            // normalize once every this and variable the entry holds is closed, a rigid type
+            // parameter reducing under evaluation alone
             let flags = self.type_flags(rebuilt)?;
-            if !flags.has_this()
-                && !flags.has_variable()
-                && (!flags.has_parameter() || !self.has_open_parameter(rebuilt)?)
-            {
+            let is_open = flags.has_this() || flags.has_type_parameter() && !evaluates;
+            if !is_open && !flags.has_variable() {
                 return self.normalize(origin, rebuilt);
             }
         }
@@ -952,14 +756,33 @@ impl CheckState<'_> {
     fn substitute_children(
         &mut self,
         source: ModuleId,
-        target: ModuleId,
         ty: dir::Type,
         rule: SubstitutionRule<'_>,
-        affected: &FxIndexMap<dir::GlobalTypeId, bool>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::Type> {
+        // substitute a conditional's checked types under the rule and its branches suspended
+        if let dir::Type::Operation(operation) = ty
+            && let dir::TypeOperation::Conditional(mut conditional) =
+                self.type_operation(source, operation)?
+        {
+            conditional.left = self.substitute_guarded(conditional.left, rule, substituting)?;
+            conditional.right = self.substitute_guarded(conditional.right, rule, substituting)?;
+            if let Some(suspended) = rule.suspended() {
+                conditional.then_type =
+                    self.substitute_guarded(conditional.then_type, suspended, substituting)?;
+                conditional.else_type =
+                    self.substitute_guarded(conditional.else_type, suspended, substituting)?;
+            }
+            let operation = self
+                .module
+                .types_tail
+                .intern_operation(dir::TypeOperation::Conditional(conditional));
+
+            return Ok(dir::Type::Operation(operation));
+        }
+
         self.map_type_children(source, ty, &mut |state, child| {
-            state.substitute_guarded(target, child, rule, affected, substituting)
+            state.substitute_guarded(child, rule, substituting)
         })
     }
 }

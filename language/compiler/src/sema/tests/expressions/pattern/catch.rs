@@ -61,7 +61,7 @@ function read(value: Result<int32, Cancelled>): int32 {
     try {
         value?
         /// @resolution.name source=value target=read.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=read.value
         /// @resolution.residual source=value? target=try residual=TryResidual<Result<int32, Cancelled>> branch="branch(parameters=(), arguments=(), return=ControlFlow<Cancelled, int32>)"
         /// @generic.instantiation id="branch<int32, Cancelled>" template=branch arguments=(int32, Cancelled)
@@ -148,14 +148,14 @@ try {
     /// @type.node source="code satisfies int32" type=int32
     /// @type.node source=code type=int32
     /// @resolution.name source=code target=code
-    /// @resolution.place source=code placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=code placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=code root=code
 
     message satisfies string;
     /// @type.node source="message satisfies string" type=string
     /// @type.node source=message type=string
     /// @resolution.name source=message target=message
-    /// @resolution.place source=message placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=message placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=message root=message
 
 }
@@ -291,9 +291,9 @@ try {
     /// @type.node source=error.message type=string
     /// @resolution.name source=error target=error
     /// @resolution.member source=error.message receiver=TryResidual<Result<string, { message: string }>> type=string kind=field target_receiver=TryResidual<Result<string, { message: string }>> key=message target_type=string
-    /// @resolution.place source=error placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=error placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=error root=error
-    /// @resolution.place source=error.message placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=error.message placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=error.message root=error keys=[message]
 
 }

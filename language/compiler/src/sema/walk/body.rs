@@ -54,8 +54,8 @@ impl WalkState<'_, '_> {
             // walk class members under a managed receiver
             dir::Declaration::Class(class) => {
                 // declare a body-local class before walking its members
-                let Some(dir::Definition::Class(declared)) = self.check.definition_maybe(symbol)
-                else {
+                let definition = self.check.definition(symbol)?;
+                let Some(dir::Definition::Class(declared)) = definition.as_deref() else {
                     return Ok(false);
                 };
                 let super_ty = declared.extends.as_ref().map(|heritage| heritage.ty);
@@ -81,44 +81,44 @@ impl WalkState<'_, '_> {
                 // members assume the interface template's own predicates
                 let source = id.into_global_any(self.module);
                 let template = self.check.template_by_source(source);
-                let _scope = self.enter_template_scope(template);
+                self.with_template_scope(template, |walk| {
+                    for member in &declaration.members {
+                        if !walk.walk_decorators(member.into_any())? {
+                            continue;
+                        }
 
-                for member in &declaration.members {
-                    if !self.walk_decorators(member.into_any())? {
-                        continue;
-                    }
+                        // walk parameters retained by the declared signature
+                        match walk.tree.get(*member).clone() {
+                            dir::TypeMember::Method {
+                                signature, body, ..
+                            } => {
+                                walk.walk_parameter_decorators(
+                                    signature.this_parameter,
+                                    &signature.parameters,
+                                )?;
 
-                    // walk parameters retained by the declared signature
-                    match self.tree.get(*member).clone() {
-                        dir::TypeMember::Method {
-                            signature, body, ..
-                        } => {
-                            self.walk_parameter_decorators(
-                                signature.this_parameter,
-                                &signature.parameters,
-                            )?;
-
-                            // check default bodies against their declared signatures
-                            if let Some(body) = body {
-                                self.walk_declared_default_body(*member, &signature, body)?;
+                                // check default bodies against their declared signatures
+                                if let Some(body) = body {
+                                    walk.walk_declared_default_body(*member, &signature, body)?;
+                                }
                             }
+                            dir::TypeMember::CallSignature { signature } => walk
+                                .walk_parameter_decorators(
+                                    signature.this_parameter,
+                                    &signature.parameters,
+                                )?,
+                            dir::TypeMember::ConstructSignature { signature } => {
+                                walk.walk_parameter_decorators(None, &signature.parameters)?
+                            }
+                            _ => {}
                         }
-                        dir::TypeMember::CallSignature { signature } => self
-                            .walk_parameter_decorators(
-                                signature.this_parameter,
-                                &signature.parameters,
-                            )?,
-                        dir::TypeMember::ConstructSignature { signature } => {
-                            self.walk_parameter_decorators(None, &signature.parameters)?
-                        }
-                        _ => {}
                     }
-                }
 
-                // queue interface obligations
-                let _source = id.into_global_any(self.module);
+                    // queue interface obligations
+                    let _source = id.into_global_any(walk.module);
 
-                Ok(true)
+                    Ok(true)
+                })
             }
             // walk struct members under an owned receiver
             dir::Declaration::Struct(declaration) => {
@@ -143,9 +143,8 @@ impl WalkState<'_, '_> {
             }
             // take the extension receiver from the declared target type
             dir::Declaration::Extension(extension) => {
-                let Some(dir::Definition::Extension(definition)) =
-                    self.check.definition_maybe(symbol)
-                else {
+                let declared = self.check.definition(symbol)?;
+                let Some(dir::Definition::Extension(definition)) = declared.as_deref() else {
                     return Ok(false);
                 };
                 let target_type = definition.target.r#type();
@@ -165,7 +164,7 @@ impl WalkState<'_, '_> {
             // aliases carry no bodies, nominal values check parameter use
             dir::Declaration::Type(declaration) => {
                 // declare a body-local type before answering for it
-                if self.check.definition_maybe(symbol).is_none() {
+                if self.check.definition(symbol)?.is_none() {
                     return Ok(false);
                 }
                 if declaration.is_nominal {
@@ -244,55 +243,57 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         // enter the declaration's template and receiver scopes
         let template = self.check.symbol_template(symbol)?;
-        let _scope = self.enter_template_scope(template);
-        let _receiver = self.enter_receiver_scope(Some(receiver));
+        self.with_template_scope(template, |walk| {
+            walk.with_receiver_scope(Some(receiver), |walk| {
+                // walk each member body
+                for member in members {
+                    // walk member decorators before its parameters and body
+                    if !walk.walk_decorators(member.into_any())? {
+                        continue;
+                    }
 
-        // walk each member body
-        for member in members {
-            // walk member decorators before its parameters and body
-            if !self.walk_decorators(member.into_any())? {
-                continue;
-            }
+                    // validate annotated field defaults against their declared types
+                    if let dir::Member::Field {
+                        declared_type: Some(annotation),
+                        default: Some(default),
+                        ..
+                    } = walk.tree.get(*member)
+                    {
+                        let (annotation, default) = (*annotation, *default);
+                        let field_symbol = walk.declared_symbol(member.into_any());
+                        if let Some(field_symbol) = field_symbol
+                            && let Some(field_type) =
+                                walk.check.adopt_symbol_type_maybe(field_symbol)?
+                        {
+                            let before_default = walk.fork_flow();
+                            walk.walk_expression(default, walk.tree.get(default))?;
+                            walk.check_assignable(
+                                default,
+                                field_type,
+                                CauseKind::Initializer {
+                                    annotation: Some(annotation.into_global_any(walk.module)),
+                                },
+                                ValueUse::Store,
+                            )?;
+                            walk.restore_flow(before_default);
+                        }
+                    }
 
-            // validate annotated field defaults against their declared types
-            if let dir::Member::Field {
-                declared_type: Some(annotation),
-                default: Some(default),
-                ..
-            } = self.tree.get(*member)
-            {
-                let (annotation, default) = (*annotation, *default);
-                let field_symbol = self.declared_symbol(member.into_any());
-                if let Some(field_symbol) = field_symbol
-                    && let Some(field_type) = self.check.adopt_symbol_type_maybe(field_symbol)?
-                {
-                    let before_default = self.fork_flow();
-                    self.walk_expression(default, self.tree.get(default))?;
-                    self.check_assignable(
-                        default,
-                        field_type,
-                        CauseKind::Initializer {
-                            annotation: Some(annotation.into_global_any(self.module)),
-                        },
-                        ValueUse::Store,
+                    // walk the method body against its declared signature
+                    let body =
+                        walk.declared_method_body(*member, walk.tree.get(*member), Some(receiver))?;
+                    walk.walk_member_body(
+                        *member,
+                        walk.tree.get(*member),
+                        Some(receiver),
+                        is_ambient,
+                        body,
                     )?;
-                    self.restore_flow(before_default);
                 }
-            }
 
-            // walk the method body against its declared signature
-            let body =
-                self.declared_method_body(*member, self.tree.get(*member), Some(receiver))?;
-            self.walk_member_body(
-                *member,
-                self.tree.get(*member),
-                Some(receiver),
-                is_ambient,
-                body,
-            )?;
-        }
-
-        Ok(())
+                Ok(())
+            })
+        })
     }
 
     /// Require one concrete declaration to initialize its fields.

@@ -343,7 +343,7 @@ impl WalkState<'_, '_> {
                     .commit_name(global_source, dir::NameResolution::new(symbol))?;
 
                 // const parameters write their parameter type
-                if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
+                if let Some(parameter) = self.check.parameter_by_symbol(symbol)? {
                     // declared value reads pin the parameter to one exact value
                     if !self.is_body && parameter.module_id == self.module {
                         let cardinality = dir::Cardinality::One {
@@ -366,7 +366,7 @@ impl WalkState<'_, '_> {
                     return self.commit_node_type(expression, ty);
                 }
 
-                if let Some(value) = self.check.static_value(symbol) {
+                if let Some(value) = self.check.static_value(symbol)? {
                     return self.commit_node_type(expression, value);
                 }
 
@@ -493,7 +493,7 @@ impl WalkState<'_, '_> {
                     let ty = self.check.normalize_computation(origin, ty)?;
                     let term = match self.check.ty(ty)? {
                         dir::Type::Literal(value) => dir::StaticTerm::Literal { value },
-                        dir::Type::Static(value) => self.check.r#static(value).clone(),
+                        dir::Type::Static(value) => self.check.r#static(value)?.clone(),
                         _ => {
                             self.check
                                 .report_undecidable_static_value(self.module, source);

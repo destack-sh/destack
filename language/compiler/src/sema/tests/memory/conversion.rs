@@ -72,15 +72,15 @@ const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="borrowed"
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
-/// @resolution.call source=select(user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "readonly">) return="borrowed" kind=symbol target=select#1
+/// @resolution.call source=select(user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "readonly">) return="borrowed" regions=("managed" & "local") kind=symbol target=select#1
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=local User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
 selected satisfies "borrowed";
 /// @resolution.name source=selected target=selected
-/// @resolution.place source=selected placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=selected placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=selected root=selected
 "#,
         r#"
@@ -162,15 +162,15 @@ const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="readonly"
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
-/// @resolution.call source=select(user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "readonly">) return="readonly" kind=symbol target=select#1
+/// @resolution.call source=select(user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "readonly">) return="readonly" regions=("managed" & "local") kind=symbol target=select#1
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=local User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
 selected satisfies "readonly";
 /// @resolution.name source=selected target=selected
-/// @resolution.place source=selected placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=selected placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=selected root=selected
 "#,
         r#"
@@ -251,14 +251,14 @@ const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="readonly"
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
-/// @resolution.call source=select(user) parameters=(&'static readonly constant User) arguments=(provided(user) as &'static readonly constant User) return="readonly" kind=symbol target=select#1
+/// @resolution.call source=select(user) parameters=(&'static readonly constant User) arguments=(provided(user) as &'static readonly constant User) return="readonly" regions=("static" & "constant") kind=symbol target=select#1
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="constant" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
 
 selected satisfies "readonly";
 /// @resolution.name source=selected target=selected
-/// @resolution.place source=selected placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=selected placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=selected root=selected
 "#,
         r#"
@@ -267,14 +267,14 @@ selected satisfies "readonly";
 }
 
 #[test]
-fn test_coerce_local_managed_value_to_readonly_mutable_and_exclusive_borrows() {
+fn test_coerce_a_local_managed_value_to_readonly_and_mutable_borrows() {
     let session = TestSession::single(
         r#"
 class User {}
 
 declare function inspect(value: &readonly User): void;
 declare function modify(value: &User): void;
-declare function replace(value: &exclusive User): void;
+declare function replace(value: &User): void;
 
 const user: User = new User();
 
@@ -293,13 +293,13 @@ class User {}
 
 declare function inspect<'a>(value: &'a readonly User): void;
 declare function modify<'a>(value: &'a User): void;
-declare function replace<'a>(value: &'a exclusive User): void;
+declare function replace<'a>(value: &'a User): void;
 
 const user: User = new User();
 
 inspect(user as &'managed readonly User);
 modify(user as &'managed User);
-replace(user as &'managed exclusive User);
+replace(user as &'managed User);
 
 === dir ===
 class User {}
@@ -318,10 +318,10 @@ declare function modify(value: &User): void;
 /// @type.symbol symbol=modify.value source="value: &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
-declare function replace(value: &exclusive User): void;
+declare function replace(value: &User): void;
 /// @generic.template symbol=replace parameters=('a)
-/// @type.symbol symbol=replace source="declare function replace(value: &exclusive User): void" type=<replace.'a>(&replace.'a exclusive User) => void
-/// @type.symbol symbol=replace.value source="value: &exclusive User" type=&replace.'a exclusive User
+/// @type.symbol symbol=replace source="declare function replace(value: &User): void" type=<replace.'a>(&replace.'a User) => void
+/// @type.symbol symbol=replace.value source="value: &User" type=&replace.'a User
 /// @resolution.name source=User target=User
 
 const user: User = new User();
@@ -333,40 +333,40 @@ const user: User = new User();
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "mutable">) return=void kind=symbol target=modify
+/// @resolution.call source=modify(user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "mutable">) return=void regions=("managed" & "local") kind=symbol target=modify
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "mutable"> }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(Borrowed<User, "managed" & "local", "exclusive">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "exclusive">) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "mutable">) return=void regions=("managed" & "local") kind=symbol target=replace
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "exclusive"> }] origin=implicit
+/// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "mutable"> }] origin=implicit
 "#,
     );
 }
 
 #[test]
-fn test_coerce_local_owned_value_to_readonly_mutable_and_exclusive_borrows() {
+fn test_coerce_a_local_owned_value_to_readonly_and_mutable_borrows() {
     let session = TestSession::single(
         r#"
 class User {}
 
 declare function inspect(value: local &readonly User): void;
 declare function modify(value: local &User): void;
-declare function replace(value: local &exclusive User): void;
+declare function replace(value: local &User): void;
 
 declare let user: ^User;
 
@@ -385,13 +385,13 @@ class User {}
 
 declare function inspect<'a>(value: &'a readonly User): void;
 declare function modify<'a>(value: &'a User): void;
-declare function replace<'a>(value: &'a exclusive User): void;
+declare function replace<'a>(value: &'a User): void;
 
 declare let user: ^User;
 
 inspect(user as &'static readonly User);
 modify(user as &'static User);
-replace(user as &'static exclusive User);
+replace(user as &'static User);
 
 === dir ===
 class User {}
@@ -410,10 +410,10 @@ declare function modify(value: local &User): void;
 /// @type.symbol symbol=modify.value source="value: local &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
-declare function replace(value: local &exclusive User): void;
+declare function replace(value: local &User): void;
 /// @generic.template symbol=replace parameters=('a)
-/// @type.symbol symbol=replace source="declare function replace(value: local &exclusive User): void" type=<replace.'a>(&replace.'a exclusive User) => void
-/// @type.symbol symbol=replace.value source="value: local &exclusive User" type=&replace.'a exclusive User
+/// @type.symbol symbol=replace source="declare function replace(value: local &User): void" type=<replace.'a>(&replace.'a User) => void
+/// @type.symbol symbol=replace.value source="value: local &User" type=&replace.'a User
 /// @resolution.name source=User target=User
 
 declare let user: ^User;
@@ -423,27 +423,27 @@ declare let user: ^User;
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void regions=("static") kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void kind=symbol target=modify
+/// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void regions=("static") kind=symbol target=modify
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static User }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(&'static exclusive User) arguments=(provided(user) as &'static exclusive User) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void regions=("static") kind=symbol target=replace
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static exclusive User }] origin=implicit
+/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static User }] origin=implicit
 "#,
     );
 }
@@ -491,7 +491,7 @@ declare const user: local readonly User;
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=user root=user
@@ -501,13 +501,13 @@ inspect(user);
 }
 
 #[test]
-fn test_reject_mutable_and_exclusive_borrows_from_readonly_managed_value() {
+fn test_reject_mutable_borrows_from_a_readonly_managed_value() {
     let session = TestSession::single(
         r#"
 class User {}
 
 declare function modify(value: local &User): void;
-declare function replace(value: local &exclusive User): void;
+declare function replace(value: local &User): void;
 declare const user: local readonly User;
 
 modify(user);
@@ -523,7 +523,7 @@ replace(user);
 class User {}
 
 declare function modify<'a>(value: &'a User): void;
-declare function replace<'a>(value: &'a exclusive User): void;
+declare function replace<'a>(value: &'a User): void;
 declare const user: readonly local User;
 
 modify(user);
@@ -540,10 +540,10 @@ declare function modify(value: local &User): void;
 /// @type.symbol symbol=modify.value source="value: local &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
-declare function replace(value: local &exclusive User): void;
+declare function replace(value: local &User): void;
 /// @generic.template symbol=replace parameters=('a)
-/// @type.symbol symbol=replace source="declare function replace(value: local &exclusive User): void" type=<replace.'a>(&replace.'a exclusive User) => void
-/// @type.symbol symbol=replace.value source="value: local &exclusive User" type=&replace.'a exclusive User
+/// @type.symbol symbol=replace source="declare function replace(value: local &User): void" type=<replace.'a>(&replace.'a User) => void
+/// @type.symbol symbol=replace.value source="value: local &User" type=&replace.'a User
 /// @resolution.name source=User target=User
 
 declare const user: local readonly User;
@@ -553,14 +553,14 @@ declare const user: local readonly User;
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "mutable">) return=void kind=symbol target=modify
+/// @resolution.call source=modify(user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "mutable">) return=void regions=("managed") kind=symbol target=modify
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=user root=user
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(Borrowed<User, "managed" & "local", "exclusive">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "exclusive">) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "local", "mutable">) return=void regions=("managed") kind=symbol target=replace
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=user root=user
@@ -569,7 +569,7 @@ replace(user);
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'readonly local User' is not assignable to parameter of type '&local User'"
 /// @diagnostic.label line=8 column=8 span="user" line_source="modify(user);"
 /// @diagnostic.related line=8 column=1 span="modify(user)" line_source="modify(user);" message="in this call"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'readonly local User' is not assignable to parameter of type '&exclusive local User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'readonly local User' is not assignable to parameter of type '&local User'"
 /// @diagnostic.label line=9 column=9 span="user" line_source="replace(user);"
 /// @diagnostic.related line=9 column=1 span="replace(user)" line_source="replace(user);" message="in this call"
 "#,
@@ -604,7 +604,7 @@ type ManagedCell = Managed<Cell>;
 
 declare function inspect<'a>(value: &'a readonly Cell): void;
 declare const explicit: local Cell;
-declare const alias: local Cell;
+declare const alias: ManagedCell;
 
 inspect(explicit as &'managed readonly Cell);
 inspect(alias as &'managed readonly Cell);
@@ -633,25 +633,25 @@ declare const explicit: Managed<Cell>;
 /// @resolution.name source=Cell target=Cell
 
 declare const alias: ManagedCell;
-/// @type.symbol symbol=alias source=alias type=local Cell
+/// @type.symbol symbol=alias source=alias type=ManagedCell
 /// @resolution.pattern source=alias kind=binding target=alias
 /// @resolution.name source=ManagedCell target=ManagedCell
 
 inspect(explicit);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(explicit) parameters=(Borrowed<Cell, "managed" & "local", "readonly">) arguments=(provided(explicit) as Borrowed<Cell, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(explicit) parameters=(Borrowed<Cell, "managed" & "local", "readonly">) arguments=(provided(explicit) as Borrowed<Cell, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=explicit target=explicit
-/// @resolution.place source=explicit placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=explicit placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=explicit root=explicit
 /// @coercion.node source=explicit from=local Cell adjustments=[{ kind: borrow, target: Borrowed<Cell, "managed" & "local", "readonly"> }] origin=implicit
 
 inspect(alias);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(alias) parameters=(Borrowed<Cell, "managed" & "local", "readonly">) arguments=(provided(alias) as Borrowed<Cell, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(alias) parameters=(Borrowed<Cell, "managed" & "local", "readonly">) arguments=(provided(alias) as Borrowed<Cell, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=alias target=alias
-/// @resolution.place source=alias placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=alias placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=alias root=alias
-/// @coercion.node source=alias from=local Cell adjustments=[{ kind: borrow, target: Borrowed<Cell, "managed" & "local", "readonly"> }] origin=implicit
+/// @coercion.node source=alias from=ManagedCell adjustments=[{ kind: borrow, target: Borrowed<Cell, "managed" & "local", "readonly"> }] origin=implicit
 "#,
         r#"
 
@@ -712,9 +712,9 @@ declare const cell: ManagedCellId;
 
 inspect(cell);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(cell) parameters=(Borrowed<ManagedCellId, "managed" & "local", "readonly">) arguments=(provided(cell) as Borrowed<ManagedCellId, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(cell) parameters=(Borrowed<ManagedCellId, "managed" & "local", "readonly">) arguments=(provided(cell) as Borrowed<ManagedCellId, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=cell target=cell
-/// @resolution.place source=cell placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=cell placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=cell root=cell
 /// @coercion.node source=cell from=ManagedCellId adjustments=[{ kind: borrow, target: Borrowed<ManagedCellId, "managed" & "local", "readonly"> }] origin=implicit
 "#,
@@ -778,15 +778,15 @@ declare const readonlyCell: local readonly Managed<Cell>;
 
 inspect(localCell);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(localCell) parameters=(Borrowed<Cell, "managed" & "local", "readonly">) arguments=(provided(localCell) as Borrowed<Cell, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(localCell) parameters=(Borrowed<Cell, "managed" & "local", "readonly">) arguments=(provided(localCell) as Borrowed<Cell, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=localCell target=localCell
-/// @resolution.place source=localCell placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localCell placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localCell root=localCell
 /// @coercion.node source=localCell from=local Cell adjustments=[{ kind: borrow, target: Borrowed<Cell, "managed" & "local", "readonly"> }] origin=implicit
 
 inspect(readonlyCell);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(readonlyCell) parameters=(Borrowed<Cell, "managed" & "local", "readonly">) arguments=(provided(readonlyCell) as Borrowed<Cell, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(readonlyCell) parameters=(Borrowed<Cell, "managed" & "local", "readonly">) arguments=(provided(readonlyCell) as Borrowed<Cell, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=readonlyCell target=readonlyCell
 /// @resolution.place source=readonlyCell placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=readonlyCell root=readonlyCell
@@ -867,20 +867,6 @@ struct Box<T> {
 
 class State {
 /// @type.symbol symbol=State type=State
-/// @generic.instance id="initAsPointer<User, \"exclusive\">" template=initAsPointer arguments=(User, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<User>) => Raw<User>)
-/// @generic.instance id=Array<User> template=Array arguments=(User)
-/// @generic.instance id=Box<User> template=Box arguments=(User)
-/// @generic.instance id=MaybeUninit<MaybeUninit<User>> template=MaybeUninit arguments=(MaybeUninit<User>)
-/// @generic.instance id=MaybeUninit<User> template=MaybeUninit arguments=(User)
-/// @generic.instance id=assumeInitDrop#1<User> template=assumeInitDrop#1 arguments=(User)
-/// @generic.instance id=assumeInitDrop<User> template=assumeInitDrop arguments=(User) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<User>) => Raw<User>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<User>)
-/// @generic.instance id=clear<User> template=clear arguments=(User)
-/// @generic.instance id=drop<User> template=drop arguments=(User)
-/// @generic.instance id=dropInPlace<User> template=dropInPlace arguments=(User)
-/// @generic.instance id=new<MaybeUninit<User>> template=new arguments=(MaybeUninit<User>)
-/// @generic.instance id=sliceAssumeInit<MaybeUninit<User>> template=sliceAssumeInit arguments=(MaybeUninit<User>)
-/// @generic.instance id=sliceUninit<MaybeUninit<User>> template=sliceUninit arguments=(MaybeUninit<User>)
-/// @generic.instance id=truncate<User> template=truncate arguments=(User) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<User>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive User[], usize) => &truncate.'a exclusive MaybeUninit<User>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive User[])
 /// @definition.class symbol=State
 /// @definition.field symbol=State.boxed source="boxed: Box<User> = Box { value: new User() }" key=boxed type=Box<User>
 /// @definition.field symbol=State.user source="user: User = new User()" key=user type=User
@@ -894,6 +880,7 @@ class State {
 
     boxed: Box<User> = Box { value: new User() };
     /// @type.symbol symbol=State.boxed source="boxed: Box<User> = Box { value: new User() }" type=Box<User>
+    /// @generic.instance id=Box<User> template=Box arguments=(User)
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=User target=User
     /// @resolution.name source=Box target=Box
@@ -902,12 +889,21 @@ class State {
 
     users: User[] = [];
     /// @type.symbol symbol=State.users source="users: User[] = []" type=User[]
+    /// @generic.instance id="initAsPointer<User, \"mutable\">" template=initAsPointer arguments=(User, "mutable")
+    /// @generic.instance id=Array<User> template=Array arguments=(User)
+    /// @generic.instance id=assumeInitDrop#1<User> template=assumeInitDrop#1 arguments=(User)
+    /// @generic.instance id=assumeInitDrop<User> template=assumeInitDrop arguments=(User)
+    /// @generic.instance id=clear<User> template=clear arguments=(User)
+    /// @generic.instance id=drop<User> template=drop arguments=(User)
+    /// @generic.instance id=dropInPlace<User> template=dropInPlace arguments=(User)
+    /// @generic.instance id=sliceAssumeInit<MaybeUninit<User>> template=sliceAssumeInit arguments=(MaybeUninit<User>)
+    /// @generic.instance id=sliceUninit<MaybeUninit<User>> template=sliceUninit arguments=(MaybeUninit<User>)
+    /// @generic.instance id=truncate<User> template=truncate arguments=(User)
     /// @resolution.name source=User target=User
     /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as User) return=User[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<User>
     /// @generic.instantiation id=arrayFromOwnedSlice<User> template=arrayFromOwnedSlice arguments=(User)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
     /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
-    /// @generic.instance id=Slice<User> template=Slice arguments=(User)
     /// @generic.instance id=arrayFromOwnedSlice<User> template=arrayFromOwnedSlice arguments=(User)
     /// @generic.instance id=fromOwnedSlice<User> template=fromOwnedSlice arguments=(User)
     /// @generic.instance id=intoUninit<User> template=intoUninit arguments=(User)
@@ -930,47 +926,49 @@ declare const state: State;
 
 inspect(state.user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(state.user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(state.user) as Borrowed<User, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(state.user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(state.user) as Borrowed<User, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.user receiver=State type=User kind=field target_receiver=State key=user target=State.user target_type=User
-/// @resolution.place source=state placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state root=state
-/// @resolution.place source=state.user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=state.user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state.user root=state keys=[user]
 /// @coercion.node source=state.user from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
 inspect(state.boxed.value);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(state.boxed.value) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(state.boxed.value) as Borrowed<User, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(state.boxed.value) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(state.boxed.value) as Borrowed<User, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.boxed receiver=State type=Box<User> kind=field target_receiver=State key=boxed target=State.boxed target_type=Box<User>
 /// @resolution.member source=state.boxed.value receiver=Box<User> type=User kind=field target_receiver=Box<User> key=value target=Box.value target_type=User
-/// @resolution.place source=state placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state root=state
-/// @resolution.place source=state.boxed placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=state.boxed placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state.boxed root=state keys=[boxed]
-/// @resolution.place source=state.boxed.value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=state.boxed.value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state.boxed.value root=state keys=[boxed, value]
 /// @coercion.node source=state.boxed.value from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
 inspect(state.users[0]);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(state.users[0]) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(state.users[0]) as Borrowed<User, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(state.users[0]) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(state.users[0]) as Borrowed<User, "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspect
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.users receiver=State type=User[] kind=field target_receiver=State key=users target=State.users target_type=User[]
-/// @resolution.place source=state placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state root=state
-/// @resolution.place source=state.users placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=state.users placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state.users root=state keys=[users]
-/// @resolution.place source=state.users[0] placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=state.users[0] placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state.users[0] root=state keys=[users, 0]
-/// @resolution.subscript source=state.users[0] type=User kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<User, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
-/// @generic.instantiation id="index#1<User, \"exclusive\">" template=index#1 arguments=(User, "exclusive")
+/// @resolution.subscript source=state.users[0] type=User kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<User, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#1<User, \"mutable\">" template=index#1 arguments=(User, "mutable")
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="assumeInitReference<User, \"exclusive\">" template=assumeInitReference arguments=(User, "exclusive") evaluated=(<assumeInitReference.T, const assumeInitReference.A: Access = "mutable", assumeInitReference.'a>(WithAccess<&assumeInitReference.'a MaybeUninit<assumeInitReference.T>, assumeInitReference.A>) => WithAccess<&assumeInitReference.'a assumeInitReference.T, assumeInitReference.A> => <assumeInitReference.T, const assumeInitReference.A: Access = "mutable", assumeInitReference.'a>(&assumeInitReference.'a exclusive MaybeUninit<User>) => &assumeInitReference.'a exclusive User)
-/// @generic.instance id="elementSlot<User, \"exclusive\">" template=elementSlot arguments=(User, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive User[], usize) => &elementSlot.'a exclusive MaybeUninit<User>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<User>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<User>>, usize) => &elementSlot.'a exclusive MaybeUninit<User>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<User>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<User>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<User>>, usize) => &elementSlot.'a exclusive MaybeUninit<User>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive User[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<User>>)
-/// @generic.instance id="index#1<User, \"exclusive\">" template=index#1 arguments=(User, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#6[], index.A>, isize) => WithAccess<&index#1.'a T#6, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive User[], isize) => &index#1.'a exclusive User, WithAccess<&index#1.'a T#6, index.A> => &index#1.'a exclusive User, WithAccess<&index#1.'a T#6[], index.A> => &index#1.'a exclusive User[], (WithAccess<&index#1.'a MaybeUninit<T#6>, index.A>) => WithAccess<&index#1.'a T#6, index.A> => (&index#1.'a exclusive MaybeUninit<User>) => &index#1.'a exclusive User, WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => &index#1.'a exclusive MaybeUninit<User>, WithAccess<&index#1.'a T#6, index.A> => &index#1.'a exclusive User, (WithAccess<&index#1.'a MaybeUninit<T#6>, index.A>) => WithAccess<&index#1.'a T#6, index.A> => (&index#1.'a exclusive MaybeUninit<User>) => &index#1.'a exclusive User, WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => &index#1.'a exclusive MaybeUninit<User>, (WithAccess<&index#1.'a T#6[], index.A>, usize) => WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => (&index#1.'a exclusive User[], usize) => &index#1.'a exclusive MaybeUninit<User>, WithAccess<&index#1.'a T#6[], index.A> => &index#1.'a exclusive User[])
-/// @generic.instance id="sliceIndex<MaybeUninit<User>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<User>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<User>>, usize) => &sliceIndex.'a exclusive MaybeUninit<User>)
+/// @generic.instance id="WithAccess<&'bound0 User, \"mutable\">" template=WithAccess arguments=(&'bound0 User, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 User[], \"mutable\">" template=WithAccess arguments=(&'bound0 User[], "mutable")
+/// @generic.instance id="assumeInitReference<User, \"mutable\">" template=assumeInitReference arguments=(User, "mutable")
+/// @generic.instance id="elementSlot<User, \"mutable\">" template=elementSlot arguments=(User, "mutable")
+/// @generic.instance id="index#1<User, \"mutable\">" template=index#1 arguments=(User, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<User>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<User>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=elementPosition<User> template=elementPosition arguments=(User)
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
@@ -1041,11 +1039,11 @@ function select(): void {
     /// @resolution.place source=condition placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=condition root=condition
     /// @resolution.name source=first target=first
-    /// @resolution.place source=first placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=first placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=first root=first
     /// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
     /// @resolution.name source=second target=second
-    /// @resolution.place source=second placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=second placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=second root=second
     /// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
@@ -1125,14 +1123,14 @@ function select(): void {
         "first" => first
         /// @resolution.pattern source="\"first\"" kind=literal value="first"
         /// @resolution.name source=first target=first
-        /// @resolution.place source=first placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=first placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=first root=first
         /// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
         _ => second
         /// @resolution.pattern source=_ kind=wildcard
         /// @resolution.name source=second target=second
-        /// @resolution.place source=second placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=second placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=second root=second
         /// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
@@ -1198,11 +1196,11 @@ function select(): void {
     /// @resolution.name source=User target=User
     /// @resolution.name source=User target=User
     /// @resolution.name source=first target=first
-    /// @resolution.place source=first placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=first placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=first root=first
     /// @coercion.node source=first from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
     /// @resolution.name source=second target=second
-    /// @resolution.place source=second placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=second placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=second root=second
     /// @coercion.node source=second from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 
@@ -1238,7 +1236,7 @@ declare function inspect(value: &readonly string): void;
 
 inspect("message");
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source="inspect(\"message\")" parameters=(&'frame readonly string) arguments=(provided("message") as &'frame readonly string) return=void kind=symbol target=inspect
+/// @resolution.call source="inspect(\"message\")" parameters=(&'frame readonly string) arguments=(provided("message") as &'frame readonly string) return=void regions=("frame") kind=symbol target=inspect
 /// @coercion.node source="\"message\"" from="message" adjustments=[{ kind: materialize, target: string }, { kind: borrow, target: &'frame readonly string }] origin=implicit
 "#,
     );
@@ -1297,7 +1295,7 @@ declare function modify(value: shared &User): void;
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(Borrowed<User, "managed" & "shared", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "shared", "readonly">) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(user) parameters=(Borrowed<User, "managed" & "shared", "readonly">) arguments=(provided(user) as Borrowed<User, "managed" & "shared", "readonly">) return=void regions=("managed") kind=symbol target=inspect
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
@@ -1305,7 +1303,7 @@ inspect(user);
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(Borrowed<User, "managed" & "shared", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "shared", "mutable">) return=void kind=symbol target=modify
+/// @resolution.call source=modify(user) parameters=(Borrowed<User, "managed" & "shared", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "shared", "mutable">) return=void regions=("managed") kind=symbol target=modify
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
@@ -1315,13 +1313,13 @@ modify(user);
 }
 
 #[test]
-fn test_reject_exclusive_borrow_from_shared_managed_value() {
+fn test_reject_a_mutable_borrow_from_a_shared_managed_value() {
     let session = TestSession::single(
         r#"
 class User {}
 
 declare const user: shared User;
-declare function replace(value: shared &exclusive User): void;
+declare function replace(value: shared &User): void;
 
 replace(user);
 "#,
@@ -1335,9 +1333,9 @@ replace(user);
 class User {}
 
 declare const user: shared User;
-declare function replace<'a>(value: &'a exclusive shared User): void;
+declare function replace<'a>(value: &'a shared User): void;
 
-replace(user);
+replace(user as &'managed shared User);
 
 === dir ===
 class User {}
@@ -1349,23 +1347,21 @@ declare const user: shared User;
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
-declare function replace(value: shared &exclusive User): void;
+declare function replace(value: shared &User): void;
 /// @generic.template symbol=replace parameters=('a)
-/// @type.symbol symbol=replace source="declare function replace(value: shared &exclusive User): void" type=<replace.'a>(&replace.'a exclusive shared User) => void
-/// @type.symbol symbol=replace.value source="value: shared &exclusive User" type=&replace.'a exclusive shared User
+/// @type.symbol symbol=replace source="declare function replace(value: shared &User): void" type=<replace.'a>(&replace.'a shared User) => void
+/// @type.symbol symbol=replace.value source="value: shared &User" type=&replace.'a shared User
 /// @resolution.name source=User target=User
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(Borrowed<User, "managed" & "shared", "exclusive">) arguments=(provided(user) as Borrowed<User, "managed" & "shared", "exclusive">) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(Borrowed<User, "managed" & "shared", "mutable">) arguments=(provided(user) as Borrowed<User, "managed" & "shared", "mutable">) return=void regions=("managed") kind=symbol target=replace
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'shared User' is not assignable to parameter of type '&exclusive shared User'"
-/// @diagnostic.label line=7 column=9 span="user" line_source="replace(user);"
-/// @diagnostic.related line=7 column=1 span="replace(user)" line_source="replace(user);" message="in this call"
+
 "#,
     );
 }
@@ -1379,7 +1375,7 @@ class User {}
 declare shared let user: ^User;
 declare function inspect(value: shared &readonly User): void;
 declare function modify(value: shared &User): void;
-declare function replace(value: shared &exclusive User): void;
+declare function replace(value: shared &User): void;
 
 inspect(user);
 modify(user);
@@ -1397,11 +1393,11 @@ class User {}
 declare shared let user: ^User;
 declare function inspect<'a>(value: &'a readonly shared User): void;
 declare function modify<'a>(value: &'a shared User): void;
-declare function replace<'a>(value: &'a exclusive shared User): void;
+declare function replace<'a>(value: &'a shared User): void;
 
 inspect(user as &'static readonly shared User);
 modify(user as &'static shared User);
-replace(user as &'static exclusive shared User);
+replace(user as &'static shared User);
 
 === dir ===
 class User {}
@@ -1425,35 +1421,35 @@ declare function modify(value: shared &User): void;
 /// @type.symbol symbol=modify.value source="value: shared &User" type=&modify.'a shared User
 /// @resolution.name source=User target=User
 
-declare function replace(value: shared &exclusive User): void;
+declare function replace(value: shared &User): void;
 /// @generic.template symbol=replace parameters=('a)
-/// @type.symbol symbol=replace source="declare function replace(value: shared &exclusive User): void" type=<replace.'a>(&replace.'a exclusive shared User) => void
-/// @type.symbol symbol=replace.value source="value: shared &exclusive User" type=&replace.'a exclusive shared User
+/// @type.symbol symbol=replace source="declare function replace(value: shared &User): void" type=<replace.'a>(&replace.'a shared User) => void
+/// @type.symbol symbol=replace.value source="value: shared &User" type=&replace.'a shared User
 /// @resolution.name source=User target=User
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(&'static readonly shared User) arguments=(provided(user) as &'static readonly shared User) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(user) parameters=(&'static readonly shared User) arguments=(provided(user) as &'static readonly shared User) return=void regions=("static") kind=symbol target=inspect
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static readonly shared User }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(&'static shared User) arguments=(provided(user) as &'static shared User) return=void kind=symbol target=modify
+/// @resolution.call source=modify(user) parameters=(&'static shared User) arguments=(provided(user) as &'static shared User) return=void regions=("static") kind=symbol target=modify
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
 /// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static shared User }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(&'static exclusive shared User) arguments=(provided(user) as &'static exclusive shared User) return=void kind=symbol target=replace
+/// @resolution.call source=replace(user) parameters=(&'static shared User) arguments=(provided(user) as &'static shared User) return=void regions=("static") kind=symbol target=replace
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static exclusive shared User }] origin=implicit
+/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static shared User }] origin=implicit
 "#,
     );
 }
@@ -1514,22 +1510,19 @@ declare function inspectValues(value: &readonly int32[]): void;
 /// @generic.template symbol=inspectValues parameters=('a)
 /// @type.symbol symbol=inspectValues source="declare function inspectValues(value: &readonly int32[]): void" type=<inspectValues.'a>(&inspectValues.'a readonly int32[]) => void
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<int32, \"exclusive\">" template=elementSlot arguments=(int32, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32[], usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>)
-/// @generic.instance id="initAsPointer<int32, \"exclusive\">" template=initAsPointer arguments=(int32, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32>) => Raw<int32>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
+/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int32>> template=MaybeUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
 /// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32>) => Raw<int32>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
 /// @generic.instance id=clear<int32> template=clear arguments=(int32)
 /// @generic.instance id=drop<int32> template=drop arguments=(int32)
 /// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32[], usize) => &truncate.'a exclusive MaybeUninit<int32>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32[])
+/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.symbol symbol=inspectValues.value source="value: &readonly int32[]" type=&inspectValues.'a readonly int32[]
 
 declare const point: Point;
@@ -1543,7 +1536,7 @@ declare const values: int32[];
 
 inspectPoint(point);
 /// @resolution.name source=inspectPoint target=inspectPoint
-/// @resolution.call source=inspectPoint(point) parameters=(&'static readonly constant Point) arguments=(provided(point) as &'static readonly constant Point) return=void kind=symbol target=inspectPoint
+/// @resolution.call source=inspectPoint(point) parameters=(&'static readonly constant Point) arguments=(provided(point) as &'static readonly constant Point) return=void regions=("static" & "constant") kind=symbol target=inspectPoint
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
@@ -1551,9 +1544,9 @@ inspectPoint(point);
 
 inspectValues(values);
 /// @resolution.name source=inspectValues target=inspectValues
-/// @resolution.call source=inspectValues(values) parameters=(Borrowed<int32[], "managed" & "local", "readonly">) arguments=(provided(values) as Borrowed<int32[], "managed" & "local", "readonly">) return=void kind=symbol target=inspectValues
+/// @resolution.call source=inspectValues(values) parameters=(Borrowed<int32[], "managed" & "local", "readonly">) arguments=(provided(values) as Borrowed<int32[], "managed" & "local", "readonly">) return=void regions=("managed" & "local") kind=symbol target=inspectValues
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @coercion.node source=values from=int32[] adjustments=[{ kind: borrow, target: Borrowed<int32[], "managed" & "local", "readonly"> }] origin=implicit
 "#,
@@ -1566,7 +1559,7 @@ fn test_restrict_implicit_borrows_of_immutable_direct_storage() {
         r#"
 declare function inspect(value: &readonly int32): void;
 declare function modify(value: &int32): void;
-declare function replace(value: &exclusive int32): void;
+declare function replace(value: &int32): void;
 
 declare const value: int32;
 
@@ -1583,7 +1576,7 @@ replace(value);
 === annotated ===
 declare function inspect<'a>(value: &'a readonly int32): void;
 declare function modify<'a>(value: &'a int32): void;
-declare function replace<'a>(value: &'a exclusive int32): void;
+declare function replace<'a>(value: &'a int32): void;
 
 declare const value: int32;
 
@@ -1602,10 +1595,10 @@ declare function modify(value: &int32): void;
 /// @type.symbol symbol=modify source="declare function modify(value: &int32): void" type=<modify.'a>(&modify.'a int32) => void
 /// @type.symbol symbol=modify.value source="value: &int32" type=&modify.'a int32
 
-declare function replace(value: &exclusive int32): void;
+declare function replace(value: &int32): void;
 /// @generic.template symbol=replace parameters=('a)
-/// @type.symbol symbol=replace source="declare function replace(value: &exclusive int32): void" type=<replace.'a>(&replace.'a exclusive int32) => void
-/// @type.symbol symbol=replace.value source="value: &exclusive int32" type=&replace.'a exclusive int32
+/// @type.symbol symbol=replace source="declare function replace(value: &int32): void" type=<replace.'a>(&replace.'a int32) => void
+/// @type.symbol symbol=replace.value source="value: &int32" type=&replace.'a int32
 
 declare const value: int32;
 /// @type.symbol symbol=value source=value type=int32
@@ -1613,7 +1606,7 @@ declare const value: int32;
 
 inspect(value);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(value) parameters=(&'static readonly constant int32) arguments=(provided(value) as &'static readonly constant int32) return=void kind=symbol target=inspect
+/// @resolution.call source=inspect(value) parameters=(&'static readonly constant int32) arguments=(provided(value) as &'static readonly constant int32) return=void regions=("static" & "constant") kind=symbol target=inspect
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
@@ -1621,14 +1614,14 @@ inspect(value);
 
 modify(value);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(value) parameters=(&'static constant int32) arguments=(provided(value) as &'static constant int32) return=void kind=symbol target=modify
+/// @resolution.call source=modify(value) parameters=(&'static constant int32) arguments=(provided(value) as &'static constant int32) return=void regions=("static" & "constant") kind=symbol target=modify
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
 replace(value);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(value) parameters=(&'static exclusive constant int32) arguments=(provided(value) as &'static exclusive constant int32) return=void kind=symbol target=replace
+/// @resolution.call source=replace(value) parameters=(&'static constant int32) arguments=(provided(value) as &'static constant int32) return=void regions=("static" & "constant") kind=symbol target=replace
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
@@ -1637,7 +1630,7 @@ replace(value);
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'int32' is not assignable to parameter of type '&'static constant int32'"
 /// @diagnostic.label line=9 column=8 span="value" line_source="modify(value);"
 /// @diagnostic.related line=9 column=1 span="modify(value)" line_source="modify(value);" message="in this call"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'int32' is not assignable to parameter of type '&'static exclusive constant int32'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'int32' is not assignable to parameter of type '&'static constant int32'"
 /// @diagnostic.label line=10 column=9 span="value" line_source="replace(value);"
 /// @diagnostic.related line=10 column=1 span="replace(value)" line_source="replace(value);" message="in this call"
 "#,
@@ -1684,9 +1677,9 @@ declare const values: shared int32[];
 
 values.push(1);
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromOwnedSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "exclusive">)) instance=Array<int32>.<extension#6>.push
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instantiation id=push<int32> template=push arguments=(int32)
@@ -1707,9 +1700,9 @@ declare const message: shared Message;
 
 messages.push(message);
 /// @resolution.name source=messages target=messages
-/// @resolution.member source=messages.push receiver=Message[] type=<push.'a>(this: &push.'a exclusive Message[], ...Message[]) => isize kind=symbol target_receiver=Message[] target=push
-/// @resolution.call source=messages.push(message) parameters=(Message[]) arguments=(rest(message) pack=arrayFromOwnedSlice as Message) return=isize kind=symbol target=push receiver=Message[] adjustments=(borrow(Borrowed<Message[], "managed" & "local", "exclusive">)) instance=Array<Message>.<extension#6>.push
-/// @resolution.place source=messages placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=messages.push receiver=Message[] type=<push.'a>(this: &push.'a Message[], ...Message[]) => isize kind=symbol target_receiver=Message[] target=push
+/// @resolution.call source=messages.push(message) parameters=(Message[]) arguments=(rest(message) pack=arrayFromOwnedSlice as Message) return=isize regions=("managed" & "local") kind=symbol target=push receiver=Message[] adjustments=(borrow(Borrowed<Message[], "managed" & "local", "mutable">)) instance=Array<Message>.<extension#6>.push
+/// @resolution.place source=messages placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=messages root=messages
 /// @generic.instantiation id=arrayFromOwnedSlice<Message> template=arrayFromOwnedSlice arguments=(Message)
 /// @generic.instantiation id=push<Message> template=push arguments=(Message)
@@ -1768,7 +1761,7 @@ const same = user;
 
 same satisfies User;
 /// @resolution.name source=same target=same
-/// @resolution.place source=same placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=same placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=same root=same
 /// @resolution.name source=User target=User
 "#,
@@ -1815,7 +1808,7 @@ let owned: ^User = user;
 /// @resolution.name source=User target=User
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 "#,
         r#"
@@ -1870,7 +1863,7 @@ let borrow = &label;
 /// @type.node source=&label type=&'static Label
 /// @type.node source=label type=Label
 /// @resolution.name source=label target=label
-/// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=label placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=label root=label
 
 let owned: ^Label = borrow;
@@ -1945,7 +1938,7 @@ let borrow = &point;
 /// @type.node source=&point type=&'static Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=point root=point
 
 let copied: Point = borrow;
@@ -2061,7 +2054,7 @@ let owned: ^Point = point;
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -2107,7 +2100,7 @@ function duplicate<T: Copy>(value: T): ^T {
 
     value
     /// @resolution.name source=value target=duplicate.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=duplicate.value
 
 }
@@ -2219,14 +2212,14 @@ const mapped = values.map((value) => value);
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => ^map.U#2[] kind=symbol target_receiver=int32 | undefined[] target=map#2
 /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=^int32 | undefined[] kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#4>.map#2<int32 | undefined, \"local\">"
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="map#2<int32 | undefined, int32 | undefined, \"local\">" template=map#2 arguments=(int32 | undefined, int32 | undefined, "local")
 /// @generic.instantiation id="map#2<int32 | undefined>" template=map#2 arguments=(int32 | undefined)
 /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol2.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol2.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol2.value
 
 const filtered = mapped.filter((value) => value != undefined);
@@ -2235,7 +2228,7 @@ const filtered = mapped.filter((value) => value != undefined);
 /// @resolution.name source=mapped target=mapped
 /// @resolution.member source=mapped.filter receiver=int32 | undefined[] type=<filter#2.P0: Place>(this: Managed<int32 | undefined[], filter#2.P0>, Function<(int32 | undefined, isize), boolean>) => ^int32 | undefined[] kind=symbol target_receiver=int32 | undefined[] target=filter#2
 /// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(int32 | undefined, isize), boolean>) return=^int32 | undefined[] kind=symbol target=filter#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#4>.filter#2<\"local\">"
-/// @resolution.place source=mapped placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=mapped placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=mapped root=mapped
 /// @generic.instantiation id="filter#2<int32 | undefined, \"local\">" template=filter#2 arguments=(int32 | undefined, "local")
 /// @generic.instantiation id="filter#2<int32 | undefined>" template=filter#2 arguments=(int32 | undefined)
@@ -2243,12 +2236,12 @@ const filtered = mapped.filter((value) => value != undefined);
 /// @type.symbol symbol=symbol5.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol5.value
 /// @resolution.operator source="value != undefined" type=boolean operator="!=" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as undefined families=(undefined)]
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol5.value
 
 filtered;
 /// @resolution.name source=filtered target=filtered
-/// @resolution.place source=filtered placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=filtered placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=filtered root=filtered
 "#,
         r#"
@@ -2264,7 +2257,7 @@ fn test_read_borrowed_copy_value_at_argument() {
 declare function consume(value: int32): void;
 
 declare const shared: &'static int32;
-declare const exclusive: &'static exclusive int32;
+declare const exclusive: &'static int32;
 
 consume(shared);
 consume(exclusive);
@@ -2282,7 +2275,7 @@ kept;
 declare function consume(value: int32): void;
 
 declare const shared: &'static int32;
-declare const exclusive: &'static exclusive int32;
+declare const exclusive: &'static int32;
 
 consume(shared as int32);
 consume(exclusive as int32);
@@ -2299,8 +2292,8 @@ declare const shared: &'static int32;
 /// @type.symbol symbol=shared source=shared type=&'static int32
 /// @resolution.pattern source=shared kind=binding target=shared
 
-declare const exclusive: &'static exclusive int32;
-/// @type.symbol symbol=exclusive source=exclusive type=&'static exclusive int32
+declare const exclusive: &'static int32;
+/// @type.symbol symbol=exclusive source=exclusive type=&'static int32
 /// @resolution.pattern source=exclusive kind=binding target=exclusive
 
 consume(shared);
@@ -2315,9 +2308,9 @@ consume(exclusive);
 /// @resolution.name source=consume target=consume
 /// @resolution.call source=consume(exclusive) parameters=(int32) arguments=(provided(exclusive) as int32) return=void kind=symbol target=consume
 /// @resolution.name source=exclusive target=exclusive
-/// @resolution.place source=exclusive placement="static" lifetime="static" access="exclusive"
+/// @resolution.place source=exclusive placement="static" lifetime="static" access="mutable"
 /// @resolution.access source=exclusive root=exclusive
-/// @coercion.node source=exclusive from=&'static exclusive int32 adjustments=[{ kind: read, target: int32 }] origin=implicit
+/// @coercion.node source=exclusive from=&'static int32 adjustments=[{ kind: read, target: int32 }] origin=implicit
 
 const kept = shared;
 /// @type.symbol symbol=kept source=kept type=&'static int32

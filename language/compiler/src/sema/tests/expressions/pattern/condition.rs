@@ -115,14 +115,14 @@ if (let (count, label) = pair) {
     /// @type.node source="count satisfies int32" type=int32
     /// @type.node source=count type=int32
     /// @resolution.name source=count target=count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=count root=count
 
     label satisfies string;
     /// @type.node source="label satisfies string" type=string
     /// @type.node source=label type=string
     /// @resolution.name source=label target=label
-    /// @resolution.place source=label placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=label placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=label root=label
 
 }
@@ -174,14 +174,14 @@ if (let { enabled, retries } = config) {
     /// @type.node source="enabled satisfies boolean" type=boolean
     /// @type.node source=enabled type=boolean
     /// @resolution.name source=enabled target=enabled#2
-    /// @resolution.place source=enabled placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=enabled placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=enabled root=enabled#2
 
     retries satisfies int32;
     /// @type.node source="retries satisfies int32" type=int32
     /// @type.node source=retries type=int32
     /// @resolution.name source=retries target=retries#2
-    /// @resolution.place source=retries placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=retries placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=retries root=retries#2
 
 }
@@ -240,7 +240,7 @@ if (ready && let (count, label) = pair && count > 0) {
 /// @type.node source=count type=int32
 /// @resolution.name source=count target=count
 /// @resolution.operator source="count > 0" type=boolean operator=">" kind=builtin operands=[count as int32 families=(integer), 0 as int32 families=(integer)]
-/// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=count root=count
 /// @type.node source=0 type=0
 
@@ -248,7 +248,7 @@ if (ready && let (count, label) = pair && count > 0) {
     /// @type.node source="label satisfies string" type=string
     /// @type.node source=label type=string
     /// @resolution.name source=label target=label
-    /// @resolution.place source=label placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=label placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=label root=label
 
 }
@@ -299,7 +299,7 @@ if (let "ready" = status) {
     /// @type.node source="status satisfies \"ready\"" type="ready"
     /// @type.node source=status type="ready"
     /// @resolution.name source=status target=status
-    /// @resolution.place source=status placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=status placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=status root=status
     /// @resolution.narrowing source=status union="ready" | "error" arms="ready"
 
@@ -308,7 +308,7 @@ if (let "ready" = status) {
     /// @type.node source="status satisfies \"error\"" type="error"
     /// @type.node source=status type="error"
     /// @resolution.name source=status target=status
-    /// @resolution.place source=status placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=status placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=status root=status
     /// @resolution.narrowing source=status union="ready" | "error" arms="error"
 
@@ -431,7 +431,7 @@ if (ready && let { name } = user) {
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
-    /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=name root=name#2
 
 }
@@ -478,9 +478,9 @@ if (let { name } = user && name.length > 0) {
 /// @type.node source=name type=string
 /// @type.node source=name.length type=isize
 /// @resolution.name source=name target=name#2
-/// @resolution.member source=name.length receiver=string type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=name.length receiver=string type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"managed\" & \"local\"))"
 /// @resolution.operator source="name.length > 0" type=boolean operator=">" kind=builtin operands=[name.length as isize families=(integer), 0 as isize families=(integer)]
-/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=name root=name#2
 /// @type.node source=0 type=0
 
@@ -488,7 +488,7 @@ if (let { name } = user && name.length > 0) {
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
-    /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=name root=name#2
 
 }
@@ -550,14 +550,14 @@ if (let { name } = user && let { x } = point) {
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
-    /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=name root=name#2
 
     x satisfies int32;
     /// @type.node source="x satisfies int32" type=int32
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x#2
-    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=x root=x#2
 
 }
@@ -609,7 +609,7 @@ if (let { name } = user) {
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
-    /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=name root=name#2
 
 } else {
@@ -672,9 +672,9 @@ while (let { name } = user && name.length > 0) {
 /// @type.node source=name type=string
 /// @type.node source=name.length type=isize
 /// @resolution.name source=name target=name#2
-/// @resolution.member source=name.length receiver=string type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=name.length receiver=string type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"managed\" & \"local\"))"
 /// @resolution.operator source="name.length > 0" type=boolean operator=">" kind=builtin operands=[name.length as isize families=(integer), 0 as isize families=(integer)]
-/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=name root=name#2
 /// @type.node source=0 type=0
 
@@ -682,7 +682,7 @@ while (let { name } = user && name.length > 0) {
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
-    /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=name root=name#2
 
     break;

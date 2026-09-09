@@ -960,7 +960,7 @@ impl WalkState<'_, '_> {
         applied: &[GenericArgument],
     ) -> CompilerResult<dir::GlobalTypeId> {
         // return the parameter type for generic parameter names
-        if let Some(parameter) = self.check.parameter_by_symbol(symbol) {
+        if let Some(parameter) = self.check.parameter_by_symbol(symbol)? {
             if !applied.is_empty() {
                 let name = self.check.format_symbol(symbol);
                 self.check
@@ -982,11 +982,6 @@ impl WalkState<'_, '_> {
             let arguments = self.bind_foreign_arguments(source, symbol, &positional)?;
 
             return self.build_application_type(source, symbol, &arguments, applied);
-        }
-
-        // load foreign declarations before reading their templates
-        if !self.check.is_own_module(symbol.module_id) {
-            self.check.import_external_module(symbol.module_id)?;
         }
 
         // reject a value binding written in type position
@@ -1027,7 +1022,7 @@ impl WalkState<'_, '_> {
         symbolic: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // read the committed term's singleton type
-        if let Some(value) = self.check.static_value(symbol) {
+        if let Some(value) = self.check.static_value(symbol)? {
             return Ok(value);
         }
 
@@ -1050,11 +1045,13 @@ impl WalkState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         parameters: &[GenericParameterId],
         written: usize,
-    ) {
+    ) -> CompilerResult<()> {
         let name = self.check.format_symbol(symbol);
-        let expected = self.check.writable_parameter_count(parameters);
+        let expected = self.check.writable_parameter_count(parameters)?;
         self.check
             .report_wrong_generic_arity(self.module, source, name, expected, written);
+
+        Ok(())
     }
 
     /// Bind written arguments to a declaration's parameter slots in order.
@@ -1083,7 +1080,7 @@ impl WalkState<'_, '_> {
         let mut substitution = TypeSubstitution::default();
         let mut cursor = 0;
         for parameter in parameters.iter().copied() {
-            let Some(binding) = self.check.generic_parameter(parameter).cloned() else {
+            let Some(binding) = self.check.generic_parameter(parameter)?.cloned() else {
                 return Err(CompilerError::Internal {
                     message: "written type application names a missing generic parameter"
                         .to_string(),
@@ -1157,7 +1154,7 @@ impl WalkState<'_, '_> {
             }
             // reject unbound parameters
             else {
-                self.report_binding_arity(source, symbol, &parameters, written.len());
+                self.report_binding_arity(source, symbol, &parameters, written.len())?;
 
                 return Ok(None);
             };
@@ -1175,7 +1172,7 @@ impl WalkState<'_, '_> {
 
         // reject written arguments that no slot consumed
         if cursor < written.len() {
-            self.report_binding_arity(source, symbol, &parameters, written.len());
+            self.report_binding_arity(source, symbol, &parameters, written.len())?;
 
             return Ok(None);
         }
@@ -1510,8 +1507,13 @@ impl WalkState<'_, '_> {
                     let template = self
                         .open_signature_template(member.into_global_any(self.module), &signature)?;
 
-                    let (header, result, tracked) =
-                        self.walk_signature_header(member.into_any(), template, &signature, None)?;
+                    let (header, result, tracked) = self.walk_signature_header(
+                        member.into_any(),
+                        template,
+                        &signature,
+                        None,
+                        false,
+                    )?;
                     let ty = self.walk_function_signature_type(
                         member.into_any(),
                         &signature,
@@ -1821,7 +1823,7 @@ impl WalkState<'_, '_> {
         let constraint = self.walk_type_expression(source_type)?;
 
         // create a local generic parameter for the mapped key
-        let binder = match self.check.parameter_by_symbol(symbol) {
+        let binder = match self.check.parameter_by_symbol(symbol)? {
             Some(binder) => binder,
             None => {
                 // the mapped type introduces the scope its key parameter lives in
@@ -1868,7 +1870,7 @@ impl WalkState<'_, '_> {
             }
             dir::Type::Parameter(parameter) => self
                 .check
-                .generic_parameter(parameter)
+                .generic_parameter(parameter)?
                 .and_then(|binding| binding.constraint)
                 .and_then(|bound| match self.check.operation_head(bound) {
                     Ok(Some(dir::TypeOperation::KeyOf(unary))) => Some(unary.target),

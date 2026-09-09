@@ -231,6 +231,8 @@ struct Tensor<const Rank: int> {
 function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
 /// @generic.template symbol=shrink parameters=(const Rank#2: int64)
 /// @type.symbol symbol=shrink type=<const Rank#2: int64>(Tensor<Rank#2>) => Tensor<Rank#2 - 1>
+/// @generic.instance id="Tensor<Rank#2 - 1>" template=Tensor arguments=(Rank#2 - 1)
+/// @generic.instance id=Tensor<Rank#2> template=Tensor arguments=(Rank#2)
 /// @type.symbol symbol=shrink.Rank source="const Rank: int" type=Rank#2
 /// @type.symbol symbol=shrink.tensor source="tensor: Tensor<Rank>" type=Tensor<Rank#2>
 /// @resolution.name source=Tensor target=Tensor

@@ -70,7 +70,7 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 /// @resolution.call source=second(value) parameters=(int32) arguments=(provided(value) as int32) return=Result<boolean, string> kind=symbol target=second
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=symbol5.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol5.value
 "#,
     );
@@ -103,74 +103,13 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
 /// @resolution.pattern source=input kind=binding target=input
-/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
-/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
-/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
-/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
-/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
-/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
-/// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
-/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
-/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
-/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
-/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
-/// @generic.instance id=Promise.forward<int32> template=Promise.forward arguments=(int32)
-/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
-/// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
-/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
-/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
-/// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
-/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
-/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
-/// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
-/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
-/// @generic.instance id=Promise<void> template=Promise arguments=(void)
-/// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
-/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
-/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
-/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
-/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
-/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
-/// @generic.instance id=PromisePending<int32> template=PromisePending arguments=(int32)
-/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
-/// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
-/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
-/// @generic.instance id=PromiseState<int32> template=PromiseState arguments=(int32)
-/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
-/// @generic.instance id=PromiseWaiter<int32> template=PromiseWaiter arguments=(int32)
-/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
 /// @resolution.name source=Promise target=Promise
 
 const result: Promise<string> = input.then(() => "done");
 /// @type.symbol symbol=result source=result type=Promise<string>
 /// @resolution.pattern source=result kind=binding target=result
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
-/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
-/// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
-/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
-/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
-/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
-/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
-/// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
-/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
-/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
-/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
-/// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
-/// @generic.instance id=PromiseState<string> template=PromiseState arguments=(string)
-/// @generic.instance id=PromiseWaiter<string> template=PromiseWaiter arguments=(string)
 /// @resolution.name source=Promise target=Promise
 /// @type.node source="input.then(() => \"done\")" type=Promise<string>
 /// @type.node source=input type=Promise<int32>
@@ -178,12 +117,26 @@ const result: Promise<string> = input.then(() => "done");
 /// @resolution.name source=input target=input
 /// @resolution.member source=input.then receiver=Promise<int32> type=<Promise.then.U#1: Copy>(this: Promise<int32>, Function<(int32,), Promise<Promise.then.U#1>>) => Promise<Promise.then.U#1> & <Promise.then.U#2: Copy>(this: Promise<int32>, Function<(int32,), Promise.then.U#2>) => Promise<Promise.then.U#2> kind=overload-set targets=[Promise.then#1, Promise.then#2]
 /// @resolution.call source="input.then(() => \"done\")" parameters=(Function<(int32,), string>) arguments=(provided(() => "done") as Function<(int32,), string>) return=Promise<string> kind=symbol target=Promise.then#2 receiver=Promise<int32> instance=Promise<int32>.then#2<string>
-/// @resolution.place source=input placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=input placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=input root=input
 /// @generic.instantiation id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
 /// @generic.instance id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
+/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
+/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
+/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
 /// @type.symbol symbol=symbol3 source="() => \"done\"" type=Function<(), string, "readonly">
 /// @type.node source="() => \"done\"" type=Function<(), string, "readonly">
 /// @type.node source="\"done\"" type="done"
@@ -220,74 +173,13 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
 /// @resolution.pattern source=input kind=binding target=input
-/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
-/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
-/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
-/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
-/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
-/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
-/// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
-/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
-/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
-/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
-/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
-/// @generic.instance id=Promise.forward<int32> template=Promise.forward arguments=(int32)
-/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
-/// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
-/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
-/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
-/// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
-/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
-/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
-/// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
-/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
-/// @generic.instance id=Promise<void> template=Promise arguments=(void)
-/// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
-/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
-/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
-/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
-/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
-/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
-/// @generic.instance id=PromisePending<int32> template=PromisePending arguments=(int32)
-/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
-/// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
-/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
-/// @generic.instance id=PromiseState<int32> template=PromiseState arguments=(int32)
-/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
-/// @generic.instance id=PromiseWaiter<int32> template=PromiseWaiter arguments=(int32)
-/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
 /// @resolution.name source=Promise target=Promise
 
 declare const next: Promise<string>;
 /// @type.symbol symbol=next source=next type=Promise<string>
 /// @resolution.pattern source=next kind=binding target=next
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
-/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
-/// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
-/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
-/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
-/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
-/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
-/// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
-/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
-/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
-/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
-/// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
-/// @generic.instance id=PromiseState<string> template=PromiseState arguments=(string)
-/// @generic.instance id=PromiseWaiter<string> template=PromiseWaiter arguments=(string)
 /// @resolution.name source=Promise target=Promise
 
 const result: Promise<string> = input.then(() => next);
@@ -300,17 +192,36 @@ const result: Promise<string> = input.then(() => next);
 /// @resolution.name source=input target=input
 /// @resolution.member source=input.then receiver=Promise<int32> type=<Promise.then.U#1: Copy>(this: Promise<int32>, Function<(int32,), Promise<Promise.then.U#1>>) => Promise<Promise.then.U#1> & <Promise.then.U#2: Copy>(this: Promise<int32>, Function<(int32,), Promise.then.U#2>) => Promise<Promise.then.U#2> kind=overload-set targets=[Promise.then#1, Promise.then#2]
 /// @resolution.call source="input.then(() => next)" parameters=(Function<(int32,), Promise<string>>) arguments=(provided(() => next) as Function<(int32,), Promise<string>>) return=Promise<string> kind=symbol target=Promise.then#1 receiver=Promise<int32> instance=Promise<int32>.then#1<string>
-/// @resolution.place source=input placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=input placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=input root=input
 /// @generic.instantiation id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
 /// @generic.instance id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
+/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
+/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
+/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
+/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
 /// @type.symbol symbol=symbol4 source="() => next" type=Function<(), Promise<string>, "readonly">
 /// @type.node source="() => next" type=Function<(), Promise<string>, "readonly">
 /// @type.node source=next type=Promise<string>
 /// @resolution.name source=next target=next
-/// @resolution.place source=next placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=next placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=next root=next
 "#,
     );
@@ -347,74 +258,13 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
 /// @resolution.pattern source=input kind=binding target=input
-/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
-/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
-/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
-/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
-/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
-/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
-/// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
-/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
-/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
-/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
-/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
-/// @generic.instance id=Promise.forward<int32> template=Promise.forward arguments=(int32)
-/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
-/// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
-/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
-/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
-/// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
-/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
-/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
-/// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
-/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
-/// @generic.instance id=Promise<void> template=Promise arguments=(void)
-/// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
-/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
-/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
-/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
-/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
-/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
-/// @generic.instance id=PromisePending<int32> template=PromisePending arguments=(int32)
-/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
-/// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
-/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
-/// @generic.instance id=PromiseState<int32> template=PromiseState arguments=(int32)
-/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
-/// @generic.instance id=PromiseWaiter<int32> template=PromiseWaiter arguments=(int32)
-/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
 /// @resolution.name source=Promise target=Promise
 
 const result: Promise<string> = input.then((value) => {
 /// @type.symbol symbol=result source=result type=Promise<string>
 /// @resolution.pattern source=result kind=binding target=result
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
-/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
-/// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
-/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
-/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
-/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
-/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
-/// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
-/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
-/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
-/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
-/// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
-/// @generic.instance id=PromiseState<string> template=PromiseState arguments=(string)
-/// @generic.instance id=PromiseWaiter<string> template=PromiseWaiter arguments=(string)
 /// @resolution.name source=Promise target=Promise
 /// @type.node source=input type=Promise<int32>
 /// @type.node source=input.then type=<Promise.then.U#1: Copy>(this: Promise<int32>, Function<(int32,), Promise<Promise.then.U#1>>) => Promise<Promise.then.U#1> & <Promise.then.U#2: Copy>(this: Promise<int32>, Function<(int32,), Promise.then.U#2>) => Promise<Promise.then.U#2>
@@ -422,12 +272,30 @@ const result: Promise<string> = input.then((value) => {
 /// @resolution.name source=input target=input
 /// @resolution.member source=input.then receiver=Promise<int32> type=<Promise.then.U#1: Copy>(this: Promise<int32>, Function<(int32,), Promise<Promise.then.U#1>>) => Promise<Promise.then.U#1> & <Promise.then.U#2: Copy>(this: Promise<int32>, Function<(int32,), Promise.then.U#2>) => Promise<Promise.then.U#2> kind=overload-set targets=[Promise.then#1, Promise.then#2]
 /// @resolution.call parameters=(Function<(int32,), Promise<string>>) arguments=(provided(argument) as Function<(int32,), Promise<string>>) return=Promise<string> kind=symbol target=Promise.then#1 receiver=Promise<int32> instance=Promise<int32>.then#1<string>
-/// @resolution.place source=input placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=input placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=input root=input
 /// @generic.instantiation id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
 /// @generic.instance id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
+/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
+/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
+/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
+/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
 /// @type.symbol symbol=symbol3 type=Function<(int32,), Promise<string>, "readonly">
 /// @type.node type=Function<(int32,), Promise<string>, "readonly">
 /// @type.symbol symbol=symbol3.value source=value type=int32
@@ -439,10 +307,11 @@ const result: Promise<string> = input.then((value) => {
     /// @resolution.name source=input target=input
     /// @resolution.member source=input.then receiver=Promise<int32> type=<Promise.then.U#1: Copy>(this: Promise<int32>, Function<(int32,), Promise<Promise.then.U#1>>) => Promise<Promise.then.U#1> & <Promise.then.U#2: Copy>(this: Promise<int32>, Function<(int32,), Promise.then.U#2>) => Promise<Promise.then.U#2> kind=overload-set targets=[Promise.then#1, Promise.then#2]
     /// @resolution.call source="input.then(() => \"done\")" parameters=(Function<(int32,), string>) arguments=(provided(() => "done") as Function<(int32,), string>) return=Promise<string> kind=symbol target=Promise.then#2 receiver=Promise<int32> instance=Promise<int32>.then#2<string>
-    /// @resolution.place source=input placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=input placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=input root=input
     /// @generic.instantiation id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
     /// @generic.instance id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
+    /// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
     /// @type.symbol symbol=symbol3.symbol5 source="() => \"done\"" type=Function<(), string, "readonly">
     /// @type.node source="() => \"done\"" type=Function<(), string, "readonly">
     /// @type.node source="\"done\"" type="done"
@@ -489,74 +358,13 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
 /// @resolution.pattern source=input kind=binding target=input
-/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
-/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
-/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
-/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
-/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
-/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
-/// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
-/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
-/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
-/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
-/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
-/// @generic.instance id=Promise.forward<int32> template=Promise.forward arguments=(int32)
-/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
-/// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
-/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
-/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
-/// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
-/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
-/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
-/// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
-/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
-/// @generic.instance id=Promise<void> template=Promise arguments=(void)
-/// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
-/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
-/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
-/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
-/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
-/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
-/// @generic.instance id=PromisePending<int32> template=PromisePending arguments=(int32)
-/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
-/// @generic.instance id=PromiseReaction<int32> template=PromiseReaction arguments=(int32)
-/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
-/// @generic.instance id=PromiseState<int32> template=PromiseState arguments=(int32)
-/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
-/// @generic.instance id=PromiseWaiter<int32> template=PromiseWaiter arguments=(int32)
-/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
 /// @resolution.name source=Promise target=Promise
 
 declare const next: Promise<string>;
 /// @type.symbol symbol=next source=next type=Promise<string>
 /// @resolution.pattern source=next kind=binding target=next
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
-/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
-/// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
-/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
-/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
-/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
-/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
-/// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
-/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
-/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
-/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
-/// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
-/// @generic.instance id=PromiseState<string> template=PromiseState arguments=(string)
-/// @generic.instance id=PromiseWaiter<string> template=PromiseWaiter arguments=(string)
 /// @resolution.name source=Promise target=Promise
 
 declare const usePromise: boolean;
@@ -566,27 +374,7 @@ declare const usePromise: boolean;
 const result: Promise<string | Promise<string>> = input.then(() => {
 /// @type.symbol symbol=result source=result type=Promise<string | Promise<string>>
 /// @resolution.pattern source=result kind=binding target=result
-/// @generic.instance id="Awaitable<string | Promise<string>>" template=Awaitable arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.addReaction<string | Promise<string>>" template=Promise.addReaction arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.addWaiter<string | Promise<string>>" template=Promise.addWaiter arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.forward<string | Promise<string>>" template=Promise.forward arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.fulfill<string | Promise<string>>" template=Promise.fulfill arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.observe<string | Promise<string>>" template=Promise.observe arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.pending<string | Promise<string>>" template=Promise.pending arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.queueWaiter<string | Promise<string>>" template=Promise.queueWaiter arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.queueWaiters<string | Promise<string>>" template=Promise.queueWaiters arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.symbol12<string | Promise<string>, \"local\">" template=Promise.symbol12 arguments=(string | Promise<string>, "local")
-/// @generic.instance id="Promise<string | Promise<string>, \"local\">" template=Promise arguments=(string | Promise<string>, "local")
 /// @generic.instance id="Promise<string | Promise<string>>" template=Promise arguments=(string | Promise<string>)
-/// @generic.instance id="PromiseAwaiter<string | Promise<string>>" template=PromiseAwaiter arguments=(string | Promise<string>)
-/// @generic.instance id="PromiseForwarded<string | Promise<string>>" template=PromiseForwarded arguments=(string | Promise<string>)
-/// @generic.instance id="PromiseFulfilled<string | Promise<string>>" template=PromiseFulfilled arguments=(string | Promise<string>)
-/// @generic.instance id="PromisePending<string | Promise<string>>" template=PromisePending arguments=(string | Promise<string>)
-/// @generic.instance id="PromiseReaction.symbol173<string | Promise<string>, \"local\">" template=PromiseReaction.symbol173 arguments=(string | Promise<string>, "local")
-/// @generic.instance id="PromiseReaction<string | Promise<string>, \"local\">" template=PromiseReaction arguments=(string | Promise<string>, "local")
-/// @generic.instance id="PromiseReaction<string | Promise<string>>" template=PromiseReaction arguments=(string | Promise<string>)
-/// @generic.instance id="PromiseState<string | Promise<string>>" template=PromiseState arguments=(string | Promise<string>)
-/// @generic.instance id="PromiseWaiter<string | Promise<string>>" template=PromiseWaiter arguments=(string | Promise<string>)
 /// @resolution.name source=Promise target=Promise
 /// @resolution.name source=Promise target=Promise
 /// @type.node source=input type=Promise<int32>
@@ -595,12 +383,26 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @resolution.name source=input target=input
 /// @resolution.member source=input.then receiver=Promise<int32> type=<Promise.then.U#1: Copy>(this: Promise<int32>, Function<(int32,), Promise<Promise.then.U#1>>) => Promise<Promise.then.U#1> & <Promise.then.U#2: Copy>(this: Promise<int32>, Function<(int32,), Promise.then.U#2>) => Promise<Promise.then.U#2> kind=overload-set targets=[Promise.then#1, Promise.then#2]
 /// @resolution.call parameters=(Function<(int32,), string | Promise<string>>) arguments=(provided(argument) as Function<(int32,), string | Promise<string>>) return=Promise<string | Promise<string>> kind=symbol target=Promise.then#2 receiver=Promise<int32> instance="Promise<int32>.then#2<string | Promise<string>>"
-/// @resolution.place source=input placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=input placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=input root=input
 /// @generic.instantiation id="Promise.then#2<int32, string | Promise<string>>" template=Promise.then#2 arguments=(int32, string | Promise<string>)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
+/// @generic.instance id="Promise.fulfill<string | Promise<string>>" template=Promise.fulfill arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.pending<string | Promise<string>>" template=Promise.pending arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.queueWaiter<string | Promise<string>>" template=Promise.queueWaiter arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.queueWaiters<string | Promise<string>>" template=Promise.queueWaiters arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.symbol12<string | Promise<string>, \"local\">" template=Promise.symbol12 arguments=(string | Promise<string>, "local")
 /// @generic.instance id="Promise.then#2<int32, string | Promise<string>>" template=Promise.then#2 arguments=(int32, string | Promise<string>)
+/// @generic.instance id="Promise<string | Promise<string>, \"local\">" template=Promise arguments=(string | Promise<string>, "local")
+/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
+/// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
 /// @type.symbol symbol=symbol5 type=Function<(), string | Promise<string>, "readonly">
 /// @type.node type=Function<(), string | Promise<string>, "readonly">
 
@@ -612,7 +414,7 @@ const result: Promise<string | Promise<string>> = input.then(() => {
     /// @resolution.access source=usePromise root=usePromise
     /// @type.node source=next type=Promise<string>
     /// @resolution.name source=next target=next
-    /// @resolution.place source=next placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=next placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=next root=next
     /// @type.node source="\"done\"" type="done"
 
@@ -648,48 +450,7 @@ import { Promise } from "destack:async";
 declare const input: Promise<string>;
 /// @type.symbol symbol=input source=input type=Promise<string>
 /// @resolution.pattern source=input kind=binding target=input
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
-/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
-/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
-/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
-/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
-/// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
-/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
-/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
-/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
-/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
-/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
-/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
-/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
-/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
-/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
-/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
-/// @generic.instance id=Promise<void> template=Promise arguments=(void)
-/// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
-/// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
-/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
-/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
-/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
-/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
-/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
-/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
-/// @generic.instance id=PromiseReaction<string> template=PromiseReaction arguments=(string)
-/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
-/// @generic.instance id=PromiseState<string> template=PromiseState arguments=(string)
-/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
-/// @generic.instance id=PromiseWaiter<string> template=PromiseWaiter arguments=(string)
-/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
 /// @resolution.name source=Promise target=Promise
 
 const result: Promise<string> = Promise.resolve(input);
@@ -706,7 +467,7 @@ const result: Promise<string> = Promise.resolve(input);
 /// @generic.instance id=Promise.resolve#1<string> template=Promise.resolve#1 arguments=(string)
 /// @type.node source=input type=Promise<string>
 /// @resolution.name source=input target=input
-/// @resolution.place source=input placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=input placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=input root=input
 "#);
 }
@@ -750,7 +511,7 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -814,7 +575,7 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -822,21 +583,18 @@ function identity<T>(value: T): T {
 const values = identity([1, 2]);
 /// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="elementSlot<int64, \"exclusive\">" template=elementSlot arguments=(int64, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int64[], usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int64>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int64>>, usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int64>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int64>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int64>>, usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int64[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int64>>)
-/// @generic.instance id="initAsPointer<int64, \"exclusive\">" template=initAsPointer arguments=(int64, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int64>) => Raw<int64>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int64>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int64>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int64>)
+/// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
+/// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int64>> template=MaybeUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
 /// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int64>) => Raw<int64>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int64>)
+/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
 /// @generic.instance id=clear<int64> template=clear arguments=(int64)
 /// @generic.instance id=drop<int64> template=drop arguments=(int64)
 /// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
-/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=truncate<int64> template=truncate arguments=(int64) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int64>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int64[], usize) => &truncate.'a exclusive MaybeUninit<int64>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int64[])
+/// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @type.node source="identity([1, 2])" type=int64[]
 /// @type.node source=identity type=(int64[]) => int64[]
 /// @resolution.name source=identity target=identity
@@ -850,7 +608,6 @@ const values = identity([1, 2]);
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
-/// @generic.instance id=Slice<int64> template=Slice arguments=(int64)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
 /// @generic.instance id=intoUninit<int64> template=intoUninit arguments=(int64)
@@ -890,6 +647,9 @@ const value: int64 = first<int64>([1, 2]);
 function first<T>(values: T[]): T {
 /// @generic.template symbol=first parameters=(T)
 /// @type.symbol symbol=first type=<T>(T[]) => T
+/// @generic.instance id=Array<T> template=Array arguments=(T)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<T>> template=sliceAssumeInit arguments=(MaybeUninit<T>)
+/// @generic.instance id=sliceUninit<MaybeUninit<T>> template=sliceUninit arguments=(MaybeUninit<T>)
 /// @type.symbol symbol=first.T source=T type=T
 /// @type.symbol symbol=first.values source="values: T[]" type=T[]
 /// @resolution.name source=T target=first.T
@@ -899,12 +659,19 @@ function first<T>(values: T[]): T {
     /// @type.node source=values type=T[]
     /// @type.node source=values[0] type=T
     /// @resolution.name source=values target=first.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=first.values
-    /// @resolution.place source=values[0] placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values[0] placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values[0] root=first.values keys=[0]
-    /// @resolution.subscript source=values[0] type=T kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<T, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
-    /// @generic.instantiation id="index#1<T, \"exclusive\">" template=index#1 arguments=(T, "exclusive") owner=first
+    /// @resolution.subscript source=values[0] type=T kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<T, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+    /// @generic.instantiation id="index#1<T, \"mutable\">" template=index#1 arguments=(T, "mutable") owner=first
+    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+    /// @generic.instance id="assumeInitReference<T, \"mutable\">" template=assumeInitReference arguments=(T, "mutable")
+    /// @generic.instance id="elementSlot<T, \"mutable\">" template=elementSlot arguments=(T, "mutable")
+    /// @generic.instance id="index#1<T, \"mutable\">" template=index#1 arguments=(T, "mutable")
+    /// @generic.instance id="sliceIndex<MaybeUninit<T>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<T>, "mutable")
+    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+    /// @generic.instance id=elementPosition<T> template=elementPosition arguments=(T)
     /// @type.node source=0 type=0
 
 }
@@ -917,33 +684,27 @@ const value = first([1, 2]);
 /// @resolution.name source=first target=first
 /// @resolution.call source="first([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64 kind=symbol target=first instance=first<int64>
 /// @generic.instantiation id=first<int64> template=first arguments=(int64)
-/// @generic.instance id="assumeInitReference<int64, \"exclusive\">" template=assumeInitReference arguments=(int64, "exclusive") evaluated=(<assumeInitReference.T, const assumeInitReference.A: Access = "mutable", assumeInitReference.'a>(WithAccess<&assumeInitReference.'a MaybeUninit<assumeInitReference.T>, assumeInitReference.A>) => WithAccess<&assumeInitReference.'a assumeInitReference.T, assumeInitReference.A> => <assumeInitReference.T, const assumeInitReference.A: Access = "mutable", assumeInitReference.'a>(&assumeInitReference.'a exclusive MaybeUninit<int64>) => &assumeInitReference.'a exclusive int64)
-/// @generic.instance id="elementSlot<int64, \"exclusive\">" template=elementSlot arguments=(int64, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int64[], usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int64>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int64>>, usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int64>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int64>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int64>>, usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int64[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int64>>)
-/// @generic.instance id="index#1<int64, \"exclusive\">" template=index#1 arguments=(int64, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#6[], index.A>, isize) => WithAccess<&index#1.'a T#6, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive int64[], isize) => &index#1.'a exclusive int64, WithAccess<&index#1.'a T#6, index.A> => &index#1.'a exclusive int64, WithAccess<&index#1.'a T#6[], index.A> => &index#1.'a exclusive int64[], (WithAccess<&index#1.'a MaybeUninit<T#6>, index.A>) => WithAccess<&index#1.'a T#6, index.A> => (&index#1.'a exclusive MaybeUninit<int64>) => &index#1.'a exclusive int64, WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => &index#1.'a exclusive MaybeUninit<int64>, WithAccess<&index#1.'a T#6, index.A> => &index#1.'a exclusive int64, (WithAccess<&index#1.'a MaybeUninit<T#6>, index.A>) => WithAccess<&index#1.'a T#6, index.A> => (&index#1.'a exclusive MaybeUninit<int64>) => &index#1.'a exclusive int64, WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => &index#1.'a exclusive MaybeUninit<int64>, (WithAccess<&index#1.'a T#6[], index.A>, usize) => WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => (&index#1.'a exclusive int64[], usize) => &index#1.'a exclusive MaybeUninit<int64>, WithAccess<&index#1.'a T#6[], index.A> => &index#1.'a exclusive int64[])
-/// @generic.instance id="initAsPointer<int64, \"exclusive\">" template=initAsPointer arguments=(int64, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int64>) => Raw<int64>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int64>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int64>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int64>)
+/// @generic.instance id="assumeInitReference<int64, \"mutable\">" template=assumeInitReference arguments=(int64, "mutable")
+/// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
+/// @generic.instance id="index#1<int64, \"mutable\">" template=index#1 arguments=(int64, "mutable")
+/// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int64>> template=MaybeUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
 /// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int64>) => Raw<int64>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int64>)
+/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
 /// @generic.instance id=clear<int64> template=clear arguments=(int64)
 /// @generic.instance id=drop<int64> template=drop arguments=(int64)
 /// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
 /// @generic.instance id=elementPosition<int64> template=elementPosition arguments=(int64)
-/// @generic.instance id=first<int64> template=first arguments=(int64) evaluated=(WithAccess<Borrowed<T, "managed" & "local", "mutable">, "exclusive"> => Borrowed<int64, "managed" & "local", "exclusive">)
-/// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
+/// @generic.instance id=first<int64> template=first arguments=(int64)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=truncate<int64> template=truncate arguments=(int64) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int64>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int64[], usize) => &truncate.'a exclusive MaybeUninit<int64>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int64[])
+/// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @type.node source=[1, 2] type=int64[]
 /// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
-/// @generic.instance id=Slice<int64> template=Slice arguments=(int64)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
 /// @generic.instance id=intoUninit<int64> template=intoUninit arguments=(int64)
@@ -993,7 +754,7 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -1058,7 +819,7 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -1112,7 +873,7 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -1168,7 +929,7 @@ function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -1228,7 +989,7 @@ function parse<T>(value: T): T {
     return value;
     /// @type.node source=value type=T#1
     /// @resolution.name source=value target=parse.value#1
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=parse.value#1
 
 }
@@ -1245,12 +1006,12 @@ function parse<T>(value: T[]): T {
     /// @type.node source=value type=T#2[]
     /// @type.node source=value[0] type=T#2
     /// @resolution.name source=value target=parse.value#2
-    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value root=parse.value#2
-    /// @resolution.place source=value[0] placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value[0] placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value[0] root=parse.value#2 keys=[0]
-    /// @resolution.subscript source=value[0] type=T#2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<T#2, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
-    /// @generic.instantiation id="index#1<T#2, \"exclusive\">" template=index#1 arguments=(T#2, "exclusive") owner=parse#2
+    /// @resolution.subscript source=value[0] type=T#2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<T#2, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+    /// @generic.instantiation id="index#1<T#2, \"mutable\">" template=index#1 arguments=(T#2, "mutable") owner=parse#2
     /// @type.node source=0 type=0
 
 }
@@ -1462,8 +1223,9 @@ const rejected = accept<int32>;
 
 === dir ===
 newtype interface Marker {}
+/// @generic.template symbol=Marker parameters=(this: Marker)
 /// @type.symbol symbol=Marker source="newtype interface Marker {}" type=Marker
-/// @definition.interface symbol=Marker source="newtype interface Marker {}" nominal=true
+/// @definition.interface symbol=Marker source="newtype interface Marker {}" template=(this: Marker) nominal=true
 /// @definition.where symbol=Marker source="newtype interface Marker {}" relation=satisfies left=this right=Marker
 
 struct Good {}
@@ -1489,7 +1251,7 @@ function accept<T>(value: T): T where T: Marker {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=accept.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=accept.value
 
 }
@@ -1590,7 +1352,7 @@ extension<T> of Box<T> {
         /// @resolution.name source=Box target=Box
         /// @resolution.name source=T target=T
         /// @resolution.name source=value target=of.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=of.value
 
     }
@@ -1607,7 +1369,7 @@ function build(value: float64): Box<int32> {
     /// @resolution.call source=Box.of(value) parameters=(float64) arguments=(provided(value) as float64) return=Box<float64> kind=symbol target=of instance=Box<float64>.<extension#1>.of
     /// @generic.instantiation id=of<float64> template=of arguments=(float64)
     /// @resolution.name source=value target=build.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=build.value
 
 }
@@ -1669,7 +1431,7 @@ const kept = values
     /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32,), int32, "readonly">
     /// @type.symbol symbol=symbol2.value source=value type=int32
     /// @resolution.name source=value target=symbol2.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=symbol2.value
 
     .filter((value) => value !== undefined);
@@ -1860,7 +1622,7 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => ^map.U#2[] kind=symbol target_receiver=int32 | undefined[] target=map#2
 /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=^int32 | undefined[] kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#4>.map#2<int32 | undefined, \"local\">"
 /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=^int32 | undefined[] kind=symbol target=filter#1 receiver=^int32 | undefined[] instance=^T#3[].<extension#3>.filter#1
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="filter#1<int32 | undefined>" template=filter#1 arguments=(int32 | undefined)
 /// @generic.instantiation id="map#2<int32 | undefined, int32 | undefined, \"local\">" template=map#2 arguments=(int32 | undefined, int32 | undefined, "local")
@@ -1868,7 +1630,7 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol2.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol2.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol2.value
 /// @type.symbol symbol=symbol4 source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean, "readonly">
 /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32 | undefined
@@ -1920,8 +1682,8 @@ class Values<T> {
 
 declare const values: Values<int32>;
 
-const once: int32[][] = values.flat<int32, 1>();
-const twice: int32[][] = values.flat<int32, 2>(2 as 2 | undefined);
+const once: Element<int32, 1>[] = values.flat<int32, 1>();
+const twice: Element<int32, 2>[] = values.flat<int32, 2>(2 as 2 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
@@ -1969,23 +1731,23 @@ declare const values: Values<int32>;
 /// @resolution.name source=Values target=Values
 
 const once = values.flat();
-/// @type.symbol symbol=once source=once type=int32[][]
+/// @type.symbol symbol=once source=once type=Element<int32, 1>[]
 /// @resolution.pattern source=once kind=binding target=once
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=Values.flat
-/// @resolution.call source=values.flat() parameters=(1 | undefined) arguments=(omitted as 1 | undefined) return=int32[][] kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(Borrowed<Values<int32>, "managed" & "local", "readonly">)) instance=Values<int32>.flat<1>
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.call source=values.flat() parameters=(1 | undefined) arguments=(omitted as 1 | undefined) return=Element<int32, 1>[] regions=("managed" & "local") kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(Borrowed<Values<int32>, "managed" & "local", "readonly">)) instance=Values<int32>.flat<1>
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="Values.flat<int32, 1>" template=Values.flat arguments=(int32, 1)
 /// @generic.instantiation id=Values.flat<int32> template=Values.flat arguments=(int32)
 
 const twice = values.flat(2);
-/// @type.symbol symbol=twice source=twice type=int32[][]
+/// @type.symbol symbol=twice source=twice type=Element<int32, 2>[]
 /// @resolution.pattern source=twice kind=binding target=twice
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=Values.flat
-/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=int32[][] kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(Borrowed<Values<int32>, "managed" & "local", "readonly">)) instance=Values<int32>.flat<2>
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=Element<int32, 2>[] regions=("managed" & "local") kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(Borrowed<Values<int32>, "managed" & "local", "readonly">)) instance=Values<int32>.flat<2>
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="Values.flat<int32, 2>" template=Values.flat arguments=(int32, 2)
 "#,
@@ -2034,7 +1796,7 @@ extension<T> of Values<T> {
 
 declare const values: Values<int32>;
 
-const twice: int32[][] = values.flat<int32, 2>(2 as 2 | undefined);
+const twice: Element<int32, 2>[] = values.flat<int32, 2>(2 as 2 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
@@ -2089,13 +1851,13 @@ declare const values: Values<int32>;
 /// @resolution.name source=Values target=Values
 
 const twice: Element<int32, 2>[] = values.flat(2);
-/// @type.symbol symbol=twice source=twice type=int32[][]
+/// @type.symbol symbol=twice source=twice type=Element<int32, 2>[]
 /// @resolution.pattern source=twice kind=binding target=twice
 /// @resolution.name source=Element target=Element
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=flat
-/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=int32[][] kind=symbol target=flat receiver=Values<int32> adjustments=(borrow(Borrowed<Values<int32>, "managed" & "local", "readonly">)) instance=Values<int32>.<extension#1>.flat<2>
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=Element<int32, 2>[] regions=("managed" & "local") kind=symbol target=flat receiver=Values<int32> adjustments=(borrow(Borrowed<Values<int32>, "managed" & "local", "readonly">)) instance=Values<int32>.<extension#1>.flat<2>
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="flat<int32, 2>" template=flat arguments=(int32, 2)
 /// @generic.instantiation id=flat<int32> template=flat arguments=(int32)
@@ -2167,7 +1929,7 @@ const defined = filterMap(values, (value) => {
 /// @resolution.call parameters=(int32 | undefined[], Function<(int32 | undefined,), int32 | undefined>) arguments=(provided(values) as int32 | undefined[], provided(argument) as Function<(int32 | undefined,), int32 | undefined>) return=int32[] kind=symbol target=filterMap instance="filterMap<int32 | undefined, int32>"
 /// @generic.instantiation id="filterMap<int32 | undefined, int32>" template=filterMap arguments=(int32 | undefined, int32)
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @type.symbol symbol=symbol8 type=Function<(int32 | undefined,), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol8.value source=value type=int32 | undefined
@@ -2175,12 +1937,12 @@ const defined = filterMap(values, (value) => {
     if (value !== undefined) {
     /// @resolution.name source=value target=symbol8.value
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=symbol8.value
 
         return value;
         /// @resolution.name source=value target=symbol8.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=symbol8.value
         /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
@@ -2231,7 +1993,7 @@ extension<T> of Values<T> {
 
 declare const values: Values<int32 | int32[]>;
 
-const once: (int32 | int32[])[][] = values.flat<int32 | int32[], 1>(1 as 1 | undefined);
+const once: Element<int32 | int32[], 1>[] = values.flat<int32 | int32[], 1>(1 as 1 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
@@ -2282,13 +2044,13 @@ declare const values: Values<int32 | int32[]>;
 /// @resolution.name source=Values target=Values
 
 const once: Element<int32 | int32[], 1>[] = values.flat(1);
-/// @type.symbol symbol=once source=once type=int32 | int32[][][]
+/// @type.symbol symbol=once source=once type=Element<int32 | int32[], 1>[]
 /// @resolution.pattern source=once kind=binding target=once
 /// @resolution.name source=Element target=Element
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.flat receiver=Values<int32 | int32[]> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32 | int32[]>, Depth#2 | undefined?) => Element<int32 | int32[], Depth#2>[] kind=symbol target_receiver=Values<int32 | int32[]> target=flat
-/// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=int32 | int32[][][] kind=symbol target=flat receiver=Values<int32 | int32[]> adjustments=(borrow(Borrowed<Values<int32 | int32[]>, "managed" & "local", "readonly">)) instance="Values<int32 | int32[]>.<extension#1>.flat<1>"
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Element<int32 | int32[], 1>[] regions=("managed" & "local") kind=symbol target=flat receiver=Values<int32 | int32[]> adjustments=(borrow(Borrowed<Values<int32 | int32[]>, "managed" & "local", "readonly">)) instance="Values<int32 | int32[]>.<extension#1>.flat<1>"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="flat<int32 | int32[], 1>" template=flat arguments=(int32 | int32[], 1)
 /// @generic.instantiation id="flat<int32 | int32[]>" template=flat arguments=(int32 | int32[])
@@ -2382,8 +2144,8 @@ function flatten(values: (int32 | int32[])[]): int32[] {
     return values.flat(1);
     /// @resolution.name source=values target=flatten.values
     /// @resolution.member source=values.flat receiver=int32 | int32[][] type=<const flat.Depth: usize = 1, flat.'a>(this: &flat.'a readonly int32 | int32[][], flat.Depth | undefined?) => ^FlattenedElement<int32 | int32[], flat.Depth>[] kind=symbol target_receiver=int32 | int32[][] target=flat
-    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=^int32[] kind=symbol target=flat receiver=int32 | int32[][] adjustments=(borrow(Borrowed<int32 | int32[][], "managed" & "local", "readonly">)) instance="Array<int32 | int32[]>.<extension#6>.flat<1>"
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=^FlattenedElement<int32 | int32[], 1>[] regions=("managed" & "local") kind=symbol target=flat receiver=int32 | int32[][] adjustments=(borrow(Borrowed<int32 | int32[][], "managed" & "local", "readonly">)) instance="Array<int32 | int32[]>.<extension#6>.flat<1>"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=flatten.values
     /// @generic.instantiation id="flat<int32 | int32[], 1>" template=flat arguments=(int32 | int32[], 1)
     /// @generic.instantiation id="flat<int32 | int32[]>" template=flat arguments=(int32 | int32[])
@@ -2494,8 +2256,8 @@ function flatten(): (int32 | int32[])[][] {
     return values.flat(1);
     /// @resolution.name source=values target=values
     /// @resolution.member source=values.flat receiver=Values<int32 | int32[]> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32 | int32[]>, Depth#2 | undefined?) => Element<int32 | int32[], Depth#2>[] kind=symbol target_receiver=Values<int32 | int32[]> target=flat
-    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=int32 | int32[][][] kind=symbol target=flat receiver=Values<int32 | int32[]> adjustments=(borrow(Borrowed<Values<int32 | int32[]>, "managed" & "local", "readonly">)) instance="Values<int32 | int32[]>.<extension#1>.flat<1>"
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Element<int32 | int32[], 1>[] regions=("managed" & "local") kind=symbol target=flat receiver=Values<int32 | int32[]> adjustments=(borrow(Borrowed<Values<int32 | int32[]>, "managed" & "local", "readonly">)) instance="Values<int32 | int32[]>.<extension#1>.flat<1>"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=values
     /// @generic.instantiation id="flat<int32 | int32[], 1>" template=flat arguments=(int32 | int32[], 1)
     /// @generic.instantiation id="flat<int32 | int32[]>" template=flat arguments=(int32 | int32[])
@@ -2708,7 +2470,7 @@ for (const value of 0..10) {
 
 === dir ===
 for (const value of 0..10) {
-/// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<int64>)" next="next(parameters=(), arguments=(), return=IteratorResult<int64>)"
+/// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<int64>)" next="next(parameters=(), arguments=(), return=IteratorResult<int64, void>, regions=(\"frame\" & \"local\"))"
 /// @generic.instantiation id=iterator#1<int64> template=iterator#1 arguments=(int64)
 /// @generic.instantiation id=next<int64> template=next arguments=(int64)
 /// @type.symbol symbol=value source=value type=int64
@@ -2784,7 +2546,7 @@ const picked = pick(boxed);
 /// @resolution.call source=pick(boxed) parameters=(Box<<error>> | Box<Box<<error>>>) arguments=(provided(boxed) as Box<<error>> | Box<Box<<error>>>) return=<error> kind=symbol target=pick instance=pick<<error>>
 /// @type.node source=boxed type=Box<Box<int32>>
 /// @resolution.name source=boxed target=boxed
-/// @resolution.place source=boxed placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=boxed placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=boxed root=boxed
 "#,
         r#"
@@ -2873,7 +2635,7 @@ const doubled = collect(collect(starts, (start) => {
 /// @generic.instantiation id="collect<int32 | undefined, int32>" template=collect arguments=(int32 | undefined, int32)
 /// @type.node source=starts type=int32 | undefined[]
 /// @resolution.name source=starts target=starts
-/// @resolution.place source=starts placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=starts placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=starts root=starts
 /// @type.symbol symbol=symbol8 type=Function<(int32 | undefined,), int32 | undefined, "readonly">
 /// @type.node type=Function<(int32 | undefined,), int32 | undefined, "readonly">
@@ -2884,7 +2646,7 @@ const doubled = collect(collect(starts, (start) => {
     /// @type.node source=start type=int32 | undefined
     /// @resolution.name source=start target=symbol8.start
     /// @resolution.operator source="start !== (undefined as int32 | undefined)" type=boolean operator="!==" kind=builtin operands=[start as int32 | undefined families=(integer | undefined), undefined as int32 | undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=start placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=start placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=start root=symbol8.start
     /// @type.node source="undefined as int32 | undefined" type=int32 | undefined
     /// @type.node source=undefined type=undefined
@@ -2892,7 +2654,7 @@ const doubled = collect(collect(starts, (start) => {
         return start;
         /// @type.node source=start type=int32
         /// @resolution.name source=start target=symbol8.start
-        /// @resolution.place source=start placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=start placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=start root=symbol8.start
         /// @resolution.narrowing source=start union=int32 | undefined arms=int32
 
@@ -2910,7 +2672,7 @@ const doubled = collect(collect(starts, (start) => {
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=symbol10.value
     /// @resolution.operator source="value > 3" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 3 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=symbol10.value
     /// @type.node source=3 type=3
 
@@ -2919,7 +2681,7 @@ const doubled = collect(collect(starts, (start) => {
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=symbol10.value
         /// @resolution.operator source="value * 2" type=int32 operator="*" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=symbol10.value
         /// @type.node source=2 type=2
 
@@ -3016,12 +2778,13 @@ declare class Promise<T> {
 /// @generic.template symbol=Promise parameters=(out T#1)
 /// @type.symbol symbol=Promise type=Promise
 /// @definition.class symbol=Promise template=(out T#1)
-/// @definition.method symbol=Promise.then source="then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>" slot=then type=<U#1, Promise.then.P1: Place>(this: Managed<this, Promise.then.P1>, Function<(T#1,), U#1 | Promise<U#1>>) => Promise<U#1>
+/// @definition.method symbol=Promise.then source="then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>" slot=then type=<U#1, Promise.then.P1: Place>(this: Managed<Promise<T#1>, Promise.then.P1>, Function<(T#1,), U#1 | Promise<U#1>>) => Promise<U#1>
 /// @type.symbol symbol=Promise.T source=T type=T#1
 
     then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>;
     /// @generic.template symbol=Promise.then parent=template#0 parameters=(U#1, P1: Place)
-    /// @type.symbol symbol=Promise.then source="then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>" type=<U#1, Promise.then.P1: Place>(this: Managed<this, Promise.then.P1>, Function<(T#1,), U#1 | Promise<U#1>>) => Promise<U#1>
+    /// @type.symbol symbol=Promise.then source="then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>" type=<U#1, Promise.then.P1: Place>(this: Managed<Promise<T#1>, Promise.then.P1>, Function<(T#1,), U#1 | Promise<U#1>>) => Promise<U#1>
+    /// @generic.instance id=Promise<U#1> template=Promise arguments=(U#1)
     /// @type.symbol symbol=Promise.then.U source=U type=U#1
     /// @type.symbol symbol=Promise.then.onFulfilled source="onFulfilled: (value: T) => U | Promise<U>" type=Function<(T#1,), U#1 | Promise<U#1>>
     /// @type.symbol symbol=Promise.then.value source="value: T" type=T#1
@@ -3073,6 +2836,8 @@ struct Err<E> {
 newtype Result<T, E> = Ok<T> | Err<E>;
 /// @generic.template symbol=Result parameters=(out T#3, out E#2)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" type=Result
+/// @generic.instance id=Err<E#2> template=Err arguments=(E#2)
+/// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
 /// @definition.newtype symbol=Result source="newtype Result<T, E> = Ok<T> | Err<E>" template=(out T#3, out E#2) backing=Ok<T#3> | Err<E#2> constructors=[<T#3, E#2>(Ok<T#3>) => Result<T#3, E#2>, <T#3, E#2>(Err<E#2>) => Result<T#3, E#2>, <T#3, E#2>(Ok<T#3> | Err<E#2>) => Result<T#3, E#2>]
 /// @type.symbol symbol=Result.T source=T type=T#3
 /// @type.symbol symbol=Result.E source=E type=E#2
@@ -3084,6 +2849,9 @@ newtype Result<T, E> = Ok<T> | Err<E>;
 declare function result<T, E>(): Result<T, E>;
 /// @generic.template symbol=result parameters=(T#4, E#3)
 /// @type.symbol symbol=result source="declare function result<T, E>(): Result<T, E>" type=<T#4, E#3>() => Result<T#4, E#3>
+/// @generic.instance id="Result<T#4, E#3>" template=Result arguments=(T#4, E#3)
+/// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
+/// @generic.instance id=Ok<T#4> template=Ok arguments=(T#4)
 /// @type.symbol symbol=result.T source=T type=T#4
 /// @type.symbol symbol=result.E source=E type=E#3
 /// @resolution.name source=Result target=Result
@@ -3092,8 +2860,11 @@ declare function result<T, E>(): Result<T, E>;
 
 extension<T, E> of Result<T, E> {
 /// @generic.template symbol=<module>#2 parameters=(T#5, E#4)
+/// @generic.instance id="Result<T#5, E#4>" template=Result arguments=(T#5, E#4)
+/// @generic.instance id=Err<E#4> template=Err arguments=(E#4)
+/// @generic.instance id=Ok<T#5> template=Ok arguments=(T#5)
 /// @definition.extension symbol=<module>#2 form=local target=Result<T#5, E#4>
-/// @definition.method symbol=andThen slot=andThen type=<U#2, F#1>(this: this, Function<(T#5,), Result<U#2, F#1>>) => Result<U#2, E#4 | F#1>
+/// @definition.method symbol=andThen slot=andThen type=<U#2, F#1>(this: Result<T#5, E#4>, Function<(T#5,), Result<U#2, F#1>>) => Result<U#2, E#4 | F#1>
 /// @type.symbol symbol=T#1 source=T type=T#5
 /// @type.symbol symbol=E#1 source=E type=E#4
 /// @resolution.name source=Result target=Result
@@ -3102,8 +2873,13 @@ extension<T, E> of Result<T, E> {
 
     andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
     /// @generic.template symbol=andThen parent=template#5 parameters=(U#2, F#1)
-    /// @type.symbol symbol=andThen type=<U#2, F#1>(this: this, Function<(T#5,), Result<U#2, F#1>>) => Result<U#2, E#4 | F#1>
+    /// @type.symbol symbol=andThen type=<U#2, F#1>(this: Result<T#5, E#4>, Function<(T#5,), Result<U#2, F#1>>) => Result<U#2, E#4 | F#1>
     /// @type.symbol symbol=andThen.this type=Result<T#5, E#4>
+    /// @generic.instance id="Err<E#4 | F#1>" template=Err arguments=(E#4 | F#1)
+    /// @generic.instance id="Result<U#2, E#4 | F#1>" template=Result arguments=(U#2, E#4 | F#1)
+    /// @generic.instance id="Result<U#2, F#1>" template=Result arguments=(U#2, F#1)
+    /// @generic.instance id=Err<F#1> template=Err arguments=(F#1)
+    /// @generic.instance id=Ok<U#2> template=Ok arguments=(U#2)
     /// @type.symbol symbol=andThen.U source=U type=U#2
     /// @type.symbol symbol=andThen.F source=F type=F#1
     /// @type.symbol symbol=andThen.f source="f: (value: T) => Result<U, F>" type=Function<(T#5,), Result<U#2, F#1>>
@@ -3123,6 +2899,7 @@ extension<T, E> of Result<T, E> {
         /// @resolution.name source=result target=result
         /// @resolution.call source="result<U, E | F>()" parameters=() return=Result<U#2, E#4 | F#1> kind=symbol target=result instance="result<U#2, E#4 | F#1>"
         /// @generic.instantiation id="result<U#2, E#4 | F#1>" template=result arguments=(U#2, E#4 | F#1) owner=andThen
+        /// @generic.instance id="result<U#2, E#4 | F#1>" template=result arguments=(U#2, E#4 | F#1)
         /// @resolution.name source=U target=andThen.U
         /// @resolution.name source=E target=E#1
         /// @resolution.name source=F target=andThen.F
@@ -3133,6 +2910,10 @@ extension<T, E> of Result<T, E> {
 newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 /// @generic.template symbol=AsyncResult parameters=(out T#6, out E#5)
 /// @type.symbol symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" type=AsyncResult
+/// @generic.instance id="Promise<Result<T#6, E#5>>" template=Promise arguments=(Result<T#6, E#5>)
+/// @generic.instance id="Result<T#6, E#5>" template=Result arguments=(T#6, E#5)
+/// @generic.instance id=Err<E#5> template=Err arguments=(E#5)
+/// @generic.instance id=Ok<T#6> template=Ok arguments=(T#6)
 /// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(out T#6, out E#5) backing=Promise<Result<T#6, E#5>> constructors=[<T#6, E#5>(Promise<Result<T#6, E#5>>) => AsyncResult<T#6, E#5>]
 /// @type.symbol symbol=AsyncResult.T source=T type=T#6
 /// @type.symbol symbol=AsyncResult.E source=E type=E#5
@@ -3143,8 +2924,9 @@ newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 
 extension<T, E> of AsyncResult<T, E> {
 /// @generic.template symbol=<module>#3 parameters=(T#7, E#6)
+/// @generic.instance id="AsyncResult<T#7, E#6>" template=AsyncResult arguments=(T#7, E#6)
 /// @definition.extension symbol=<module>#3 form=local target=AsyncResult<T#7, E#6>
-/// @definition.method symbol=andThenSync slot=andThenSync type=<U#3, F#2, andThenSync.P2: Place>(this: Managed<this, andThenSync.P2>, Function<(T#7,), Result<U#3, F#2>>) => AsyncResult<U#3, E#6 | F#2>
+/// @definition.method symbol=andThenSync slot=andThenSync type=<U#3, F#2, andThenSync.P2: Place>(this: Managed<AsyncResult<T#7, E#6>, andThenSync.P2>, Function<(T#7,), Result<U#3, F#2>>) => AsyncResult<U#3, E#6 | F#2>
 /// @type.symbol symbol=T#2 source=T type=T#7
 /// @type.symbol symbol=E#2 source=E type=E#6
 /// @resolution.name source=AsyncResult target=AsyncResult
@@ -3153,8 +2935,12 @@ extension<T, E> of AsyncResult<T, E> {
 
     andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
     /// @generic.template symbol=andThenSync parent=template#7 parameters=(U#3, F#2, P2: Place)
-    /// @type.symbol symbol=andThenSync type=<U#3, F#2, andThenSync.P2: Place>(this: Managed<this, andThenSync.P2>, Function<(T#7,), Result<U#3, F#2>>) => AsyncResult<U#3, E#6 | F#2>
+    /// @type.symbol symbol=andThenSync type=<U#3, F#2, andThenSync.P2: Place>(this: Managed<AsyncResult<T#7, E#6>, andThenSync.P2>, Function<(T#7,), Result<U#3, F#2>>) => AsyncResult<U#3, E#6 | F#2>
     /// @type.symbol symbol=andThenSync.this type=Managed<AsyncResult<T#7, E#6>, andThenSync.P2>
+    /// @generic.instance id="AsyncResult<U#3, E#6 | F#2>" template=AsyncResult arguments=(U#3, E#6 | F#2)
+    /// @generic.instance id="Result<U#3, F#2>" template=Result arguments=(U#3, F#2)
+    /// @generic.instance id=Err<F#2> template=Err arguments=(F#2)
+    /// @generic.instance id=Ok<U#3> template=Ok arguments=(U#3)
     /// @type.symbol symbol=andThenSync.U source=U type=U#3
     /// @type.symbol symbol=andThenSync.F source=F type=F#2
     /// @type.symbol symbol=andThenSync.f source="f: (value: T) => Result<U, F>" type=Function<(T#7,), Result<U#3, F#2>>
@@ -3185,8 +2971,16 @@ extension<T, E> of AsyncResult<T, E> {
         /// @generic.instantiation id="AsyncResult<T#7, E#6>" template=AsyncResult arguments=(T#7, E#6) owner=andThenSync
         /// @generic.instantiation id="Promise.then<Result<T#7, E#6>, Result<U#3, E#6 | F#2>, andThenSync.P2>" template=Promise.then arguments=(Result<T#7, E#6>, Result<U#3, E#6 | F#2>, andThenSync.P2) owner=andThenSync
         /// @generic.instantiation id="Promise.then<Result<T#7, E#6>>" template=Promise.then arguments=(Result<T#7, E#6>) owner=andThenSync
+        /// @generic.instance id="Promise.then<Result<T#7, E#6>, Result<U#3, E#6 | F#2>, \"local\">" template=Promise.then arguments=(Result<T#7, E#6>, Result<U#3, E#6 | F#2>, "local")
+        /// @generic.instance id="Promise<Result<T#7, E#6>>" template=Promise arguments=(Result<T#7, E#6>)
         /// @type.symbol symbol=andThenSync.symbol47 source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2> | Promise<Result<U#3, E#6 | F#2>>, "readonly">
         /// @type.node source=(result) => result.andThen(f) type=Function<(Result<T#7, E#6>,), Result<U#3, E#6 | F#2> | Promise<Result<U#3, E#6 | F#2>>, "readonly">
+        /// @generic.instance id="Err<E#6 | F#2>" template=Err arguments=(E#6 | F#2)
+        /// @generic.instance id="Promise<Result<U#3, E#6 | F#2>>" template=Promise arguments=(Result<U#3, E#6 | F#2>)
+        /// @generic.instance id="Result<T#7, E#6>" template=Result arguments=(T#7, E#6)
+        /// @generic.instance id="Result<U#3, E#6 | F#2>" template=Result arguments=(U#3, E#6 | F#2)
+        /// @generic.instance id=Err<E#6> template=Err arguments=(E#6)
+        /// @generic.instance id=Ok<T#7> template=Ok arguments=(T#7)
         /// @type.symbol symbol=andThenSync.symbol47.result source=result type=Result<T#7, E#6>
         /// @type.node source=result type=Result<T#7, E#6>
         /// @type.node source=result.andThen type=<U#2, F#1>(this: Result<T#7, E#6>, Function<(T#7,), Result<U#2, F#1>>) => Result<U#2, E#6 | F#1>
@@ -3194,13 +2988,15 @@ extension<T, E> of AsyncResult<T, E> {
         /// @resolution.name source=result target=andThenSync.symbol47.result
         /// @resolution.member source=result.andThen receiver=Result<T#7, E#6> type=<U#2, F#1>(this: Result<T#7, E#6>, Function<(T#7,), Result<U#2, F#1>>) => Result<U#2, E#6 | F#1> kind=symbol target_receiver=Result<T#7, E#6> target=andThen
         /// @resolution.call source=result.andThen(f) parameters=(Function<(T#7,), Result<U#3, F#2>>) arguments=(provided(f) as Function<(T#7,), Result<U#3, F#2>>) return=Result<U#3, E#6 | F#2> kind=symbol target=andThen receiver=Result<T#7, E#6> instance="Result<T#7, E#6>.<extension#1>.andThen<U#3, F#2>"
-        /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=result root=andThenSync.symbol47.result
         /// @generic.instantiation id="andThen<T#7, E#6, U#3, F#2>" template=andThen arguments=(T#7, E#6, U#3, F#2) owner=andThenSync
         /// @generic.instantiation id="andThen<T#7, E#6>" template=andThen arguments=(T#7, E#6) owner=andThenSync
+        /// @generic.instance id="andThen<T#7, E#6, U#3, F#2>" template=andThen arguments=(T#7, E#6, U#3, F#2)
+        /// @generic.instance id="result<U#3, E#6 | F#2>" template=result arguments=(U#3, E#6 | F#2)
         /// @type.node source=f type=Function<(T#7,), Result<U#3, F#2>>
         /// @resolution.name source=f target=andThenSync.f
-        /// @resolution.place source=f placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=f placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=f root=andThenSync.f
 
     }
@@ -3231,22 +3027,19 @@ function positive(values: int32[]): int32[] {
 function positive(values: int32[]): int32[] {
 /// @type.symbol symbol=positive type=(int32[]) => int32[]
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<int32, \"exclusive\">" template=elementSlot arguments=(int32, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32[], usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>)
-/// @generic.instance id="initAsPointer<int32, \"exclusive\">" template=initAsPointer arguments=(int32, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32>) => Raw<int32>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
+/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int32>> template=MaybeUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
 /// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32>) => Raw<int32>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
 /// @generic.instance id=clear<int32> template=clear arguments=(int32)
 /// @generic.instance id=drop<int32> template=drop arguments=(int32)
 /// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32[], usize) => &truncate.'a exclusive MaybeUninit<int32>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32[])
+/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.symbol symbol=positive.values source="values: int32[]" type=int32[]
 
     return values.map((value) => value + 1).filter((value) => value > 0);
@@ -3260,7 +3053,7 @@ function positive(values: int32[]): int32[] {
     /// @resolution.member source=values.map receiver=int32[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32[], map#2.P1>, Function<(int32, isize), map.U#2>) => ^map.U#2[] kind=symbol target_receiver=int32[] target=map#2
     /// @resolution.call source="values.map((value) => value + 1)" parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value + 1) as Function<(int32, isize), int32>) return=^int32[] kind=symbol target=map#2 receiver=int32[] instance="Array<int32>.<extension#4>.map#2<int32, \"local\">"
     /// @resolution.call source="values.map((value) => value + 1).filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=^int32[] kind=symbol target=filter#1 receiver=^int32[] instance=^T#3[].<extension#3>.filter#1
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=positive.values
     /// @generic.instantiation id="map#2<int32, int32, \"local\">" template=map#2 arguments=(int32, int32, "local")
     /// @generic.instantiation id=filter#1<int32> template=filter#1 arguments=(int32)
@@ -3274,7 +3067,7 @@ function positive(values: int32[]): int32[] {
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=positive.symbol3.value
     /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=positive.symbol3.value
     /// @type.node source=1 type=1
     /// @type.symbol symbol=positive.symbol5 source="(value) => value > 0" type=Function<(&type_expression.'a readonly int32,), boolean, "readonly">
@@ -3319,20 +3112,17 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 /// @type.symbol symbol=defined type=(int32 | undefined[]) => int32 | undefined[]
 /// @generic.instance id="Array<int32 | undefined>" template=Array arguments=(int32 | undefined)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="MaybeUninit<MaybeUninit<int32 | undefined>>" template=MaybeUninit arguments=(MaybeUninit<int32 | undefined>)
-/// @generic.instance id="MaybeUninit<int32 | undefined>" template=MaybeUninit arguments=(int32 | undefined)
 /// @generic.instance id="assumeInitDrop#1<int32 | undefined>" template=assumeInitDrop#1 arguments=(int32 | undefined)
-/// @generic.instance id="assumeInitDrop<int32 | undefined>" template=assumeInitDrop arguments=(int32 | undefined) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32 | undefined>) => Raw<int32 | undefined>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32 | undefined>)
+/// @generic.instance id="assumeInitDrop<int32 | undefined>" template=assumeInitDrop arguments=(int32 | undefined)
 /// @generic.instance id="clear<int32 | undefined>" template=clear arguments=(int32 | undefined)
 /// @generic.instance id="drop<int32 | undefined>" template=drop arguments=(int32 | undefined)
 /// @generic.instance id="dropInPlace<int32 | undefined>" template=dropInPlace arguments=(int32 | undefined)
-/// @generic.instance id="elementSlot<int32 | undefined, \"exclusive\">" template=elementSlot arguments=(int32 | undefined, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32 | undefined[], usize) => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32 | undefined>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32 | undefined>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32 | undefined>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32 | undefined[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32 | undefined>>)
-/// @generic.instance id="initAsPointer<int32 | undefined, \"exclusive\">" template=initAsPointer arguments=(int32 | undefined, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32 | undefined>) => Raw<int32 | undefined>)
-/// @generic.instance id="new<MaybeUninit<int32 | undefined>>" template=new arguments=(MaybeUninit<int32 | undefined>)
+/// @generic.instance id="elementSlot<int32 | undefined, \"mutable\">" template=elementSlot arguments=(int32 | undefined, "mutable")
+/// @generic.instance id="initAsPointer<int32 | undefined, \"mutable\">" template=initAsPointer arguments=(int32 | undefined, "mutable")
 /// @generic.instance id="sliceAssumeInit<MaybeUninit<int32 | undefined>>" template=sliceAssumeInit arguments=(MaybeUninit<int32 | undefined>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int32 | undefined>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32 | undefined>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32 | undefined>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32 | undefined>)
+/// @generic.instance id="sliceIndex<MaybeUninit<int32 | undefined>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32 | undefined>, "mutable")
 /// @generic.instance id="sliceUninit<MaybeUninit<int32 | undefined>>" template=sliceUninit arguments=(MaybeUninit<int32 | undefined>)
-/// @generic.instance id="truncate<int32 | undefined>" template=truncate arguments=(int32 | undefined) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32 | undefined>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32 | undefined[], usize) => &truncate.'a exclusive MaybeUninit<int32 | undefined>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32 | undefined[])
+/// @generic.instance id="truncate<int32 | undefined>" template=truncate arguments=(int32 | undefined)
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @type.symbol symbol=defined.values source="values: (int32 | undefined)[]" type=int32 | undefined[]
 
@@ -3347,7 +3137,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => ^map.U#2[] kind=symbol target_receiver=int32 | undefined[] target=map#2
     /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=^int32 | undefined[] kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#4>.map#2<int32 | undefined, \"local\">"
     /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=^int32 | undefined[] kind=symbol target=filter#1 receiver=^int32 | undefined[] instance=^T#3[].<extension#3>.filter#1
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=defined.values
     /// @generic.instantiation id="filter#1<int32 | undefined>" template=filter#1 arguments=(int32 | undefined)
     /// @generic.instantiation id="map#2<int32 | undefined, int32 | undefined, \"local\">" template=map#2 arguments=(int32 | undefined, int32 | undefined, "local")
@@ -3359,7 +3149,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @type.symbol symbol=defined.symbol3.value source=value type=int32 | undefined
     /// @type.node source=value type=int32 | undefined
     /// @resolution.name source=value target=defined.symbol3.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=defined.symbol3.value
     /// @type.symbol symbol=defined.symbol5 source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean, "readonly">
     /// @type.node source="(value) => value !== undefined" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean, "readonly">
@@ -3402,22 +3192,19 @@ function containsPositive(values: int32[]): boolean {
 function containsPositive(values: int32[]): boolean {
 /// @type.symbol symbol=containsPositive type=(int32[]) => boolean
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<int32, \"exclusive\">" template=elementSlot arguments=(int32, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32[], usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>)
-/// @generic.instance id="initAsPointer<int32, \"exclusive\">" template=initAsPointer arguments=(int32, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32>) => Raw<int32>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
+/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int32>> template=MaybeUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
 /// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32>) => Raw<int32>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
 /// @generic.instance id=clear<int32> template=clear arguments=(int32)
 /// @generic.instance id=drop<int32> template=drop arguments=(int32)
 /// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32[], usize) => &truncate.'a exclusive MaybeUninit<int32>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32[])
+/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.symbol symbol=containsPositive.values source="values: int32[]" type=int32[]
 
     return values.reduce(
@@ -3426,7 +3213,7 @@ function containsPositive(values: int32[]): boolean {
     /// @resolution.name source=values target=containsPositive.values
     /// @resolution.member source=values.reduce receiver=int32[] type=<reduce.U#2, reduce#2.P1: Place>(this: Managed<int32[], reduce#2.P1>, Function<(reduce.U#2, int32, isize), reduce.U#2>, reduce.U#2) => reduce.U#2 kind=symbol target_receiver=int32[] target=reduce#2
     /// @resolution.call parameters=(Function<(boolean, int32, isize), boolean>, boolean) arguments=(provided((found, value) => found || value > 0) as Function<(boolean, int32, isize), boolean>, provided(false) as boolean) return=boolean kind=symbol target=reduce#2 receiver=int32[] instance="Array<int32>.<extension#4>.reduce#2<boolean, \"local\">"
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=containsPositive.values
     /// @generic.instantiation id="reduce#2<int32, boolean, \"local\">" template=reduce#2 arguments=(int32, boolean, "local")
     /// @generic.instantiation id=reduce#2<int32> template=reduce#2 arguments=(int32)
@@ -3440,12 +3227,12 @@ function containsPositive(values: int32[]): boolean {
         /// @type.node source="found || value > 0" type=boolean
         /// @resolution.name source=found target=containsPositive.symbol3.found
         /// @resolution.operator source="found || value > 0" type=boolean operator="||" kind=builtin operands=[found as boolean families=(boolean), value > 0 as boolean families=(boolean)]
-        /// @resolution.place source=found placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=found placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=found root=containsPositive.symbol3.found
         /// @type.node source="value > 0" type=boolean
         /// @resolution.name source=value target=containsPositive.symbol3.value
         /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=containsPositive.symbol3.value
         /// @type.node source=0 type=0
 
@@ -3503,9 +3290,9 @@ function length(values: It<int32, void>): isize {
 
 === dir ===
 newtype interface It<T, R = void> {
-/// @generic.template symbol=It parameters=(out T, out R = void)
+/// @generic.template symbol=It parameters=(out T, out R = void, this: It<T, R>)
 /// @type.symbol symbol=It type=It
-/// @definition.interface symbol=It template=(out T, out R = void) nominal=true
+/// @definition.interface symbol=It template=(out T, out R = void, this: It<T, R>) nominal=true
 /// @definition.where symbol=It relation=satisfies left=this right=It<T, R>
 /// @definition.method symbol=It.count slot=count type=(this: this) => isize
 /// @definition.method symbol=It.first slot=first type=(this: this) => T | undefined
@@ -3564,7 +3351,7 @@ function length(values: It<int32>): isize {
     /// @resolution.name source=values target=length.values
     /// @resolution.member source=values.count receiver=It<int32, void> type=(this: It<int32, void>) => isize kind=symbol target_receiver=It<int32, void> dispatch=dynamic constraint=It<int32, void> target=It.count
     /// @resolution.call source=values.count() parameters=() return=isize kind=dynamic target=It.count receiver=It<int32, void> constraint=It<int32, void> generic_arguments=(int32, void)
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=length.values
     /// @generic.instantiation id="It.count<int32, void>" template=It.count arguments=(int32, void)
 
@@ -3611,7 +3398,7 @@ const result = fix((value) => [value]);
 /// @type.symbol symbol=symbol5.value source=value type=<error>[]
 /// @resolution.call source=[value] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(value) as <error>) return=<error>[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<<error>>
 /// @resolution.name source=value target=symbol5.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol5.value
 "#,
         r#"
@@ -3646,7 +3433,7 @@ interface Safe {}
 
 declare function run<T>(body: ^Function<(), T, "once"> & Safe): T;
 
-struct Runner<in out R> {
+struct Runner<R> {
     body: ^Function<(), R, "once"> & Safe;
 
     go(this): void {
@@ -3656,8 +3443,9 @@ struct Runner<in out R> {
 
 === dir ===
 interface Safe {}
+/// @generic.template symbol=Safe parameters=(this: Safe)
 /// @type.symbol symbol=Safe source="interface Safe {}" type=Safe
-/// @definition.interface symbol=Safe source="interface Safe {}"
+/// @definition.interface symbol=Safe source="interface Safe {}" template=(this: Safe)
 /// @definition.where symbol=Safe source="interface Safe {}" relation=satisfies left=this right=Safe
 
 declare function run<T>(body: ^Function<(), T, "once"> & Safe): T;
@@ -3671,9 +3459,9 @@ declare function run<T>(body: ^Function<(), T, "once"> & Safe): T;
 /// @resolution.name source=T target=run.T
 
 struct Runner<R> {
-/// @generic.template symbol=Runner parameters=(in out R)
+/// @generic.template symbol=Runner parameters=(R)
 /// @type.symbol symbol=Runner type=Runner
-/// @definition.struct symbol=Runner template=(in out R)
+/// @definition.struct symbol=Runner template=(R)
 /// @definition.field symbol=Runner.body source="body: ^Function<(), R, \"once\"> & Safe" key=body type=^Function<(), R, "once"> & Safe
 /// @definition.method symbol=Runner.go slot=go type=(this: this) => void
 /// @type.symbol symbol=Runner.R source=R type=R
@@ -3696,9 +3484,9 @@ struct Runner<R> {
         /// @generic.instantiation id=run<R> template=run arguments=(R) owner=Runner.go
         /// @resolution.member source=this.body receiver=Runner<R> type=^Function<(), R, "once"> & Safe kind=field target_receiver=Runner<R> key=body target=Runner.body target_type=^Function<(), R, "once"> & Safe
         /// @resolution.receiver source=this kind=this declaration=Runner type=Runner<R>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.body placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this.body placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this.body root=this keys=[body]
 
     }

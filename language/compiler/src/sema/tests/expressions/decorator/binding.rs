@@ -49,8 +49,9 @@ struct IoControlRequest {}
 /// @definition.struct symbol=IoControlRequest source="struct IoControlRequest {}"
 
 interface IoControlBinding {
+/// @generic.template symbol=IoControlBinding parameters=(this: IoControlBinding)
 /// @type.symbol symbol=IoControlBinding type=IoControlBinding
-/// @definition.interface symbol=IoControlBinding
+/// @definition.interface symbol=IoControlBinding template=(this: IoControlBinding)
 /// @definition.where symbol=IoControlBinding relation=satisfies left=this right=IoControlBinding
 /// @definition.method symbol=IoControlBinding.executeIoControl slot=executeIoControl type=(this: this, ResourceId, IoControlRequest) => IoControlRequest
 

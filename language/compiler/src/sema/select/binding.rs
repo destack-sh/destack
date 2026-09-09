@@ -121,7 +121,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let Some(definition) = self.definition(level.symbol)?.cloned() else {
+            let Some(definition) = self.definition(level.symbol)? else {
                 return Ok(None);
             };
 
@@ -137,7 +137,7 @@ impl CheckState<'_> {
                 }
 
                 // conformance levels serve their default members only
-                if is_conformance && !self.definition_member_has_default(member) {
+                if is_conformance && !self.definition_member_has_default(member)? {
                     continue;
                 }
 
@@ -239,6 +239,7 @@ impl CheckState<'_> {
                     continue;
                 };
 
+                // push the base's apparent instance at its arguments
                 let arguments = self.type_ids(heritage_module, heritage.arguments)?;
                 stack.push((
                     ApparentInstance {
@@ -289,6 +290,7 @@ impl CheckState<'_> {
                     continue;
                 };
 
+                // push the base's apparent instance at its arguments
                 let arguments = self.type_ids(heritage_module, heritage.arguments)?;
                 stack.push(ApparentInstance {
                     symbol: heritage.symbol,
@@ -343,7 +345,7 @@ impl CheckState<'_> {
         self.counters.binding_derivations += 1;
 
         // read owners their module's elaborate pass already flattened
-        let stored = self.stored_member_bindings(symbol, space);
+        let stored = self.stored_member_bindings(symbol, space)?;
 
         // build the canonical bindings for unflattened owners
         let bindings = match stored {
@@ -375,26 +377,26 @@ impl CheckState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
         space: dir::MemberSpace,
-    ) -> Option<Vec<dir::MemberBinding>> {
+    ) -> CompilerResult<Option<Vec<dir::MemberBinding>>> {
         // read own owners from the pass tail over the committed base
         if self.is_own_module(symbol.module_id) {
             let module = &self.module;
             if let Some(bindings) = module.members_tail.bindings(symbol, space) {
-                return Some(bindings.to_vec());
+                return Ok(Some(bindings.to_vec()));
             }
 
-            return module
+            return Ok(module
                 .members
                 .iter()
                 .find_map(|base| base.bindings(symbol, space))
-                .map(<[dir::MemberBinding]>::to_vec);
+                .map(<[dir::MemberBinding]>::to_vec));
         }
 
         // read foreign owners from their module's elaborated bindings
-        let external = self.external_modules.get(&symbol.module_id)?;
-        let bindings = external.members.bindings(symbol, space)?;
-
-        Some(bindings.to_vec())
+        Ok(self
+            .external(symbol.module_id)?
+            .and_then(|external| external.members().bindings(symbol, space))
+            .map(<[dir::MemberBinding]>::to_vec))
     }
 
     /// Derive one stored member binding's candidates for a lookup instance.
@@ -416,25 +418,29 @@ impl CheckState<'_> {
         let mut candidates = Vec::with_capacity(binding.declarations.len());
         for declaration in &binding.declarations {
             // carry the arguments of the declaring heritage level
-            let generic_arguments = if declaration.owner == instance.symbol {
-                generic_arguments.clone()
-            } else if let Some(level) = self.heritage_level_instance(instance, declaration.owner)? {
-                self.symbol_generic_argument_bindings(level.symbol, &level.arguments)?
-            } else {
-                generic_arguments.clone()
+            let level = match declaration.owner == instance.symbol {
+                true => None,
+                false => self.heritage_level_instance(instance, declaration.owner)?,
+            };
+            let generic_arguments = match &level {
+                Some(level) => {
+                    self.symbol_generic_argument_bindings(level.symbol, &level.arguments)?
+                }
+                None => generic_arguments.clone(),
             };
 
-            // rigid receivers project associated members through themselves
+            // project a rigid receiver's associated members through itself
             let mut access = binding.access;
             if declaration.role == dir::MemberRole::Associated
                 && self.is_rigid_projection_owner(receiver)?
             {
                 let arguments = self.intern_type_ids(&[])?;
+                let qualifier = Some(level.as_ref().unwrap_or(instance).qualifier(self)?);
                 let projected = self.intern_member(dir::MemberType {
                     owner: receiver,
                     key: binding.key,
                     arguments,
-                    qualifier: None,
+                    qualifier,
                 })?;
                 access = dir::PropertyAccess::Read(projected);
             } else {
@@ -455,8 +461,8 @@ impl CheckState<'_> {
             }
 
             // substitute the stored static value through the same instance
-            let value = self.symbol_static_id(declaration.symbol);
-            let value_type = match self.static_value(declaration.symbol) {
+            let value = self.symbol_static_id(declaration.symbol)?;
+            let value_type = match self.static_value(declaration.symbol)? {
                 Some(written) => Some(self.substitute_type(written, &substitution)?),
                 None => None,
             };
@@ -472,6 +478,7 @@ impl CheckState<'_> {
                 declaration.origin,
                 generic_arguments,
             );
+            declared.region_arguments = self.resolved_region_bindings(&substitution.bindings)?;
             declared.requirement = requirement;
             declared.value = value;
             declared.value_type = value_type;

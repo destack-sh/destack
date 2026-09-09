@@ -17,7 +17,7 @@ declare const buffer: Buffer<1024>;
 === annotated ===
 type Buffer<const N: uint> = [uint8; N];
 
-declare const buffer: [uint8; 1024];
+declare const buffer: Buffer<1024>;
 
 === dir ===
 type Buffer<const N: uint> = [uint8; N];
@@ -50,7 +50,7 @@ type Buffer<const N: uint> = [uint8; N];
 
 type Halved<const M: uint> = Buffer<M / 2>;
 
-declare const halved: [uint8; 512];
+declare const halved: Halved<1024>;
 
 === dir ===
 type Buffer<const N: uint> = [uint8; N];
@@ -81,7 +81,7 @@ declare const buffer: Buffer<uint>;
 === annotated ===
 type Buffer<const N: uint> = [uint8; N];
 
-declare const buffer: Buffer<uint>;
+declare const buffer: Buffer<uint64>;
 
 === dir ===
 type Buffer<const N: uint> = [uint8; N];
@@ -116,7 +116,7 @@ type Double<const N: uint> = [uint8; N];
 
 type Quad<const M: uint> = Double<M>;
 
-declare const quad: Quad<uint>;
+declare const quad: Quad<uint64>;
 
 === dir ===
 type Double<const N: uint> = [uint8; N];

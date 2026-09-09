@@ -831,7 +831,9 @@ impl CheckState<'_> {
             }
             // defaults cover absent values before testing the nested pattern
             dir::Pattern::Default { pattern: inner, .. } => {
-                if self.ty(value)?.is_undefined() {
+                let inner = *inner;
+                let value_type = self.ty(value)?;
+                if value_type.is_undefined() {
                     Ok(Verdict::Holds)
                 } else {
                     self.decide_pattern_covers(origin, inner.into_global(module), value)

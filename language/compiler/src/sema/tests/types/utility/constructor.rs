@@ -27,7 +27,7 @@ class User {
 
 type Args = ConstructorParameters<typeof User>;
 
-const ok: (string, float64) = ("Ada", 42);
+const ok: Args = ("Ada", 42);
 ok satisfies (string, number);
 
 === dir ===
@@ -46,13 +46,13 @@ class User {
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
-/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<User>
+/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User
 
 const ok: Args = ("Ada", 42);
-/// @type.symbol symbol=ok source=ok type=(string, float64)
+/// @type.symbol symbol=ok source=ok type=Args
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Args target=Args
 
@@ -97,19 +97,19 @@ import { User } from "./user.ds";
 
 type Args = ConstructorParameters<typeof User>;
 
-const value: (string, float64) = ("Ada", 42);
+const value: Args = ("Ada", 42);
 
 === dir ===
 import { User } from "./user.ds";
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
-/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<user.User>
+/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=user.User
 
 const value: Args = ("Ada", 42);
-/// @type.symbol symbol=value source=value type=(string, float64)
+/// @type.symbol symbol=value source=value type=Args
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Args target=Args
 "#,
@@ -143,7 +143,7 @@ class User {
 
 type Value = InstanceType<typeof User>;
 
-const ok: User = new User();
+const ok: Value = new User();
 ok.name satisfies string;
 
 === dir ===
@@ -158,13 +158,13 @@ class User {
 }
 
 type Value = InstanceType<typeof User>;
-/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=User
-/// @definition.type symbol=Value source="type Value = InstanceType<typeof User>" value=User
+/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=InstanceType<User>
+/// @definition.type symbol=Value source="type Value = InstanceType<typeof User>" value=InstanceType<typeof User>
 /// @resolution.name source=InstanceType target=InstanceType
 /// @resolution.name source=User target=User
 
 const ok: Value = new User();
-/// @type.symbol symbol=ok source=ok type=User
+/// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
@@ -172,10 +172,10 @@ const ok: Value = new User();
 
 ok.name satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.member source=ok.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
-/// @resolution.place source=ok placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=ok.name receiver=Value type=string kind=field target_receiver=Value key=name target=User.name target_type=string
+/// @resolution.place source=ok placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=ok root=ok
-/// @resolution.place source=ok.name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=ok.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=ok.name root=ok keys=[name]
 "#,
     );
@@ -207,7 +207,7 @@ class User {
 
 type Args = ConstructorParameters<typeof User>;
 
-const bad: (string, float64) = ("Ada", "old");
+const bad: Args = ("Ada", "old");
 
 === dir ===
 class User {
@@ -225,13 +225,13 @@ class User {
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
-/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=(string, float64)
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<User>
+/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User
 
 const bad: Args = ("Ada", "old");
-/// @type.symbol symbol=bad source=bad type=(string, float64)
+/// @type.symbol symbol=bad source=bad type=Args
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Args target=Args
 "#,

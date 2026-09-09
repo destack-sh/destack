@@ -45,7 +45,7 @@ type Bag = { readonly [key: string]: int32 };
 
 function read(bag: Bag): int32 | undefined {
 /// @type.symbol symbol=read type=(Bag) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type={ readonly [key: string]: int32 }
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
     const x = bag["x"];
@@ -53,8 +53,8 @@ function read(bag: Bag): int32 | undefined {
     /// @resolution.pattern source=x kind=binding target=read.x
     /// @resolution.name source=bag target=read.bag
     /// @resolution.access source="bag[\"x\"]" root=read.bag keys=[x]
-    /// @resolution.subscript source="bag[\"x\"]" type=int32 | undefined kind=member target="receiver={ readonly [key: string]: int32 }, target=index(string), type=int32 | undefined"
-    /// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.subscript source="bag[\"x\"]" type=int32 | undefined kind=member target="receiver=Bag, target=index(string), type=int32 | undefined"
+    /// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=bag root=read.bag
 
     const missing = bag["missing"];
@@ -62,8 +62,8 @@ function read(bag: Bag): int32 | undefined {
     /// @resolution.pattern source=missing kind=binding target=read.missing
     /// @resolution.name source=bag target=read.bag
     /// @resolution.access source="bag[\"missing\"]" root=read.bag keys=[missing]
-    /// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver={ readonly [key: string]: int32 }, target=index(string), type=int32 | undefined"
-    /// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver=Bag, target=index(string), type=int32 | undefined"
+    /// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=bag root=read.bag
 
     missing satisfies int32 | undefined;
@@ -90,7 +90,7 @@ const x = read(point);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 
 x satisfies int32 | undefined;
@@ -134,7 +134,7 @@ type Bag = { readonly [key: string]: int32 };
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type={ readonly [key: string]: int32 }
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
@@ -149,7 +149,7 @@ const value = read(mixed);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(mixed) parameters=(Bag) arguments=(provided(mixed) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=mixed target=mixed
-/// @resolution.place source=mixed placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=mixed placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=mixed root=mixed
 "#,
         r#"
@@ -198,7 +198,7 @@ const missing = checked["missing"];
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=checked target=checked
 /// @resolution.rejected source="checked[\"missing\"]"
-/// @resolution.place source=checked placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=checked placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=checked root=checked
 "#,
         r#"
@@ -241,7 +241,7 @@ type Bag = { [key: string]: int32 };
 
 declare function write(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=write.bag source="bag: Bag" type={ [key: string]: int32 }
+/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
@@ -256,7 +256,7 @@ const bad = write(point);
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -307,23 +307,23 @@ type Bag = { [key: string]: int32 };
 
 function write(bag: Bag): int32 | undefined {
 /// @type.symbol symbol=write type=(Bag) => int32 | undefined
-/// @type.symbol symbol=write.bag source="bag: Bag" type={ [key: string]: int32 }
+/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
     bag["x"] = 1;
     /// @resolution.name source=bag target=write.bag
     /// @resolution.pattern.assign source="bag[\"x\"]" kind=place
     /// @resolution.access source="bag[\"x\"]" root=write.bag keys=[x]
-    /// @resolution.assignment source="bag[\"x\"]" write="member(receiver={ [key: string]: int32 }, target=index(string), type=int32)" type=int32
-    /// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.assignment source="bag[\"x\"]" write="member(receiver=Bag, target=index(string), type=int32)" type=int32
+    /// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=bag root=write.bag
 
     return bag["x"];
     /// @resolution.name source=bag target=write.bag
-    /// @resolution.place source="bag[\"x\"]" placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source="bag[\"x\"]" placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source="bag[\"x\"]" root=write.bag keys=[x]
-    /// @resolution.subscript source="bag[\"x\"]" type=int32 | undefined kind=member target="receiver={ [key: string]: int32 }, target=index(string), type=int32 | undefined"
-    /// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.subscript source="bag[\"x\"]" type=int32 | undefined kind=member target="receiver=Bag, target=index(string), type=int32 | undefined"
+    /// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=bag root=write.bag
 
 }
@@ -339,7 +339,7 @@ const value = write(map);
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(map) parameters=(Bag) arguments=(provided(map) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=map target=map
-/// @resolution.place source=map placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=map placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=map root=map
 
 value satisfies int32 | undefined;
@@ -374,7 +374,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         return this.storage[key];
     }
 
-    indexSet(&exclusive this, key: string, value: int32): void {
+    indexSet(&this, key: string, value: int32): void {
         this.storage[key] = value;
     }
 }
@@ -411,7 +411,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         return this.storage[key] as Borrowed<int32, R, "readonly"> | undefined;
     }
 
-    indexSet(&exclusive this, key: string, value: int32): void {
+    indexSet(&this, key: string, value: int32): void {
         this.storage[key] = value;
     }
 }
@@ -430,23 +430,16 @@ type Bag = { [key: string]: int32 };
 
 struct Store {
 /// @type.symbol symbol=Store type=Store
-/// @generic.instance id="Map<string, int32>" template=Map arguments=(string, int32)
-/// @generic.instance id="MapEntry<string, int32>" template=MapEntry arguments=(string, int32)
-/// @generic.instance id="MapSlot<string, int32>" template=MapSlot arguments=(string, int32)
-/// @generic.instance id="MaybeUninit<MapSlot<string, int32>>" template=MaybeUninit arguments=(MapSlot<string, int32>)
-/// @generic.instance id="MaybeUninit<MaybeUninit<MapSlot<string, int32>>>" template=MaybeUninit arguments=(MaybeUninit<MapSlot<string, int32>>)
-/// @generic.instance id="new<MaybeUninit<MapSlot<string, int32>>>" template=new arguments=(MaybeUninit<MapSlot<string, int32>>)
-/// @generic.instance id="sliceAssumeInit<MaybeUninit<MapSlot<string, int32>>>" template=sliceAssumeInit arguments=(MaybeUninit<MapSlot<string, int32>>)
-/// @generic.instance id="sliceUninit<MaybeUninit<MapSlot<string, int32>>>" template=sliceUninit arguments=(MaybeUninit<MapSlot<string, int32>>)
-/// @generic.instance id=MaybeUninit<uint32> template=MaybeUninit arguments=(uint32)
-/// @generic.instance id=new<uint32> template=new arguments=(uint32)
-/// @generic.instance id=sliceAssumeInit<uint32> template=sliceAssumeInit arguments=(uint32)
-/// @generic.instance id=sliceUninit<uint32> template=sliceUninit arguments=(uint32)
 /// @definition.struct symbol=Store
 /// @definition.field symbol=Store.storage source="storage: Map<string, int32>" key=storage type=Map<string, int32>
 
     storage: Map<string, int32>;
     /// @type.symbol symbol=Store.storage source="storage: Map<string, int32>" type=Map<string, int32>
+    /// @generic.instance id="Map<string, int32>" template=Map arguments=(string, int32)
+    /// @generic.instance id="sliceAssumeInit<MaybeUninit<MapSlot<string, int32>>>" template=sliceAssumeInit arguments=(MaybeUninit<MapSlot<string, int32>>)
+    /// @generic.instance id="sliceUninit<MaybeUninit<MapSlot<string, int32>>>" template=sliceUninit arguments=(MaybeUninit<MapSlot<string, int32>>)
+    /// @generic.instance id=sliceAssumeInit<uint32> template=sliceAssumeInit arguments=(uint32)
+    /// @generic.instance id=sliceUninit<uint32> template=sliceUninit arguments=(uint32)
     /// @resolution.name source=Map target=Map
 
 }
@@ -456,11 +449,11 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
 /// @generic.instance id="IndexSet<string, int32>" template=IndexSet arguments=(string, int32)
 /// @definition.extension symbol=<module>#2 form=local target=Store
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32>" target="IndexSet<string, int32>"
-/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
+/// @definition.implements symbol=<module>#2 source=Index<string> target=Index<string>
 /// @definition.associated.type symbol=Missing source="type Missing = undefined" key=Missing value=undefined
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=index slot=index type=<const R>(this: Borrowed<Store, R, "readonly">, string) => Borrowed<int32, R, "readonly"> | undefined
-/// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive Store, string, int32) => void
+/// @definition.method symbol=indexSet slot=indexSet type=<indexSet.'a>(this: &indexSet.'a Store, string, int32) => void
 /// @definition.conformance symbol=<module>#2 member=Missing requirement=Index.Missing
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Index.Output
 /// @definition.conformance symbol=<module>#2 member=index requirement=Index.index
@@ -494,41 +487,39 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.storage placement=R lifetime="managed" access="readonly"
         /// @resolution.access source=this.storage root=this keys=[storage]
-        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(Managed<string, R>), arguments=(provided(key) as Managed<string, R>), return=WithAccess<Borrowed<int32, R, \"mutable\">, \"readonly\"> | undefined)"
+        /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(Managed<string, R>), arguments=(provided(key) as Managed<string, R>), return=WithAccess<Borrowed<int32, R, \"mutable\">, \"readonly\"> | undefined, regions=(R))"
         /// @generic.instantiation id="index<string, int32, \"readonly\">" template=index arguments=(string, int32, "readonly")
-        /// @generic.instance id="WithAccess<&'bound0 Map<string, int32>, \"readonly\">" template=WithAccess arguments=(&'bound0 Map<string, int32>, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'bound0 readonly Map<string, int32>)
-        /// @generic.instance id="WithAccess<&'bound0 int32, \"readonly\">" template=WithAccess arguments=(&'bound0 int32, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'bound0 readonly int32)
-        /// @generic.instance id="index<string, int32, \"readonly\">" template=index arguments=(string, int32, "readonly") evaluated=(<const index.A: Access = "readonly", index.'a>(this: WithAccess<&index.'a Map<K#8, V#8>, index.A>, K#8) => WithAccess<&index.'a V#8, index.A> | undefined => <const index.A: Access = "readonly", index.'a>(this: &index.'a readonly Map<string, int32>, string) => &index.'a readonly int32 | undefined)
+        /// @generic.instance id="index<string, int32, \"readonly\">" template=index arguments=(string, int32, "readonly")
         /// @resolution.name source=key target=index.key
-        /// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=key root=index.key
 
     }
 
-    indexSet(&exclusive this, key: string, value: int32): void {
+    indexSet(&this, key: string, value: int32): void {
     /// @generic.template symbol=indexSet parent=template#0 parameters=('a)
-    /// @type.symbol symbol=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive Store, string, int32) => void
-    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=&indexSet.'a exclusive this
+    /// @type.symbol symbol=indexSet type=<indexSet.'a>(this: &indexSet.'a Store, string, int32) => void
+    /// @type.symbol symbol=indexSet.this source=&this type=&indexSet.'a this
     /// @type.symbol symbol=indexSet.key source="key: string" type=string
     /// @type.symbol symbol=indexSet.value source="value: int32" type=int32
 
         this.storage[key] = value;
-        /// @resolution.member source=this.storage receiver=&indexSet.'a exclusive Store type=Map<string, int32> kind=field target_receiver=&indexSet.'a exclusive Store key=storage target=Store.storage target_type=Map<string, int32>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&indexSet.'a exclusive Store
-        /// @resolution.place source=this placement=indexSet.'a lifetime=indexSet.'a access="exclusive"
+        /// @resolution.member source=this.storage receiver=&indexSet.'a Store type=Map<string, int32> kind=field target_receiver=&indexSet.'a Store key=storage target=Store.storage target_type=Map<string, int32>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&indexSet.'a Store
+        /// @resolution.place source=this placement=indexSet.'a lifetime=indexSet.'a access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.storage placement=indexSet.'a lifetime="managed" access="exclusive"
+        /// @resolution.place source=this.storage placement=indexSet.'a lifetime="managed" access="mutable"
         /// @resolution.access source=this.storage root=this keys=[storage]
         /// @resolution.pattern.assign source=this.storage[key] kind=place
-        /// @resolution.assignment source=this.storage[key] write="indexSet(parameters=(Managed<string, indexSet.'a>, int32), arguments=(provided(key) as Managed<string, indexSet.'a>, supplied as int32), return=void)" type=int32
+        /// @resolution.assignment source=this.storage[key] write="indexSet(parameters=(Managed<string, indexSet.'a>, int32), arguments=(provided(key) as Managed<string, indexSet.'a>, supplied as int32), return=void, regions=(indexSet.'a))" type=int32
         /// @generic.instantiation id="indexSet<string, int32>" template=indexSet arguments=(string, int32)
         /// @generic.instance id="indexSet<string, int32>" template=indexSet arguments=(string, int32)
         /// @generic.instance id="set#2<string, int32>" template=set#2 arguments=(string, int32)
         /// @resolution.name source=key target=indexSet.key
-        /// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=key root=indexSet.key
         /// @resolution.name source=value target=indexSet.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=indexSet.value
 
     }
@@ -541,7 +532,7 @@ declare let store: Store;
 
 declare function write(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=write.bag source="bag: Bag" type={ [key: string]: int32 }
+/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const value = write(store);
@@ -550,7 +541,7 @@ const value = write(store);
 /// @resolution.name source=write target=write
 /// @resolution.call source=write(store) parameters=(Bag) arguments=(provided(store) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=store target=store
-/// @resolution.place source=store placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=store placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=store root=store
 
 value satisfies int32 | undefined;
@@ -589,13 +580,13 @@ const bad: int32 | undefined = read(point as Bag);
 
 === dir ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32>
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32>
 /// @resolution.name source=Record target=Record
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type={ [P: string]: int32 }
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32 } = { x: 1 };
@@ -609,7 +600,7 @@ const bad = read(point);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -646,12 +637,12 @@ value satisfies int32 | undefined;
 
 === dir ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32>
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32>
 /// @resolution.name source=Record target=Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
+/// @type.symbol symbol=bag source=bag type=Bag
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -660,8 +651,8 @@ const value = bag["missing"];
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
 /// @resolution.access source="bag[\"missing\"]" root=bag keys=[missing]
-/// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver={ [P: string]: int32 }, target=index(string), type=int32 | undefined"
-/// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+/// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver=Bag, target=index(string), type=int32 | undefined"
+/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=bag root=bag
 
 value satisfies int32 | undefined;
@@ -700,12 +691,12 @@ value satisfies int32 | undefined;
 
 === dir ===
 type Bag = Record<usize, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<usize, int32>" type={ [P: usize]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<usize, int32>" value={ [P: usize]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<usize, int32>" type=Record<usize, int32>
+/// @definition.type symbol=Bag source="type Bag = Record<usize, int32>" value=Record<usize, int32>
 /// @resolution.name source=Record target=Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type={ [P: usize]: int32 }
+/// @type.symbol symbol=bag source=bag type=Bag
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -713,10 +704,10 @@ const value = bag[1];
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
-/// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=bag root=bag
 /// @resolution.access source=bag[1] root=bag keys=[1]
-/// @resolution.subscript source=bag[1] type=int32 | undefined kind=member target="receiver={ [P: usize]: int32 }, target=index(usize), type=int32 | undefined"
+/// @resolution.subscript source=bag[1] type=int32 | undefined kind=member target="receiver=Bag, target=index(usize), type=int32 | undefined"
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
@@ -750,12 +741,12 @@ const value = bag.missing;
 
 === dir ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32>
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32>
 /// @resolution.name source=Record target=Record
 
 declare const bag: Bag;
-/// @type.symbol symbol=bag source=bag type={ [P: string]: int32 }
+/// @type.symbol symbol=bag source=bag type=Bag
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 
@@ -763,12 +754,12 @@ const value = bag.missing;
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=bag target=bag
-/// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=bag root=bag
 /// @resolution.rejected source=bag.missing
 "#,
         r#"
-/// @diagnostic.error id=missing-member message="member 'missing' does not exist on type '{ [P: string]: int32 }'"
+/// @diagnostic.error id=missing-member message="member 'missing' does not exist on type 'Bag'"
 /// @diagnostic.label line=5 column=19 span="missing" line_source="const value = bag.missing;"
 "#,
     );
@@ -802,9 +793,9 @@ const value: int32 | undefined = bag["name"];
 
 === dir ===
 interface Bag<T> {
-/// @generic.template symbol=Bag parameters=(in out T)
+/// @generic.template symbol=Bag parameters=(in out T, this: Bag<T>)
 /// @type.symbol symbol=Bag type=Bag
-/// @definition.interface symbol=Bag template=(in out T)
+/// @definition.interface symbol=Bag template=(in out T, this: Bag<T>)
 /// @definition.where symbol=Bag relation=satisfies left=this right=Bag<T>
 /// @definition.signature kind=index source="[key: string]: T" key=string type=T
 /// @type.symbol symbol=Bag.T source=T type=T
@@ -826,7 +817,7 @@ const value = bag["name"];
 /// @type.node source=bag type=Bag<int32>
 /// @resolution.name source=bag target=bag
 /// @resolution.subscript source="bag[\"name\"]" type=int32 | undefined kind=call target="dynamic(Bag<int32> as Bag<int32>, index.read([key: string]: T))(parameters=(string), arguments=(provided(\"name\") as string), return=int32 | undefined)"
-/// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=bag root=bag
 /// @type.node source="\"name\"" type="name"
 "#,
@@ -863,8 +854,9 @@ values satisfies Bag;
 
 === dir ===
 interface Bag {
+/// @generic.template symbol=Bag parameters=(this: Bag)
 /// @type.symbol symbol=Bag type=Bag
-/// @definition.interface symbol=Bag
+/// @definition.interface symbol=Bag template=(this: Bag)
 /// @definition.where symbol=Bag relation=satisfies left=this right=Bag
 /// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
 
@@ -877,7 +869,7 @@ declare const values: { readonly [key: string]: int32 };
 
 values satisfies Bag;
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @resolution.name source=Bag target=Bag
 "#,
@@ -912,8 +904,9 @@ values satisfies Bag;
 
 === dir ===
 interface Bag {
+/// @generic.template symbol=Bag parameters=(this: Bag)
 /// @type.symbol symbol=Bag type=Bag
-/// @definition.interface symbol=Bag
+/// @definition.interface symbol=Bag template=(this: Bag)
 /// @definition.where symbol=Bag relation=satisfies left=this right=Bag
 /// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
 
@@ -926,7 +919,7 @@ declare const values: { readonly [key: string]: string };
 
 values satisfies Bag;
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @resolution.name source=Bag target=Bag
 "#,
@@ -963,8 +956,9 @@ struct Values implements Bag {}
 
 === dir ===
 interface Bag {
+/// @generic.template symbol=Bag parameters=(this: Bag)
 /// @type.symbol symbol=Bag type=Bag
-/// @definition.interface symbol=Bag
+/// @definition.interface symbol=Bag template=(this: Bag)
 /// @definition.where symbol=Bag relation=satisfies left=this right=Bag
 /// @definition.signature kind=index source="readonly [key: string]: int32" key=string type=int32
 
@@ -1002,7 +996,7 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
         return todo("Counter.index");
     }
 
-    indexSet(&exclusive this, key: string, value: int32 | float64): void {}
+    indexSet(&this, key: string, value: int32 | float64): void {}
 }
 
 declare let counter: Counter;
@@ -1027,7 +1021,7 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
         return todo("Counter.index" as string | undefined);
     }
 
-    indexSet(&exclusive this, key: string, value: int32 | float64): void {}
+    indexSet(&this, key: string, value: int32 | float64): void {}
 }
 
 declare let counter: Counter;
@@ -1043,10 +1037,10 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
 /// @generic.instance id="IndexSet<string, int32 | float64>" template=IndexSet arguments=(string, int32 | float64)
 /// @definition.extension symbol=<module>#2 form=local target=Counter
 /// @definition.implements symbol=<module>#2 source="IndexSet<string, int32 | float64>" target="IndexSet<string, int32 | float64>"
-/// @definition.implements symbol=<module>#2 source=Index<string> target="Index<string, \"readonly\">"
+/// @definition.implements symbol=<module>#2 source=Index<string> target=Index<string>
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=index slot=index type=<const R>(this: Borrowed<Counter, R, "readonly">, string) => Borrowed<int32, R, "readonly">
-/// @definition.method symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a>(this: &indexSet.'a exclusive Counter, string, int32 | float64) => void
+/// @definition.method symbol=indexSet source="indexSet(&this, key: string, value: int32 | float64): void {}" slot=indexSet type=<indexSet.'a>(this: &indexSet.'a Counter, string, int32 | float64) => void
 /// @definition.conformance symbol=<module>#2 member=Index.Missing requirement=Index.Missing
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Index.Output
 /// @definition.conformance symbol=<module>#2 member=index requirement=Index.index
@@ -1082,10 +1076,10 @@ extension of Counter implements Index<string>, IndexSet<string, int32 | float64>
 
     }
 
-    indexSet(&exclusive this, key: string, value: int32 | float64): void {}
+    indexSet(&this, key: string, value: int32 | float64): void {}
     /// @generic.template symbol=indexSet parent=template#0 parameters=('a)
-    /// @type.symbol symbol=indexSet source="indexSet(&exclusive this, key: string, value: int32 | float64): void {}" type=<indexSet.'a>(this: &indexSet.'a exclusive Counter, string, int32 | float64) => void
-    /// @type.symbol symbol=indexSet.this source="&exclusive this" type=&indexSet.'a exclusive this
+    /// @type.symbol symbol=indexSet source="indexSet(&this, key: string, value: int32 | float64): void {}" type=<indexSet.'a>(this: &indexSet.'a Counter, string, int32 | float64) => void
+    /// @type.symbol symbol=indexSet.this source=&this type=&indexSet.'a this
     /// @type.symbol symbol=indexSet.key source="key: string" type=string
     /// @type.symbol symbol=indexSet.value source="value: int32 | float64" type=int32 | float64
 
@@ -1100,8 +1094,8 @@ counter["value"] += 1;
 /// @resolution.name source=counter target=counter
 /// @resolution.operator source="counter[\"value\"] += 1" type=int32 operator="+" kind=builtin operands=[counter["value"] as int32 families=(integer), 1 as int32 families=(integer)]
 /// @resolution.pattern.assign source="counter[\"value\"]" kind=place
-/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=&'static readonly int32)" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, supplied as int32 | float64), return=void)" type=int32 | float64
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=&'static readonly int32, regions=(\"static\" & \"local\"))" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, supplied as int32 | float64), return=void, regions=(\"static\" & \"local\"))" type=int32 | float64
+/// @resolution.place source=counter placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=counter root=counter
 "#,
     );

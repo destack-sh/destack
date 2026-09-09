@@ -20,7 +20,7 @@ const digit: Digit = value;
 type Digit = 0..=9;
 
 declare const value: int32;
-const digit: 0..=9 = value;
+const digit: Digit = value;
 
 === dir ===
 type Digit = 0..=9;
@@ -32,7 +32,7 @@ declare const value: int32;
 /// @resolution.pattern source=value kind=binding target=value
 
 const digit: Digit = value;
-/// @type.symbol symbol=digit source=digit type=0..=9
+/// @type.symbol symbol=digit source=digit type=Digit
 /// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=value target=value
@@ -40,9 +40,10 @@ const digit: Digit = value;
 /// @resolution.access source=value root=value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type '0..=9'"
+/// @diagnostic.error id=not-assignable message="type 'int32' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=22 span="value" line_source="const digit: Digit = value;"
 /// @diagnostic.related line=5 column=14 span="Digit" line_source="const digit: Digit = value;" message="expected due to this annotation"
+/// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
 }
@@ -66,8 +67,8 @@ const next: Digit = digit + 1;
 === annotated ===
 type Digit = 0..=9;
 
-declare const digit: 0..=9;
-const next: 0..=9 = digit + 1;
+declare const digit: Digit;
+const next: Digit = digit + 1;
 
 === dir ===
 type Digit = 0..=9;
@@ -75,12 +76,12 @@ type Digit = 0..=9;
 /// @definition.type symbol=Digit source="type Digit = 0..=9" value=0..=9
 
 declare const digit: Digit;
-/// @type.symbol symbol=digit source=digit type=0..=9
+/// @type.symbol symbol=digit source=digit type=Digit
 /// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 
 const next: Digit = digit + 1;
-/// @type.symbol symbol=next source=next type=0..=9
+/// @type.symbol symbol=next source=next type=Digit
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=digit target=digit
@@ -89,9 +90,10 @@ const next: Digit = digit + 1;
 /// @resolution.access source=digit root=digit
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'int64' is not assignable to type '0..=9'"
+/// @diagnostic.error id=not-assignable message="type 'int64' is not assignable to type 'Digit'"
 /// @diagnostic.label line=5 column=21 span="digit + 1" line_source="const next: Digit = digit + 1;"
 /// @diagnostic.related line=5 column=13 span="Digit" line_source="const next: Digit = digit + 1;" message="expected due to this annotation"
+/// @diagnostic.note message="'Digit' reduces to '0..=9'"
 "#,
     );
 }
@@ -116,9 +118,9 @@ const bad: Edge = 128;
 === annotated ===
 type Edge = 0..=3 | 252..=255;
 
-const low: 0..=3 | 252..=255 = 2 as 0..=3 | 252..=255;
-const high: 0..=3 | 252..=255 = 254 as 0..=3 | 252..=255;
-const bad: 0..=3 | 252..=255 = 128;
+const low: Edge = 2 as Edge;
+const high: Edge = 254 as Edge;
+const bad: Edge = 128;
 
 === dir ===
 type Edge = 0..=3 | 252..=255;
@@ -126,24 +128,25 @@ type Edge = 0..=3 | 252..=255;
 /// @definition.type symbol=Edge source="type Edge = 0..=3 | 252..=255" value=0..=3 | 252..=255
 
 const low: Edge = 2;
-/// @type.symbol symbol=low source=low type=0..=3 | 252..=255
+/// @type.symbol symbol=low source=low type=Edge
 /// @resolution.pattern source=low kind=binding target=low
 /// @resolution.name source=Edge target=Edge
 
 const high: Edge = 254;
-/// @type.symbol symbol=high source=high type=0..=3 | 252..=255
+/// @type.symbol symbol=high source=high type=Edge
 /// @resolution.pattern source=high kind=binding target=high
 /// @resolution.name source=Edge target=Edge
 
 const bad: Edge = 128;
-/// @type.symbol symbol=bad source=bad type=0..=3 | 252..=255
+/// @type.symbol symbol=bad source=bad type=Edge
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Edge target=Edge
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '128' is not assignable to type '0..=3 | 252..=255'"
+/// @diagnostic.error id=not-assignable message="type '128' is not assignable to type 'Edge'"
 /// @diagnostic.label line=6 column=19 span="128" line_source="const bad: Edge = 128;"
 /// @diagnostic.related line=6 column=12 span="Edge" line_source="const bad: Edge = 128;" message="expected due to this annotation"
+/// @diagnostic.note message="'Edge' reduces to '0..=3 | 252..=255'"
 "#,
     );
 }

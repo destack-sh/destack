@@ -22,7 +22,7 @@ if (route != undefined) {
 === annotated ===
 type Route = `api:${string}`;
 
-declare const route: `api:${string}` | undefined;
+declare const route: Route | undefined;
 
 if (route != undefined) {
     route satisfies Route;
@@ -34,13 +34,13 @@ type Route = `api:${string}`;
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
 
 declare const route: Route | undefined;
-/// @type.symbol symbol=route source=route type=`api:${string}` | undefined
+/// @type.symbol symbol=route source=route type=Route | undefined
 /// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 
 if (route != undefined) {
 /// @resolution.name source=route target=route
-/// @resolution.operator source="route != undefined" type=boolean operator="!=" kind=builtin operands=[route as `api:${string}` | undefined families=(string | undefined), undefined as undefined families=(undefined)]
+/// @resolution.operator source="route != undefined" type=boolean operator="!=" kind=builtin operands=[route as Route | undefined families=(string | undefined), undefined as undefined families=(undefined)]
 /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=route root=route
 
@@ -48,7 +48,6 @@ if (route != undefined) {
     /// @resolution.name source=route target=route
     /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=route root=route
-    /// @resolution.narrowing source=route union=`api:${string}` | undefined arms=`api:${string}`
     /// @resolution.name source=Route target=Route
 
 }
@@ -80,7 +79,7 @@ if (route == "api:users") {
 === annotated ===
 type Route = `api:${string}`;
 
-declare const route: `api:${string}`;
+declare const route: Route;
 
 if (route == "api:users") {
     route satisfies Route;
@@ -94,7 +93,7 @@ type Route = `api:${string}`;
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
 
 declare const route: Route;
-/// @type.symbol symbol=route source=route type=`api:${string}`
+/// @type.symbol symbol=route source=route type=Route
 /// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 
@@ -147,7 +146,7 @@ section satisfies "users" | "posts";
 === annotated ===
 type Route = `api:${"users" | "posts"}`;
 
-const route: "api:users" | "api:posts" = "api:users";
+const route: Route = "api:users";
 
 const section: "users" | "posts" = match (route) {
     "api:users" => "users"
@@ -159,10 +158,10 @@ section satisfies "users" | "posts";
 === dir ===
 type Route = `api:${"users" | "posts"}`;
 /// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type="api:users" | "api:posts"
-/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value="api:users" | "api:posts"
+/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value=`api:${"users" | "posts"}`
 
 const route: Route = "api:users";
-/// @type.symbol symbol=route source=route type="api:users" | "api:posts"
+/// @type.symbol symbol=route source=route type=Route
 /// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 

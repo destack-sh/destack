@@ -132,16 +132,17 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 
 === dir ===
 interface Iterator {
+/// @generic.template symbol=Iterator parameters=(this: Iterator)
 /// @type.symbol symbol=Iterator type=Iterator
-/// @definition.interface symbol=Iterator
+/// @definition.interface symbol=Iterator template=(this: Iterator)
 /// @definition.where symbol=Iterator relation=satisfies left=this right=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item" key=Item
-/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: Iterator) => Iterator.Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
 
     type Item;
 
     next(): this.Item;
-    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: Iterator) => Iterator.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: this) => this.Item
 
 }
 
@@ -158,9 +159,10 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
     /// @resolution.name source=iter target=nextByte.iter
     /// @resolution.member source=iter.next receiver=I type=(this: I) => I.Item kind=symbol target_receiver=I target=Iterator.next
     /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
-    /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=iter placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=iter root=nextByte.iter
     /// @generic.instantiation id=Iterator.next<I> template=Iterator.next arguments=() owner=nextByte
+    /// @generic.instance id=Iterator.next<I> template=Iterator.next arguments=()
 
 }
 "#,
@@ -212,20 +214,21 @@ class Factory implements Producing {
 
 type Made<F: Producing> = F.Output;
 
-declare const made: int32;
+declare const made: Made<Factory>;
 
 === dir ===
 interface Producing {
+/// @generic.template symbol=Producing parameters=(this: Producing)
 /// @type.symbol symbol=Producing type=Producing
-/// @definition.interface symbol=Producing
+/// @definition.interface symbol=Producing template=(this: Producing)
 /// @definition.where symbol=Producing relation=satisfies left=this right=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
-/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => Producing.Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: this) => this.Output
 
     type Output;
 
     produce(): this.Output;
-    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: Producing) => Producing.Output
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -262,7 +265,7 @@ type Made<F: Producing> = F.Output;
 /// @resolution.path source=F.Output index=1 target=Producing.Output
 
 declare const made: Made<Factory>;
-/// @type.symbol symbol=made source=made type=int32
+/// @type.symbol symbol=made source=made type=Made<Factory>
 /// @resolution.pattern source=made kind=binding target=made
 /// @resolution.name source=Made target=Made
 /// @resolution.name source=Factory target=Factory
@@ -305,8 +308,9 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 
 === dir ===
 interface Iterator {
+/// @generic.template symbol=Iterator parameters=(this: Iterator)
 /// @type.symbol symbol=Iterator type=Iterator
-/// @definition.interface symbol=Iterator
+/// @definition.interface symbol=Iterator template=(this: Iterator)
 /// @definition.where symbol=Iterator relation=satisfies left=this right=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item = uint8" key=Item value=uint8
 /// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
@@ -331,7 +335,7 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
     /// @resolution.name source=iter target=nextDefault.iter
     /// @resolution.member source=iter.next receiver=I type=(this: I) => I.Item kind=symbol target_receiver=I target=Iterator.next
     /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
-    /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=iter placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=iter root=nextDefault.iter
     /// @generic.instantiation id=Iterator.next<I> template=Iterator.next arguments=() owner=nextDefault
 
@@ -420,9 +424,9 @@ type EventLabel = Message<"orders">.Label<"created">;
 
 === dir ===
 interface Envelope<T: string> {
-/// @generic.template symbol=Envelope parameters=(in out T#1: string)
+/// @generic.template symbol=Envelope parameters=(in out T#1: string, this: Envelope<T#1>)
 /// @type.symbol symbol=Envelope type=Envelope
-/// @definition.interface symbol=Envelope template=(in out T#1: string)
+/// @definition.interface symbol=Envelope template=(in out T#1: string, this: Envelope<T#1>)
 /// @definition.where symbol=Envelope relation=satisfies left=this right=Envelope<T#1>
 /// @definition.associated.type symbol=Envelope.Label source="type Label<U: string> = `${T}:${U}`" key=Label value=`${T#1}:${U}`
 /// @type.symbol symbol=Envelope.T source="T: string" type=T#1
@@ -439,6 +443,7 @@ interface Envelope<T: string> {
 class Message<T: string> implements Envelope<T> {}
 /// @generic.template symbol=Message parameters=(in out T#2: string)
 /// @type.symbol symbol=Message source="class Message<T: string> implements Envelope<T> {}" type=Message
+/// @generic.instance id=Envelope<T#2> template=Envelope arguments=(T#2)
 /// @definition.class symbol=Message source="class Message<T: string> implements Envelope<T> {}" template=(in out T#2: string)
 /// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=Envelope<T#2>
 /// @definition.implements symbol=Message source=Envelope<T> target=Envelope<T#2>
@@ -449,10 +454,9 @@ class Message<T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
 /// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type="orders:created"
-/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value="orders:created"
+/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created">
 /// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=Envelope.Label
 /// @resolution.name source=Message target=Message
-/// @generic.instance id="Envelope<\"orders\">" template=Envelope arguments=("orders")
 /// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
 "#,
     );
@@ -498,6 +502,7 @@ import { Envelope } from "./envelope.ds";
 class Message<T: string> implements Envelope<T> {}
 /// @generic.template symbol=Message parameters=(in out T: string)
 /// @type.symbol symbol=Message source="class Message<T: string> implements Envelope<T> {}" type=Message
+/// @generic.instance id=envelope.Envelope<T> template=envelope.Envelope arguments=(T)
 /// @definition.class symbol=Message source="class Message<T: string> implements Envelope<T> {}" template=(in out T: string)
 /// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=envelope.Envelope<T>
 /// @definition.implements symbol=Message source=Envelope<T> target=envelope.Envelope<T>
@@ -508,11 +513,10 @@ class Message<T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
 /// @type.symbol symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" type="orders:created"
-/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value="orders:created"
+/// @definition.type symbol=EventLabel source="type EventLabel = Message<\"orders\">.Label<\"created\">" value=Message<"orders">.Label<"created">
 /// @resolution.name source="Message<\"orders\">.Label<\"created\">" target=envelope.Envelope.Label
 /// @resolution.name source=Message target=Message
 /// @generic.instance id="Message<\"orders\">" template=Message arguments=("orders")
-/// @generic.instance id="envelope.Envelope<\"orders\">" template=envelope.Envelope arguments=("orders")
 "#,
     );
 }
@@ -571,16 +575,17 @@ const taken: int32 = take<Factory>(0, new Factory());
 
 === dir ===
 interface Producing {
+/// @generic.template symbol=Producing parameters=(this: Producing)
 /// @type.symbol symbol=Producing type=Producing
-/// @definition.interface symbol=Producing
+/// @definition.interface symbol=Producing template=(this: Producing)
 /// @definition.where symbol=Producing relation=satisfies left=this right=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
-/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => Producing.Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: this) => this.Output
 
     type Output;
 
     produce(): this.Output;
-    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: Producing) => Producing.Output
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: this) => this.Output
 
 }
 
@@ -622,7 +627,7 @@ function take<F: Producing>(initial: F.Output, factory: F): F.Output {
 
     return initial;
     /// @resolution.name source=initial target=take.initial
-    /// @resolution.place source=initial placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=initial placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=initial root=take.initial
 
 }
@@ -633,7 +638,7 @@ const taken = take(0, new Factory());
 /// @resolution.name source=take target=take
 /// @resolution.call source="take(0, new Factory())" parameters=(int32, Factory) arguments=(provided(0) as int32, provided(new Factory()) as Factory) return=int32 kind=symbol target=take instance=take<Factory>
 /// @generic.instantiation id=take<Factory> template=take arguments=(Factory)
-/// @generic.instance id=take<Factory> template=take arguments=(Factory) evaluated=(<F: Producing>(F.Output, F) => F.Output => <F: Producing>(int32, Factory) => int32, F.Output => int32)
+/// @generic.instance id=take<Factory> template=take arguments=(Factory)
 /// @resolution.construct source="new Factory()" parameters=() return=Factory kind=class target=Factory constructor=default
 /// @resolution.name source=Factory target=Factory
 "#,
@@ -662,8 +667,9 @@ type Bad = Container<type Wrong = string>;
 
 === dir ===
 interface Container {
+/// @generic.template symbol=Container parameters=(this: Container)
 /// @type.symbol symbol=Container type=Container
-/// @definition.interface symbol=Container
+/// @definition.interface symbol=Container template=(this: Container)
 /// @definition.where symbol=Container relation=satisfies left=this right=Container
 /// @definition.associated.type symbol=Container.Item source="type Item" key=Item
 

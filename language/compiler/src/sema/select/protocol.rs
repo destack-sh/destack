@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseKind, CheckState, InterfaceMember, LookupReceiver, MemberCandidate, MemberLookup,
-    Origin, Relation, RelationCheck, TypeArgumentInference, TypeSubstitution, Value, Verdict,
-    member_arms,
+    Origin, Relation, RelationCheck, TypeArgumentInference, TypeSubstitution, Value, VariableKind,
+    Verdict, member_arms,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -32,10 +32,19 @@ impl Protocol {
     }
 
     /// Classify candidates against checked argument types in leading slots.
-    fn with_classification(mut self, classification: &[dir::GlobalTypeId]) -> Self {
-        self.classification = classification.to_vec();
+    fn classify(
+        mut self,
+        check: &mut CheckState<'_>,
+        origin: Origin,
+        classification: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Self> {
+        self.classification = Vec::with_capacity(classification.len());
+        for argument in classification {
+            let asked = check.ask_argument(origin, *argument)?;
+            self.classification.push(asked);
+        }
 
-        self
+        Ok(self)
     }
 
     /// Return the deciding protocol with classified leading arguments.
@@ -69,8 +78,8 @@ impl Protocol {
                     .collect();
             }
             None if self.arguments.is_empty() => {}
-            // keep unloaded foreign templates symbolic
-            None if !check.is_loaded_module(self.symbol.module_id) => {}
+            // keep foreign templates symbolic while declaring
+            None if !check.reads_module(self.symbol.module_id) => {}
             None => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -103,6 +112,8 @@ pub(in crate::sema) struct ProtocolMember {
 /// Protocol call accepted for a generated operation.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct ProtocolCall {
+    /// The member read selecting the call.
+    pub(in crate::sema) member: dir::MemberDecision,
     /// The call resolution.
     pub(in crate::sema) resolution: dir::CallDecision,
     /// The call return type.
@@ -114,6 +125,7 @@ impl dir::TypeFold for ProtocolCall {
         &mut self,
         map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
     ) -> Result<(), E> {
+        self.member.map_types(map)?;
         self.resolution.map_types(map)?;
         self.return_type.map_types(map)
     }
@@ -145,8 +157,8 @@ impl CheckState<'_> {
                 substitution.arguments().collect()
             }
             None if written.is_empty() => Vec::new(),
-            // carry the written arguments of unloaded foreign templates
-            None if !self.is_loaded_module(symbol.module_id) => written,
+            // carry the written arguments of foreign templates while declaring
+            None if !self.reads_module(symbol.module_id) => written,
             None => {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -177,8 +189,8 @@ impl CheckState<'_> {
                 return Ok(Protocol::new(symbol, Vec::new()));
             }
 
-            // carry the written arguments of unloaded foreign templates
-            if !self.is_loaded_module(symbol.module_id) {
+            // carry the written arguments of foreign templates while declaring
+            if !self.reads_module(symbol.module_id) {
                 return Ok(Protocol::new(symbol, written.to_vec()));
             }
 
@@ -236,7 +248,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<(Protocol, ProtocolCall)>> {
         // infer the protocol application, then select the call under it
         let protocol = self.infer_language_protocol(origin, lookup_receiver, item, written)?;
-        let protocol = protocol.with_classification(classification);
+        let protocol = protocol.classify(self, origin, classification)?;
         let selected = self.select_protocol_call(
             origin,
             receiver,
@@ -264,7 +276,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<(Protocol, ProtocolMember)>> {
         // infer the protocol application, then select the member under it
         let protocol = self.infer_language_protocol(origin, lookup_receiver, item, written)?;
-        let protocol = protocol.with_classification(classification);
+        let protocol = protocol.classify(self, origin, classification)?;
         let selected =
             self.select_protocol_member(origin, receiver, lookup_receiver, space, key, &protocol)?;
 
@@ -349,6 +361,7 @@ impl CheckState<'_> {
 
         // select the first accepting candidate per runtime arm, joining several as one union
         let arms = member_arms(&candidates);
+        let mut members = Vec::with_capacity(arms.len());
         let mut calls = Vec::with_capacity(arms.len());
         let mut returns = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for (arm, group) in arms {
@@ -371,22 +384,34 @@ impl CheckState<'_> {
                     break;
                 }
             }
-            let Some((call, return_type)) = selected else {
+            let Some((member, call)) = selected else {
                 return Ok(None);
             };
-            returns.push(return_type);
+            returns.push(call.return_type);
+            members.push(member);
             calls.push(call);
         }
 
+        // join the arms, arms agreeing on one call as that call
         Ok(Some(match calls.as_slice() {
-            [_] => ProtocolCall {
+            [first, rest @ ..] if rest.iter().all(|call| call == first) => ProtocolCall {
+                member: dir::OperationResolution::One(members.remove(0)),
                 resolution: dir::OperationResolution::One(calls.remove(0)),
                 return_type: returns[0],
             },
             _ => {
+                let member_types = members
+                    .iter()
+                    .map(|member| member.ty)
+                    .collect::<SmallVec<[dir::GlobalTypeId; 4]>>();
+                let member_type = self.normalized_union_type(member_types)?;
                 let return_type = self.normalized_union_type(returns)?;
 
                 ProtocolCall {
+                    member: dir::OperationResolution::Union {
+                        arms: members,
+                        ty: member_type,
+                    },
                     resolution: dir::OperationResolution::Union {
                         arms: calls,
                         ty: return_type,
@@ -461,21 +486,14 @@ impl CheckState<'_> {
         }
 
         // decide the implementing extension
-        let implementation = self.decide_extension_implementation(
-            origin,
-            Relation::Storable,
-            module,
-            receiver,
-            &interface,
-            None,
-        )?;
+        let implementation =
+            self.decide_extension_implementation(origin, module, receiver, &interface, None)?;
 
         // read the winner's members under the key, interface defaults included
         let mut candidates = Vec::new();
         let mut winner = None;
-        if let (Verdict::Holds, Some(extension)) = (implementation.verdict, implementation.winner)
-            && let Some(source) =
-                self.decide_extension_source(origin, module, receiver, receiver, extension)?
+        if let (Verdict::Holds, Some(source)) = (implementation.verdict, implementation.winner)
+            && self.is_extension_visible(source.extension, module)?
         {
             candidates = self
                 .extension_candidates(origin, receiver, receiver, &source, space, Some(key))?
@@ -623,9 +641,10 @@ impl CheckState<'_> {
         members: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<()> {
         // collect the members every conformance to the interface selects
-        let conformances = match self.definition(owner)? {
-            Some(definition) => definition.implementations().to_vec(),
-            None => Vec::new(),
+        let declared = self.definition(owner)?;
+        let conformances = match declared.as_deref() {
+            Some(definition) => definition.implementations(),
+            None => &[],
         };
         for conformance in conformances {
             let Some((_, applied)) = self.nominal_application_maybe(conformance.interface)? else {
@@ -634,7 +653,8 @@ impl CheckState<'_> {
             if applied.symbol != interface {
                 continue;
             }
-            members.extend(conformance.members.iter().map(|member| member.member));
+            let selected = self.conformance_members(conformance.source)?;
+            members.extend(selected.iter().map(|member| member.member));
         }
 
         Ok(())
@@ -647,21 +667,72 @@ impl CheckState<'_> {
         receiver: Value,
         argument_sources: &[dir::ArgumentSource],
         candidate: &MemberCandidate,
-    ) -> CompilerResult<Option<(dir::Call, dir::GlobalTypeId)>> {
+    ) -> CompilerResult<Option<(dir::MemberAccess, dir::Call)>> {
         // decide the candidate before constraining it
         let attempt = |state: &mut Self| {
             let candidate = candidate.instantiate(origin, state)?;
+            let member = state.protocol_member_access(receiver.ty, &candidate)?;
             let arguments = state.source_callable_arguments(origin, argument_sources)?;
+            let call = state.select_member_call(
+                origin,
+                receiver,
+                &candidate,
+                &arguments,
+                argument_sources,
+            )?;
 
-            state.select_member_call(origin, receiver, &candidate, &arguments, argument_sources)
-        };
-        let selected = match self.decide(attempt)?.0 {
-            Some(_) => attempt(self)?,
-            None => None,
+            Ok(call.map(|call| (member, call)))
         };
 
-        Ok(selected
-            .map(|call| (call.return_type, call))
-            .map(|(ty, call)| (call, ty)))
+        // run the attempt once the decision admits it
+        match self.decide(attempt)?.0 {
+            Some(_) => attempt(self),
+            None => Ok(None),
+        }
+    }
+}
+
+impl CheckState<'_> {
+    /// Return the type one argument asks an implementation with: an open variable of a numeric
+    /// literal's kind, any other literal's base.
+    pub(in crate::sema) fn ask_argument(
+        &mut self,
+        origin: Origin,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // collect the literal leaves of the argument
+        let resolved = self.shallow_resolve(argument)?;
+        let leaves: SmallVec<[dir::GlobalTypeId; 4]> = match self.ty(resolved)? {
+            dir::Type::Literal(_) => SmallVec::from_slice(&[resolved]),
+            dir::Type::Union(union) => self.type_ids(resolved.module_id, union.elements)?.into(),
+            _ => return Ok(argument),
+        };
+        let mut literals = SmallVec::<[dir::Literal; 4]>::new();
+        for leaf in &leaves {
+            let leaf = self.shallow_resolve(*leaf)?;
+            let dir::Type::Literal(literal) = self.ty(leaf)? else {
+                return Ok(argument);
+            };
+            literals.push(literal);
+        }
+
+        // ask numeric literals of one kind through one open variable of that kind
+        let mut kinds = SmallVec::<[VariableKind; 4]>::new();
+        for leaf in &leaves {
+            kinds.extend(self.numeric_literal_kind(*leaf)?);
+        }
+        if kinds.len() == leaves.len() && kinds.iter().all(|kind| *kind == kinds[0]) {
+            let variable = self.open_variable_of(origin, kinds[0]);
+
+            return self.variable_type(variable);
+        }
+
+        // ask every other literal shape as its widened base
+        let mut widened = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        for literal in literals {
+            widened.push(self.intern_type(literal.widen())?);
+        }
+
+        self.normalized_union_type(widened)
     }
 }

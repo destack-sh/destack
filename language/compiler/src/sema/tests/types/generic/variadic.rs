@@ -56,22 +56,19 @@ newtype Sharding<...Axes: Axis[]> = intrinsic;
 /// @type.symbol symbol=Sharding.Axes source="...Axes: Axis[]" type=Axes#1
 /// @resolution.name source=Axis target=Axis
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<Axis, \"exclusive\">" template=elementSlot arguments=(Axis, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive Axis[], usize) => &elementSlot.'a exclusive MaybeUninit<Axis>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Axis>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Axis>>, usize) => &elementSlot.'a exclusive MaybeUninit<Axis>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Axis>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Axis>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Axis>>, usize) => &elementSlot.'a exclusive MaybeUninit<Axis>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive Axis[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Axis>>)
-/// @generic.instance id="initAsPointer<Axis, \"exclusive\">" template=initAsPointer arguments=(Axis, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<Axis>) => Raw<Axis>)
-/// @generic.instance id="sliceIndex<MaybeUninit<Axis>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<Axis>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<Axis>>, usize) => &sliceIndex.'a exclusive MaybeUninit<Axis>)
+/// @generic.instance id="elementSlot<Axis, \"mutable\">" template=elementSlot arguments=(Axis, "mutable")
+/// @generic.instance id="initAsPointer<Axis, \"mutable\">" template=initAsPointer arguments=(Axis, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<Axis>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Axis>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<Axis> template=Array arguments=(Axis)
-/// @generic.instance id=MaybeUninit<Axis> template=MaybeUninit arguments=(Axis)
-/// @generic.instance id=MaybeUninit<MaybeUninit<Axis>> template=MaybeUninit arguments=(MaybeUninit<Axis>)
 /// @generic.instance id=assumeInitDrop#1<Axis> template=assumeInitDrop#1 arguments=(Axis)
-/// @generic.instance id=assumeInitDrop<Axis> template=assumeInitDrop arguments=(Axis) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<Axis>) => Raw<Axis>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<Axis>)
+/// @generic.instance id=assumeInitDrop<Axis> template=assumeInitDrop arguments=(Axis)
 /// @generic.instance id=clear<Axis> template=clear arguments=(Axis)
 /// @generic.instance id=drop<Axis> template=drop arguments=(Axis)
 /// @generic.instance id=dropInPlace<Axis> template=dropInPlace arguments=(Axis)
-/// @generic.instance id=new<MaybeUninit<Axis>> template=new arguments=(MaybeUninit<Axis>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<Axis>> template=sliceAssumeInit arguments=(MaybeUninit<Axis>)
 /// @generic.instance id=sliceUninit<MaybeUninit<Axis>> template=sliceUninit arguments=(MaybeUninit<Axis>)
-/// @generic.instance id=truncate<Axis> template=truncate arguments=(Axis) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<Axis>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive Axis[], usize) => &truncate.'a exclusive MaybeUninit<Axis>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive Axis[])
+/// @generic.instance id=truncate<Axis> template=truncate arguments=(Axis)
 
 newtype Grid<T, P> = intrinsic;
 /// @generic.template symbol=Grid parameters=(in out T#1, in out P)
@@ -83,6 +80,8 @@ newtype Grid<T, P> = intrinsic;
 declare function mesh<T, ...Axes: Axis[]>(
 /// @generic.template symbol=mesh parameters=(T#2, ...Axes#2: Axis[], 'a)
 /// @type.symbol symbol=mesh type=<T#2, ...Axes#2: Axis[], mesh.'a>(&mesh.'a readonly Grid<T#2, Sharding<Axes#2>>) => int32
+/// @generic.instance id="Grid<T#2, Sharding<Axes#2>>" template=Grid arguments=(T#2, Sharding<Axes#2>)
+/// @generic.instance id=Sharding<Axes#2> template=Sharding arguments=(Axes#2)
 /// @type.symbol symbol=mesh.T source=T type=T#2
 /// @type.symbol symbol=mesh.Axes source="...Axes: Axis[]" type=Axes#2
 /// @resolution.name source=Axis target=Axis
@@ -98,8 +97,10 @@ declare function mesh<T, ...Axes: Axis[]>(
 
 export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 /// @generic.template symbol=<module>#2 parameters=(T#3, ...Axes#3: Axis[])
+/// @generic.instance id="Grid<T#3, Sharding<Axes#3>>" template=Grid arguments=(T#3, Sharding<Axes#3>)
+/// @generic.instance id=Sharding<Axes#3> template=Sharding arguments=(Axes#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Grid<T#3, Sharding<Axes#3>>
-/// @definition.method symbol=mesh#1 slot=mesh role=getter type=<mesh#1.'a>(this: &mesh#1.'a readonly this) => int32
+/// @definition.method symbol=mesh#1 slot=mesh role=getter type=<mesh#1.'a>(this: &mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) => int32
 /// @type.symbol symbol=T source=T type=T#3
 /// @type.symbol symbol=Axes source="...Axes: Axis[]" type=Axes#3
 /// @resolution.name source=Axis target=Axis
@@ -111,13 +112,14 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
     /// Return the mesh id.
     get mesh(): int32 {
     /// @generic.template symbol=mesh#1 parent=template#3 parameters=('a)
-    /// @type.symbol symbol=mesh#1 type=<mesh#1.'a>(this: &mesh#1.'a readonly this) => int32
+    /// @type.symbol symbol=mesh#1 type=<mesh#1.'a>(this: &mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) => int32
     /// @type.symbol symbol=mesh.this type=&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>
 
         return mesh<T, ...Axes>(this);
         /// @resolution.name source=mesh target=mesh
-        /// @resolution.call source="mesh<T, ...Axes>(this)" parameters=(&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) arguments=(provided(this) as &mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) return=int32 kind=symbol target=mesh instance="mesh<T#3, Axes#3>"
+        /// @resolution.call source="mesh<T, ...Axes>(this)" parameters=(&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) arguments=(provided(this) as &mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) return=int32 regions=(mesh#1.'a) kind=symbol target=mesh instance="mesh<T#3, Axes#3>"
         /// @generic.instantiation id="mesh<T#3, Axes#3>" template=mesh arguments=(T#3, Axes#3) owner=mesh#1
+        /// @generic.instance id="mesh<T#3, Axes#3>" template=mesh arguments=(T#3, Axes#3)
         /// @resolution.name source=T target=T
         /// @resolution.name source=Axes target=Axes
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>
@@ -224,7 +226,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 
         return mesh<T, ...Xs>(this);
         /// @resolution.name source=mesh target=mesh
-        /// @resolution.call source="mesh<T, ...Xs>(this)" parameters=(&'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) arguments=(provided(this) as &'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) return=int32 kind=symbol target=mesh instance="mesh<T#2, Xs#2>"
+        /// @resolution.call source="mesh<T, ...Xs>(this)" parameters=(&'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) arguments=(provided(this) as &'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) return=int32 regions=("frame") kind=symbol target=mesh instance="mesh<T#2, Xs#2>"
         /// @generic.instantiation id="mesh<T#2, Xs#2>" template=mesh arguments=(T#2, Xs#2) owner=mesh#1
         /// @resolution.name source=T target=T
         /// @resolution.name source=Xs target=Xs

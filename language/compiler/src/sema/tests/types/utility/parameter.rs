@@ -19,19 +19,19 @@ ok satisfies (string, number);
 === annotated ===
 type Args = Parameters<(name: string, count: float64) => boolean>;
 
-const ok: (string, float64) = ("Ada", 1);
+const ok: Args = ("Ada", 1);
 ok satisfies (string, number);
 
 === dir ===
 type Args = Parameters<(name: string, count: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=(string, float64)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>>
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>>
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count: number" type=float64
 
 const ok: Args = ("Ada", 1);
-/// @type.symbol symbol=ok source=ok type=(string, float64)
+/// @type.symbol symbol=ok source=ok type=Args
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Args target=Args
 
@@ -62,27 +62,24 @@ const full: Args = ("Ada", 1);
 === annotated ===
 type Args = Parameters<(name: string, count?: float64) => boolean>;
 
-const short: (string, float64 | undefined?) = ("Ada",) as (string, float64 | undefined?);
-const full: (string, float64 | undefined?) = ("Ada", 1 as float64 | undefined) as (
-    string,
-    float64 | undefined?,
-);
+const short: Args = ("Ada",) as Args;
+const full: Args = ("Ada", 1 as float64 | undefined) as Args;
 
 === dir ===
 type Args = Parameters<(name: string, count?: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=(string, float64 | undefined?)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=(string, float64 | undefined?)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=Parameters<Function<(string, float64 | undefined?), boolean>>
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=Parameters<Function<(string, float64 | undefined?), boolean>>
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count?: number" type=float64 | undefined
 
 const short: Args = ("Ada",);
-/// @type.symbol symbol=short source=short type=(string, float64 | undefined?)
+/// @type.symbol symbol=short source=short type=Args
 /// @resolution.pattern source=short kind=binding target=short
 /// @resolution.name source=Args target=Args
 
 const full: Args = ("Ada", 1);
-/// @type.symbol symbol=full source=full type=(string, float64 | undefined?)
+/// @type.symbol symbol=full source=full type=Args
 /// @resolution.pattern source=full kind=binding target=full
 /// @resolution.name source=Args target=Args
 "#,
@@ -107,35 +104,32 @@ const ok: Args = ("Ada", true, false);
 === annotated ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 
-const ok: (string, ...boolean[]) = ("Ada", true, false) as (string, ...boolean[]);
+const ok: Args = ("Ada", true, false) as Args;
 
 === dir ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=(string, ...boolean[])
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=Parameters<Function<(string, ...boolean[]), void>>
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<boolean, \"exclusive\">" template=elementSlot arguments=(boolean, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive boolean[], usize) => &elementSlot.'a exclusive MaybeUninit<boolean>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<boolean>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<boolean>>, usize) => &elementSlot.'a exclusive MaybeUninit<boolean>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<boolean>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<boolean>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<boolean>>, usize) => &elementSlot.'a exclusive MaybeUninit<boolean>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive boolean[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<boolean>>)
-/// @generic.instance id="initAsPointer<boolean, \"exclusive\">" template=initAsPointer arguments=(boolean, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<boolean>) => Raw<boolean>)
-/// @generic.instance id="sliceIndex<MaybeUninit<boolean>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<boolean>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<boolean>>, usize) => &sliceIndex.'a exclusive MaybeUninit<boolean>)
+/// @generic.instance id="elementSlot<boolean, \"mutable\">" template=elementSlot arguments=(boolean, "mutable")
+/// @generic.instance id="initAsPointer<boolean, \"mutable\">" template=initAsPointer arguments=(boolean, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<boolean>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<boolean>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<boolean> template=Array arguments=(boolean)
-/// @generic.instance id=MaybeUninit<MaybeUninit<boolean>> template=MaybeUninit arguments=(MaybeUninit<boolean>)
-/// @generic.instance id=MaybeUninit<boolean> template=MaybeUninit arguments=(boolean)
 /// @generic.instance id=assumeInitDrop#1<boolean> template=assumeInitDrop#1 arguments=(boolean)
-/// @generic.instance id=assumeInitDrop<boolean> template=assumeInitDrop arguments=(boolean) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<boolean>) => Raw<boolean>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<boolean>)
+/// @generic.instance id=assumeInitDrop<boolean> template=assumeInitDrop arguments=(boolean)
 /// @generic.instance id=clear<boolean> template=clear arguments=(boolean)
 /// @generic.instance id=drop<boolean> template=drop arguments=(boolean)
 /// @generic.instance id=dropInPlace<boolean> template=dropInPlace arguments=(boolean)
-/// @generic.instance id=new<MaybeUninit<boolean>> template=new arguments=(MaybeUninit<boolean>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<boolean>> template=sliceAssumeInit arguments=(MaybeUninit<boolean>)
 /// @generic.instance id=sliceUninit<MaybeUninit<boolean>> template=sliceUninit arguments=(MaybeUninit<boolean>)
-/// @generic.instance id=truncate<boolean> template=truncate arguments=(boolean) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<boolean>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive boolean[], usize) => &truncate.'a exclusive MaybeUninit<boolean>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive boolean[])
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=(string, ...boolean[])
+/// @generic.instance id=truncate<boolean> template=truncate arguments=(boolean)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=Parameters<Function<(string, ...boolean[]), void>>
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.flags source="...flags: boolean[]" type=boolean[]
 
 const ok: Args = ("Ada", true, false);
-/// @type.symbol symbol=ok source=ok type=(string, ...boolean[])
+/// @type.symbol symbol=ok source=ok type=Args
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Args target=Args
 "#,
@@ -160,18 +154,18 @@ const bad: Args = ("Ada", "one");
 === annotated ===
 type Args = Parameters<(name: string, count: float64) => boolean>;
 
-const bad: (string, float64) = ("Ada", "one");
+const bad: Args = ("Ada", "one");
 
 === dir ===
 type Args = Parameters<(name: string, count: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=(string, float64)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>>
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>>
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count: number" type=float64
 
 const bad: Args = ("Ada", "one");
-/// @type.symbol symbol=bad source=bad type=(string, float64)
+/// @type.symbol symbol=bad source=bad type=Args
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Args target=Args
 "#,
@@ -220,7 +214,7 @@ function parse(value: string): string {
 
 type Parser = typeof parse;
 
-declare const parser: ((arg0: int32) => int32) & ((arg0: string) => string);
+declare const parser: Parser;
 
 parser satisfies ((value: int32) => int32) & ((value: string) => string);
 
@@ -231,7 +225,7 @@ function parse(value: int32): int32 {
 
     value
     /// @resolution.name source=value target=parse.value#1
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=parse.value#1
 
 }
@@ -242,18 +236,18 @@ function parse(value: string): string {
 
     value
     /// @resolution.name source=value target=parse.value#2
-    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value root=parse.value#2
 
 }
 
 type Parser = typeof parse;
 /// @type.symbol symbol=Parser source="type Parser = typeof parse" type=(int32) => int32 & (string) => string
-/// @definition.type symbol=Parser source="type Parser = typeof parse" value=(int32) => int32 & (string) => string
+/// @definition.type symbol=Parser source="type Parser = typeof parse" value=typeof parse
 /// @resolution.name source=parse target=[parse#1, parse#2]
 
 declare const parser: Parser;
-/// @type.symbol symbol=parser source=parser type=(int32) => int32 & (string) => string
+/// @type.symbol symbol=parser source=parser type=Parser
 /// @resolution.pattern source=parser kind=binding target=parser
 /// @resolution.name source=Parser target=Parser
 

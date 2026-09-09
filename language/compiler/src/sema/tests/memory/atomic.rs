@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_accept_atomic_safe_storage_types() {
     let session = TestSession::single(
         r#"
-import { Atomic, AtomicSafe } from "destack:sync";
+import { Atomic, AtomicSafe, MemoryOrdering } from "destack:sync";
 
 declare const ready: Atomic<boolean>;
 declare const count: Atomic<uint32>;
@@ -12,7 +12,7 @@ declare const index: Atomic<usize>;
 declare const ratio: Atomic<float64>;
 
 function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
-    return value.load();
+    return value.load(MemoryOrdering.SequentiallyConsistent);
 }
 "#,
     );
@@ -22,7 +22,7 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
         DirRows::checked(),
         r#"
 === annotated ===
-import { Atomic, AtomicSafe } from "destack:sync";
+import { Atomic, AtomicSafe, MemoryOrdering } from "destack:sync";
 
 declare const ready: Atomic<boolean>;
 declare const count: Atomic<uint32>;
@@ -30,11 +30,11 @@ declare const index: Atomic<usize>;
 declare const ratio: Atomic<float64>;
 
 function read<T: AtomicSafe, 'a>(value: &'a readonly Atomic<T>): T {
-    return value.load<T>();
+    return value.load<T>(MemoryOrdering.SequentiallyConsistent);
 }
 
 === dir ===
-import { Atomic, AtomicSafe } from "destack:sync";
+import { Atomic, AtomicSafe, MemoryOrdering } from "destack:sync";
 
 declare const ready: Atomic<boolean>;
 /// @type.symbol symbol=ready source=ready type=Atomic<boolean>
@@ -63,6 +63,7 @@ declare const ratio: Atomic<float64>;
 function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
 /// @generic.template symbol=read parameters=(T: AtomicSafe, 'a)
 /// @type.symbol symbol=read type=<T: AtomicSafe, read.'a>(&read.'a readonly Atomic<T>) => T
+/// @generic.instance id=Atomic<T> template=Atomic arguments=(T)
 /// @type.symbol symbol=read.T source="T: AtomicSafe" type=T
 /// @resolution.name source=AtomicSafe target=AtomicSafe
 /// @type.symbol symbol=read.value source="value: &readonly Atomic<T>" type=&read.'a readonly Atomic<T>
@@ -70,13 +71,16 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
 /// @resolution.name source=T target=read.T
 /// @resolution.name source=T target=read.T
 
-    return value.load();
+    return value.load(MemoryOrdering.SequentiallyConsistent);
     /// @resolution.name source=value target=read.value
     /// @resolution.member source=value.load receiver=&read.'a readonly Atomic<T> type=<load.'a>(this: &load.'a readonly Atomic<T>, MemoryOrdering?) => T kind=symbol target_receiver=&read.'a readonly Atomic<T> target=load
-    /// @resolution.call source=value.load() parameters=(MemoryOrdering) arguments=(omitted as MemoryOrdering) return=T kind=symbol target=load receiver=&read.'a readonly Atomic<T> instance=Atomic<T>.<extension#1>.load
+    /// @resolution.call source=value.load(MemoryOrdering.SequentiallyConsistent) parameters=(MemoryOrdering) arguments=(provided(MemoryOrdering.SequentiallyConsistent) as MemoryOrdering) return=T regions=(read.'a) kind=symbol target=load receiver=&read.'a readonly Atomic<T> instance=Atomic<T>.<extension#1>.load
     /// @resolution.place source=value placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=value root=read.value
     /// @generic.instantiation id=load<T> template=load arguments=(T) owner=read
+    /// @generic.instance id=load<T> template=load arguments=(T)
+    /// @resolution.name source=MemoryOrdering target=MemoryOrdering
+    /// @resolution.member source=MemoryOrdering.SequentiallyConsistent receiver=MemoryOrdering type=MemoryOrdering.SequentiallyConsistent kind=symbol target_receiver=MemoryOrdering target=MemoryOrdering.SequentiallyConsistent
 
 }
 "#,

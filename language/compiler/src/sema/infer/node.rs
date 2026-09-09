@@ -119,8 +119,11 @@ impl CheckState<'_> {
         expectation: Expectation,
         conversion: ValueConversion,
     ) -> CompilerResult<ValueCheck> {
-        // commit the selected runtime conversion for this authored value
-        if let Some(coercion) = conversion.coercion {
+        // commit the selected runtime conversion for this authored value, a cast owning it
+        if let Some(mut coercion) = conversion.coercion {
+            if expectation.use_ == ValueUse::Cast {
+                coercion.origin = dir::CastOrigin::Explicit;
+            }
             self.commit_coercion(site.node, *coercion)?;
         }
 

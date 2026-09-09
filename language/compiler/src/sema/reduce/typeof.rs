@@ -104,11 +104,11 @@ impl CheckState<'_> {
 
                     return Ok(Some(self.intern_type(dir::Type::Static(id))?));
                 }
-                if is_class && let Some(id) = self.symbol_static_id(*symbol) {
+                if is_class && let Some(id) = self.symbol_static_id(*symbol)? {
                     return Ok(Some(self.intern_type(dir::Type::Static(id))?));
                 }
 
-                if let Some(value) = self.static_value(*symbol) {
+                if let Some(value) = self.static_value(*symbol)? {
                     return Ok(Some(value));
                 }
 

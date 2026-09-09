@@ -1,9 +1,13 @@
+use std::sync::Arc;
+
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, Relation, Verdict};
+use crate::sema::{
+    Cause, CauseId, CauseKind, CheckState, GenericParameterId, Origin, Relation, Verdict,
+};
 use crate::{CompilerError, CompilerResult};
 
 /// One derived generic parameter variance.
@@ -146,7 +150,7 @@ pub(in crate::sema) enum VarianceState {
     Derived(Variance),
 }
 
-impl CheckState<'_> {
+impl<'a> CheckState<'a> {
     /// Return one generic parameter's variance through a handle form.
     pub(in crate::sema) fn parameter_variance(
         &mut self,
@@ -176,7 +180,7 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
         form: VarianceForm,
     ) -> CompilerResult<Variance> {
-        let Some(binding) = self.generic_parameter(parameter) else {
+        let Some(binding) = self.generic_parameter(parameter)? else {
             return Ok(Variance::Invariant);
         };
         let declared = binding.variance.map(Variance::from);
@@ -204,11 +208,11 @@ impl CheckState<'_> {
         &mut self,
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<VarianceForm> {
-        let Some(binding) = self.generic_parameter(parameter) else {
+        let Some(binding) = self.generic_parameter(parameter)? else {
             return Ok(VarianceForm::Owned);
         };
         let template = binding.template.into_global(parameter.module_id);
-        let Some(template) = self.generic_template(template) else {
+        let Some(template) = self.generic_template(template)? else {
             return Ok(VarianceForm::Owned);
         };
 
@@ -243,11 +247,11 @@ impl CheckState<'_> {
         &mut self,
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<bool> {
-        let Some(binding) = self.generic_parameter(parameter) else {
+        let Some(binding) = self.generic_parameter(parameter)? else {
             return Ok(false);
         };
         let template = binding.template.into_global(parameter.module_id);
-        let Some(template) = self.generic_template(template) else {
+        let Some(template) = self.generic_template(template)? else {
             return Ok(false);
         };
         let Some(symbol) = template.symbol else {
@@ -256,7 +260,7 @@ impl CheckState<'_> {
 
         // read whether the symbol declares stored fields
         Ok(matches!(
-            self.definition(symbol)?,
+            self.definition(symbol)?.as_deref(),
             Some(
                 dir::Definition::Struct(_)
                     | dir::Definition::Class(_)
@@ -272,17 +276,18 @@ impl CheckState<'_> {
         &mut self,
         parameter: dir::GlobalGenericParameterId,
     ) -> CompilerResult<bool> {
-        let Some(binding) = self.generic_parameter(parameter) else {
+        let Some(binding) = self.generic_parameter(parameter)? else {
             return Ok(false);
         };
         let template = binding.template.into_global(parameter.module_id);
-        let Some(template) = self.generic_template(template) else {
+        let Some(template) = self.generic_template(template)? else {
             return Ok(false);
         };
         let Some(symbol) = template.symbol else {
             return Ok(false);
         };
-        let Some(dir::Definition::Newtype(newtype)) = self.definition(symbol)? else {
+        let definition = self.definition(symbol)?;
+        let Some(dir::Definition::Newtype(newtype)) = definition.as_deref() else {
             return Ok(false);
         };
         let value = newtype.backing;
@@ -303,7 +308,7 @@ impl CheckState<'_> {
 
         // measure class and interface methods as reference instances
         let is_reference = matches!(
-            definition,
+            *definition,
             dir::Definition::Class(_) | dir::Definition::Interface(_)
         );
         let storage = form.field();
@@ -365,7 +370,7 @@ impl CheckState<'_> {
         }
 
         // newtype backings measure like stored values
-        if let dir::Definition::Newtype(newtype) = &definition {
+        if let dir::Definition::Newtype(newtype) = &*definition {
             members.push((newtype.backing, storage));
         }
 
@@ -401,19 +406,19 @@ impl CheckState<'_> {
     fn parameter_owner_definition(
         &mut self,
         parameter: dir::GlobalGenericParameterId,
-    ) -> CompilerResult<Option<dir::Definition>> {
-        let Some(binding) = self.generic_parameter(parameter) else {
+    ) -> CompilerResult<Option<Arc<dir::Definition>>> {
+        let Some(binding) = self.generic_parameter(parameter)? else {
             return Ok(None);
         };
         let template = binding.template.into_global(parameter.module_id);
-        let Some(template) = self.generic_template(template) else {
+        let Some(template) = self.generic_template(template)? else {
             return Ok(None);
         };
         let Some(symbol) = template.symbol else {
             return Ok(None);
         };
 
-        Ok(self.definition(symbol)?.cloned())
+        self.definition(symbol)
     }
 
     /// Return the associated type value one parameter's declaration gives for one key.
@@ -586,12 +591,10 @@ impl CheckState<'_> {
                 let signatures = self
                     .type_ids(ty.module_id, shape.call_signatures)?
                     .iter()
-                    .chain(self.type_ids(ty.module_id, shape.construct_signatures)?)
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
+                    .chain(self.type_ids(ty.module_id, shape.construct_signatures)?);
                 for signature in signatures {
                     measured =
-                        measured.join(self.measure_type(signature, position, form, parameter)?);
+                        measured.join(self.measure_type(*signature, position, form, parameter)?);
                 }
                 let index_signatures: SmallVec<[_; 4]> = self
                     .object_index_signatures(ty.module_id, shape.index_signatures)?
@@ -724,18 +727,7 @@ impl CheckState<'_> {
             // read both arguments through their solutions
             let source = self.shallow_resolve(*source)?;
             let target = self.shallow_resolve(*target)?;
-
-            // erased target arguments match every instantiation of their parameter
-            if matches!(self.ty(target)?, dir::Type::Erased(_)) {
-                continue;
-            }
-
-            // link the open lifetime slots Verify measures
-            if !self.type_flags(source)?.has_variable()
-                && !self.type_flags(target)?.has_variable()
-                && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
-                && self.memory_kind(target)? == Some(dir::MemoryParameter::Region)
-            {
+            if self.is_free_argument_slot(source, target)? {
                 continue;
             }
 
@@ -775,6 +767,101 @@ impl CheckState<'_> {
         Ok(verdict)
     }
 
+    /// Match one implemented header against the requested arguments.
+    pub(in crate::sema) fn match_header_arguments(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        symbol: dir::GlobalSymbolId,
+        declared: &[dir::GlobalTypeId],
+        requested: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Verdict> {
+        // require the same number of arguments
+        if declared.len() != requested.len() {
+            return Ok(Verdict::Fails);
+        }
+
+        // relate each argument pair by its written variance
+        let mut verdict = Verdict::Holds;
+        for (index, (declared, requested)) in declared.iter().zip(requested.iter()).enumerate() {
+            // skip the pairs that constrain neither slot
+            let declared = self.shallow_resolve(*declared)?;
+            let requested = self.shallow_resolve(*requested)?;
+            if self.is_free_argument_slot(declared, requested)? {
+                continue;
+            }
+
+            // orient the pair under the written variance and constrain it
+            let variance = self.written_argument_variance(symbol, index)?;
+            let related = match variance.argument_relation(Relation::Subtype) {
+                None => Verdict::Holds,
+                Some((relation, order)) => {
+                    let (source, target) = order.orient(declared, requested);
+
+                    self.constrain_type(origin, cause, relation, source, target)?
+                }
+            };
+
+            // stop at the first failing argument
+            verdict = verdict.and(related);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
+            }
+        }
+
+        Ok(verdict)
+    }
+
+    /// Return whether one argument pair leaves its slots unconstrained.
+    fn is_free_argument_slot(
+        &self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // erased target arguments match every instantiation of their parameter
+        if matches!(self.ty(target)?, dir::Type::Erased(_)) {
+            return Ok(true);
+        }
+
+        // link the open lifetime slots for Verify
+        Ok(!self.type_flags(source)?.has_variable()
+            && !self.type_flags(target)?.has_variable()
+            && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
+            && self.memory_kind(target)? == Some(dir::MemoryParameter::Region))
+    }
+
+    /// Return one indexed parameter's written variance, invariant when unannotated.
+    fn written_argument_variance(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        index: usize,
+    ) -> CompilerResult<Variance> {
+        let written = match self.template_parameter(symbol, index)? {
+            Some(parameter) => self
+                .generic_parameter(parameter)?
+                .and_then(|binding| binding.variance),
+            None => None,
+        };
+
+        Ok(written.map(Variance::from).unwrap_or(Variance::Invariant))
+    }
+
+    /// Return one symbol's indexed template parameter.
+    fn template_parameter(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        index: usize,
+    ) -> CompilerResult<Option<GenericParameterId>> {
+        let Some(template) = self.symbol_template(symbol)? else {
+            return Ok(None);
+        };
+
+        Ok(self
+            .generic_template_parameters(template)?
+            .get(index)
+            .copied())
+    }
+
     /// Return one indexed argument's variance, invariant when unknown.
     pub(in crate::sema) fn argument_variance(
         &mut self,
@@ -782,16 +869,8 @@ impl CheckState<'_> {
         index: usize,
         form: VarianceForm,
     ) -> CompilerResult<Variance> {
-        let parameters = match self.symbol_template(symbol)? {
-            Some(template) => Some(self.generic_template_parameters(template)?),
-            None => None,
-        };
-        let parameter = parameters
-            .as_ref()
-            .and_then(|parameters| parameters.get(index).copied());
-
-        // read the variance the declared parameter carries
-        match parameter {
+        // read the variance the declared parameter states
+        match self.template_parameter(symbol, index)? {
             Some(parameter) => self.parameter_variance(parameter, form),
             None => Ok(Variance::Invariant),
         }
@@ -858,7 +937,7 @@ impl CheckState<'_> {
         for parameter in parameters {
             let form = self.parameter_variance_form(parameter)?;
             let derived = self.parameter_variance(parameter, form)?;
-            let Some(binding) = self.generic_parameter(parameter) else {
+            let Some(binding) = self.generic_parameter(parameter)? else {
                 continue;
             };
             if binding.variance.is_some()
@@ -926,7 +1005,7 @@ impl CheckState<'_> {
             }
 
             for parameter in self.generic_template_parameters(template)? {
-                let Some(binding) = self.generic_parameter(parameter) else {
+                let Some(binding) = self.generic_parameter(parameter)? else {
                     continue;
                 };
                 if binding.is_const && binding.memory_parameter().is_none() {
@@ -1000,7 +1079,7 @@ impl CheckState<'_> {
             dir::Type::Parameter(parameter) => {
                 self.resolved_cardinality(parameter).is_some()
                     || self
-                        .generic_parameter(parameter)
+                        .generic_parameter(parameter)?
                         .is_some_and(|binding| binding.memory_parameter().is_some())
             }
             // static operations over exact operands compute one exact value

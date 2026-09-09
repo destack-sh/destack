@@ -76,7 +76,7 @@ class User {
         return this;
         /// @type.node source=this type=User
         /// @resolution.receiver source=this kind=this declaration=User type=User
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
 
     }
@@ -231,14 +231,14 @@ class Base {
         /// @type.node source=this type=Base
         /// @type.node source=this.value type=int32
         /// @resolution.receiver source=this kind=this declaration=Base type=Base
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Base, target=field(receiver=Base, target=Base.value, type=int32), type=int32" type=int32
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=Base.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Base.constructor.value
 
     }
@@ -257,8 +257,6 @@ const derived = new Derived(1);
 /// @resolution.construct source="new Derived(1)" parameters=(int32) arguments=(provided(1) as int32) return=Derived kind=class target=Derived constructor=forwarded:Base.constructor
 /// @generic.instantiation id="Base.constructor<\"local\">" template=Base.constructor arguments=("local")
 /// @generic.instantiation id="Derived<\"local\">" template=Derived arguments=("local")
-/// @generic.instance id="Base.constructor<\"local\">" template=Base.constructor arguments=("local")
-/// @generic.instance id="Derived<\"local\">" template=Derived arguments=("local")
 /// @resolution.name source=Derived target=Derived
 /// @type.node source=1 type=1
 "#,
@@ -317,14 +315,14 @@ class Counter {
         /// @type.node source=this type=Counter
         /// @type.node source=this.value type=int32
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Counter, target=field(receiver=Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=Counter.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Counter.constructor.value
 
     }
@@ -337,8 +335,6 @@ const counter = new Counter(1);
 /// @resolution.construct source="new Counter(1)" parameters=(int32) arguments=(provided(1) as int32) return=local Counter kind=class target=Counter constructor=Counter.constructor
 /// @generic.instantiation id="Counter.constructor<\"local\">" template=Counter.constructor arguments=("local")
 /// @generic.instantiation id="Counter<\"local\">" template=Counter arguments=("local")
-/// @generic.instance id="Counter.constructor<\"local\">" template=Counter.constructor arguments=("local")
-/// @generic.instance id="Counter<\"local\">" template=Counter arguments=("local")
 /// @resolution.name source=Counter target=Counter
 /// @type.node source=1 type=1
 "#,
@@ -408,14 +404,14 @@ class Box {
         /// @type.node source=this type=Box
         /// @type.node source=this.value type=string | int32
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=string
         /// @resolution.name source=value target=Box.constructor.value#1
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=Box.constructor.value#1
 
     }
@@ -431,14 +427,14 @@ class Box {
         /// @type.node source=this type=Box
         /// @type.node source=this.value type=string | int32
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=Box.constructor.value#2
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Box.constructor.value#2
 
     }
@@ -451,8 +447,6 @@ const text = new Box("x");
 /// @resolution.construct source="new Box(\"x\")" parameters=(string) arguments=(provided("x") as string) return=local Box kind=class target=Box constructor=Box.constructor#1
 /// @generic.instantiation id="Box.constructor#1<\"local\">" template=Box.constructor#1 arguments=("local")
 /// @generic.instantiation id="Box<\"local\">" template=Box arguments=("local")
-/// @generic.instance id="Box.constructor#1<\"local\">" template=Box.constructor#1 arguments=("local")
-/// @generic.instance id="Box<\"local\">" template=Box arguments=("local")
 /// @resolution.name source=Box target=Box
 /// @type.node source="\"x\"" type="x"
 
@@ -463,8 +457,6 @@ const number = new Box(1);
 /// @resolution.construct source="new Box(1)" parameters=(int32) arguments=(provided(1) as int32) return=local Box kind=class target=Box constructor=Box.constructor#2
 /// @generic.instantiation id="Box.constructor#2<\"local\">" template=Box.constructor#2 arguments=("local")
 /// @generic.instantiation id="Box<\"local\">" template=Box arguments=("local")
-/// @generic.instance id="Box.constructor#2<\"local\">" template=Box.constructor#2 arguments=("local")
-/// @generic.instance id="Box<\"local\">" template=Box arguments=("local")
 /// @resolution.name source=Box target=Box
 /// @type.node source=1 type=1
 "#,
@@ -532,14 +524,14 @@ class Box {
         /// @type.node source=this type=Box
         /// @type.node source=this.value type=string | int32
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=string
         /// @resolution.name source=value target=Box.constructor.value#1
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=Box.constructor.value#1
 
     }
@@ -555,14 +547,14 @@ class Box {
         /// @type.node source=this type=Box
         /// @type.node source=this.value type=string | int32
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=Box.constructor.value#2
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Box.constructor.value#2
 
     }
@@ -740,13 +732,13 @@ class Animal {
 
         this.name = name;
         /// @resolution.receiver source=this kind=this declaration=Animal type=Animal
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
         /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=Animal, target=field(receiver=Animal, target=Animal.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Animal.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=name root=Animal.constructor.name
 
     }
@@ -772,26 +764,24 @@ class Dog extends Animal {
 
         super(name);
         /// @resolution.receiver source=super kind=super declaration=Dog type=Animal
-        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=super placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=super root=this
         /// @resolution.construct source=super(name) parameters=(string) arguments=(provided(name) as string) return=void kind=class target=Animal constructor=Animal.constructor
         /// @generic.instantiation id="Animal.constructor<\"local\">" template=Animal.constructor arguments=("local")
         /// @generic.instantiation id="Animal<\"local\">" template=Animal arguments=("local")
-        /// @generic.instance id="Animal.constructor<\"local\">" template=Animal.constructor arguments=("local")
-        /// @generic.instance id="Animal<\"local\">" template=Animal arguments=("local")
         /// @resolution.name source=name target=Dog.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=name root=Dog.constructor.name
 
         this.tricks = tricks;
         /// @resolution.receiver source=this kind=this declaration=Dog type=Dog
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.tricks kind=place
         /// @resolution.access source=this.tricks root=this keys=[tricks]
         /// @resolution.assignment source=this.tricks write="receiver=Dog, target=field(receiver=Dog, target=Dog.tricks, type=int32), type=int32" type=int32
         /// @resolution.name source=tricks target=Dog.constructor.tricks
-        /// @resolution.place source=tricks placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=tricks placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=tricks root=Dog.constructor.tricks
 
     }
@@ -803,8 +793,6 @@ const dog = new Dog("rex", 3);
 /// @resolution.construct source="new Dog(\"rex\", 3)" parameters=(string, int32) arguments=(provided("rex") as string, provided(3) as int32) return=local Dog kind=class target=Dog constructor=Dog.constructor
 /// @generic.instantiation id="Dog.constructor<\"local\">" template=Dog.constructor arguments=("local")
 /// @generic.instantiation id="Dog<\"local\">" template=Dog arguments=("local")
-/// @generic.instance id="Dog.constructor<\"local\">" template=Dog.constructor arguments=("local")
-/// @generic.instance id="Dog<\"local\">" template=Dog arguments=("local")
 /// @resolution.name source=Dog target=Dog
 "#,
     );
@@ -864,8 +852,6 @@ const dog = new Dog("rex");
 /// @resolution.construct source="new Dog(\"rex\")" parameters=(string) arguments=(provided("rex") as string) return=Dog kind=class target=Dog constructor=forwarded:base.Animal.symbol5
 /// @generic.instantiation id="Dog<\"local\">" template=Dog arguments=("local")
 /// @generic.instantiation id="base.Animal.symbol5<\"local\">" template=base.Animal.symbol5 arguments=("local")
-/// @generic.instance id="Dog<\"local\">" template=Dog arguments=("local")
-/// @generic.instance id="base.Animal.symbol5<\"local\">" template=base.Animal.symbol5 arguments=("local")
 /// @resolution.name source=Dog target=Dog
 "#,
     );
@@ -923,13 +909,13 @@ class Counter {
 
         this.value = value;
         /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Counter, target=field(receiver=Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @resolution.name source=value target=Counter.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Counter.constructor.value
 
     }
@@ -1026,7 +1012,7 @@ class State {
         /// @type.node source=this type=State
         /// @type.node source=this.value type=unknown | undefined
         /// @resolution.receiver source=this kind=this declaration=State type=State
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
@@ -1056,7 +1042,7 @@ class Holder {
         /// @type.node source=this type=Holder
         /// @type.node source=this.state type=State
         /// @resolution.receiver source=this kind=this declaration=Holder type=Holder
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.state kind=place
         /// @resolution.access source=this.state root=this keys=[state]
@@ -1065,8 +1051,6 @@ class Holder {
         /// @resolution.construct source="new State()" parameters=() return=local State kind=class target=State constructor=State.constructor
         /// @generic.instantiation id="State.constructor<\"local\">" template=State.constructor arguments=("local")
         /// @generic.instantiation id="State<\"local\">" template=State arguments=("local")
-        /// @generic.instance id="State.constructor<\"local\">" template=State.constructor arguments=("local")
-        /// @generic.instance id="State<\"local\">" template=State arguments=("local")
         /// @resolution.name source=State target=State
 
     }
@@ -1114,7 +1098,7 @@ class Box<T> {
 /// @type.symbol symbol=Box type=Box
 /// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T) => Managed<this, Box.constructor.P0>
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T) => Managed<Box<T>, Box.constructor.P0>
 /// @type.symbol symbol=Box.T source=T type=T
 
     value: T;
@@ -1123,7 +1107,7 @@ class Box<T> {
 
     constructor(value: T) {
     /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T) => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>(T) => Managed<Box<T>, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.this type=Box<T>
     /// @type.symbol symbol=Box.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Box.T
@@ -1133,14 +1117,14 @@ class Box<T> {
         /// @type.node source=this type=Box<T>
         /// @type.node source=this.value type=T
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<T>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=Box<T>, target=field(receiver=Box<T>, target=Box.value, type=T), type=T" type=T
         /// @type.node source=value type=T
         /// @resolution.name source=value target=Box.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Box.constructor.value
 
     }
@@ -1208,7 +1192,7 @@ class Box<T = string> {
 /// @generic.instance id=Box<string> template=Box arguments=(string)
 /// @definition.class symbol=Box template=(in out T = string)
 /// @definition.field symbol=Box.value source="value: T | undefined" key=value type=T | undefined
-/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>() => Managed<this, Box.constructor.P0>
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>() => Managed<Box<T>, Box.constructor.P0>
 /// @type.symbol symbol=Box.T source="T = string" type=T
 
     value: T | undefined;
@@ -1217,7 +1201,7 @@ class Box<T = string> {
 
     constructor() {
     /// @generic.template symbol=Box.constructor parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>() => Managed<this, Box.constructor.P0>
+    /// @type.symbol symbol=Box.constructor type=<Box.constructor.P0: Place>() => Managed<Box<T>, Box.constructor.P0>
     /// @type.symbol symbol=Box.constructor.this type=Box<T>
 
         this.value = undefined;
@@ -1225,7 +1209,7 @@ class Box<T = string> {
         /// @type.node source=this type=Box<T>
         /// @type.node source=this.value type=T | undefined
         /// @resolution.receiver source=this kind=this declaration=Box type=Box<T>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
@@ -1300,13 +1284,13 @@ class Point {
 
         this.x = x;
         /// @resolution.receiver source=this kind=this declaration=Point type=Point
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.x kind=place
         /// @resolution.access source=this.x root=this keys=[x]
         /// @resolution.assignment source=this.x write="receiver=Point, target=field(receiver=Point, target=Point.x, type=float64), type=float64" type=float64
         /// @resolution.name source=x target=Point.constructor.x
-        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=x root=Point.constructor.x
 
     }
@@ -1375,8 +1359,9 @@ newtype Meters = float64;
 /// @definition.newtype symbol=Meters source="newtype Meters = float64" backing=float64 constructors=[(float64) => Meters]
 
 interface Greet {
+/// @generic.template symbol=Greet parameters=(this: Greet)
 /// @type.symbol symbol=Greet type=Greet
-/// @definition.interface symbol=Greet
+/// @definition.interface symbol=Greet template=(this: Greet)
 /// @definition.where symbol=Greet relation=satisfies left=this right=Greet
 /// @definition.method symbol=Greet.greet source="greet(): int32" slot=greet type=(this: this) => int32
 
@@ -1500,13 +1485,13 @@ class Point {
 
         this.x = x;
         /// @resolution.receiver source=this kind=this declaration=Point type=Point
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.x kind=place
         /// @resolution.access source=this.x root=this keys=[x]
         /// @resolution.assignment source=this.x write="receiver=Point, target=field(receiver=Point, target=Point.x, type=float64), type=float64" type=float64
         /// @resolution.name source=x target=Point.constructor.x
-        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=x root=Point.constructor.x
 
     }
@@ -1520,8 +1505,9 @@ enum Status { Idle, Busy }
 /// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
 
 interface Greet {
+/// @generic.template symbol=Greet parameters=(this: Greet)
 /// @type.symbol symbol=Greet type=Greet
-/// @definition.interface symbol=Greet
+/// @definition.interface symbol=Greet template=(this: Greet)
 /// @definition.where symbol=Greet relation=satisfies left=this right=Greet
 /// @definition.method symbol=Greet.greet source="greet(): int32" slot=greet type=(this: this) => int32
 
@@ -1636,7 +1622,7 @@ struct Machine {
 /// @definition.struct symbol=Machine
 /// @definition.field symbol=Machine.status source="status: Status" key=status type=Status
 /// @definition.method symbol=Machine.state#1 slot=state role=getter type=<Machine.state#1.'a>(this: &Machine.state#1.'a readonly this) => Status
-/// @definition.method symbol=Machine.state#2 slot=state role=setter type=<Machine.state#2.'a>(this: &Machine.state#2.'a exclusive this, Status) => void
+/// @definition.method symbol=Machine.state#2 slot=state role=setter type=<Machine.state#2.'a>(this: &Machine.state#2.'a this, Status) => void
 
     status: Status;
     /// @type.symbol symbol=Machine.status source="status: Status" type=Status
@@ -1660,20 +1646,20 @@ struct Machine {
 
     set state(value: Status) {
     /// @generic.template symbol=Machine.state#2 parameters=('a)
-    /// @type.symbol symbol=Machine.state#2 type=<Machine.state#2.'a>(this: &Machine.state#2.'a exclusive this, Status) => void
-    /// @type.symbol symbol=Machine.state.this#2 type=&Machine.state#2.'a exclusive Machine
+    /// @type.symbol symbol=Machine.state#2 type=<Machine.state#2.'a>(this: &Machine.state#2.'a this, Status) => void
+    /// @type.symbol symbol=Machine.state.this#2 type=&Machine.state#2.'a Machine
     /// @type.symbol symbol=Machine.state.value source="value: Status" type=Status
     /// @resolution.name source=Status target=Status
 
         this.status = value;
-        /// @resolution.receiver source=this kind=this declaration=Machine type=&Machine.state#2.'a exclusive Machine
-        /// @resolution.place source=this placement=Machine.state#2.'a lifetime=Machine.state#2.'a access="exclusive"
+        /// @resolution.receiver source=this kind=this declaration=Machine type=&Machine.state#2.'a Machine
+        /// @resolution.place source=this placement=Machine.state#2.'a lifetime=Machine.state#2.'a access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.status kind=place
         /// @resolution.access source=this.status root=this keys=[status]
-        /// @resolution.assignment source=this.status write="receiver=&Machine.state#2.'a exclusive Machine, target=field(receiver=&Machine.state#2.'a exclusive Machine, target=Machine.status, type=Status), type=Status" type=Status
+        /// @resolution.assignment source=this.status write="receiver=&Machine.state#2.'a Machine, target=field(receiver=&Machine.state#2.'a Machine, target=Machine.status, type=Status), type=Status" type=Status
         /// @resolution.name source=value target=Machine.state.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Machine.state.value
 
     }
@@ -1689,7 +1675,10 @@ function update(machine: &Machine): void {
     /// @resolution.name source=machine target=update.machine
     /// @resolution.place source=machine placement=update.'a lifetime=update.'a access="mutable"
     /// @resolution.access source=machine root=update.machine
-    /// @resolution.rejected source=machine.state
+    /// @resolution.pattern.assign source=machine.state kind=place
+    /// @resolution.assignment source=machine.state write="receiver=&update.'a Machine, target=Machine.state#2(parameters=(Status), arguments=(supplied as Status), return=void, regions=(update.'a)), type=Status" type=Status
+    /// @resolution.name source=Status target=Status
+    /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 
 }
 
@@ -1702,16 +1691,245 @@ function read(machine: &readonly Machine): Status {
 
     machine.state
     /// @resolution.name source=machine target=read.machine
-    /// @resolution.member source=machine.state receiver=&read.'a readonly Machine type=Status kind=call target="Machine.state#1(parameters=(), arguments=(), return=Status)"
+    /// @resolution.member source=machine.state receiver=&read.'a readonly Machine type=Status kind=call target="Machine.state#1(parameters=(), arguments=(), return=Status, regions=(read.'a))"
     /// @resolution.place source=machine placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=machine root=read.machine
 
 }
 "#,
         r#"
-/// @diagnostic.error id=borrow-access-not-granted message="'exclusive' access is not granted by a value of type '&'a Machine'"
-/// @diagnostic.label line=17 column=13 span="state" line_source="machine.state = Status.Busy;"
-/// @diagnostic.help message="request the granted access or use a source that grants more"
+
 "#,
+    );
+}
+
+#[test]
+fn test_reject_a_constructor_declaring_its_receiver() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor(&readonly this) {}
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::none(), r#"
+=== annotated ===
+class User {
+    constructor(&readonly this) {}
+}
+
+=== dir ===
+class User {
+    constructor(&readonly this) {}
+}
+"#, r#"
+/// @diagnostic.error id=constructor-receiver-annotation message="constructor cannot declare its receiver"
+/// @diagnostic.label line=3 column=27 span="this" line_source="constructor(&readonly this) {}"
+"#);
+}
+
+#[test]
+fn test_reject_this_before_the_super_call() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    level: int32;
+
+    constructor() {
+        this.level = 1;
+        super();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::none(), r#"
+=== annotated ===
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    level: int32;
+
+    constructor() {
+        this.level = 1;
+        super();
+    }
+}
+
+=== dir ===
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    level: int32;
+
+    constructor() {
+        this.level = 1;
+        super();
+    }
+}
+"#, r#"
+/// @diagnostic.error id=this-before-super message="'super' must be called before accessing 'this' in the constructor of a derived class"
+/// @diagnostic.label line=10 column=9 span="this" line_source="this.level = 1;"
+"#);
+}
+
+#[test]
+fn test_reject_a_derived_constructor_without_a_super_call() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    constructor() {}
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::none(), r#"
+=== annotated ===
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    constructor() {}
+}
+
+=== dir ===
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    constructor() {}
+}
+"#, r#"
+/// @diagnostic.error id=missing-super-call message="constructors for derived classes must contain a 'super' call"
+/// @diagnostic.label line=7 column=5 span="constructor" line_source="constructor() {}"
+"#);
+}
+
+#[test]
+fn test_reject_a_super_call_outside_the_constructor() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    reset(this): void {
+        super();
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::none(), r#"
+=== annotated ===
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    reset(this): void {
+        super();
+    }
+}
+
+=== dir ===
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    reset(this): void {
+        super();
+    }
+}
+"#, r#"
+/// @diagnostic.error id=super-call-outside-constructor message="super calls are permitted only in the constructor of a derived class"
+/// @diagnostic.label line=8 column=9 span="super()" line_source="super();"
+"#);
+}
+
+#[test]
+fn test_read_this_after_the_super_call() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    level: int32;
+
+    constructor() {
+        super();
+        this.level = 1;
+        this.promote();
+    }
+
+    promote(this): void {
+        this.level += 1;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    level: int32;
+
+    constructor() {
+        super();
+        this.level = 1;
+        this.promote();
+    }
+
+    promote(this): void {
+        this.level += 1;
+    }
+}
+
+=== dir ===
+class User {
+    constructor() {}
+}
+
+class Admin extends User {
+    level: int32;
+
+    constructor() {
+        super();
+        this.level = 1;
+        this.promote();
+    }
+
+    promote(this): void {
+        this.level += 1;
+    }
+}
+"#,
+        r#""#,
     );
 }

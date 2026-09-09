@@ -100,7 +100,7 @@ const value = point.sum();
 /// @type.node source=point.sum() type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.sum receiver=Point type=<sum.'a>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Point target=sum
-/// @resolution.call source=point.sum() parameters=() return=int32 kind=symbol target=sum receiver=Point adjustments=(borrow(&'static readonly constant Point))
+/// @resolution.call source=point.sum() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=sum receiver=Point adjustments=(borrow(&'static readonly constant Point))
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 "#);
@@ -301,7 +301,7 @@ extension<T> of Slice<T> {
     /// @resolution.name source=T target=T
 
         this.size
-        /// @resolution.member source=this.size receiver=&first.'a readonly Slice<T#2> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
+        /// @resolution.member source=this.size receiver=&first.'a readonly Slice<T#2> type=usize kind=call target="size(parameters=(), arguments=(), return=usize, regions=(first.'a))"
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&first.'a readonly Slice<T#2>
         /// @resolution.place source=this placement=first.'a lifetime=first.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -317,7 +317,7 @@ extension<T> of Slice<T> {
 }
 
 #[test]
-fn test_readonly_borrow_rejects_an_exclusive_receiver_method() {
+fn test_reject_a_mutable_receiver_method_on_a_readonly_borrow() {
     let session = TestSession::single(
         r#"
 struct Buffer {
@@ -325,7 +325,7 @@ struct Buffer {
 }
 
 extension of Buffer {
-    grow(this: &exclusive Buffer): void {}
+    grow(this: &Buffer): void {}
 
     peek(this: &readonly Buffer): void {
         this.grow()
@@ -344,7 +344,7 @@ struct Buffer {
 }
 
 extension of Buffer {
-    grow(this: &exclusive Buffer): void {}
+    grow(this: &Buffer): void {}
 
     peek(this: &readonly Buffer): void {
         this.grow();
@@ -364,14 +364,14 @@ struct Buffer {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
-/// @definition.method symbol=grow source="grow(this: &exclusive Buffer): void {}" slot=grow type=<grow.'a>(this: &grow.'a exclusive Buffer) => void
+/// @definition.method symbol=grow source="grow(this: &Buffer): void {}" slot=grow type=<grow.'a>(this: &grow.'a Buffer) => void
 /// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly Buffer) => void
 /// @resolution.name source=Buffer target=Buffer
 
-    grow(this: &exclusive Buffer): void {}
+    grow(this: &Buffer): void {}
     /// @generic.template symbol=grow parameters=('a)
-    /// @type.symbol symbol=grow source="grow(this: &exclusive Buffer): void {}" type=<grow.'a>(this: &grow.'a exclusive Buffer) => void
-    /// @type.symbol symbol=grow.this source="this: &exclusive Buffer" type=&grow.'a exclusive Buffer
+    /// @type.symbol symbol=grow source="grow(this: &Buffer): void {}" type=<grow.'a>(this: &grow.'a Buffer) => void
+    /// @type.symbol symbol=grow.this source="this: &Buffer" type=&grow.'a Buffer
     /// @resolution.name source=Buffer target=Buffer
 
     peek(this: &readonly Buffer): void {
@@ -381,8 +381,8 @@ extension of Buffer {
     /// @resolution.name source=Buffer target=Buffer
 
         this.grow()
-        /// @resolution.member source=this.grow receiver=&peek.'a readonly Buffer type=<grow.'a>(this: &grow.'a exclusive Buffer) => void kind=symbol target_receiver=&peek.'a readonly Buffer target=grow
-        /// @resolution.call source=this.grow() parameters=() return=void kind=symbol target=grow receiver=&peek.'a readonly Buffer
+        /// @resolution.member source=this.grow receiver=&peek.'a readonly Buffer type=<grow.'a>(this: &grow.'a Buffer) => void kind=symbol target_receiver=&peek.'a readonly Buffer target=grow
+        /// @resolution.call source=this.grow() parameters=() return=void regions=(peek.'a) kind=symbol target=grow receiver=&peek.'a readonly Buffer
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&peek.'a readonly Buffer
         /// @resolution.place source=this placement=peek.'a lifetime=peek.'a access="readonly"
         /// @resolution.access source=this root=this
@@ -391,7 +391,7 @@ extension of Buffer {
 }
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly Buffer' is not assignable to the method's 'this' type '&exclusive Buffer'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly Buffer' is not assignable to the method's 'this' type '&'a Buffer'"
 /// @diagnostic.label line=10 column=9 span="this.grow()" line_source="this.grow()"
 "#,
     );
@@ -430,8 +430,9 @@ const value: 1 = (1).double<1>();
 
 === dir ===
 interface Scalar {}
+/// @generic.template symbol=Scalar parameters=(this: Scalar)
 /// @type.symbol symbol=Scalar source="interface Scalar {}" type=Scalar
-/// @definition.interface symbol=Scalar source="interface Scalar {}"
+/// @definition.interface symbol=Scalar source="interface Scalar {}" template=(this: Scalar)
 /// @definition.where symbol=Scalar source="interface Scalar {}" relation=satisfies left=this right=Scalar
 
 extension Doubling<T: Scalar> of T {
@@ -450,7 +451,7 @@ extension Doubling<T: Scalar> of T {
         this
         /// @type.node source=this type=T
         /// @resolution.receiver source=this kind=this declaration=Doubling type=T
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
 
     }

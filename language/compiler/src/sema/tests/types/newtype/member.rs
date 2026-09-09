@@ -45,12 +45,12 @@ class Wrapper<T> {
 /// @generic.template symbol=Wrapper parameters=(out T#1)
 /// @type.symbol symbol=Wrapper type=Wrapper
 /// @definition.class symbol=Wrapper template=(out T#1)
-/// @definition.method symbol=Wrapper.open slot=open type=<Wrapper.open.P0: Place>(this: Managed<this, Wrapper.open.P0>) => T#1
+/// @definition.method symbol=Wrapper.open slot=open type=<Wrapper.open.P0: Place>(this: Managed<Wrapper<T#1>, Wrapper.open.P0>) => T#1
 /// @type.symbol symbol=Wrapper.T source=T type=T#1
 
     open(): T {
     /// @generic.template symbol=Wrapper.open parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Wrapper.open type=<Wrapper.open.P0: Place>(this: Managed<this, Wrapper.open.P0>) => T#1
+    /// @type.symbol symbol=Wrapper.open type=<Wrapper.open.P0: Place>(this: Managed<Wrapper<T#1>, Wrapper.open.P0>) => T#1
     /// @type.symbol symbol=Wrapper.open.this type=Managed<Wrapper<T#1>, Wrapper.open.P0>
     /// @resolution.name source=T target=Wrapper.T
 
@@ -64,6 +64,7 @@ class Wrapper<T> {
 newtype Sealed<T> = Wrapper<T>;
 /// @generic.template symbol=Sealed parameters=(out T#2)
 /// @type.symbol symbol=Sealed source="newtype Sealed<T> = Wrapper<T>" type=Sealed
+/// @generic.instance id=Wrapper<T#2> template=Wrapper arguments=(T#2)
 /// @definition.newtype symbol=Sealed source="newtype Sealed<T> = Wrapper<T>" template=(out T#2) backing=Wrapper<T#2> constructors=[<T#2>(Wrapper<T#2>) => Sealed<T#2>]
 /// @type.symbol symbol=Sealed.T source=T type=T#2
 /// @resolution.name source=Wrapper target=Wrapper
@@ -71,15 +72,16 @@ newtype Sealed<T> = Wrapper<T>;
 
 extension<T> of Sealed<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
+/// @generic.instance id=Sealed<T#3> template=Sealed arguments=(T#3)
 /// @definition.extension symbol=<module>#2 form=local target=Sealed<T#3>
-/// @definition.method symbol=reveal slot=reveal type=<reveal.P0: Place>(this: Managed<this, reveal.P0>) => T#3
+/// @definition.method symbol=reveal slot=reveal type=<reveal.P0: Place>(this: Managed<Sealed<T#3>, reveal.P0>) => T#3
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Sealed target=Sealed
 /// @resolution.name source=T target=T
 
     reveal(): T {
     /// @generic.template symbol=reveal parent=template#2 parameters=(P0: Place)
-    /// @type.symbol symbol=reveal type=<reveal.P0: Place>(this: Managed<this, reveal.P0>) => T#3
+    /// @type.symbol symbol=reveal type=<reveal.P0: Place>(this: Managed<Sealed<T#3>, reveal.P0>) => T#3
     /// @type.symbol symbol=reveal.this type=Managed<Sealed<T#3>, reveal.P0>
     /// @resolution.name source=T target=T
 
@@ -92,6 +94,8 @@ extension<T> of Sealed<T> {
         /// @generic.instantiation id="Wrapper.open<T#3, reveal.P0>" template=Wrapper.open arguments=(T#3, reveal.P0) owner=reveal
         /// @generic.instantiation id=Sealed<T#3> template=Sealed arguments=(T#3) owner=reveal
         /// @generic.instantiation id=Wrapper.open<T#3> template=Wrapper.open arguments=(T#3) owner=reveal
+        /// @generic.instance id="Wrapper.open<T#3, \"local\">" template=Wrapper.open arguments=(T#3, "local")
+        /// @generic.instance id=Wrapper<T#3> template=Wrapper arguments=(T#3)
 
     }
 }

@@ -23,8 +23,8 @@ type Select<T> = T extends string ? "yes" : "no";
 type Text = Select<string>;
 type Number = Select<int32>;
 
-declare const text: "yes";
-declare const number: "no";
+declare const text: Text;
+declare const number: Number;
 
 === dir ===
 type Select<T> = T extends string ? "yes" : "no";
@@ -35,22 +35,22 @@ type Select<T> = T extends string ? "yes" : "no";
 /// @resolution.name source=T target=Select.T
 
 type Text = Select<string>;
-/// @type.symbol symbol=Text source="type Text = Select<string>" type="yes"
-/// @definition.type symbol=Text source="type Text = Select<string>" value="yes"
+/// @type.symbol symbol=Text source="type Text = Select<string>" type=Select<string>
+/// @definition.type symbol=Text source="type Text = Select<string>" value=Select<string>
 /// @resolution.name source=Select target=Select
 
 type Number = Select<int32>;
-/// @type.symbol symbol=Number source="type Number = Select<int32>" type="no"
-/// @definition.type symbol=Number source="type Number = Select<int32>" value="no"
+/// @type.symbol symbol=Number source="type Number = Select<int32>" type=Select<int32>
+/// @definition.type symbol=Number source="type Number = Select<int32>" value=Select<int32>
 /// @resolution.name source=Select target=Select
 
 declare const text: Text;
-/// @type.symbol symbol=text source=text type="yes"
+/// @type.symbol symbol=text source=text type=Text
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Text target=Text
 
 declare const number: Number;
-/// @type.symbol symbol=number source=number type="no"
+/// @type.symbol symbol=number source=number type=Number
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Number target=Number
 "#,
@@ -77,7 +77,7 @@ declare const value: Result;
 type OnlyStrings<T> = T extends string ? T : never;
 type Result = OnlyStrings<string | int32>;
 
-declare const value: string;
+declare const value: Result;
 
 === dir ===
 type OnlyStrings<T> = T extends string ? T : never;
@@ -89,12 +89,12 @@ type OnlyStrings<T> = T extends string ? T : never;
 /// @resolution.name source=T target=OnlyStrings.T
 
 type Result = OnlyStrings<string | int32>;
-/// @type.symbol symbol=Result source="type Result = OnlyStrings<string | int32>" type=string
-/// @definition.type symbol=Result source="type Result = OnlyStrings<string | int32>" value=string
+/// @type.symbol symbol=Result source="type Result = OnlyStrings<string | int32>" type=OnlyStrings<string | int32>
+/// @definition.type symbol=Result source="type Result = OnlyStrings<string | int32>" value=OnlyStrings<string | int32>
 /// @resolution.name source=OnlyStrings target=OnlyStrings
 
 declare const value: Result;
-/// @type.symbol symbol=value source=value type=string
+/// @type.symbol symbol=value source=value type=Result
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
 "#,
@@ -121,23 +121,23 @@ declare const value: Result;
 type Wrapped<T> = (T,) extends (string,) ? "yes" : "no";
 type Result = Wrapped<string | int32>;
 
-declare const value: "no";
+declare const value: Result;
 
 === dir ===
 type Wrapped<T> = (T,) extends (string,) ? "yes" : "no";
 /// @generic.template symbol=Wrapped parameters=(T)
-/// @type.symbol symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" type=(T,) extends (string,) ? "yes" : "no"
+/// @type.symbol symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" type="no"
 /// @definition.type symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" template=(T) value=(T,) extends (string,) ? "yes" : "no"
 /// @type.symbol symbol=Wrapped.T source=T type=T
 /// @resolution.name source=T target=Wrapped.T
 
 type Result = Wrapped<string | int32>;
-/// @type.symbol symbol=Result source="type Result = Wrapped<string | int32>" type="no"
-/// @definition.type symbol=Result source="type Result = Wrapped<string | int32>" value="no"
+/// @type.symbol symbol=Result source="type Result = Wrapped<string | int32>" type=Wrapped<string | int32>
+/// @definition.type symbol=Result source="type Result = Wrapped<string | int32>" value=Wrapped<string | int32>
 /// @resolution.name source=Wrapped target=Wrapped
 
 declare const value: Result;
-/// @type.symbol symbol=value source=value type="no"
+/// @type.symbol symbol=value source=value type=Result
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
 "#,
@@ -164,7 +164,7 @@ let value: Result = "no";
 type OnlyStrings<T> = T extends string ? T : never;
 type Result = OnlyStrings<never>;
 
-let value: never = "no";
+let value: Result = "no";
 
 === dir ===
 type OnlyStrings<T> = T extends string ? T : never;
@@ -176,19 +176,20 @@ type OnlyStrings<T> = T extends string ? T : never;
 /// @resolution.name source=T target=OnlyStrings.T
 
 type Result = OnlyStrings<never>;
-/// @type.symbol symbol=Result source="type Result = OnlyStrings<never>" type=never
-/// @definition.type symbol=Result source="type Result = OnlyStrings<never>" value=never
+/// @type.symbol symbol=Result source="type Result = OnlyStrings<never>" type=OnlyStrings<never>
+/// @definition.type symbol=Result source="type Result = OnlyStrings<never>" value=OnlyStrings<never>
 /// @resolution.name source=OnlyStrings target=OnlyStrings
 
 let value: Result = "no";
-/// @type.symbol symbol=value source=value type=never
+/// @type.symbol symbol=value source=value type=Result
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'never'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Result'"
 /// @diagnostic.label line=5 column=21 span="\"no\"" line_source="let value: Result = \"no\";"
 /// @diagnostic.related line=5 column=12 span="Result" line_source="let value: Result = \"no\";" message="expected due to this annotation"
+/// @diagnostic.note message="'Result' reduces to 'never'"
 "#,
     );
 }
@@ -215,7 +216,7 @@ type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 type Value = Unbox<Box<"ready">>;
 
-declare const value: "ready";
+declare const value: Value;
 
 === dir ===
 type Box<T> = { value: T };
@@ -228,7 +229,7 @@ type Box<T> = { value: T };
 
 type Unbox<T> = T extends Box<infer U> ? U : never;
 /// @generic.template symbol=Unbox parameters=(T#2)
-/// @type.symbol symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" type=T#2 extends Box<infer U> ? Unbox.U : never
+/// @type.symbol symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" type=T#2 extends { value: infer U } ? Unbox.U : never
 /// @definition.type symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" template=(T#2) value=T#2 extends Box<infer U> ? Unbox.U : never
 /// @type.symbol symbol=Unbox.T source=T type=T#2
 /// @resolution.name source=T target=Unbox.T
@@ -236,13 +237,14 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 /// @resolution.name source=U target=Unbox.U
 
 type Value = Unbox<Box<"ready">>;
-/// @type.symbol symbol=Value source="type Value = Unbox<Box<\"ready\">>" type="ready"
-/// @definition.type symbol=Value source="type Value = Unbox<Box<\"ready\">>" value="ready"
+/// @type.symbol symbol=Value source="type Value = Unbox<Box<\"ready\">>" type=Unbox<Box<"ready">>
+/// @generic.instance id="Box<\"ready\">" template=Box arguments=("ready")
+/// @definition.type symbol=Value source="type Value = Unbox<Box<\"ready\">>" value=Unbox<Box<"ready">>
 /// @resolution.name source=Unbox target=Unbox
 /// @resolution.name source=Box target=Box
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type="ready"
+/// @type.symbol symbol=value source=value type=Value
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
@@ -271,7 +273,7 @@ newtype Vector<in out T, const N: int> = intrinsic;
 type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 type Count = LaneCount<Vector<string, 4>>;
 
-declare const count: 4;
+declare const count: Count;
 
 === dir ===
 newtype Vector<T, const N: int> = intrinsic;
@@ -291,14 +293,14 @@ type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 /// @resolution.name source=N target=LaneCount.N
 
 type Count = LaneCount<Vector<string, 4>>;
-/// @type.symbol symbol=Count source="type Count = LaneCount<Vector<string, 4>>" type=4
-/// @definition.type symbol=Count source="type Count = LaneCount<Vector<string, 4>>" value=4
+/// @type.symbol symbol=Count source="type Count = LaneCount<Vector<string, 4>>" type=LaneCount<Vector<string, 4>>
+/// @generic.instance id="Vector<string, 4>" template=Vector arguments=(string, 4)
+/// @definition.type symbol=Count source="type Count = LaneCount<Vector<string, 4>>" value=LaneCount<Vector<string, 4>>
 /// @resolution.name source=LaneCount target=LaneCount
 /// @resolution.name source=Vector target=Vector
-/// @generic.instance id="Vector<string, 4>" template=Vector arguments=(string, 4)
 
 declare const count: Count;
-/// @type.symbol symbol=count source=count type=4
+/// @type.symbol symbol=count source=count type=Count
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=Count target=Count
 "#,
@@ -327,7 +329,7 @@ type Box<T> = { value: T };
 type Text<T> = T extends Box<infer U extends string> ? U : never;
 type Value = Text<Box<int32>>;
 
-let value: never = "no";
+let value: Value = "no";
 
 === dir ===
 type Box<T> = { value: T };
@@ -348,20 +350,21 @@ type Text<T> = T extends Box<infer U extends string> ? U : never;
 /// @resolution.name source=U target=Text.U
 
 type Value = Text<Box<int32>>;
-/// @type.symbol symbol=Value source="type Value = Text<Box<int32>>" type=never
-/// @definition.type symbol=Value source="type Value = Text<Box<int32>>" value=never
+/// @type.symbol symbol=Value source="type Value = Text<Box<int32>>" type=Text<Box<int32>>
+/// @definition.type symbol=Value source="type Value = Text<Box<int32>>" value=Text<Box<int32>>
 /// @resolution.name source=Text target=Text
 /// @resolution.name source=Box target=Box
 
 let value: Value = "no";
-/// @type.symbol symbol=value source=value type=never
+/// @type.symbol symbol=value source=value type=Value
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'never'"
+/// @diagnostic.error id=not-assignable message="type '\"no\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=6 column=20 span="\"no\"" line_source="let value: Value = \"no\";"
 /// @diagnostic.related line=6 column=12 span="Value" line_source="let value: Value = \"no\";" message="expected due to this annotation"
+/// @diagnostic.note message="'Value' reduces to 'never'"
 "#,
     );
 }
@@ -391,8 +394,8 @@ type IsBox<T> = T extends Box<infer _> ? true : false;
 type Yes = IsBox<Box<string>>;
 type No = IsBox<string>;
 
-const yes: true = true;
-const no: false = false;
+const yes: Yes = true;
+const no: No = false;
 
 === dir ===
 type Box<T> = { value: T };
@@ -405,30 +408,31 @@ type Box<T> = { value: T };
 
 type IsBox<T> = T extends Box<infer _> ? true : false;
 /// @generic.template symbol=IsBox parameters=(T#2)
-/// @type.symbol symbol=IsBox source="type IsBox<T> = T extends Box<infer _> ? true : false" type=T#2 extends Box<infer _> ? true : false
+/// @type.symbol symbol=IsBox source="type IsBox<T> = T extends Box<infer _> ? true : false" type=T#2 extends { value: infer _ } ? true : false
 /// @definition.type symbol=IsBox source="type IsBox<T> = T extends Box<infer _> ? true : false" template=(T#2) value=T#2 extends Box<infer _> ? true : false
 /// @type.symbol symbol=IsBox.T source=T type=T#2
 /// @resolution.name source=T target=IsBox.T
 /// @resolution.name source=Box target=Box
 
 type Yes = IsBox<Box<string>>;
-/// @type.symbol symbol=Yes source="type Yes = IsBox<Box<string>>" type=true
-/// @definition.type symbol=Yes source="type Yes = IsBox<Box<string>>" value=true
+/// @type.symbol symbol=Yes source="type Yes = IsBox<Box<string>>" type=IsBox<Box<string>>
+/// @generic.instance id=Box<string> template=Box arguments=(string)
+/// @definition.type symbol=Yes source="type Yes = IsBox<Box<string>>" value=IsBox<Box<string>>
 /// @resolution.name source=IsBox target=IsBox
 /// @resolution.name source=Box target=Box
 
 type No = IsBox<string>;
-/// @type.symbol symbol=No source="type No = IsBox<string>" type=false
-/// @definition.type symbol=No source="type No = IsBox<string>" value=false
+/// @type.symbol symbol=No source="type No = IsBox<string>" type=IsBox<string>
+/// @definition.type symbol=No source="type No = IsBox<string>" value=IsBox<string>
 /// @resolution.name source=IsBox target=IsBox
 
 const yes: Yes = true;
-/// @type.symbol symbol=yes source=yes type=true
+/// @type.symbol symbol=yes source=yes type=Yes
 /// @resolution.pattern source=yes kind=binding target=yes
 /// @resolution.name source=Yes target=Yes
 
 const no: No = false;
-/// @type.symbol symbol=no source=no type=false
+/// @type.symbol symbol=no source=no type=No
 /// @resolution.pattern source=no kind=binding target=no
 /// @resolution.name source=No target=No
 "#,
@@ -458,8 +462,8 @@ type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 type Value = Unbox<Box<"a"> | Box<"b">>;
 
-const first: "a" | "b" = "a";
-const second: "a" | "b" = "b";
+const first: Value = "a";
+const second: Value = "b";
 
 === dir ===
 type Box<T> = { value: T };
@@ -472,7 +476,7 @@ type Box<T> = { value: T };
 
 type Unbox<T> = T extends Box<infer U> ? U : never;
 /// @generic.template symbol=Unbox parameters=(T#2)
-/// @type.symbol symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" type=T#2 extends Box<infer U> ? Unbox.U : never
+/// @type.symbol symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" type=T#2 extends { value: infer U } ? Unbox.U : never
 /// @definition.type symbol=Unbox source="type Unbox<T> = T extends Box<infer U> ? U : never" template=(T#2) value=T#2 extends Box<infer U> ? Unbox.U : never
 /// @type.symbol symbol=Unbox.T source=T type=T#2
 /// @resolution.name source=T target=Unbox.T
@@ -480,21 +484,21 @@ type Unbox<T> = T extends Box<infer U> ? U : never;
 /// @resolution.name source=U target=Unbox.U
 
 type Value = Unbox<Box<"a"> | Box<"b">>;
-/// @type.symbol symbol=Value source="type Value = Unbox<Box<\"a\"> | Box<\"b\">>" type="a" | "b"
-/// @definition.type symbol=Value source="type Value = Unbox<Box<\"a\"> | Box<\"b\">>" value="a" | "b"
-/// @resolution.name source=Unbox target=Unbox
-/// @resolution.name source=Box target=Box
+/// @type.symbol symbol=Value source="type Value = Unbox<Box<\"a\"> | Box<\"b\">>" type=Unbox<Box<"a"> | Box<"b">>
 /// @generic.instance id="Box<\"a\">" template=Box arguments=("a")
 /// @generic.instance id="Box<\"b\">" template=Box arguments=("b")
+/// @definition.type symbol=Value source="type Value = Unbox<Box<\"a\"> | Box<\"b\">>" value=Unbox<Box<"a"> | Box<"b">>
+/// @resolution.name source=Unbox target=Unbox
+/// @resolution.name source=Box target=Box
 /// @resolution.name source=Box target=Box
 
 const first: Value = "a";
-/// @type.symbol symbol=first source=first type="a" | "b"
+/// @type.symbol symbol=first source=first type=Value
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Value target=Value
 
 const second: Value = "b";
-/// @type.symbol symbol=second source=second type="a" | "b"
+/// @type.symbol symbol=second source=second type=Value
 /// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=Value target=Value
 "#,
@@ -523,7 +527,7 @@ type Element<T> = T extends readonly (infer U)[] ? U : never;
 
 declare const values: int32[][];
 
-const first: int32[] = values[0];
+const first: Element<int32[][]> = values[0];
 
 === dir ===
 type Element<T> = T extends readonly (infer U)[] ? U : never;
@@ -539,17 +543,17 @@ declare const values: int32[][];
 /// @resolution.pattern source=values kind=binding target=values
 
 const first: Element<typeof values> = values[0];
-/// @type.symbol symbol=first source=first type=int32[]
+/// @type.symbol symbol=first source=first type=Element<int32[][]>
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=Element target=Element
 /// @resolution.name source=values target=values
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
-/// @resolution.place source=values[0] placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values[0] placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32[] kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int32[], \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
-/// @generic.instantiation id="index#1<int32[], \"exclusive\">" template=index#1 arguments=(int32[], "exclusive")
+/// @resolution.subscript source=values[0] type=int32[] kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int32[], \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#1<int32[], \"mutable\">" template=index#1 arguments=(int32[], "mutable")
 "#,
         r#"
 
@@ -732,7 +736,7 @@ struct Holder<T: Copy> {
 
 export type Pick = string extends usize ? Holder<Buffer> : never;
 /// @type.symbol symbol=Pick source="export type Pick = string extends usize ? Holder<Buffer> : never" type=never
-/// @definition.type symbol=Pick source="export type Pick = string extends usize ? Holder<Buffer> : never" value=never
+/// @definition.type symbol=Pick source="export type Pick = string extends usize ? Holder<Buffer> : never" value=string extends usize ? Holder<Buffer> : never
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Buffer target=Buffer
 "#, r#"
@@ -762,7 +766,7 @@ declare const value: Result;
 type IsString<T> = (T,) extends (string,) ? true : false;
 type Result = IsString<never>;
 
-declare const value: true;
+declare const value: Result;
 
 === dir ===
 type IsString<T> = (T,) extends (string,) ? true : false;
@@ -773,12 +777,12 @@ type IsString<T> = (T,) extends (string,) ? true : false;
 /// @resolution.name source=T target=IsString.T
 
 type Result = IsString<never>;
-/// @type.symbol symbol=Result source="type Result = IsString<never>" type=true
-/// @definition.type symbol=Result source="type Result = IsString<never>" value=true
+/// @type.symbol symbol=Result source="type Result = IsString<never>" type=IsString<never>
+/// @definition.type symbol=Result source="type Result = IsString<never>" value=IsString<never>
 /// @resolution.name source=IsString target=IsString
 
 declare const value: Result;
-/// @type.symbol symbol=value source=value type=true
+/// @type.symbol symbol=value source=value type=Result
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Result target=Result
 "#,
@@ -809,9 +813,9 @@ declare const empty: Head<()>;
 type Head<T> = T extends (infer H, ...infer R) ? H : "no";
 type Rest<T> = T extends (infer H, ...infer R) ? R : "no";
 
-declare const head: 1;
-declare const rest: (2, 3);
-declare const empty: "no";
+declare const head: Head<(1, 2, 3)>;
+declare const rest: Rest<(1, 2, 3)>;
+declare const empty: Head<()>;
 
 === dir ===
 type Head<T> = T extends (infer H, ...infer R) ? H : "no";
@@ -831,17 +835,17 @@ type Rest<T> = T extends (infer H, ...infer R) ? R : "no";
 /// @resolution.name source=R target=Rest.R
 
 declare const head: Head<(1, 2, 3)>;
-/// @type.symbol symbol=head source=head type=1
+/// @type.symbol symbol=head source=head type=Head<(1, 2, 3)>
 /// @resolution.pattern source=head kind=binding target=head
 /// @resolution.name source=Head target=Head
 
 declare const rest: Rest<(1, 2, 3)>;
-/// @type.symbol symbol=rest source=rest type=(2, 3)
+/// @type.symbol symbol=rest source=rest type=Rest<(1, 2, 3)>
 /// @resolution.pattern source=rest kind=binding target=rest
 /// @resolution.name source=Rest target=Rest
 
 declare const empty: Head<()>;
-/// @type.symbol symbol=empty source=empty type="no"
+/// @type.symbol symbol=empty source=empty type=Head<()>
 /// @resolution.pattern source=empty kind=binding target=empty
 /// @resolution.name source=Head target=Head
 "#,
@@ -868,7 +872,7 @@ declare const last: Last<(1, 2, 3)>;
 === annotated ===
 type Last<T> = T extends (...infer I, infer L) ? L : "no";
 
-declare const last: 3;
+declare const last: Last<(1, 2, 3)>;
 
 === dir ===
 type Last<T> = T extends (...infer I, infer L) ? L : "no";
@@ -880,7 +884,7 @@ type Last<T> = T extends (...infer I, infer L) ? L : "no";
 /// @resolution.name source=L target=Last.L
 
 declare const last: Last<(1, 2, 3)>;
-/// @type.symbol symbol=last source=last type=3
+/// @type.symbol symbol=last source=last type=Last<(1, 2, 3)>
 /// @resolution.pattern source=last kind=binding target=last
 /// @resolution.name source=Last target=Last
 "#,
@@ -907,7 +911,7 @@ declare const head: Head<readonly (1, 2)>;
 === annotated ===
 type Head<T> = T extends readonly (infer H, ...infer R) ? H : "no";
 
-declare const head: 1;
+declare const head: Head<readonly (1, 2)>;
 
 === dir ===
 type Head<T> = T extends readonly (infer H, ...infer R) ? H : "no";
@@ -919,7 +923,7 @@ type Head<T> = T extends readonly (infer H, ...infer R) ? H : "no";
 /// @resolution.name source=H target=Head.H
 
 declare const head: Head<readonly (1, 2)>;
-/// @type.symbol symbol=head source=head type=1
+/// @type.symbol symbol=head source=head type=Head<readonly (1, 2)>
 /// @resolution.pattern source=head kind=binding target=head
 /// @resolution.name source=Head target=Head
 "#,
@@ -951,8 +955,8 @@ type Arguments<F> = F extends (...arguments: infer P) => unknown ? P : never;
 type Result<F> = F extends (...arguments: unknown[]) => infer R ? R : never;
 type Signature = (name: string, count: int32) => boolean;
 
-declare const arguments: (string, int32);
-declare const result: never;
+declare const arguments: Arguments<Signature>;
+declare const result: Result<Signature>;
 
 === dir ===
 type Arguments<F> = F extends (...arguments: infer P) => unknown ? P : never;
@@ -980,13 +984,13 @@ type Signature = (name: string, count: int32) => boolean;
 /// @type.symbol symbol=Signature.count source="count: int32" type=int32
 
 declare const arguments: Arguments<Signature>;
-/// @type.symbol symbol=arguments source=arguments type=(string, int32)
+/// @type.symbol symbol=arguments source=arguments type=Arguments<Signature>
 /// @resolution.pattern source=arguments kind=binding target=arguments
 /// @resolution.name source=Arguments target=Arguments
 /// @resolution.name source=Signature target=Signature
 
 declare const result: Result<Signature>;
-/// @type.symbol symbol=result source=result type=never
+/// @type.symbol symbol=result source=result type=Result<Signature>
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=Result target=Result
 /// @resolution.name source=Signature target=Signature
@@ -1014,7 +1018,7 @@ declare const receiver: Receiver<(this: { id: string }, count: int32) => void>;
 === annotated ===
 type Receiver<F> = F extends (this: infer R, ...arguments: unknown[]) => unknown ? R : never;
 
-declare const receiver: never;
+declare const receiver: Receiver<(this: { id: string }, arg0: int32) => void>;
 
 === dir ===
 type Receiver<F> = F extends (this: infer R, ...arguments: unknown[]) => unknown ? R : never;
@@ -1028,7 +1032,7 @@ type Receiver<F> = F extends (this: infer R, ...arguments: unknown[]) => unknown
 /// @resolution.name source=R target=Receiver.R
 
 declare const receiver: Receiver<(this: { id: string }, count: int32) => void>;
-/// @type.symbol symbol=receiver source=receiver type=never
+/// @type.symbol symbol=receiver source=receiver type=Receiver<Function<(int32,), void>>
 /// @resolution.pattern source=receiver kind=binding target=receiver
 /// @resolution.name source=Receiver target=Receiver
 /// @type.symbol symbol=this source="this: { id: string }" type={ id: string }
@@ -1058,7 +1062,7 @@ declare const value: Values<{ [key: string]: int32 }>;
 === annotated ===
 type Values<T> = T extends { [key: string]: infer V } ? V : never;
 
-declare const value: int32;
+declare const value: Values<{ [key: string]: int32 }>;
 
 === dir ===
 type Values<T> = T extends { [key: string]: infer V } ? V : never;
@@ -1070,7 +1074,7 @@ type Values<T> = T extends { [key: string]: infer V } ? V : never;
 /// @resolution.name source=V target=Values.V
 
 declare const value: Values<{ [key: string]: int32 }>;
-/// @type.symbol symbol=value source=value type=int32
+/// @type.symbol symbol=value source=value type=Values<{ [key: string]: int32 }>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Values target=Values
 "#,
@@ -1098,8 +1102,8 @@ declare const bad: Text<(1,)>;
 === annotated ===
 type Text<T> = T extends (infer S extends string,) ? S : never;
 
-declare const ok: "a";
-declare const bad: never;
+declare const ok: Text<("a",)>;
+declare const bad: Text<(1,)>;
 
 === dir ===
 type Text<T> = T extends (infer S extends string,) ? S : never;
@@ -1111,12 +1115,12 @@ type Text<T> = T extends (infer S extends string,) ? S : never;
 /// @resolution.name source=S target=Text.S
 
 declare const ok: Text<("a",)>;
-/// @type.symbol symbol=ok source=ok type="a"
+/// @type.symbol symbol=ok source=ok type=Text<("a",)>
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Text target=Text
 
 declare const bad: Text<(1,)>;
-/// @type.symbol symbol=bad source=bad type=never
+/// @type.symbol symbol=bad source=bad type=Text<(1,)>
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Text target=Text
 "#,
@@ -1143,7 +1147,7 @@ declare const value: Both<{ a: string, b: int32 }>;
 === annotated ===
 type Both<T> = T extends { a: infer U; b: infer U } ? U : never;
 
-declare const value: string | int32;
+declare const value: Both<{ a: string; b: int32 }>;
 
 === dir ===
 type Both<T> = T extends { a: infer U, b: infer U } ? U : never;
@@ -1157,7 +1161,7 @@ type Both<T> = T extends { a: infer U, b: infer U } ? U : never;
 /// @resolution.name source=U target=Both.U
 
 declare const value: Both<{ a: string, b: int32 }>;
-/// @type.symbol symbol=value source=value type=string | int32
+/// @type.symbol symbol=value source=value type=Both<{ a: string; b: int32 }>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Both target=Both
 /// @type.symbol symbol=a source="a: string" type=string
@@ -1186,7 +1190,7 @@ declare const value: Both<{ f: (x: string) => void, g: (y: int32) => void }>;
 === annotated ===
 type Both<T> = T extends { f: (x: infer U) => void; g: (y: infer U) => void } ? U : "no";
 
-declare const value: never;
+declare const value: Both<{ f: (arg0: string) => void; g: (arg0: int32) => void }>;
 
 === dir ===
 type Both<T> = T extends { f: (x: infer U) => void, g: (y: infer U) => void } ? U : "no";
@@ -1202,7 +1206,7 @@ type Both<T> = T extends { f: (x: infer U) => void, g: (y: infer U) => void } ? 
 /// @resolution.name source=U target=Both.U
 
 declare const value: Both<{ f: (x: string) => void, g: (y: int32) => void }>;
-/// @type.symbol symbol=value source=value type=never
+/// @type.symbol symbol=value source=value type=Both<{ f: Function<(string,), void>; g: Function<(int32,), void> }>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Both target=Both
 /// @type.symbol symbol=f source="f: (x: string) => void" type=Function<(string,), void>
@@ -1234,8 +1238,8 @@ declare const wide: Mixed<{ a: int32, f: (x: string) => void }>;
 === annotated ===
 type Mixed<T> = T extends { a: infer U; f: (x: infer U) => void } ? U : never;
 
-declare const narrow: "a";
-declare const wide: never;
+declare const narrow: Mixed<{ a: "a"; f: (arg0: string) => void }>;
+declare const wide: Mixed<{ a: int32; f: (arg0: string) => void }>;
 
 === dir ===
 type Mixed<T> = T extends { a: infer U, f: (x: infer U) => void } ? U : never;
@@ -1250,7 +1254,7 @@ type Mixed<T> = T extends { a: infer U, f: (x: infer U) => void } ? U : never;
 /// @resolution.name source=U target=Mixed.U
 
 declare const narrow: Mixed<{ a: "a", f: (x: string) => void }>;
-/// @type.symbol symbol=narrow source=narrow type="a"
+/// @type.symbol symbol=narrow source=narrow type=Mixed<{ a: "a"; f: Function<(string,), void> }>
 /// @resolution.pattern source=narrow kind=binding target=narrow
 /// @resolution.name source=Mixed target=Mixed
 /// @type.symbol symbol=a#1 source="a: \"a\"" type="a"
@@ -1258,7 +1262,7 @@ declare const narrow: Mixed<{ a: "a", f: (x: string) => void }>;
 /// @type.symbol symbol=x#1 source="x: string" type=string
 
 declare const wide: Mixed<{ a: int32, f: (x: string) => void }>;
-/// @type.symbol symbol=wide source=wide type=never
+/// @type.symbol symbol=wide source=wide type=Mixed<{ a: int32; f: Function<(string,), void> }>
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Mixed target=Mixed
 /// @type.symbol symbol=a#2 source="a: int32" type=int32
@@ -1289,8 +1293,8 @@ declare const direct: Deep<{ value: string }>;
 === annotated ===
 type Deep<T> = T extends { value: infer V } ? (V extends (infer E, infer F) ? E : V) : never;
 
-declare const element: int32;
-declare const direct: string;
+declare const element: Deep<{ value: (int32, string) }>;
+declare const direct: Deep<{ value: string }>;
 
 === dir ===
 type Deep<T> = T extends { value: infer V } ? (V extends (infer E, infer F) ? E : V) : never;
@@ -1305,13 +1309,13 @@ type Deep<T> = T extends { value: infer V } ? (V extends (infer E, infer F) ? E 
 /// @resolution.name source=V target=Deep.V
 
 declare const element: Deep<{ value: (int32, string) }>;
-/// @type.symbol symbol=element source=element type=int32
+/// @type.symbol symbol=element source=element type=Deep<{ value: (int32, string) }>
 /// @resolution.pattern source=element kind=binding target=element
 /// @resolution.name source=Deep target=Deep
 /// @type.symbol symbol=value#1 source="value: (int32, string)" type=(int32, string)
 
 declare const direct: Deep<{ value: string }>;
-/// @type.symbol symbol=direct source=direct type=string
+/// @type.symbol symbol=direct source=direct type=Deep<{ value: string }>
 /// @resolution.pattern source=direct kind=binding target=direct
 /// @resolution.name source=Deep target=Deep
 /// @type.symbol symbol=value#2 source="value: string" type=string
@@ -1341,8 +1345,8 @@ declare const direct: Deep<{ value: string }>;
 === annotated ===
 type Deep<T> = T extends { value: infer V } ? (V extends (infer E)[] ? E : V) : never;
 
-declare const element: int32;
-declare const direct: string;
+declare const element: Deep<{ value: int32[] }>;
+declare const direct: Deep<{ value: string }>;
 
 === dir ===
 type Deep<T> = T extends { value: infer V } ? (V extends (infer E)[] ? E : V) : never;
@@ -1357,13 +1361,13 @@ type Deep<T> = T extends { value: infer V } ? (V extends (infer E)[] ? E : V) : 
 /// @resolution.name source=V target=Deep.V
 
 declare const element: Deep<{ value: int32[] }>;
-/// @type.symbol symbol=element source=element type=int32
+/// @type.symbol symbol=element source=element type=Deep<{ value: int32[] }>
 /// @resolution.pattern source=element kind=binding target=element
 /// @resolution.name source=Deep target=Deep
 /// @type.symbol symbol=value#1 source="value: int32[]" type=int32[]
 
 declare const direct: Deep<{ value: string }>;
-/// @type.symbol symbol=direct source=direct type=string
+/// @type.symbol symbol=direct source=direct type=Deep<{ value: string }>
 /// @resolution.pattern source=direct kind=binding target=direct
 /// @resolution.name source=Deep target=Deep
 /// @type.symbol symbol=value#2 source="value: string" type=string
@@ -1418,7 +1422,7 @@ function choose<T>(value: T): 1 | 0 {
     /// @resolution.call source=pick(value) parameters=(T#2) arguments=(provided(value) as T#2) return=T#2 extends string ? 1 : 0 kind=symbol target=pick instance=pick<T#2>
     /// @generic.instantiation id=pick<T#2> template=pick arguments=(T#2) owner=choose
     /// @resolution.name source=value target=choose.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=choose.value
 
 }
@@ -1476,7 +1480,7 @@ declare const stripped: Strip<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 === annotated ===
 type Strip<S> = S extends `x${infer R}` ? Strip<R> : S;
 
-declare const stripped: "y";
+declare const stripped: Strip<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy">;
 
 === dir ===
 type Strip<S> = S extends `x${infer R}` ? Strip<R> : S;
@@ -1490,7 +1494,7 @@ type Strip<S> = S extends `x${infer R}` ? Strip<R> : S;
 /// @resolution.name source=S target=Strip.S
 
 declare const stripped: Strip<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy">;
-/// @type.symbol symbol=stripped source=stripped type="y"
+/// @type.symbol symbol=stripped source=stripped type=Strip<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy">
 /// @resolution.pattern source=stripped kind=binding target=stripped
 /// @resolution.name source=Strip target=Strip
 "#,
@@ -1529,13 +1533,13 @@ type Grow<T> = T extends unknown ? Grow<(T,)> : never;
 /// @resolution.name source=T target=Grow.T
 
 declare const value: Grow<int32>;
-/// @type.symbol symbol=value source=value type=<error>
+/// @type.symbol symbol=value source=value type=Grow<int32>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Grow target=Grow
 "#,
         r#"
 /// @diagnostic.error id=excessive-type-instantiation message="type instantiation is excessively deep and possibly infinite"
-/// @diagnostic.label line=4 column=15 span="value" line_source="declare const value: Grow<int32>;"
+/// @diagnostic.label line=2 column=6 span="Grow" line_source="type Grow<T> = T extends unknown ? Grow<(T,)> : never;"
 "#,
     );
 }
@@ -1558,7 +1562,7 @@ declare const text: Value<{ value: "ready" }>;
 === annotated ===
 type Value<T> = T extends { value: string } ? T["value"] : never;
 
-declare const text: "ready";
+declare const text: Value<{ value: "ready" }>;
 
 === dir ===
 type Value<T> = T extends { value: string } ? T["value"] : never;
@@ -1571,7 +1575,7 @@ type Value<T> = T extends { value: string } ? T["value"] : never;
 /// @resolution.name source=T target=Value.T
 
 declare const text: Value<{ value: "ready" }>;
-/// @type.symbol symbol=text source=text type="ready"
+/// @type.symbol symbol=text source=text type=Value<{ value: "ready" }>
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Value target=Value
 /// @type.symbol symbol=value source="value: \"ready\"" type="ready"

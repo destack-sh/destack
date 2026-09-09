@@ -105,8 +105,7 @@ impl CheckState<'_> {
                             CauseKind::Field { key },
                             expectation.cause,
                         ));
-                        let member_type =
-                            self.erase_inference_barriers(module, member.access.store())?;
+                        let member_type = self.erase_inference_barriers(member.access.store())?;
                         let use_ = expectation.use_;
                         let expectation = Expectation {
                             target: member_type,
@@ -394,7 +393,7 @@ impl CheckState<'_> {
         // read the fields a struct constructs from
         if let dir::Type::Application(instance) = self.ty(value)?
             && matches!(
-                self.definition(instance.symbol)?,
+                self.definition(instance.symbol)?.as_deref(),
                 Some(dir::Definition::Struct(_))
             )
         {
@@ -573,14 +572,14 @@ impl CheckState<'_> {
             })?;
 
         // walk methods inference discovers before their walk
-        if self.symbol_type_maybe(symbol).is_none() {
+        if self.symbol_type_maybe(symbol)?.is_none() {
             let (parsed, expanded) = self.patched_inputs(module);
             let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
             let mut walk = WalkState::new(module, tree, self);
             walk.walk_property(property, &tree.get(property).clone())?;
             walk.flush_flows()?;
         }
-        let Some(ty) = self.symbol_type_maybe(symbol) else {
+        let Some(ty) = self.symbol_type_maybe(symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("object method property {symbol:?} has no type"),
             });

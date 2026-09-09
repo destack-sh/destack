@@ -22,12 +22,14 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> DiagnosticAnchor {
-        // read the source span from the checked or imported module
+        // read the source span from the checked module or one already read
         let span = match self.module_maybe(module) {
             Some(state) => state.diagnostic_span(source),
             None => self
-                .external_module(module)
-                .parsed
+                .external_modules
+                .read(module)
+                .unwrap_or_else(|| unreachable!("a diagnostic outside the modules this pass read"))
+                .parsed()
                 .tree
                 .get_main_span_by_id(source.id),
         };
@@ -48,8 +50,9 @@ impl CheckState<'_> {
         let span = match self.module_maybe(module) {
             Some(state) => state.source_span(source),
             None => self
-                .external_module(module)
-                .parsed
+                .external(module)?
+                .unwrap_or_else(|| unreachable!("a diagnostic outside the modules this pass reads"))
+                .parsed()
                 .tree
                 .get_span_by_id(source.id),
         };
@@ -100,8 +103,10 @@ impl CheckState<'_> {
                 .symbol_declaration_node(symbol.local_id)?
                 .into_global(symbol.module_id),
             None => {
-                let external = self.external_module(symbol.module_id);
-                let binding = external.bindings.get_symbol(symbol.local_id);
+                let external = self.external(symbol.module_id)?.unwrap_or_else(|| {
+                    unreachable!("a diagnostic outside the modules this pass reads")
+                });
+                let binding = external.bindings().get_symbol(symbol.local_id);
                 let Some(declaration) = binding.declaration else {
                     return Err(CompilerError::Internal {
                         message: format!("external symbol {symbol:?} has no declaration node"),

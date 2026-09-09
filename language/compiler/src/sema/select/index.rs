@@ -747,6 +747,7 @@ impl CheckState<'_> {
         };
 
         Ok(dir::Call {
+            regions: Vec::new(),
             target: dir::CallableTarget::Dynamic {
                 dispatch,
                 function,

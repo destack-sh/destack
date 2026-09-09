@@ -28,8 +28,8 @@ check.bindings.reused=0
 check.members.derived=0
 check.members.refused=0
 check.instantiations=1000
-check.interns=14008
-check.reduces=75010
+check.interns=18014
+check.reduces=75011
 "#,
     );
 }
@@ -60,8 +60,8 @@ check.bindings.reused=0
 check.members.derived=0
 check.members.refused=0
 check.instantiations=1000
-check.interns=14008
-check.reduces=77006
+check.interns=18014
+check.reduces=77007
 "#,
     );
 }

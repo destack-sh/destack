@@ -57,11 +57,11 @@ class Foo {}
 extension<'a> of Foo implements Add<&readonly Foo>, Hash {
     type Output = Foo;
 
-    add(&readonly this, other: &'b readonly Foo): Foo {
+    add(&readonly this, other: &'c readonly Foo): Foo {
         return new Foo();
     }
 
-    hash(state: &'a Hasher): void {}
+    hash(state: &'b Hasher): void {}
 }
 
 newtype Name = string;
@@ -69,11 +69,11 @@ newtype Name = string;
 extension<'a> of Name implements Add<&readonly Name>, Hash {
     type Output = Name;
 
-    add(&readonly this, other: &'b readonly Name): Name {
+    add(&readonly this, other: &'c readonly Name): Name {
         return this;
     }
 
-    hash(state: &'a Hasher): void {}
+    hash(state: &'b Hasher): void {}
 }
 
 struct Key {
@@ -232,7 +232,7 @@ const named = requireHash(name);
 /// @resolution.call source=requireHash(name) parameters=(Name) arguments=(provided(name) as Name) return=Name kind=symbol target=requireHash instance=requireHash<Name>
 /// @generic.instantiation id=requireHash<Name> template=requireHash arguments=(Name)
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=name root=name
 
 const derived = requireHash(Key { foo: new Foo(), name });
@@ -245,11 +245,11 @@ const derived = requireHash(Key { foo: new Foo(), name });
 /// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=default
 /// @resolution.name source=Foo target=Foo
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=name root=name
 "#,
         r#"
-/// @diagnostic.error id=return-not-assignable message="type '&'a readonly Name' is not assignable to the declared result type 'Name'"
+/// @diagnostic.error id=return-not-assignable message="type '&'b readonly Name' is not assignable to the declared result type 'Name'"
 /// @diagnostic.label line=22 column=16 span="this" line_source="return this;"
 "#,
     );

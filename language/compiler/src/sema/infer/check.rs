@@ -67,7 +67,7 @@ impl CheckState<'_> {
             self.commit_node_type(site.node, callable)?;
 
             // pass a callable its context through inference barriers
-            let target = self.erase_inference_barriers(site.node.module_id, expectation.target)?;
+            let target = self.erase_inference_barriers(expectation.target)?;
             let check = self.check_value(
                 site,
                 callable,
@@ -76,7 +76,7 @@ impl CheckState<'_> {
                     ..expectation
                 },
             )?;
-            self.schedule_function_body(site.node)?;
+            self.queue_check_function_body(site.node)?;
 
             return Ok(CheckAttempt::Checked(check));
         }

@@ -35,7 +35,7 @@ function pick<T>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=pick.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=pick.value
 
 }
@@ -90,7 +90,7 @@ function pick<T>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=pick.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=pick.value
 
 }
@@ -163,7 +163,7 @@ function inner<T>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=inner.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=inner.value
 
 }
@@ -180,8 +180,9 @@ function outer<T>(value: T): T {
     /// @resolution.name source=inner target=inner
     /// @resolution.call source=inner(value) parameters=(T#2) arguments=(provided(value) as T#2) return=T#2 kind=symbol target=inner instance=inner<T#2>
     /// @generic.instantiation id=inner<T#2> template=inner arguments=(T#2) owner=outer
+    /// @generic.instance id=inner<T#2> template=inner arguments=(T#2)
     /// @resolution.name source=value target=outer.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=outer.value
 
 }
@@ -219,29 +220,26 @@ function positive(values: int32[]): int32[] {
 function positive(values: int32[]): int32[] {
 /// @type.symbol symbol=positive type=(int32[]) => int32[]
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<int32, \"exclusive\">" template=elementSlot arguments=(int32, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32[], usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>)
-/// @generic.instance id="initAsPointer<int32, \"exclusive\">" template=initAsPointer arguments=(int32, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32>) => Raw<int32>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
+/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int32>> template=MaybeUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
 /// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32>) => Raw<int32>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
 /// @generic.instance id=clear<int32> template=clear arguments=(int32)
 /// @generic.instance id=drop<int32> template=drop arguments=(int32)
 /// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32[], usize) => &truncate.'a exclusive MaybeUninit<int32>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32[])
+/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.symbol symbol=positive.values source="values: int32[]" type=int32[]
 
     return values.map((value) => value + 1);
     /// @resolution.name source=values target=positive.values
     /// @resolution.member source=values.map receiver=int32[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32[], map#2.P1>, Function<(int32, isize), map.U#2>) => ^map.U#2[] kind=symbol target_receiver=int32[] target=map#2
     /// @resolution.call source="values.map((value) => value + 1)" parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value + 1) as Function<(int32, isize), int32>) return=^int32[] kind=symbol target=map#2 receiver=int32[] instance="Array<int32>.<extension#4>.map#2<int32, \"local\">"
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=positive.values
     /// @generic.instantiation id="map#2<int32, int32, \"local\">" template=map#2 arguments=(int32, int32, "local")
     /// @generic.instantiation id=map#2<int32> template=map#2 arguments=(int32)
@@ -250,7 +248,7 @@ function positive(values: int32[]): int32[] {
     /// @type.symbol symbol=positive.symbol3.value source=value type=int32
     /// @resolution.name source=value target=positive.symbol3.value
     /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=positive.symbol3.value
 
 }
@@ -284,7 +282,7 @@ function tag<T>(value: T): Choice<T> {
     return choose<T>();
 }
 
-const chosen: int32 = tag<string>("name");
+const chosen: Choice<string> = tag<string>("name");
 
 === dir ===
 type Choice<T> = T extends string ? int32 : boolean;
@@ -296,14 +294,14 @@ type Choice<T> = T extends string ? int32 : boolean;
 
 declare function choose<T>(): Choice<T>;
 /// @generic.template symbol=choose parameters=(T#2)
-/// @type.symbol symbol=choose source="declare function choose<T>(): Choice<T>" type=<T#2>() => Choice<T#2>
+/// @type.symbol symbol=choose source="declare function choose<T>(): Choice<T>" type=<T#2>() => T#2 extends string ? int32 : boolean
 /// @type.symbol symbol=choose.T source=T type=T#2
 /// @resolution.name source=Choice target=Choice
 /// @resolution.name source=T target=choose.T
 
 function tag<T>(value: T): Choice<T> {
 /// @generic.template symbol=tag parameters=(T#3)
-/// @type.symbol symbol=tag type=<T#3>(T#3) => Choice<T#3>
+/// @type.symbol symbol=tag type=<T#3>(T#3) => T#3 extends string ? int32 : boolean
 /// @type.symbol symbol=tag.T source=T type=T#3
 /// @type.symbol symbol=tag.value source="value: T" type=T#3
 /// @resolution.name source=T target=tag.T
@@ -314,19 +312,19 @@ function tag<T>(value: T): Choice<T> {
     /// @resolution.name source=choose target=choose
     /// @resolution.call source=choose<T>() parameters=() return=Choice<T#3> kind=symbol target=choose instance=choose<T#3>
     /// @generic.instantiation id=choose<T#3> template=choose arguments=(T#3) owner=tag
+    /// @generic.instance id=choose<T#3> template=choose arguments=(T#3) dependents=(T#3 extends string ? int32 : boolean)
     /// @resolution.name source=T target=tag.T
 
 }
 
 const chosen = tag("name");
-/// @type.symbol symbol=chosen source=chosen type=int32
+/// @type.symbol symbol=chosen source=chosen type=Choice<string>
 /// @resolution.pattern source=chosen kind=binding target=chosen
 /// @resolution.name source=tag target=tag
-/// @resolution.call source="tag(\"name\")" parameters=(string) arguments=(provided("name") as string) return=int32 kind=symbol target=tag instance=tag<string>
+/// @resolution.call source="tag(\"name\")" parameters=(string) arguments=(provided("name") as string) return=Choice<string> kind=symbol target=tag instance=tag<string>
 /// @generic.instantiation id=tag<string> template=tag arguments=(string)
-/// @generic.instance id=Choice<string> template=Choice arguments=(string) evaluated=(T#1 extends string ? int32 : boolean => int32)
-/// @generic.instance id=choose<string> template=choose arguments=(string)
-/// @generic.instance id=tag<string> template=tag arguments=(string) evaluated=(Choice<T#3> => int32)
+/// @generic.instance id=choose<string> template=choose arguments=(string) dependents=(int32)
+/// @generic.instance id=tag<string> template=tag arguments=(string) dependents=(int32)
 "#);
 }
 
@@ -419,17 +417,17 @@ function checkLeft(value: int32): void {
 
     assert.assertEqual(value, 1);
     /// @resolution.name source=assert.assertEqual target=assertEqual
-    /// @resolution.call source="assert.assertEqual(value, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
+    /// @resolution.call source="assert.assertEqual(value, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void regions=("frame" & "local", "frame") kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
     /// @generic.instantiation id="assertEqual<int32, int32>" template=assertEqual arguments=(int32, int32)
     /// @resolution.name source=value target=checkLeft.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=checkLeft.value
 
     assert.assertEqual(value, 2);
     /// @resolution.name source=assert.assertEqual target=assertEqual
-    /// @resolution.call source="assert.assertEqual(value, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
+    /// @resolution.call source="assert.assertEqual(value, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void regions=("frame" & "local", "frame") kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
     /// @resolution.name source=value target=checkLeft.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=checkLeft.value
 
 }
@@ -440,16 +438,16 @@ function checkRight(input: int32): void {
 
     assert.assertEqual(input, 1);
     /// @resolution.name source=assert.assertEqual target=assertEqual
-    /// @resolution.call source="assert.assertEqual(input, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
+    /// @resolution.call source="assert.assertEqual(input, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void regions=("frame" & "local", "frame") kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
     /// @resolution.name source=input target=checkRight.input
-    /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=input placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=input root=checkRight.input
 
     assert.assertEqual(input, 2);
     /// @resolution.name source=assert.assertEqual target=assertEqual
-    /// @resolution.call source="assert.assertEqual(input, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
+    /// @resolution.call source="assert.assertEqual(input, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void regions=("frame" & "local", "frame") kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
     /// @resolution.name source=input target=checkRight.input
-    /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=input placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=input root=checkRight.input
 
 }
@@ -457,4 +455,36 @@ function checkRight(input: int32): void {
         r#"
 "#,
     );
+}
+
+/// Report a polymorphic recursion once its instantiation chain passes the depth limit.
+#[test]
+fn test_report_polymorphic_recursion_past_the_instantiation_depth() {
+    let session = TestSession::single(
+        r#"
+class Wrap<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+
+function nest<T>(value: T, depth: int32): void {
+    if (depth > 0) {
+        nest(new Wrap(value), depth - 1);
+    }
+}
+
+function start(): void {
+    nest(1, 3);
+}
+"#,
+    );
+
+    session.assert_diagnostics(session.dir_materialized_key("main.ds"), r#"
+/// @diagnostic.error id=instantiation-depth-exceeded message="instantiating 'nest' exceeds the depth limit of 128"
+/// @diagnostic.label line=12 column=9 span="nest(new Wrap(value), depth - 1)" line_source="nest(new Wrap(value), depth - 1);"
+/// @diagnostic.help message="make the recursion monomorphic, so every call instantiates the same arguments"
+"#);
 }

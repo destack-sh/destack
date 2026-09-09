@@ -7,7 +7,7 @@ use crate::sema::{
 
 /// One class instance member that participates in heritage checks.
 struct ClassMember {
-    /// The member declaration symbol.
+    /// The member symbol.
     symbol: dir::GlobalSymbolId,
     /// The member key.
     key: dir::StaticKey,
@@ -46,13 +46,13 @@ impl CheckState<'_> {
                 };
 
                 Ok(Some(ClassMember {
-                    symbol: field.symbol,
                     key: field.key,
                     ty,
                     source: field.source,
                     role: MemberRole::Field,
                     is_overridable: field.is_abstract,
                     is_override: field.is_override,
+                    symbol: field.symbol,
                     is_abstract: field.is_abstract,
                 }))
             }
@@ -68,13 +68,13 @@ impl CheckState<'_> {
                 let is_overridable = is_abstract || is_virtual;
 
                 Ok(Some(ClassMember {
-                    symbol: method.symbol,
                     key,
                     ty,
                     source: method.source,
                     role: MemberRole::Method,
                     is_overridable,
                     is_override: method.is_override,
+                    symbol: method.symbol,
                     is_abstract,
                 }))
             }
@@ -91,7 +91,7 @@ impl CheckState<'_> {
         let source = self.origin_source(origin)?;
         let instance = self.declaration_instance(symbol)?;
         let ty = self.intern_type(dir::Type::Application(instance))?;
-        let closure = self.instance_heritage_closure(origin, ty, symbol.module_id, instance)?;
+        let closure = self.instance_heritage_closure(origin, ty, ty)?;
 
         // report graph errors before class member rules
         let mut failures = Vec::new();
@@ -116,12 +116,14 @@ impl CheckState<'_> {
         // require one concrete space across the declaration and its heritage
         let mut placement = self
             .definition(symbol)?
+            .as_deref()
             .and_then(dir::Definition::space)
             .map(|space| (source, symbol, space));
         for application in &closure.applications {
             let (_, instance) = self.nominal_application(application.ty)?;
             let Some(space) = self
                 .definition(instance.symbol)?
+                .as_deref()
                 .and_then(dir::Definition::space)
             else {
                 continue;
@@ -142,16 +144,6 @@ impl CheckState<'_> {
             }
         }
 
-        // commit the placement on every declaration except aliases and extensions
-        if let Some((_, _, space)) = placement
-            && !matches!(
-                self.definition(symbol)?,
-                Some(dir::Definition::TypeAlias(_) | dir::Definition::Extension(_))
-            )
-        {
-            self.commit_nominal_space(symbol, space)?;
-        }
-
         self.check_class_member_heritage(origin, symbol)
     }
 
@@ -162,11 +154,13 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<ObligationCheck> {
         let source = self.origin_source(origin)?;
-        let Some(dir::Definition::Class(class)) = self.definition(symbol)? else {
+        let definition = self.definition(symbol)?;
+        let Some(dir::Definition::Class(class)) = definition.as_deref() else {
             return Ok(ObligationCheck::holds());
         };
         let is_abstract = class.is_abstract;
         let extends = class.extends.clone();
+        let extends_source = extends.as_ref().map(|heritage| heritage.source);
 
         // collect own instance members relevant to heritage rules
         let members = class.members.clone();
@@ -180,9 +174,10 @@ impl CheckState<'_> {
         // collect inherited members walking up the extends chain
         let heritage = self.class_heritage(origin, extends)?;
 
-        // decide every rule before reporting anything
+        // decide every rule before reporting anything, keeping each override as the member
+        // implementing its base
         let mut failures = Vec::new();
-        let mut selected_overrides = Vec::new();
+        let mut overrides = Vec::new();
         for member in &own {
             let base = heritage
                 .members
@@ -212,17 +207,20 @@ impl CheckState<'_> {
                             member.ty,
                             base.ty,
                             None,
+                            None,
                         )?;
-                        match assignment.holds() {
-                            true => selected_overrides.push((member.symbol, base.symbol)),
-                            false => {
-                                failures.push(ObligationFailure::IncompatibleOverride {
-                                    source: member.source,
-                                    member: member.key,
-                                    source_ty: member.ty,
-                                    target_ty: base.ty,
-                                });
-                            }
+                        if !assignment.holds() {
+                            failures.push(ObligationFailure::IncompatibleOverride {
+                                source: member.source,
+                                member: member.key,
+                                source_ty: member.ty,
+                                target_ty: base.ty,
+                            });
+                        } else {
+                            overrides.push(dir::MemberConformance {
+                                member: member.symbol,
+                                requirement: base.symbol,
+                            });
                         }
                     }
                 }
@@ -245,36 +243,11 @@ impl CheckState<'_> {
             }
         }
 
-        // commit validated override targets on their members
-        if !selected_overrides.is_empty()
-            && let Some(dir::Definition::Class(class)) = self.definition_mut(symbol)
-        {
-            for member in &mut class.members {
-                // read the symbol of each overridable member kind
-                let member_symbol = match member {
-                    dir::DefinitionMember::Field(field) => Some((field.symbol, member)),
-                    dir::DefinitionMember::Method(method) => Some((method.symbol, member)),
-                    _ => None,
-                };
-                let Some((member_symbol, member)) = member_symbol else {
-                    continue;
-                };
-
-                // find the base member the override check selected
-                let Some((_, base)) = selected_overrides
-                    .iter()
-                    .find(|(own, _)| *own == member_symbol)
-                else {
-                    continue;
-                };
-
-                // write the base symbol onto the overriding member
-                match member {
-                    dir::DefinitionMember::Field(field) => field.overrides = Some(*base),
-                    dir::DefinitionMember::Method(method) => method.overrides = Some(*base),
-                    _ => {}
-                }
-            }
+        // record the overrides on the extends edge
+        if let Some(source) = extends_source {
+            self.module_mut(symbol.module_id)
+                .members_tail
+                .set_conformance_members(source, overrides);
         }
 
         // concrete classes must provide every inherited abstract member
@@ -335,7 +308,8 @@ impl CheckState<'_> {
             let ty = self.substitute_type(heritage.ty, &substitution)?;
             let (instance_module, instance) = self.nominal_application(ty)?;
 
-            let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
+            let definition = self.definition(instance.symbol)?;
+            let Some(dir::Definition::Class(base)) = definition.as_deref() else {
                 break;
             };
             let base_members = base.members.clone();

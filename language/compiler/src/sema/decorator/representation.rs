@@ -64,15 +64,14 @@ impl CheckState<'_> {
             return Ok(());
         }
         // reject representations the declaration cannot carry
-        let definition =
-            self.definition(symbol)?
-                .cloned()
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("representation owner {symbol:?} has no definition"),
-                })?;
+        let definition = self
+            .definition(symbol)?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("representation owner {symbol:?} has no definition"),
+            })?;
         let kind = representation_value.representation.kind;
         let has_virtual_dispatch = matches!(
-            &definition,
+            &*definition,
             dir::Definition::Class(_)
                 if kind == dir::RepresentationKind::C
                     && self.class_requires_virtual_dispatch(symbol)?
@@ -82,83 +81,6 @@ impl CheckState<'_> {
             self.report_unsupported_representation(module, source.local_id, representation);
 
             return Ok(());
-        }
-
-        // validate enum domains against C and explicit integer representations
-        let mut enum_backing = None;
-        if let dir::Definition::Enum(definition) = &definition {
-            match representation_value.representation.kind {
-                dir::RepresentationKind::C
-                    if matches!(definition.backing, dir::EnumBackingType::String) =>
-                {
-                    let anchor = self.diagnostic_anchor(module, source.local_id);
-                    self.report(module, CheckError::NonIntegerCEnum { anchor, module });
-
-                    return Ok(());
-                }
-                dir::RepresentationKind::Integer(integer) => {
-                    let backing = dir::EnumBackingType::Integer(integer);
-                    let outside = definition.members.iter().find_map(|member| match member {
-                        dir::DefinitionMember::EnumVariant(variant)
-                            if !backing.contains(variant.value) =>
-                        {
-                            Some(variant.value)
-                        }
-                        _ => None,
-                    });
-                    if let Some(value) = outside {
-                        let value = dir::Literal::from(value);
-                        let value = self.format_scalar_literal(&value);
-                        let representation =
-                            self.strings().get(representation_value.name).to_string();
-                        let anchor = self.diagnostic_anchor(module, source.local_id);
-                        let error = CheckError::EnumValueOutsideRepresentation {
-                            anchor,
-                            module,
-                            value,
-                            representation,
-                        };
-                        self.report(module, error);
-
-                        return Ok(());
-                    }
-                    enum_backing = Some(backing);
-                }
-                dir::RepresentationKind::Destack
-                | dir::RepresentationKind::C
-                | dir::RepresentationKind::Transparent => {}
-            }
-        }
-
-        // commit the layout policy and any explicit enum scalar backing
-        let definition = self
-            .definition_mut(symbol)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("representation owner {symbol:?} lost its definition"),
-            })?;
-        match definition {
-            dir::Definition::Struct(definition) => {
-                definition.representation = representation_value.representation;
-            }
-            dir::Definition::Class(definition) => {
-                definition.representation = representation_value.representation;
-            }
-            dir::Definition::Enum(definition) => {
-                definition.representation = representation_value.representation;
-                if let Some(backing) = enum_backing {
-                    definition.backing = backing;
-                }
-            }
-            dir::Definition::Newtype(definition) => {
-                definition.representation = representation_value.representation;
-            }
-            dir::Definition::TypeAlias(_)
-            | dir::Definition::Interface(_)
-            | dir::Definition::Extension(_) => {
-                return Err(CompilerError::Internal {
-                    message: format!("representation owner {symbol:?} changed definition kind"),
-                });
-            }
         }
 
         Ok(())
@@ -180,7 +102,7 @@ impl CheckState<'_> {
             }
 
             // read whether the class declares virtual methods, and its base
-            let (declares_virtual_dispatch, base) = match self.definition(current)? {
+            let (declares_virtual_dispatch, base) = match self.definition(current)?.as_deref() {
                 Some(dir::Definition::Class(definition)) => (
                     definition.declares_virtual_dispatch(),
                     definition.extends.as_ref().map(|heritage| heritage.ty),

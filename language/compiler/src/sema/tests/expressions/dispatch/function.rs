@@ -29,20 +29,17 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 /// @type.symbol symbol=firstPositive type=(int32 | undefined[]) => int32 | undefined
 /// @generic.instance id="Array<int32 | undefined>" template=Array arguments=(int32 | undefined)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="MaybeUninit<MaybeUninit<int32 | undefined>>" template=MaybeUninit arguments=(MaybeUninit<int32 | undefined>)
-/// @generic.instance id="MaybeUninit<int32 | undefined>" template=MaybeUninit arguments=(int32 | undefined)
 /// @generic.instance id="assumeInitDrop#1<int32 | undefined>" template=assumeInitDrop#1 arguments=(int32 | undefined)
-/// @generic.instance id="assumeInitDrop<int32 | undefined>" template=assumeInitDrop arguments=(int32 | undefined) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32 | undefined>) => Raw<int32 | undefined>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32 | undefined>)
+/// @generic.instance id="assumeInitDrop<int32 | undefined>" template=assumeInitDrop arguments=(int32 | undefined)
 /// @generic.instance id="clear<int32 | undefined>" template=clear arguments=(int32 | undefined)
 /// @generic.instance id="drop<int32 | undefined>" template=drop arguments=(int32 | undefined)
 /// @generic.instance id="dropInPlace<int32 | undefined>" template=dropInPlace arguments=(int32 | undefined)
-/// @generic.instance id="elementSlot<int32 | undefined, \"exclusive\">" template=elementSlot arguments=(int32 | undefined, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32 | undefined[], usize) => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32 | undefined>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32 | undefined>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32 | undefined>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32 | undefined>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32 | undefined[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32 | undefined>>)
-/// @generic.instance id="initAsPointer<int32 | undefined, \"exclusive\">" template=initAsPointer arguments=(int32 | undefined, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32 | undefined>) => Raw<int32 | undefined>)
-/// @generic.instance id="new<MaybeUninit<int32 | undefined>>" template=new arguments=(MaybeUninit<int32 | undefined>)
+/// @generic.instance id="elementSlot<int32 | undefined, \"mutable\">" template=elementSlot arguments=(int32 | undefined, "mutable")
+/// @generic.instance id="initAsPointer<int32 | undefined, \"mutable\">" template=initAsPointer arguments=(int32 | undefined, "mutable")
 /// @generic.instance id="sliceAssumeInit<MaybeUninit<int32 | undefined>>" template=sliceAssumeInit arguments=(MaybeUninit<int32 | undefined>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int32 | undefined>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32 | undefined>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32 | undefined>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32 | undefined>)
+/// @generic.instance id="sliceIndex<MaybeUninit<int32 | undefined>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32 | undefined>, "mutable")
 /// @generic.instance id="sliceUninit<MaybeUninit<int32 | undefined>>" template=sliceUninit arguments=(MaybeUninit<int32 | undefined>)
-/// @generic.instance id="truncate<int32 | undefined>" template=truncate arguments=(int32 | undefined) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32 | undefined>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32 | undefined[], usize) => &truncate.'a exclusive MaybeUninit<int32 | undefined>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32 | undefined[])
+/// @generic.instance id="truncate<int32 | undefined>" template=truncate arguments=(int32 | undefined)
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @type.symbol symbol=firstPositive.values source="values: (int32 | undefined)[]" type=int32 | undefined[]
 
@@ -54,31 +51,19 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @resolution.call parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined && value > 0) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=int32 | undefined kind=symbol target=Iterator.find receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> instance="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>.<extension#3>.find"
     /// @resolution.call source="values.iterator().map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> kind=dynamic target=Iterator.map receiver=Iterator<int32 | undefined> constraint=Iterator<int32 | undefined> generic_arguments=(int32 | undefined, int32 | undefined)
     /// @resolution.call source=values.iterator() parameters=() return=Iterator<int32 | undefined> kind=symbol target=iterator#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#4>.iterator#2<\"local\">"
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=firstPositive.values
     /// @generic.instantiation id="Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>" template=Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>)
     /// @generic.instantiation id="Iterator.map<int32 | undefined>" template=Iterator.map arguments=(int32 | undefined)
     /// @generic.instantiation id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
     /// @generic.instantiation id="iterator#2<int32 | undefined>" template=iterator#2 arguments=(int32 | undefined)
-    /// @generic.instance id="DropIterator<Iterator<int32 | undefined>, int32 | undefined>" template=DropIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="DropWhileIterator<Iterator<int32 | undefined>, int32 | undefined>" template=DropWhileIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="EnumeratedIterator<Iterator<int32 | undefined>, int32 | undefined>" template=EnumeratedIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="FilterIterator<Iterator<int32 | undefined>, int32 | undefined>" template=FilterIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="InspectIterator<Iterator<int32 | undefined>, int32 | undefined>" template=InspectIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="Iterator.collect<Iterator<int32 | undefined>, int32 | undefined, ^int32 | undefined[]>" template=Iterator.collect arguments=(int32 | undefined, ^int32 | undefined[])
-    /// @generic.instance id="Iterator<int32 | undefined>" template=Iterator arguments=(int32 | undefined) evaluated=(<Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: this, Function<(Iterator.T, isize), Iterator.flatMap.V>) => FlatMapIterator<this, Iterator.T, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U> => <Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: Iterator<int32 | undefined>, Function<(int32 | undefined, isize), Iterator.flatMap.V>) => FlatMapIterator<Iterator<int32 | undefined>, int32 | undefined, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U>, <Iterator.chain.V: Iterable<Iterator.T>>(this: this, Iterator.chain.V) => ChainIterator<this, Iterator.chain.V.Iterator, Iterator.T> => <Iterator.chain.V: Iterable<Iterator.T>>(this: Iterator<int32 | undefined>, Iterator.chain.V) => ChainIterator<Iterator<int32 | undefined>, Iterator.chain.V.Iterator, int32 | undefined>, <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: this, Iterator.zip.V) => ZipIterator<this, Iterator.zip.V.Iterator, Iterator.T, Iterator.zip.U> => <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: Iterator<int32 | undefined>, Iterator.zip.V) => ZipIterator<Iterator<int32 | undefined>, Iterator.zip.V.Iterator, int32 | undefined, Iterator.zip.U>, <Iterator.tryFold.F: Try>(this: this, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, Iterator.T, isize), Iterator.tryFold.F>) => Iterator.tryFold.F => <Iterator.tryFold.F: Try>(this: Iterator<int32 | undefined>, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, int32 | undefined, isize), Iterator.tryFold.F>) => Iterator.tryFold.F)
-    /// @generic.instance id="IteratorResult<int32 | undefined, void>" template=IteratorResult arguments=(int32 | undefined, void)
-    /// @generic.instance id="IteratorYield<int32 | undefined>" template=IteratorYield arguments=(int32 | undefined)
+    /// @generic.instance id="Iterator<int32 | undefined>" template=Iterator arguments=(int32 | undefined)
     /// @generic.instance id="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>" template=MapIterator arguments=(Iterator<int32 | undefined>, int32 | undefined, int32 | undefined)
-    /// @generic.instance id="PeekableIterator<Iterator<int32 | undefined>, int32 | undefined>" template=PeekableIterator arguments=(Iterator<int32 | undefined>, int32 | undefined) evaluated=(IteratorResult<PeekableIterator.T, PeekableIterator.I.Return> | undefined => IteratorResult<int32 | undefined, void> | undefined)
-    /// @generic.instance id="TakeIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeWhileIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
-    /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
     /// @type.symbol symbol=firstPositive.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
     /// @type.symbol symbol=firstPositive.symbol3.value source=value type=int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol3.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=firstPositive.symbol3.value
     /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean, "readonly">
     /// @type.symbol symbol=firstPositive.symbol5.value source=value type=&type_expression.'a readonly int32 | undefined
@@ -154,10 +139,10 @@ function add(left: int32, right: int32): int32 {
     /// @type.node source="left + right" type=int32
     /// @resolution.name source=left target=add.left
     /// @resolution.operator source="left + right" type=int32 operator="+" kind=builtin operands=[left as int32 families=(integer), right as int32 families=(integer)]
-    /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=left placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=left root=add.left
     /// @resolution.name source=right target=add.right
-    /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=right placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=right root=add.right
 
 }
@@ -353,7 +338,7 @@ function greet(name: string = "world"): string {
     name
     /// @type.node source=name type=string
     /// @resolution.name source=name target=greet.name
-    /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=name root=greet.name
 
 }

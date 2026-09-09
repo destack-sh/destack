@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::sema::{CheckState, VariableKind};
+use crate::sema::{CheckState, GenericTemplateId, VariableKind};
 use crate::{CompilerError, CompilerResult};
 
 /// Nesting depth after which formatted types elide their details.
@@ -331,26 +331,24 @@ impl CheckState<'_> {
             return Ok(String::new());
         };
         let template =
-            self.generic_template(template_id)
+            self.generic_template(template_id)?
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("callable template {template_id:?} is missing"),
                 })?;
 
         // render declared parameters in template order
+        let declared = template.parameters.clone();
         let mut parameters = Vec::new();
-        for parameter in &template.parameters {
+        for parameter in declared {
             let parameter = parameter.into_global(template_id.module_id);
-            let binding =
-                self.generic_parameter(parameter)
-                    .ok_or_else(|| CompilerError::Internal {
-                        message: format!("callable parameter {parameter:?} is missing"),
-                    })?;
+            let binding = self.generic_parameter(parameter)?.cloned().ok_or_else(|| {
+                CompilerError::Internal {
+                    message: format!("callable parameter {parameter:?} is missing"),
+                }
+            })?;
 
             // take the declared parameter name
-            let mut label = match binding.key {
-                dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
-                dir::GenericParameterKey::Generated(name) => self.text(name),
-            };
+            let mut label = self.format_parameter(parameter);
 
             // print tick parameters bare, their kind is implied
             if binding.memory_parameter() == Some(dir::MemoryParameter::Region)
@@ -418,8 +416,13 @@ impl CheckState<'_> {
 
         // render the parameters up to the width
         let mut parameters = Vec::new();
-        for parameter in signature_parameters.iter().take(FORMAT_WIDTH) {
-            let parameter = self.format_function_parameter_at(module, parameter, depth)?;
+        for parameter in signature_parameters
+            .iter()
+            .take(FORMAT_WIDTH)
+            .cloned()
+            .collect::<Vec<_>>()
+        {
+            let parameter = self.format_function_parameter_at(module, &parameter, depth)?;
 
             parameters.push(parameter);
         }
@@ -497,27 +500,28 @@ impl CheckState<'_> {
                 let borrow = self.type_borrow(owner, *borrow)?;
                 let access = match self.access_of(borrow.access)? {
                     Some(dir::Access::Readonly) => "readonly ",
-                    Some(dir::Access::Exclusive) => "exclusive ",
                     _ => "",
                 };
 
-                let (extent, spaces) = match self.ty(self.shallow_resolve(borrow.region)?)? {
+                // split the region into its extent and space
+                let (extent, spaces) = match self.resolved_ty(borrow.region)? {
                     dir::Type::Region(pair) => (pair.extent, Some(pair.space)),
                     _ => (borrow.region, None),
                 };
 
                 // render named and static regions, eliding the frame default
-                let lifetime = match self.ty(self.shallow_resolve(extent)?)? {
+                let lifetime = match self.resolved_ty(extent)? {
                     dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
-                        let binding = self.generic_parameter(parameter);
+                        let binding = self.generic_parameter(parameter)?.cloned();
                         let name = self.format_parameter(parameter);
-                        let is_tick = binding.is_some_and(|binding| {
+                        let is_tick = binding.as_ref().is_some_and(|binding| {
                             binding.memory_parameter() == Some(dir::MemoryParameter::Region)
                         }) || name
                             .rsplit('.')
                             .next()
                             .is_some_and(|name| name.starts_with('\''));
                         let is_induced = binding
+                            .as_ref()
                             .is_some_and(|binding| binding.induced_memory_parameter().is_some());
                         match (is_tick, is_induced) {
                             (true, _) => format!("{} ", self.format_type(extent)),
@@ -557,7 +561,7 @@ impl CheckState<'_> {
                         // induced spaces elide back into the reference sugar
                         if let dir::Type::Parameter(parameter) = self.ty(place)?
                             && self
-                                .generic_parameter(parameter)
+                                .generic_parameter(parameter)?
                                 .is_some_and(|binding| binding.induced_memory_parameter().is_some())
                         {
                             return Ok(format!("&{lifetime}{access}{value}"));
@@ -659,8 +663,8 @@ impl CheckState<'_> {
             }
             dir::TypeOperation::Mapped(_) => "{ [mapped] }".to_string(),
             dir::TypeOperation::TemplateLiteral(template) => {
-                let strings = self.template_strings(owner, template.strings)?.to_vec();
-                let spans = self.type_ids(owner, template.spans)?.to_vec();
+                let strings = self.template_strings(owner, template.strings)?;
+                let spans = self.type_ids(owner, template.spans)?;
                 let mut rendered = String::from("`");
                 for (index, segment) in strings.iter().enumerate() {
                     rendered.push_str(&self.text(*segment));
@@ -743,9 +747,16 @@ impl CheckState<'_> {
         format!("{start}{operator}{end}")
     }
 
+    /// Unwrap one read of a module the pass reached before formatting it.
+    fn reached<T>(read: CompilerResult<T>) -> T {
+        read.unwrap_or_else(|error| {
+            unreachable!("formatting reads a module the pass has not reached: {error:?}")
+        })
+    }
+
     /// Format one committed static value.
     fn format_static(&self, value: dir::GlobalStaticId) -> String {
-        self.format_static_term(self.r#static(value))
+        self.format_static_term(Self::reached(self.r#static(value)))
     }
 
     /// Format one static term with its structural payload.
@@ -797,19 +808,79 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return the region names one template and its owners declare ahead of one parameter,
+    /// written names and the names of the anonymous regions before it.
+    fn region_names_in_scope(
+        &self,
+        template: GenericTemplateId,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> Vec<String> {
+        // walk the owner templates outermost first, this template last
+        let mut templates = vec![template];
+        let mut current = Self::reached(self.parent_generic_template(template));
+        while let Some(owner) = current {
+            templates.push(owner);
+            current = Self::reached(self.parent_generic_template(owner));
+        }
+        templates.reverse();
+
+        // name each region in scope order, stopping at the parameter itself
+        let mut names = Vec::new();
+        for template in templates {
+            let Some(declared) = Self::reached(self.generic_template(template)) else {
+                continue;
+            };
+            for candidate in declared.parameters.clone() {
+                let candidate = candidate.into_global(template.module_id);
+                if candidate == parameter {
+                    return names;
+                }
+                let Some(binding) = Self::reached(self.generic_parameter(candidate)) else {
+                    continue;
+                };
+                if binding.memory_parameter() != Some(dir::MemoryParameter::Region) {
+                    continue;
+                }
+                let name = match binding.key {
+                    dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
+                    dir::GenericParameterKey::Anonymous => {
+                        dir::free_region_name(names.iter().map(String::as_str))
+                    }
+                };
+                names.push(name);
+            }
+        }
+
+        names
+    }
+
     /// Format one generic parameter by its declared name.
     pub(in crate::sema) fn format_parameter(
         &self,
         parameter: dir::GlobalGenericParameterId,
     ) -> String {
-        let Some(binding) = self.generic_parameter(parameter) else {
+        let Some(binding) = Self::reached(self.generic_parameter(parameter)) else {
             return "_".to_string();
         };
 
-        // render the key the binding declares
         match binding.key {
             dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
-            dir::GenericParameterKey::Generated(name) => self.text(name),
+            dir::GenericParameterKey::Anonymous => {
+                let template = binding.template.into_global(parameter.module_id);
+                let position = Self::reached(self.generic_template(template))
+                    .and_then(|template| {
+                        template
+                            .parameters
+                            .iter()
+                            .position(|candidate| *candidate == parameter.local_id)
+                    })
+                    .unwrap_or_else(|| {
+                        unreachable!("parameter {parameter:?} is missing from its template")
+                    });
+                let regions_in_scope = self.region_names_in_scope(template, parameter);
+
+                binding.canonical_name(position, regions_in_scope.iter().map(String::as_str))
+            }
         }
     }
 
@@ -827,7 +898,7 @@ impl CheckState<'_> {
 
     /// Format one symbol by its declared name.
     pub(in crate::sema) fn format_symbol(&self, symbol: dir::GlobalSymbolId) -> String {
-        let bindings = self.binding_table(symbol.module_id);
+        let bindings = Self::reached(self.binding_table(symbol.module_id));
         let key = bindings.get_symbol(symbol.local_id).key;
 
         // render each key in its written form
@@ -877,13 +948,11 @@ impl CheckState<'_> {
 
     /// Format one symbol by its owner-qualified declared name.
     pub(in crate::sema) fn format_symbol_path(&self, symbol: dir::GlobalSymbolId) -> String {
-        let bindings = self.binding_table(symbol.module_id);
         let mut paths = BTreeMap::new();
 
-        self.format_symbol_path_base(&bindings, symbol.local_id, &mut paths)
+        self.format_symbol_path_base(symbol.module_id, symbol.local_id, &mut paths)
     }
 
-    /// Format one symbol path relative to an optional source module.
     fn format_symbol_path_maybe_at(
         &self,
         module: Option<ModuleId>,
@@ -975,9 +1044,10 @@ impl CheckState<'_> {
     }
 
     /// Format one local symbol path, reusing the owner paths it already rendered.
+    /// Format one symbol's path by climbing its owners through the module's bindings.
     fn format_symbol_path_base(
         &self,
-        bindings: &dir::BindingTable<'_>,
+        module: ModuleId,
         symbol: dir::LocalSymbolId,
         paths: &mut BTreeMap<dir::LocalSymbolId, String>,
     ) -> String {
@@ -986,36 +1056,32 @@ impl CheckState<'_> {
             return path.clone();
         }
 
-        // render this symbol's own label, keeping bare symbols at it
-        let entry = bindings.get_symbol(symbol);
+        // read the symbol and its owner, keeping bare symbols and root scopes at their label
+        let (is_qualified, owner) = {
+            let bindings = Self::reached(self.binding_table(module));
+            let entry = bindings.get_symbol(symbol);
+            let is_qualified = Self::is_qualified_symbol(entry);
+            let owner = bindings
+                .get_scope_by_id(entry.scope.id)
+                .owner
+                .filter(|owner| {
+                    let owner = bindings.get_symbol(*owner);
+                    owner.role != dir::SymbolRole::Namespace || owner.name().is_some()
+                });
+            (is_qualified, owner)
+        };
         let label = self.format_symbol(dir::GlobalSymbolId {
-            module_id: bindings.module_id,
+            module_id: module,
             local_id: symbol,
         });
-        if !Self::is_qualified_symbol(entry) {
-            paths.insert(symbol, label.clone());
-
-            return label;
-        }
-
-        // stop at a root scope
-        let scope = bindings.get_scope_by_id(entry.scope.id);
-        let Some(owner) = scope.owner else {
+        let Some(owner) = owner.filter(|_| is_qualified) else {
             paths.insert(symbol, label.clone());
 
             return label;
         };
 
-        // stop at an anonymous namespace owner
-        let owner_symbol = bindings.get_symbol(owner);
-        if owner_symbol.role == dir::SymbolRole::Namespace && owner_symbol.name().is_none() {
-            paths.insert(symbol, label.clone());
-
-            return label;
-        }
-
         // qualify the label with its owner's path
-        let owner = self.format_symbol_path_base(bindings, owner, paths);
+        let owner = self.format_symbol_path_base(module, owner, paths);
         let path = format!("{owner}.{label}");
         paths.insert(symbol, path.clone());
 
@@ -1033,7 +1099,7 @@ impl CheckState<'_> {
     }
 
     /// Format one module as a compact qualifier.
-    fn format_module_label(&self, module: ModuleId) -> String {
+    pub(in crate::sema) fn format_module_label(&self, module: ModuleId) -> String {
         if let Some(module) = self.module_maybe(module) {
             return trim_module_uri(module.module.uri.as_ref());
         }

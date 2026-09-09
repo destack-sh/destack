@@ -1,337 +1,143 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirDeclared, DirResolved,
-    EnvironmentBound, EnvironmentDeclared,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirDeclared, EnvironmentBound,
+    EnvironmentDeclared,
 };
-use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_repository::{ArtifactAttemptRecorder, ProfileId, ProviderContext, ProviderError};
 use destack_source::ModuleId;
 
-use crate::sema::{CheckModuleState, CheckState, Pass};
+pub(crate) use super::state::Pass;
+use crate::sema::{CheckModuleState, CheckState, ExternalModuleTable};
 use crate::{Compiler, CompilerError, CompilerResult};
 
-/// The foreign modules one module's check reads through resolution targets.
-struct ReferencedModules {
-    /// The modules referenced by resolution targets.
-    targets: FxIndexSet<ModuleId>,
-}
-
-/// Return the modules one module references, or None while their resolve stages build.
-fn referenced_modules(
-    artifacts: &destack_repository::ArtifactReader<'_>,
-    module: ModuleId,
-    profile: ProfileId,
-) -> CompilerResult<Option<ReferencedModules>> {
-    // wait while the module's own resolve stage is still building
-    let resolved = match artifacts.read::<DirResolved>((module, profile)) {
-        Ok(resolved) => resolved,
-        Err(ProviderError::Blocked { .. }) => return Ok(None),
-        Err(error) => return Err(error.into()),
-    };
-
-    // keep the foreign modules the resolution targets reach
-    let mut targets = resolved.target_modules().collect::<FxIndexSet<_>>();
-    targets.shift_remove(&module);
-
-    Ok(Some(ReferencedModules { targets }))
-}
-
 impl Compiler {
-    /// Collect inputs for one declared DIR module.
-    pub(crate) fn collect_dir_declared(
+    /// Collect inputs for one DIR stage of one module.
+    pub(crate) fn collect_dir_stage(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        context: &dyn ProviderContext,
+        pass: Pass,
     ) -> CompilerResult<ArtifactDependencySet> {
-        // require this module's own stage artifacts
-        let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::dir_parsed(module));
-        dependencies.require(ArtifactKey::dir_bound(module, profile));
-        dependencies.require(ArtifactKey::dir_resolved(module, profile));
-        dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require_payload(ArtifactKey::environment_bound(profile));
-
-        // require the stage contents of resolution targets
-        let artifacts = self.artifact_reader(context);
-        let Some(references) = referenced_modules(&artifacts, module, profile)? else {
-            dependencies.mark_partial();
-
-            return Ok(dependencies);
+        // require every stage ahead of the pass's own
+        let own = match pass {
+            Pass::Declare => ArtifactKey::dir_declared(module, profile),
+            Pass::Elaborate => ArtifactKey::dir_elaborated(module, profile),
+            Pass::Check => ArtifactKey::dir_checked(module, profile),
+            Pass::Materialize => ArtifactKey::dir_materialized(module, profile),
         };
-
-        // require the artifacts of each referenced module
-        for reference in references.targets {
-            dependencies.require_payload(ArtifactKey::dir_bound(reference, profile));
-            dependencies.require_payload(ArtifactKey::dir_expanded(reference, profile));
-            dependencies.require_payload(ArtifactKey::dir_resolved(reference, profile));
+        let mut dependencies = ArtifactDependencySet::default();
+        for key in ArtifactKey::dir_stages(module, profile)
+            .into_iter()
+            .take_while(|key| *key != own)
+        {
+            dependencies.require(key);
+        }
+        dependencies.require_payload(ArtifactKey::environment_bound(profile));
+        if pass != Pass::Declare {
+            dependencies.require_payload(ArtifactKey::environment_declared(profile));
         }
 
         Ok(dependencies)
     }
 
-    /// Provide one declared DIR module.
-    pub(crate) fn provide_dir_declared(
+    /// Provide one DIR stage of one module.
+    pub(crate) fn provide_dir_stage(
         &self,
         module: ModuleId,
         profile: ProfileId,
         context: &dyn ProviderContext,
+        pass: Pass,
     ) -> CompilerResult<ArtifactPayload> {
         // read the profile's environment
         let artifacts = self.artifact_reader(context);
         let global = artifacts
             .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
+        let declared_environment = match pass {
+            Pass::Declare => None,
+            Pass::Elaborate | Pass::Check | Pass::Materialize => Some(
+                artifacts
+                    .read::<EnvironmentDeclared>(profile)
+                    .map_err(CompilerError::from)?,
+            ),
+        };
         let environment = self.environment(context.revision())?;
-        // declare the module without walking callable bodies
-        let mut check = ArtifactAttemptRecorder::breakdown_maybe(
-            context.recorder(),
-            "load",
-            || -> CompilerResult<_> {
-                let module = CheckModuleState::load(
-                    self,
-                    context,
-                    &artifacts,
-                    profile,
-                    module,
-                    Pass::Declare,
-                )?;
 
-                Ok(CheckState::new(
-                    self,
-                    context,
-                    &artifacts,
-                    profile,
-                    global,
-                    None,
-                    environment,
-                    module,
-                    Pass::Declare,
-                    context.records_events(),
-                ))
-            },
+        // load the module's committed stages and run the pass over them
+        let recorder = context.recorder();
+        let (state, types) = ArtifactAttemptRecorder::breakdown_maybe(recorder, "load", || {
+            let view = pass.read_stages(&artifacts, (module, profile))?;
+            let types = view.types().clone();
+
+            Ok::<_, CompilerError>((view, types))
+        })?;
+        let lists = dir::TypeListArena::following(view_latest(&types));
+        let externals = ExternalModuleTable::default();
+        let state = CheckModuleState::load(
+            self,
+            context.revision(),
+            module,
+            profile,
+            state,
+            &types,
+            &lists,
         )?;
-
-        // run the pass
-        ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || {
-            check.run_declare()
+        let mut check = CheckState::new(
+            self,
+            context,
+            &artifacts,
+            profile,
+            global,
+            declared_environment,
+            environment,
+            state,
+            &externals,
+            pass,
+            !matches!(pass, Pass::Materialize) && context.records_events(),
+        );
+        ArtifactAttemptRecorder::breakdown_maybe(recorder, "run", || match pass {
+            Pass::Declare => check.run_declare(),
+            Pass::Elaborate => check.run_elaborate(),
+            Pass::Check => check.run_check(),
+            Pass::Materialize => check.run_materialize(),
         })?;
 
         // record solver counters and detailed events
         check.record_trace(context);
 
-        // package declared DIR tables and report the pass's diagnostics
-        let (declared, diagnostics) =
-            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "finish", || {
-                check.finish_declare(module)
-            })?;
-        context.emit_diagnostics(diagnostics);
+        // package the stage's DIR tables and report the pass's diagnostics
+        Ok(match pass {
+            Pass::Declare => {
+                let (mut declared, diagnostics) = check.finish_declare(module)?;
+                finish_lists(lists, &mut declared.types);
+                context.emit_diagnostics(diagnostics);
 
-        Ok(ArtifactPayload::DirDeclared(Arc::new(declared)))
-    }
+                ArtifactPayload::DirDeclared(Arc::new(declared))
+            }
+            Pass::Elaborate => {
+                let (mut elaborated, diagnostics) = check.finish_elaborate(module)?;
+                finish_lists(lists, &mut elaborated.types);
+                context.emit_diagnostics(diagnostics);
 
-    /// Collect inputs for one elaborated DIR module.
-    pub(crate) fn collect_dir_elaborated(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactDependencySet> {
-        // require this module's own stage artifacts
-        let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::dir_parsed(module));
-        dependencies.require(ArtifactKey::dir_bound(module, profile));
-        dependencies.require(ArtifactKey::dir_resolved(module, profile));
-        dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require(ArtifactKey::dir_declared(module, profile));
-        dependencies.require_payload(ArtifactKey::environment_bound(profile));
-        dependencies.require_payload(ArtifactKey::environment_declared(profile));
+                ArtifactPayload::DirElaborated(Arc::new(elaborated))
+            }
+            Pass::Check => {
+                let (mut checked, diagnostics) = check.finish_check(module)?;
+                finish_lists(lists, &mut checked.types);
+                context.emit_diagnostics(diagnostics);
 
-        // require declared artifacts of direct imports and implicit globals
-        let artifacts = self.artifact_reader(context);
-        let Some(references) = referenced_modules(&artifacts, module, profile)? else {
-            dependencies.mark_partial();
+                ArtifactPayload::DirChecked(Arc::new(checked))
+            }
+            Pass::Materialize => {
+                let (mut materialized, diagnostics) = check.into_materialized()?;
+                finish_lists(lists, &mut materialized.types);
+                context.emit_diagnostics(diagnostics);
 
-            return Ok(dependencies);
-        };
-
-        // require the artifacts of each imported module
-        for import in references.targets {
-            dependencies.require_payload(ArtifactKey::dir_declared(import, profile));
-            dependencies.require_payload(ArtifactKey::dir_bound(import, profile));
-            dependencies.require_payload(ArtifactKey::dir_expanded(import, profile));
-            dependencies.require_payload(ArtifactKey::dir_resolved(import, profile));
-        }
-
-        Ok(dependencies)
-    }
-
-    /// Provide one elaborated DIR module.
-    pub(crate) fn provide_dir_elaborated(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactPayload> {
-        // read the profile's environment
-        let artifacts = self.artifact_reader(context);
-        let global = artifacts
-            .read::<EnvironmentBound>(profile)
-            .map_err(CompilerError::from)?;
-        let declared_environment = artifacts
-            .read::<EnvironmentDeclared>(profile)
-            .map_err(CompilerError::from)?;
-        let environment = self.environment(context.revision())?;
-        // flatten the module's declared owners
-        let mut check = ArtifactAttemptRecorder::breakdown_maybe(
-            context.recorder(),
-            "load",
-            || -> CompilerResult<_> {
-                let module = CheckModuleState::load(
-                    self,
-                    context,
-                    &artifacts,
-                    profile,
-                    module,
-                    Pass::Elaborate,
-                )?;
-
-                Ok(CheckState::new(
-                    self,
-                    context,
-                    &artifacts,
-                    profile,
-                    global,
-                    Some(declared_environment),
-                    environment,
-                    module,
-                    Pass::Elaborate,
-                    context.records_events(),
-                ))
-            },
-        )?;
-
-        // run the pass
-        ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || {
-            check.run_elaborate()
-        })?;
-
-        // record solver counters and detailed events
-        check.record_trace(context);
-
-        // package elaborated DIR tables and report the pass's diagnostics
-        let (elaborated, diagnostics) =
-            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "finish", || {
-                check.finish_elaborate(module)
-            })?;
-        context.emit_diagnostics(diagnostics);
-
-        Ok(ArtifactPayload::DirElaborated(Arc::new(elaborated)))
-    }
-
-    /// Collect inputs for one checked DIR module.
-    pub(crate) fn collect_dir_checked(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactDependencySet> {
-        // require this module's own stage artifacts
-        let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::dir_parsed(module));
-        dependencies.require(ArtifactKey::dir_bound(module, profile));
-        dependencies.require(ArtifactKey::dir_resolved(module, profile));
-        dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require_payload(ArtifactKey::environment_bound(profile));
-
-        // require the aggregate implicit declarations
-        dependencies.require_payload(ArtifactKey::environment_declared(profile));
-
-        // seed the checking pass from the module's own committed artifacts
-        dependencies.require(ArtifactKey::dir_declared(module, profile));
-        dependencies.require(ArtifactKey::dir_elaborated(module, profile));
-
-        // require declared artifacts of direct imports and implicit globals
-        let artifacts = self.artifact_reader(context);
-        let Some(references) = referenced_modules(&artifacts, module, profile)? else {
-            dependencies.mark_partial();
-
-            return Ok(dependencies);
-        };
-
-        // require the artifacts of each imported module
-        for import in references.targets {
-            dependencies.require_payload(ArtifactKey::dir_declared(import, profile));
-            dependencies.require_payload(ArtifactKey::dir_elaborated(import, profile));
-            dependencies.require_payload(ArtifactKey::dir_bound(import, profile));
-            dependencies.require_payload(ArtifactKey::dir_expanded(import, profile));
-            dependencies.require_payload(ArtifactKey::dir_resolved(import, profile));
-        }
-
-        Ok(dependencies)
-    }
-
-    /// Provide one checked DIR module.
-    pub(crate) fn provide_dir_checked(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactPayload> {
-        // read the profile's environment
-        let artifacts = self.artifact_reader(context);
-        let global = artifacts
-            .read::<EnvironmentBound>(profile)
-            .map_err(CompilerError::from)?;
-        let declared_environment = artifacts
-            .read::<EnvironmentDeclared>(profile)
-            .map_err(CompilerError::from)?;
-        let environment = self.environment(context.revision())?;
-        // check the module's declarations and bodies
-        let mut check = ArtifactAttemptRecorder::breakdown_maybe(
-            context.recorder(),
-            "load",
-            || -> CompilerResult<_> {
-                let module = CheckModuleState::load(
-                    self,
-                    context,
-                    &artifacts,
-                    profile,
-                    module,
-                    Pass::Check,
-                )?;
-
-                Ok(CheckState::new(
-                    self,
-                    context,
-                    &artifacts,
-                    profile,
-                    global,
-                    Some(declared_environment),
-                    environment,
-                    module,
-                    Pass::Check,
-                    context.records_events(),
-                ))
-            },
-        )?;
-
-        // run the pass
-        ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "run", || check.run_check())?;
-
-        // record solver counters and detailed events
-        check.record_trace(context);
-
-        // write checked DIR tables and report the pass's diagnostics
-        let (checked, diagnostics) =
-            ArtifactAttemptRecorder::breakdown_maybe(context.recorder(), "finish", || {
-                check.finish_check(module)
-            })?;
-        context.emit_diagnostics(diagnostics);
-
-        Ok(ArtifactPayload::DirChecked(Arc::new(checked)))
+                ArtifactPayload::DirMaterialized(Arc::new(materialized))
+            }
+        })
     }
 
     /// Collect inputs for the declared environment of one profile.
@@ -347,16 +153,43 @@ impl Compiler {
         let artifacts = self.artifact_reader(context);
         let environment = match artifacts.read::<EnvironmentBound>(profile) {
             Ok(environment) => environment,
-            Err(destack_repository::ProviderError::Blocked { .. }) => return Ok(dependencies),
+            Err(ProviderError::Blocked { .. }) => {
+                dependencies.mark_partial();
+
+                return Ok(dependencies);
+            }
             Err(error) => return Err(error.into()),
         };
 
-        // require the declarations of each implicit environment module
-        for module in environment.implicit_modules() {
+        // require the declarations of every builtin and implicit module, the conformances the
+        // builtin package declares global
+        for module in self.environment_modules(context, &environment)? {
             dependencies.require_payload(ArtifactKey::dir_declared(module, profile));
         }
 
         Ok(dependencies)
+    }
+
+    /// Return the builtin package's code modules with the environment's implicit modules, each
+    /// once in stable order.
+    fn environment_modules(
+        &self,
+        context: &dyn ProviderContext,
+        environment: &EnvironmentBound,
+    ) -> CompilerResult<Vec<ModuleId>> {
+        let mut modules = environment.implicit_modules();
+        for module in self.repository.builtin_module_ids(context.revision())? {
+            let Some(loaded) = self.repository.module(context.revision(), module)? else {
+                continue;
+            };
+            if loaded.is_code() {
+                modules.push(module);
+            }
+        }
+        modules.sort_unstable();
+        modules.dedup();
+
+        Ok(modules)
     }
 
     /// Build the declared environment for one profile.
@@ -371,9 +204,9 @@ impl Compiler {
             .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
 
-        // union each implicit module's declared indexes
+        // union every builtin and implicit module's declared indexes
         let mut environment = EnvironmentDeclared::default();
-        for module in bound.implicit_modules() {
+        for module in self.environment_modules(context, &bound)? {
             let declared = artifacts
                 .read::<DirDeclared>((module, profile))
                 .map_err(CompilerError::from)?;
@@ -397,4 +230,19 @@ impl Compiler {
 
         Ok(ArtifactPayload::EnvironmentDeclared(Arc::new(environment)))
     }
+}
+
+/// Return the latest committed type segment of one table, the one a pass's lists continue.
+fn view_latest<'t>(types: &'t dir::TypeTable<'static>) -> &'t dir::TypeSegment {
+    types
+        .segments()
+        .last()
+        .unwrap_or_else(|| unreachable!("a DIR view without type segments"))
+}
+
+/// Move the lists one pass interned into the type segment the pass finished.
+fn finish_lists(lists: dir::TypeListArena, types: &mut Arc<dir::TypeSegment>) {
+    let types =
+        Arc::get_mut(types).unwrap_or_else(|| unreachable!("a finished type segment is unshared"));
+    lists.finish_into(types);
 }

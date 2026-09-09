@@ -18,29 +18,29 @@ ok.id satisfies string;
 === annotated ===
 type Receiver = ThisParameterType<(this: { id: string }, value: float64) => void>;
 
-const ok: { id: string } = { id: "u1" };
+const ok: Receiver = { id: "u1" };
 ok.id satisfies string;
 
 === dir ===
 type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>;
-/// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" type={ id: string }
-/// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" value={ id: string }
+/// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" type=ThisParameterType<Function<(float64,), void>>
+/// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(this: { id: string }, value: number) => void>" value=ThisParameterType<Function<(float64,), void>>
 /// @resolution.name source=ThisParameterType target=ThisParameterType
 /// @type.symbol symbol=Receiver.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Receiver.id source="id: string" type=string
 /// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
 const ok: Receiver = { id: "u1" };
-/// @type.symbol symbol=ok source=ok type={ id: string }
+/// @type.symbol symbol=ok source=ok type=Receiver
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Receiver target=Receiver
 
 ok.id satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.member source=ok.id receiver={ id: string } type=string kind=field target_receiver={ id: string } key=id target_type=string
-/// @resolution.place source=ok placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=ok.id receiver=Receiver type=string kind=field target_receiver=Receiver key=id target_type=string
+/// @resolution.place source=ok placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=ok root=ok
-/// @resolution.place source=ok.id placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=ok.id placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=ok.id root=ok keys=[id]
 "#,
     );
@@ -63,17 +63,17 @@ const ok: Receiver = { anything: true };
 === annotated ===
 type Receiver = ThisParameterType<(value: float64) => void>;
 
-const ok: unknown = { anything: true } as unknown;
+const ok: Receiver = { anything: true } as Receiver;
 
 === dir ===
 type Receiver = ThisParameterType<(value: number) => void>;
-/// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" type=unknown
-/// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" value=unknown
+/// @type.symbol symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" type=ThisParameterType<Function<(float64,), void>>
+/// @definition.type symbol=Receiver source="type Receiver = ThisParameterType<(value: number) => void>" value=ThisParameterType<Function<(float64,), void>>
 /// @resolution.name source=ThisParameterType target=ThisParameterType
 /// @type.symbol symbol=Receiver.value source="value: number" type=float64
 
 const ok: Receiver = { anything: true };
-/// @type.symbol symbol=ok source=ok type=unknown
+/// @type.symbol symbol=ok source=ok type=Receiver
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Receiver target=Receiver
 "#,
@@ -98,39 +98,37 @@ fn("one") satisfies string;
 === annotated ===
 type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
 
-const fn: (arg0: string) => string = (value: string): string => `${value}`;
+const fn: Fn = (value: string): string => `${value}`;
 fn("one") satisfies string;
 
 === dir ===
 type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>;
-/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" type=Function<(string,), string>
-/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" value=Function<(string,), string>
+/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" type=OmitThisParameter<Function<(string,), string>>
+/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: string) => string>" value=OmitThisParameter<Function<(string,), string>>
 /// @resolution.name source=OmitThisParameter target=OmitThisParameter
 /// @type.symbol symbol=Fn.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Fn.id source="id: string" type=string
 /// @type.symbol symbol=Fn.value source="value: string" type=string
 
 const fn: Fn = (value) => `${value}`;
-/// @type.symbol symbol=fn source=fn type=Function<(string,), string>
+/// @type.symbol symbol=fn source=fn type=Fn
 /// @resolution.pattern source=fn kind=binding target=fn
 /// @resolution.name source=Fn target=Fn
 /// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(string,), string, "readonly">
 /// @type.symbol symbol=symbol6.value source=value type=string
-/// @resolution.template source=`${value}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"managed" & "local", string>)] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+/// @resolution.template source=`${value}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"managed" & "local", string>, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
 /// @generic.instantiation id=Display.display<string> template=Display.display arguments=()
 /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
 /// @generic.instance id=Cow<string> template=Cow arguments=(string)
 /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
-/// @generic.instance id=Display.display<string> template=Display.display arguments=()
-/// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
 /// @resolution.name source=value target=symbol6.value
-/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=symbol6.value
 
 fn("one") satisfies string;
 /// @resolution.name source=fn target=fn
 /// @resolution.call source="fn(\"one\")" parameters=(string) arguments=(provided("one") as string) return=string kind=expression target=expression
-/// @resolution.place source=fn placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=fn placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=fn root=fn
 "#,
     );
@@ -154,27 +152,27 @@ fn("bad");
 === annotated ===
 type Fn = OmitThisParameter<(this: { id: string }, value: float64) => string>;
 
-declare const fn: (arg0: float64) => string;
+declare const fn: Fn;
 fn("bad");
 
 === dir ===
 type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
-/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" type=Function<(float64,), string>
-/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" value=Function<(float64,), string>
+/// @type.symbol symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" type=OmitThisParameter<Function<(float64,), string>>
+/// @definition.type symbol=Fn source="type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>" value=OmitThisParameter<Function<(float64,), string>>
 /// @resolution.name source=OmitThisParameter target=OmitThisParameter
 /// @type.symbol symbol=Fn.this source="this: { id: string }" type={ id: string }
 /// @type.symbol symbol=Fn.id source="id: string" type=string
 /// @type.symbol symbol=Fn.value source="value: number" type=float64
 
 declare const fn: Fn;
-/// @type.symbol symbol=fn source=fn type=Function<(float64,), string>
+/// @type.symbol symbol=fn source=fn type=Fn
 /// @resolution.pattern source=fn kind=binding target=fn
 /// @resolution.name source=Fn target=Fn
 
 fn("bad");
 /// @resolution.name source=fn target=fn
 /// @resolution.call source="fn(\"bad\")" parameters=(float64) arguments=(provided("bad") as float64) return=string kind=expression target=expression
-/// @resolution.place source=fn placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=fn placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=fn root=fn
 "#,
         r#"

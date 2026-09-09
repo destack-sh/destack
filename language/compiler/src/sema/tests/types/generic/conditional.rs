@@ -55,8 +55,9 @@ write<int64>(1, number);
 
 === dir ===
 interface TextSink {
+/// @generic.template symbol=TextSink parameters=(this: TextSink)
 /// @type.symbol symbol=TextSink type=TextSink
-/// @definition.interface symbol=TextSink
+/// @definition.interface symbol=TextSink template=(this: TextSink)
 /// @definition.where symbol=TextSink relation=satisfies left=this right=TextSink
 /// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
@@ -67,8 +68,9 @@ interface TextSink {
 }
 
 interface NumberSink {
+/// @generic.template symbol=NumberSink parameters=(this: NumberSink)
 /// @type.symbol symbol=NumberSink type=NumberSink
-/// @definition.interface symbol=NumberSink
+/// @definition.interface symbol=NumberSink template=(this: NumberSink)
 /// @definition.where symbol=NumberSink relation=satisfies left=this right=NumberSink
 /// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(this: this, int32) => void
 
@@ -99,12 +101,12 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 
     sink.write(value);
     /// @resolution.name source=sink target=write.sink
-    /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=sink placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=sink root=write.sink
     /// @resolution.rejected source=sink.write
     /// @resolution.rejected source=sink.write(value)
     /// @resolution.name source=value target=write.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=write.value
 
 }
@@ -121,18 +123,18 @@ declare const number: NumberSink;
 
 write("message", text);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(\"message\", text)" parameters=(string, TextSink) arguments=(provided("message") as string, provided(text) as TextSink) return=void kind=symbol target=write instance=write<string>
+/// @resolution.call source="write(\"message\", text)" parameters=(string, SinkFor<string>) arguments=(provided("message") as string, provided(text) as SinkFor<string>) return=void kind=symbol target=write instance=write<string>
 /// @generic.instantiation id=write<string> template=write arguments=(string)
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=text root=text
 
 write(1, number);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(1, number)" parameters=(int64, NumberSink) arguments=(provided(1) as int64, provided(number) as NumberSink) return=void kind=symbol target=write instance=write<int64>
+/// @resolution.call source="write(1, number)" parameters=(int64, SinkFor<int64>) arguments=(provided(1) as int64, provided(number) as SinkFor<int64>) return=void kind=symbol target=write instance=write<int64>
 /// @generic.instantiation id=write<int64> template=write arguments=(int64)
 /// @resolution.name source=number target=number
-/// @resolution.place source=number placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=number placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=number root=number
 "#,
         r#"
@@ -189,8 +191,9 @@ write<string>("message", number);
 
 === dir ===
 interface TextSink {
+/// @generic.template symbol=TextSink parameters=(this: TextSink)
 /// @type.symbol symbol=TextSink type=TextSink
-/// @definition.interface symbol=TextSink
+/// @definition.interface symbol=TextSink template=(this: TextSink)
 /// @definition.where symbol=TextSink relation=satisfies left=this right=TextSink
 /// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(this: this, string) => void
 
@@ -201,8 +204,9 @@ interface TextSink {
 }
 
 interface NumberSink {
+/// @generic.template symbol=NumberSink parameters=(this: NumberSink)
 /// @type.symbol symbol=NumberSink type=NumberSink
-/// @definition.interface symbol=NumberSink
+/// @definition.interface symbol=NumberSink template=(this: NumberSink)
 /// @definition.where symbol=NumberSink relation=satisfies left=this right=NumberSink
 /// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(this: this, int32) => void
 
@@ -236,13 +240,13 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     /// @type.node source=sink.write type=<error>
     /// @type.node source=sink.write(value) type=<error>
     /// @resolution.name source=sink target=write.sink
-    /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=sink placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=sink root=write.sink
     /// @resolution.rejected source=sink.write
     /// @resolution.rejected source=sink.write(value)
     /// @type.node source=value type=T#2
     /// @resolution.name source=value target=write.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=write.value
 
 }
@@ -254,14 +258,14 @@ declare const number: NumberSink;
 
 write("message", number);
 /// @type.node source="write(\"message\", number)" type=void
-/// @type.node source=write type=(string, TextSink) => void
+/// @type.node source=write type=(string, SinkFor<string>) => void
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(\"message\", number)" parameters=(string, TextSink) arguments=(provided("message") as string, provided(number) as TextSink) return=void kind=symbol target=write instance=write<string>
+/// @resolution.call source="write(\"message\", number)" parameters=(string, SinkFor<string>) arguments=(provided("message") as string, provided(number) as SinkFor<string>) return=void kind=symbol target=write instance=write<string>
 /// @generic.instantiation id=write<string> template=write arguments=(string)
 /// @type.node source="\"message\"" type="message"
 /// @type.node source=number type=NumberSink
 /// @resolution.name source=number target=number
-/// @resolution.place source=number placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=number placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=number root=number
 "#,
         r#"

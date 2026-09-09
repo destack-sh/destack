@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -21,6 +23,8 @@ pub(in crate::sema) struct SignatureSelection {
     pub(in crate::sema) return_type: dir::GlobalTypeId,
     /// The solved generic argument bindings.
     pub(in crate::sema) generic_arguments: Vec<dir::GenericArgumentBinding>,
+    /// The solved region bindings, the callee's binders at this call.
+    pub(in crate::sema) region_arguments: Vec<dir::GenericArgumentBinding>,
     /// The receiver adjustments the declared this selected.
     pub(in crate::sema) receiver_adjustments: Option<Vec<dir::ReceiverAdjustment>>,
     /// Runtime coercions selected for the supplied arguments.
@@ -220,6 +224,7 @@ impl SignatureSelection {
             callable_type: self.callable,
             arguments,
             return_type: self.return_type,
+            regions: self.region_arguments.clone(),
         }
     }
 }
@@ -401,23 +406,23 @@ impl CheckState<'_> {
         Ok(signature)
     }
 
-    /// Expand one substituted tuple rest into its positional parameters.
-    fn spread_tuple_rest_parameters(
+    /// Expand one substituted tuple rest into its positional parameters, the list itself otherwise.
+    fn spread_tuple_rest_parameters<'p>(
         &mut self,
         origin: Origin,
-        parameters: Vec<dir::FunctionParameterType>,
+        parameters: &'p [dir::FunctionParameterType],
         substitution: &TypeSubstitution,
-    ) -> CompilerResult<Vec<dir::FunctionParameterType>> {
+    ) -> CompilerResult<Cow<'p, [dir::FunctionParameterType]>> {
         // find the trailing rest parameter
         let Some(rest_index) = parameters.iter().position(|parameter| parameter.is_rest) else {
-            return Ok(parameters);
+            return Ok(Cow::Borrowed(parameters));
         };
 
         // read the substituted rest as a closed tuple
         let rest = self.substitute_type(parameters[rest_index].ty, substitution)?;
         let rest = self.normalize(origin, rest)?;
         let dir::Type::Tuple(tuple) = self.ty(rest)? else {
-            return Ok(parameters);
+            return Ok(Cow::Borrowed(parameters));
         };
 
         // rebuild positional parameters from the tuple elements
@@ -432,7 +437,7 @@ impl CheckState<'_> {
         }
         expanded.extend(parameters[rest_index + 1..].iter().copied());
 
-        Ok(expanded)
+        Ok(Cow::Owned(expanded))
     }
 
     /// Create one substituted function signature type.
@@ -579,9 +584,10 @@ impl CheckState<'_> {
         rest: dir::GlobalTypeId,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::InstanceKey>> {
-        // slice parameters pack in place
+        // slice parameters pack in place under any form
         let reduced = self.deeply_resolve(origin, rest)?;
-        if matches!(self.ty(reduced)?, dir::Type::Slice(_)) {
+        let collection = self.strip_form(origin, reduced)?;
+        if matches!(self.ty(collection)?, dir::Type::Slice(_)) {
             return Ok(None);
         }
 
@@ -619,15 +625,17 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let reduced = self.deeply_resolve(origin, rest)?;
 
-        // resolve the element of a placed collection in the collection's place
-        if let dir::Type::Form(form) = self.ty(reduced)?
-            && let dir::Form::Managed { place } = form.form
-        {
+        // read the element through the collection's form, a placed one in the collection's place
+        if let dir::Type::Form(form) = self.ty(reduced)? {
             let Some(element) = self.rest_element_type(origin, form.value)? else {
                 return Ok(None);
             };
-
-            let element = self.resolve_relative_place(origin, element, place)?;
+            let element = match form.form {
+                dir::Form::Managed { place } => {
+                    self.resolve_relative_place(origin, element, place)?
+                }
+                _ => element,
+            };
 
             return Ok(Some(element));
         }
@@ -782,9 +790,8 @@ impl CheckState<'_> {
         expectation: Option<Expectation>,
     ) -> CompilerResult<SignatureMatch> {
         // reject argument counts outside the accepted arity
-        let signature_parameters = self
-            .signature_parameters(signature_module, function.parameters)?
-            .to_vec();
+        let signature_parameters =
+            self.signature_parameters(signature_module, function.parameters)?;
         let required = signature_parameters
             .iter()
             .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
@@ -805,10 +812,15 @@ impl CheckState<'_> {
             return Ok(SignatureMatch::Inapplicable(rejection));
         }
 
-        // bind the receiver before evaluating generic defaults
-        let substitution = receiver.map_or_else(TypeSubstitution::default, |receiver| {
-            TypeSubstitution::default().with_receiver(receiver.ty)
-        });
+        // bind this to the receiver value beneath its forms before evaluating generic defaults
+        let substitution = match receiver {
+            Some(receiver) => {
+                let value = self.strip_form(origin, receiver.ty)?;
+
+                TypeSubstitution::default().with_receiver(value)
+            }
+            None => TypeSubstitution::default(),
+        };
 
         // preserve generic bindings already selected by the callee
         let substitution = substitution.with_carried(carried)?;
@@ -824,7 +836,7 @@ impl CheckState<'_> {
             TypeArgumentInference::Exact
         } else {
             TypeArgumentInference::Callable {
-                parameters: &signature_parameters,
+                parameters: signature_parameters,
                 return_type: function_return,
             }
         };
@@ -863,11 +875,11 @@ impl CheckState<'_> {
         // point this at the applied extension target for bare type receivers
         if let Some(receiver_value) = receiver
             && matches!(
-                self.ty(self.shallow_resolve(receiver_value.ty)?)?,
+                self.resolved_ty(receiver_value.ty)?,
                 dir::Type::Reference(_)
             )
             && let Some(owner) = owner
-            && let Some(dir::Definition::Extension(extension)) = self.definition(owner)?
+            && let Some(dir::Definition::Extension(extension)) = self.definition(owner)?.as_deref()
         {
             let target = extension.target.r#type();
             let applied = self.substitute_type(target, &substitution)?;
@@ -878,7 +890,7 @@ impl CheckState<'_> {
         let invocation = self.constrain_invocation(
             origin,
             function,
-            &signature_parameters,
+            signature_parameters,
             &parameters,
             &substitution,
             receiver,
@@ -948,8 +960,7 @@ impl CheckState<'_> {
             let this_parameter = if receiver_parameter.is_some() {
                 this_parameter
             } else {
-                let receiver_substitution = substitution.clone().with_receiver(receiver.ty);
-                self.substitute_type(this_parameter, &receiver_substitution)?
+                self.substitute_type(this_parameter, substitution)?
             };
             match self.constrain_receiver(origin, receiver, this_parameter)? {
                 Some(adjustments) => receiver_adjustments = Some(adjustments),
@@ -1002,7 +1013,7 @@ impl CheckState<'_> {
 
         // spread a substituted tuple rest into positional parameters
         let signature_parameters =
-            self.spread_tuple_rest_parameters(origin, signature_parameters.to_vec(), substitution)?;
+            self.spread_tuple_rest_parameters(origin, signature_parameters, substitution)?;
 
         // reject argument tails past a fixed parameter count
         let has_rest = signature_parameters
@@ -1088,7 +1099,7 @@ impl CheckState<'_> {
         let mut const_variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
         for parameter in parameters {
             if self
-                .generic_parameter(*parameter)
+                .generic_parameter(*parameter)?
                 .is_some_and(|binding| binding.is_const && binding.memory_parameter().is_none())
                 && let Some(instance) = substitution.argument(*parameter)
                 && let Some(variable) = self.root_variable(instance)?
@@ -1204,26 +1215,24 @@ impl CheckState<'_> {
         let return_type = self.receiver_relative_type(origin, receiver, return_type)?;
 
         // select each parameter and erase the barriers inference left behind
-        let declared = self
-            .signature_parameters(signature_module, function.parameters)?
-            .to_vec();
+        let declared = self.signature_parameters(signature_module, function.parameters)?;
         let declared = self.spread_tuple_rest_parameters(origin, declared, substitution)?;
         let mut parameters = SmallVec::<[_; 4]>::new();
-        for parameter in declared {
+        for &parameter in declared.iter() {
             let parameter = self.select_parameter(origin, parameter, substitution, receiver)?;
             let parameter = ParameterSelection {
                 parameter: dir::FunctionParameterType {
-                    ty: self.erase_inference_barriers(origin.module(), parameter.parameter.ty)?,
+                    ty: self.erase_inference_barriers(parameter.parameter.ty)?,
                     ..parameter.parameter
                 },
-                argument_type: self
-                    .erase_inference_barriers(origin.module(), parameter.argument_type)?,
+                argument_type: self.erase_inference_barriers(parameter.argument_type)?,
             };
             parameters.push(parameter);
         }
 
-        // intern the instantiated signature alongside its solved arguments
+        // intern the instantiated signature alongside its solved arguments and regions
         let arguments = self.resolved_argument_bindings(&substitution.bindings)?;
+        let regions = self.resolved_region_bindings(&substitution.bindings)?;
         let function_type =
             self.instantiate_signature_type(function, substitution, &parameters, return_type)?;
 
@@ -1233,6 +1242,7 @@ impl CheckState<'_> {
             parameters,
             return_type,
             generic_arguments: arguments.to_vec(),
+            region_arguments: regions,
             receiver_adjustments,
             coercions: SmallVec::new(),
         })
@@ -1370,6 +1380,7 @@ impl dir::TypeFold for SignatureSelection {
         self.parameters.map_types(map)?;
         self.return_type.map_types(map)?;
         self.generic_arguments.map_types(map)?;
+        self.region_arguments.map_types(map)?;
         self.receiver_adjustments.map_types(map)?;
         for (_, coercion) in &mut self.coercions {
             coercion.map_types(map)?;

@@ -5,10 +5,11 @@ use destack_source::{
     Applicability, DiagnosticSuggestion, FilePatch, ModuleId, Patch, PatchSet, Span,
 };
 
+use crate::sema::materialize::INSTANCE_DEPTH_LIMIT;
 use crate::sema::{
     Bound, BoundSide, CauseKind, CheckFailure, CheckState, FailedCheck, MixedObjectSignature,
-    ObligationFailure, OperatorOperands, Origin, Relation, SignatureRejection, UncoveredValue,
-    ValueUse, Variance,
+    ObligationFailure, OperatorOperands, Origin, Pass, Relation, SignatureRejection,
+    UncoveredValue, ValueUse, Variance,
 };
 use crate::{CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor};
 
@@ -84,6 +85,18 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report a parameter initializer on an ambient signature.
+    pub(in crate::sema) fn report_parameter_initializer_outside_implementation(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ParameterInitializerOutsideImplementation { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report a written visibility modifier on one interface member.
     pub(in crate::sema) fn report_interface_member_visibility(
         &mut self,
@@ -104,6 +117,54 @@ impl CheckState<'_> {
     ) {
         let anchor = self.diagnostic_anchor(module, source);
         let diagnostic = CheckError::ConstructorResultAnnotation { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a constructor receiver annotation.
+    pub(in crate::sema) fn report_constructor_receiver_annotation(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ConstructorReceiverAnnotation { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a this expression ahead of the super call.
+    pub(in crate::sema) fn report_this_before_super(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ThisBeforeSuper { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a derived class constructor without a super call.
+    pub(in crate::sema) fn report_missing_super_call(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::MissingSuperCall { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a super call outside a derived class constructor.
+    pub(in crate::sema) fn report_super_call_outside_constructor(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::SuperCallOutsideConstructor { anchor, module };
 
         self.report(module, diagnostic);
     }
@@ -347,18 +408,6 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report a Drop conformance whose extension parameters cannot map.
-    pub(in crate::sema) fn report_unmapped_drop_conformance(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-    ) {
-        let module = source.module_id;
-        let anchor = self.diagnostic_anchor(module, source.local_id);
-        let diagnostic = CheckError::UnmappedDropConformance { anchor, module };
-
-        self.report(module, diagnostic);
-    }
-
     /// Report a missing explicit method receiver.
     pub(in crate::sema) fn report_missing_explicit_receiver(
         &mut self,
@@ -399,7 +448,7 @@ impl CheckState<'_> {
             anchor,
             module,
             argument: self.format_type(argument),
-            parameter: self.parameter_label(parameter),
+            parameter: self.parameter_label(parameter)?,
         };
 
         self.report(module, error);
@@ -417,7 +466,7 @@ impl CheckState<'_> {
         let error = CheckError::ValueReadNotFixed {
             anchor,
             module,
-            parameter: self.parameter_label(parameter),
+            parameter: self.parameter_label(parameter)?,
         };
 
         self.report(module, error);
@@ -444,11 +493,12 @@ impl CheckState<'_> {
     }
 
     /// Return one parameter's reported name.
-    fn parameter_label(&self, parameter: dir::GlobalGenericParameterId) -> String {
-        self.generic_parameter(parameter)
+    fn parameter_label(&self, parameter: dir::GlobalGenericParameterId) -> CompilerResult<String> {
+        Ok(self
+            .generic_parameter(parameter)?
             .and_then(|binding| binding.symbol)
             .map(|symbol| self.format_symbol(symbol))
-            .unwrap_or_else(|| "the parameter".to_string())
+            .unwrap_or_else(|| "the parameter".to_string()))
     }
 
     /// Emit one path naming no visible declaration, suggesting the closest name in scope.
@@ -707,8 +757,8 @@ impl CheckState<'_> {
         let mut diagnostic = DiagnosticBuilder::new(warning);
         let state = self.module(module);
         if let (Some(node_span), Some(value_span)) = (
-            state.diagnostic_span(node.local_id),
-            state.diagnostic_span(value.local_id),
+            state.source_span(node.local_id),
+            state.source_span(value.local_id),
         ) && node_span.file == value_span.file
             && value_span.end < node_span.end
         {
@@ -2201,19 +2251,6 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Build the diagnostic for one unstable overwrite.
-    fn overwrite_stability_diagnostic(
-        anchor: DiagnosticAnchor,
-        module: ModuleId,
-        ty: String,
-    ) -> DiagnosticBuilder<CheckError> {
-        let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
-
-        DiagnosticBuilder::new(error)
-            .note("overwriting may invalidate live borrows of the old value")
-            .help("write through an exclusive or owned path or store an overwrite-stable type")
-    }
-
     /// Report one failed obligation.
     pub(in crate::sema) fn report_obligation_failure(
         &mut self,
@@ -2358,13 +2395,6 @@ impl CheckState<'_> {
                 };
 
                 self.report(module, error);
-            }
-            ObligationFailure::OverwriteStabilityNotSatisfied { source, ty } => {
-                let (module, anchor) = self.source_anchor(source);
-                let ty = self.format_type(ty);
-                let diagnostic = Self::overwrite_stability_diagnostic(anchor, module, ty);
-
-                self.report(module, diagnostic);
             }
             ObligationFailure::CircularType { source } => {
                 let error = self.circular_type_error(Origin::Node(source, None))?;
@@ -2705,10 +2735,6 @@ impl CheckState<'_> {
 
                 error.into()
             }
-            dir::AutoInterface::OverwriteStable => {
-                let ty = self.format_type(ty);
-                Self::overwrite_stability_diagnostic(anchor, module, ty)
-            }
             dir::AutoInterface::AtomicSafe
             | dir::AutoInterface::Integer
             | dir::AutoInterface::IntegerDomain
@@ -2921,27 +2947,13 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one closed type that keeps a computation no reduction settles.
-    pub(in crate::sema) fn report_type_computation_not_reduced(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-        let ty = self.format_type(ty);
-        let error = CheckError::TypeComputationNotReduced { anchor, module, ty };
-        self.report(module, error);
-
-        Ok(())
-    }
-
     /// Report one type instantiation that nests past the followed depth.
     pub(in crate::sema) fn report_excessive_type_instantiation(
         &mut self,
         origin: Origin,
     ) -> CompilerResult<()> {
-        // report once the checking pass evaluates the instantiation
-        if self.is_declaring() {
+        // report once, from the checking pass alone
+        if self.pass != Pass::Check {
             return Ok(());
         }
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
@@ -2974,6 +2986,24 @@ impl CheckState<'_> {
             source,
         };
 
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one instantiation chain reaching past the depth limit.
+    pub(in crate::sema) fn report_instantiation_depth_exceeded(
+        &mut self,
+        site: dir::GlobalNodeIdAny,
+        template: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.source_anchor(site);
+        let error = CheckError::InstantiationDepthExceeded {
+            anchor,
+            module,
+            source: self.format_symbol(template),
+            limit: INSTANCE_DEPTH_LIMIT,
+        };
         self.report(module, error);
 
         Ok(())

@@ -1,13 +1,17 @@
+use std::sync::Arc;
+
 use destack_artifact::{
     ArtifactKey, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
-    DiagnosticLike, DiagnosticRecord, EnvironmentBound, EnvironmentDeclared,
+    DiagnosticLike, DiagnosticRecord, DirBound, DirChecked, DirDeclared, DirElaborated,
+    DirExpanded, DirImported, DirParsed, DirResolved, DirView, EnvironmentBound,
+    EnvironmentDeclared,
 };
 use destack_dir as dir;
 use destack_formatter::format_file_tree;
 use destack_repository::{FormatterOptions, ProviderContext, Revision};
 use destack_source::{DiagnosticLabel, ModuleId, ProfileId};
 
-use crate::sema::{CheckModuleState, CheckState, Pass};
+use crate::sema::{CheckModuleState, CheckState, ExternalModuleTable, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 use super::r#type::TypeReifier;
@@ -17,27 +21,9 @@ impl CheckState<'_> {
     fn render_checked_source(&mut self) -> CompilerResult<String> {
         let module_id = self.module_id;
         let state = self.module(module_id);
-        let checked = state
-            .checked
-            .as_ref()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("checked source has no checked DIR: {module_id}"),
-            })?;
-        let declared = state
-            .declared
-            .as_ref()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("checked source has no declared DIR: {module_id}"),
-            })?;
-        let elaborated = state
-            .elaborated
-            .as_ref()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("checked source has no elaborated DIR: {module_id}"),
-            })?;
-        let decisions = checked.decision_table(declared, elaborated);
-        let coercions = checked.coercion_table();
-        let generics = checked.generic_table(declared, elaborated);
+        let decisions = state.decisions.clone();
+        let coercions = state.coercions.clone();
+        let generics = state.generics.clone();
 
         self.render_source(module_id, decisions, coercions, generics)
     }
@@ -52,15 +38,18 @@ impl CheckState<'_> {
     ) -> CompilerResult<String> {
         let state = self.module(module_id);
         let file_id = state.module.file_id;
-        let Some(parsed_file) = state.parsed.file(file_id) else {
+        let uri = state.module.uri.clone();
+        let parsed = Arc::clone(&state.parsed);
+        let Some(parsed_file) = parsed.file(file_id) else {
             return Err(CompilerError::Internal {
-                message: format!("checked module has no parsed source: {}", state.module.uri),
+                message: format!("checked module has no parsed source: {uri}"),
             });
         };
         let roots = parsed_file.roots.as_slice();
 
         // write solved types into a cloned source tree
-        let tree = SourceReifier::new(self, state, decisions, coercions, generics).run()?;
+        let reifier = SourceReifier::new(self, module_id, &parsed, decisions, coercions, generics);
+        let tree = reifier.run()?;
 
         // print the amended tree through the canonical formatter
         let file = self.compiler.file(self.context, file_id)?;
@@ -75,10 +64,7 @@ impl CheckState<'_> {
             FormatterOptions::default(),
         )
         .map_err(|error| CompilerError::Internal {
-            message: format!(
-                "annotated formatting failed for {}: {error}",
-                state.module.uri
-            ),
+            message: format!("annotated formatting failed for {uri}: {error}"),
         })?;
 
         Ok(content)
@@ -105,16 +91,35 @@ impl Compiler {
         let environment = self.environment(context.revision())?;
 
         // load the retained checked module
-        let module_state = CheckModuleState::load(
+        let view = DirView::checked(
+            artifacts.read::<DirParsed>(module)?,
+            artifacts.read::<DirBound>((module, profile))?,
+            artifacts.read::<DirImported>((module, profile))?,
+            artifacts.read::<DirExpanded>((module, profile))?,
+            artifacts.read::<DirResolved>((module, profile))?,
+            artifacts.read::<DirDeclared>((module, profile))?,
+            artifacts.read::<DirElaborated>((module, profile))?,
+            artifacts.read::<DirChecked>((module, profile))?,
+        );
+        let types = view.types().clone();
+        let lists = dir::TypeListArena::following(
+            types
+                .segments()
+                .last()
+                .unwrap_or_else(|| unreachable!("a DIR view without type segments")),
+        );
+        let externals = ExternalModuleTable::default();
+        let state = CheckModuleState::load(
             self,
-            &context,
-            &artifacts,
-            profile,
+            context.revision(),
             module,
-            Pass::Materialize,
+            profile,
+            view,
+            &types,
+            &lists,
         )?;
 
-        // open check lookup over the retained tables
+        // open check lookup over the retained tables and every module the checked rows mention
         let mut check = CheckState::new(
             self,
             &context,
@@ -123,7 +128,8 @@ impl Compiler {
             environment_bound,
             Some(environment_declared),
             environment,
-            module_state,
+            state,
+            &externals,
             Pass::Check,
             false,
         );
@@ -190,10 +196,10 @@ impl ProviderContext for SourceRenderContext {
 
 /// Source reification pass for one checked module.
 struct SourceReifier<'a, 'b> {
-    /// The checked module state.
-    check: &'a CheckState<'b>,
     /// The module being formatted.
-    state: &'a CheckModuleState,
+    module_id: ModuleId,
+    /// The parsed module the formatted tree copies.
+    parsed: &'a DirParsed,
     /// The type-expression reifier writing synthesized nodes.
     types: TypeReifier<'a, 'b>,
     /// The exact inference decisions retained by checked DIR.
@@ -207,18 +213,20 @@ struct SourceReifier<'a, 'b> {
 impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Create a source reifier for one module.
     fn new(
-        check: &'a CheckState<'b>,
-        state: &'a CheckModuleState,
+        check: &'a mut CheckState<'b>,
+        module_id: ModuleId,
+        parsed: &'a DirParsed,
         decisions: dir::DecisionTable<'static>,
         coercions: dir::CoercionTable<'static>,
         generics: dir::GenericTable<'static>,
     ) -> Self {
-        let tree = state.parsed.tree.clone();
-        let types = TypeReifier::new(check, tree, check.strings());
+        let tree = parsed.tree.clone();
+        let strings = check.strings();
+        let types = TypeReifier::new(check, tree, strings);
 
         Self {
-            check,
-            state,
+            module_id,
+            parsed,
             decisions,
             coercions,
             generics,
@@ -241,8 +249,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify type expression holes from their solved check results.
     fn reify_type_expressions(&mut self) -> CompilerResult<()> {
-        let module_id = self.state.module.id;
-        let view = dir::View::new(&self.state.parsed.tree);
+        let module_id = self.module_id;
+        let view = dir::View::new(&self.parsed.tree);
         for (hole_id, expression) in view.iter_nodes::<dir::TypeExpression>() {
             if !matches!(
                 expression,
@@ -256,6 +264,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
             // read the hole's solved type from its node
             let ty = self
+                .types
                 .check
                 .require_node_type(hole_id.into_global_any(module_id))?;
             self.anchor(hole_id.into_any());
@@ -272,8 +281,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify declaration-level checked types and induced lifetime parameters.
     fn reify_declarations(&mut self) -> CompilerResult<()> {
-        let module_id = self.state.module.id;
-        let view = dir::View::new(&self.state.parsed.tree);
+        let module_id = self.module_id;
+        let view = dir::View::new(&self.parsed.tree);
         for (declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
             self.reify_declaration_generic_parameters(module_id, declaration_id)?;
             self.reify_declaration_return(declaration_id, declaration)?;
@@ -291,6 +300,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         // declared templates index by symbol, anonymous ones by source
         let source = declaration_id.into_global_any(module_id);
         let symbol = self
+            .types
             .check
             .module(module_id)
             .declaration_symbol(declaration_id.into_any());
@@ -311,7 +321,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             }
 
             self.anchor(declaration_id.into_any());
-            let Some(parameter) = self.types.reify_generic_parameter(&binding)? else {
+            let id = parameter.into_global(module_id);
+            let Some(parameter) = self.types.reify_generic_parameter(id, &binding)? else {
                 continue;
             };
             induced.push(parameter);
@@ -404,13 +415,13 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify binding declarator checked types.
     fn reify_declarators(&mut self) -> CompilerResult<()> {
-        let view = dir::View::new(&self.state.parsed.tree);
+        let view = dir::View::new(&self.parsed.tree);
         for (declarator_id, declarator) in view.iter_nodes::<dir::Declarator>() {
             if !matches!(view.get(declarator.pattern), dir::Pattern::Binding { .. }) {
                 continue;
             }
 
-            let Some(ty) = self.declaration_site_type(declarator.pattern.into_any()) else {
+            let Some(ty) = self.declaration_site_type(declarator.pattern.into_any())? else {
                 continue;
             };
 
@@ -427,10 +438,10 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify named parameter checked types.
     fn reify_parameters(&mut self) -> CompilerResult<()> {
-        let view = dir::View::new(&self.state.parsed.tree);
+        let view = dir::View::new(&self.parsed.tree);
         for (parameter_id, parameter) in view.iter_nodes::<dir::Parameter>() {
             if let Some(dir::StaticKey::Name(name)) = parameter.symbol_key()
-                && self.check.strings().get(name) == "this"
+                && self.types.check.strings().get(name) == "this"
             {
                 continue;
             }
@@ -441,7 +452,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 continue;
             }
 
-            let Some(ty) = self.declaration_site_type(parameter_id.into_any()) else {
+            let Some(ty) = self.declaration_site_type(parameter_id.into_any())? else {
                 continue;
             };
             self.anchor(parameter_id.into_any());
@@ -466,12 +477,12 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify member checked types.
     fn reify_members(&mut self) -> CompilerResult<()> {
-        let view = dir::View::new(&self.state.parsed.tree);
+        let view = dir::View::new(&self.parsed.tree);
         for (member_id, member) in view.iter_nodes::<dir::Member>() {
             match member {
                 // reify field types
                 dir::Member::Field { .. } => {
-                    let Some(ty) = self.declaration_site_type(member_id.into_any()) else {
+                    let Some(ty) = self.declaration_site_type(member_id.into_any())? else {
                         continue;
                     };
                     self.anchor(member_id.into_any());
@@ -509,8 +520,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
 
     /// Reify expression-level selected arguments.
     fn reify_expressions(&mut self) -> CompilerResult<()> {
-        let module_id = self.state.module.id;
-        let view = dir::View::new(&self.state.parsed.tree);
+        let module_id = self.module_id;
+        let view = dir::View::new(&self.parsed.tree);
         for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             match expression {
                 dir::Expression::Call { .. } => {
@@ -541,7 +552,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         let source = expression_id.into_global_any(module_id);
-        let ty = self.check.require_node_type(source)?;
+        let ty = self.types.check.require_node_type(source)?;
 
         self.anchor(expression_id.into_any());
         let Some(value) = self.types.reify_static(ty)? else {
@@ -583,7 +594,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         let symbol = key.symbol;
 
         self.anchor((*left).into_any());
-        let Some(reified) = self.types.reify_symbol_expression(symbol) else {
+        let Some(reified) = self.types.reify_symbol_expression(symbol)? else {
             return Ok(());
         };
         let dir::Expression::Call { left, .. } = self.types.tree.get_mut(expression_id) else {
@@ -688,7 +699,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         };
 
         let node = expression_id.into_global_any(module_id);
-        let target = self.check.require_node_type(node)?;
+        let target = self.types.check.require_node_type(node)?;
 
         self.anchor(ty.into_any());
         let Some(reified) = self.types.reify(target)? else {
@@ -733,22 +744,22 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         &mut self,
         site: dir::LocalNodeIdAny,
     ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
-        let Some(ty) = self.declaration_site_type(site) else {
+        let Some(ty) = self.declaration_site_type(site)? else {
             return Ok(None);
         };
 
         // look through function values to their signature
-        let mut signature = self.check.shallow_resolve(ty)?;
+        let mut signature = self.types.check.shallow_resolve(ty)?;
         loop {
-            match self.check.ty(signature)? {
+            match self.types.check.ty(signature)? {
                 dir::Type::Function(function) => {
-                    signature = self.check.shallow_resolve(function.signature)?;
+                    signature = self.types.check.shallow_resolve(function.signature)?;
                 }
                 dir::Type::FunctionSignature(_) => break,
                 _ => return Ok(None),
             }
         }
-        let Some(function) = self.check.signature_head(signature)? else {
+        let Some(function) = self.types.check.signature_head(signature)? else {
             unreachable!("the signature loop stops on function signatures");
         };
 
@@ -761,23 +772,28 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     }
 
     /// Return the solved type bound at one declaration site.
-    fn declaration_site_type(&self, site: dir::LocalNodeIdAny) -> Option<dir::GlobalTypeId> {
-        let module_id = self.state.module.id;
-        let symbol = self
-            .state
+    fn declaration_site_type(
+        &self,
+        site: dir::LocalNodeIdAny,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let module_id = self.module_id;
+        let Some(symbol) = self
+            .types
+            .check
+            .module(module_id)
             .bindings
-            .declaration_symbol(site.into_global(module_id))?;
-        self.check.symbol_type_maybe(symbol.into_global(module_id))
+            .declaration_symbol(site.into_global(module_id))
+        else {
+            return Ok(None);
+        };
+        self.types
+            .check
+            .symbol_type_maybe(symbol.into_global(module_id))
     }
 
     /// Anchor synthesized nodes at one source site.
     fn anchor(&mut self, site: dir::LocalNodeIdAny) {
-        let span = self
-            .state
-            .parsed
-            .tree
-            .source_index
-            .get_main_or_enclosing(site.id);
+        let span = self.parsed.tree.source_index.get_main_or_enclosing(site.id);
         self.types.anchor(span);
     }
 
@@ -789,14 +805,15 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 continue;
             }
 
-            // keep numeric literal widening implicit
-            let renders = coercion.adjustments.iter().any(|adjustment| {
-                !matches!(adjustment, dir::CoercionAdjustment::Materialize { .. })
-            });
+            // keep numeric literal widening implicit, an explicit cast already spelled in source
+            let renders = coercion.origin == dir::CastOrigin::Implicit
+                && coercion.adjustments.iter().any(|adjustment| {
+                    !matches!(adjustment, dir::CoercionAdjustment::Materialize { .. })
+                });
             if !renders {
                 continue;
             }
-            if !self.state.parsed.tree.has_node_id(node.local_id.id) {
+            if !self.parsed.tree.has_node_id(node.local_id.id) {
                 continue;
             }
 

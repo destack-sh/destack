@@ -118,7 +118,7 @@ point satisfies ^Point;
 /// @type.node source="point satisfies ^Point" type=Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=point root=point
 /// @resolution.name source=Point target=Point
 "#,
@@ -155,28 +155,25 @@ let buffer: Buffer = makeBuffer();
 === dir ===
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<int32, \"exclusive\">" template=elementSlot arguments=(int32, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32[], usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>)
-/// @generic.instance id="initAsPointer<int32, \"exclusive\">" template=initAsPointer arguments=(int32, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32>) => Raw<int32>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32>)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int32>> template=MaybeUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32>) => Raw<int32>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32>)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
-/// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32[], usize) => &truncate.'a exclusive MaybeUninit<int32>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32[])
 /// @definition.struct symbol=Buffer
 /// @definition.field symbol=Buffer.values source="values: int32[]" key=values type=int32[]
 
     values: int32[];
     /// @type.symbol symbol=Buffer.values source="values: int32[]" type=int32[]
+    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+    /// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
+    /// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
+    /// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
+    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+    /// @generic.instance id=Array<int32> template=Array arguments=(int32)
+    /// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
+    /// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
+    /// @generic.instance id=clear<int32> template=clear arguments=(int32)
+    /// @generic.instance id=drop<int32> template=drop arguments=(int32)
+    /// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
+    /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
+    /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
+    /// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 
 }
 
@@ -593,7 +590,7 @@ function witness<T: Copy>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=witness.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=witness.value
 
 }
@@ -796,9 +793,9 @@ const bag: Bag<int32> = gather<^Bag<int32>>() as Bag<int32>;
 
 === dir ===
 newtype interface Collect<T> {
-/// @generic.template symbol=Collect parameters=(in T#1)
+/// @generic.template symbol=Collect parameters=(in T#1, this: Collect<T#1>)
 /// @type.symbol symbol=Collect type=Collect
-/// @definition.interface symbol=Collect template=(in T#1) nominal=true
+/// @definition.interface symbol=Collect template=(in T#1, this: Collect<T#1>) nominal=true
 /// @definition.where symbol=Collect relation=satisfies left=this right=Collect<T#1>
 /// @definition.method symbol=Collect.add source="add(value: T): void" slot=add type=(this: this, T#1) => void
 /// @type.symbol symbol=Collect.T source=T type=T#1
@@ -815,7 +812,7 @@ class Bag<T> {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag template=(in out T#2)
 /// @definition.field symbol=Bag.last source="last: T | undefined" key=last type=T#2 | undefined
-/// @definition.method symbol=Bag.constructor slot=constructor role=constructor type=<Bag.constructor.P0: Place>() => Managed<this, Bag.constructor.P0>
+/// @definition.method symbol=Bag.constructor slot=constructor role=constructor type=<Bag.constructor.P0: Place>() => Managed<Bag<T#2>, Bag.constructor.P0>
 /// @type.symbol symbol=Bag.T source=T type=T#2
 
     last: T | undefined;
@@ -824,7 +821,7 @@ class Bag<T> {
 
     constructor() {
     /// @generic.template symbol=Bag.constructor parent=template#1 parameters=(P0: Place)
-    /// @type.symbol symbol=Bag.constructor type=<Bag.constructor.P0: Place>() => Managed<this, Bag.constructor.P0>
+    /// @type.symbol symbol=Bag.constructor type=<Bag.constructor.P0: Place>() => Managed<Bag<T#2>, Bag.constructor.P0>
     /// @type.symbol symbol=Bag.constructor.this type=Bag<T#2>
 
         this.last = undefined;
@@ -832,7 +829,7 @@ class Bag<T> {
         /// @type.node source=this type=Bag<T#2>
         /// @type.node source=this.last type=T#2 | undefined
         /// @resolution.receiver source=this kind=this declaration=Bag type=Bag<T#2>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.last kind=place
         /// @resolution.access source=this.last root=this keys=[last]
@@ -844,9 +841,11 @@ class Bag<T> {
 
 extension<T> of ^Bag<T> implements Collect<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
+/// @generic.instance id=Bag<T#3> template=Bag arguments=(T#3)
+/// @generic.instance id=Collect<T#3> template=Collect arguments=(T#3)
 /// @definition.extension symbol=<module>#2 form=local target=^Bag<T#3>
 /// @definition.implements symbol=<module>#2 source=Collect<T> target=Collect<T#3>
-/// @definition.method symbol=add source="add(value: T): void {}" slot=add type=(this: this, T#3) => void
+/// @definition.method symbol=add source="add(value: T): void {}" slot=add type=(this: ^Bag<T#3>, T#3) => void
 /// @definition.conformance symbol=<module>#2 member=add requirement=Collect.add
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Bag target=Bag
@@ -855,7 +854,7 @@ extension<T> of ^Bag<T> implements Collect<T> {
 /// @resolution.name source=T target=T
 
     add(value: T): void {}
-    /// @type.symbol symbol=add source="add(value: T): void {}" type=(this: this, T#3) => void
+    /// @type.symbol symbol=add source="add(value: T): void {}" type=(this: ^Bag<T#3>, T#3) => void
     /// @type.symbol symbol=add.this type=^Bag<T#3>
     /// @type.symbol symbol=add.value source="value: T" type=T#3
     /// @resolution.name source=T target=T
@@ -880,6 +879,7 @@ const bag = gather<^Bag<int32>>();
 /// @resolution.name source=gather target=gather
 /// @resolution.call source=gather<^Bag<int32>>() parameters=() return=^Bag<int32> kind=symbol target=gather instance=gather<^Bag<int32>>
 /// @generic.instantiation id=gather<^Bag<int32>> template=gather arguments=(^Bag<int32>)
+/// @generic.instance id=add<int32> template=add arguments=(int32)
 /// @generic.instance id=gather<^Bag<int32>> template=gather arguments=(^Bag<int32>)
 /// @resolution.name source=Bag target=Bag
 "#,
@@ -933,9 +933,9 @@ const point: Point = gather<^Point>();
 
 === dir ===
 newtype interface Collect<T> {
-/// @generic.template symbol=Collect parameters=(in T)
+/// @generic.template symbol=Collect parameters=(in T, this: Collect<T>)
 /// @type.symbol symbol=Collect type=Collect
-/// @definition.interface symbol=Collect template=(in T) nominal=true
+/// @definition.interface symbol=Collect template=(in T, this: Collect<T>) nominal=true
 /// @definition.where symbol=Collect relation=satisfies left=this right=Collect<T>
 /// @definition.method symbol=Collect.add source="add(value: T): void" slot=add type=(this: this, T) => void
 /// @type.symbol symbol=Collect.T source=T type=T
@@ -1025,8 +1025,6 @@ const values = Deque.from([1, 2, 3]);
 /// @type.symbol symbol=values source=values type=Deque<int64>
 /// @resolution.pattern source=values kind=binding target=values
 /// @generic.instance id=Deque<int64> template=Deque arguments=(int64)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int64>> template=MaybeUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
@@ -1034,35 +1032,21 @@ const values = Deque.from([1, 2, 3]);
 /// @resolution.member source=Deque.from receiver=Deque type=(Iterable<T#4>) => ^Deque<T#4> kind=symbol target_receiver=Deque target=from#1
 /// @resolution.call source="Deque.from([1, 2, 3])" parameters=(Iterable<int64>) arguments=(provided([1, 2, 3]) as Iterable<int64>) return=^Deque<int64> kind=symbol target=from#1 instance=Deque<int64>.<extension#4>.from#1
 /// @generic.instantiation id=from#1<int64> template=from#1 arguments=(int64)
-/// @generic.instance id="DropIterator<Iterator<int64>, int64>" template=DropIterator arguments=(Iterator<int64>, int64)
-/// @generic.instance id="DropWhileIterator<Iterator<int64>, int64>" template=DropWhileIterator arguments=(Iterator<int64>, int64)
-/// @generic.instance id="EnumeratedIterator<Iterator<int64>, int64>" template=EnumeratedIterator arguments=(Iterator<int64>, int64)
-/// @generic.instance id="FilterIterator<Iterator<int64>, int64>" template=FilterIterator arguments=(Iterator<int64>, int64)
-/// @generic.instance id="InspectIterator<Iterator<int64>, int64>" template=InspectIterator arguments=(Iterator<int64>, int64)
-/// @generic.instance id="Iterator.collect<Iterator<int64>, int64, ^int64[]>" template=Iterator.collect arguments=(int64, ^int64[])
-/// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
-/// @generic.instance id="PeekableIterator<Iterator<int64>, int64>" template=PeekableIterator arguments=(Iterator<int64>, int64) evaluated=(IteratorResult<PeekableIterator.T, PeekableIterator.I.Return> | undefined => IteratorResult<int64, void> | undefined)
-/// @generic.instance id="TakeIterator<Iterator<int64>, int64>" template=TakeIterator arguments=(Iterator<int64>, int64)
-/// @generic.instance id="TakeWhileIterator<Iterator<int64>, int64>" template=TakeWhileIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id=Iterable<int64> template=Iterable arguments=(int64)
-/// @generic.instance id=Iterator<int64> template=Iterator arguments=(int64) evaluated=(<Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: this, Function<(Iterator.T, isize), Iterator.flatMap.V>) => FlatMapIterator<this, Iterator.T, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U> => <Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: Iterator<int64>, Function<(int64, isize), Iterator.flatMap.V>) => FlatMapIterator<Iterator<int64>, int64, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U>, <Iterator.chain.V: Iterable<Iterator.T>>(this: this, Iterator.chain.V) => ChainIterator<this, Iterator.chain.V.Iterator, Iterator.T> => <Iterator.chain.V: Iterable<Iterator.T>>(this: Iterator<int64>, Iterator.chain.V) => ChainIterator<Iterator<int64>, Iterator.chain.V.Iterator, int64>, <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: this, Iterator.zip.V) => ZipIterator<this, Iterator.zip.V.Iterator, Iterator.T, Iterator.zip.U> => <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: Iterator<int64>, Iterator.zip.V) => ZipIterator<Iterator<int64>, Iterator.zip.V.Iterator, int64, Iterator.zip.U>, <Iterator.tryFold.F: Try>(this: this, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, Iterator.T, isize), Iterator.tryFold.F>) => Iterator.tryFold.F => <Iterator.tryFold.F: Try>(this: Iterator<int64>, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, int64, isize), Iterator.tryFold.F>) => Iterator.tryFold.F)
-/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
-/// @generic.instance id=IteratorYield<int64> template=IteratorYield arguments=(int64)
 /// @generic.instance id=from#1<int64> template=from#1 arguments=(int64)
 /// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="elementSlot<int64, \"exclusive\">" template=elementSlot arguments=(int64, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int64[], usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int64>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int64>>, usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int64>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int64>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int64>>, usize) => &elementSlot.'a exclusive MaybeUninit<int64>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int64[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int64>>)
-/// @generic.instance id="initAsPointer<int64, \"exclusive\">" template=initAsPointer arguments=(int64, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int64>) => Raw<int64>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int64>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int64>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int64>)
+/// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
+/// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
-/// @generic.instance id=Slice<int64> template=Slice arguments=(int64)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int64>) => Raw<int64>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int64>)
+/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
 /// @generic.instance id=clear<int64> template=clear arguments=(int64)
 /// @generic.instance id=drop<int64> template=drop arguments=(int64)
 /// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
@@ -1071,7 +1055,7 @@ const values = Deque.from([1, 2, 3]);
 /// @generic.instance id=size<int64> template=size arguments=(int64)
 /// @generic.instance id=sliceIntoUninit<int64> template=sliceIntoUninit arguments=(int64)
 /// @generic.instance id=sliceLength<int64> template=sliceLength arguments=(int64)
-/// @generic.instance id=truncate<int64> template=truncate arguments=(int64) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int64>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int64[], usize) => &truncate.'a exclusive MaybeUninit<int64>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int64[])
+/// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 "#,
     );
 }
@@ -1173,15 +1157,15 @@ function build(): string {
 
     output += "x";
     /// @resolution.name source=output target=build.output
-    /// @resolution.operator source="output += \"x\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided("x") as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
+    /// @resolution.operator source="output += \"x\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided("x") as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
     /// @resolution.pattern.assign source=output kind=place
-    /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
     /// @resolution.assignment source=output read=binding(build.output) write=binding(build.output) type=string
     /// @resolution.access source=output root=build.output
 
     return output;
     /// @resolution.name source=output target=build.output
-    /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=output root=build.output
 
 }

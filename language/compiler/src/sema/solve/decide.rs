@@ -97,8 +97,14 @@ impl CheckState<'_> {
                 false => &[BoundSide::Lower],
             };
             for side in sides {
-                for bound in self.infer.variables.side_bounds(variable, *side)? {
-                    is_decided |= !self.type_flags(bound.ty)?.has_variable();
+                let bounds: Vec<_> = self
+                    .infer
+                    .variables
+                    .side_bounds(variable, *side)?
+                    .map(|bound| bound.ty)
+                    .collect();
+                for ty in bounds {
+                    is_decided |= !self.type_flags(ty)?.has_variable();
                 }
             }
             is_open |= !is_decided;

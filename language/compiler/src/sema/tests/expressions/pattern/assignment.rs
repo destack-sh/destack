@@ -58,7 +58,7 @@ declare const point: { x: int32; y: string };
 /// @resolution.assignment source=label write=binding(label) type=string
 /// @type.node source=point type={ x: int32; y: string }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 "#,
     );
@@ -106,8 +106,10 @@ declare const values: [int32; 3];
 /// @type.node source="[first, , last] = values" type=FixedArray<int32, 3>
 /// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
 /// @resolution.access source=[first, , last] root=values
-/// @generic.instantiation id="index#1<int32, 3, \"exclusive\">" template=index#1 arguments=(int32, 3, "exclusive")
-/// @generic.instance id="index#1<int32, 3, \"exclusive\">" template=index#1 arguments=(int32, 3, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a FixedArray<T#1, N#1>, index.A>, isize) => WithAccess<&index#1.'a T#1, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive FixedArray<int32, 3>, isize) => &index#1.'a exclusive int32)
+/// @generic.instantiation id="index#1<int32, 3, \"mutable\">" template=index#1 arguments=(int32, 3, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 FixedArray<int32, 3>, \"mutable\">" template=WithAccess arguments=(&'bound0 FixedArray<int32, 3>, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
+/// @generic.instance id="index#1<int32, 3, \"mutable\">" template=index#1 arguments=(int32, 3, "mutable")
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
 /// @resolution.pattern.assign source=first kind=place
@@ -188,7 +190,7 @@ declare const user: { name: string; age: int32; active: boolean };
 /// @resolution.assignment source=rest write=binding(rest) type={ age: int32; active: boolean }
 /// @type.node source=user type={ name: string; age: int32; active: boolean }
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 "#,
     );
@@ -226,25 +228,21 @@ let head: int32 = 0;
 let tail: int32[] = [];
 /// @type.symbol symbol=tail source=tail type=int32[]
 /// @resolution.pattern source=tail kind=binding target=tail
-/// @generic.instance id="initAsPointer<int32, \"exclusive\">" template=initAsPointer arguments=(int32, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32>) => Raw<int32>)
+/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=MaybeUninit<MaybeUninit<int32>> template=MaybeUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
 /// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32>) => Raw<int32>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
 /// @generic.instance id=clear<int32> template=clear arguments=(int32)
 /// @generic.instance id=drop<int32> template=drop arguments=(int32)
 /// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32[], usize) => &truncate.'a exclusive MaybeUninit<int32>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32[])
+/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
-/// @generic.instance id=Slice<int32> template=Slice arguments=(int32)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
 /// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
@@ -260,14 +258,16 @@ declare const values: int32[];
 /// @type.node source="[head, ...tail] = values" type=int32[]
 /// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @resolution.access source=[head, ...tail] root=values
-/// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
+/// @generic.instantiation id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
 /// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="assumeInitReference<int32, \"exclusive\">" template=assumeInitReference arguments=(int32, "exclusive") evaluated=(<assumeInitReference.T, const assumeInitReference.A: Access = "mutable", assumeInitReference.'a>(WithAccess<&assumeInitReference.'a MaybeUninit<assumeInitReference.T>, assumeInitReference.A>) => WithAccess<&assumeInitReference.'a assumeInitReference.T, assumeInitReference.A> => <assumeInitReference.T, const assumeInitReference.A: Access = "mutable", assumeInitReference.'a>(&assumeInitReference.'a exclusive MaybeUninit<int32>) => &assumeInitReference.'a exclusive int32)
-/// @generic.instance id="elementSlot<int32, \"exclusive\">" template=elementSlot arguments=(int32, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32[], usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>)
-/// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#6[], index.A>, isize) => WithAccess<&index#1.'a T#6, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive int32[], isize) => &index#1.'a exclusive int32, WithAccess<&index#1.'a T#6, index.A> => &index#1.'a exclusive int32, WithAccess<&index#1.'a T#6[], index.A> => &index#1.'a exclusive int32[], (WithAccess<&index#1.'a MaybeUninit<T#6>, index.A>) => WithAccess<&index#1.'a T#6, index.A> => (&index#1.'a exclusive MaybeUninit<int32>) => &index#1.'a exclusive int32, WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => &index#1.'a exclusive MaybeUninit<int32>, WithAccess<&index#1.'a T#6, index.A> => &index#1.'a exclusive int32, (WithAccess<&index#1.'a MaybeUninit<T#6>, index.A>) => WithAccess<&index#1.'a T#6, index.A> => (&index#1.'a exclusive MaybeUninit<int32>) => &index#1.'a exclusive int32, WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => &index#1.'a exclusive MaybeUninit<int32>, (WithAccess<&index#1.'a T#6[], index.A>, usize) => WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => (&index#1.'a exclusive int32[], usize) => &index#1.'a exclusive MaybeUninit<int32>, WithAccess<&index#1.'a T#6[], index.A> => &index#1.'a exclusive int32[])
+/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 int32[], \"mutable\">" template=WithAccess arguments=(&'bound0 int32[], "mutable")
+/// @generic.instance id="assumeInitReference<int32, \"mutable\">" template=assumeInitReference arguments=(int32, "mutable")
+/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
+/// @generic.instance id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
 /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=elementPosition<int32> template=elementPosition arguments=(int32)
 /// @type.node source=head type=int32
@@ -282,7 +282,7 @@ declare const values: int32[];
 /// @resolution.assignment source=tail write=binding(tail) type=int32[]
 /// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 "#,
     );
@@ -361,7 +361,7 @@ declare const packet: { point: { x: int32 }; meta: (string,) };
 } = packet);
 /// @type.node source=packet type={ point: { x: int32 }; meta: (string,) }
 /// @resolution.name source=packet target=packet
-/// @resolution.place source=packet placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=packet placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=packet root=packet
 "#,
     );
@@ -442,7 +442,7 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
 } = packet);
 /// @type.node source=packet type={ count?: int32; labels: (string | undefined,) }
 /// @resolution.name source=packet target=packet
-/// @resolution.place source=packet placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=packet placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=packet root=packet
 "#,
     );
@@ -493,7 +493,7 @@ declare const point: { x: int32 };
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 "#,
     );
@@ -542,7 +542,7 @@ declare const bag: { [key: string]: int32 };
 /// @resolution.access source={ [key]: value } root=bag
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=key root=key
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
@@ -551,7 +551,7 @@ declare const bag: { [key: string]: int32 };
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=bag type={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
-/// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=bag root=bag
 "#,
         r#"
@@ -606,12 +606,12 @@ declare const point: { x: int32 };
 /// @resolution.access source={ [key]: value } root=point
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=key root=key
 /// @resolution.name source=value target=value
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 "#,
         r#"

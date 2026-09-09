@@ -92,7 +92,7 @@ impl CheckState<'_> {
                         Some(self.project_expression_place(site, left, ty)?)
                     }
                     Some(_) => None,
-                    None if self.reference_symbol(site.node).is_some() => {
+                    None if self.reference_symbol(site.node)?.is_some() => {
                         self.binding_place(site, ty)?
                     }
                     None => None,
@@ -130,7 +130,7 @@ impl CheckState<'_> {
         site: FlowSite,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::PlaceResolution>> {
-        let Some(symbol) = self.reference_symbol(site.node) else {
+        let Some(symbol) = self.reference_symbol(site.node)? else {
             return Ok(None);
         };
 
@@ -140,7 +140,7 @@ impl CheckState<'_> {
         }
 
         // module bindings live for the program, body bindings for their frame
-        let bindings = self.binding_table(symbol.module_id);
+        let bindings = self.binding_table(symbol.module_id)?;
         let binding = bindings.get_symbol(symbol.local_id);
         let is_static = binding.scope.id == bindings.module_scope().id;
         let is_immutable = binding.binding_mutability == Some(dir::Mutability::Immutable);
@@ -322,20 +322,7 @@ impl CheckState<'_> {
         let placement = self.place_literal(space)?;
         let lifetime = self.lifetime_literal(lifetime)?;
 
-        // owned storage stays unique even in shared space
-        let exclusive = match space {
-            dir::Space::Local => true,
-            dir::Space::Constant => false,
-            dir::Space::Shared => {
-                let chain = self.form_chain(origin, ty)?;
-
-                self.form_ownership(origin, &chain)? == Some(dir::Ownership::Owned)
-            }
-        };
-        let access = match exclusive {
-            true => self.access_literal(dir::Access::Exclusive)?,
-            false => self.access_literal(dir::Access::Mutable)?,
-        };
+        let access = self.access_literal(dir::Access::Mutable)?;
         let place = dir::PlaceResolution {
             placement,
             lifetime,
@@ -382,8 +369,12 @@ impl CheckState<'_> {
         {
             Some(place) => place,
             None => {
+                let is_static = self.member_receiver_space(receiver_site.node, receiver_type)?
+                    == dir::MemberSpace::Static;
                 let is_aliased = self.type_is_aliased(receiver_site.origin(), receiver_type)?;
-                let lifetime = if is_aliased {
+                let lifetime = if is_static {
+                    dir::Lifetime::Static
+                } else if is_aliased {
                     dir::Lifetime::Managed
                 } else {
                     dir::Lifetime::Frame
@@ -577,14 +568,7 @@ impl CheckState<'_> {
                 let read = selection.read.map(dir::ReadResolution::Member);
                 let write = dir::WriteResolution::Member(selection.write);
 
-                let target = self.assignment_target(
-                    read,
-                    write,
-                    source,
-                    receiver,
-                    receiver_place,
-                    initializes,
-                )?;
+                let target = Self::assignment_target(read, write, source, initializes);
 
                 // commit the stored member path
                 if let Some(key) = stored_key {
@@ -618,7 +602,9 @@ impl CheckState<'_> {
                 let index = self.infer_node_type(index_site, PlaceUse::Read)?;
                 let receiver_type = self.readable_value(receiver)?;
                 let space = self.member_receiver_space(receiver_node, receiver)?;
-                let Some(selection) = self.select_subscript(
+
+                // select the subscript operator for the receiver and index
+                let selection = self.select_subscript(
                     origin,
                     module,
                     use_,
@@ -627,28 +613,36 @@ impl CheckState<'_> {
                     space,
                     index_node,
                     index,
-                )?
-                else {
-                    return Ok(None);
-                };
+                )?;
 
-                // require one key conversion across every selected runtime arm
-                if !self.check_subscript_key(index_site, index, selection.key_types())? {
-                    return Ok(None);
-                }
+                // require a selection with a key converting across every selected runtime arm
+                let selection = match selection {
+                    Some(selection)
+                        if self.check_subscript_key(
+                            index_site,
+                            index,
+                            selection.key_types(),
+                        )? =>
+                    {
+                        selection
+                    }
+                    _ => {
+                        self.report_rejected_operator(
+                            source,
+                            origin,
+                            "[]".to_string(),
+                            &[receiver_type, index],
+                        )?;
+
+                        return Ok(None);
+                    }
+                };
                 let is_stored_write = selection.is_stored_write();
                 let Some((read, write)) = selection.into_place() else {
                     return Ok(None);
                 };
 
-                let target = self.assignment_target(
-                    read,
-                    write,
-                    source,
-                    receiver,
-                    receiver_place,
-                    initializes,
-                )?;
+                let target = Self::assignment_target(read, write, source, initializes);
 
                 // commit the stored subscript path
                 if is_stored_write && let Some(key) = index_key {
@@ -697,15 +691,15 @@ impl CheckState<'_> {
                     PlaceUse::Write | PlaceUse::Read => None,
                 };
 
-                // record the exclusive access a write through the pointer requires
+                // record the mutable access a write through the pointer requires
                 let is_aliased = self.type_is_aliased(origin, receiver)?;
-                self.commit_required_access(receiver_node, dir::Access::Exclusive, is_aliased);
+                self.commit_required_access(receiver_node, dir::Access::Mutable, is_aliased);
                 let write = dir::WriteResolution::Dereference(write);
 
                 Ok(Some(AssignmentSelection {
                     read,
                     write,
-                    mode: WriteMode::Indirect { receiver },
+                    mode: WriteMode::Direct,
                     source,
                 }))
             }
@@ -855,7 +849,7 @@ impl CheckState<'_> {
         let setter = &setter.instantiate(origin, self)?;
         let Some(call) = self.select_setter_call(origin, receiver, setter)? else {
             // report the access the refusing setter's receiver requires
-            let mut requested = dir::Access::Exclusive;
+            let mut requested = dir::Access::Mutable;
             if let Some(callable) = setter.callable
                 && let Some(this) = self
                     .signature_head(callable)?
@@ -911,33 +905,24 @@ impl CheckState<'_> {
         Ok(Some((read, write)))
     }
 
-    /// Build one write target with the stability its place requires.
+    /// Build one write target, a constructor initializing its own field or a direct write.
     fn assignment_target(
-        &mut self,
         read: Option<dir::ReadResolution>,
         write: dir::WriteResolution,
         source: dir::GlobalNodeIdAny,
-        receiver: dir::GlobalTypeId,
-        place: dir::PlaceResolution,
         initializes: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<AssignmentSelection> {
-        let mode = if let Some(owner) = initializes {
-            WriteMode::Initialize { owner }
-        } else {
-            match self.access_of(place.access)? {
-                Some(dir::Access::Exclusive) => WriteMode::Direct,
-                Some(dir::Access::Mutable | dir::Access::Readonly) | None => {
-                    WriteMode::Indirect { receiver }
-                }
-            }
+    ) -> AssignmentSelection {
+        let mode = match initializes {
+            Some(owner) => WriteMode::Initialize { owner },
+            None => WriteMode::Direct,
         };
 
-        Ok(AssignmentSelection {
+        AssignmentSelection {
             read,
             write,
             mode,
             source,
-        })
+        }
     }
 
     /// Return the declaration initialized through one direct constructor receiver.

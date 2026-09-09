@@ -30,7 +30,7 @@ impl CheckState<'_> {
         let owner = self.variant_owner(&variant)?;
 
         // treat each enum variant as exactly one value
-        match self.definition(owner.symbol)? {
+        match self.definition(owner.symbol)?.as_deref() {
             Some(dir::Definition::Enum(_)) => Ok(true),
             _ => Err(CompilerError::Internal {
                 message: format!("variant type {ty:?} has non-enum owner {:?}", owner.symbol),
@@ -47,7 +47,8 @@ impl CheckState<'_> {
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
+        let declared = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Enum(definition)) = declared.as_deref() else {
             return Ok(None);
         };
         let variants = definition
@@ -77,7 +78,8 @@ impl CheckState<'_> {
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
+        let declared = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Enum(definition)) = declared.as_deref() else {
             return Ok(None);
         };
 
@@ -111,7 +113,7 @@ impl CheckState<'_> {
         let owner = self.variant_owner(variant)?;
 
         // read the declared discriminant from the owning enum
-        let discriminant = match self.definition(owner.symbol)? {
+        let discriminant = match self.definition(owner.symbol)?.as_deref() {
             Some(dir::Definition::Enum(definition)) => definition
                 .variants()
                 .find(|member| member.symbol == variant.variant)
@@ -160,7 +162,8 @@ impl CheckState<'_> {
         let dir::Type::Application(instance) = self.ty(value)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Enum(definition)) = self.definition(instance.symbol)? else {
+        let declared = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Enum(definition)) = declared.as_deref() else {
             return Ok(None);
         };
 

@@ -84,15 +84,15 @@ impl WalkState<'_, '_> {
             }
 
             // read whether the binding leaves this module
-            let exported = self
-                .declared_symbol(declarator.pattern.into_any())
-                .is_some_and(|symbol| {
-                    self.check
-                        .binding_table(symbol.module_id)
-                        .get_symbol(symbol.local_id)
-                        .export_kind
-                        .is_some()
-                });
+            let exported = match self.declared_symbol(declarator.pattern.into_any()) {
+                Some(symbol) => self
+                    .check
+                    .binding_table(symbol.module_id)?
+                    .get_symbol(symbol.local_id)
+                    .export_kind
+                    .is_some(),
+                None => false,
+            };
 
             // annotations that infer resolve at their initializers
             let infers = !is_ambient
@@ -412,7 +412,7 @@ impl CheckState<'_> {
 
         // require a newtype declaration in the walked module
         let definition = self.module(symbol.module_id).definition(*symbol)?;
-        matches!(definition, dir::Definition::Newtype(_)).then_some(*symbol)
+        matches!(*definition, dir::Definition::Newtype(_)).then_some(*symbol)
     }
 
     /// Return whether an initializer's type transcribes without inference.

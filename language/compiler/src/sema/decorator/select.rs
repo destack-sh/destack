@@ -165,7 +165,7 @@ impl CheckState<'_> {
             let expression = expression.into_typed::<dir::Expression>().local_id;
             let source = expression.into_global_any(module);
             let origin = Origin::Node(source, None);
-            let Some(symbol) = self.reference_symbol(source) else {
+            let Some(symbol) = self.reference_symbol(source)? else {
                 self.report_invalid_derive_interface(origin)?;
                 self.commit_error_node(site.node)?;
 

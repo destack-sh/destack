@@ -120,8 +120,8 @@ const size = float.length;
 /// @type.symbol symbol=size source=size type=isize
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=float target=float
-/// @resolution.member source=float.length receiver="measure" type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
-/// @resolution.place source=float placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=float.length receiver="measure" type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"managed\" & \"local\"))"
+/// @resolution.place source=float placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=float root=float
 "#,
     );

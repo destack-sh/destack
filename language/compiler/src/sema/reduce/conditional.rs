@@ -70,9 +70,11 @@ impl CheckState<'_> {
 
             // continue with a sole branch that heads straight into another conditional
             if let [branch] = branches.as_slice()
-                && let Some(next) = self.conditional_head(origin, *branch)?
+                && let Some((next, alias)) = self.conditional_head(origin, *branch)?
             {
+                // report an endless alias at its declaration, once for every use
                 if steps >= TAIL_CONDITIONAL_LIMIT {
+                    let origin = alias.map_or(origin, Origin::Symbol);
                     self.report_excessive_type_instantiation(origin)?;
 
                     return Ok(Some(self.intern_type(dir::Type::Error)?));
@@ -86,15 +88,16 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the conditional one type heads into through alias applications, if any.
+    /// Return the conditional one type heads into through alias applications and the last alias.
     fn conditional_head(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::ConditionalType>> {
+    ) -> CompilerResult<Option<(dir::ConditionalType, Option<dir::GlobalSymbolId>)>> {
         // walk through alias applications to the head the type reaches
         let mut current = self.shallow_resolve(id)?;
         let mut expanded = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        let mut alias = None;
         loop {
             match self.ty(current)? {
                 // expand alias applications, leaving circular chains to normalization
@@ -104,14 +107,17 @@ impl CheckState<'_> {
                     }
                     expanded.push(current);
                     match self.type_alias_body(origin, current.module_id, &instance)? {
-                        Some(value) => current = self.shallow_resolve(value)?,
+                        Some(value) => {
+                            alias = Some(instance.symbol);
+                            current = self.shallow_resolve(value)?;
+                        }
                         None => return Ok(None),
                     }
                 }
                 // read the conditional out of a type operation
                 dir::Type::Operation(operation) => {
                     return Ok(match self.type_operation(current.module_id, operation)? {
-                        dir::TypeOperation::Conditional(conditional) => Some(conditional),
+                        dir::TypeOperation::Conditional(conditional) => Some((conditional, alias)),
                         _ => None,
                     });
                 }
@@ -136,19 +142,8 @@ impl CheckState<'_> {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(left.module_id, union.elements)?)
             }
             dir::Type::Never if conditional.is_distributive => return Ok(Some(SmallVec::new())),
-            // defer a generic checked type until it reduces
-            dir::Type::Variable(_)
-            | dir::Type::Parameter(_)
-            | dir::Type::Operation(_)
-            | dir::Type::Member(_) => return Ok(None),
-            // leave an enclosing conditional's own binder open
-            dir::Type::Application(instance)
-                if instance.arguments.is_empty()
-                    && self.symbol_kind(instance.symbol)?
-                        == dir::SymbolKind::GenericTypeParameter =>
-            {
-                return Ok(None);
-            }
+            // defer a checked type stuck on its inputs until they close
+            _ if self.is_stuck_head(origin, left)? => return Ok(None),
             _ => SmallVec::from_slice(&[left]),
         };
 
@@ -162,14 +157,13 @@ impl CheckState<'_> {
 
         // choose each element's branch with the element substituted in
         let binders = self.collect_infer_binders(conditional.right)?;
-        let module = origin.module();
         let mut branches = SmallVec::with_capacity(elements.len());
         for &element in &elements {
             let Some(branch) = self.conditional_arm(origin, element, conditional, &binders)? else {
                 return Ok(None);
             };
 
-            branches.push(self.replace_type(module, branch, conditional.left, element)?);
+            branches.push(self.replace_type(branch, conditional.left, element)?);
         }
 
         Ok(Some(branches))
@@ -234,9 +228,6 @@ impl CheckState<'_> {
     }
 
     /// Match one element against the extends pattern with its binders as inference variables.
-    ///
-    /// Covariant captures join and contravariant captures meet.
-    /// The join wins where the meet includes it.
     fn match_infer_pattern(
         &mut self,
         origin: Origin,
@@ -244,9 +235,6 @@ impl CheckState<'_> {
         conditional: dir::ConditionalType,
         binders: &[InferBinder],
     ) -> CompilerResult<CandidateOutcome<dir::GlobalTypeId, InferRejection>> {
-        // spell the pattern in the origin module
-        let module = origin.module();
-
         // open one variable per binder and spell the pattern with them
         let mut variables = SmallVec::<[_; 2]>::with_capacity(binders.len());
         let mut pattern = conditional.right;
@@ -254,7 +242,7 @@ impl CheckState<'_> {
             let variable = self.open_variable(origin);
             let variable_type = self.variable_type(variable)?;
             for &occurrence in &binder.occurrences {
-                pattern = self.replace_type(module, pattern, occurrence, variable_type)?;
+                pattern = self.replace_type(pattern, occurrence, variable_type)?;
             }
             variables.push(variable);
         }
@@ -364,12 +352,8 @@ impl CheckState<'_> {
         let instantiation = (!tails).then_some(origin);
 
         // substitute the solved binders into the chosen branch
-        let branch = self.substitute_infer_captures(
-            instantiation,
-            module,
-            conditional.then_type,
-            &captures,
-        )?;
+        let branch =
+            self.substitute_infer_captures(instantiation, conditional.then_type, &captures)?;
 
         Ok(CandidateOutcome::Accepted(branch))
     }

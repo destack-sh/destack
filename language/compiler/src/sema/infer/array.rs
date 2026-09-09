@@ -414,15 +414,15 @@ impl CheckState<'_> {
         // take the slots a stored value fills without their inference barriers
         let sequence = match sequence {
             Sequence::Element(element) => {
-                Sequence::Element(self.erase_inference_barriers(origin.module(), element)?)
+                Sequence::Element(self.erase_inference_barriers(element)?)
             }
             Sequence::Fixed { element, count } => Sequence::Fixed {
-                element: self.erase_inference_barriers(origin.module(), element)?,
+                element: self.erase_inference_barriers(element)?,
                 count,
             },
             Sequence::Tuple(mut slots) => {
                 for slot in &mut slots {
-                    slot.ty = self.erase_inference_barriers(origin.module(), slot.ty)?;
+                    slot.ty = self.erase_inference_barriers(slot.ty)?;
                 }
 
                 Sequence::Tuple(slots)
@@ -453,7 +453,8 @@ impl CheckState<'_> {
         else {
             return Ok(());
         };
-        let array = self.shallow_strip_forms(self.require_node_type(node)?)?;
+        let array = self.require_node_type(node)?;
+        let array = self.shallow_strip_forms(array)?;
         let Some(element) = self.array_element(array)? else {
             return Ok(());
         };
@@ -473,9 +474,8 @@ impl CheckState<'_> {
                 message: "the array pack constructor misses its signature".to_string(),
             });
         };
-        let parameters = self
-            .signature_parameters(signature_type.module_id, signature.parameters)?
-            .to_vec();
+        let parameters =
+            self.signature_parameters(signature_type.module_id, signature.parameters)?;
         let Some(parameter_type) = parameters.first().map(|parameter| parameter.ty) else {
             return Err(CompilerError::Internal {
                 message: "the array pack constructor declares no slice parameter".to_string(),
@@ -498,6 +498,7 @@ impl CheckState<'_> {
             },
         }];
         let call = dir::Call {
+            regions: Vec::new(),
             target: dir::CallableTarget::Symbol {
                 function: dir::FunctionTarget {
                     receiver: None,

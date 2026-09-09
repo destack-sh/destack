@@ -124,7 +124,7 @@ declare const sharedBox: SharedBox<int32>;
 
 localBox satisfies local LocalBox<int32>;
 /// @resolution.name source=localBox target=localBox
-/// @resolution.place source=localBox placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localBox placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localBox root=localBox
 /// @resolution.name source=LocalBox target=LocalBox
 
@@ -250,15 +250,17 @@ shared enum SharedStatus { Ready }
 /// @type.symbol symbol=SharedStatus.Ready source=Ready type=SharedStatus.Ready
 
 local newtype interface LocalReadable { read(): int32; }
+/// @generic.template symbol=LocalReadable parameters=(this: LocalReadable)
 /// @type.symbol symbol=LocalReadable source="local newtype interface LocalReadable { read(): int32; }" type=LocalReadable
-/// @definition.interface symbol=LocalReadable source="local newtype interface LocalReadable { read(): int32; }" nominal=true
+/// @definition.interface symbol=LocalReadable source="local newtype interface LocalReadable { read(): int32; }" template=(this: LocalReadable) nominal=true
 /// @definition.where symbol=LocalReadable source="local newtype interface LocalReadable { read(): int32; }" relation=satisfies left=this right=LocalReadable
 /// @definition.method symbol=LocalReadable.read source="read(): int32" slot=read type=(this: this) => int32
 /// @type.symbol symbol=LocalReadable.read source="read(): int32" type=(this: this) => int32
 
 shared newtype interface SharedReadable { read(): int32; }
+/// @generic.template symbol=SharedReadable parameters=(this: SharedReadable)
 /// @type.symbol symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" type=SharedReadable
-/// @definition.interface symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" nominal=true
+/// @definition.interface symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" template=(this: SharedReadable) nominal=true
 /// @definition.where symbol=SharedReadable source="shared newtype interface SharedReadable { read(): int32; }" relation=satisfies left=this right=SharedReadable
 /// @definition.method symbol=SharedReadable.read source="read(): int32" slot=read type=(this: this) => int32
 /// @type.symbol symbol=SharedReadable.read source="read(): int32" type=(this: this) => int32
@@ -305,7 +307,7 @@ declare const sharedReadable: SharedReadable;
 
 localUser satisfies local LocalUser;
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localUser root=localUser
 /// @resolution.name source=LocalUser target=LocalUser
 
@@ -341,7 +343,7 @@ sharedStatus satisfies shared SharedStatus;
 
 localReadable satisfies local LocalReadable;
 /// @resolution.name source=localReadable target=localReadable
-/// @resolution.place source=localReadable placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localReadable placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localReadable root=localReadable
 /// @resolution.name source=LocalReadable target=LocalReadable
 
@@ -592,7 +594,7 @@ declare const sharedDerived: SharedDerived;
 
 localDerived satisfies local LocalDerived;
 /// @resolution.name source=localDerived target=localDerived
-/// @resolution.place source=localDerived placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localDerived placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localDerived root=localDerived
 /// @resolution.name source=LocalDerived target=LocalDerived
 
@@ -645,8 +647,9 @@ sharedService satisfies shared SharedServiceImpl;
 
 === dir ===
 local newtype interface LocalService {}
+/// @generic.template symbol=LocalService parameters=(this: LocalService)
 /// @type.symbol symbol=LocalService source="local newtype interface LocalService {}" type=LocalService
-/// @definition.interface symbol=LocalService source="local newtype interface LocalService {}" nominal=true
+/// @definition.interface symbol=LocalService source="local newtype interface LocalService {}" template=(this: LocalService) nominal=true
 /// @definition.where symbol=LocalService source="local newtype interface LocalService {}" relation=satisfies left=this right=LocalService
 
 class LocalServiceImpl implements LocalService {}
@@ -657,8 +660,9 @@ class LocalServiceImpl implements LocalService {}
 /// @resolution.name source=LocalService target=LocalService
 
 shared newtype interface SharedService {}
+/// @generic.template symbol=SharedService parameters=(this: SharedService)
 /// @type.symbol symbol=SharedService source="shared newtype interface SharedService {}" type=SharedService
-/// @definition.interface symbol=SharedService source="shared newtype interface SharedService {}" nominal=true
+/// @definition.interface symbol=SharedService source="shared newtype interface SharedService {}" template=(this: SharedService) nominal=true
 /// @definition.where symbol=SharedService source="shared newtype interface SharedService {}" relation=satisfies left=this right=SharedService
 
 class SharedServiceImpl implements SharedService {}
@@ -680,7 +684,7 @@ declare const sharedService: SharedServiceImpl;
 
 localService satisfies local LocalServiceImpl;
 /// @resolution.name source=localService target=localService
-/// @resolution.place source=localService placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=localService placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=localService root=localService
 /// @resolution.name source=LocalServiceImpl target=LocalServiceImpl
 
@@ -723,8 +727,9 @@ local class LocalBase {}
 /// @definition.class symbol=LocalBase source="local class LocalBase {}"
 
 shared newtype interface SharedService {}
+/// @generic.template symbol=SharedService parameters=(this: SharedService)
 /// @type.symbol symbol=SharedService source="shared newtype interface SharedService {}" type=SharedService
-/// @definition.interface symbol=SharedService source="shared newtype interface SharedService {}" nominal=true
+/// @definition.interface symbol=SharedService source="shared newtype interface SharedService {}" template=(this: SharedService) nominal=true
 /// @definition.where symbol=SharedService source="shared newtype interface SharedService {}" relation=satisfies left=this right=SharedService
 
 class Invalid extends LocalBase implements SharedService {}
@@ -772,8 +777,9 @@ declare const sharedReadable: shared Readable;
 
 === dir ===
 interface Readable { read(): int32; }
+/// @generic.template symbol=Readable parameters=(this: Readable)
 /// @type.symbol symbol=Readable source="interface Readable { read(): int32; }" type=Readable
-/// @definition.interface symbol=Readable source="interface Readable { read(): int32; }"
+/// @definition.interface symbol=Readable source="interface Readable { read(): int32; }" template=(this: Readable)
 /// @definition.where symbol=Readable source="interface Readable { read(): int32; }" relation=satisfies left=this right=Readable
 /// @definition.method symbol=Readable.read source="read(): int32" slot=read type=(this: this) => int32
 /// @type.symbol symbol=Readable.read source="read(): int32" type=(this: this) => int32
@@ -842,16 +848,16 @@ local struct Continuation<T> {
 
         return value;
         /// @resolution.name source=value target=Continuation.resume.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=Continuation.resume.value
 
     }
 }
 
 shared newtype interface SharedQueue<T> {
-/// @generic.template symbol=SharedQueue parameters=(in T#2)
+/// @generic.template symbol=SharedQueue parameters=(in T#2, this: SharedQueue<T#2>)
 /// @type.symbol symbol=SharedQueue type=SharedQueue
-/// @definition.interface symbol=SharedQueue template=(in T#2) nominal=true
+/// @definition.interface symbol=SharedQueue template=(in T#2, this: SharedQueue<T#2>) nominal=true
 /// @definition.where symbol=SharedQueue relation=satisfies left=this right=SharedQueue<T#2>
 /// @definition.method symbol=SharedQueue.push source="push(this, value: T): void" slot=push type=(this: this, T#2) => void
 /// @type.symbol symbol=SharedQueue.T source=T type=T#2

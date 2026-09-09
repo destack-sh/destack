@@ -316,3 +316,66 @@ declare const probe: ZERO;
 "#,
     );
 }
+
+/// Type an associated const by the newtype literal its value writes.
+#[test]
+fn test_type_an_associated_const_from_its_newtype_literal() {
+    let session = TestSession::single(
+        r#"
+newtype Mask = uint32;
+
+export extension of Mask {
+    const read = Mask(0x1);
+}
+
+export function readable(): Mask {
+    return Mask.read;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype Mask = uint32;
+
+export extension of Mask {
+    const read = Mask(0x1);
+}
+
+export function readable(): Mask {
+    return Mask.read;
+}
+
+=== dir ===
+newtype Mask = uint32;
+/// @type.symbol symbol=Mask source="newtype Mask = uint32" type=Mask
+/// @definition.newtype symbol=Mask source="newtype Mask = uint32" backing=uint32 constructors=[(uint32) => Mask]
+
+export extension of Mask {
+/// @definition.extension symbol=<module>#2 form=exported target=Mask
+/// @definition.associated.const symbol=read source="const read = Mask(0x1)" key=read type=Mask
+/// @resolution.name source=Mask target=Mask
+
+    const read = Mask(0x1);
+    /// @type.symbol symbol=read source="const read = Mask(0x1)" type=Mask
+    /// @resolution.name source=Mask target=Mask
+
+}
+
+export function readable(): Mask {
+/// @type.symbol symbol=readable type=() => Mask
+/// @resolution.name source=Mask target=Mask
+
+    return Mask.read;
+    /// @resolution.name source=Mask target=Mask
+    /// @resolution.member source=Mask.read receiver=Mask type=Mask kind=symbol target_receiver=Mask target=read
+
+}
+"#,
+        r#"
+"#,
+    );
+}

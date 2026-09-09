@@ -26,15 +26,16 @@ interface Person {
     age: int32;
 }
 
-let person: { name: string; age: int32 } = { name: "Ada", age: 42 };
+let person: MutableFields<Person> = { name: "Ada", age: 42 };
 
 person.name = "Grace";
 person.name satisfies string;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="readonly name: string" key=name type=string
@@ -48,25 +49,25 @@ interface Person {
 }
 
 let person: MutableFields<Person> = { name: "Ada", age: 42 };
-/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type=MutableFields<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
 /// @resolution.pattern.assign source=person.name kind=place
 /// @resolution.access source=person.name root=person keys=[name]
-/// @resolution.assignment source=person.name write="receiver={ name: string; age: int32 }, target=field(receiver={ name: string; age: int32 }, target=name, type=string), type=string" type=string
+/// @resolution.assignment source=person.name write="receiver=MutableFields<Person>, target=field(receiver=MutableFields<Person>, target=name, type=string), type=string" type=string
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string; age: int32 } type=string kind=field target_receiver={ name: string; age: int32 } key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.name receiver=MutableFields<Person> type=string kind=field target_receiver=MutableFields<Person> key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
 "#,
     );
@@ -97,16 +98,17 @@ interface Person {
     readonly name?: string;
 }
 
-const empty: { name?: string } = {};
-const named: { name?: string } = { name: "Ada" };
+const empty: MutableFields<Person> = {};
+const named: MutableFields<Person> = { name: "Ada" };
 
 empty satisfies MutableFields<Person>;
 named satisfies MutableFields<Person>;
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.name source="readonly name?: string" key=name type=string
 
@@ -116,27 +118,27 @@ interface Person {
 }
 
 const empty: MutableFields<Person> = {};
-/// @type.symbol symbol=empty source=empty type={ name?: string }
+/// @type.symbol symbol=empty source=empty type=MutableFields<Person>
 /// @resolution.pattern source=empty kind=binding target=empty
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 const named: MutableFields<Person> = { name: "Ada" };
-/// @type.symbol symbol=named source=named type={ name?: string }
+/// @type.symbol symbol=named source=named type=MutableFields<Person>
 /// @resolution.pattern source=named kind=binding target=named
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 empty satisfies MutableFields<Person>;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=empty placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=empty root=empty
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 named satisfies MutableFields<Person>;
 /// @resolution.name source=named target=named
-/// @resolution.place source=named placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=named placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=named root=named
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
@@ -171,14 +173,15 @@ interface Person {
     };
 }
 
-let person: { profile: readonly { name: string } } = { profile: { name: "Ada" } };
+let person: MutableFields<Person> = { profile: { name: "Ada" } };
 
 person.profile.name = "Grace";
 
 === dir ===
 interface Person {
+/// @generic.template symbol=Person parameters=(this: Person)
 /// @type.symbol symbol=Person type=Person
-/// @definition.interface symbol=Person
+/// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.profile key=profile type=Readonly<{ name: string }>
 
@@ -192,15 +195,15 @@ interface Person {
 }
 
 let person: MutableFields<Person> = { profile: { name: "Ada" } };
-/// @type.symbol symbol=person source=person type={ profile: Readonly<{ name: string }> }
+/// @type.symbol symbol=person source=person type=MutableFields<Person>
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.profile receiver={ profile: Readonly<{ name: string }> } type=Readonly<{ name: string }> kind=field target_receiver={ profile: Readonly<{ name: string }> } key=profile target_type=Readonly<{ name: string }>
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.profile receiver=MutableFields<Person> type=Readonly<{ name: string }> kind=field target_receiver=MutableFields<Person> key=profile target_type=Readonly<{ name: string }>
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.profile placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]

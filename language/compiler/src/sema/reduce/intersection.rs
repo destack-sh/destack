@@ -70,9 +70,9 @@ impl CheckState<'_> {
             let element = self.shallow_resolve(*element)?;
             let head = self.structurally_normalize(origin, element)?;
             if let dir::Type::Intersection(nested) = self.ty(head)? {
-                let nested = self.type_ids(head.module_id, nested.elements)?.to_vec();
+                let nested = self.type_ids(head.module_id, nested.elements)?;
                 for nested in nested {
-                    let nested = self.shallow_resolve(nested)?;
+                    let nested = self.shallow_resolve(*nested)?;
                     if !closed.contains(&nested) {
                         closed.push(nested);
                     }
@@ -91,11 +91,11 @@ impl CheckState<'_> {
             let dir::Type::Union(union) = self.ty(head)? else {
                 continue;
             };
-            let arms = self.type_ids(head.module_id, union.elements)?.to_vec();
+            let arms = self.type_ids(head.module_id, union.elements)?;
             let mut distributed = Vec::with_capacity(arms.len());
             for arm in arms {
                 let mut arm_elements = closed.clone();
-                arm_elements[index] = arm;
+                arm_elements[index] = *arm;
                 let list = self.intern_type_ids(&arm_elements)?;
                 let sub = self.intern_type(dir::Type::Intersection(dir::IntersectionType {
                     elements: list,
@@ -106,7 +106,7 @@ impl CheckState<'_> {
             return self.normalized_union_type(distributed);
         }
 
-        // annihilate disjoint scalars and absorb literals into their primitive
+        // reduce two disjoint scalars to never, a literal into the primitive covering it
         let mut scalar: Option<(dir::GlobalTypeId, bool)> = None;
         for element in &closed {
             let family = match self.ty(*element)? {
@@ -149,27 +149,9 @@ impl CheckState<'_> {
                 }
             }
             closed = narrowed;
-
-            // annihilate a scalar met by a nominal class, struct or enum
-            for element in &closed {
-                let head = self.structurally_normalize(origin, *element)?;
-                let dir::Type::Application(application) = self.ty(head)? else {
-                    continue;
-                };
-                if matches!(
-                    self.definition(application.symbol)?,
-                    Some(
-                        dir::Definition::Class(_)
-                            | dir::Definition::Struct(_)
-                            | dir::Definition::Enum(_)
-                    )
-                ) {
-                    return self.intern_type(dir::Type::Never);
-                }
-            }
         }
 
-        // annihilate distinct value nominals, single inheritance admits no common subtype
+        // reduce two distinct value nominals to never under single inheritance
         let mut nominal: Option<dir::GlobalSymbolId> = None;
         for element in &closed {
             let head = self.structurally_normalize(origin, *element)?;
@@ -234,7 +216,6 @@ impl CheckState<'_> {
         for element in closed {
             // resolve each element to the shape it names
             let head = self.structurally_normalize(origin, element)?;
-
             let dir::Type::Object(shape) = self.ty(head)? else {
                 others.push(element);
                 continue;
@@ -287,10 +268,11 @@ impl CheckState<'_> {
             }
             visited.push(current);
 
-            let Some(dir::Definition::Class(class)) = self.definition(current)?.cloned() else {
+            let definition = self.definition(current)?;
+            let Some(dir::Definition::Class(class)) = definition.as_deref() else {
                 return Ok(false);
             };
-            let Some(heritage) = class.extends else {
+            let Some(heritage) = class.extends.clone() else {
                 return Ok(false);
             };
 
@@ -315,20 +297,18 @@ impl CheckState<'_> {
         module: ModuleId,
         shape: dir::ObjectType,
     ) -> CompilerResult<()> {
-        let fields = self.object_properties(module, shape.properties)?.to_vec();
-        let call_signatures = self.type_ids(module, shape.call_signatures)?.to_vec();
-        let construct_signatures = self.type_ids(module, shape.construct_signatures)?.to_vec();
-        let index_signatures = self
-            .object_index_signatures(module, shape.index_signatures)?
-            .to_vec();
+        let fields = self.object_properties(module, shape.properties)?;
+        let call_signatures = self.type_ids(module, shape.call_signatures)?;
+        let construct_signatures = self.type_ids(module, shape.construct_signatures)?;
+        let index_signatures = self.object_index_signatures(module, shape.index_signatures)?;
 
         // seed the merge from the first shape
         let Some(merged) = merged.as_mut() else {
             *merged = Some(ObjectMerge {
-                fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
+                fields: fields.to_vec(),
+                call_signatures: call_signatures.to_vec(),
+                construct_signatures: construct_signatures.to_vec(),
+                index_signatures: index_signatures.to_vec(),
             });
 
             return Ok(());
@@ -341,7 +321,7 @@ impl CheckState<'_> {
                 .iter()
                 .position(|merged| merged.key == field.key)
             else {
-                merged.fields.push(field);
+                merged.fields.push(*field);
                 continue;
             };
 
@@ -390,11 +370,9 @@ impl CheckState<'_> {
                 let interned = self.normalized_intersection_type([left, right])?;
                 let reduced = match self.ty(interned)? {
                     dir::Type::Intersection(intersection) => {
-                        let elements = self
-                            .type_ids(interned.module_id, intersection.elements)?
-                            .to_vec();
+                        let elements = self.type_ids(interned.module_id, intersection.elements)?;
 
-                        self.reduce_intersection(origin, interned, &elements)?
+                        self.reduce_intersection(origin, interned, elements)?
                     }
                     _ => interned,
                 };

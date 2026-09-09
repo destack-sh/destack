@@ -299,7 +299,7 @@ impl CheckState<'_> {
         is_optional: bool,
     ) -> CompilerResult<SmallVec<[CallableArm; 2]>> {
         let ty = self.select_chain_operand(origin, access.ty, is_optional)?;
-        if let Some(arm) = self.member_target_candidates(receiver, &access.target)? {
+        if let Some(arm) = self.member_target_candidates(origin, receiver, &access.target)? {
             let mut arms = SmallVec::new();
             arms.push(arm);
 
@@ -316,6 +316,7 @@ impl CheckState<'_> {
     /// Build callable candidates from one singular member target.
     fn member_target_candidates(
         &mut self,
+        origin: Origin,
         receiver: Value,
         target: &dir::MemberTarget,
     ) -> CompilerResult<Option<CallableArm>> {
@@ -323,7 +324,7 @@ impl CheckState<'_> {
         match target {
             dir::MemberTarget::Symbol(candidate) => {
                 let mut candidates = SmallVec::new();
-                if let Some(candidate) = self.member_candidate(receiver, candidate)? {
+                if let Some(candidate) = self.member_candidate(origin, receiver, candidate)? {
                     candidates.push(candidate);
                 }
 
@@ -341,7 +342,7 @@ impl CheckState<'_> {
                             ),
                         });
                     };
-                    if let Some(candidate) = self.member_candidate(receiver, candidate)? {
+                    if let Some(candidate) = self.member_candidate(origin, receiver, candidate)? {
                         candidates.push(candidate);
                     }
                 }
@@ -353,7 +354,8 @@ impl CheckState<'_> {
             dir::MemberTarget::Intersection(targets) => {
                 let mut candidates = SmallVec::new();
                 for target in targets {
-                    let Some(selected) = self.member_target_candidates(receiver, target)? else {
+                    let Some(selected) = self.member_target_candidates(origin, receiver, target)?
+                    else {
                         continue;
                     };
                     candidates.extend(selected.overloads);
@@ -373,6 +375,7 @@ impl CheckState<'_> {
     /// Build one callable candidate from a declaration-backed member target.
     fn member_candidate(
         &mut self,
+        origin: Origin,
         receiver: Value,
         candidate: &dir::MemberCandidate,
     ) -> CompilerResult<Option<CallableCandidate>> {
@@ -380,6 +383,18 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let target = self.member_operation(candidate)?;
+
+        let symbol = match target {
+            CallableTarget::Symbol(symbol) => Some(symbol),
+            _ => None,
+        };
+        let generic_arguments = self.member_call_arguments(
+            origin,
+            symbol,
+            &candidate.key.arguments,
+            &candidate.regions,
+            candidate.receiver.ty(),
+        )?;
         // read the receiver each callable target carries
         let receiver = match &target {
             CallableTarget::Expression => None,
@@ -398,10 +413,61 @@ impl CheckState<'_> {
             receiver,
             member_space: Some(candidate.space),
             ty,
-            generic_arguments: candidate.key.arguments.clone(),
+            generic_arguments,
         };
 
         Ok(Some(candidate))
+    }
+
+    /// Return the arguments one member call carries: the owner's generic and region bindings,
+    /// then the member's receiver region bound at the region the receiver carries.
+    pub(in crate::sema) fn member_call_arguments(
+        &mut self,
+        origin: Origin,
+        symbol: Option<dir::GlobalSymbolId>,
+        generic_arguments: &[dir::GenericArgumentBinding],
+        region_arguments: &[dir::GenericArgumentBinding],
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        let mut carried = generic_arguments.to_vec();
+        carried.extend(region_arguments.iter().copied());
+        if let Some(symbol) = symbol
+            && let Some(binding) = self.receiver_region_binding(origin, symbol, receiver)?
+        {
+            carried.push(binding);
+        }
+
+        Ok(carried)
+    }
+
+    /// Return the binding of one member's receiver region parameter at the region the adjusted
+    /// receiver carries, the borrow the member takes its this through.
+    fn receiver_region_binding(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GenericArgumentBinding>> {
+        let declared = self.symbol_type(symbol)?;
+        let Some(this) = self
+            .signature_head(declared)?
+            .and_then(|head| head.this_parameter)
+        else {
+            return Ok(None);
+        };
+        let Some(region) = self.form_chain(Origin::Symbol(symbol), this)?.region() else {
+            return Ok(None);
+        };
+        let extent = self.region_extent(region)?;
+        let dir::Type::Parameter(parameter) = self.ty(extent)? else {
+            return Ok(None);
+        };
+        let Some(held) = self.form_chain(origin, receiver)?.region() else {
+            return Ok(None);
+        };
+        let held = self.region_extent(held)?;
+
+        Ok(Some(dir::GenericArgumentBinding::new(parameter, held)))
     }
 
     /// Return the operation selected by one declaration-backed member.
@@ -431,8 +497,8 @@ impl CheckState<'_> {
             return Ok(Some(candidate.owner));
         }
         if matches!(
-            self.definition(candidate.owner)?,
-            Some(dir::Definition::Extension(_))
+            self.definition(candidate.owner)?.as_deref(),
+            Some(dir::Definition::Extension(_) | dir::Definition::Interface(_))
         ) {
             return Ok(Some(candidate.owner));
         }
@@ -639,11 +705,10 @@ impl CheckState<'_> {
         let (arguments, return_type) = match signature {
             // bind against the parameters the signature declares
             Some((signature_type, signature)) => {
-                let parameters = self
-                    .signature_parameters(signature_type.module_id, signature.parameters)?
-                    .to_vec();
+                let parameters =
+                    self.signature_parameters(signature_type.module_id, signature.parameters)?;
                 let arguments =
-                    self.argument_bindings(origin, origin.module(), argument_nodes, &parameters)?;
+                    self.argument_bindings(origin, origin.module(), argument_nodes, parameters)?;
                 let return_type = match signature.return_type {
                     Some(return_type) => return_type,
                     None => self.intern_type(dir::Type::Error)?,
@@ -656,6 +721,7 @@ impl CheckState<'_> {
         };
 
         Ok(Some(dir::Call {
+            regions: Vec::new(),
             target,
             callable_type: candidate.ty,
             arguments,
@@ -1055,9 +1121,11 @@ impl CheckState<'_> {
             returns.push(call.return_type);
             calls.push(call);
         }
-        // join the selected calls into one resolution
+        // join the selected calls into one resolution, arms agreeing on one call as that call
         let resolution = match calls.as_slice() {
-            [_] => dir::OperationResolution::One(calls.remove(0)),
+            [first, rest @ ..] if rest.iter().all(|call| call == first) => {
+                dir::OperationResolution::One(calls.remove(0))
+            }
             _ => dir::OperationResolution::Union {
                 ty: self.normalized_union_type(returns)?,
                 arms: calls,
@@ -1122,9 +1190,16 @@ impl CheckState<'_> {
             },
             // drop the receiver a static member selection went through
             CallableTarget::Symbol(symbol) => {
-                // interface members close their receiver into the instance identity
                 let key_receiver = match candidate.generic_scope {
-                    Some(owner) => self.interface_member_receiver(owner, signature.callable)?,
+                    Some(owner) => {
+                        let called_on = candidate
+                            .receiver
+                            .as_ref()
+                            .filter(|_| candidate.member_space == Some(dir::MemberSpace::Static))
+                            .map(|receiver| receiver.value.ty);
+
+                        self.interface_member_receiver(owner, signature.callable, called_on)?
+                    }
                     None => None,
                 };
 
@@ -1159,6 +1234,7 @@ impl CheckState<'_> {
             }
         };
         let resolution = dir::Call {
+            regions: signature.region_arguments.clone(),
             target,
             callable_type: signature.callable,
             arguments,

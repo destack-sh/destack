@@ -10,7 +10,7 @@ import { Dispose } from "destack:memory";
 struct File implements Dispose {
     handle: int32;
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
 }
 
 function run(): void {
@@ -26,7 +26,7 @@ import { Dispose } from "destack:memory";
 struct File implements Dispose {
     handle: int32;
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
 }
 
 function run(): void {
@@ -42,17 +42,17 @@ struct File implements Dispose {
 /// @definition.where symbol=File source=Dispose relation=satisfies left=this right=Dispose
 /// @definition.implements symbol=File source=Dispose target=Dispose
 /// @definition.field symbol=File.handle source="handle: int32" key=handle type=int32
-/// @definition.method symbol=File.dispose source="dispose(&exclusive this): void {}" slot=dispose type=<File.dispose.'a>(this: &File.dispose.'a exclusive File) => void
+/// @definition.method symbol=File.dispose source="dispose(&this): void {}" slot=dispose type=<File.dispose.'a>(this: &File.dispose.'a File) => void
 /// @definition.conformance symbol=File member=File.dispose requirement=Dispose.dispose
 /// @resolution.name source=Dispose target=Dispose
 
     handle: int32;
     /// @type.symbol symbol=File.handle source="handle: int32" type=int32
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
     /// @generic.template symbol=File.dispose parent=template#0 parameters=('a)
-    /// @type.symbol symbol=File.dispose source="dispose(&exclusive this): void {}" type=<File.dispose.'a>(this: &File.dispose.'a exclusive File) => void
-    /// @type.symbol symbol=File.dispose.this source="&exclusive this" type=&File.dispose.'a exclusive this
+    /// @type.symbol symbol=File.dispose source="dispose(&this): void {}" type=<File.dispose.'a>(this: &File.dispose.'a File) => void
+    /// @type.symbol symbol=File.dispose.this source=&this type=&File.dispose.'a this
 
 }
 
@@ -61,7 +61,7 @@ function run(): void {
 
     using file = File { handle: 1 };
     /// @type.symbol symbol=run.file source=file type=File
-    /// @resolution.disposal source="file = File { handle: 1 }" dispose="File.dispose(parameters=(), arguments=(), return=void)"
+    /// @resolution.disposal source="file = File { handle: 1 }" dispose="File.dispose(parameters=(), arguments=(), return=void, regions=(\"frame\" & \"local\"))"
     /// @resolution.pattern source=file kind=binding target=run.file
     /// @resolution.name source=File target=File
 
@@ -79,7 +79,7 @@ import { Dispose } from "destack:memory";
 struct File implements Dispose {
     handle: int32;
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
 }
 
 function run(file: File | undefined): void {
@@ -95,7 +95,7 @@ import { Dispose } from "destack:memory";
 struct File implements Dispose {
     handle: int32;
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
 }
 
 function run(file: File | undefined): void {
@@ -111,17 +111,17 @@ struct File implements Dispose {
 /// @definition.where symbol=File source=Dispose relation=satisfies left=this right=Dispose
 /// @definition.implements symbol=File source=Dispose target=Dispose
 /// @definition.field symbol=File.handle source="handle: int32" key=handle type=int32
-/// @definition.method symbol=File.dispose source="dispose(&exclusive this): void {}" slot=dispose type=<File.dispose.'a>(this: &File.dispose.'a exclusive File) => void
+/// @definition.method symbol=File.dispose source="dispose(&this): void {}" slot=dispose type=<File.dispose.'a>(this: &File.dispose.'a File) => void
 /// @definition.conformance symbol=File member=File.dispose requirement=Dispose.dispose
 /// @resolution.name source=Dispose target=Dispose
 
     handle: int32;
     /// @type.symbol symbol=File.handle source="handle: int32" type=int32
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
     /// @generic.template symbol=File.dispose parent=template#0 parameters=('a)
-    /// @type.symbol symbol=File.dispose source="dispose(&exclusive this): void {}" type=<File.dispose.'a>(this: &File.dispose.'a exclusive File) => void
-    /// @type.symbol symbol=File.dispose.this source="&exclusive this" type=&File.dispose.'a exclusive this
+    /// @type.symbol symbol=File.dispose source="dispose(&this): void {}" type=<File.dispose.'a>(this: &File.dispose.'a File) => void
+    /// @type.symbol symbol=File.dispose.this source=&this type=&File.dispose.'a this
 
 }
 
@@ -132,7 +132,7 @@ function run(file: File | undefined): void {
 
     using resource = file;
     /// @type.symbol symbol=run.resource source=resource type=File | undefined
-    /// @resolution.disposal source="resource = file" dispose="File.dispose(parameters=(), arguments=(), return=void)"
+    /// @resolution.disposal source="resource = file" dispose="File.dispose(parameters=(), arguments=(), return=void, regions=(\"frame\" & \"local\"))"
     /// @resolution.pattern source=resource kind=binding target=run.resource
     /// @resolution.name source=file target=run.file
     /// @resolution.access source=file root=run.file
@@ -197,10 +197,16 @@ class Connection implements AsyncDispose {
     /// @generic.template symbol=Connection.asyncDispose parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Connection.asyncDispose source="async asyncDispose(): Promise<void> {}" type=async <Connection.asyncDispose.P0: Place>(this: Managed<Connection, Connection.asyncDispose.P0>) => Promise<void>
     /// @type.symbol symbol=Connection.asyncDispose.this type=Managed<Connection, Connection.asyncDispose.P0>
-    /// @resolution.call source="async asyncDispose(): Promise<void> {}" parameters=(^Function<(), Promise.create.T, "once">) arguments=(supplied as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<void>
+    /// @resolution.call source="async asyncDispose(): Promise<void> {}" parameters=(^Function<(), void, "once">) arguments=(supplied as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
     /// @generic.instantiation id=Promise.create<void> template=Promise.create arguments=(void)
     /// @generic.instance id="Function<(), void, \"once\">" template=Function arguments=((), void, "once")
+    /// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
+    /// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
     /// @generic.instance id=Promise.create<void> template=Promise.create arguments=(void)
+    /// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
+    /// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
+    /// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
+    /// @generic.instance id=Promise<void> template=Promise arguments=(void)
     /// @resolution.name source=Promise target=Promise
 
 }
@@ -217,27 +223,7 @@ function connect(): Connection {
 
 async function run(): Promise<void> {
 /// @type.symbol symbol=run type=async () => Promise<void>
-/// @resolution.call parameters=(^Function<(), Promise.create.T, "once">) arguments=(supplied as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<void>
-/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
-/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
-/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
-/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
-/// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
-/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
-/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
-/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
-/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
-/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
-/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
-/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
-/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
-/// @generic.instance id=Promise<void> template=Promise arguments=(void)
-/// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
-/// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
-/// @generic.instance id=PromisePending<void> template=PromisePending arguments=(void)
-/// @generic.instance id=PromiseReaction<void> template=PromiseReaction arguments=(void)
-/// @generic.instance id=PromiseState<void> template=PromiseState arguments=(void)
-/// @generic.instance id=PromiseWaiter<void> template=PromiseWaiter arguments=(void)
+/// @resolution.call parameters=(^Function<(), void, "once">) arguments=(supplied as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
 /// @resolution.name source=Promise target=Promise
 
     await using connection = connect();
@@ -246,11 +232,14 @@ async function run(): Promise<void> {
     /// @resolution.pattern source=connection kind=binding target=run.connection
     /// @generic.instantiation id="Connection.asyncDispose<\"local\">" template=Connection.asyncDispose arguments=("local")
     /// @generic.instantiation id="Promise.park<void, void>" template=Promise.park arguments=(void, void)
-    /// @generic.instance id="Connection.asyncDispose<\"local\">" template=Connection.asyncDispose arguments=("local")
     /// @generic.instance id="Promise.park<void, void>" template=Promise.park arguments=(void, void)
     /// @generic.instance id="PromiseAwaiter.symbol161<void, \"local\">" template=PromiseAwaiter.symbol161 arguments=(void, "local")
     /// @generic.instance id="PromiseAwaiter<void, \"local\">" template=PromiseAwaiter arguments=(void, "local")
-    /// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
+    /// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
+    /// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
+    /// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
+    /// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
+    /// @generic.instance id=PromiseFulfilled<void> template=PromiseFulfilled arguments=(void)
     /// @resolution.name source=connect target=connect
     /// @resolution.call source=connect() parameters=() return=Connection kind=symbol target=connect
 
@@ -268,7 +257,7 @@ import { Dispose } from "destack:memory";
 struct File implements Dispose {
     handle: int32;
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
 }
 
 async function run(): Promise<void> {
@@ -284,7 +273,7 @@ import { Dispose } from "destack:memory";
 struct File implements Dispose {
     handle: int32;
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
 }
 
 async function run(): Promise<void> {
@@ -300,29 +289,29 @@ struct File implements Dispose {
 /// @definition.where symbol=File source=Dispose relation=satisfies left=this right=Dispose
 /// @definition.implements symbol=File source=Dispose target=Dispose
 /// @definition.field symbol=File.handle source="handle: int32" key=handle type=int32
-/// @definition.method symbol=File.dispose source="dispose(&exclusive this): void {}" slot=dispose type=<File.dispose.'a>(this: &File.dispose.'a exclusive this) => void
+/// @definition.method symbol=File.dispose source="dispose(&this): void {}" slot=dispose type=<File.dispose.'a>(this: &File.dispose.'a this) => void
 /// @definition.conformance symbol=File member=File.dispose requirement=Dispose.dispose
 /// @resolution.name source=Dispose target=Dispose
 
     handle: int32;
     /// @type.symbol symbol=File.handle source="handle: int32" type=int32
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
     /// @generic.template symbol=File.dispose parent=template#0 parameters=('a)
-    /// @type.symbol symbol=File.dispose source="dispose(&exclusive this): void {}" type=<File.dispose.'a>(this: &File.dispose.'a exclusive this) => void
-    /// @type.symbol symbol=File.dispose.this source="&exclusive this" type=&File.dispose.'a exclusive this
+    /// @type.symbol symbol=File.dispose source="dispose(&this): void {}" type=<File.dispose.'a>(this: &File.dispose.'a this) => void
+    /// @type.symbol symbol=File.dispose.this source=&this type=&File.dispose.'a this
 
 }
 
 async function run(): Promise<void> {
 /// @type.symbol symbol=run type=async () => Promise<void>
-/// @resolution.call parameters=(^Function<(), Promise.create.T, "once">) arguments=(supplied as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<void>
+/// @resolution.call parameters=(^Function<(), void, "once">) arguments=(supplied as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
 /// @generic.instantiation id=Promise.create<void> template=Promise.create arguments=(void)
 /// @resolution.name source=Promise target=Promise
 
     await using file = File { handle: 1 };
     /// @type.symbol symbol=run.file source=file type=File
-    /// @resolution.disposal source="file = File { handle: 1 }" dispose="File.dispose(parameters=(), arguments=(), return=void)"
+    /// @resolution.disposal source="file = File { handle: 1 }" dispose="File.dispose(parameters=(), arguments=(), return=void, regions=(\"frame\" & \"local\"))"
     /// @resolution.pattern source=file kind=binding target=run.file
     /// @resolution.name source=File target=File
 
@@ -372,7 +361,7 @@ import { Dispose } from "destack:memory";
 struct File implements Dispose {
     handle: int32;
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
 }
 
 function total(files: File[]): int32 {
@@ -393,7 +382,7 @@ import { Dispose } from "destack:memory";
 struct File implements Dispose {
     handle: int32;
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
 }
 
 function total(files: File[]): int32 {
@@ -414,17 +403,17 @@ struct File implements Dispose {
 /// @definition.where symbol=File source=Dispose relation=satisfies left=this right=Dispose
 /// @definition.implements symbol=File source=Dispose target=Dispose
 /// @definition.field symbol=File.handle source="handle: int32" key=handle type=int32
-/// @definition.method symbol=File.dispose source="dispose(&exclusive this): void {}" slot=dispose type=<File.dispose.'a>(this: &File.dispose.'a exclusive this) => void
+/// @definition.method symbol=File.dispose source="dispose(&this): void {}" slot=dispose type=<File.dispose.'a>(this: &File.dispose.'a this) => void
 /// @definition.conformance symbol=File member=File.dispose requirement=Dispose.dispose
 /// @resolution.name source=Dispose target=Dispose
 
     handle: int32;
     /// @type.symbol symbol=File.handle source="handle: int32" type=int32
 
-    dispose(&exclusive this): void {}
+    dispose(&this): void {}
     /// @generic.template symbol=File.dispose parent=template#0 parameters=('a)
-    /// @type.symbol symbol=File.dispose source="dispose(&exclusive this): void {}" type=<File.dispose.'a>(this: &File.dispose.'a exclusive this) => void
-    /// @type.symbol symbol=File.dispose.this source="&exclusive this" type=&File.dispose.'a exclusive this
+    /// @type.symbol symbol=File.dispose source="dispose(&this): void {}" type=<File.dispose.'a>(this: &File.dispose.'a this) => void
+    /// @type.symbol symbol=File.dispose.this source=&this type=&File.dispose.'a this
 
 }
 
@@ -438,19 +427,19 @@ function total(files: File[]): int32 {
     /// @resolution.pattern source=sum kind=binding target=total.sum
 
     for (using file of files) {
-    /// @resolution.iteration iterator="iterator#2(parameters=(), arguments=(), return=Iterator<File>)" next="dynamic(Iterator<File> as Iterator<File>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<File, void>)" dispose="File.dispose(parameters=(), arguments=(), return=void)"
+    /// @resolution.iteration iterator="iterator#2(parameters=(), arguments=(), return=Iterator<File>)" next="dynamic(Iterator<File> as Iterator<File>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<File, void>)" dispose="File.dispose(parameters=(), arguments=(), return=void, regions=(\"frame\" & \"local\"))"
     /// @generic.instantiation id="iterator#2<File, \"local\">" template=iterator#2 arguments=(File, "local")
     /// @type.symbol symbol=total.file source=file type=File
     /// @resolution.pattern source=file kind=binding target=total.file
     /// @resolution.name source=files target=total.files
-    /// @resolution.place source=files placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=files placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=files root=total.files
 
         sum += file.handle;
         /// @resolution.name source=sum target=total.sum
         /// @resolution.operator source="sum += file.handle" type=int32 operator="+" kind=builtin operands=[sum as int32 families=(integer), file.handle as int32 families=(integer)]
         /// @resolution.pattern.assign source=sum kind=place
-        /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=sum placement="local" lifetime="frame" access="mutable"
         /// @resolution.assignment source=sum read=binding(total.sum) write=binding(total.sum) type=int32
         /// @resolution.access source=sum root=total.sum
         /// @resolution.name source=file target=total.file
@@ -464,7 +453,7 @@ function total(files: File[]): int32 {
 
     return sum;
     /// @resolution.name source=sum target=total.sum
-    /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=sum placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=sum root=total.sum
 
 }

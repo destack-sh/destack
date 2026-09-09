@@ -34,13 +34,13 @@ describe("arithmetic", ((): void => {
     beforeEach((): BodyResult => {});
 
     test("adds values", ((): BodyResult => {
-        expect<2>((1 + 1) as &'frame readonly 2).toEqual<2, int64>(2 as &'frame readonly int64);
+        expect<2>((1 + 1) as &'frame readonly 2).toEqual<2, 2>(2 as &'frame readonly 2);
         expect<int64>(2 as &'frame readonly int64).toBe<int64>(2 as &'frame readonly int64);
         expect.soft<string>("pineapple" as &'frame readonly string).toContain<string>("apple");
-    }) as Body<CaseContext & {}> | undefined);
+    }) as Body<TestContext<{}, {}, {}>> | undefined);
 
-    test.only("focused", ((): BodyResult => {}) as Body<CaseContext & {}> | undefined);
-    test.skip("skipped", ((): BodyResult => {}) as Body<CaseContext & {}> | undefined);
+    test.only("focused", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
+    test.skip("skipped", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
     test.todo("pending");
 }) as SuiteBody | undefined);
 

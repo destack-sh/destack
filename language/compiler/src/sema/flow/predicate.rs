@@ -236,7 +236,7 @@ impl CheckState<'_> {
                 operator,
                 dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
             ) && matches!(
-                self.ty(self.shallow_resolve(target)?)?,
+                self.resolved_ty(target)?,
                 dir::Type::Null | dir::Type::Undefined
             ) {
                 let null = self.intern_type(dir::Type::Null)?;

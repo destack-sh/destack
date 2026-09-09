@@ -99,7 +99,7 @@ declare const charge: Charge;
 const flipped = -charge;
 /// @type.symbol symbol=flipped source=flipped type=Charge
 /// @resolution.pattern source=flipped kind=binding target=flipped
-/// @resolution.operator source=-charge type=Charge operator="-" kind=call parameters=() return=Charge kind=symbol target=negate receiver=Charge adjustments=(borrow(&'static readonly constant Charge))
+/// @resolution.operator source=-charge type=Charge operator="-" kind=call parameters=() return=Charge regions=("static" & "constant") kind=symbol target=negate receiver=Charge adjustments=(borrow(&'static readonly constant Charge))
 /// @resolution.name source=charge target=charge
 /// @resolution.place source=charge placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=charge root=charge

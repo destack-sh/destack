@@ -1,3 +1,4 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -6,6 +7,51 @@ use crate::sema::{CheckState, Origin, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Record the copy verdict of each type this module writes, leaving open types undecided.
+    pub(in crate::sema) fn write_copies(&mut self, module: ModuleId) -> CompilerResult<()> {
+        let node_types = self
+            .module
+            .types
+            .node_types()
+            .chain(self.module.types_tail.node_types())
+            .filter(|(node, _)| node.module_id == module)
+            .collect::<Vec<_>>();
+        for (node, ty) in node_types {
+            let origin = self.anchored_origin(node)?;
+            let mut pending = vec![ty];
+            let mut visited = FxIndexSet::default();
+            while let Some(id) = pending.pop() {
+                if id.module_id != module || !visited.insert(id) {
+                    continue;
+                }
+                self.write_copy(origin, id)?;
+                let kind = self.ty(id)?;
+                self.for_each_type_child(id.module_id, &kind, |child| pending.push(child))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Record whether the values of one type copy, an open or error type staying undecided.
+    fn write_copy(&mut self, origin: Origin, id: dir::GlobalTypeId) -> CompilerResult<()> {
+        if self.module.representations_tail.copies(id).is_some() {
+            return Ok(());
+        }
+        let flags = self.type_flags(id)?;
+        if flags.has_variable() || flags.has_error() || flags.has_this() {
+            return Ok(());
+        }
+        let copies = match self.decide_copy(origin, id, &mut SmallVec::new())? {
+            Verdict::Holds => true,
+            Verdict::Fails => false,
+            Verdict::Ambiguous => return Ok(()),
+        };
+        self.module.representations_tail.set_copies(id, copies);
+
+        Ok(())
+    }
+
     /// Decide whether one type duplicates implicitly without ownership.
     pub(in crate::sema) fn decide_copy(
         &mut self,
@@ -47,8 +93,12 @@ impl CheckState<'_> {
             };
         }
 
-        // copy a callable handle while its call borrows the receiver
+        // copy a callable handle while its call borrows the receiver, an open mode undecided
         if let dir::Type::Function(function) = kind {
+            let receiver = self.shallow_resolve(function.receiver)?;
+            if matches!(self.ty(receiver)?, dir::Type::Parameter(_)) {
+                return Ok(Verdict::Ambiguous);
+            }
             let mode = self.receiver_mode(function.receiver)?;
 
             return Ok(Verdict::decided(mode != dir::ReceiverMode::Owned));
@@ -107,7 +157,7 @@ impl CheckState<'_> {
             | dir::Type::Function(_)
             | dir::Type::Reference(_) => Ok(Verdict::Fails),
             // memory parameters qualify storage and impose none of their own
-            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter) => {
+            dir::Type::Parameter(parameter) if self.is_memory_parameter(parameter)? => {
                 Ok(Verdict::Holds)
             }
             // fail the interface for type parameters that survived substitution
@@ -120,8 +170,12 @@ impl CheckState<'_> {
             dir::Type::Form(_) => Err(CompilerError::Internal {
                 message: format!("memory form {ty:?} reached structural copy"),
             }),
-            // decide nominal storage through its declaration
+            // decide nominal storage through its declaration, a stuck head staying opaque
             dir::Type::Application(instance) => {
+                if self.is_stuck_head(origin, ty)? {
+                    return Ok(Verdict::Fails);
+                }
+
                 self.decide_copy_instance(origin, ty.module_id, instance, active)
             }
             // fail loudly on managed slices decided before this point
@@ -174,16 +228,8 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        // name bare declarations as their canonical applications
-        let ty = self.shallow_resolve(ty)?;
-        let ty = match self.ty(ty)? {
-            dir::Type::Reference(reference) => {
-                let instance = self.declaration_instance(reference.symbol)?;
-
-                self.intern_type(dir::Type::Application(instance))?
-            }
-            _ => ty,
-        };
+        // reduce the payload the owned form keeps written
+        let ty = self.normalize(origin, ty)?;
 
         // close recursive owned values coinductively
         if active.contains(&ty) {
@@ -198,9 +244,13 @@ impl CheckState<'_> {
             .scalar_domain()
             .and_then(dir::ScalarDomain::representation_item)
         {
-            let representation = self.language_type(item, &[])?;
+            let symbol = self.language_symbol(item)?;
+            let instance = self.declaration_instance(symbol)?;
+            active.push(ty);
+            let result = self.decide_copy_instance(origin, symbol.module_id, instance, active);
+            active.pop();
 
-            return self.decide_owned_copy(origin, representation, active);
+            return result;
         }
 
         // decide owned payloads by their stored representation
@@ -212,6 +262,7 @@ impl CheckState<'_> {
                 Ok(Verdict::Fails)
             }
             // decide inline nominal storage past its managed handle default
+            dir::Type::Application(_) if self.is_stuck_head(origin, ty)? => Ok(Verdict::Fails),
             dir::Type::Application(instance) => {
                 active.push(ty);
                 let result = self.decide_copy_instance(origin, ty.module_id, instance, active);
@@ -262,38 +313,27 @@ impl CheckState<'_> {
         }
 
         // move an instance whose symbol declares no definition
-        let Some(definition) = self.definition(instance.symbol)?.cloned() else {
+        let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(Verdict::Fails);
         };
 
-        // refuse value copy for a declared Drop conformance
-        if !matches!(
-            definition,
-            dir::Definition::Class(_) | dir::Definition::Interface(_)
-        ) && self.drop_hook_member(instance.symbol)?.is_some()
-        {
+        // move a value whose declaration refuses copies
+        if !self.permits_copy(instance.symbol)? {
             return Ok(Verdict::Fails);
         }
 
         // decide by the declaration's own storage
-        match definition {
+        match &*definition {
             // normalization unfolds aliases before this decision
             dir::Definition::TypeAlias(_) => Err(CompilerError::Internal {
-                message: format!("alias {:?} reached structural copy", instance.symbol),
+                message: format!(
+                    "alias {} reached structural copy",
+                    self.format_symbol(instance.symbol)
+                ),
             }),
             // copy a struct once every field copies
             dir::Definition::Struct(definition) => {
                 let fields = self.stored_field_types(&definition.members)?;
-                let derives = definition.derives.as_deref().unwrap_or_default();
-
-                // refuse a raw pointer field outside a written derive
-                if !derives.contains(&dir::AutoInterface::Copy) {
-                    for field in &fields {
-                        if self.is_raw_pointer(*field)? {
-                            return Ok(Verdict::Fails);
-                        }
-                    }
-                }
 
                 self.decide_all_applied(instance_module, &instance, fields, |state, id| {
                     state.decide_copy(origin, id, active)
@@ -302,21 +342,12 @@ impl CheckState<'_> {
             // copy an enum at its integer tag or managed string reference
             dir::Definition::Enum(_) => Ok(Verdict::Holds),
             // copy a newtype through its backing type
-            dir::Definition::Newtype(definition) => {
-                let derives = definition.derives.as_deref().unwrap_or_default();
-                if !derives.contains(&dir::AutoInterface::Copy)
-                    && self.is_raw_pointer(definition.backing)?
-                {
-                    return Ok(Verdict::Fails);
-                }
-
-                self.decide_all_applied(
-                    instance_module,
-                    &instance,
-                    [definition.backing],
-                    |state, id| state.decide_copy(origin, id, active),
-                )
-            }
+            dir::Definition::Newtype(definition) => self.decide_all_applied(
+                instance_module,
+                &instance,
+                [definition.backing],
+                |state, id| state.decide_copy(origin, id, active),
+            ),
             // move class values
             dir::Definition::Class(_) => Ok(Verdict::Fails),
             // move interface values
@@ -331,5 +362,59 @@ impl CheckState<'_> {
         let ty = self.shallow_resolve(ty)?;
 
         Ok(matches!(self.ty(ty)?, dir::Type::Form(form) if form.form == dir::Form::Raw))
+    }
+
+    /// Commit whether one value declaration derives Copy.
+    pub(in crate::sema) fn commit_copy_derivation(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        let derives_copy = self.permits_copy(symbol)?;
+        self.module_mut(symbol.module_id)
+            .representations_tail
+            .set_derives_copy(symbol, derives_copy);
+
+        Ok(())
+    }
+
+    /// Return whether one declaration permits copying by structure.
+    fn permits_copy(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+        Ok(
+            !self.declares_drop(symbol)?
+                && !self.stores_raw_pointer_without_derived_copy(symbol)?,
+        )
+    }
+
+    /// Return whether one declaration stores a raw pointer outside a written Copy derive.
+    fn stores_raw_pointer_without_derived_copy(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let Some(definition) = self.definition(symbol)? else {
+            return Ok(false);
+        };
+        let (derives, stored) = match &*definition {
+            dir::Definition::Struct(definition) => (
+                definition.derives.as_deref(),
+                self.stored_field_types(&definition.members)?.to_vec(),
+            ),
+            dir::Definition::Newtype(definition) => {
+                (definition.derives.as_deref(), vec![definition.backing])
+            }
+            _ => return Ok(false),
+        };
+        if derives
+            .unwrap_or_default()
+            .contains(&dir::AutoInterface::Copy)
+        {
+            return Ok(false);
+        }
+        for field in stored {
+            if self.is_raw_pointer(field)? {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 }

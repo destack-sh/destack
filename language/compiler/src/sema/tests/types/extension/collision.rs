@@ -230,7 +230,7 @@ function build(values: [int32]): void {
     /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
     /// @resolution.name source=values target=build.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=build.values
 
     const managed: Set<int32> = Set.from([...values]);
@@ -242,7 +242,7 @@ function build(values: [int32]): void {
     /// @resolution.call source=Set.from([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=^Set<int32> kind=symbol target=from#1 instance=Set<int32>.<extension#5>.from#1
     /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @resolution.name source=values target=build.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=build.values
 
     const mapped = Array.from([...values], (value) => value);
@@ -254,12 +254,12 @@ function build(values: [int32]): void {
     /// @generic.instantiation id="from#2<int32, int32>" template=from#2 arguments=(int32, int32)
     /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @resolution.name source=values target=build.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=build.values
     /// @type.symbol symbol=build.symbol6 source="(value) => value" type=Function<(int32,), int32, "readonly">
     /// @type.symbol symbol=build.symbol6.value source=value type=int32
     /// @resolution.name source=value target=build.symbol6.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=build.symbol6.value
 
 }

@@ -139,7 +139,7 @@ impl CheckState<'_> {
         let ty = self.shallow_resolve(ty)?;
         let value = match self.ty(ty)? {
             dir::Type::Literal(value) => value.into(),
-            dir::Type::Static(value) => self.r#static(value).clone(),
+            dir::Type::Static(value) => self.r#static(value)?.clone(),
             _ => {
                 return Err(CompilerError::Internal {
                     message: format!("inserted argument {ty:?} is not static"),
@@ -177,6 +177,7 @@ impl CheckState<'_> {
                     target: dir::ConstructTarget::Newtype { backing, .. },
                     arguments,
                     return_type,
+                    ..
                 }) = resolution
                 {
                     self.evaluate_selected_static_newtype(
@@ -422,16 +423,16 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Result<dir::StaticTerm, StaticError>> {
         let source = expression.into_global_any(module);
-        let Some(symbol) = self.reference_symbol(source) else {
+        let Some(symbol) = self.reference_symbol(source)? else {
             return Ok(Err(StaticError::NotStatic(expression)));
         };
         // read the static value the symbol already settled
-        let term = if let Some(value) = self.static_value(symbol) {
+        let term = if let Some(value) = self.static_value(symbol)? {
             let value = self.shallow_resolve(value)?;
 
             match self.ty(value)? {
                 dir::Type::Literal(value) => dir::StaticTerm::Literal { value },
-                dir::Type::Static(value) => self.r#static(value).clone(),
+                dir::Type::Static(value) => self.r#static(value)?.clone(),
                 _ => return Ok(Err(StaticError::NotStatic(expression))),
             }
         }

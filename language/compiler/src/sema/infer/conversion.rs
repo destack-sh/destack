@@ -125,28 +125,106 @@ impl CheckState<'_> {
 }
 
 impl CheckState<'_> {
-    /// Return whether one union target offers a borrowed arm.
-    fn has_borrowed_arm(
+    /// Return the copied payload a value slot reads out of one borrowed source.
+    fn borrow_read(
         &mut self,
         origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // require a borrowed source and a value slot taking no borrow
+        let chain = self.form_chain(origin, source)?;
+        let is_borrowed = chain
+            .ownership_form()
+            .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
+        if !is_borrowed
+            || self.stores_whole(origin, source, target)?
+            || self.stores_borrow(origin, target)?
+        {
+            return Ok(None);
+        }
+
+        // require a payload a read copies: an unaliased value stored by value
+        let payload = chain.base();
+        if self.type_is_aliased(origin, payload)?
+            || self.default_ownership(origin, payload)? == Some(dir::Ownership::Managed)
+        {
+            return Ok(None);
+        }
+        let mut active = SmallVec::new();
+        let copies = self.decide_copy(origin, payload, &mut active)? == Verdict::Holds;
+
+        Ok(copies.then_some(payload))
+    }
+
+    /// Return whether one source converts to the target whole: a pointer form on either side holds
+    /// one representation, so the cases never convert apart.
+    fn pointer_converts_whole(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let target = self.normalize(origin, target)?;
-        let dir::Type::Union(union) = self.ty(target)? else {
-            return Ok(false);
-        };
-        let arms: SmallVec<[_; 4]> = self.type_ids(target.module_id, union.elements)?.into();
-        for arm in arms {
-            let borrowed = self
-                .form_chain(origin, arm)?
-                .ownership_form()
-                .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
-            if borrowed {
+        // keep one representation when either side is a pointer
+        for side in [source, target] {
+            if matches!(self.resolved_ty(side)?, dir::Type::Form(_))
+                && let Some(form) = self.form_chain(origin, side)?.ownership_form()
+                && matches!(
+                    form.form,
+                    dir::Form::Borrowed(_) | dir::Form::Managed { .. } | dir::Form::Raw
+                )
+            {
                 return Ok(true);
             }
         }
 
         Ok(false)
+    }
+
+    /// Return whether one slot stores a borrow, itself or through a union arm.
+    fn stores_borrow(&mut self, origin: Origin, target: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let target = self.normalize(origin, target)?;
+        let arms: SmallVec<[_; 4]> = match self.ty(target)? {
+            dir::Type::Union(union) => self.type_ids(target.module_id, union.elements)?.into(),
+            _ => SmallVec::from_slice(&[target]),
+        };
+        for arm in arms {
+            let is_borrowed = self
+                .form_chain(origin, arm)?
+                .ownership_form()
+                .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
+            if is_borrowed {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Return whether one source stores into a slot whole.
+    fn stores_whole(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        Ok(self
+            .decide_relation(origin, Relation::Storable, source, target)?
+            .holds())
+    }
+
+    /// Return the coercion reading one payload out of a borrowed source, then converting it.
+    fn read_coercion(
+        source: dir::GlobalTypeId,
+        payload: dir::GlobalTypeId,
+        conversion: Option<dir::Coercion>,
+    ) -> dir::Coercion {
+        let mut adjustments = vec![dir::CoercionAdjustment::Read { target: payload }];
+        if let Some(conversion) = conversion {
+            adjustments.extend(conversion.adjustments);
+        }
+
+        dir::Coercion::new(source, adjustments, dir::CastOrigin::Implicit)
     }
 
     /// Commit the access one borrowed value's reborrow requires of the place it lends from.
@@ -238,8 +316,7 @@ impl CheckState<'_> {
 
         // erase inference-only operations before recording the checked conversion
         let origin = site.origin();
-        let module = origin.module();
-        target = self.erase_inference_barriers(module, target)?;
+        target = self.erase_inference_barriers(target)?;
 
         // complete a relation that participated in inference
         if let Some(holds) = inferred {
@@ -265,11 +342,9 @@ impl CheckState<'_> {
             }
         }
 
-        // skip runtime coercion for closed logical checks and explicit casts
+        // skip runtime coercion for closed logical checks
         if inferred.is_none()
-            && (relation != Relation::Storable
-                || !use_.requires_runtime_coercion()
-                || use_ == ValueUse::Cast)
+            && (relation != Relation::Storable || !use_.requires_runtime_coercion())
         {
             let verdict = self.constrain_conversion(site, cause, relation, source, target, use_)?;
             let outcome =
@@ -291,6 +366,9 @@ impl CheckState<'_> {
             Ok(coercion) => (CheckOutcome::Holds, coercion),
             Err(failure) => (CheckOutcome::Fails(failure), None),
         };
+        if outcome == CheckOutcome::Holds {
+            self.commit_move_use(site, source.ty, coercion.as_deref())?;
+        }
 
         Ok(ValueConversion {
             source: source.ty,
@@ -298,6 +376,43 @@ impl CheckState<'_> {
             target,
             coercion,
         })
+    }
+
+    /// Commit the move one by-value conversion takes from a stable binding value: a value neither
+    /// borrowed nor read through a reference, and not copied.
+    fn commit_move_use(
+        &mut self,
+        site: FlowSite,
+        source: dir::GlobalTypeId,
+        coercion: Option<&dir::Coercion>,
+    ) -> CompilerResult<()> {
+        if self.infer.is_deciding()
+            || self
+                .module(site.node.module_id)
+                .decisions_tail
+                .access_resolution(site.node)
+                .is_none()
+        {
+            return Ok(());
+        }
+        let keeps_value = coercion.is_some_and(|coercion| {
+            coercion.adjustments.iter().any(|adjustment| {
+                matches!(
+                    adjustment,
+                    dir::CoercionAdjustment::Borrow { .. } | dir::CoercionAdjustment::Read { .. }
+                )
+            })
+        });
+        if keeps_value
+            || self
+                .decide_copy(site.origin(), source, &mut SmallVec::new())?
+                .holds()
+        {
+            return Ok(());
+        }
+        self.commit_access_use(site.node, dir::BindingUse::MOVE);
+
+        Ok(())
     }
 
     /// Queue one open conversion for once its variables close.
@@ -427,6 +542,18 @@ impl CheckState<'_> {
             return self.constrain_type(origin, cause, Relation::Subtype, source.ty, slot);
         }
 
+        // read a borrowed value before relating its copied payload to a value slot
+        if let Some(payload) = self.borrow_read(origin, source.ty, target)? {
+            let payload = Value {
+                ty: payload,
+                node: None,
+                place: None,
+                is_fresh: false,
+            };
+
+            return self.constrain_conversion(site, cause, relation, payload, target, use_);
+        }
+
         // match an open union against a union slot arm by arm
         let resolved = self.shallow_resolve(source.ty)?;
         if let dir::Type::Union(union) = self.ty(resolved)?
@@ -459,8 +586,7 @@ impl CheckState<'_> {
         // convert each case of a union or deferred conditional value into the closed slot
         let chain = self.form_chain(origin, target)?;
         let slot = chain.base();
-        let borrows_whole = self.borrows_whole(origin, source.ty, target)?;
-        if !borrows_whole
+        if !self.pointer_converts_whole(origin, source.ty, target)?
             && self.root_variable(slot)?.is_none()
             && let Some(arms) = self.conversion_source_cases(origin, source.ty, target)?
         {
@@ -518,7 +644,7 @@ impl CheckState<'_> {
 
         // observe through a readonly value view, leaving its storage in place
         let may_observe = source_chain.is_readonly()
-            || self.type_flags(source.ty)?.has_alias()
+            || self.type_flags(source.ty)?.has_reference()
             || matches!(self.ty(source_chain.base())?, dir::Type::Union(_));
         if use_ == ValueUse::Operand
             && may_observe
@@ -533,33 +659,22 @@ impl CheckState<'_> {
             return self.constrain_edge(site, cause, observed, target, use_);
         }
 
-        // read a directly owned Copy payload out of a borrow at an expectation site
+        // read a borrowed value's copied payload at an expectation site
+        if let Some(payload) = self.borrow_read(origin, source.ty, target)? {
+            let payload = Value {
+                ty: payload,
+                place: None,
+                ..source
+            };
+
+            return self.constrain_edge(site, cause, payload, target, use_);
+        }
+
+        // record the access a reborrow into a slot storing a borrow requires
         let source_borrowed = source_chain
             .ownership_form()
             .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
-        let target_borrowed = target_chain
-            .ownership_form()
-            .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)))
-            || self.has_borrowed_arm(origin, target)?;
-        if source_borrowed && !target_borrowed {
-            let payload = source_chain.base();
-            if !self.type_is_aliased(origin, payload)?
-                && self
-                    .decide_auto_interface(origin, payload, dir::AutoInterface::Copy)?
-                    .holds()
-            {
-                let payload = Value {
-                    ty: payload,
-                    place: None,
-                    ..source
-                };
-
-                return self.constrain_edge(site, cause, payload, target, use_);
-            }
-        }
-
-        // record the access a reborrow into a borrowed destination requires
-        if source_borrowed && target_borrowed {
+        if source_borrowed && self.stores_borrow(origin, target)? {
             self.commit_reborrow_access(origin, source, target)?;
         }
 
@@ -632,10 +747,18 @@ impl CheckState<'_> {
             {
                 StoreMode::Store
             }
+            // flow an open value into a union slot by inclusion, its arm converting once it closes
+            (dir::Type::Variable(_), dir::Type::Union(_)) => StoreMode::Open,
             // inject into the arms a union slot declares
             (_, dir::Type::Union(union)) => StoreMode::Inject(SmallVec::from_slice(
                 self.type_ids(slot.module_id, union.elements)?,
             )),
+            // materialize a numeric literal into the rigid parameter converting its family
+            (dir::Type::Literal(_), dir::Type::Parameter(_))
+                if self.numeric_literal_kind(source)?.is_some() =>
+            {
+                StoreMode::Materialize(slot)
+            }
             // materialize a constant into the primitive that holds it
             (dir::Type::Key(key), dir::Type::Primitive(primitive))
                 if key.widens_to_primitive(primitive) =>
@@ -827,29 +950,6 @@ impl CheckState<'_> {
         Ok(verdict)
     }
 
-    /// Return whether a borrow target lends one value whole.
-    fn borrows_whole(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // require a borrowed target
-        let chain = self.form_chain(origin, target)?;
-        let Some(borrow) = chain.ownership_form() else {
-            return Ok(false);
-        };
-        if !matches!(borrow.form, dir::Form::Borrowed(_)) {
-            return Ok(false);
-        }
-
-        // relate the source to the payload the borrow lends
-        let payload = self.readable_value(borrow.value)?;
-        Ok(self
-            .decide_relation(origin, Relation::Storable, source, payload)?
-            .holds())
-    }
-
     /// Return the sole union arm one value enters, else the verdict the arms leave.
     fn viable_union_arms(
         &mut self,
@@ -904,7 +1004,7 @@ impl CheckState<'_> {
         // require the placement a written target region names from the source storage
         let mut verdict = Verdict::Holds;
         let borrow = self.type_borrow(conversion.module, target_borrow)?;
-        let target_place = match self.ty(self.shallow_resolve(borrow.region)?)? {
+        let target_place = match self.resolved_ty(borrow.region)? {
             dir::Type::Region(region) => Some(region.space),
             _ => None,
         };
@@ -988,15 +1088,17 @@ impl CheckState<'_> {
         };
         let verdict = verdict.and(payload);
 
-        // record borrows that require mutable access to directly stored binding values
+        // record the access the borrow takes of the binding value
         if verdict == Verdict::Holds
-            && !self.type_is_aliased(origin, source.ty)?
             && let Some(node) = source.node
         {
+            let is_aliased = self.type_is_aliased(origin, source.ty)?;
             let readonly = self.access_literal(dir::Access::Readonly)?;
             match self.relate_access_assignable(origin, readonly, borrow.access)? {
                 Verdict::Holds => {}
-                Verdict::Fails => self.commit_access_use(node, dir::BindingUse::MUTATE),
+                Verdict::Fails => {
+                    self.commit_required_access(node, dir::Access::Mutable, is_aliased)
+                }
                 Verdict::Ambiguous => {
                     return Err(CompilerError::Internal {
                         message: format!(
@@ -1047,9 +1149,38 @@ impl CheckState<'_> {
             return Ok(Ok(None));
         }
 
+        // spell an explicit cast as the one adjustment it names
+        if use_ == ValueUse::Cast
+            && let Some(adjustment) = self.cast_adjustment(origin, cause, source.ty, target)?
+        {
+            return Ok(Ok(Some(Box::new(dir::Coercion::new(
+                source.ty,
+                vec![adjustment],
+                dir::CastOrigin::Implicit,
+            )))));
+        }
+
+        // read a borrowed value's copied payload before selecting where it stores
+        if let Some(payload) = self.borrow_read(origin, source.ty, target)? {
+            let payload_value = Value {
+                ty: payload,
+                node: None,
+                place: None,
+                is_fresh: false,
+            };
+            let conversion =
+                self.convert_closed_value(site, origin, cause, payload_value, target, use_)?;
+            let conversion = match conversion {
+                Ok(conversion) => conversion.map(|conversion| *conversion),
+                Err(failure) => return Ok(Err(failure)),
+            };
+            let coercion = Self::read_coercion(source.ty, payload, conversion);
+
+            return Ok(Ok(Some(Box::new(coercion))));
+        }
+
         // map every concrete source case through the target conversion
-        let borrows_whole = self.borrows_whole(origin, source.ty, target)?;
-        if !borrows_whole
+        if !self.pointer_converts_whole(origin, source.ty, target)?
             && let Some(sources) = self.conversion_source_cases(origin, source.ty, target)?
         {
             return self.convert_source_cases(site, origin, cause, source, sources, target, use_);
@@ -1178,6 +1309,45 @@ impl CheckState<'_> {
 
         // convert the existing value through its memory forms and payload cases
         self.convert_existing_value(site, origin, cause, source, target, use_)
+    }
+
+    /// Return the one adjustment an explicit cast names: a newtype unwrapped to its backing or
+    /// wrapped over it, or a scalar converted between formats.
+    fn cast_adjustment(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::CoercionAdjustment>> {
+        // unwrap a newtype to its backing, or wrap a backing value into the newtype
+        if let Some(instance) = self.decompose_newtype(origin, source)?
+            && self
+                .decide_relation(origin, Relation::Equal, instance.backing, target)?
+                .holds()
+        {
+            return Ok(Some(dir::CoercionAdjustment::Newtype { target }));
+        }
+        if let Some(instance) = self.decompose_newtype(origin, target)?
+            && self
+                .decide_relation(origin, Relation::Equal, source, instance.backing)?
+                .holds()
+        {
+            return Ok(Some(dir::CoercionAdjustment::Newtype { target }));
+        }
+
+        // convert between scalar formats
+        if let (dir::Type::Primitive(_), dir::Type::Primitive(_)) =
+            (self.ty(source)?, self.ty(target)?)
+            && self
+                .decide(|state| state.relate_castable(origin, cause, source, target))?
+                .0
+                == Verdict::Holds
+        {
+            return Ok(Some(dir::CoercionAdjustment::Scalar { target }));
+        }
+
+        Ok(None)
     }
 
     /// Map every concrete source case through the target conversion.
@@ -1438,21 +1608,15 @@ impl CheckState<'_> {
             return Ok(Err(failure));
         }
 
-        // record the resolved result of a target reaching a deferred operation
+        // record the resolved result of a deferred operation target, an alias head staying written
         let resolved_target = self.shallow_resolve(target)?;
-        let target_reaches_computation = match self.ty(resolved_target)? {
-            dir::Type::Operation(_) => true,
-            dir::Type::Application(instance) => self.is_computed_alias(instance.symbol)?,
-            _ => false,
-        };
-        let recorded_target = if target_reaches_computation {
-            self.normalize(origin, target)?
-        } else {
-            target
+        let recorded_target = match self.ty(resolved_target)? {
+            dir::Type::Operation(_) => self.normalize(origin, target)?,
+            _ => target,
         };
 
         // skip adjustment for a dynamic read at exactly its declared constraint
-        if let dir::Type::Dynamic(dynamic) = self.ty(self.shallow_resolve(source.ty)?)?
+        if let dir::Type::Dynamic(dynamic) = self.resolved_ty(source.ty)?
             && self
                 .decide_relation(origin, Relation::Equal, dynamic.constraint, recorded_target)?
                 .holds()
@@ -1471,20 +1635,10 @@ impl CheckState<'_> {
             return Ok(Ok(Some(Box::new(coercion))));
         }
 
-        // classify the memory form on each side
+        // read a borrowed value's copied payload before converting it
         let source_chain = self.form_chain(origin, source.ty)?;
         let target_chain = self.form_chain(origin, target)?;
-        let source_borrowed = source_chain
-            .ownership_form()
-            .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)));
-        let target_borrowed = target_chain
-            .ownership_form()
-            .is_some_and(|form| matches!(form.form, dir::Form::Borrowed(_)))
-            || self.has_borrowed_arm(origin, target)?;
-
-        // read borrowed values before converting their copied payload
-        if source_borrowed && !target_borrowed {
-            let payload = source_chain.base();
+        if let Some(payload) = self.borrow_read(origin, source.ty, target)? {
             let payload_value = Value {
                 ty: payload,
                 node: None,
@@ -1494,19 +1648,10 @@ impl CheckState<'_> {
             let conversion =
                 self.convert_closed_value(site, origin, cause, payload_value, target, use_)?;
             let conversion = match conversion {
-                Ok(conversion) => conversion,
+                Ok(conversion) => conversion.map(|conversion| *conversion),
                 Err(failure) => return Ok(Err(failure)),
             };
-            let mut adjustments = Vec::with_capacity(
-                conversion
-                    .as_ref()
-                    .map_or(1, |conversion| conversion.adjustments.len() + 1),
-            );
-            adjustments.push(dir::CoercionAdjustment::Read { target: payload });
-            if let Some(conversion) = conversion {
-                adjustments.extend(conversion.adjustments);
-            }
-            let coercion = dir::Coercion::new(source.ty, adjustments, dir::CastOrigin::Implicit);
+            let coercion = Self::read_coercion(source.ty, payload, conversion);
 
             return Ok(Ok(Some(Box::new(coercion))));
         }

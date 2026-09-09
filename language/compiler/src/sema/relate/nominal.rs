@@ -12,6 +12,18 @@ pub(in crate::sema) struct HeritageApplication {
     pub(in crate::sema) source: dir::GlobalNodeIdAny,
     /// The applied nominal or interface type.
     pub(in crate::sema) ty: dir::GlobalTypeId,
+    /// The application of the class, struct, newtype, extension, or root interface whose heritage
+    /// clause introduced this one, at the receiver's arguments.
+    pub(in crate::sema) implementer: dir::GlobalTypeId,
+}
+
+/// One interface application a receiver's heritage reaches, with its implementing declaration.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::sema) struct DeclaredConformance {
+    /// The application of the declaration whose heritage clause names the interface.
+    pub(in crate::sema) implementer: dir::GlobalTypeId,
+    /// The reached interface application.
+    pub(in crate::sema) interface: dir::GlobalTypeId,
 }
 
 /// One duplicate heritage application with incompatible arguments.
@@ -55,7 +67,7 @@ impl HeritageClosure {
     fn application<'a>(
         &'a self,
         symbol: dir::GlobalSymbolId,
-        state: &CheckState<'_>,
+        state: &mut CheckState<'_>,
     ) -> CompilerResult<Option<&'a HeritageApplication>> {
         for application in &self.applications {
             let (_, instance) = state.nominal_application(application.ty)?;
@@ -106,17 +118,8 @@ impl CheckState<'_> {
         }
 
         // select the source application of the target declaration
-        let application = if source_instance.symbol == target_instance.symbol {
-            Some((source.module_id, *source_instance))
-        } else {
-            let heritage =
-                self.heritage_instance(origin, source, source, target_instance.symbol)?;
-
-            match heritage {
-                Some(heritage) => Some(self.nominal_application(heritage)?),
-                None => None,
-            }
-        };
+        let application =
+            self.heritage_application(origin, source, source_instance, target_instance.symbol)?;
 
         // compare every nominal path through one argument relation
         if let Some((application_module, application)) = application {
@@ -174,7 +177,8 @@ impl CheckState<'_> {
         let dir::Type::Application(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol)? else {
+        let definition = self.definition(target_instance.symbol)?;
+        let Some(dir::Definition::Struct(_)) = definition.as_deref() else {
             return Ok(None);
         };
 
@@ -214,7 +218,8 @@ impl CheckState<'_> {
         let dir::Type::Application(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol)? else {
+        let definition = self.definition(target_instance.symbol)?;
+        let Some(dir::Definition::Struct(_)) = definition.as_deref() else {
             return Ok(None);
         };
 
@@ -260,7 +265,8 @@ impl CheckState<'_> {
         let dir::Type::Application(instance) = self.ty(target)? else {
             return Ok(fields);
         };
-        let Some(dir::Definition::Struct(definition)) = self.definition(instance.symbol)? else {
+        let declared = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Struct(definition)) = declared.as_deref() else {
             return Ok(fields);
         };
 
@@ -288,8 +294,8 @@ impl CheckState<'_> {
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<SmallVec<[dir::TypeProperty; 8]>> {
-        let Some(dir::Definition::Struct(definition)) = self.definition(instance.symbol)?.cloned()
-        else {
+        let declared = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Struct(definition)) = declared.as_deref() else {
             return Ok(SmallVec::new());
         };
 
@@ -300,7 +306,7 @@ impl CheckState<'_> {
         let mut fields = SmallVec::new();
 
         // collect direct instance fields through the selected target
-        for member in definition.members {
+        for member in &definition.members {
             let dir::DefinitionMember::Field(field) = member else {
                 continue;
             };
@@ -529,11 +535,11 @@ impl CheckState<'_> {
         let ty = self.heritage_root(origin, ty)?;
 
         // close a structural entry over an empty heritage
-        let Some((instance_module, instance)) = self.nominal_application_maybe(ty)? else {
+        if self.nominal_application_maybe(ty)?.is_none() {
             return Ok(HeritageClosure::default());
-        };
+        }
 
-        self.instance_heritage_closure(origin, ty, instance_module, instance)
+        self.instance_heritage_closure(origin, ty, ty)
     }
 
     /// Settle one heritage root, reducing aliases to their nominal application.
@@ -545,7 +551,7 @@ impl CheckState<'_> {
         // normalize an alias application before reading its head
         let is_alias = match self.nominal_application_maybe(ty)? {
             Some((_, instance)) => matches!(
-                self.definition(instance.symbol)?,
+                self.definition(instance.symbol)?.as_deref(),
                 Some(dir::Definition::TypeAlias(_))
             ),
             None => true,
@@ -562,15 +568,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-        instance_module: ModuleId,
-        instance: dir::GenericApplication,
+        root: dir::GlobalTypeId,
     ) -> CompilerResult<HeritageClosure> {
+        let (instance_module, instance) = self.nominal_application(root)?;
         let mut closure = HeritageClosure::default();
         let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
 
         // let extension declarations repeat one application with different arguments
         let independent = matches!(
-            self.definition(instance.symbol)?,
+            self.definition(instance.symbol)?.as_deref(),
             Some(dir::Definition::Extension(_))
         );
 
@@ -581,6 +587,7 @@ impl CheckState<'_> {
             receiver,
             instance_module,
             &instance,
+            root,
             None,
             independent,
             &mut active,
@@ -597,6 +604,7 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         instance_module: ModuleId,
         instance: &dir::GenericApplication,
+        implementer: dir::GlobalTypeId,
         branch_source: Option<dir::GlobalNodeIdAny>,
         independent: bool,
         active: &mut SmallVec<[dir::GlobalSymbolId; 8]>,
@@ -604,7 +612,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // read the declaration this application instantiates, staying symbolic while declaring
         let declaring = self.is_declaring();
-        let definition = match self.definition(instance.symbol)? {
+        let declared = self.definition(instance.symbol)?;
+        let definition = match declared.as_deref() {
             Some(definition) => definition,
             None if declaring => return Ok(()),
             None => {
@@ -631,6 +640,7 @@ impl CheckState<'_> {
             let application = HeritageApplication {
                 source: branch_source.unwrap_or(heritage.source),
                 ty,
+                implementer,
             };
 
             // report cycles at the branch that exposed them
@@ -664,7 +674,12 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // recurse through newly reached applications, keeping this at the root receiver
+            // recurse through newly reached applications, keeping this at the root receiver, an
+            // interface's edges implemented by whatever implements the interface
+            let next_implementer = match self.definition(instance.symbol)?.as_deref() {
+                Some(dir::Definition::Interface(_)) => implementer,
+                _ => ty,
+            };
             closure.applications.push(application.clone());
             active.push(instance.symbol);
             self.collect_heritage(
@@ -672,6 +687,7 @@ impl CheckState<'_> {
                 receiver,
                 application_module,
                 &instance,
+                next_implementer,
                 Some(application.source),
                 independent,
                 active,
@@ -721,7 +737,7 @@ impl CheckState<'_> {
             let Some(definition) = self.definition(current)? else {
                 return Ok(HeritageReach::Open);
             };
-            if matches!(definition, dir::Definition::TypeAlias(_)) {
+            if matches!(*definition, dir::Definition::TypeAlias(_)) {
                 return Ok(HeritageReach::Open);
             }
 
@@ -745,25 +761,49 @@ impl CheckState<'_> {
         Ok(HeritageReach::Closed(reached))
     }
 
-    /// Find one heritage application naming a target symbol, transitively.
-    pub(in crate::sema) fn heritage_instance(
+    /// Select the application of one declaration a source application is or inherits.
+    pub(in crate::sema) fn heritage_application(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        source_instance: &dir::GenericApplication,
+        target: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<(ModuleId, dir::GenericApplication)>> {
+        // accept the source naming the declaration
+        if source_instance.symbol == target {
+            return Ok(Some((source.module_id, *source_instance)));
+        }
+
+        // the source's heritage reaches the declaration
+        match self.declared_conformance(origin, source, source, target)? {
+            Some(conformance) => Ok(Some(self.nominal_application(conformance.interface)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Find the application of one interface in a type's heritage closure, with the declaration
+    /// implementing it.
+    pub(in crate::sema) fn declared_conformance(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
-        target: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        interface: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<DeclaredConformance>> {
         let ty = self.heritage_root(origin, ty)?;
-        let Some((instance_module, instance)) = self.nominal_application_maybe(ty)? else {
+        if self.nominal_application_maybe(ty)?.is_none() {
             return Ok(None);
-        };
-        let closure =
-            self.instance_heritage_closure(origin, receiver, instance_module, instance)?;
-        if let Some(application) = closure.application(target, self)? {
-            return Ok(Some(application.ty));
         }
+        let closure = self.instance_heritage_closure(origin, receiver, ty)?;
+        let conformance =
+            closure
+                .application(interface, self)?
+                .map(|application| DeclaredConformance {
+                    implementer: application.implementer,
+                    interface: application.ty,
+                });
 
-        Ok(None)
+        Ok(conformance)
     }
 
     /// Relate arguments of two same-template applications.
@@ -804,8 +844,8 @@ impl CheckState<'_> {
         }
 
         // pair the arguments positionally
-        let pairs = self
-            .type_ids(source_module, source.arguments)?
+        let source_arguments = self.type_ids(source_module, source.arguments)?;
+        let pairs = source_arguments
             .iter()
             .copied()
             .zip(
@@ -818,15 +858,12 @@ impl CheckState<'_> {
         // erase extent arguments from instance identity, Verify enforces them
         let lifetimes = match self.symbol_template(source.symbol)? {
             Some(template) => {
-                let parameters = self.generic_template_parameters(template)?;
-                parameters
-                    .iter()
-                    .map(|parameter| {
-                        self.generic_parameter(*parameter).is_some_and(|binding| {
-                            binding.memory_parameter() == Some(dir::MemoryParameter::Region)
-                        })
-                    })
-                    .collect::<SmallVec<[bool; 4]>>()
+                let mut lifetimes = SmallVec::<[bool; 4]>::new();
+                for parameter in self.generic_template_parameters(template)? {
+                    lifetimes.push(self.is_lifetime_parameter(parameter)?);
+                }
+
+                lifetimes
             }
             None => SmallVec::new(),
         };

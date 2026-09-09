@@ -45,6 +45,7 @@ impl CheckState<'_> {
             None => self.intern_type(dir::Type::Void)?,
         };
         let call = dir::Call {
+            regions: Vec::new(),
             target: dir::CallableTarget::Expression {
                 generic_arguments: Vec::new(),
             },
@@ -141,9 +142,8 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let parameters = self
-            .signature_parameters(signature_type.module_id, signature.parameters)?
-            .to_vec();
+        let parameters =
+            self.signature_parameters(signature_type.module_id, signature.parameters)?;
 
         // bind the chunks and spans the construct supplies
         let arguments = parameters
@@ -157,6 +157,7 @@ impl CheckState<'_> {
         let key = dir::InstanceKey::new(symbol, Vec::new());
 
         Ok(Some(dir::Call {
+            regions: Vec::new(),
             target: dir::CallableTarget::Symbol {
                 function: dir::FunctionTarget {
                     receiver: None,

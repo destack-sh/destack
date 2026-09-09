@@ -45,7 +45,7 @@ const shapes: Shape[] = circles;
 /// @resolution.pattern source=shapes kind=binding target=shapes
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -96,45 +96,39 @@ declare const circles: Circle[];
 /// @type.symbol symbol=circles source=circles type=Circle[]
 /// @resolution.pattern source=circles kind=binding target=circles
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<Circle, \"exclusive\">" template=elementSlot arguments=(Circle, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive Circle[], usize) => &elementSlot.'a exclusive MaybeUninit<Circle>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Circle>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Circle>>, usize) => &elementSlot.'a exclusive MaybeUninit<Circle>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Circle>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Circle>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Circle>>, usize) => &elementSlot.'a exclusive MaybeUninit<Circle>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive Circle[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Circle>>)
-/// @generic.instance id="initAsPointer<Circle, \"exclusive\">" template=initAsPointer arguments=(Circle, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<Circle>) => Raw<Circle>)
-/// @generic.instance id="sliceIndex<MaybeUninit<Circle>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<Circle>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<Circle>>, usize) => &sliceIndex.'a exclusive MaybeUninit<Circle>)
+/// @generic.instance id="elementSlot<Circle, \"mutable\">" template=elementSlot arguments=(Circle, "mutable")
+/// @generic.instance id="initAsPointer<Circle, \"mutable\">" template=initAsPointer arguments=(Circle, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<Circle>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Circle>, "mutable")
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<Circle> template=Array arguments=(Circle)
-/// @generic.instance id=MaybeUninit<Circle> template=MaybeUninit arguments=(Circle)
-/// @generic.instance id=MaybeUninit<MaybeUninit<Circle>> template=MaybeUninit arguments=(MaybeUninit<Circle>)
 /// @generic.instance id=assumeInitDrop#1<Circle> template=assumeInitDrop#1 arguments=(Circle)
-/// @generic.instance id=assumeInitDrop<Circle> template=assumeInitDrop arguments=(Circle) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<Circle>) => Raw<Circle>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<Circle>)
+/// @generic.instance id=assumeInitDrop<Circle> template=assumeInitDrop arguments=(Circle)
 /// @generic.instance id=clear<Circle> template=clear arguments=(Circle)
 /// @generic.instance id=drop<Circle> template=drop arguments=(Circle)
 /// @generic.instance id=dropInPlace<Circle> template=dropInPlace arguments=(Circle)
-/// @generic.instance id=new<MaybeUninit<Circle>> template=new arguments=(MaybeUninit<Circle>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<Circle>> template=sliceAssumeInit arguments=(MaybeUninit<Circle>)
 /// @generic.instance id=sliceUninit<MaybeUninit<Circle>> template=sliceUninit arguments=(MaybeUninit<Circle>)
-/// @generic.instance id=truncate<Circle> template=truncate arguments=(Circle) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<Circle>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive Circle[], usize) => &truncate.'a exclusive MaybeUninit<Circle>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive Circle[])
+/// @generic.instance id=truncate<Circle> template=truncate arguments=(Circle)
 /// @resolution.name source=Circle target=Circle
 
 const shapes: readonly Shape[] = circles;
 /// @type.symbol symbol=shapes source=shapes type=readonly Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
-/// @generic.instance id="elementSlot<Shape, \"exclusive\">" template=elementSlot arguments=(Shape, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive Shape[], usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Shape>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Shape>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive Shape[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Shape>>)
-/// @generic.instance id="initAsPointer<Shape, \"exclusive\">" template=initAsPointer arguments=(Shape, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<Shape>) => Raw<Shape>)
-/// @generic.instance id="sliceIndex<MaybeUninit<Shape>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<Shape>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &sliceIndex.'a exclusive MaybeUninit<Shape>)
+/// @generic.instance id="elementSlot<Shape, \"mutable\">" template=elementSlot arguments=(Shape, "mutable")
+/// @generic.instance id="initAsPointer<Shape, \"mutable\">" template=initAsPointer arguments=(Shape, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<Shape>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Shape>, "mutable")
 /// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
-/// @generic.instance id=MaybeUninit<MaybeUninit<Shape>> template=MaybeUninit arguments=(MaybeUninit<Shape>)
-/// @generic.instance id=MaybeUninit<Shape> template=MaybeUninit arguments=(Shape)
 /// @generic.instance id=assumeInitDrop#1<Shape> template=assumeInitDrop#1 arguments=(Shape)
-/// @generic.instance id=assumeInitDrop<Shape> template=assumeInitDrop arguments=(Shape) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<Shape>) => Raw<Shape>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<Shape>)
+/// @generic.instance id=assumeInitDrop<Shape> template=assumeInitDrop arguments=(Shape)
 /// @generic.instance id=clear<Shape> template=clear arguments=(Shape)
 /// @generic.instance id=drop<Shape> template=drop arguments=(Shape)
 /// @generic.instance id=dropInPlace<Shape> template=dropInPlace arguments=(Shape)
-/// @generic.instance id=new<MaybeUninit<Shape>> template=new arguments=(MaybeUninit<Shape>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<Shape>> template=sliceAssumeInit arguments=(MaybeUninit<Shape>)
 /// @generic.instance id=sliceUninit<MaybeUninit<Shape>> template=sliceUninit arguments=(MaybeUninit<Shape>)
-/// @generic.instance id=truncate<Shape> template=truncate arguments=(Shape) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<Shape>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive Shape[], usize) => &truncate.'a exclusive MaybeUninit<Shape>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive Shape[])
+/// @generic.instance id=truncate<Shape> template=truncate arguments=(Shape)
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=circles root=circles
 "#,
     );
@@ -194,7 +188,7 @@ const widened: readonly (Circle | Square)[] = circles;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -260,7 +254,7 @@ const widened: () => Shape = make;
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=make target=make
-/// @resolution.place source=make placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=make placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=make root=make
 
 const either: () => Circle | Square = make;
@@ -269,7 +263,7 @@ const either: () => Circle | Square = make;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=make target=make
-/// @resolution.place source=make placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=make placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=make root=make
 "#,
         r#"
@@ -454,7 +448,7 @@ const widened: Managed<Box<Shape>> = aliased;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=aliased target=aliased
-/// @resolution.place source=aliased placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=aliased placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=aliased root=aliased
 "#,
         r#"
@@ -531,7 +525,7 @@ const widened: { x: float64 } = point;
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @type.symbol symbol=x#2 source="x: float64" type=float64
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -597,7 +591,7 @@ const widened: { readonly x: Shape } = point;
 /// @type.symbol symbol=x#2 source="readonly x: Shape" type=Shape
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=point root=point
 
 declare const scalar: { x: 1 };
@@ -610,7 +604,7 @@ const converted: { readonly x: float64 } = scalar;
 /// @resolution.pattern source=converted kind=binding target=converted
 /// @type.symbol symbol=x#4 source="readonly x: float64" type=float64
 /// @resolution.name source=scalar target=scalar
-/// @resolution.place source=scalar placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=scalar placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=scalar root=scalar
 "#,
         r#"
@@ -679,7 +673,7 @@ const useCircle: (circle: Circle) => void = useShape;
 /// @type.symbol symbol=circle#1 source="circle: Circle" type=Circle
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=useShape target=useShape
-/// @resolution.place source=useShape placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=useShape placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=useShape root=useShape
 
 declare const useCircle2: (circle: Circle) => void;
@@ -694,7 +688,7 @@ const useShape2: (shape: Shape) => void = useCircle2;
 /// @type.symbol symbol=shape#2 source="shape: Shape" type=Shape
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=useCircle2 target=useCircle2
-/// @resolution.place source=useCircle2 placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=useCircle2 placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=useCircle2 root=useCircle2
 "#,
         r#"
@@ -906,7 +900,7 @@ function increment(value: int32): int32 {
     return value + 1;
     /// @resolution.name source=value target=increment.value
     /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=increment.value
 
 }
@@ -955,11 +949,11 @@ forEach(async (value) => value);
 /// @resolution.name source=forEach target=forEach
 /// @resolution.call source="forEach(async (value) => value)" parameters=(Function<(int32,), void>) arguments=(provided(async (value) => value) as Function<(int32,), void>) return=void kind=symbol target=forEach
 /// @type.symbol symbol=symbol4 source="async (value) => value" type=Function<(int32,), Promise<int32>, "readonly">
-/// @resolution.call source="async (value) => value" parameters=(^Function<(), Promise.create.T, "once">) arguments=(supplied as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<int32>
+/// @resolution.call source="async (value) => value" parameters=(^Function<(), int32, "once">) arguments=(supplied as ^Function<(), int32, "once">) return=Promise<int32> kind=symbol target=Promise.create instance=Promise.create<int32>
 /// @generic.instantiation id=Promise.create<int32> template=Promise.create arguments=(int32)
 /// @type.symbol symbol=symbol4.value source=value type=int32
 /// @resolution.name source=value target=symbol4.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol4.value
 "#,
         r#"
@@ -1040,7 +1034,7 @@ const exact: Box<Circle> = Box { value: circle };
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=circle target=circle
-/// @resolution.place source=circle placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=circle placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=circle root=circle
 
 const widened: Box<Shape> = exact;
@@ -1129,7 +1123,7 @@ const exact: Box<Circle> = Box { value: circle };
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=circle target=circle
-/// @resolution.place source=circle placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=circle placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=circle root=circle
 
 const widened: &readonly Box<Shape> = &readonly exact;
@@ -1147,7 +1141,7 @@ const widened: &readonly Box<Shape> = &readonly exact;
 
 /// An exclusive borrow rejects widening the type argument of the struct it lends.
 #[test]
-fn test_exclusive_borrow_rejects_struct_payload_widening() {
+fn test_reject_struct_payload_widening_under_a_mutable_borrow() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -1160,7 +1154,7 @@ struct Box<Value> {
 declare const circle: Circle;
 
 let exact: Box<Circle> = Box { value: circle };
-const widened: &exclusive Box<Shape> = &exclusive exact;
+const widened: &Box<Shape> = &exact;
 "#,
     );
 
@@ -1179,7 +1173,7 @@ struct Box<out Value> {
 declare const circle: Circle;
 
 let exact: Box<Circle> = Box<Circle> { value: circle };
-const widened: &'static exclusive Box<Shape> = &exclusive exact;
+const widened: &'static Box<Shape> = &exact;
 
 === dir ===
 class Shape {}
@@ -1217,22 +1211,22 @@ let exact: Box<Circle> = Box { value: circle };
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=circle target=circle
-/// @resolution.place source=circle placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=circle placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=circle root=circle
 
-const widened: &exclusive Box<Shape> = &exclusive exact;
-/// @type.symbol symbol=widened source=widened type=&'static exclusive constant Box<Shape>
+const widened: &Box<Shape> = &exact;
+/// @type.symbol symbol=widened source=widened type=&'static constant Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
-/// @resolution.place source=exact placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=exact placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=exact root=exact
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static exclusive local Box<Circle>' is not assignable to type '&'static exclusive constant Box<Shape>'"
-/// @diagnostic.label line=12 column=40 span="&exclusive exact" line_source="const widened: &exclusive Box<Shape> = &exclusive exact;"
-/// @diagnostic.related line=12 column=16 span="&" line_source="const widened: &exclusive Box<Shape> = &exclusive exact;" message="expected due to this annotation"
+/// @diagnostic.error id=not-assignable message="type '&'static local Box<Circle>' is not assignable to type '&'static constant Box<Shape>'"
+/// @diagnostic.label line=12 column=30 span="&exact" line_source="const widened: &Box<Shape> = &exact;"
+/// @diagnostic.related line=12 column=16 span="&" line_source="const widened: &Box<Shape> = &exact;" message="expected due to this annotation"
 "#,
     );
 }
@@ -1309,7 +1303,7 @@ const widened: Managed<Box<Shape>> = shared;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=shared target=shared
-/// @resolution.place source=shared placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=shared placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=shared root=shared
 "#,
         r#"

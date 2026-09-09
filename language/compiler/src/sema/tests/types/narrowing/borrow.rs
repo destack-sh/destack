@@ -106,6 +106,7 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
     /// @resolution.member source=shape.radius receiver=&'a Circle type=int32 kind=field target_receiver=&'a Circle key=radius target=Circle.radius target_type=int32
     /// @resolution.place source=shape placement='a lifetime='a access="mutable"
     /// @resolution.access source=shape root=read.shape
+    /// @resolution.narrowing source=shape union=&'a Rectangle | Circle arms=&'a Circle
     /// @resolution.place source=shape.radius placement='a lifetime='a access="mutable"
     /// @resolution.access source=shape.radius root=read.shape keys=[radius]
 
@@ -227,6 +228,7 @@ function read<'a, const A: Access>(
     /// @resolution.member source=shape.radius receiver=Borrowed<Circle, 'a, A> type=int32 kind=field target_receiver=Borrowed<Circle, 'a, A> key=radius target=Circle.radius target_type=int32
     /// @resolution.place source=shape placement='a lifetime='a access=A
     /// @resolution.access source=shape root=read.shape
+    /// @resolution.narrowing source=shape union=Borrowed<Rectangle | Circle, 'a, A> arms=Borrowed<Circle, 'a, A>
     /// @resolution.place source=shape.radius placement='a lifetime='a access=A
     /// @resolution.access source=shape.radius root=read.shape keys=[radius]
 
@@ -311,7 +313,7 @@ function value<'a, 'b>(
     /// @type.node source="flag ? (&left.value) : (&right.value)" type=&'a | 'b string
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=value.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=flag root=value.flag
     /// @type.node source=&left.value type=&'a string
     /// @type.node source=left type=&'a Text

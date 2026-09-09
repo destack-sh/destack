@@ -101,8 +101,9 @@ class Document extends Drawable {}
 
 === dir ===
 interface Drawable {}
+/// @generic.template symbol=Drawable parameters=(this: Drawable)
 /// @type.symbol symbol=Drawable source="interface Drawable {}" type=Drawable
-/// @definition.interface symbol=Drawable source="interface Drawable {}"
+/// @definition.interface symbol=Drawable source="interface Drawable {}" template=(this: Drawable)
 /// @definition.where symbol=Drawable source="interface Drawable {}" relation=satisfies left=this right=Drawable
 
 class Document extends Drawable {}
@@ -232,13 +233,14 @@ class Document implements Printable {
 
 === dir ===
 interface Printable {
+/// @generic.template symbol=Printable parameters=(this: Printable)
 /// @type.symbol symbol=Printable type=Printable
-/// @definition.interface symbol=Printable
+/// @definition.interface symbol=Printable template=(this: Printable)
 /// @definition.where symbol=Printable relation=satisfies left=this right=Printable
-/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: Printable) => void
+/// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: this) => void
 
     print(): void;
-    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: Printable) => void
+    /// @type.symbol symbol=Printable.print source="print(): void" type=(this: this) => void
 
 }
 
@@ -290,8 +292,9 @@ class User implements Named {
 
 === dir ===
 interface Named {
+/// @generic.template symbol=Named parameters=(this: Named)
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named
+/// @definition.interface symbol=Named template=(this: Named)
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.field symbol=Named.name source="name?: string" key=name type=string
 
@@ -351,8 +354,9 @@ class Document implements Alias {
 
 === dir ===
 interface Printable {
+/// @generic.template symbol=Printable parameters=(this: Printable)
 /// @type.symbol symbol=Printable type=Printable
-/// @definition.interface symbol=Printable
+/// @definition.interface symbol=Printable template=(this: Printable)
 /// @definition.where symbol=Printable relation=satisfies left=this right=Printable
 /// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: this) => void
 
@@ -414,8 +418,9 @@ class Point implements Drawable {
 
 === dir ===
 interface Drawable {
+/// @generic.template symbol=Drawable parameters=(this: Drawable)
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable
+/// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
 
@@ -481,8 +486,9 @@ class Point implements Drawable {
 
 === dir ===
 interface Named {
+/// @generic.template symbol=Named parameters=(this: Named)
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named
+/// @definition.interface symbol=Named template=(this: Named)
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
 /// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
 
@@ -492,8 +498,9 @@ interface Named {
 }
 
 interface Drawable extends Named {
+/// @generic.template symbol=Drawable parameters=(this: Drawable)
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable
+/// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
@@ -873,7 +880,7 @@ const map: Map<string, int32> = record;
 
 === dir ===
 declare const record: Record<string, int32>;
-/// @type.symbol symbol=record source=record type={ [P: string]: int32 }
+/// @type.symbol symbol=record source=record type=Record<string, int32>
 /// @resolution.pattern source=record kind=binding target=record
 /// @resolution.name source=Record target=Record
 
@@ -882,13 +889,14 @@ const map: Map<string, int32> = record;
 /// @resolution.pattern source=map kind=binding target=map
 /// @resolution.name source=Map target=Map
 /// @resolution.name source=record target=record
-/// @resolution.place source=record placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=record placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=record root=record
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ [P: string]: int32 }' is not assignable to type 'Map<string, int32>'"
+/// @diagnostic.error id=not-assignable message="type 'Record<string, int32>' is not assignable to type 'Map<string, int32>'"
 /// @diagnostic.label line=3 column=33 span="record" line_source="const map: Map<string, int32> = record;"
 /// @diagnostic.related line=3 column=12 span="Map" line_source="const map: Map<string, int32> = record;" message="expected due to this annotation"
+/// @diagnostic.note message="'Record<string, int32>' reduces to '{ [P: string]: int32 }'"
 "#,
     );
 }
@@ -978,7 +986,7 @@ class Base {
 
         return value;
         /// @resolution.name source=value target=Base.parse.value
-        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=value root=Base.parse.value
 
     }
@@ -1056,7 +1064,7 @@ class Base {
 class Child extends Base {
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
-/// @definition.method symbol=Child.describe slot=describe override=true overrides=Base.describe type=<Child.describe.P0: Place>(this: Managed<Child, Child.describe.P0>) => string
+/// @definition.method symbol=Child.describe slot=describe override=true type=<Child.describe.P0: Place>(this: Managed<Child, Child.describe.P0>) => string
 
     override describe(): string {
         return "child";
@@ -1120,7 +1128,7 @@ class Dog extends Animal {
 /// @type.symbol symbol=Dog type=Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
-/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
+/// @definition.method symbol=Dog.speak slot=speak override=true type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
 /// @resolution.name source=Animal target=Animal
 
     override speak(): string {
@@ -1132,10 +1140,9 @@ class Dog extends Animal {
         /// @resolution.member source=super.speak receiver=Animal type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string kind=symbol target_receiver=Animal target=Animal.speak
         /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal instance="Animal.speak<\"local\">"
         /// @resolution.receiver source=super kind=super declaration=Dog type=Animal
-        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=super placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=super root=this
         /// @generic.instantiation id="Animal.speak<\"local\">" template=Animal.speak arguments=("local")
-        /// @generic.instance id="Animal.speak<\"local\">" template=Animal.speak arguments=("local")
 
     }
 }
@@ -1202,7 +1209,7 @@ class Dog extends Animal {
 /// @type.symbol symbol=Dog type=Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
-/// @definition.method symbol=Dog.speak slot=speak override=true overrides=Animal.speak type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
+/// @definition.method symbol=Dog.speak slot=speak override=true type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
 /// @resolution.name source=Animal target=Animal
 
     override speak(): string {
@@ -1220,15 +1227,14 @@ class Dog extends Animal {
         /// @resolution.member source=super.speak receiver=Animal type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string kind=symbol target_receiver=Animal target=Animal.speak
         /// @resolution.call source=super.speak() parameters=() return=string kind=symbol target=Animal.speak receiver=Animal instance="Animal.speak<\"local\">"
         /// @resolution.receiver source=super kind=super declaration=Dog type=Animal
-        /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=super placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=super root=this
         /// @generic.instantiation id="Animal.speak<\"local\">" template=Animal.speak arguments=("local")
-        /// @generic.instance id="Animal.speak<\"local\">" template=Animal.speak arguments=("local")
 
         return inherited();
         /// @resolution.name source=inherited target=Dog.speak.inherited
         /// @resolution.call source=inherited() parameters=() return=string kind=expression target=expression
-        /// @resolution.place source=inherited placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=inherited placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=inherited root=Dog.speak.inherited
 
     }

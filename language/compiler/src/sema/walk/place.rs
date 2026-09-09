@@ -123,7 +123,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<AssignedPlace>> {
         let source = id.into_global_any(self.module);
-        let Some(symbol) = self.check.reference_symbol(source) else {
+        let Some(symbol) = self.check.reference_symbol(source)? else {
             return Ok(None);
         };
 
@@ -138,7 +138,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<Option<AssignedPlace>> {
         let global = source.into_global(self.module);
-        let Some(symbol) = self.check.reference_symbol(global) else {
+        let Some(symbol) = self.check.reference_symbol(global)? else {
             return Ok(None);
         };
 

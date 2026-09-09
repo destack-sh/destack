@@ -37,11 +37,12 @@ impl CheckState<'_> {
             resolutions,
             decisions_tail: decisions,
             flows,
+            references,
             ..
         } = self.module;
 
         // collect the foreign modules the stored entries recorded as they interned
-        let references = self.module.references.iter().copied().collect::<Vec<_>>();
+        let references = references.iter().copied().collect::<Vec<_>>();
 
         let fingerprint = ArtifactProjectionFingerprint::from_serialized_payload(&(
             module,
@@ -91,6 +92,7 @@ impl CheckState<'_> {
             .as_ref()
             .map(|declared| declared.fingerprint);
         let definitions = self.module.definitions_tail;
+        let representations = self.module.representations_tail;
         let members = self.module.members_tail;
         let bindings = self.module.bindings_tail;
         let types = self.module.types_tail.finish();
@@ -113,6 +115,7 @@ impl CheckState<'_> {
             &members,
             &generics,
             &definitions,
+            &representations,
             &decorators,
             &statics,
             &controls,
@@ -134,6 +137,7 @@ impl CheckState<'_> {
             members: Arc::new(members),
             generics: Arc::new(generics),
             definitions: Arc::new(definitions),
+            representations: Arc::new(representations),
             decorators: Arc::new(decorators),
             statics: Arc::new(statics),
             controls: Arc::new(controls),
@@ -160,12 +164,12 @@ impl CheckState<'_> {
             resolutions,
             decisions_tail: decisions,
             generics_tail: generics,
-            definitions_tail: definitions,
             members_tail: members,
             coercions_tail: coercions,
             captures,
             flows,
             references,
+            representations_tail: representations,
             ..
         } = self.module;
 
@@ -186,11 +190,11 @@ impl CheckState<'_> {
                     &resolutions,
                     &decisions,
                     &generics,
-                    &definitions,
                     &members,
                     &coercions,
                     &captures,
                     &flows,
+                    &representations,
                 ))
                 .map_err(|error| CompilerError::Internal {
                     message: format!(
@@ -210,11 +214,11 @@ impl CheckState<'_> {
             resolutions: Arc::new(resolutions),
             decisions: Arc::new(decisions),
             generics: Arc::new(generics),
-            definitions: Arc::new(definitions),
             members: Arc::new(members),
             coercions: Arc::new(coercions),
             captures: Arc::new(captures),
             flows: Arc::new(flows),
+            representations: Arc::new(representations),
         })
     }
 }

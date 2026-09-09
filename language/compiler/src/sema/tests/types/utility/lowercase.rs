@@ -18,16 +18,17 @@ const ok: Value = "hello";
 === annotated ===
 type Value = Lowercase<"HELLO">;
 
-const ok: "hello" = "hello";
+const ok: Value = "hello";
 
 === dir ===
 type Value = Lowercase<"HELLO">;
 /// @type.symbol symbol=Value source="type Value = Lowercase<\"HELLO\">" type="hello"
-/// @definition.type symbol=Value source="type Value = Lowercase<\"HELLO\">" value="hello"
+/// @generic.instance id="Lowercase<\"HELLO\">" template=Lowercase arguments=("HELLO")
+/// @definition.type symbol=Value source="type Value = Lowercase<\"HELLO\">" value=Lowercase<"HELLO">
 /// @resolution.name source=Lowercase target=Lowercase
 
 const ok: Value = "hello";
-/// @type.symbol symbol=ok source=ok type="hello"
+/// @type.symbol symbol=ok source=ok type=Value
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=Value target=Value
 "#,
@@ -54,18 +55,19 @@ method satisfies "get" | "post";
 === annotated ===
 type Method = Lowercase<"GET" | "POST">;
 
-declare const method: "get" | "post";
+declare const method: Method;
 
 method satisfies "get" | "post";
 
 === dir ===
 type Method = Lowercase<"GET" | "POST">;
 /// @type.symbol symbol=Method source="type Method = Lowercase<\"GET\" | \"POST\">" type="get" | "post"
-/// @definition.type symbol=Method source="type Method = Lowercase<\"GET\" | \"POST\">" value="get" | "post"
+/// @generic.instance id="Lowercase<\"GET\" | \"POST\">" template=Lowercase arguments=("GET" | "POST")
+/// @definition.type symbol=Method source="type Method = Lowercase<\"GET\" | \"POST\">" value=Lowercase<"GET" | "POST">
 /// @resolution.name source=Lowercase target=Lowercase
 
 declare const method: Method;
-/// @type.symbol symbol=method source=method type="get" | "post"
+/// @type.symbol symbol=method source=method type=Method
 /// @resolution.pattern source=method kind=binding target=method
 /// @resolution.name source=Method target=Method
 
@@ -95,23 +97,24 @@ const bad: Value = "HELLO";
 === annotated ===
 type Value = Lowercase<"HELLO">;
 
-const bad: "hello" = "HELLO";
+const bad: Value = "HELLO";
 
 === dir ===
 type Value = Lowercase<"HELLO">;
 /// @type.symbol symbol=Value source="type Value = Lowercase<\"HELLO\">" type="hello"
-/// @definition.type symbol=Value source="type Value = Lowercase<\"HELLO\">" value="hello"
+/// @definition.type symbol=Value source="type Value = Lowercase<\"HELLO\">" value=Lowercase<"HELLO">
 /// @resolution.name source=Lowercase target=Lowercase
 
 const bad: Value = "HELLO";
-/// @type.symbol symbol=bad source=bad type="hello"
+/// @type.symbol symbol=bad source=bad type=Value
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"HELLO\"' is not assignable to type '\"hello\"'"
+/// @diagnostic.error id=not-assignable message="type '\"HELLO\"' is not assignable to type 'Value'"
 /// @diagnostic.label line=4 column=20 span="\"HELLO\"" line_source="const bad: Value = \"HELLO\";"
 /// @diagnostic.related line=4 column=12 span="Value" line_source="const bad: Value = \"HELLO\";" message="expected due to this annotation"
+/// @diagnostic.note message="'Value' reduces to '\"hello\"'"
 "#,
     );
 }

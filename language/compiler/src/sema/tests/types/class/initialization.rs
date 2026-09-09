@@ -346,14 +346,14 @@ class User {
         /// @type.node source=this type=User
         /// @type.node source=this.name type=string
         /// @resolution.receiver source=this kind=this declaration=User type=User
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
         /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=User.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=name root=User.constructor.name
 
     }
@@ -412,7 +412,7 @@ class User {
         if (enabled) {
         /// @type.node source=enabled type=boolean
         /// @resolution.name source=enabled target=User.constructor.enabled
-        /// @resolution.place source=enabled placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=enabled placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=enabled root=User.constructor.enabled
 
             this.name = name;
@@ -420,14 +420,14 @@ class User {
             /// @type.node source=this type=User
             /// @type.node source=this.name type=string
             /// @resolution.receiver source=this kind=this declaration=User type=User
-            /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
             /// @resolution.access source=this root=this
             /// @resolution.pattern.assign source=this.name kind=place
             /// @resolution.access source=this.name root=this keys=[name]
             /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
             /// @type.node source=name type=string
             /// @resolution.name source=name target=User.constructor.name
-            /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
+            /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
             /// @resolution.access source=name root=User.constructor.name
 
         }

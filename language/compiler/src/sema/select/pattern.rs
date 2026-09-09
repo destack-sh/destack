@@ -380,7 +380,7 @@ impl CheckState<'_> {
             })?;
 
         // take the bound type, or bind the captured input to the symbol
-        let binding = self.symbol_type_maybe(symbol);
+        let binding = self.symbol_type_maybe(symbol)?;
         let input = if binding == Some(input) {
             input
         } else {
@@ -616,6 +616,40 @@ impl CheckState<'_> {
         input: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.place_binding_type(symbol, input)
+    }
+
+    /// Return the borrow form a destructured input reaches its fields through.
+    pub(in crate::sema) fn pattern_binding_form(
+        &mut self,
+        origin: Origin,
+        input: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Form>> {
+        let chain = self.form_chain(origin, input)?;
+        let borrowed = chain
+            .forms()
+            .iter()
+            .find(|entry| matches!(entry.form, dir::Form::Borrowed(_)))
+            .map(|entry| entry.form);
+
+        Ok(borrowed)
+    }
+
+    /// Return one projected field type bound through the binding form of its input, a copying
+    /// field read out as its own value like every read through a borrow.
+    pub(in crate::sema) fn bound_through(
+        &mut self,
+        origin: Origin,
+        form: Option<dir::Form>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let Some(form) = form else {
+            return Ok(ty);
+        };
+        if self.decide_copy(origin, ty, &mut SmallVec::new())?.holds() {
+            return Ok(ty);
+        }
+
+        self.intern_type(dir::Type::Form(dir::FormType { form, value: ty }))
     }
 
     /// Return whether one pattern has a default branch.

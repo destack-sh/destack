@@ -35,23 +35,24 @@ impl WalkState<'_, '_> {
         &self,
         receiver: Option<Receiver>,
         declaration: Option<InducedParameterOwner>,
-    ) -> Option<GenericTemplateId> {
+    ) -> CompilerResult<Option<GenericTemplateId>> {
         // prefer the declaration that owns the member
         if let Some(symbol) = declaration.and_then(|declaration| declaration.symbol)
-            && let Some(template) = self.check.template_by_symbol(symbol)
+            && let Some(template) = self.check.template_by_symbol(symbol)?
         {
-            return Some(template);
+            return Ok(Some(template));
         }
 
         // keep generated declaration templates nested under their parent
         if let Some(parent) = declaration.and_then(|declaration| declaration.parent) {
-            return Some(parent);
+            return Ok(Some(parent));
         }
 
         // use declaration receiver scopes
-        receiver
-            .and_then(|receiver| receiver.declaration)
-            .and_then(|symbol| self.check.template_by_symbol(symbol))
+        match receiver.and_then(|receiver| receiver.declaration) {
+            Some(symbol) => self.check.template_by_symbol(symbol),
+            None => Ok(None),
+        }
     }
 
     /// Open one generic template header with its parameter identities.

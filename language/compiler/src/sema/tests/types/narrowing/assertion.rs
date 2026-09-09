@@ -32,14 +32,14 @@ function first(value: int32 | undefined): int32 {
     /// @type.node source="value !== (undefined as int32 | undefined)" type=boolean
     /// @resolution.name source=value target=first.value
     /// @resolution.operator source="value !== (undefined as int32 | undefined)" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=first.value
     /// @type.node source="undefined as int32 | undefined" type=int32 | undefined
     /// @type.node source=undefined type=undefined
 
         return value;
         /// @resolution.name source=value target=first.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=first.value
         /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
@@ -83,14 +83,14 @@ function first(value: int32 | undefined): int32 {
     /// @type.node source="value !== (undefined satisfies int32 | undefined)" type=boolean
     /// @resolution.name source=value target=first.value
     /// @resolution.operator source="value !== (undefined satisfies int32 | undefined)" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined satisfies int32 | undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=first.value
     /// @type.node source="undefined satisfies int32 | undefined" type=undefined
     /// @type.node source=undefined type=undefined
 
         return value;
         /// @resolution.name source=value target=first.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=first.value
         /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
@@ -134,15 +134,15 @@ function keep(value: int32 | undefined, other: int32 | undefined): int32 {
     if (value !== (other as int32 | undefined)) {
     /// @resolution.name source=value target=keep.value
     /// @resolution.operator source="value !== (other as int32 | undefined)" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), other as int32 | undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=keep.value
     /// @resolution.name source=other target=keep.other
-    /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=other root=keep.other
 
         return value;
         /// @resolution.name source=value target=keep.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=value root=keep.value
 
     }
@@ -152,7 +152,7 @@ function keep(value: int32 | undefined, other: int32 | undefined): int32 {
         r#"
 /// @diagnostic.warning id=redundant-cast message="cast to 'int32 | undefined' has no effect"
 /// @diagnostic.label line=3 column=26 span="as" line_source="if (value !== (other as int32 | undefined)) {"
-/// @diagnostic.suggestion message="remove the cast" applicability=automatic patched="if (value !== (other int32 | undefined)) {"
+/// @diagnostic.suggestion message="remove the cast" applicability=automatic patched="if (value !== (other)) {"
 /// @diagnostic.error id=return-not-assignable message="type 'int32 | undefined' is not assignable to the declared result type 'int32'"
 /// @diagnostic.label line=4 column=16 span="value" line_source="return value;"
 /// @diagnostic.note message="expected 'int32', found 'undefined'"
@@ -191,13 +191,13 @@ function render(message: string | (() => string) | undefined): string {
     if (message is () => string) {
     /// @resolution.name source=message target=render.message
     /// @resolution.guard source="message is () => string" kind=is value=string | Function<(), string> | undefined target=Function<(), string> predicate="string | Function<(), string> | undefined is type(Function<(), string>)" narrowed=Narrow<string | Function<(), string> | undefined, Function<(), string>>
-    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=message placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=message root=render.message
 
         return message();
         /// @resolution.name source=message target=render.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
-        /// @resolution.place source=message placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=message placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=message root=render.message
         /// @resolution.narrowing source=message union=string | Function<(), string> | undefined arms=Function<(), string>
 
@@ -205,7 +205,7 @@ function render(message: string | (() => string) | undefined): string {
     return message ?? "fallback";
     /// @resolution.name source=message target=render.message
     /// @resolution.operator source="message ?? \"fallback\"" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), "fallback" as "fallback" families=(string)]
-    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=message placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=message root=render.message
     /// @resolution.narrowing source=message union=string | Function<(), string> | undefined arms=string | undefined
 
@@ -256,13 +256,13 @@ function render(message: Message | undefined): string {
     if (message is () => string) {
     /// @resolution.name source=message target=render.message
     /// @resolution.guard source="message is () => string" kind=is value=Message | undefined target=Function<(), string> predicate="Message | undefined is type(Function<(), string>)" narrowed=Narrow<Message | undefined, Function<(), string>>
-    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=message placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=message root=render.message
 
         return message();
         /// @resolution.name source=message target=render.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
-        /// @resolution.place source=message placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.place source=message placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=message root=render.message
         /// @resolution.narrowing source=message union=Message | undefined arms=Function<(), string>
 
@@ -270,7 +270,7 @@ function render(message: Message | undefined): string {
     return message ?? "fallback";
     /// @resolution.name source=message target=render.message
     /// @resolution.operator source="message ?? \"fallback\"" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), "fallback" as "fallback" families=(string)]
-    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=message placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=message root=render.message
     /// @resolution.narrowing source=message union=Message | undefined arms=string | undefined
 
@@ -317,7 +317,7 @@ function pick(value: string | Nothing): string {
     return value ?? "fallback";
     /// @resolution.name source=value target=pick.value
     /// @resolution.operator source="value ?? \"fallback\"" type=string operator="??" kind=builtin operands=[value as string | Nothing families=(string | null | undefined), "fallback" as "fallback" families=(string)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=pick.value
 
 }
@@ -356,11 +356,11 @@ function isLowercase(character: char): boolean {
     /// @resolution.name source=character target=isLowercase.character
     /// @resolution.operator source="character >= 'a' && character <= 'z'" type=boolean operator="&&" kind=builtin operands=[character >= 'a' as boolean families=(boolean), character <= 'z' as boolean families=(boolean)]
     /// @resolution.operator source="character >= 'a'" type=boolean operator=">=" kind=builtin operands=[character as char families=(character), 'a' as 'a' families=(character)]
-    /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=character placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=character root=isLowercase.character
     /// @resolution.name source=character target=isLowercase.character
     /// @resolution.operator source="character <= 'z'" type=boolean operator="<=" kind=builtin operands=[character as char families=(character), 'z' as 'z' families=(character)]
-    /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=character placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=character root=isLowercase.character
 
 }
@@ -489,14 +489,14 @@ function classify(character: char): boolean {
     return character.isAsciiAlphabetic() || character.isAsciiDigit();
     /// @resolution.name source=character target=classify.character
     /// @resolution.member source=character.isAsciiAlphabetic receiver=char type=<Character.isAsciiAlphabetic.'a>(this: &Character.isAsciiAlphabetic.'a readonly char) => boolean kind=symbol target_receiver=char target=Character.isAsciiAlphabetic
-    /// @resolution.call source=character.isAsciiAlphabetic() parameters=() return=boolean kind=symbol target=Character.isAsciiAlphabetic receiver=char adjustments=(borrow(&'frame readonly char))
+    /// @resolution.call source=character.isAsciiAlphabetic() parameters=() return=boolean regions=("frame" & "local") kind=symbol target=Character.isAsciiAlphabetic receiver=char adjustments=(borrow(&'frame readonly char))
     /// @resolution.operator source="character.isAsciiAlphabetic() || character.isAsciiDigit()" type=boolean operator="||" kind=builtin operands=[character.isAsciiAlphabetic() as boolean families=(boolean), character.isAsciiDigit() as boolean families=(boolean)]
-    /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=character placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=character root=classify.character
     /// @resolution.name source=character target=classify.character
     /// @resolution.member source=character.isAsciiDigit receiver=char type=<Character.isAsciiDigit.'a>(this: &Character.isAsciiDigit.'a readonly char) => boolean kind=symbol target_receiver=char target=Character.isAsciiDigit
-    /// @resolution.call source=character.isAsciiDigit() parameters=() return=boolean kind=symbol target=Character.isAsciiDigit receiver=char adjustments=(borrow(&'frame readonly char))
-    /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.call source=character.isAsciiDigit() parameters=() return=boolean regions=("frame" & "local") kind=symbol target=Character.isAsciiDigit receiver=char adjustments=(borrow(&'frame readonly char))
+    /// @resolution.place source=character placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=character root=classify.character
 
 }
@@ -550,7 +550,7 @@ extension Doubling of int32 {
         this * 2
         /// @resolution.operator source="this * 2" type=int32 operator="*" kind=builtin operands=[this as int32 families=(integer), 2 as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=Doubling type=int32
-        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=this root=this
 
     }
@@ -564,7 +564,7 @@ function double(value: int32): int32 {
     /// @resolution.name source=value target=double.value
     /// @resolution.member source=value.doubled receiver=int32 type=(this: int32) => int32 kind=symbol target_receiver=int32 target=Doubling.doubled
     /// @resolution.call source=value.doubled() parameters=() return=int32 kind=symbol target=Doubling.doubled receiver=int32
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=double.value
 
 }
@@ -616,11 +616,11 @@ function incrementCount(source: string): Result<int32, string> {
     /// @resolution.pattern source=count kind=binding target=incrementCount.count
     /// @resolution.name source=parseCount target=parseCount
     /// @resolution.call source=parseCount(source) parameters=(string) arguments=(provided(source) as string) return=Result<int32, string> kind=symbol target=parseCount
-    /// @resolution.residual source=parseCount(source)? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(string), arguments=(supplied as string), return=Result<int32, string>)"
+    /// @resolution.residual source=parseCount(source)? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
     /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
-    /// @generic.instantiation id="fromResidual<int32, string>" template=fromResidual arguments=(int32, string)
+    /// @generic.instantiation id="fromResidual<int32, string, TryResidual<Result<int32, string>>>" template=fromResidual arguments=(int32, string, TryResidual<Result<int32, string>>)
     /// @resolution.name source=source target=incrementCount.source
-    /// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=source root=incrementCount.source
 
     return Result.ok(count + 1);
@@ -678,7 +678,7 @@ function unwrap(result: Result<int32, string>): int32 {
     /// @resolution.pattern source=value kind=binding target=unwrap.value#2
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=result target=unwrap.result
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=result root=unwrap.result
 
         Err { error: _ } => 0
@@ -713,10 +713,10 @@ function unwrap(result: Result<int32, string>): int32 {
 fn test_retain_required_borrow_access() {
     let session = TestSession::single(
         r#"
-declare function fill(buffer: &exclusive [int32]): void;
+declare function fill(buffer: &[int32]): void;
 
 function prepare(values: [int32]): void {
-    fill(&exclusive values);
+    fill(&values);
 }
 "#,
     );
@@ -726,31 +726,31 @@ function prepare(values: [int32]): void {
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
-declare function fill<'a>(buffer: &'a exclusive [int32]): void;
+declare function fill<'a>(buffer: &'a [int32]): void;
 
 function prepare(values: [int32]): void {
-    fill(&exclusive values);
+    fill(&values);
 }
 
 === dir ===
-declare function fill(buffer: &exclusive [int32]): void;
+declare function fill(buffer: &[int32]): void;
 /// @generic.template symbol=fill parameters=('a)
-/// @type.symbol symbol=fill source="declare function fill(buffer: &exclusive [int32]): void" type=<fill.'a>(&fill.'a exclusive Slice<int32>) => void
+/// @type.symbol symbol=fill source="declare function fill(buffer: &[int32]): void" type=<fill.'a>(&fill.'a Slice<int32>) => void
 /// @flow.use symbol=fill uses=read
-/// @type.symbol symbol=fill.buffer source="buffer: &exclusive [int32]" type=&fill.'a exclusive Slice<int32>
+/// @type.symbol symbol=fill.buffer source="buffer: &[int32]" type=&fill.'a Slice<int32>
 
 function prepare(values: [int32]): void {
 /// @type.symbol symbol=prepare type=(Slice<int32>) => void
 /// @type.symbol symbol=prepare.values source="values: [int32]" type=Slice<int32>
-/// @flow.use symbol=values uses=read+exclusive
+/// @flow.use symbol=values uses=read+mutable
 
-    fill(&exclusive values);
+    fill(&values);
     /// @resolution.name source=fill target=fill
-    /// @resolution.call source="fill(&exclusive values)" parameters=(Borrowed<Slice<int32>, "managed" & "local", "exclusive">) arguments=(provided(&exclusive values) as Borrowed<Slice<int32>, "managed" & "local", "exclusive">) return=void kind=symbol target=fill
+    /// @resolution.call source=fill(&values) parameters=(Borrowed<Slice<int32>, "managed" & "local", "mutable">) arguments=(provided(&values) as Borrowed<Slice<int32>, "managed" & "local", "mutable">) return=void regions=("managed" & "local") kind=symbol target=fill
     /// @resolution.name source=values target=prepare.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=prepare.values
-    /// @flow.access source=values root=prepare.values uses=read+exclusive
+    /// @flow.access source=values root=prepare.values uses=read+mutable
 
 }
 "#,
@@ -798,9 +798,9 @@ function feed(output: Array<int32>, values: [int32]): void {
 
     output.push(1, ...[2, 3], 4);
     /// @resolution.name source=output target=feed.output
-    /// @resolution.member source=output.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=arrayFromOwnedSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "exclusive">)) instance=Array<int32>.<extension#6>.push
-    /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.member source=output.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+    /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=output root=feed.output
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
     /// @generic.instantiation id=push<int32> template=push arguments=(int32)
@@ -811,7 +811,7 @@ function feed(output: Array<int32>, values: [int32]): void {
     /// @resolution.call source=consume([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=void kind=symbol target=consume
     /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @resolution.name source=values target=feed.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=feed.values
 
 }

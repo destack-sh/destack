@@ -266,7 +266,7 @@ class Bag {
 
 type Boxed = Managed<Bag>;
 
-declare const boxed: local Bag;
+declare const boxed: Boxed;
 
 === dir ===
 class Bag {
@@ -286,7 +286,7 @@ type Boxed = Managed<Bag>;
 /// @resolution.name source=Bag target=Bag
 
 declare const boxed: Boxed;
-/// @type.symbol symbol=boxed source=boxed type=local Bag
+/// @type.symbol symbol=boxed source=boxed type=Boxed
 /// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Boxed target=Boxed
 "#,
@@ -383,8 +383,8 @@ struct Point {
 
 type Slot<T> = Managed<T>;
 
-declare const shared: local Bag;
-declare const boxed: local Point;
+declare const shared: Slot<Bag>;
+declare const boxed: Slot<Point>;
 
 === dir ===
 import { Managed } from "destack:memory";
@@ -418,13 +418,13 @@ type Slot<T> = Managed<T>;
 /// @resolution.name source=T target=Slot.T
 
 declare const shared: Slot<Bag>;
-/// @type.symbol symbol=shared source=shared type=local Bag
+/// @type.symbol symbol=shared source=shared type=Slot<Bag>
 /// @resolution.pattern source=shared kind=binding target=shared
 /// @resolution.name source=Slot target=Slot
 /// @resolution.name source=Bag target=Bag
 
 declare const boxed: Slot<Point>;
-/// @type.symbol symbol=boxed source=boxed type=local Point
+/// @type.symbol symbol=boxed source=boxed type=Slot<Point>
 /// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Slot target=Slot
 /// @resolution.name source=Point target=Point

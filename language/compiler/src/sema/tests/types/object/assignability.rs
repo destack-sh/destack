@@ -22,7 +22,7 @@ person.name satisfies string;
 type Person = { name: string };
 
 const source: { name: string } = { name: "Ada" };
-const person: { name: string } = source;
+const person: Person = source;
 
 person.name satisfies string;
 
@@ -39,23 +39,23 @@ const source = { name: "Ada" };
 /// @type.node source="\"Ada\"" type="Ada"
 
 const person: Person = source;
-/// @type.symbol symbol=person source=person type={ name: string }
+/// @type.symbol symbol=person source=person type=Person
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string }
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=source root=source
 
 person.name satisfies string;
 /// @type.node source="person.name satisfies string" type=string
-/// @type.node source=person type={ name: string }
+/// @type.node source=person type=Person
 /// @type.node source=person.name type=string
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string } type=string kind=field target_receiver={ name: string } key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=person.name receiver=Person type=string kind=field target_receiver=Person key=name target_type=string
+/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
 "#,
     );
@@ -85,9 +85,9 @@ type Options = { retries?: int32 };
 
 declare const maybe: int32 | undefined;
 
-const explicit: { retries?: int32 } = { retries: 3 };
-const omitted: { retries?: int32 } = {};
-const undecided: { retries?: int32 } = { retries: maybe };
+const explicit: Options = { retries: 3 };
+const omitted: Options = {};
+const undecided: Options = { retries: maybe };
 
 === dir ===
 type Options = { retries?: int32 };
@@ -100,17 +100,17 @@ declare const maybe: int32 | undefined;
 /// @resolution.pattern source=maybe kind=binding target=maybe
 
 const explicit: Options = { retries: 3 };
-/// @type.symbol symbol=explicit source=explicit type={ retries?: int32 }
+/// @type.symbol symbol=explicit source=explicit type=Options
 /// @resolution.pattern source=explicit kind=binding target=explicit
 /// @resolution.name source=Options target=Options
 
 const omitted: Options = {};
-/// @type.symbol symbol=omitted source=omitted type={ retries?: int32 }
+/// @type.symbol symbol=omitted source=omitted type=Options
 /// @resolution.pattern source=omitted kind=binding target=omitted
 /// @resolution.name source=Options target=Options
 
 const undecided: Options = { retries: maybe };
-/// @type.symbol symbol=undecided source=undecided type={ retries?: int32 }
+/// @type.symbol symbol=undecided source=undecided type=Options
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
@@ -149,8 +149,8 @@ type Options = { retries?: int32 | undefined };
 
 declare const maybe: int32 | undefined;
 
-const undecided: { retries?: int32 | undefined } = { retries: maybe };
-const cleared: { retries?: int32 | undefined } = { retries: undefined as int32 | undefined };
+const undecided: Options = { retries: maybe };
+const cleared: Options = { retries: undefined as int32 | undefined };
 
 === dir ===
 type Options = { retries?: int32 | undefined };
@@ -163,7 +163,7 @@ declare const maybe: int32 | undefined;
 /// @resolution.pattern source=maybe kind=binding target=maybe
 
 const undecided: Options = { retries: maybe };
-/// @type.symbol symbol=undecided source=undecided type={ retries?: int32 | undefined }
+/// @type.symbol symbol=undecided source=undecided type=Options
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=maybe target=maybe
@@ -171,7 +171,7 @@ const undecided: Options = { retries: maybe };
 /// @resolution.access source=maybe root=maybe
 
 const cleared: Options = { retries: undefined };
-/// @type.symbol symbol=cleared source=cleared type={ retries?: int32 | undefined }
+/// @type.symbol symbol=cleared source=cleared type=Options
 /// @resolution.pattern source=cleared kind=binding target=cleared
 /// @resolution.name source=Options target=Options
 "#,
@@ -206,7 +206,7 @@ type Meter = {
     set reading(next: string | int32);
 };
 
-declare let meter: { reading: string | int32 };
+declare let meter: Meter;
 const shown: string = meter.reading;
 meter.reading = 5 as string | int32;
 
@@ -222,31 +222,31 @@ type Meter = {
 };
 
 declare let meter: Meter;
-/// @type.symbol symbol=meter source=meter type={ get reading(): string; set reading(value: string | int32) }
+/// @type.symbol symbol=meter source=meter type=Meter
 /// @resolution.pattern source=meter kind=binding target=meter
 /// @resolution.name source=Meter target=Meter
 
 const shown = meter.reading;
 /// @type.symbol symbol=shown source=shown type=string
 /// @resolution.pattern source=shown kind=binding target=shown
-/// @type.node source=meter type={ get reading(): string; set reading(value: string | int32) }
+/// @type.node source=meter type=Meter
 /// @type.node source=meter.reading type=string
 /// @resolution.name source=meter target=meter
-/// @resolution.member source=meter.reading receiver={ get reading(): string; set reading(value: string | int32) } type=string kind=field target_receiver={ get reading(): string; set reading(value: string | int32) } key=reading target_type=string
-/// @resolution.place source=meter placement="local" lifetime="managed" access="exclusive"
+/// @resolution.member source=meter.reading receiver=Meter type=string kind=field target_receiver=Meter key=reading target_type=string
+/// @resolution.place source=meter placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=meter root=meter
 /// @resolution.access source=meter.reading root=meter keys=[reading]
 
 meter.reading = 5;
 /// @type.node source="meter.reading = 5" type=5
-/// @type.node source=meter type={ get reading(): string; set reading(value: string | int32) }
+/// @type.node source=meter type=Meter
 /// @type.node source=meter.reading type=string | int32
 /// @resolution.name source=meter target=meter
-/// @resolution.place source=meter placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=meter placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=meter root=meter
 /// @resolution.pattern.assign source=meter.reading kind=place
 /// @resolution.access source=meter.reading root=meter keys=[reading]
-/// @resolution.assignment source=meter.reading write="receiver={ get reading(): string; set reading(value: string | int32) }, target=field(receiver={ get reading(): string; set reading(value: string | int32) }, target=reading, type=string | int32), type=string | int32" type=string | int32
+/// @resolution.assignment source=meter.reading write="receiver=Meter, target=field(receiver=Meter, target=reading, type=string | int32), type=string | int32" type=string | int32
 /// @type.node source=5 type=5
 "#,
     );
@@ -294,7 +294,7 @@ const widened: { readonly tag: string } = mutable;
 /// @type.symbol symbol=tag#3 source="readonly tag: string" type=string
 /// @type.node source=mutable type={ tag: string }
 /// @resolution.name source=mutable target=mutable
-/// @resolution.place source=mutable placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=mutable placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=mutable root=mutable
 
 const narrowed: { tag: string } = frozen;
@@ -303,7 +303,7 @@ const narrowed: { tag: string } = frozen;
 /// @type.symbol symbol=tag#4 source="tag: string" type=string
 /// @type.node source=frozen type={ readonly tag: string }
 /// @resolution.name source=frozen target=frozen
-/// @resolution.place source=frozen placement="local" lifetime="managed" access="exclusive"
+/// @resolution.place source=frozen placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=frozen root=frozen
 "#,
         r#"
