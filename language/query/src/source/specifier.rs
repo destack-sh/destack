@@ -91,7 +91,7 @@ impl ProgramQueryContext<'_> {
                 }
                 let specifier = builtin_specifier(key)?;
                 let uri = repository
-                    .builtin_module_uri_for_specifier(revision, &specifier)?
+                    .builtin_module_uri_for_specifier(revision, &specifier, &mut Vec::new())?
                     .ok_or_else(|| {
                         QueryError::invalid(format!(
                             "builtin package export {key:?} has no module URI"

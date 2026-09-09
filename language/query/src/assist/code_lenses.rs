@@ -88,7 +88,7 @@ impl ModuleQueryContext<'_> {
             // collect the declaration's exact action
             let action = match declaration_kind {
                 CodeLensDeclarationKind::Function => {
-                    let count = program.symbol_references(symbol_id, None)?.len() as u64;
+                    let count = program.symbol_references(symbol_id)?.len() as u64;
 
                     CodeLensAction::References { count }
                 }

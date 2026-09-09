@@ -88,6 +88,7 @@ impl ModuleQueryContext<'_> {
             symbols
         };
         let modification_spans = self.modification_spans(file_id)?;
+        let index = program.reference_index(self.module_id())?;
         let mut highlights = BTreeMap::new();
 
         // collect definitions and references for every exact declaration
@@ -99,13 +100,17 @@ impl ModuleQueryContext<'_> {
                 Self::insert_highlight(&mut highlights, span, kind);
             }
 
-            let indexed = if is_local_declaration {
-                program.declaration_references(symbol, Some(file_id))?
+            let entries = if is_local_declaration {
+                index.declaration_entries(symbol)
             } else {
-                program.symbol_references(symbol, Some(file_id))?
+                index.target_entries(symbol)
             };
             let reference_kind = self.reference_highlight_kind(program, symbol)?;
-            for (_, span) in indexed {
+            for entry in entries {
+                let span = entry.span;
+                if span.file != file_id {
+                    continue;
+                }
                 let kind = if modification_spans.contains(&span) {
                     HighlightKind::Write
                 } else {

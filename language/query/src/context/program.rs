@@ -319,6 +319,14 @@ impl<'a> ProgramQueryContext<'a> {
         }
     }
 
+    /// Return one module call index.
+    pub(crate) fn call_index(&self, module_id: ModuleId) -> QueryResult<&dir::CallIndex> {
+        match self.module_index(module_id, IndexKind::Calls)? {
+            ModuleIndex::Calls(index) => Ok(index),
+            index => Err(Self::unexpected_module_index(IndexKind::Calls, index)),
+        }
+    }
+
     /// Return one module export index selected by a program ordinal.
     pub(crate) fn export_index_at(
         &self,

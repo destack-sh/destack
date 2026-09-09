@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::{FileId, Span};
+use destack_source::Span;
 
 use crate::{Module, ModuleQueryContext, ProgramQueryContext, QueryResult};
 
@@ -27,17 +27,12 @@ impl ProgramQueryContext<'_> {
     pub(crate) fn symbol_references(
         &self,
         target: dir::GlobalSymbolId,
-        file: Option<FileId>,
     ) -> QueryResult<Vec<(Module, Span)>> {
         let mut references = Vec::new();
 
         // read only authored occurrences recorded in the program index
         for reference in self.symbol_program_references(target)? {
             let entry = reference.entry;
-            if file.is_some_and(|file| entry.span.file != file) {
-                continue;
-            }
-
             references.push((reference.module, entry.span));
         }
 
@@ -60,17 +55,12 @@ impl ProgramQueryContext<'_> {
     pub(crate) fn declaration_references(
         &self,
         declaration: dir::GlobalSymbolId,
-        file: Option<FileId>,
     ) -> QueryResult<Vec<(Module, Span)>> {
         let mut references = Vec::new();
 
         // read only authored occurrences recorded for the declaration
         for reference in self.symbol_declaration_references(declaration)? {
             let entry = reference.entry;
-            if file.is_some_and(|file| entry.span.file != file) {
-                continue;
-            }
-
             references.push((reference.module, entry.span));
         }
 

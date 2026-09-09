@@ -130,7 +130,7 @@ impl RenameSelection {
             if self.is_local_import_alias {
                 occurrences.extend(
                     program
-                        .declaration_references(*symbol, None)?
+                        .declaration_references(*symbol)?
                         .into_iter()
                         .map(|(module, span)| RenameOccurrence { module, span }),
                 );

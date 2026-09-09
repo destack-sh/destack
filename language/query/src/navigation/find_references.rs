@@ -109,9 +109,9 @@ impl ModuleQueryContext<'_> {
             }
 
             let indexed = if is_local_alias {
-                program.declaration_references(*symbol, None)?
+                program.declaration_references(*symbol)?
             } else {
-                program.symbol_references(*symbol, None)?
+                program.symbol_references(*symbol)?
             };
             references.extend(
                 indexed

@@ -442,13 +442,11 @@ impl ProgramQueryContext<'_> {
         &self,
         caller_symbol: dir::GlobalSymbolId,
     ) -> QueryResult<Vec<dir::CallEntry>> {
-        let mut entries = Vec::new();
-
-        // collect call edges from modules reached by the caller symbol
-        for ordinal in self.call_postings()?.callers.get(&caller_symbol) {
-            let (_, index) = self.call_index_at(*ordinal)?;
-            entries.extend(index.caller_entries(caller_symbol).copied());
-        }
+        let index = self.call_index(caller_symbol.module_id)?;
+        let mut entries = index
+            .caller_entries(caller_symbol)
+            .copied()
+            .collect::<Vec<_>>();
         Self::sort_call_entries(&mut entries);
 
         Ok(entries)

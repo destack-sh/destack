@@ -299,19 +299,9 @@ impl QueryWorkspace {
         revision: Revision,
         trace: Arc<Trace>,
     ) -> Result<TraceSnapshot, String> {
-        trace.snapshot(
-            TraceView::Detailed,
-            |key| {
-                self.repository
-                    .artifact_display(revision, *key)
-                    .map_err(|error| error.to_string())
-            },
-            |target| {
-                self.repository
-                    .target_display(revision, target)
-                    .map_err(|error| error.to_string())
-            },
-        )
+        self.repository
+            .snapshot_trace(revision, &trace, TraceView::Detailed)
+            .map_err(|error| error.to_string())
     }
 
     /// Build one repository edit for a query fixture change.
