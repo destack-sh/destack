@@ -1,3 +1,5 @@
+use std::slice::Iter;
+
 use crate::{GlobalNodeIdAny, GlobalSymbolId, Postings};
 use destack_serde::Reflect;
 use destack_source::Span;
@@ -46,17 +48,14 @@ impl ReferenceIndex {
     }
 
     /// Iterate references to one target symbol.
-    pub fn target_entries(&self, target: GlobalSymbolId) -> impl Iterator<Item = &ReferenceEntry> {
+    pub fn target_entries(&self, target: GlobalSymbolId) -> Iter<'_, ReferenceEntry> {
         let range = Self::entry_range(&self.by_target, target);
 
         self.by_target[range].iter()
     }
 
     /// Iterate references to one declaration symbol.
-    pub fn declaration_entries(
-        &self,
-        declaration: GlobalSymbolId,
-    ) -> impl Iterator<Item = &ReferenceEntry> {
+    pub fn declaration_entries(&self, declaration: GlobalSymbolId) -> Iter<'_, ReferenceEntry> {
         let range = Self::entry_range(&self.by_declaration, declaration);
 
         self.by_declaration[range].iter()
