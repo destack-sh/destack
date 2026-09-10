@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use destack_core::FxIndexMap;
 use destack_source::{ModuleId, PackageId};
 
-use crate::{Function, FunctionAnalysis, ProgramEffects, ResolutionTable, Symbol};
+use crate::{Function, FunctionEffectBody, ProgramEffectTable, ResolutionTable};
 
 use super::TestModule;
 
@@ -57,13 +56,16 @@ impl TestProgram {
     }
 
     /// Analyse all modules with optional previous interprocedural results.
-    pub(crate) fn analyse_effects(&self, previous: Option<&ProgramEffects>) -> ProgramEffects {
+    pub(crate) fn analyse_effects(
+        &self,
+        previous: Option<&ProgramEffectTable>,
+    ) -> ProgramEffectTable {
         // extract function effects from each module's MIR
-        let mut functions = FxIndexMap::<Symbol, Arc<FunctionAnalysis>>::default();
+        let mut functions = Vec::new();
         for module in &self.modules {
             let resolution = ResolutionTable::analyse(&module.dispatch, None, &module.tree);
             for (id, function) in module.tree.iter_nodes::<Function>() {
-                let analysis = FunctionAnalysis::analyse(
+                let analysis = FunctionEffectBody::analyse(
                     id,
                     &resolution,
                     &module.accesses,
@@ -72,23 +74,10 @@ impl TestProgram {
                 )
                 .expect("MIR effects should be serializable");
 
-                // require one definition per fixture symbol and consistent external declarations
-                if let Some(current) = functions.get(&function.symbol) {
-                    assert!(
-                        !current.is_defined() || !analysis.is_defined(),
-                        "fixture defines the same function twice"
-                    );
-                    if current.is_defined() {
-                        continue;
-                    }
-                    if !analysis.is_defined() {
-                        assert_eq!(**current, analysis, "inconsistent external declarations");
-                    }
-                }
-                functions.insert(function.symbol, Arc::new(analysis));
+                functions.push((function.symbol, Arc::new(analysis)));
             }
         }
 
-        ProgramEffects::analyse(functions.into_iter().collect(), previous)
+        ProgramEffectTable::analyse(functions, previous).expect("valid program functions")
     }
 }

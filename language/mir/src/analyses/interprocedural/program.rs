@@ -1,3 +1,4 @@
+use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 
 use destack_core::{FxIndexMap, StableHasher};
@@ -11,7 +12,7 @@ use crate::{
 
 /// Local effects and pointer flows extracted from one function.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct FunctionAnalysis {
+pub struct FunctionEffectBody {
     /// Whether this contribution contains a function definition.
     is_defined: bool,
     /// Whether the linker can select an equivalent definition from another module.
@@ -26,7 +27,7 @@ pub struct FunctionAnalysis {
 
 /// Derived behavior and pointer flow for one function.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct FunctionResult {
+pub struct FunctionEffectResult {
     /// Memory and execution effects visible to callers.
     pub effect: FunctionEffect,
     /// Parameter retention, return paths, and external result pointers.
@@ -35,16 +36,44 @@ pub struct FunctionResult {
 
 /// Reusable interprocedural results indexed by persistent function symbols.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
-pub struct ProgramEffects {
+pub struct ProgramEffectTable {
     /// Function symbols and extracted input fingerprints in symbol order.
     functions: Vec<(Symbol, u128)>,
     /// Derived results in the same function order.
-    results: Vec<Arc<FunctionResult>>,
+    results: Vec<Arc<FunctionEffectResult>>,
     /// Recursive components in callee first order.
     components: CallComponentTable,
 }
 
-impl FunctionAnalysis {
+/// Conflicting declarations or definitions of one program function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProgramEffectError {
+    /// Multiple definitions cannot share this symbol.
+    ConflictingDefinition(Symbol),
+    /// External declarations disagree for this symbol.
+    ConflictingDeclaration(Symbol),
+    /// A callee has no declaration or definition in the program.
+    MissingFunction(Symbol),
+}
+
+impl Display for ProgramEffectError {
+    /// Describe the conflicting or missing program function.
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ConflictingDefinition(symbol) => {
+                write!(formatter, "conflicting definitions for {symbol:?}")
+            }
+            Self::ConflictingDeclaration(symbol) => {
+                write!(formatter, "conflicting declarations for {symbol:?}")
+            }
+            Self::MissingFunction(symbol) => write!(formatter, "missing function {symbol:?}"),
+        }
+    }
+}
+
+impl std::error::Error for ProgramEffectError {}
+
+impl FunctionEffectBody {
     /// Return whether this contribution contains a function definition.
     pub fn is_defined(&self) -> bool {
         self.is_defined
@@ -99,18 +128,40 @@ impl FunctionAnalysis {
     }
 }
 
-impl ProgramEffects {
+impl ProgramEffectTable {
     /// Solve recursive components and reuse results whose inputs and callee effects are equal.
     pub fn analyse(
-        mut functions: Vec<(Symbol, Arc<FunctionAnalysis>)>,
+        mut functions: Vec<(Symbol, Arc<FunctionEffectBody>)>,
         previous: Option<&Self>,
-    ) -> Self {
-        // index each distinct function by its persistent symbol
-        functions.sort_unstable_by_key(|(symbol, _)| *symbol);
-        assert!(
-            functions.windows(2).all(|pair| pair[0].0 != pair[1].0),
-            "duplicate function contribution"
-        );
+    ) -> Result<Self, ProgramEffectError> {
+        // group declarations and definitions while preserving shared definition order
+        functions.sort_by_key(|(symbol, _)| *symbol);
+        let mut selected: Vec<(Symbol, Arc<FunctionEffectBody>)> = Vec::new();
+        for (symbol, incoming) in functions {
+            match selected
+                .last_mut()
+                .filter(|(current, _)| *current == symbol)
+            {
+                // retain the selected definition and reject conflicting definitions
+                Some((_, current)) if current.is_defined() => {
+                    if incoming.is_defined() && !(current.is_shared() && incoming.is_shared()) {
+                        return Err(ProgramEffectError::ConflictingDefinition(symbol));
+                    }
+                }
+                // require external declarations to agree
+                Some((_, current)) if !incoming.is_defined() => {
+                    if current != &incoming {
+                        return Err(ProgramEffectError::ConflictingDeclaration(symbol));
+                    }
+                }
+                // replace the declaration with its definition
+                Some((_, current)) => *current = incoming,
+                // retain the first occurrence of this symbol
+                None => selected.push((symbol, incoming)),
+            }
+        }
+        let functions = selected;
+
         let indices = functions
             .iter()
             .enumerate()
@@ -124,9 +175,9 @@ impl ProgramEffects {
         for (_, function) in &functions {
             outgoing.clear();
             for target in function.callees() {
-                let index = indices.get(&target).unwrap_or_else(|| {
-                    unreachable!("callee has no function contribution: {target:?}")
-                });
+                let index = indices
+                    .get(&target)
+                    .ok_or(ProgramEffectError::MissingFunction(target))?;
                 outgoing.push(*index as u32);
             }
 
@@ -188,7 +239,7 @@ impl ProgramEffects {
                 // allocate published results after the complete component stabilizes
                 for &member in members {
                     let symbol = functions[member as usize].0;
-                    results[member as usize] = Some(Arc::new(FunctionResult {
+                    results[member as usize] = Some(Arc::new(FunctionEffectResult {
                         effect: effects[&symbol].clone(),
                         escape: escapes[&symbol].clone(),
                     }));
@@ -210,15 +261,15 @@ impl ProgramEffects {
             .map(|(symbol, function)| (symbol, function.fingerprint))
             .collect();
 
-        Self {
+        Ok(Self {
             functions,
             results,
             components,
-        }
+        })
     }
 
     /// Return the derived result for a function in this program.
-    pub fn function(&self, symbol: Symbol) -> Option<&Arc<FunctionResult>> {
+    pub fn function(&self, symbol: Symbol) -> Option<&Arc<FunctionEffectResult>> {
         let index = self
             .functions
             .binary_search_by_key(&symbol, |(symbol, _)| *symbol)
@@ -231,7 +282,7 @@ impl ProgramEffects {
     fn can_reuse(
         &self,
         members: &[u32],
-        functions: &[(Symbol, Arc<FunctionAnalysis>)],
+        functions: &[(Symbol, Arc<FunctionEffectBody>)],
         offsets: &[u32],
         targets: &[u32],
         effects: &FxIndexMap<Symbol, FunctionEffect>,
@@ -286,8 +337,8 @@ mod tests {
 
     use crate::analyses::tests::TestProgram;
     use crate::{
-        EscapeEffect, FunctionBehavior, FunctionEffect, FunctionResult, MemoryEffect,
-        ParameterEscape, ProgramEffects, StorageSet,
+        EscapeEffect, FunctionBehavior, FunctionEffect, FunctionEffectResult, MemoryEffect,
+        ParameterEscape, ProgramEffectTable, StorageSet,
     };
 
     /// Reuse callers across modules when an edited callee exposes the same effects and paths.
@@ -313,7 +364,7 @@ entry(v0: int32):
         program.import((1, "leaf"), (0, "leaf"));
         let first = program.analyse_effects(None);
         let encoded = to_vec(&first).expect("serialize program effects");
-        let first: ProgramEffects = from_slice(&encoded).expect("deserialize program effects");
+        let first: ProgramEffectTable = from_slice(&encoded).expect("deserialize program effects");
         assert_eq!(to_vec(&first).unwrap(), encoded);
 
         let module = &program.modules[1];
@@ -385,7 +436,7 @@ entry(v0: int32):
         let module = &program.modules[1];
         let callee = module.tree.get(module.function_id_by_name("second")).symbol;
 
-        let expected = FunctionResult {
+        let expected = FunctionEffectResult {
             effect: FunctionEffect {
                 memory: MemoryEffect::none(),
                 behavior: FunctionBehavior::none().with_preserved_execution(),
@@ -410,7 +461,7 @@ entry(v0: int32):
         program.import((1, "first"), (0, "first"));
         let second = program.analyse_effects(Some(&first));
 
-        let expected = FunctionResult {
+        let expected = FunctionEffectResult {
             effect: FunctionEffect::none(),
             ..expected
         };
