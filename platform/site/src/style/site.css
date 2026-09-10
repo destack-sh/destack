@@ -85,8 +85,7 @@ summary::-webkit-details-marker {
 .markdown {
     display: grid;
     grid-template-columns:
-        [wide-start] minmax(0, 1fr)
-        [text-start] minmax(0, var(--width-prose))
+        [wide-start text-start] minmax(0, var(--width-prose))
         [text-end] minmax(0, 1fr) [wide-end];
     min-width: 0;
     gap: 1.125rem 0;
@@ -95,14 +94,14 @@ summary::-webkit-details-marker {
     line-height: 1.7;
 }
 
-/* center the text column and extend figures and listings equally on both sides */
+/* align text with figures and listings at the article's left edge */
 .markdown > * {
     grid-column: text;
     min-width: 0;
 }
 
 .markdown > :is(
-    .markdown-code, .markdown-figure, .markdown-diagram, .markdown-table,
+    hr, .markdown-code, .markdown-figure, .markdown-diagram, .markdown-table,
     .lint-rule, .lint-category, .reference-catalog, .reference-module,
     .reference-module-list, .reference-item
 ),
@@ -164,7 +163,7 @@ summary::-webkit-details-marker {
 .markdown > :is(ul, ol, blockquote, .markdown-callout, .markdown-footnotes) {
     width: 100%;
     max-width: var(--width-prose);
-    margin-inline: auto;
+    margin-inline: 0;
 }
 
 .markdown > p:has(> img:only-child) {
@@ -500,8 +499,8 @@ summary::-webkit-details-marker {
     width: fit-content;
     min-width: min(100%, var(--width-prose));
     max-width: 100%;
-    justify-self: center;
-    margin-inline: auto;
+    justify-self: start;
+    margin-inline: 0;
 }
 
 [data-publication-caption],
@@ -987,7 +986,7 @@ summary::-webkit-details-marker {
     max-width: 100%;
     min-width: min(100%, var(--width-prose));
     width: fit-content;
-    justify-self: center;
+    justify-self: start;
 }
 
 .lint-metadata,
@@ -995,7 +994,7 @@ summary::-webkit-details-marker {
 .lint-references {
     width: 100%;
     max-width: var(--width-prose);
-    margin-inline: auto;
+    margin-inline: 0;
 }
 
 .lint-example {
@@ -1013,7 +1012,7 @@ summary::-webkit-details-marker {
 .lint-example > h2 {
     font-size: var(--size-subsection-title);
     font-weight: 500;
-    margin: 0 auto;
+    margin: 0;
 }
 
 .lint-references {
@@ -1035,7 +1034,7 @@ summary::-webkit-details-marker {
 .reference-item > :not(.reference-signature, .reference-declaration, .reference-member-section) {
     max-width: var(--width-prose);
     width: 100%;
-    margin-inline: auto;
+    margin-inline: 0;
 }
 
 .reference-signature [data-publication-caption] {

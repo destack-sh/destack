@@ -12,7 +12,7 @@ export const publicationStyles = stylex.create({
         fontFamily: tokens.textFont,
         fontSize: "var(--size-body)",
         columnGap: "2.5rem",
-        gridTemplateColumns: "10rem minmax(0, 1fr) 10rem",
+        gridTemplateColumns: "16rem minmax(0, 1fr)",
         marginInline: "auto",
         maxWidth: tokens.siteWidth,
         padding: `1.5rem ${tokens.gutterRight} 4rem ${tokens.gutterLeft}`,
@@ -66,7 +66,6 @@ export const publicationStyles = stylex.create({
         display: "grid",
         gap: "0.75rem",
         paddingBlock: "2rem",
-        paddingInline: "max(0px, calc((100% - var(--width-prose)) / 2))",
         "@media (max-width: 767px)": {
             paddingBlock: "1rem 1.25rem",
         },

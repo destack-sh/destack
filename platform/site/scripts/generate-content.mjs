@@ -160,13 +160,14 @@ function appendChapterContents(documents) {
         }
 
         // render the same generated links in each published representation
-        const contents = children
+        const links = children
             .map((page) => {
                 const title = page.title.replace(/[\\`*_[\]<>]/g, "\\$&");
 
                 return `- [${title}](${page.route})`;
             })
             .join("\n");
+        const contents = `---\n\n${links}`;
         chapter.markdown = `${chapter.markdown.trimEnd()}\n\n${contents}\n`;
         chapter.html += renderMarkdown(contents, {
             assets: [],
