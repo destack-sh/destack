@@ -173,7 +173,10 @@ impl TestProgram {
                     Storage::Frame => entry.frame = Optional::some(*function),
                     Storage::Heap(Space::Local) => entry.local = Optional::some(*function),
                     Storage::Heap(Space::Shared) => entry.shared = Optional::some(*function),
-                    Storage::Heap(Space::Constant | Space::Parameter(_)) | Storage::Static(_) => {
+                    Storage::Heap(
+                        Space::Constant | Space::Parameter(_) | Space::Slot(_) | Space::Join(_),
+                    )
+                    | Storage::Static(_) => {
                         panic!("test globals cannot carry destructors")
                     }
                 }
