@@ -603,7 +603,7 @@ impl SourceIndex {
 
     /// Prune spans from the index after one mark.
     #[inline]
-    pub fn prune_from(&mut self, retained_node_count: usize, first_pruned_node_id: u32) {
+    pub fn prune_from(&mut self, retained_node_count: usize) {
         self.enclosing_ranges.truncate(retained_node_count);
 
         // truncate each ordered index at the first pruned node
@@ -618,7 +618,7 @@ impl SourceIndex {
 
         let sparse_range_count = self
             .sparse_ranges
-            .partition_point(|entry| entry.key.source_id < first_pruned_node_id);
+            .partition_point(|entry| (entry.key.source_id as usize) < retained_node_count);
         self.sparse_ranges.truncate(sparse_range_count);
 
         self.invalidate_position_index();
@@ -1362,7 +1362,7 @@ mod tests {
 
         source_index.append(Span::new(first_file, 0, 10));
         source_index.append(Span::new(second_file, 0, 8));
-        source_index.prune_from(1, 1);
+        source_index.prune_from(1);
         source_index.append(Span::new(first_file, 10, 20));
 
         assert_eq!(source_index.get(0), Span::new(first_file, 0, 10));
@@ -1412,7 +1412,7 @@ mod tests {
             Span::new(file, 20, 30),
         );
 
-        source_index.prune_from(2, 2);
+        source_index.prune_from(2);
 
         assert_eq!(source_index.get_main(0), Some(Span::new(file, 1, 9)));
         assert_eq!(source_index.get_main(2), None);
