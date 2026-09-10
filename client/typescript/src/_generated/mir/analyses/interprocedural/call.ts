@@ -18,6 +18,10 @@ export type CallComponentGraph = {
     readonly component: ReadonlyArray<number>;
     /** Whether each component contains a cycle, by component id. */
     readonly recursive: BitSet;
+    /** First member offset for each component and the final member count. */
+    readonly offsets: ReadonlyArray<number>;
+    /** Dense node indices grouped by component. */
+    readonly nodes: ReadonlyArray<number>;
 };
 
 export const CallComponentGraph = {
@@ -49,6 +53,14 @@ export function encodeCallComponentGraph(writer: BinaryWriter, value: CallCompon
         writer.writeUnsigned(item0);
     }
     encodeBitSet(writer, value.recursive);
+    writer.writeUnsigned(value.offsets.length);
+    for (const item2 of value.offsets) {
+        writer.writeUnsigned(item2);
+    }
+    writer.writeUnsigned(value.nodes.length);
+    for (const item3 of value.nodes) {
+        writer.writeUnsigned(item3);
+    }
 }
 
 /** Decode one CallComponentGraph. */
@@ -62,10 +74,28 @@ export function decodeCallComponentGraph(reader: BinaryReader): CallComponentGra
         return items0;
     })();
     const recursive = decodeBitSet(reader);
+    const offsets = (() => {
+        const length2 = reader.readNumber();
+        const items2: Array<number> = [];
+        for (let index = 0; index < length2; index += 1) {
+            items2.push(reader.readNumber());
+        }
+        return items2;
+    })();
+    const nodes = (() => {
+        const length3 = reader.readNumber();
+        const items3: Array<number> = [];
+        for (let index = 0; index < length3; index += 1) {
+            items3.push(reader.readNumber());
+        }
+        return items3;
+    })();
 
     return {
         component,
         recursive,
+        offsets,
+        nodes,
     };
 }
 
@@ -74,6 +104,8 @@ export function toJsonCallComponentGraph(value: CallComponentGraph): Json {
     return {
         component: value.component.map((item0) => item0),
         recursive: toJsonBitSet(value.recursive),
+        offsets: value.offsets.map((item0) => item0),
+        nodes: value.nodes.map((item0) => item0),
     };
 }
 
@@ -84,5 +116,7 @@ export function fromJsonCallComponentGraph(value: Json): CallComponentGraph {
     return {
         component: jsonArray(jsonField(object, "component")).map((item0) => jsonInteger(item0)),
         recursive: fromJsonBitSet(jsonField(object, "recursive")),
+        offsets: jsonArray(jsonField(object, "offsets")).map((item0) => jsonInteger(item0)),
+        nodes: jsonArray(jsonField(object, "nodes")).map((item0) => jsonInteger(item0)),
     };
 }

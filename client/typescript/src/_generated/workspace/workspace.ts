@@ -48,7 +48,7 @@ const artifactMethod: Method<
 > = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 181387439612933380219405419027446296181n,
+    fingerprint: 29813845465529288305993231867452576003n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,
