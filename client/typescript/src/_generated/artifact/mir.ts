@@ -11,12 +11,11 @@ import {
     jsonObject,
     jsonOptional,
 } from "../../protocol/serde.js";
-import type { ArtifactProjectionFingerprint } from "./core/dependency.js";
 import type { BitSet } from "../core/bitset.js";
-import type { CallComponentGraph } from "../mir/analyses/interprocedural/call.js";
+import type { CallComponentTable } from "../mir/analyses/interprocedural/call.js";
 import type { LinkTable } from "../mir/analyses/interprocedural/link.js";
-import type { ProgramEffects } from "../mir/analyses/interprocedural/program.js";
-import type { FunctionAnalysis } from "../mir/analyses/interprocedural/program.js";
+import type { ProgramEffectTable } from "../mir/analyses/interprocedural/program.js";
+import type { FunctionEffectBody } from "../mir/analyses/interprocedural/program.js";
 import type { AccessTable } from "../mir/table/access.js";
 import type { DispatchTable } from "../mir/table/dispatch.js";
 import type { DropTable } from "../mir/table/drop.js";
@@ -29,18 +28,12 @@ import type { WitnessTable } from "../mir/table/witness.js";
 import type { LocalNodeId } from "../mir/tree/node.js";
 import type { Symbol } from "../mir/tree/symbol.js";
 import type { Tree } from "../mir/tree/tree.js";
-import {
-    decodeArtifactProjectionFingerprint,
-    encodeArtifactProjectionFingerprint,
-    fromJsonArtifactProjectionFingerprint,
-    toJsonArtifactProjectionFingerprint,
-} from "./core/dependency.js";
 import { decodeBitSet, encodeBitSet, fromJsonBitSet, toJsonBitSet } from "../core/bitset.js";
 import {
-    decodeCallComponentGraph,
-    encodeCallComponentGraph,
-    fromJsonCallComponentGraph,
-    toJsonCallComponentGraph,
+    decodeCallComponentTable,
+    encodeCallComponentTable,
+    fromJsonCallComponentTable,
+    toJsonCallComponentTable,
 } from "../mir/analyses/interprocedural/call.js";
 import {
     decodeLinkTable,
@@ -49,16 +42,16 @@ import {
     toJsonLinkTable,
 } from "../mir/analyses/interprocedural/link.js";
 import {
-    decodeProgramEffects,
-    encodeProgramEffects,
-    fromJsonProgramEffects,
-    toJsonProgramEffects,
+    decodeProgramEffectTable,
+    encodeProgramEffectTable,
+    fromJsonProgramEffectTable,
+    toJsonProgramEffectTable,
 } from "../mir/analyses/interprocedural/program.js";
 import {
-    decodeFunctionAnalysis,
-    encodeFunctionAnalysis,
-    fromJsonFunctionAnalysis,
-    toJsonFunctionAnalysis,
+    decodeFunctionEffectBody,
+    encodeFunctionEffectBody,
+    fromJsonFunctionEffectBody,
+    toJsonFunctionEffectBody,
 } from "../mir/analyses/interprocedural/program.js";
 import {
     decodeAccessTable,
@@ -123,79 +116,14 @@ import {
 import { decodeSymbol, encodeSymbol, fromJsonSymbol, toJsonSymbol } from "../mir/tree/symbol.js";
 import { decodeTree, encodeTree, fromJsonTree, toJsonTree } from "../mir/tree/tree.js";
 
-/** One reusable function contribution with the fingerprint of its MIR inputs. */
-export type AnalyzedFunction = {
-    /** The function body, type, dispatch, and annotation fingerprint. */
-    readonly fingerprint: ArtifactProjectionFingerprint;
-    /** Extracted effects and pointer flows. */
-    readonly analysis: FunctionAnalysis;
-};
-
-export const AnalyzedFunction = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: AnalyzedFunction): void {
-        encodeAnalyzedFunction(writer, value);
-    },
-
-    /** Decode one AnalyzedFunction. */
-    decode(reader: BinaryReader): AnalyzedFunction {
-        return decodeAnalyzedFunction(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: AnalyzedFunction): Json {
-        return toJsonAnalyzedFunction(value);
-    },
-
-    /** Return one AnalyzedFunction from one JSON value. */
-    fromJson(value: Json): AnalyzedFunction {
-        return fromJsonAnalyzedFunction(value);
-    },
-};
-
-/** Encode one AnalyzedFunction. */
-export function encodeAnalyzedFunction(writer: BinaryWriter, value: AnalyzedFunction): void {
-    encodeArtifactProjectionFingerprint(writer, value.fingerprint);
-    encodeFunctionAnalysis(writer, value.analysis);
-}
-
-/** Decode one AnalyzedFunction. */
-export function decodeAnalyzedFunction(reader: BinaryReader): AnalyzedFunction {
-    const fingerprint = decodeArtifactProjectionFingerprint(reader);
-    const analysis = decodeFunctionAnalysis(reader);
-
-    return {
-        fingerprint,
-        analysis,
-    };
-}
-
-/** Return one JSON value for one AnalyzedFunction. */
-export function toJsonAnalyzedFunction(value: AnalyzedFunction): Json {
-    return {
-        fingerprint: toJsonArtifactProjectionFingerprint(value.fingerprint),
-        analysis: toJsonFunctionAnalysis(value.analysis),
-    };
-}
-
-/** Return one AnalyzedFunction from one JSON value. */
-export function fromJsonAnalyzedFunction(value: Json): AnalyzedFunction {
-    const object = jsonObject(value);
-
-    return {
-        fingerprint: fromJsonArtifactProjectionFingerprint(jsonField(object, "fingerprint")),
-        analysis: fromJsonFunctionAnalysis(jsonField(object, "analysis")),
-    };
-}
-
 /** The symbol links one module contributes to whole-program analysis. */
 export type MirAnalyzed = {
     /** The module's symbol links. */
     readonly links: LinkTable;
     /** The module initializer called by the runtime, when one exists. */
     readonly initializer?: Symbol;
-    /** Function contributions sorted by persistent symbol. */
-    readonly functions: ReadonlyArray<readonly [Symbol, AnalyzedFunction]>;
+    /** Extracted function effects and pointer flows. */
+    readonly functions: ReadonlyArray<readonly [Symbol, FunctionEffectBody]>;
 };
 
 export const MirAnalyzed = {
@@ -229,7 +157,7 @@ export function encodeMirAnalyzed(writer: BinaryWriter, value: MirAnalyzed): voi
     writer.writeUnsigned(value.functions.length);
     for (const item2 of value.functions) {
         encodeSymbol(writer, item2[0]);
-        encodeAnalyzedFunction(writer, item2[1]);
+        encodeFunctionEffectBody(writer, item2[1]);
     }
 }
 
@@ -239,9 +167,9 @@ export function decodeMirAnalyzed(reader: BinaryReader): MirAnalyzed {
     const initializer = reader.readOption(() => decodeSymbol(reader));
     const functions = (() => {
         const length2 = reader.readNumber();
-        const items2: Array<readonly [Symbol, AnalyzedFunction]> = [];
+        const items2: Array<readonly [Symbol, FunctionEffectBody]> = [];
         for (let index = 0; index < length2; index += 1) {
-            items2.push([decodeSymbol(reader), decodeAnalyzedFunction(reader)] as const);
+            items2.push([decodeSymbol(reader), decodeFunctionEffectBody(reader)] as const);
         }
         return items2;
     })();
@@ -262,7 +190,7 @@ export function toJsonMirAnalyzed(value: MirAnalyzed): Json {
             : { initializer: toJsonSymbol(value.initializer) }),
         functions: value.functions.map((item0) => [
             toJsonSymbol(item0[0]),
-            toJsonAnalyzedFunction(item0[1]),
+            toJsonFunctionEffectBody(item0[1]),
         ]),
     };
 }
@@ -280,7 +208,7 @@ export function fromJsonMirAnalyzed(value: Json): MirAnalyzed {
                 if (items.length !== 2) {
                     throw new SerdeError(`expected JSON tuple length 2: ${items.length}`);
                 }
-                return [fromJsonSymbol(items[0]), fromJsonAnalyzedFunction(items[1])] as const;
+                return [fromJsonSymbol(items[0]), fromJsonFunctionEffectBody(items[1])] as const;
             })(),
         ),
     };
@@ -908,9 +836,9 @@ export type ProgramAnalysis = {
     /** Whether each symbol is internal to the program. */
     readonly internal: BitSet;
     /** Strongly connected components of the whole-program call graph. */
-    readonly components: CallComponentGraph;
+    readonly components: CallComponentTable;
     /** Function effects and escape paths with reusable recursive components. */
-    readonly effects: ProgramEffects;
+    readonly effects: ProgramEffectTable;
 };
 
 export const ProgramAnalysis = {
@@ -948,8 +876,8 @@ export function encodeProgramAnalysis(writer: BinaryWriter, value: ProgramAnalys
     }
     encodeBitSet(writer, value.addressTaken);
     encodeBitSet(writer, value.internal);
-    encodeCallComponentGraph(writer, value.components);
-    encodeProgramEffects(writer, value.effects);
+    encodeCallComponentTable(writer, value.components);
+    encodeProgramEffectTable(writer, value.effects);
 }
 
 /** Decode one ProgramAnalysis. */
@@ -973,8 +901,8 @@ export function decodeProgramAnalysis(reader: BinaryReader): ProgramAnalysis {
     })();
     const addressTaken = decodeBitSet(reader);
     const internal = decodeBitSet(reader);
-    const components = decodeCallComponentGraph(reader);
-    const effects = decodeProgramEffects(reader);
+    const components = decodeCallComponentTable(reader);
+    const effects = decodeProgramEffectTable(reader);
 
     return {
         symbols,
@@ -995,8 +923,8 @@ export function toJsonProgramAnalysis(value: ProgramAnalysis): Json {
         references: value.references.map((item0) => item0),
         addressTaken: toJsonBitSet(value.addressTaken),
         internal: toJsonBitSet(value.internal),
-        components: toJsonCallComponentGraph(value.components),
-        effects: toJsonProgramEffects(value.effects),
+        components: toJsonCallComponentTable(value.components),
+        effects: toJsonProgramEffectTable(value.effects),
     };
 }
 
@@ -1010,7 +938,7 @@ export function fromJsonProgramAnalysis(value: Json): ProgramAnalysis {
         references: jsonArray(jsonField(object, "references")).map((item0) => jsonInteger(item0)),
         addressTaken: fromJsonBitSet(jsonField(object, "addressTaken")),
         internal: fromJsonBitSet(jsonField(object, "internal")),
-        components: fromJsonCallComponentGraph(jsonField(object, "components")),
-        effects: fromJsonProgramEffects(jsonField(object, "effects")),
+        components: fromJsonCallComponentTable(jsonField(object, "components")),
+        effects: fromJsonProgramEffectTable(jsonField(object, "effects")),
     };
 }

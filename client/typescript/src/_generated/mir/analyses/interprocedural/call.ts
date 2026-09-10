@@ -13,7 +13,7 @@ import type { BitSet } from "../../../core/bitset.js";
 import { decodeBitSet, encodeBitSet, fromJsonBitSet, toJsonBitSet } from "../../../core/bitset.js";
 
 /** Strongly connected components of the whole-program call graph, by dense symbol id. */
-export type CallComponentGraph = {
+export type CallComponentTable = {
     /** The component id of each symbol, by dense id. */
     readonly component: ReadonlyArray<number>;
     /** Whether each component contains a cycle, by component id. */
@@ -24,30 +24,30 @@ export type CallComponentGraph = {
     readonly nodes: ReadonlyArray<number>;
 };
 
-export const CallComponentGraph = {
+export const CallComponentTable = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: CallComponentGraph): void {
-        encodeCallComponentGraph(writer, value);
+    encode(writer: BinaryWriter, value: CallComponentTable): void {
+        encodeCallComponentTable(writer, value);
     },
 
-    /** Decode one CallComponentGraph. */
-    decode(reader: BinaryReader): CallComponentGraph {
-        return decodeCallComponentGraph(reader);
+    /** Decode one CallComponentTable. */
+    decode(reader: BinaryReader): CallComponentTable {
+        return decodeCallComponentTable(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: CallComponentGraph): Json {
-        return toJsonCallComponentGraph(value);
+    toJson(value: CallComponentTable): Json {
+        return toJsonCallComponentTable(value);
     },
 
-    /** Return one CallComponentGraph from one JSON value. */
-    fromJson(value: Json): CallComponentGraph {
-        return fromJsonCallComponentGraph(value);
+    /** Return one CallComponentTable from one JSON value. */
+    fromJson(value: Json): CallComponentTable {
+        return fromJsonCallComponentTable(value);
     },
 };
 
-/** Encode one CallComponentGraph. */
-export function encodeCallComponentGraph(writer: BinaryWriter, value: CallComponentGraph): void {
+/** Encode one CallComponentTable. */
+export function encodeCallComponentTable(writer: BinaryWriter, value: CallComponentTable): void {
     writer.writeUnsigned(value.component.length);
     for (const item0 of value.component) {
         writer.writeUnsigned(item0);
@@ -63,8 +63,8 @@ export function encodeCallComponentGraph(writer: BinaryWriter, value: CallCompon
     }
 }
 
-/** Decode one CallComponentGraph. */
-export function decodeCallComponentGraph(reader: BinaryReader): CallComponentGraph {
+/** Decode one CallComponentTable. */
+export function decodeCallComponentTable(reader: BinaryReader): CallComponentTable {
     const component = (() => {
         const length0 = reader.readNumber();
         const items0: Array<number> = [];
@@ -99,8 +99,8 @@ export function decodeCallComponentGraph(reader: BinaryReader): CallComponentGra
     };
 }
 
-/** Return one JSON value for one CallComponentGraph. */
-export function toJsonCallComponentGraph(value: CallComponentGraph): Json {
+/** Return one JSON value for one CallComponentTable. */
+export function toJsonCallComponentTable(value: CallComponentTable): Json {
     return {
         component: value.component.map((item0) => item0),
         recursive: toJsonBitSet(value.recursive),
@@ -109,8 +109,8 @@ export function toJsonCallComponentGraph(value: CallComponentGraph): Json {
     };
 }
 
-/** Return one CallComponentGraph from one JSON value. */
-export function fromJsonCallComponentGraph(value: Json): CallComponentGraph {
+/** Return one CallComponentTable from one JSON value. */
+export function fromJsonCallComponentTable(value: Json): CallComponentTable {
     const object = jsonObject(value);
 
     return {

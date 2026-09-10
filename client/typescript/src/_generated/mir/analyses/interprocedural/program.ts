@@ -11,17 +11,17 @@ import {
     jsonField,
     jsonObject,
 } from "../../../../protocol/serde.js";
-import type { CallComponentGraph } from "./call.js";
+import type { CallComponentTable } from "./call.js";
 import type { EffectBody } from "./effect.js";
 import type { EscapeBody } from "../memory/escape.js";
 import type { EscapeEffect } from "../memory/escape.js";
 import type { FunctionEffect } from "../../table/effect.js";
 import type { Symbol } from "../../tree/symbol.js";
 import {
-    decodeCallComponentGraph,
-    encodeCallComponentGraph,
-    fromJsonCallComponentGraph,
-    toJsonCallComponentGraph,
+    decodeCallComponentTable,
+    encodeCallComponentTable,
+    fromJsonCallComponentTable,
+    toJsonCallComponentTable,
 } from "./call.js";
 import {
     decodeEffectBody,
@@ -50,7 +50,7 @@ import {
 import { decodeSymbol, encodeSymbol, fromJsonSymbol, toJsonSymbol } from "../../tree/symbol.js";
 
 /** Local effects and pointer flows extracted from one function. */
-export type FunctionAnalysis = {
+export type FunctionEffectBody = {
     /** Whether this contribution contains a function definition. */
     readonly isDefined: boolean;
     /** Whether the linker can select an equivalent definition from another module. */
@@ -63,30 +63,30 @@ export type FunctionAnalysis = {
     readonly fingerprint: bigint;
 };
 
-export const FunctionAnalysis = {
+export const FunctionEffectBody = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: FunctionAnalysis): void {
-        encodeFunctionAnalysis(writer, value);
+    encode(writer: BinaryWriter, value: FunctionEffectBody): void {
+        encodeFunctionEffectBody(writer, value);
     },
 
-    /** Decode one FunctionAnalysis. */
-    decode(reader: BinaryReader): FunctionAnalysis {
-        return decodeFunctionAnalysis(reader);
+    /** Decode one FunctionEffectBody. */
+    decode(reader: BinaryReader): FunctionEffectBody {
+        return decodeFunctionEffectBody(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: FunctionAnalysis): Json {
-        return toJsonFunctionAnalysis(value);
+    toJson(value: FunctionEffectBody): Json {
+        return toJsonFunctionEffectBody(value);
     },
 
-    /** Return one FunctionAnalysis from one JSON value. */
-    fromJson(value: Json): FunctionAnalysis {
-        return fromJsonFunctionAnalysis(value);
+    /** Return one FunctionEffectBody from one JSON value. */
+    fromJson(value: Json): FunctionEffectBody {
+        return fromJsonFunctionEffectBody(value);
     },
 };
 
-/** Encode one FunctionAnalysis. */
-export function encodeFunctionAnalysis(writer: BinaryWriter, value: FunctionAnalysis): void {
+/** Encode one FunctionEffectBody. */
+export function encodeFunctionEffectBody(writer: BinaryWriter, value: FunctionEffectBody): void {
     writer.writeBool(value.isDefined);
     writer.writeBool(value.isShared);
     encodeEffectBody(writer, value.effects);
@@ -94,8 +94,8 @@ export function encodeFunctionAnalysis(writer: BinaryWriter, value: FunctionAnal
     writer.writeUnsigned(value.fingerprint);
 }
 
-/** Decode one FunctionAnalysis. */
-export function decodeFunctionAnalysis(reader: BinaryReader): FunctionAnalysis {
+/** Decode one FunctionEffectBody. */
+export function decodeFunctionEffectBody(reader: BinaryReader): FunctionEffectBody {
     const isDefined = reader.readBool();
     const isShared = reader.readBool();
     const effects = decodeEffectBody(reader);
@@ -111,8 +111,8 @@ export function decodeFunctionAnalysis(reader: BinaryReader): FunctionAnalysis {
     };
 }
 
-/** Return one JSON value for one FunctionAnalysis. */
-export function toJsonFunctionAnalysis(value: FunctionAnalysis): Json {
+/** Return one JSON value for one FunctionEffectBody. */
+export function toJsonFunctionEffectBody(value: FunctionEffectBody): Json {
     return {
         isDefined: value.isDefined,
         isShared: value.isShared,
@@ -122,8 +122,8 @@ export function toJsonFunctionAnalysis(value: FunctionAnalysis): Json {
     };
 }
 
-/** Return one FunctionAnalysis from one JSON value. */
-export function fromJsonFunctionAnalysis(value: Json): FunctionAnalysis {
+/** Return one FunctionEffectBody from one JSON value. */
+export function fromJsonFunctionEffectBody(value: Json): FunctionEffectBody {
     const object = jsonObject(value);
 
     return {
@@ -136,43 +136,46 @@ export function fromJsonFunctionAnalysis(value: Json): FunctionAnalysis {
 }
 
 /** Derived behavior and pointer flow for one function. */
-export type FunctionResult = {
+export type FunctionEffectResult = {
     /** Memory and execution effects visible to callers. */
     readonly effect: FunctionEffect;
     /** Parameter retention, return paths, and external result pointers. */
     readonly escape: EscapeEffect;
 };
 
-export const FunctionResult = {
+export const FunctionEffectResult = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: FunctionResult): void {
-        encodeFunctionResult(writer, value);
+    encode(writer: BinaryWriter, value: FunctionEffectResult): void {
+        encodeFunctionEffectResult(writer, value);
     },
 
-    /** Decode one FunctionResult. */
-    decode(reader: BinaryReader): FunctionResult {
-        return decodeFunctionResult(reader);
+    /** Decode one FunctionEffectResult. */
+    decode(reader: BinaryReader): FunctionEffectResult {
+        return decodeFunctionEffectResult(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: FunctionResult): Json {
-        return toJsonFunctionResult(value);
+    toJson(value: FunctionEffectResult): Json {
+        return toJsonFunctionEffectResult(value);
     },
 
-    /** Return one FunctionResult from one JSON value. */
-    fromJson(value: Json): FunctionResult {
-        return fromJsonFunctionResult(value);
+    /** Return one FunctionEffectResult from one JSON value. */
+    fromJson(value: Json): FunctionEffectResult {
+        return fromJsonFunctionEffectResult(value);
     },
 };
 
-/** Encode one FunctionResult. */
-export function encodeFunctionResult(writer: BinaryWriter, value: FunctionResult): void {
+/** Encode one FunctionEffectResult. */
+export function encodeFunctionEffectResult(
+    writer: BinaryWriter,
+    value: FunctionEffectResult,
+): void {
     encodeFunctionEffect(writer, value.effect);
     encodeEscapeEffect(writer, value.escape);
 }
 
-/** Decode one FunctionResult. */
-export function decodeFunctionResult(reader: BinaryReader): FunctionResult {
+/** Decode one FunctionEffectResult. */
+export function decodeFunctionEffectResult(reader: BinaryReader): FunctionEffectResult {
     const effect = decodeFunctionEffect(reader);
     const escape = decodeEscapeEffect(reader);
 
@@ -182,16 +185,16 @@ export function decodeFunctionResult(reader: BinaryReader): FunctionResult {
     };
 }
 
-/** Return one JSON value for one FunctionResult. */
-export function toJsonFunctionResult(value: FunctionResult): Json {
+/** Return one JSON value for one FunctionEffectResult. */
+export function toJsonFunctionEffectResult(value: FunctionEffectResult): Json {
     return {
         effect: toJsonFunctionEffect(value.effect),
         escape: toJsonEscapeEffect(value.escape),
     };
 }
 
-/** Return one FunctionResult from one JSON value. */
-export function fromJsonFunctionResult(value: Json): FunctionResult {
+/** Return one FunctionEffectResult from one JSON value. */
+export function fromJsonFunctionEffectResult(value: Json): FunctionEffectResult {
     const object = jsonObject(value);
 
     return {
@@ -201,39 +204,39 @@ export function fromJsonFunctionResult(value: Json): FunctionResult {
 }
 
 /** Reusable interprocedural results indexed by persistent function symbols. */
-export type ProgramEffects = {
+export type ProgramEffectTable = {
     /** Function symbols and extracted input fingerprints in symbol order. */
     readonly functions: ReadonlyArray<readonly [Symbol, bigint]>;
     /** Derived results in the same function order. */
-    readonly results: ReadonlyArray<FunctionResult>;
+    readonly results: ReadonlyArray<FunctionEffectResult>;
     /** Recursive components in callee first order. */
-    readonly components: CallComponentGraph;
+    readonly components: CallComponentTable;
 };
 
-export const ProgramEffects = {
+export const ProgramEffectTable = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ProgramEffects): void {
-        encodeProgramEffects(writer, value);
+    encode(writer: BinaryWriter, value: ProgramEffectTable): void {
+        encodeProgramEffectTable(writer, value);
     },
 
-    /** Decode one ProgramEffects. */
-    decode(reader: BinaryReader): ProgramEffects {
-        return decodeProgramEffects(reader);
+    /** Decode one ProgramEffectTable. */
+    decode(reader: BinaryReader): ProgramEffectTable {
+        return decodeProgramEffectTable(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ProgramEffects): Json {
-        return toJsonProgramEffects(value);
+    toJson(value: ProgramEffectTable): Json {
+        return toJsonProgramEffectTable(value);
     },
 
-    /** Return one ProgramEffects from one JSON value. */
-    fromJson(value: Json): ProgramEffects {
-        return fromJsonProgramEffects(value);
+    /** Return one ProgramEffectTable from one JSON value. */
+    fromJson(value: Json): ProgramEffectTable {
+        return fromJsonProgramEffectTable(value);
     },
 };
 
-/** Encode one ProgramEffects. */
-export function encodeProgramEffects(writer: BinaryWriter, value: ProgramEffects): void {
+/** Encode one ProgramEffectTable. */
+export function encodeProgramEffectTable(writer: BinaryWriter, value: ProgramEffectTable): void {
     writer.writeUnsigned(value.functions.length);
     for (const item0 of value.functions) {
         encodeSymbol(writer, item0[0]);
@@ -241,13 +244,13 @@ export function encodeProgramEffects(writer: BinaryWriter, value: ProgramEffects
     }
     writer.writeUnsigned(value.results.length);
     for (const item1 of value.results) {
-        encodeFunctionResult(writer, item1);
+        encodeFunctionEffectResult(writer, item1);
     }
-    encodeCallComponentGraph(writer, value.components);
+    encodeCallComponentTable(writer, value.components);
 }
 
-/** Decode one ProgramEffects. */
-export function decodeProgramEffects(reader: BinaryReader): ProgramEffects {
+/** Decode one ProgramEffectTable. */
+export function decodeProgramEffectTable(reader: BinaryReader): ProgramEffectTable {
     const functions = (() => {
         const length0 = reader.readNumber();
         const items0: Array<readonly [Symbol, bigint]> = [];
@@ -258,13 +261,13 @@ export function decodeProgramEffects(reader: BinaryReader): ProgramEffects {
     })();
     const results = (() => {
         const length1 = reader.readNumber();
-        const items1: Array<FunctionResult> = [];
+        const items1: Array<FunctionEffectResult> = [];
         for (let index = 0; index < length1; index += 1) {
-            items1.push(decodeFunctionResult(reader));
+            items1.push(decodeFunctionEffectResult(reader));
         }
         return items1;
     })();
-    const components = decodeCallComponentGraph(reader);
+    const components = decodeCallComponentTable(reader);
 
     return {
         functions,
@@ -273,17 +276,17 @@ export function decodeProgramEffects(reader: BinaryReader): ProgramEffects {
     };
 }
 
-/** Return one JSON value for one ProgramEffects. */
-export function toJsonProgramEffects(value: ProgramEffects): Json {
+/** Return one JSON value for one ProgramEffectTable. */
+export function toJsonProgramEffectTable(value: ProgramEffectTable): Json {
     return {
         functions: value.functions.map((item0) => [toJsonSymbol(item0[0]), item0[1].toString()]),
-        results: value.results.map((item0) => toJsonFunctionResult(item0)),
-        components: toJsonCallComponentGraph(value.components),
+        results: value.results.map((item0) => toJsonFunctionEffectResult(item0)),
+        components: toJsonCallComponentTable(value.components),
     };
 }
 
-/** Return one ProgramEffects from one JSON value. */
-export function fromJsonProgramEffects(value: Json): ProgramEffects {
+/** Return one ProgramEffectTable from one JSON value. */
+export function fromJsonProgramEffectTable(value: Json): ProgramEffectTable {
     const object = jsonObject(value);
 
     return {
@@ -297,8 +300,8 @@ export function fromJsonProgramEffects(value: Json): ProgramEffects {
             })(),
         ),
         results: jsonArray(jsonField(object, "results")).map((item0) =>
-            fromJsonFunctionResult(item0),
+            fromJsonFunctionEffectResult(item0),
         ),
-        components: fromJsonCallComponentGraph(jsonField(object, "components")),
+        components: fromJsonCallComponentTable(jsonField(object, "components")),
     };
 }
