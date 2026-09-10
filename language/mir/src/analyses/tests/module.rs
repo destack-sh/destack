@@ -2,7 +2,7 @@ use destack_core::StringPool;
 use destack_source::{DiagnosticSeverity, ModuleId};
 
 use crate as mir;
-use crate::analyses::{AnalysisCache, FunctionCache};
+use crate::analyses::{FunctionCache, ModuleCache};
 use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{AccessTable, DispatchTable, EffectTable, Function, LocalNodeId, Tree};
 
@@ -81,8 +81,8 @@ impl TestModule {
     }
 
     /// Create analyses for this module.
-    pub(crate) fn module_analyses(&self) -> AnalysisCache {
-        AnalysisCache::new()
+    pub(crate) fn module_analyses(&self) -> ModuleCache {
+        ModuleCache::new()
     }
 
     /// Return the defined function named `test`.

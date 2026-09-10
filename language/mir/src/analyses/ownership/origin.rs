@@ -2,18 +2,18 @@ use destack_core::FxIndexSet;
 use smallvec::SmallVec;
 
 use crate::{
-    Access, AddressKind, Analysis, Block, BlockTarget, BorrowedPath, Call, ControlTable, Dataflow,
-    Edge, ForwardTransfer, Function, Instruction, Intrinsic, Lattice, Lifetime, LifetimeParameter,
-    LifetimeSlot, LifetimeTerm, Loan, LoanId, LoanTable, LocalId, LocalNodeId, Mutation, Path,
-    Place, PlaceOrigin, PlaceTable, Projection, ReferenceKind, Storage, Successor, Terminator,
-    Tree, Type, TypeId, Value,
+    Access, AddressKind, Analysis, Block, BlockTarget, BorrowedPath, Call, ControlTable,
+    DataflowTable, Edge, ForwardTransfer, Function, Instruction, Intrinsic, Lattice, Lifetime,
+    LifetimeParameter, LifetimeSlot, LifetimeTerm, Loan, LoanId, LoanTable, LocalId, LocalNodeId,
+    Mutation, Path, Place, PlaceOrigin, PlaceTable, Projection, ReferenceKind, Storage, Successor,
+    Terminator, Tree, Type, TypeId, Value,
 };
 
 /// Borrow origin across one MIR function.
 #[derive(Debug)]
 pub struct OriginTable {
     /// Origin at reachable block entries and exits.
-    flow: Dataflow<OriginState>,
+    flow: DataflowTable<OriginState>,
     /// Loans issued by borrowed references.
     loans: LoanTable,
 }
@@ -475,10 +475,10 @@ impl OriginBuilder<'_> {
     }
 
     /// Solve origin flow to its fixed point.
-    fn solve(&self, control: &ControlTable) -> Dataflow<OriginState> {
+    fn solve(&self, control: &ControlTable) -> DataflowTable<OriginState> {
         let cx = self.context();
         let entry = cx.initial_state();
-        Dataflow::forward(
+        DataflowTable::forward(
             self.function,
             self.tree,
             control,
@@ -669,7 +669,7 @@ impl OriginBuilder<'_> {
     }
 
     /// Bind each loan's parent loans from the solved flow.
-    fn bind_parents(&mut self, flow: &Dataflow<OriginState>) {
+    fn bind_parents(&mut self, flow: &DataflowTable<OriginState>) {
         let cx = self.context();
         let mut parents = Vec::new();
         for &block_id in self.function.blocks() {

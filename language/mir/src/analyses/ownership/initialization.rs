@@ -4,7 +4,7 @@ use destack_core::BitSet;
 use smallvec::SmallVec;
 
 use crate::{
-    AddressKind, Analysis, Block, BlockTarget, ControlTable, Dataflow, Edge, ForwardTransfer,
+    AddressKind, Analysis, Block, BlockTarget, ControlTable, DataflowTable, Edge, ForwardTransfer,
     Function, Instruction, Lattice, LocalNodeId, LocalNodeIdAny, MovePathId, MoveTable, Mutation,
     Place, PlaceTable, Projection, Terminator, Tree, Type, Value,
 };
@@ -17,7 +17,7 @@ pub struct InitializationTable {
     /// Places derived by address values.
     places: Arc<PlaceTable>,
     /// Initialization at reachable block entries and exits.
-    flow: Dataflow<InitializationState>,
+    flow: DataflowTable<InitializationState>,
 }
 
 /// One unavailable move path used by an operation.
@@ -41,10 +41,10 @@ impl InitializationTable {
         let table = Self {
             paths,
             places,
-            flow: Dataflow::new(),
+            flow: DataflowTable::new(),
         };
         let entry = table.parameter_state(function);
-        let flow = Dataflow::forward(
+        let flow = DataflowTable::forward(
             function,
             tree,
             control,

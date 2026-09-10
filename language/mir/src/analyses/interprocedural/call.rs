@@ -25,7 +25,7 @@ pub struct CallTable {
     /// Open callsites grouped by caller.
     open_callsites: Vec<OpenCallSite>,
     /// Recursive components in callee first order.
-    components: CallComponentGraph,
+    components: CallComponentTable,
 }
 
 /// Directed edge in the call graph.
@@ -110,7 +110,7 @@ impl CallTable {
             outgoing_offsets: Vec::new(),
             incoming_offsets: Vec::new(),
             open_offsets: Vec::new(),
-            components: CallComponentGraph::default(),
+            components: CallComponentTable::default(),
         };
         for (caller, function) in tree.iter_nodes::<mir::Function>() {
             for &block_id in function.blocks() {
@@ -156,7 +156,7 @@ impl CallTable {
             .iter()
             .map(|edge| result.function_index(edge.callee) as u32)
             .collect::<Vec<_>>();
-        result.components = CallComponentGraph::analyse(&result.outgoing_offsets, &targets);
+        result.components = CallComponentTable::analyse(&result.outgoing_offsets, &targets);
 
         result
     }
@@ -250,7 +250,7 @@ impl Analysis for CallTable {
 
 /// Strongly connected components of the whole-program call graph, by dense symbol id.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CallComponentGraph {
+pub struct CallComponentTable {
     /// The component id of each symbol, by dense id.
     component: Vec<u32>,
     /// Whether each component contains a cycle, by component id.
@@ -262,7 +262,7 @@ pub struct CallComponentGraph {
     nodes: Vec<u32>,
 }
 
-impl CallComponentGraph {
+impl CallComponentTable {
     /// Analyse dense call edges to find recursive components.
     pub fn analyse(offsets: &[u32], targets: &[u32]) -> Self {
         // partition the call graph into strongly connected components

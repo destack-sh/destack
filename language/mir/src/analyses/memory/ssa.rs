@@ -4,13 +4,13 @@ use crate as mir;
 use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
-    AliasTable, Analysis, ControlTable, DominatorTable, MemoryAccessEffect, MemoryEffects,
+    AliasTable, Analysis, ControlTable, DominatorTable, MemoryAccessEffect, MemoryEffectTable,
     MemoryRegion, Mutation, NodeTable,
 };
 
 /// Memory versions for one function.
 #[derive(Debug)]
-pub struct MemorySSA {
+pub struct MemorySsaTable {
     /// All memory accesses indexed by id.
     accesses: Vec<MemoryNode>,
     /// Memory phi nodes indexed by block id.
@@ -25,7 +25,7 @@ pub struct MemorySSA {
     live_on_entry: MemoryAccessId,
 }
 
-/// Identifier for a memory access in MemorySSA.
+/// Identifier for a memory access in MemorySsaTable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MemoryAccessId(u32);
 
@@ -41,7 +41,7 @@ impl MemoryAccessId {
     }
 }
 
-/// Source operation for one MemorySSA access.
+/// Source operation for one MemorySsaTable access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MemoryAccessSource {
     /// Access produced by a MIR instruction.
@@ -91,7 +91,7 @@ impl MemoryAccessQuery {
     }
 }
 
-/// MemorySSA access node.
+/// MemorySsaTable access node.
 #[derive(Debug, Clone)]
 pub enum MemoryNode {
     /// Pseudo access that dominates all memory operations.
@@ -144,7 +144,7 @@ pub struct MemoryPhi {
 pub struct MemoryDef {
     /// Operation that defines memory.
     pub source: MemoryAccessSource,
-    /// Immediate defining access in MemorySSA.
+    /// Immediate defining access in MemorySsaTable.
     pub defining_access: Option<MemoryAccessId>,
     /// Memory effects for this operation.
     pub effect: MemoryAccessEffect,
@@ -269,7 +269,7 @@ impl MemoryDef {
 pub struct MemoryUse {
     /// Operation that reads memory.
     pub source: MemoryAccessSource,
-    /// Immediate defining access in MemorySSA.
+    /// Immediate defining access in MemorySsaTable.
     pub defining_access: Option<MemoryAccessId>,
     /// Memory effects for this operation.
     pub effect: MemoryAccessEffect,
@@ -282,13 +282,13 @@ impl MemoryUse {
     }
 }
 
-impl MemorySSA {
-    /// Build MemorySSA for a function.
+impl MemorySsaTable {
+    /// Build MemorySsaTable for a function.
     pub fn analyse(
         function: &mir::Function,
         cfg: &ControlTable,
         dominator: &DominatorTable,
-        effects: &MemoryEffects,
+        effects: &MemoryEffectTable,
         tree: &mir::Tree,
     ) -> Self {
         // handle imported functions
@@ -719,9 +719,9 @@ impl MemorySSA {
     }
 }
 
-impl Analysis for MemorySSA {
+impl Analysis for MemorySsaTable {
     const INVALIDATED_BY: Mutation =
-        MemoryEffects::INVALIDATED_BY.union(DominatorTable::INVALIDATED_BY);
+        MemoryEffectTable::INVALIDATED_BY.union(DominatorTable::INVALIDATED_BY);
 }
 
 /// Collected memory access before SSA renaming.
@@ -755,7 +755,7 @@ impl MemoryAccessCollection {
     /// Collect memory accesses for all reachable blocks.
     fn collect(
         function: &mir::Function,
-        effects: &MemoryEffects,
+        effects: &MemoryEffectTable,
         control: &ControlTable,
         tree: &mir::Tree,
     ) -> Self {
@@ -819,7 +819,7 @@ impl MemoryAccessCollection {
     }
 }
 
-/// MemorySSA renamer for def use chains.
+/// MemorySsaTable renamer for def use chains.
 struct MemoryRenamer<'a> {
     /// MIR tree.
     tree: &'a mir::Tree,
@@ -859,7 +859,7 @@ impl<'a> MemoryRenamer<'a> {
     }
 
     /// Rename memory accesses to build SSA form.
-    fn rename(&mut self, ssa: &mut MemorySSA) {
+    fn rename(&mut self, ssa: &mut MemorySsaTable) {
         // initialize the stack with live definitions
         let mut stack = Vec::new();
         stack.push(ssa.live_on_entry);
@@ -871,7 +871,7 @@ impl<'a> MemoryRenamer<'a> {
     /// Rename a block and its dominator children.
     fn rename_block(
         &self,
-        ssa: &mut MemorySSA,
+        ssa: &mut MemorySsaTable,
         block: mir::LocalNodeId<mir::Block>,
         stack: &mut Vec<MemoryAccessId>,
     ) {
@@ -935,7 +935,7 @@ mod tests {
     use crate::{MemoryAddress, MemoryLocation};
 
     /// Extract the effect payload for a memory access.
-    fn access_effect(memory: &MemorySSA, access_id: MemoryAccessId) -> MemoryAccessEffect {
+    fn access_effect(memory: &MemorySsaTable, access_id: MemoryAccessId) -> MemoryAccessEffect {
         // unwrap use or def payloads
         match memory.access(access_id) {
             MemoryNode::Use(use_access) => use_access.effect.clone(),
@@ -966,7 +966,7 @@ mod tests {
 
     /// Collect the memory accesses for an instruction.
     fn instruction_accesses(
-        memory: &MemorySSA,
+        memory: &MemorySsaTable,
         instruction: mir::LocalNodeId<mir::Instruction>,
     ) -> Vec<MemoryAccessId> {
         // clone the access list when present
@@ -978,7 +978,7 @@ mod tests {
 
     /// Collect the memory accesses for a terminator.
     fn terminator_accesses(
-        memory: &MemorySSA,
+        memory: &MemorySsaTable,
         block: mir::LocalNodeId<mir::Block>,
     ) -> Vec<MemoryAccessId> {
         // clone the access list when present
@@ -988,7 +988,7 @@ mod tests {
             .unwrap_or_default()
     }
 
-    /// MemorySSA links uses to the latest defining access in a straight line.
+    /// MemorySsaTable links uses to the latest defining access in a straight line.
     #[test]
     fn test_memory_linear_def_use() {
         let test = TestModule::new(
@@ -1006,7 +1006,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // find memory accesses
@@ -1031,7 +1031,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
         );
     }
 
-    /// MemorySSA inserts phis at join points with multiple incoming defs.
+    /// MemorySsaTable inserts phis at join points with multiple incoming defs.
     #[test]
     fn test_memory_phi_at_join() {
         let test = TestModule::new(
@@ -1060,7 +1060,7 @@ b3:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // fetch join block phi
@@ -1084,7 +1084,7 @@ b3:
         assert_eq!(phi.incoming.len(), 2);
     }
 
-    /// MemorySSA uses alias analysis to skip non aliasing defs.
+    /// MemorySsaTable uses alias analysis to skip non aliasing defs.
     #[test]
     fn test_memory_clobber_skips_disjoint_def() {
         let test = TestModule::new(
@@ -1109,7 +1109,7 @@ entry:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let alias = analyses.alias(function, &test.tree);
 
         // locate accesses
@@ -1129,7 +1129,7 @@ entry:
         assert_eq!(clobber, store_access);
     }
 
-    /// MemorySSA prefers explicit access records.
+    /// MemorySsaTable prefers explicit access records.
     #[test]
     fn test_memory_entries_overrides_instruction() {
         // input test
@@ -1169,7 +1169,7 @@ entry:
         // build analyses
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let alias = analyses.alias(function, &test.tree);
 
         // locate memory accesses
@@ -1205,7 +1205,7 @@ entry:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
 
         // locate local access
         let block = test.tree.get(function.block(0));
@@ -1244,7 +1244,7 @@ entry:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let alias = analyses.alias(function, &test.tree);
 
         // locate the local write and local-address load
@@ -1279,7 +1279,7 @@ entry(v0: ref<int32, unique, mutable, local>):
 
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         let free_access = memory
@@ -1315,7 +1315,7 @@ entry:
 
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         let alloc_access = memory
@@ -1346,7 +1346,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b,
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         let memcpy_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcpy);
@@ -1395,7 +1395,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b,
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         let memcmp_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcmp);
@@ -1453,7 +1453,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
 
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // collect volatile effects
@@ -1488,7 +1488,7 @@ entry(v0: ref<atomic<int32>, borrowed, 'a, mutable, local>):
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         let block = test.tree.get(function.block(0));
@@ -1526,7 +1526,7 @@ entry:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // locate fence instruction
@@ -1566,7 +1566,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
             .0;
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // locate call instruction
@@ -1606,7 +1606,7 @@ b2:
         let function_id = test.entry_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // locate the invoke and continuation load
@@ -1647,7 +1647,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
 
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
 
         assert!(
             memory.instruction_accesses(call_inst).is_none(),
@@ -1704,7 +1704,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b,
         // build analyses
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // locate access effects for the call
@@ -1757,7 +1757,7 @@ entry(v0: dynamic<Writer, managed, readonly, local>):
         let function = test.tree.get(function_id);
         let block = test.tree.get(function.block(0));
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
 
         // resolve both field reads
         let first = memory
@@ -1833,7 +1833,7 @@ b3:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // find phi for loop header
@@ -1877,7 +1877,7 @@ b1:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let memory = memory.as_ref();
 
         // locate store in unreachable block
@@ -1912,7 +1912,7 @@ exit:
         let entry = function.block(0);
         let instructions = &test.tree.get(entry).instructions;
         let mut analyses = test.function_analyses();
-        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
         let alias = analyses.alias(function, &test.tree);
         let load = memory
             .instruction_access(instructions[0])

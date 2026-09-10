@@ -1,6 +1,6 @@
 use destack_core::{BitSet, FxIndexMap};
 
-use crate::{CallComponentGraph, LinkEdgeKind, LinkTable, Symbol};
+use crate::{CallComponentTable, LinkEdgeKind, LinkTable, Symbol};
 
 /// Whole-program reference graph in compressed sparse row form over a dense symbol index.
 #[derive(Debug, Default)]
@@ -160,11 +160,11 @@ impl LinkSupergraph {
     }
 
     /// Condense call edges into strongly connected components.
-    pub fn call_components(&self) -> CallComponentGraph {
+    pub fn call_components(&self) -> CallComponentTable {
         // select the call edges from the symbol graph
         let (offsets, targets) = self.call_edges();
 
-        CallComponentGraph::analyse(&offsets, &targets)
+        CallComponentTable::analyse(&offsets, &targets)
     }
 
     /// Return the call-only edge graph in dense CSR form.

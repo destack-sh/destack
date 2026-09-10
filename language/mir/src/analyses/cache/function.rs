@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use crate as mir;
 use crate::{
-    AliasTable, Analysis, AnalysisOptions, ConstantTable, ControlTable, DefinitionTable,
-    DominatorTable, InitializationTable, LivenessTable, LoopTable, MemoryEffects, MemorySSA,
-    MoveTable, Mutation, OriginTable, PlaceTable, PostdominatorTable, ScalarEvolution, UseTable,
+    AliasTable, Analysis, ConstantTable, ControlTable, DefinitionTable, DominatorTable,
+    InitializationTable, LivenessTable, LoopTable, MemoryEffectTable, MemorySsaTable, MoveTable,
+    Mutation, OriginTable, PlaceTable, PostdominatorTable, ScalarEvolutionTable, UseTable,
 };
 
 /// Cached analyses for one MIR function.
@@ -21,7 +21,7 @@ pub struct FunctionCache {
     /// The cached dominators.
     dominator: Option<Arc<DominatorTable>>,
     /// Scalar evolution and its memoized queries.
-    evolution: Option<ScalarEvolution>,
+    evolution: Option<ScalarEvolutionTable>,
     /// The cached move-path initialization.
     initialization: Option<Arc<InitializationTable>>,
     /// The cached liveness table.
@@ -29,9 +29,9 @@ pub struct FunctionCache {
     /// The cached loops.
     loops: Option<Arc<LoopTable>>,
     /// The cached memory effects of individual operations.
-    pub(super) accesses: Option<Arc<MemoryEffects>>,
+    pub(super) memory_effect: Option<Arc<MemoryEffectTable>>,
     /// The cached memory versions.
-    pub(super) memory: Option<Arc<MemorySSA>>,
+    pub(super) ssa: Option<Arc<MemorySsaTable>>,
     /// The cached move paths.
     moves: Option<Arc<MoveTable>>,
     /// The cached canonical places.
@@ -42,18 +42,18 @@ pub struct FunctionCache {
     pub(super) origin: Option<Arc<OriginTable>>,
     /// The cached value uses.
     uses: Option<Arc<UseTable>>,
-    /// The analysis options.
-    options: AnalysisOptions,
+    /// The target layout used by these analyses.
+    target_layout: mir::TargetLayout,
 }
 
 impl FunctionCache {
     /// Create empty function analyses.
     pub fn new() -> Self {
-        Self::with_options(AnalysisOptions::default())
+        Self::with_target_layout(mir::TargetLayout::default())
     }
 
-    /// Create empty function analyses with the given options.
-    pub fn with_options(options: AnalysisOptions) -> Self {
+    /// Create empty function analyses with the given target layout.
+    pub fn with_target_layout(target_layout: mir::TargetLayout) -> Self {
         Self {
             alias: None,
             constant: None,
@@ -64,25 +64,20 @@ impl FunctionCache {
             initialization: None,
             liveness: None,
             loops: None,
-            accesses: None,
-            memory: None,
+            memory_effect: None,
+            ssa: None,
             moves: None,
             place: None,
             postdominator: None,
             origin: None,
             uses: None,
-            options,
+            target_layout,
         }
-    }
-
-    /// Return the analysis options.
-    pub fn options(&self) -> &AnalysisOptions {
-        &self.options
     }
 
     /// Return the target layout for this analysis run.
     pub fn target_layout(&self) -> mir::TargetLayout {
-        self.options.target_layout
+        self.target_layout
     }
 
     /// Return alias relationships, analysing them when required.
@@ -187,7 +182,7 @@ impl FunctionCache {
         &mut self,
         function: &mir::Function,
         tree: &mir::Tree,
-    ) -> &mut ScalarEvolution {
+    ) -> &mut ScalarEvolutionTable {
         // reuse the query state or construct it from the function's analyses
         let evolution = match self.evolution.take() {
             Some(evolution) => evolution,
@@ -196,7 +191,7 @@ impl FunctionCache {
                 let dominators = self.dominator(function, tree);
                 let loops = self.loops(function, tree);
 
-                ScalarEvolution::analyse(
+                ScalarEvolutionTable::analyse(
                     function,
                     definitions,
                     dominators,
@@ -268,22 +263,22 @@ impl FunctionCache {
     }
 
     /// Return the memory effects of individual operations.
-    pub fn accesses(
+    pub fn memory_effect(
         &mut self,
         function: &mir::Function,
         tree: &mir::Tree,
         accesses: &mir::AccessTable,
         effects: &mir::EffectTable,
-    ) -> Arc<MemoryEffects> {
+    ) -> Arc<MemoryEffectTable> {
         // reuse the classification while its inputs remain unchanged
-        if let Some(result) = &self.accesses {
+        if let Some(result) = &self.memory_effect {
             return result.clone();
         }
 
         // classify operations using the current constants and effect tables
         let constants = self.constant(function, tree);
         let control = self.control(function, tree);
-        let result = Arc::new(MemoryEffects::analyse(
+        let result = Arc::new(MemoryEffectTable::analyse(
             function,
             &constants,
             &control,
@@ -292,38 +287,38 @@ impl FunctionCache {
             self.target_layout(),
             tree,
         ));
-        self.accesses = Some(result.clone());
+        self.memory_effect = Some(result.clone());
 
         result
     }
 
     /// Return memory SSA for the function.
-    pub fn memory(
+    pub fn ssa(
         &mut self,
         function: &mir::Function,
         tree: &mir::Tree,
         accesses: &mir::AccessTable,
         effects: &mir::EffectTable,
-    ) -> Arc<MemorySSA> {
+    ) -> Arc<MemorySsaTable> {
         // reuse the graph while its inputs remain unchanged
-        if let Some(result) = &self.memory {
+        if let Some(result) = &self.ssa {
             return result.clone();
         }
 
         // compute the control graph, dominators, and operation effects
         let control = self.control(function, tree);
         let dominators = self.dominator(function, tree);
-        let effects = self.accesses(function, tree, accesses, effects);
+        let effects = self.memory_effect(function, tree, accesses, effects);
 
         // construct and cache memory SSA
-        let result = Arc::new(MemorySSA::analyse(
+        let result = Arc::new(MemorySsaTable::analyse(
             function,
             &control,
             &dominators,
             &effects,
             tree,
         ));
-        self.memory = Some(result.clone());
+        self.ssa = Some(result.clone());
 
         result
     }
@@ -417,8 +412,8 @@ impl FunctionCache {
 
     /// Discard module-dependent results before running passes restricted to this function cache.
     pub fn invalidate_module_dependencies(&mut self) {
-        self.accesses = None;
-        self.memory = None;
+        self.memory_effect = None;
+        self.ssa = None;
         self.origin = None;
     }
 
@@ -450,7 +445,7 @@ impl FunctionCache {
         }
 
         // invalidate scalar evolution
-        if ScalarEvolution::INVALIDATED_BY.intersects(mutation) {
+        if ScalarEvolutionTable::INVALIDATED_BY.intersects(mutation) {
             self.evolution = None;
         }
 
@@ -470,13 +465,13 @@ impl FunctionCache {
         }
 
         // invalidate operation memory effects
-        if MemoryEffects::INVALIDATED_BY.intersects(mutation) {
-            self.accesses = None;
+        if MemoryEffectTable::INVALIDATED_BY.intersects(mutation) {
+            self.memory_effect = None;
         }
 
         // invalidate memory versions
-        if MemorySSA::INVALIDATED_BY.intersects(mutation) {
-            self.memory = None;
+        if MemorySsaTable::INVALIDATED_BY.intersects(mutation) {
+            self.ssa = None;
         }
 
         // invalidate move paths
@@ -541,7 +536,7 @@ entry:
         let instructions = program.tree.get(block).instructions.clone();
         let mut analyses = FunctionCache::new();
         let effects =
-            analyses.accesses(function, &program.tree, &program.accesses, &program.effects);
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
 
         // check every instruction and the terminator without constructing memory SSA
         let mut expected = vec![
@@ -575,7 +570,7 @@ entry:
             effects.terminator_effects(block).collect::<Vec<_>>(),
             Vec::<&MemoryAccessEffect>::new()
         );
-        assert!(analyses.memory.is_none());
+        assert!(analyses.ssa.is_none());
         assert!(analyses.dominator.is_none());
 
         // change the read to volatile through explicit access metadata
@@ -592,7 +587,7 @@ entry:
         analyses.invalidate(Mutation::MEMORY);
         let function = program.tree.get(function_id);
         let updated =
-            analyses.accesses(function, &program.tree, &program.accesses, &program.effects);
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
 
         // preserve the other accesses while observing the changed ordering
         expected[2][0].is_volatile = true;

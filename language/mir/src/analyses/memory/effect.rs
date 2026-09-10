@@ -10,7 +10,7 @@ use crate::{
 
 /// Classified memory effects for the operations in one function.
 #[derive(Debug)]
-pub struct MemoryEffects {
+pub struct MemoryEffectTable {
     /// Memory effects in execution order within each reachable block.
     effects: Vec<MemoryAccessEffect>,
     /// Effect ranges indexed by instruction.
@@ -19,7 +19,7 @@ pub struct MemoryEffects {
     terminators: NodeTable<mir::Block, Range<u32>>,
 }
 
-impl MemoryEffects {
+impl MemoryEffectTable {
     /// Classify the operations in each reachable block.
     pub fn analyse(
         function: &mir::Function,
@@ -104,7 +104,7 @@ impl MemoryEffects {
     }
 }
 
-impl Analysis for MemoryEffects {
+impl Analysis for MemoryEffectTable {
     const INVALIDATED_BY: Mutation = Mutation::CONTROL
         .union(Mutation::VALUE)
         .union(Mutation::MEMORY)
@@ -479,7 +479,7 @@ impl<'a> MemoryEffectBuilder<'a> {
             }
 
             mir::Terminator::Error => {
-                panic!("invalid MIR terminator reached MemorySSA");
+                panic!("invalid MIR terminator reached MemorySsaTable");
             }
 
             mir::Terminator::Return { .. }
@@ -657,7 +657,7 @@ impl<'a> MemoryEffectBuilder<'a> {
         self.effects_from_call_effect(&effects)
     }
 
-    /// Convert call memory effects to MemorySSA effects.
+    /// Convert call memory effects to MemorySsaTable effects.
     fn effects_from_call_effect(
         &self,
         effects: &mir::MemoryEffect,

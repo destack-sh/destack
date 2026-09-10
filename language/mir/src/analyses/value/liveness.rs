@@ -24,7 +24,7 @@ pub struct LivenessTable {
 
 /// Live values and locals while traversing one block.
 #[derive(Debug)]
-pub struct LiveSet<'a> {
+pub struct LivenessCursor<'a> {
     /// Values live at the current operation.
     values: BitSet,
     /// Locals live at the current operation.
@@ -364,7 +364,7 @@ impl LivenessTable {
     }
 
     /// Build linear liveness traversal for one block.
-    pub fn block<'a>(&'a self, tree: &Tree, block_id: LocalNodeId<Block>) -> LiveSet<'a> {
+    pub fn cursor<'a>(&'a self, tree: &Tree, block_id: LocalNodeId<Block>) -> LivenessCursor<'a> {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
         let mut values = self.value_live_out.get(block_id).clone();
@@ -437,7 +437,7 @@ impl LivenessTable {
         last_uses.dedup_by_key(|last| last.value);
         local_changes.reverse();
 
-        LiveSet {
+        LivenessCursor {
             values,
             locals,
             local_ids: &self.locals,
@@ -631,7 +631,7 @@ impl LivenessTable {
     }
 }
 
-impl LiveSet<'_> {
+impl LivenessCursor<'_> {
     /// Return values live at the current operation.
     pub fn values(&self) -> impl Iterator<Item = Value> + '_ {
         self.values.iter().map(|index| Value::new(index as u32))
@@ -858,7 +858,7 @@ entry(v0: int32):
         let local = function.local(0);
         let instructions = tree.get(entry).instructions.clone();
 
-        let mut live = liveness.block(&tree, entry);
+        let mut live = liveness.cursor(&tree, entry);
 
         // retain the entry parameter before the defining local store
         assert_eq!(

@@ -307,8 +307,13 @@ impl LoopTable {
     }
 
     /// Return the number of loops.
-    pub fn num_loops(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.loops.len()
+    }
+
+    /// Return whether the function has no natural loops.
+    pub fn is_empty(&self) -> bool {
+        self.loops.is_empty()
     }
 
     /// Return whether a block is a loop header.
@@ -365,7 +370,7 @@ impl LoopTable {
     }
 
     /// Return one loop by index.
-    pub fn get_loop(&self, index: usize) -> Option<&Loop> {
+    pub fn get(&self, index: usize) -> Option<&Loop> {
         self.loops.get(index)
     }
 
@@ -404,7 +409,7 @@ b1:
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
-        assert_eq!(analysis.num_loops(), 1);
+        assert_eq!(analysis.len(), 1);
 
         let natural_loop = &analysis.loops()[0];
         assert_eq!(natural_loop.header, function.block(0));
@@ -443,7 +448,7 @@ b2:
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
-        assert_eq!(analysis.num_loops(), 1);
+        assert_eq!(analysis.len(), 1);
 
         let block0 = function.block(0);
         let block1 = function.block(1);
@@ -484,7 +489,7 @@ b3:
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
-        assert_eq!(analysis.num_loops(), 1);
+        assert_eq!(analysis.len(), 1);
 
         let block1 = function.block(1);
         let block2 = function.block(2);
@@ -530,7 +535,7 @@ b4:
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
-        assert_eq!(analysis.num_loops(), 2);
+        assert_eq!(analysis.len(), 2);
 
         let block1 = function.block(1);
         let block2 = function.block(2);
@@ -648,7 +653,7 @@ b3:
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
-        assert_eq!(analysis.num_loops(), 0);
+        assert_eq!(analysis.len(), 0);
         assert!(analysis.loops().is_empty());
 
         for &block in function.blocks() {
@@ -683,7 +688,7 @@ b3:
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
-        assert_eq!(analysis.num_loops(), 1);
+        assert_eq!(analysis.len(), 1);
 
         let natural_loop = &analysis.loops()[0];
         assert_eq!(natural_loop.header, function.block(1));
@@ -727,7 +732,7 @@ b4:
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
-        assert_eq!(analysis.num_loops(), 1);
+        assert_eq!(analysis.len(), 1);
 
         let natural_loop = &analysis.loops()[0];
         let block1 = function.block(1);
@@ -804,7 +809,7 @@ latch:
         let latch = function.block(2);
         let natural_loop = table.header_loop(header).expect("loop header");
 
-        assert_eq!(table.num_loops(), 1);
+        assert_eq!(table.len(), 1);
         assert_eq!(natural_loop.latches, vec![latch]);
         assert_eq!(natural_loop.blocks, FxIndexSet::from_iter([header, latch]));
         assert_eq!(natural_loop.exiting_blocks, vec![]);

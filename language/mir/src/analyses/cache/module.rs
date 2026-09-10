@@ -2,16 +2,15 @@ use std::sync::Arc;
 
 use crate as mir;
 use crate::{
-    AliasTable, Analysis, AnalysisOptions, CallTable, ConstantTable, ControlTable, DefinitionTable,
-    DominatorTable, EffectTable, EscapeTable, FunctionCache, GlobalAccessTable,
-    InitializationTable, LinkTable, LivenessTable, LoopTable, MemoryEffects, MemorySSA, MoveTable,
-    Mutation, OriginTable, PlaceTable, PostdominatorTable, ResolutionTable, ScalarEvolution,
-    UseTable,
+    AliasTable, Analysis, CallTable, ConstantTable, ControlTable, DefinitionTable, DominatorTable,
+    EffectTable, EscapeTable, FunctionCache, GlobalAccessTable, InitializationTable, LinkTable,
+    LivenessTable, LoopTable, MemoryEffectTable, MemorySsaTable, MoveTable, Mutation, OriginTable,
+    PlaceTable, PostdominatorTable, ResolutionTable, ScalarEvolutionTable, UseTable,
 };
 
 /// Cached analyses for one MIR module.
 #[derive(Debug)]
-pub struct AnalysisCache {
+pub struct ModuleCache {
     /// The cached call table.
     call: Option<Arc<CallTable>>,
     /// The cached dispatch resolutions.
@@ -19,15 +18,15 @@ pub struct AnalysisCache {
     /// The cached function effects.
     effect: Option<Arc<EffectTable>>,
     /// The cached allocation escape results.
-    escape: Option<Arc<EscapeTable>>,
+    escape: Option<Arc<mir::NodeTable<mir::Function, Arc<EscapeTable>>>>,
     /// The cached global accesses.
     globals: Option<Arc<GlobalAccessTable>>,
     /// The cached symbol links.
     link: Option<Arc<LinkTable>>,
     /// Function caches sorted by function id.
     functions: Vec<(mir::FunctionId, FunctionCache)>,
-    /// The analysis options.
-    options: AnalysisOptions,
+    /// The target layout used by these analyses.
+    target_layout: mir::TargetLayout,
 }
 
 macro_rules! function_analysis_through_module {
@@ -52,14 +51,14 @@ macro_rules! function_analysis_through_module {
     };
 }
 
-impl AnalysisCache {
+impl ModuleCache {
     /// Create empty module analyses.
     pub fn new() -> Self {
-        Self::with_options(AnalysisOptions::default())
+        Self::with_target_layout(mir::TargetLayout::default())
     }
 
-    /// Create empty module analyses with the given options.
-    pub fn with_options(options: AnalysisOptions) -> Self {
+    /// Create empty module analyses with the given target layout.
+    pub fn with_target_layout(target_layout: mir::TargetLayout) -> Self {
         Self {
             call: None,
             resolution: None,
@@ -68,13 +67,13 @@ impl AnalysisCache {
             globals: None,
             link: None,
             functions: Vec::new(),
-            options,
+            target_layout,
         }
     }
 
-    /// Return the analysis options.
-    pub fn options(&self) -> &AnalysisOptions {
-        &self.options
+    /// Return the target layout used by these analyses.
+    pub fn target_layout(&self) -> mir::TargetLayout {
+        self.target_layout
     }
 
     /// Return the call graph, analysing it when required.
@@ -194,7 +193,7 @@ impl AnalysisCache {
         &mut self,
         function: mir::FunctionId,
         tree: &mir::Tree,
-    ) -> &mut ScalarEvolution {
+    ) -> &mut ScalarEvolutionTable {
         let body = tree.get(function);
 
         self.function(function).evolution(body, tree)
@@ -222,23 +221,30 @@ impl AnalysisCache {
         "Return the function dominator tree."
     );
 
-    /// Return allocation escape results for the module.
+    /// Return allocation escape results for one function.
     pub fn escape(
         &mut self,
+        function: mir::FunctionId,
         tree: &mir::Tree,
         effects: &mir::EffectTable,
         dispatch: &mir::DispatchTable,
     ) -> Arc<EscapeTable> {
         // reuse results while the function bodies remain unchanged
         if let Some(result) = &self.escape {
-            return result.clone();
+            return result.get(function).clone();
         }
 
-        // analyse and cache the module's escape results
+        // solve the module's recursive calls before selecting the function result
         let resolution = self.resolution(tree, dispatch);
         let calls = self.call(tree, dispatch);
-        let result = Arc::new(EscapeTable::analyse(&resolution, &calls, effects, tree));
-        self.escape = Some(result.clone());
+        let results = Arc::new(mir::EscapeBody::analyse_module(
+            &resolution,
+            &calls,
+            effects,
+            tree,
+        ));
+        let result = results.get(function).clone();
+        self.escape = Some(results);
 
         result
     }
@@ -246,14 +252,14 @@ impl AnalysisCache {
     function_analysis_through_module!(liveness, LivenessTable, "Return function value liveness.");
     function_analysis_through_module!(loops, LoopTable, "Return function loop analysis.");
     function_analysis_through_module!(
-        memory,
-        MemorySSA,
+        ssa,
+        MemorySsaTable,
         "Return function memory versions.",
         accesses: &mir::AccessTable,
         effects: &mir::EffectTable
     );
     function_analysis_through_module!(
-        accesses, MemoryEffects, "Return function memory effects.",
+        memory_effect, MemoryEffectTable, "Return function memory effects.",
         accesses: &mir::AccessTable,
         effects: &mir::EffectTable
     );
@@ -281,7 +287,7 @@ impl AnalysisCache {
         let index = match index {
             Ok(index) => index,
             Err(index) => {
-                let analyses = FunctionCache::with_options(self.options);
+                let analyses = FunctionCache::with_target_layout(self.target_layout);
                 self.functions.insert(index, (function_id, analyses));
 
                 index
@@ -373,14 +379,14 @@ impl AnalysisCache {
         for (_, analyses) in &mut self.functions {
             // invalidate memory versions after function effects change
             if effects_changed {
-                analyses.accesses = None;
-                analyses.memory = None;
+                analyses.memory_effect = None;
+                analyses.ssa = None;
             }
         }
     }
 }
 
-impl Default for AnalysisCache {
+impl Default for ModuleCache {
     fn default() -> Self {
         Self::new()
     }
@@ -416,13 +422,13 @@ entry:
             .collect();
 
         // compute the analyses whose reuse is checked below
-        let mut cache = AnalysisCache::new();
+        let mut cache = ModuleCache::new();
         let first_control = cache.control(functions[0], &test.tree);
         let second_control = cache.control(functions[1], &test.tree);
         let first_constant = cache.constant(functions[0], &test.tree);
         let second_constant = cache.constant(functions[1], &test.tree);
         let effects = cache.effect(&test.tree, &test.accesses, &test.effects, &test.dispatch);
-        let second_memory = cache.memory(functions[1], &test.tree, &test.accesses, &effects);
+        let second_memory = cache.ssa(functions[1], &test.tree, &test.accesses, &effects);
 
         // replace the first function's constant before invalidating its cached answer
         let block = test.tree.get(functions[0]).entry().expect("function entry");
@@ -468,7 +474,7 @@ entry:
         assert!(!Arc::ptr_eq(&effects, &new_effects));
         assert!(!Arc::ptr_eq(
             &second_memory,
-            &cache.memory(functions[1], &test.tree, &test.accesses, &new_effects)
+            &cache.ssa(functions[1], &test.tree, &test.accesses, &new_effects)
         ));
 
         // preserve the unchanged function's control graph after a branch change
@@ -483,11 +489,11 @@ entry:
         ));
 
         // invalidate memory analyses after a layout change
-        let memory = cache.memory(functions[1], &test.tree, &test.accesses, &new_effects);
+        let memory = cache.ssa(functions[1], &test.tree, &test.accesses, &new_effects);
         cache.invalidate_function(functions[0], Mutation::LAYOUT);
         assert!(!Arc::ptr_eq(
             &memory,
-            &cache.memory(functions[1], &test.tree, &test.accesses, &new_effects),
+            &cache.ssa(functions[1], &test.tree, &test.accesses, &new_effects),
         ));
         assert!(Arc::ptr_eq(
             &second_control,
@@ -510,7 +516,7 @@ entry:
         let function = test.entry_function_id();
 
         // compute the analyses whose reuse is checked below
-        let mut cache = AnalysisCache::new();
+        let mut cache = ModuleCache::new();
         let control = cache.control(function, &test.tree);
         let resolution = cache.resolution(&test.tree, &test.dispatch);
         let origin = cache.origin(function, &test.tree);

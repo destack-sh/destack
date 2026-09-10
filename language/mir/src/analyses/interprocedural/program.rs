@@ -5,7 +5,7 @@ use destack_serde::{Error, Reflect, hash_into};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AccessTable, CallComponentGraph, ControlTable, EffectBody, EffectTable, EscapeBody,
+    AccessTable, CallComponentTable, ControlTable, EffectBody, EffectTable, EscapeBody,
     EscapeEffect, FunctionEffect, FunctionId, Linkage, ResolutionTable, Symbol, Tree,
 };
 
@@ -41,7 +41,7 @@ pub struct ProgramEffects {
     /// Derived results in the same function order.
     results: Vec<Arc<FunctionResult>>,
     /// Recursive components in callee first order.
-    components: CallComponentGraph,
+    components: CallComponentTable,
 }
 
 impl FunctionAnalysis {
@@ -136,7 +136,7 @@ impl ProgramEffects {
             targets.extend_from_slice(&outgoing);
             offsets.push(targets.len() as u32);
         }
-        let components = CallComponentGraph::analyse(&offsets, &targets);
+        let components = CallComponentTable::analyse(&offsets, &targets);
         let mut effects = FxIndexMap::default();
         let mut escapes = FxIndexMap::default();
 

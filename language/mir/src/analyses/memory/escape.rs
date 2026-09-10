@@ -6,20 +6,13 @@ use serde::{Deserialize, Serialize};
 
 use crate as mir;
 use crate::{
-    Analysis, ArgumentEscape, CallTable, ControlTable, EffectTable, Function, FunctionId, Mutation,
-    NodeTable, Point, ResolutionTable, Symbol, Tree, Value,
+    Analysis, ArgumentEscape, CallTable, ControlTable, EffectTable, Function, Mutation, NodeTable,
+    Point, ResolutionTable, Symbol, Tree, Value,
 };
-
-/// Escape results for the defined functions in one module.
-#[derive(Debug)]
-pub struct EscapeTable {
-    /// Results indexed by function identity.
-    functions: NodeTable<Function, Arc<Escape>>,
-}
 
 /// Allocation visibility and pointer escape results for one function.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct Escape {
+pub struct EscapeTable {
     /// Parameter and result relationships consumed by callers.
     pub effect: EscapeEffect,
     /// Allocation results sorted by program point.
@@ -170,14 +163,14 @@ struct EscapeSolver<'a> {
     queued: BitSet,
 }
 
-impl EscapeTable {
+impl EscapeBody {
     /// Analyse pointer flow through each recursive component in callee first order.
-    pub fn analyse(
+    pub(crate) fn analyse_module(
         resolution: &ResolutionTable,
         calls: &CallTable,
         declared: &EffectTable,
         tree: &Tree,
-    ) -> Self {
+    ) -> NodeTable<Function, Arc<EscapeTable>> {
         let mut bodies = FxIndexMap::default();
         let mut effects = FxIndexMap::<Symbol, EscapeEffect>::default();
         let mut results = FxIndexMap::default();
@@ -212,19 +205,12 @@ impl EscapeTable {
             }
         }
 
-        Self {
-            functions: NodeTable::from_entries(
-                results
-                    .into_iter()
-                    .map(|(function, result)| (function, Arc::new(result)))
-                    .collect(),
-            ),
-        }
-    }
-
-    /// Return the complete escape result for one defined function.
-    pub fn function(&self, function: FunctionId) -> &Arc<Escape> {
-        self.functions.get(function)
+        NodeTable::from_entries(
+            results
+                .into_iter()
+                .map(|(function, result)| (function, Arc::new(result)))
+                .collect(),
+        )
     }
 }
 
@@ -248,7 +234,7 @@ impl From<ArgumentEscape> for ParameterEscape {
     }
 }
 
-impl Escape {
+impl EscapeTable {
     /// Return visibility and reuse restrictions for one allocation operation.
     pub fn allocation(&self, point: Point) -> Option<&AllocationEscape> {
         let index = self
@@ -479,7 +465,7 @@ impl EscapeBody {
     }
 
     /// Solve pointer flows using the current effects of all named callees.
-    pub fn analyse_calls(&self, effects: &FxIndexMap<Symbol, EscapeEffect>) -> Escape {
+    pub fn analyse_calls(&self, effects: &FxIndexMap<Symbol, EscapeEffect>) -> EscapeTable {
         // copy local flows and initial pointer visibility
         let count = self.depths.len();
         let mut flows = self.flows.clone();
@@ -557,7 +543,7 @@ impl EscapeBody {
             })
             .collect();
 
-        Escape {
+        EscapeTable {
             effect,
             allocations,
             exposed,
@@ -1361,9 +1347,8 @@ failure:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let blocks = program.tree.get(function).blocks();
         let expected = AllocationEscape {
             is_returned: true,
@@ -1410,9 +1395,8 @@ exit:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let block = program.tree.get(program.tree.get(function).blocks()[1]);
 
         assert_eq!(
@@ -1444,9 +1428,8 @@ exit:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let block = program.tree.get(program.tree.get(function).blocks()[1]);
 
         assert_eq!(
@@ -1489,13 +1472,12 @@ exit:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
         let block = program.tree.get(program.tree.get(function).blocks()[1]);
 
         assert_eq!(
-            table
-                .function(function)
+            analyses
+                .escape(function, &program.tree, &program.effects, &program.dispatch)
                 .allocation(Point::Instruction(block.instructions[1])),
             Some(&AllocationEscape {
                 is_returned: false,
@@ -1529,13 +1511,12 @@ exit:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
         let block = program.tree.get(program.tree.get(function).blocks()[1]);
 
         assert_eq!(
-            table
-                .function(function)
+            analyses
+                .escape(function, &program.tree, &program.effects, &program.dispatch)
                 .allocation(Point::Instruction(block.instructions[0])),
             Some(&AllocationEscape::default()),
         );
@@ -1559,9 +1540,8 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1587,8 +1567,12 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static,
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
-        let escape = table.function(program.entry_function_id());
+        let escape = analyses.escape(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
 
         assert_eq!(
             escape.effect,
@@ -1620,8 +1604,12 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, 
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
-        let escape = table.function(program.entry_function_id());
+        let escape = analyses.escape(
+            program.entry_function_id(),
+            &program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
 
         assert_eq!(
             [escape.is_exposed(Value(0)), escape.is_exposed(Value(1))],
@@ -1644,9 +1632,8 @@ entry(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, lo
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1677,9 +1664,8 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1708,13 +1694,12 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
         let block = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
-            table
-                .function(function)
+            analyses
+                .escape(function, &program.tree, &program.effects, &program.dispatch)
                 .allocation(Point::Instruction(block.instructions[0])),
             Some(&AllocationEscape {
                 is_returned: true,
@@ -1741,9 +1726,8 @@ join(v3: ref<int32, unique, mutable, local>):
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
         let expected = AllocationEscape {
             is_returned: true,
@@ -1781,9 +1765,8 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1812,10 +1795,14 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
-        let identity = table.function(program.function_id_by_name("identity"));
+        let identity = analyses.escape(
+            program.function_id_by_name("identity"),
+            &program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1857,9 +1844,13 @@ entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         for name in ["first", "second"] {
-            let escape = table.function(program.function_id_by_name(name));
+            let escape = analyses.escape(
+                program.function_id_by_name(name),
+                &program.tree,
+                &program.effects,
+                &program.dispatch,
+            );
 
             assert_eq!(
                 escape.effect.parameters,
@@ -1896,13 +1887,12 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
         let block = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
-            table
-                .function(function)
+            analyses
+                .escape(function, &program.tree, &program.effects, &program.dispatch)
                 .allocation(Point::Instruction(block.instructions[0])),
             Some(&AllocationEscape {
                 is_returned: true,
@@ -1911,8 +1901,13 @@ entry:
             })
         );
         assert_eq!(
-            table
-                .function(program.function_id_by_name("captured"))
+            analyses
+                .escape(
+                    program.function_id_by_name("captured"),
+                    &program.tree,
+                    &program.effects,
+                    &program.dispatch
+                )
                 .effect
                 .environment,
             Some(ParameterEscape {
@@ -1947,9 +1942,8 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
         let function = program.entry_function_id();
-        let escape = table.function(function);
+        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1977,7 +1971,12 @@ entry:
         );
 
         // expose a borrowed result at its address while preserving unique result storage
-        let borrowed = table.function(program.function_id_by_name("receive"));
+        let borrowed = analyses.escape(
+            program.function_id_by_name("receive"),
+            &program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         assert_eq!(
             borrowed.effect,
             EscapeEffect {

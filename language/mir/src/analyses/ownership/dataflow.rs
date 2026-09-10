@@ -25,14 +25,14 @@ pub enum ForwardTransfer<'a> {
 
 /// Entry and exit states from one dataflow analysis.
 #[derive(Debug, Clone)]
-pub struct Dataflow<S> {
+pub struct DataflowTable<S> {
     /// Entry state for each block.
     block_entry: NodeTable<mir::Block, Option<S>>,
     /// Exit state for each block.
     block_exit: NodeTable<mir::Block, Option<S>>,
 }
 
-impl<S> Dataflow<S> {
+impl<S> DataflowTable<S> {
     /// Create an empty result.
     pub fn new() -> Self {
         Self {
@@ -70,13 +70,13 @@ impl<S> Dataflow<S> {
     }
 }
 
-impl<S> Default for Dataflow<S> {
+impl<S> Default for DataflowTable<S> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S> Dataflow<S>
+impl<S> DataflowTable<S>
 where
     S: Lattice,
 {

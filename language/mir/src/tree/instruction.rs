@@ -714,6 +714,100 @@ impl Node for Instruction {
 }
 
 impl Instruction {
+    // TODO #Incomplete: include traps and memory accesses in instruction effect queries
+    /// Return whether an instruction must remain when its result is unused.
+    pub fn has_side_effects(&self) -> bool {
+        // classify instructions by side effects
+        match self {
+            Self::Error => {
+                panic!("recovered MIR instruction reached optimizer");
+            }
+
+            // classify scalar and aggregate instructions as pure
+            Self::Const { .. }
+            | Self::Binary { .. }
+            | Self::Unary { .. }
+            | Self::Cast { .. }
+            | Self::Select { .. }
+            | Self::Aggregate { .. }
+            | Self::FieldGet { .. }
+            | Self::FieldSet { .. }
+            | Self::ElementGet { .. }
+            | Self::ElementSet { .. }
+            | Self::VariantNew { .. }
+            | Self::VariantTag { .. }
+            | Self::VariantTagLoad { .. }
+            | Self::VariantPayload { .. }
+            | Self::FieldAddr { .. }
+            | Self::ElementAddr { .. }
+            | Self::VariantPayloadAddr { .. }
+            | Self::SliceView { .. }
+            | Self::SliceLength { .. }
+            | Self::DynamicBind { .. }
+            | Self::DynamicPayload { .. }
+            | Self::DynamicType { .. }
+            | Self::DynamicRead { .. }
+            | Self::DynamicFind { .. }
+            | Self::VectorSplat { .. }
+            | Self::VectorExtract { .. }
+            | Self::VectorInsert { .. }
+            | Self::VectorShuffle { .. }
+            | Self::VectorSelect { .. }
+            | Self::VectorReduce { .. }
+            | Self::VectorCompare { .. }
+            | Self::VectorConvert { .. }
+            | Self::GlobalAddr { .. }
+            | Self::FunctionAddr { .. }
+            | Self::FunctionBind { .. }
+            | Self::FunctionEnvironment { .. }
+            | Self::FunctionEnvironmentCurrent { .. }
+            | Self::ContextCurrent { .. }
+            | Self::ContextGet { .. }
+            | Self::LocalAddr { .. }
+            | Self::NewComplete { .. }
+            | Self::Assume { .. } => false,
+
+            // classify nonvolatile reads as pure
+            Self::LocalGet { .. } | Self::Load { .. } => false,
+
+            // preserve memory writes
+            Self::LocalSet { .. }
+            | Self::Store { .. }
+            | Self::AtomicLoad { .. }
+            | Self::AtomicStore { .. }
+            | Self::AtomicCompareExchange { .. }
+            | Self::AtomicRmw { .. }
+            | Self::AtomicFence { .. }
+            | Self::BarrierWrite { .. } => true,
+
+            // preserve calls
+            Self::Call { .. }
+            | Self::ContextReplace { .. }
+            | Self::ContextBind { .. }
+            | Self::Drop { .. } => true,
+
+            // preserve allocations
+            Self::NewZeroed { .. }
+            | Self::NewUninit { .. }
+            | Self::NewSliceZeroed { .. }
+            | Self::NewSliceUninit { .. } => true,
+
+            // preserve storage release
+            Self::Release { .. } => true,
+
+            // preserve profile instrumentation
+            Self::ProfileIncrement { .. } | Self::ProfileSample { .. } => true,
+
+            // preserve runtime and debugger control
+            Self::Poll | Self::Breakpoint => true,
+
+            // check whether the intrinsic has side effects
+            Self::Intrinsic { intrinsic, .. } => {
+                !intrinsic.is_pure() || matches!(intrinsic, Intrinsic::BlackBox)
+            }
+        }
+    }
+
     /// Get the destination value defined by this instruction (if any).
     /// Return the pointer one storing instruction writes through.
     pub fn store_pointer(&self) -> Option<Value> {
