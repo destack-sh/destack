@@ -57,7 +57,8 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         let definitions = module.analyses.definition(function_id, tree);
-        let consumed = collect_consumed_parameters(function, &definitions, tree)?;
+        let control = module.analyses.control(function_id, tree);
+        let consumed = collect_consumed_parameters(function, &definitions, &control, tree)?;
         let spans = tree.function_parameter_spans(function_id);
 
         // report retained move-only parameters
@@ -92,15 +93,13 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
 fn collect_consumed_parameters(
     function: &mir::Function,
     definitions: &mir::DefinitionTable,
+    control: &mir::ControlTable,
     tree: &mir::Tree,
 ) -> Result<BitSet, ProviderError> {
     let mut pending = Vec::new();
-    let entry = function
-        .entry()
-        .ok_or_else(|| ProviderError::internal("defined MIR function has no entry block"))?;
 
     // collect whole-value and projected moves from reachable blocks
-    for block in mir::collect_reachable_blocks(function, tree, entry) {
+    for block in control.reachable_blocks() {
         let block = tree.get(block);
         for instruction in &block.instructions {
             let instruction = tree.get(*instruction);
