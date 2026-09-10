@@ -2,7 +2,7 @@ use std::mem;
 
 use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
-use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::context::ModuleIndexContext;
@@ -300,20 +300,14 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
         // index each exact authored path segment
         for (source, segment, resolution) in resolutions {
-            let source_id = self.module.view().get_source_any(source.local_id);
-            let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, segment);
-            let span = self
-                .module
-                .source_index()
-                .get_side(source_id, span_type)
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "resolved path segment {source:?}, {segment} has no authored span"
-                    ))
-                })?;
+            let site = dir::ReferenceSite::Path {
+                node: source,
+                segment,
+            };
+            let span = self.reference_span(site)?;
 
             for symbol in resolution.symbols() {
-                self.index_reference_span(*symbol, source, span)?;
+                self.index_reference_span(*symbol, site, span)?;
             }
         }
 
@@ -322,7 +316,9 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
     /// Collect declarations recorded by resolved references.
     fn collect_declarations(&mut self) -> ProviderResult<()> {
-        for (source, reference) in &self.module.resolved().references.declaration_by_node {
+        for (site, reference) in &self.module.resolved().references.declarations {
+            let source = site.node();
+
             // dependency names use their exact imported-name occurrence
             if source.local_id.ty == dir::NodeType::DependencyItem {
                 continue;
@@ -339,11 +335,11 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             }
 
             // index the authored occurrence by every exact declaration
-            let span = self.declaration_span(*source)?;
+            let span = self.reference_span(*site)?;
             for declaration in declarations {
                 let entry = dir::ReferenceEntry {
                     symbol: *declaration,
-                    source: *source,
+                    source,
                     span,
                     is_alias: false,
                 };
@@ -351,7 +347,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             }
 
             // index namespace names by their authored symbol declarations
-            let target = self.module.resolved().references.get(*source);
+            let target = self.module.resolved().references.get(*site);
             if !matches!(target, Some(dir::Reference::Namespace { .. })) {
                 continue;
             }
@@ -375,7 +371,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                                 ))
                             })?;
                         targets =
-                            Self::dependency_symbols(&resolution.declaration_reference(), *source)?;
+                            Self::dependency_symbols(&resolution.declaration_reference(), source)?;
                         if targets.is_empty() {
                             return Err(ProviderError::internal(format!(
                                 "namespace import has no declaration: {declaration:?}"
@@ -389,7 +385,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 for symbol in targets {
                     self.target_entries.push(dir::ReferenceEntry {
                         symbol,
-                        source: *source,
+                        source,
                         span,
                         is_alias: false,
                     });
@@ -415,7 +411,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 continue;
             }
 
-            let span = self.declaration_span(source)?;
+            let span = self.reference_span(source)?;
             self.declaration_entries.push(dir::ReferenceEntry {
                 symbol: symbol_id.into_global(self.module.module_id()),
                 source,
@@ -426,7 +422,10 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
         // collect imported name references
         let imported_name = NodeSpanType::Region(NodeSpanRegion::Type);
-        for (source, target) in &self.module.resolved().references.target_by_node {
+        for (site, target) in &self.module.resolved().references.targets {
+            let dir::ReferenceSite::Node(source) = site else {
+                continue;
+            };
             if source.local_id.ty != dir::NodeType::DependencyItem {
                 continue;
             }
@@ -589,9 +588,10 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         }
 
         // require one authored span for every recorded source reference
-        let span = self.reference_span(source, source_id, target)?;
+        let site = self.reference_site(source, target)?;
+        let span = self.reference_span(site)?;
 
-        self.index_reference_span(target, source, span)?;
+        self.index_reference_span(target, site, span)?;
 
         Ok(())
     }
@@ -600,13 +600,14 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     fn index_reference_span(
         &mut self,
         target: dir::GlobalSymbolId,
-        source: dir::GlobalNodeIdAny,
+        site: impl Into<dir::ReferenceSite>,
         span: Span,
     ) -> ProviderResult<()> {
-        let is_alias = self.reference_names_alias(source, target)?;
+        let site = site.into();
+        let is_alias = self.reference_names_alias(site, target)?;
         self.target_entries.push(dir::ReferenceEntry {
             symbol: target,
-            source,
+            source: site.node(),
             span,
             is_alias,
         });
@@ -617,12 +618,12 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     /// Return whether one occurrence names an explicit import or export alias.
     fn reference_names_alias(
         &self,
-        source: dir::GlobalNodeIdAny,
+        site: dir::ReferenceSite,
         target: dir::GlobalSymbolId,
     ) -> ProviderResult<bool> {
         // inspect the exact authored declarations
         let Some(dir::Reference::Bound(declarations)) =
-            self.module.resolved().references.declaration(source)
+            self.module.resolved().references.declaration(site)
         else {
             return Ok(false);
         };
@@ -684,129 +685,63 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         Ok(is_alias)
     }
 
-    /// Return the authored span carrying one lexical declaration identity.
-    fn declaration_span(&self, source: dir::GlobalNodeIdAny) -> ProviderResult<Span> {
-        let view = self.module.view();
-        let source_id = view.get_source_any(source.local_id);
-
-        // qualified type paths retain their declaration identity on the root
-        if source.local_id.ty == dir::NodeType::TypeExpression
-            && let Some(span) = self.qualified_type_root_span(view, source, source_id)?
-        {
-            return Ok(span);
-        }
+    /// Return the authored name span of one reference.
+    fn reference_span(&self, site: impl Into<dir::ReferenceSite>) -> ProviderResult<Span> {
+        let site = site.into();
+        let source_id = self.module.view().get_source_any(site.node().local_id);
 
         self.module
             .source_index()
-            .get_main(source_id)
+            .get_side(source_id, site.span_type())
             .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "declaration reference {source:?} has no authored span"
-                ))
-                .into()
+                ProviderError::internal(format!("reference {site:?} has no authored span")).into()
             })
     }
 
-    /// Return the authored span carrying one resolved reference target.
-    fn reference_span(
+    /// Return the exact occurrence selected by one checked name.
+    fn reference_site(
         &self,
         source: dir::GlobalNodeIdAny,
-        source_id: u32,
         target: dir::GlobalSymbolId,
-    ) -> ProviderResult<Span> {
-        // selected targets replace projected prefix bindings
-        if self.superseded_sources.contains(&source) {
-            return self
-                .module
-                .source_index()
-                .get_main(source_id)
-                .ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "selected reference {source:?} has no authored main span"
-                    ))
-                    .into()
-                });
+    ) -> ProviderResult<dir::ReferenceSite> {
+        // ordinary references have their own nodes
+        if source.local_id.ty != dir::NodeType::TypeExpression {
+            return Ok(source.into());
         }
-
-        // projected type paths bind the namespace prefix, not the projected source segment
-        if source.local_id.ty == dir::NodeType::TypeExpression
-            && let Some(dir::Reference::Projected {
-                base: dir::ReferenceTarget::Symbol(base),
-                from,
-            }) = self.module.resolved().references.get(source)
-        {
-            if *base != target {
-                return Err(ProviderError::internal(format!(
-                    "projected type reference {source:?} selected {target:?} instead of {base:?}"
-                ))
-                .into());
-            }
-
-            let segment = from.checked_sub(1).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "projected type reference {source:?} starts after no prefix"
-                ))
-            })?;
-            let segment = u16::try_from(segment).map_err(|_| {
-                ProviderError::internal(format!(
-                    "projected type reference {source:?} segment exceeds source index limits"
-                ))
-            })?;
-            let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, segment);
-            let span = self.module.source_index().get_side(source_id, span_type);
-            let span = span.ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "projected type reference {source:?} has no bound-prefix span"
-                ))
-            })?;
-
-            return Ok(span);
-        }
-
-        self.module
-            .source_index()
-            .get_main(source_id)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "reference {source:?} to {target:?} has no authored main span"
-                ))
-                .into()
-            })
-    }
-
-    /// Return the lexical root span of one qualified type path.
-    fn qualified_type_root_span(
-        &self,
-        view: dir::View<'_>,
-        source: dir::GlobalNodeIdAny,
-        source_id: u32,
-    ) -> ProviderResult<Option<Span>> {
-        let type_id = source
-            .local_id
-            .try_into_typed::<dir::TypeExpression>()
-            .map_err(|_| {
-                ProviderError::internal(format!(
-                    "type reference has incompatible node id: {source:?}"
-                ))
-            })?;
-        let dir::TypeExpression::Reference { path, .. } = view.get(type_id) else {
-            return Ok(None);
+        let type_id = dir::LocalNodeId::<dir::TypeExpression>::new(source.local_id.id);
+        let dir::TypeExpression::Reference { path, .. } = self.module.view().get(type_id) else {
+            return Ok(source.into());
         };
         if path.segments.len() <= 1 {
-            return Ok(None);
+            return Ok(source.into());
         }
 
-        let span = self
-            .module
-            .source_index()
-            .get_side(source_id, NodeSpanType::Head)
-            .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "qualified type reference {source:?} has no root span"
-                ))
-            })?;
+        // a whole path name selects its final segment or its nominal projection base
+        let segment = match self.module.resolved().references.get(source) {
+            Some(dir::Reference::Projected {
+                base: dir::ReferenceTarget::Symbol(base),
+                from,
+            }) if !self.superseded_sources.contains(&source) => {
+                if *base != target {
+                    return Err(ProviderError::internal(format!(
+                        "projected type reference {source:?} selected {target:?} instead of {base:?}"
+                    )).into());
+                }
 
-        Ok(Some(span))
+                from.checked_sub(1).ok_or_else(|| {
+                    ProviderError::internal(format!("projected reference {source:?} has no prefix"))
+                })? as usize
+            }
+            _ => path.segments.len() - 1,
+        };
+        let segment = u16::try_from(segment).map_err(|_| {
+            ProviderError::internal(format!("reference {source:?} has too many path segments"))
+        })?;
+
+        Ok(dir::ReferenceSite::Path {
+            node: source,
+            segment,
+        })
     }
 
     /// Index imported target and declaration occurrences.
@@ -1090,7 +1025,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 ))
             })?;
         let left = match self.module.view().get(expression_id) {
-            dir::Expression::Call { left, .. } => *left,
+            dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => *left,
             dir::Expression::Await { .. }
             | dir::Expression::Yield { .. }
             | dir::Expression::ArrayExpression { .. }
@@ -1149,13 +1084,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 ))
             })?;
         match self.module.view().get(expression_id) {
-            dir::Expression::New {
-                ty: type_expression,
-                ..
-            } => Ok(vec![
-                type_expression.into_global_any(self.module.module_id()),
-            ]),
-            dir::Expression::Call { left, .. } => {
+            dir::Expression::New { left, .. } | dir::Expression::Call { left, .. } => {
                 let source = left.into_global_any(self.module.module_id());
 
                 self.expression_sources(source)
