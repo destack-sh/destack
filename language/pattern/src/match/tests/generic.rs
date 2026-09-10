@@ -2,6 +2,26 @@ use destack_dir as dir;
 
 use crate::tests::TestMatcher;
 
+/// Match type and value arguments of an indexed constructor.
+#[test]
+fn test_match_indexed_constructor() {
+    TestMatcher::context(
+        "new constructors[0]<$TYPE>($VALUE)",
+        dir::NodeType::Expression,
+        r#"
+new constructors[0]<Item>(value)
+new constructors[1]<Item>(value)
+"#,
+    )
+    .assert(
+        r#"
+new constructors[0]<Item>(value)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ match TYPE.node="Item" VALUE.node="value"
+new constructors[1]<Item>(value)
+"#,
+    );
+}
+
 /// Match a direct generic call argument.
 #[test]
 fn test_match_generic_argument() {

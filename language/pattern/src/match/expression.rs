@@ -904,15 +904,25 @@ impl Matcher<'_, '_> {
             }
             (
                 dir::Expression::New {
-                    ty: pattern_type,
+                    left: pattern_left,
+                    generic_arguments: pattern_generic_arguments,
                     arguments: pattern_arguments,
                 },
                 dir::Expression::New {
-                    ty: candidate_type,
+                    left: candidate_left,
+                    generic_arguments: candidate_generic_arguments,
                     arguments: candidate_arguments,
                 },
             ) => {
-                if !self.match_type_expression(nodes, *pattern_type, *candidate_type, bindings)? {
+                if !self.match_expression(nodes, *pattern_left, *candidate_left, bindings)? {
+                    return Ok(false);
+                }
+                if !self.match_generic_arguments(
+                    nodes,
+                    pattern_generic_arguments,
+                    candidate_generic_arguments,
+                    bindings,
+                )? {
                     return Ok(false);
                 }
 

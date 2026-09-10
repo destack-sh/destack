@@ -43,7 +43,7 @@ impl Marker {
             }
 
             // include structural prefixes owned by a repeated element
-            for node in tree.iter_node_ids() {
+            for node in dir::View::new(tree).iter_node_ids() {
                 if tree.get_main_span_by_id(node.id) != Some(self.span)
                     || !Self::is_repeated_element(tree, node)
                 {
@@ -74,7 +74,8 @@ impl Marker {
     /// Return exact range nodes from deepest to shallowest.
     fn exact_nodes(&self, tree: &dir::Tree) -> Vec<dir::LocalNodeIdAny> {
         let range = self.token_span.range();
-        let mut nodes = tree
+        let view = dir::View::new(tree);
+        let mut nodes = view
             .iter_node_ids()
             .filter(|node| {
                 tree.get_span_by_id(node.id)

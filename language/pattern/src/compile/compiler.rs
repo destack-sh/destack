@@ -96,8 +96,8 @@ impl Compiler {
         parse.tree.index_parents(&parse.roots);
 
         // select roots of recursive node families instead of their nested children
-        let selected = parse
-            .tree
+        let view = dir::View::new(&parse.tree);
+        let selected = view
             .iter_node_ids()
             .filter(|node| {
                 if node.ty != selector {

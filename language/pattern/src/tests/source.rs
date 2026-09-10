@@ -99,9 +99,10 @@ impl TestSource {
 
     /// Match every candidate node and evaluate predicates when checked DIR is available.
     pub(crate) fn matches(&self, pattern: &Pattern) -> Vec<PatternMatch> {
-        let matcher = Matcher::new(pattern, self.view());
+        let view = self.view();
+        let matcher = Matcher::new(pattern, view);
         let matches = matcher
-            .find(self.tree().iter_node_ids())
+            .find(view.iter_node_ids())
             .expect("match test pattern");
         let Some((program, module)) = self.program() else {
             assert!(
