@@ -4,7 +4,7 @@ use destack_source::{EnclosingSpan, FileId, ModuleId, NodeSpanRegion};
 use super::PartialImportPath;
 use crate::cursor::Cursor;
 use crate::source::token_text;
-use crate::{ModuleQueryContext, QueryError, QueryResult, SymbolUse};
+use crate::{DeclarationUse, ModuleQueryContext, QueryError, QueryResult};
 
 /// The language construct completed at a source position.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,9 +58,7 @@ pub(crate) enum CompletionPosition {
         /// The target module id when one is available.
         target_module: Option<ModuleId>,
         /// Names already present in the import clause.
-        existing_names: Vec<String>,
-        /// Optional use filter for the clause.
-        use_filter: Option<SymbolUse>,
+        existing_names: Vec<dir::StringId>,
     },
 }
 
@@ -76,6 +74,8 @@ pub(crate) enum CompletionReceiver {
     Namespace {
         /// The imported module.
         module_id: ModuleId,
+        /// The declaration use at the member position.
+        usage: DeclarationUse,
     },
 }
 
@@ -102,12 +102,10 @@ pub(crate) struct CompletionContext {
 /// The constraints for auto-import completion.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct AutoImportContext {
-    /// The symbol namespace accepted by this position.
-    pub(crate) symbol_use: SymbolUse,
+    /// The declaration use at the cursor.
+    pub(crate) usage: DeclarationUse,
     /// The lexical scope used to exclude visible names.
     pub(crate) scope: dir::LocalScope,
-    /// Whether candidates must be constructable.
-    pub(crate) is_constructable_only: bool,
 }
 
 impl Cursor<'_, '_> {
@@ -222,11 +220,14 @@ impl Cursor<'_, '_> {
             return Ok(true);
         }
 
-        // check enclosing expressions that are known type expressions
+        // accept authored type nodes and type expressions
         for enclosing_span in enclosing {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
+            if node_id.ty == dir::NodeType::TypeExpression {
+                return Ok(true);
+            }
             if node_id.ty != dir::NodeType::Expression {
                 continue;
             }
@@ -285,19 +286,16 @@ impl CompletionPosition {
     pub(crate) fn auto_import_context(&self) -> Option<AutoImportContext> {
         match self {
             Self::Value { scope, .. } | Self::Statement { scope } => Some(AutoImportContext {
-                symbol_use: SymbolUse::Value,
+                usage: DeclarationUse::Expression,
                 scope: *scope,
-                is_constructable_only: false,
             }),
             Self::Type { scope } => Some(AutoImportContext {
-                symbol_use: SymbolUse::Type,
+                usage: DeclarationUse::Type,
                 scope: *scope,
-                is_constructable_only: false,
             }),
             Self::Constructor { scope } => Some(AutoImportContext {
-                symbol_use: SymbolUse::Value,
+                usage: DeclarationUse::Constructor,
                 scope: *scope,
-                is_constructable_only: true,
             }),
             _ => None,
         }

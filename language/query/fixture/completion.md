@@ -157,6 +157,27 @@ function read(): int32 {
 @completion.item label=targetValue kind=constant replace=main.ds#prefix suffix=": int32" matches=0,1,2,3,4,5,6
 ```
 
+### Shadow a type declaration with a local value
+
+A local value hides the outer declaration in type annotations too.
+
+```ds main.ds
+struct FixtureTarget {
+    x: int32;
+}
+
+function read(): void {
+    const FixtureTarget = 1;
+
+    let value: FixtureTar;
+               ^^^^^^^^^^ prefix
+}
+```
+
+```query completion main.ds#prefix@end
+@completion.none
+```
+
 ### Complete a function call
 
 A function completion includes its signature, documentation, and call snippet.
@@ -959,6 +980,8 @@ A namespace path exposes exported type declarations in type positions.
 
 ```ds library.ds
 export struct Packet {}
+
+export function PacketValue(): void {}
 ```
 
 ```ds main.ds
@@ -970,6 +993,72 @@ declare const packet: library.Pac;
 
 ```query completion main.ds#prefix@end trigger=.
 @completion.item label=Packet kind=struct replace=main.ds#prefix matches=0,1,2
+```
+
+### Complete a nested namespace type
+
+Type paths include intermediate namespaces and filter their final declarations by use.
+
+```ds model.ds
+export struct Packet {}
+
+export function PacketValue(): void {}
+```
+
+```ds library.ds
+export * as models from "./model";
+```
+
+```ds main.ds
+import * as library from "./library";
+
+declare const packet: library.mod;
+                              ^^^ name
+```
+
+```query completion main.ds#name@end
+@completion.item label=models kind=module replace=main.ds#name matches=0,1,2
+```
+
+```ds main.ds type
+import * as library from "./library";
+
+declare const packet: library.models.Pac;
+                                     ^^^ name
+```
+
+```query completion main.ds#name@end
+@completion.item label=Packet kind=struct replace=main.ds#name matches=0,1,2
+```
+
+### Complete a namespace inside a resolved type path
+
+Completion selects the namespace preceding the edited path segment.
+
+```ds model.ds
+export struct Packet {}
+```
+
+```ds library.ds
+export * as models from "./model";
+```
+
+```ds main.ds
+import * as library from "./library";
+
+declare const packet: library.models.Packet;
+                              ^^^ namespace
+                              ^^^^^^ name
+                                     ^^^ prefix
+                                     ^^^^^^ type
+```
+
+```query completion main.ds#namespace@end
+@completion.item label=models kind=module replace=main.ds#name matches=0,1,2
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=Packet kind=struct replace=main.ds#type matches=0,1,2
 ```
 
 ### Complete members from the current declaration
@@ -1328,6 +1417,76 @@ function statusType(status: Status): string {
 
 ## Constructors
 
+### Preserve authored call arguments
+
+Completing a function, method, or constructor name preserves its existing arguments and fields.
+
+```ds main.ds
+function fixtureGreet(name: string): string {
+    return name;
+}
+
+function fixtureEcho<Value>(value: Value): Value {
+    return value;
+}
+
+class FixturePlayer {
+    constructor(name: string) {}
+
+    fixtureSpeak(name: string): string {
+        return name;
+    }
+}
+
+newtype FixtureId = string;
+
+struct FixturePoint {
+    x: int32;
+}
+
+const greeting = fixtureGreet /* greeting */ ("Ada");
+                 ^^^^^^^^^^^^ function
+
+const echoed = fixtureEcho<string>("Ada");
+               ^^^^^^^^^^^ generic
+
+const player = new FixturePlayer("Ada");
+                   ^^^^^^^^^^^^^ constructor
+
+const message = player.fixtureSpeak("Ada");
+                       ^^^^^^^^^^^^ method
+
+const id = FixtureId("Ada");
+           ^^^^^^^^^ newtype
+
+const point = FixturePoint { x: 1 };
+              ^^^^^^^^^^^^ structure
+```
+
+```query completion main.ds#function@end
+@completion.item label=fixtureGreet kind=function replace=main.ds#function suffix="(name: string): string" matches=0,1,2,3,4,5,6,7,8,9,10,11
+```
+
+```query completion main.ds#generic@end
+@completion.item label=fixtureEcho kind=function replace=main.ds#generic suffix="(value: Value): Value" matches=0,1,2,3,4,5,6,7,8,9,10
+```
+
+```query completion main.ds#constructor@end
+@completion.item label=FixturePlayer kind=class replace=main.ds#constructor suffix="(name: string): this" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
+```
+
+```query completion main.ds#method@end
+@completion.item label=fixtureSpeak kind=method replace=main.ds#method suffix="(name: string): string" matches=0,1,2,3,4,5,6,7,8,9,10,11
+```
+
+```query completion main.ds#newtype@end
+@completion.item label=FixtureId kind=constructor replace=main.ds#newtype suffix="(string): FixtureId" matches=0,1,2,3,4,5,6,7,8
+```
+
+```query completion main.ds#structure@end
+@completion.item label=FixturePoint kind=struct replace=main.ds#structure matches=0,1,2,3,4,5,6,7,8,9,10,11
+```
+
 ### Complete a constructable class
 
 New expressions include constructable nominal values.
@@ -1441,9 +1600,9 @@ const result = Choice(1);
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string): Choice" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
-@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(int32): Choice" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
-@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string | int32): Choice" insert="Choice(${1})$0" snippet=true matches=0,1,2,3,4,5
+@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string): Choice" matches=0,1,2,3,4,5
+@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(int32): Choice" matches=0,1,2,3,4,5
+@completion.item label=Choice kind=constructor replace=main.ds#prefix suffix="(string | int32): Choice" matches=0,1,2,3,4,5
 ```
 
 ### Complete a newtype constructor from its current backing type
@@ -1469,6 +1628,29 @@ const result = UserI;
 
 ```query completion main.ds#prefix@end
 @completion.item label=UserId kind=constructor replace=main.ds#prefix suffix="(int32): UserId" insert="UserId(${1})$0" snippet=true matches=0,1,2,3,4
+```
+
+### Complete an imported newtype constructor reference
+
+An imported newtype can be completed before its argument list is written.
+
+```ds library.ds
+export newtype FixtureId = string;
+```
+
+```ds main.ds
+import { FixtureId } from "./library";
+```
+
+```ds main.ds type
+import { FixtureId } from "./library";
+
+const id = FixtureId;
+           ^^^^^^^^^ name
+```
+
+```query completion main.ds#name@end
+@completion.item label=FixtureId kind=constructor replace=main.ds#name suffix="(string): FixtureId" insert="FixtureId(${1})$0" snippet=true matches=0,1,2,3,4,5,6,7,8
 ```
 
 ## Object Literals
@@ -1599,6 +1781,27 @@ const rectangle = {
 
 ```query completion main.ds#prefix@end
 @completion.item label=height kind=field replace=main.ds#prefix suffix=": int32" matches=0,1,2,3,4
+```
+
+### Distinguish type declarations from shorthand values
+
+Object shorthand completion suggests value bindings with the requested prefix.
+
+```ds main.ds
+struct FixturePosition {
+    x: int32;
+}
+
+const FixturePoint = 1;
+
+const object = {
+    FixtureP
+    ^^^^^^^^ prefix
+};
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=FixturePoint kind=field replace=main.ds#prefix suffix=": 1" matches=0,1,2,3,4,5,6,7
 ```
 
 ### Omit a field supplied by a spread
@@ -1793,6 +1996,62 @@ import { Opt } from "./library.ds";
 @completion.item label=Options kind=type_alias replace=main.ds#prefix matches=0,1,2
 ```
 
+### Complete an export beside an import alias
+
+An import alias does not hide a different export with the same name.
+
+```ds library.ds
+export function greet(): void {}
+
+export function grow(): void {}
+```
+
+```ds main.ds
+import { greet as grow, gr } from "./library";
+                        ^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=grow kind=function replace=main.ds#prefix suffix="(): void" matches=0,1
+```
+
+### Replace an imported name before its alias
+
+Completion replaces the exported name and preserves the local alias.
+
+```ds library.ds
+export function greet(): void {}
+```
+
+```ds main.ds
+import { greetWrong as local } from "./library";
+         ^^^ prefix
+         ^^^^^^^^^^ name
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=greet kind=function replace=main.ds#name suffix="(): void" matches=0,1,2
+```
+
+### Omit exports from an import alias
+
+An alias declares a local name and does not complete target module exports.
+
+```ds library.ds
+export function greet(): void {}
+
+export function grow(): void {}
+```
+
+```ds main.ds
+import { greet as gr } from "./library";
+                  ^^ alias
+```
+
+```query completion main.ds#alias@end
+@completion.none
+```
+
 ### Complete a re-exported name
 
 Import completion exposes the name exported by the target module.
@@ -1815,6 +2074,122 @@ import { pack } from "./library.ds";
 ```
 
 ## Auto Imports
+
+### Auto import a type beside a value name match
+
+A value-only export does not hide a matching type declaration.
+
+```ds library.ds
+export const ZbrValue = 1;
+
+export struct Zebra {}
+```
+
+```ds main.ds
+
+^ insertion
+declare const value: Zbr;
+                     ^^^ name
+```
+
+```query completion main.ds#name@end include_auto_imports=true
+@completion.item label=Zebra kind=struct replace=main.ds#name description="from ./library" auto_import=true matches=0,2,3
+@completion.additional_edit item=0 range=main.ds#insertion text="import { Zebra } from \"./library\";\n"
+```
+
+### Complete constructors before and after importing them
+
+Auto imports, named imports, and namespace imports use the same constructor insertions.
+
+```ds library.ds
+export struct FixturePoint {
+    x: int32;
+}
+
+export class FixturePlayer {
+    constructor(name: string) {}
+}
+
+export newtype FixtureKey = string;
+```
+
+```ds main.ds
+
+^ insertion
+const point = FixturePoin;
+              ^^^^^^^^^^^ point
+
+const player = new FixturePlay;
+                   ^^^^^^^^^^^ player
+
+const id = FixtureKe;
+           ^^^^^^^^^ id
+```
+
+```query completion main.ds#point@end include_auto_imports=true
+@completion.item label=FixturePoint kind=struct replace=main.ds#point description="from ./library" insert="FixturePoint { x: ${1} }$0" snippet=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.additional_edit item=0 range=main.ds#insertion text="import { FixturePoint } from \"./library\";\n"
+```
+
+```query completion main.ds#player@end include_auto_imports=true
+@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): this" description="from ./library" insert="FixturePlayer(${1:name})$0" snippet=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.additional_edit item=0 range=main.ds#insertion text="import { FixturePlayer } from \"./library\";\n"
+```
+
+```query completion main.ds#id@end include_auto_imports=true
+@completion.item label=FixtureKey kind=constructor replace=main.ds#id suffix="(string): FixtureKey" description="from ./library" insert="FixtureKey(${1})$0" snippet=true auto_import=true matches=0,1,2,3,4,5,6,7,8
+@completion.additional_edit item=0 range=main.ds#insertion text="import { FixtureKey } from \"./library\";\n"
+```
+
+```ds main.ds change
+import { FixturePoint, FixturePlayer, FixtureKey } from "./library";
+
+const point = FixturePoin;
+              ^^^^^^^^^^^ point
+
+const player = new FixturePlay;
+                   ^^^^^^^^^^^ player
+
+const id = FixtureKe;
+           ^^^^^^^^^ id
+```
+
+```query completion main.ds#point@end include_auto_imports=true
+@completion.item label=FixturePoint kind=struct replace=main.ds#point insert="FixturePoint { x: ${1} }$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
+```
+
+```query completion main.ds#player@end include_auto_imports=true
+@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): this" insert="FixturePlayer(${1:name})$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
+```
+
+```query completion main.ds#id@end include_auto_imports=true
+@completion.item label=FixtureKey kind=constructor replace=main.ds#id suffix="(string): FixtureKey" insert="FixtureKey(${1})$0" snippet=true matches=0,1,2,3,4,5,6,7,8
+```
+
+```ds main.ds change
+import * as library from "./library";
+
+const point = library.FixturePoin;
+                      ^^^^^^^^^^^ point
+
+const player = new library.FixturePlay;
+                           ^^^^^^^^^^^ player
+
+const id = library.FixtureKe;
+                   ^^^^^^^^^ id
+```
+
+```query completion main.ds#point@end
+@completion.item label=FixturePoint kind=struct replace=main.ds#point insert="FixturePoint { x: ${1} }$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
+```
+
+```query completion main.ds#player@end
+@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): this" insert="FixturePlayer(${1:name})$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
+```
+
+```query completion main.ds#id@end
+@completion.item label=FixtureKey kind=constructor replace=main.ds#id suffix="(string): FixtureKey" insert="FixtureKey(${1})$0" snippet=true matches=0,1,2,3,4,5,6,7,8
+```
 
 ### Complete an exported function with an import edit
 
@@ -2675,6 +3050,33 @@ const value = Gree;
 ```
 
 ## Import Paths
+
+### Replace an unfinished module name
+
+Import completion replaces the full module name after the current directory.
+
+```ds library.ds
+export const value = 1;
+```
+
+```ds main.ds
+import {} from "./libraryWrong";
+                  ^^^ prefix
+                  ^^^^^^^^^^^^ name
+               ^^^^^^^^^^^^^^^^ literal
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=library kind=module replace=main.ds#name matches=0,1,2
+```
+
+```query completion main.ds#literal@start
+@completion.none
+```
+
+```query completion main.ds#literal@end
+@completion.none
+```
 
 ### Complete relative modules and folders
 

@@ -286,6 +286,11 @@ impl ModuleQueryContext<'_> {
             .map_or(offset, |prefix| prefix.start);
         let replacement_end = context.prefix.as_ref().map_or(offset, |prefix| prefix.end);
         let replacement = Span::new(file_id, replacement_start, replacement_end);
+
+        // retain the authored arguments of the completed call
+        let has_arguments = cursor.has_call_arguments()?;
+
+        // expand and render the ranked entries
         let capacity = completions.items.len().min(MAX_COMPLETION_ITEMS);
         let mut entries = Vec::with_capacity(capacity);
         let mut expanded = Vec::new();
@@ -306,8 +311,13 @@ impl ModuleQueryContext<'_> {
                 }
 
                 // omit candidates that cannot introduce their import binding
-                let Some(mut entry) =
-                    collector.entry(completion, position, replacement, imports.as_ref())?
+                let Some(mut entry) = collector.entry(
+                    completion,
+                    position,
+                    replacement,
+                    has_arguments,
+                    imports.as_ref(),
+                )?
                 else {
                     continue;
                 };
@@ -794,10 +804,5 @@ impl CompletionItemKind {
                 | Self::Struct
                 | Self::TypeAlias
         )
-    }
-
-    /// Return whether this item is constructable with `new`.
-    pub(crate) fn is_constructable(self) -> bool {
-        matches!(self, Self::Class | Self::Struct)
     }
 }

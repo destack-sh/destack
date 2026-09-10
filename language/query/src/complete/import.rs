@@ -2,15 +2,15 @@ use std::collections::hash_map::Entry;
 
 use destack_core::{FxIndexMap, StringId};
 use destack_dir as dir;
-use destack_source::{FileId, ModuleId, Span};
+use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::cursor::Cursor;
-use crate::source::extract_string_literal_prefix;
+use crate::source::token_text;
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
-    ExportCandidate, ExportDeclaration, ImportOrder, ImportPathOrder, MatchKind, MatchOrder,
-    ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult, SymbolUse, match_quality,
+    DeclarationUse, ExportCandidate, ExportDeclaration, ImportOrder, ImportPathOrder, MatchKind,
+    MatchOrder, ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult, match_quality,
 };
 
 use super::{AutoImportContext, CompletionCollector, CompletionPosition, CompletionPrefix};
@@ -26,6 +26,8 @@ pub(crate) struct PartialImportPath {
     text: String,
     /// The byte offset of the editable path segment.
     segment_start: usize,
+    /// The end of the authored path, excluding its closing quote.
+    end: u32,
 }
 
 /// One unresolved export and import path considered for auto import.
@@ -71,20 +73,18 @@ impl Cursor<'_, '_> {
             if let Some(span) = main_span
                 && span.contains(offset)
             {
-                let partial_path = extract_string_literal_prefix(source, span, offset)?;
-                let path = PartialImportPath::new(partial_path);
+                let path = PartialImportPath::parse(source, span, offset)?;
 
-                return Ok(Some(CompletionPosition::ImportPath { path }));
+                return Ok(path.map(|path| CompletionPosition::ImportPath { path }));
             }
 
             if let Some(span) = self
                 .module
                 .import_path_token_span(file_id, import_span, offset)?
             {
-                let partial_path = extract_string_literal_prefix(source, span, offset)?;
-                let path = PartialImportPath::new(partial_path);
+                let path = PartialImportPath::parse(source, span, offset)?;
 
-                return Ok(Some(CompletionPosition::ImportPath { path }));
+                return Ok(path.map(|path| CompletionPosition::ImportPath { path }));
             }
 
             // detect import clause completions inside the brace list
@@ -97,7 +97,6 @@ impl Cursor<'_, '_> {
                 return Ok(Some(CompletionPosition::ImportClause {
                     target_module,
                     existing_names,
-                    use_filter: None,
                 }));
             }
         }
@@ -178,7 +177,7 @@ impl ModuleQueryContext<'_> {
         offset: u32,
         import_span: Span,
         target_span: Option<Span>,
-    ) -> QueryResult<Option<Vec<String>>> {
+    ) -> QueryResult<Option<Vec<StringId>>> {
         // require an import expression
         let dir::Expression::Import { items, .. } = expression else {
             return Ok(None);
@@ -211,32 +210,36 @@ impl ModuleQueryContext<'_> {
                 .try_get(source_id)
                 .ok_or(QueryError::missing(format!("import item span: {node:?}")))?;
 
-            let (item_name, item_alias) = match item {
-                dir::DependencyItem::Binding { name, alias, .. } => (*name, *alias),
+            let item_name = match item {
+                dir::DependencyItem::Binding { name, .. } => *name,
                 dir::DependencyItem::Error => continue,
             };
 
-            if span.contains(offset) {
+            // distinguish the exported name from the local alias
+            if span.owns_cursor(offset) {
+                if item_name.is_none() {
+                    return Ok(None);
+                }
+                let name_span = self
+                    .source_index()?
+                    .get_side(source_id, NodeSpanType::Region(NodeSpanRegion::Type))
+                    .ok_or(QueryError::missing(format!("import name span: {node:?}")))?;
+                if !name_span.owns_cursor(offset) {
+                    return Ok(None);
+                }
+
                 cursor_in_item = true;
                 continue;
             }
 
             if let Some(name_id) = item_name {
-                existing_names.push(self.strings().get(name_id.string()).to_string());
-            }
-
-            if let Some(alias_id) = item_alias {
-                existing_names.push(self.strings().get(alias_id).to_string());
+                existing_names.push(name_id.string());
             }
         }
 
         if !cursor_in_clause && !cursor_in_item {
             return Ok(None);
         }
-
-        // retain names once in source order
-        let mut seen = FxHashSet::default();
-        existing_names.retain(|name| seen.insert(name.clone()));
 
         Ok(Some(existing_names))
     }
@@ -247,19 +250,20 @@ impl CompletionCollector<'_, '_, '_> {
     pub(super) fn collect_namespace_members(
         &self,
         module_id: ModuleId,
+        usage: DeclarationUse,
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let mut results = Vec::new();
 
         // collect each module export as a member candidate
         for (name, declaration) in self.program.module_exports(module_id)? {
+            if !usage.accepts_export(declaration) {
+                continue;
+            }
             let kind = declaration.completion_kind(self.program)?;
             let mut completion = CompletionCandidate::new(name, kind, CompletionOrigin::Local);
 
             if let ExportDeclaration::Symbol { symbol, .. } = declaration {
-                if kind.is_callable() {
-                    completion = completion.with_call();
-                }
-                completion = completion.with_symbol(symbol);
+                completion = completion.with_declaration(symbol, usage);
             }
 
             results.push(completion);
@@ -291,8 +295,7 @@ impl CompletionCollector<'_, '_, '_> {
 
         // match unresolved exports before reading paths or declaration DIR
         let current_module_id = self.module.module_id();
-        let visible_names =
-            self.collect_visible_names(context.scope, context.symbol_use, prefix)?;
+        let visible_names = self.collect_visible_names(context.scope, prefix)?;
         let exports = self
             .program
             .search_export_candidates(prefix, Some(current_module_id))?;
@@ -312,14 +315,6 @@ impl CompletionCollector<'_, '_, '_> {
             let lexical = lexical.order();
 
             matches.push((export, lexical));
-        }
-
-        // omit loose subsequences when a boundary or prefix match exists
-        let has_stronger_match = matches
-            .iter()
-            .any(|(_, lexical)| lexical.kind() > MatchKind::Subsequence);
-        if has_stronger_match {
-            matches.retain(|(_, lexical)| lexical.kind() > MatchKind::Subsequence);
         }
 
         // expand matched exports through their addressable import paths
@@ -358,18 +353,21 @@ impl CompletionCollector<'_, '_, '_> {
         let mut items = Vec::new();
         let mut selected = FxHashSet::default();
         let mut is_incomplete = false;
+        let mut has_stronger_match = false;
 
         // resolve declarations until the result limit is filled
         'candidate: for candidate in candidates {
+            // omit loose subsequences after selecting a usable stronger match
+            if has_stronger_match && candidate.lexical.kind() == MatchKind::Subsequence {
+                break;
+            }
+
             for declaration in candidate.export.resolve_declarations(self.program)? {
-                if !context.symbol_use.accepts_export(declaration) {
+                if !context.usage.accepts_export(declaration) {
                     continue;
                 }
 
                 let kind = declaration.completion_kind(self.program)?;
-                if context.is_constructable_only && !kind.is_constructable() {
-                    continue;
-                }
 
                 let key = (
                     candidate.export.module,
@@ -385,6 +383,7 @@ impl CompletionCollector<'_, '_, '_> {
                     break 'candidate;
                 }
 
+                has_stronger_match |= candidate.lexical.kind() > MatchKind::Subsequence;
                 items.push(self.resolve_auto_import(candidate, declaration, kind, context)?);
 
                 continue 'candidate;
@@ -397,23 +396,30 @@ impl CompletionCollector<'_, '_, '_> {
         })
     }
 
-    /// Collect visible symbol names for a scope and use.
+    /// Collect names already bound in the current scope.
     fn collect_visible_names(
         &self,
         scope: dir::LocalScope,
-        symbol_use: SymbolUse,
         prefix: &str,
     ) -> QueryResult<FxHashSet<StringId>> {
+        // exclude bound names independently from their eligibility for completion
+        let bindings = self.module.bindings()?;
+        let environment = self.program.environment_bound()?;
+        let locals = bindings.visible_bindings(scope).map(|binding| binding.key);
+        let globals = environment
+            .global_resolutions_by_key
+            .iter()
+            .filter(|(_, resolutions)| resolutions.len() == 1)
+            .map(|(key, _)| *key);
         let mut names = FxHashSet::default();
-        for key in self
-            .visible_bindings(scope, symbol_use, prefix)?
-            .into_keys()
-        {
+        for key in locals.chain(globals) {
             let dir::StaticKey::Name(name) = key else {
                 continue;
             };
 
-            names.insert(name);
+            if match_quality(self.module.strings().get(name), prefix).is_some() {
+                names.insert(name);
+            }
         }
 
         Ok(names)
@@ -431,40 +437,15 @@ impl CompletionCollector<'_, '_, '_> {
         let import_order = ImportOrder::new(candidate.path_order, &candidate.specifier, name);
         let description = format!("from {}", candidate.specifier);
 
-        // use the same item kind as the matching local completion
-        let completion_kind =
-            if context.symbol_use == SymbolUse::Value && kind == CompletionItemKind::Newtype {
-                CompletionItemKind::Constructor
-            } else {
-                kind
-            };
-        let completion =
-            CompletionCandidate::new(name, completion_kind, CompletionOrigin::AutoImport)
-                .with_description(description)
-                .with_import_order(import_order)
-                .with_import(candidate.export.binding, candidate.specifier);
+        let completion = CompletionCandidate::new(name, kind, CompletionOrigin::AutoImport)
+            .with_description(description)
+            .with_import_order(import_order)
+            .with_import(candidate.export.binding, candidate.specifier);
 
         match declaration {
             ExportDeclaration::Symbol { symbol, .. } => {
-                let completion = completion.with_symbol(symbol);
-
-                // select the insertion used by the matching local declaration
-                let completion =
-                    if context.is_constructable_only && kind == CompletionItemKind::Class {
-                        completion.with_class_constructors(symbol)
-                    } else if context.symbol_use == SymbolUse::Value
-                        && kind == CompletionItemKind::Struct
-                    {
-                        completion.with_struct(symbol)
-                    } else if context.symbol_use == SymbolUse::Value
-                        && kind == CompletionItemKind::Newtype
-                    {
-                        completion.with_newtype_constructors(symbol)
-                    } else if kind.is_callable() {
-                        completion.with_call()
-                    } else {
-                        completion
-                    };
+                // select the insertion used by local and qualified declarations
+                let completion = completion.with_declaration(symbol, context.usage);
 
                 Ok(completion)
             }
@@ -476,22 +457,17 @@ impl CompletionCollector<'_, '_, '_> {
     pub(super) fn collect_imports(
         &self,
         target_module: Option<ModuleId>,
-        existing_names: &[String],
-        use_filter: Option<SymbolUse>,
+        existing_names: &[StringId],
     ) -> QueryResult<Vec<CompletionCandidate>> {
         let Some(module_id) = target_module else {
             return Ok(Vec::new());
         };
 
-        let existing_names: FxHashSet<&str> = existing_names.iter().map(String::as_str).collect();
         let mut results = Vec::new();
 
         // complete only declarations exposed by the exact resolved module export table
         for (name, declaration) in self.program.module_exports(module_id)? {
-            if !use_filter.is_none_or(|symbol_use| symbol_use.accepts_export(declaration)) {
-                continue;
-            }
-            if existing_names.contains(name.as_str()) {
+            if existing_names.contains(&StringId::for_text(&name)) {
                 continue;
             }
 
@@ -569,8 +545,28 @@ impl AutoImportCandidate {
 }
 
 impl PartialImportPath {
-    /// Parse one authored import path prefix.
-    pub(crate) fn new(text: String) -> Self {
+    /// Parse the authored import path and its editable range.
+    fn parse(source: &str, span: Span, offset: u32) -> QueryResult<Option<Self>> {
+        // exclude the literal delimiters from the editable path
+        let literal = token_text(source, span)?;
+        let quoted = matches!(literal.as_bytes().first(), Some(b'"' | b'\''));
+        let start = span.start + u32::from(quoted);
+        let closed =
+            quoted && literal.len() > 1 && literal.as_bytes().first() == literal.as_bytes().last();
+        let end = span.end - u32::from(closed);
+
+        // complete only positions inside the string contents
+        if offset < start || offset > end {
+            return Ok(None);
+        }
+
+        // retain the prefix used to filter candidates
+        let text = source
+            .get(start as usize..offset as usize)
+            .ok_or_else(|| QueryError::invalid(format!("import path cursor: {span:?}, {offset}")))?
+            .to_string();
+
+        // select the directory or package prefix preceding the editable name
         let slash_count = text.bytes().filter(|byte| *byte == b'/').count();
         let root_is_incomplete = text.starts_with('@') && slash_count <= 1;
         let separator = if text.starts_with("destack:") {
@@ -582,10 +578,11 @@ impl PartialImportPath {
         };
         let segment_start = separator.map_or(0, |index| index + 1);
 
-        Self {
+        Ok(Some(Self {
             text,
             segment_start,
-        }
+            end,
+        }))
     }
 
     /// Build the editable path segment at one source offset.
@@ -598,7 +595,7 @@ impl PartialImportPath {
         Ok(CompletionPrefix {
             text,
             start,
-            end: offset,
+            end: self.end,
         })
     }
 

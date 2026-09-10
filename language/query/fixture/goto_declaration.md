@@ -227,6 +227,47 @@ type Selected = models.Settings;
 @goto_declaration.target origin=main.ds#reference:settings location=model.ds#target:settings selection=model.ds#declaration:settings symbol=model.ds#Settings@1
 ```
 
+### Resolve a nested namespace type path
+
+Each namespace segment selects its authored import or re-export declaration.
+
+```ds model.ds
+export struct Packet {}
+^^^^^^^^^^^^^^^^^^^^^^^ packet
+              ^^^^^^ name
+```
+
+```ds library.ds
+export * as models from "./model";
+       ^ namespace:start
+            ^^^^^^ name
+                                ^ namespace:end
+```
+
+```ds main.ds
+import * as library from "./library";
+       ^ import:start
+            ^^^^^^^ name
+                  ^ import:end
+
+declare const packet: library.models.Packet;
+                      ^^^^^^^ root
+                              ^^^^^^ namespace
+                                     ^^^^^^ type
+```
+
+```query goto_declaration main.ds#root
+@goto_declaration.target origin=main.ds#root location=main.ds#import selection=main.ds#name symbol=main.ds#library@1
+```
+
+```query goto_declaration main.ds#namespace
+@goto_declaration.target origin=main.ds#namespace location=library.ds#namespace selection=library.ds#name symbol=library.ds#models@1
+```
+
+```query goto_declaration main.ds#type
+@goto_declaration.target origin=main.ds#type location=model.ds#packet selection=model.ds#name symbol=model.ds#Packet@1
+```
+
 ### Resolve a re-exported import declaration
 
 A re-exported symbol resolves to its downstream import.

@@ -8,21 +8,44 @@ use super::ExportDeclaration;
 use crate::source::{directory_distance, path_depth};
 use crate::{QueryError, QueryResult};
 
-/// The declaration use preferred by one import search.
+/// The written use considered by completion and import suggestions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SymbolUse {
-    /// Type expression reference.
+pub(crate) enum DeclarationUse {
+    /// A type annotation or argument.
     Type,
-    /// Runtime value reference.
+    /// An ordinary value reference, including an object shorthand.
     Value,
+    /// An expression, including a construction or an associated member access.
+    Expression,
+    /// A constructor after `new`.
+    Constructor,
 }
 
-impl SymbolUse {
-    /// Return whether this requested use accepts one DIR symbol kind.
-    pub(crate) fn accepts_symbol_kind(self, symbol_kind: dir::SymbolKind) -> bool {
+impl DeclarationUse {
+    /// Return whether this declaration can begin the requested expression.
+    pub(crate) fn accepts_symbol_kind(self, kind: dir::SymbolKind) -> bool {
         match self {
-            Self::Type => symbol_kind.can_be_used_as_type(),
-            Self::Value => symbol_kind.can_be_used_as_value(),
+            Self::Type => {
+                kind.is_type_definition()
+                    || matches!(
+                        kind,
+                        dir::SymbolKind::AssociatedType
+                            | dir::SymbolKind::GenericTypeParameter
+                            | dir::SymbolKind::Variant
+                    )
+            }
+            Self::Value => kind.is_value(),
+            Self::Expression => {
+                Self::Value.accepts_symbol_kind(kind)
+                    || matches!(
+                        kind,
+                        dir::SymbolKind::Class
+                            | dir::SymbolKind::Struct
+                            | dir::SymbolKind::Newtype
+                            | dir::SymbolKind::Enum
+                    )
+            }
+            Self::Constructor => matches!(kind, dir::SymbolKind::Class | dir::SymbolKind::Struct),
         }
     }
 
@@ -30,7 +53,7 @@ impl SymbolUse {
     pub(crate) fn accepts_export(self, declaration: ExportDeclaration) -> bool {
         match declaration {
             ExportDeclaration::Symbol { kind, .. } => self.accepts_symbol_kind(kind),
-            ExportDeclaration::Namespace { .. } => self == Self::Value,
+            ExportDeclaration::Namespace { .. } => self != Self::Value,
         }
     }
 }

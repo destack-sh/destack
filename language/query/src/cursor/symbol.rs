@@ -158,7 +158,7 @@ impl Cursor<'_, '_> {
 
 impl ModuleQueryContext<'_> {
     /// Return the authored name span selected inside one DIR node.
-    fn name_span(
+    pub(crate) fn name_span(
         &self,
         view: dir::View<'_>,
         node_id: dir::LocalNodeIdAny,
@@ -277,29 +277,31 @@ impl ModuleQueryContext<'_> {
             let Some(symbols) = self.qualified_type_targets(source, segment, segment_count)? else {
                 return Ok(None);
             };
+            let type_id = if segment + 1 == segment_count {
+                self.types()?.get_node_type_id(source)
+            } else {
+                None
+            };
 
             return Ok(Some(SymbolOccurrence {
                 symbols,
-                type_id: self.types()?.get_node_type_id(source),
+                type_id,
                 span,
             }));
         }
 
-        // imported path roots retain their local declaration identities
+        // references retain their authored declaration identities
         if let Some(symbols) = self
             .resolved()?
             .references
             .declaration(source)
             .and_then(dir::Reference::symbols)
         {
-            let root_span = self.reference_root_span(view, node_id, span)?;
-            if root_span.owns_cursor(offset) {
-                return Ok(Some(SymbolOccurrence {
-                    symbols: symbols.to_vec(),
-                    type_id: self.types()?.get_node_type_id(source),
-                    span: root_span,
-                }));
-            }
+            return Ok(Some(SymbolOccurrence {
+                symbols: symbols.to_vec(),
+                type_id: self.types()?.get_node_type_id(source),
+                span,
+            }));
         }
 
         // prefer the selected use-site target
@@ -322,40 +324,6 @@ impl ModuleQueryContext<'_> {
 
         // declaration nodes read their recorded binding
         self.binding_occurrence(program, node_id, span)
-    }
-
-    /// Return the first authored name span for one reference node.
-    fn reference_root_span(
-        &self,
-        view: dir::View<'_>,
-        node_id: dir::LocalNodeIdAny,
-        selected_span: Span,
-    ) -> QueryResult<Span> {
-        if node_id.ty != dir::NodeType::TypeExpression {
-            return Ok(selected_span);
-        }
-
-        let type_id = dir::LocalNodeId::<dir::TypeExpression>::new(node_id.id);
-        let dir::TypeExpression::Reference { path, .. } = view.get(type_id) else {
-            return Ok(selected_span);
-        };
-        if path.segments.len() == 1 {
-            return Ok(selected_span);
-        }
-
-        let source_id = view.get_source(type_id);
-        let root = NodeSpanType::ListItem(NodeSpanList::Segment, 0);
-
-        let node = node_id.into_global(self.module_id());
-        let span = self
-            .source_index()?
-            .get_side(source_id, root)
-            .ok_or(QueryError::missing(format!(
-                "type reference span: {:?}, {:?}",
-                node, 0
-            )))?;
-
-        Ok(span)
     }
 
     /// Return the recorded symbols for one DIR node at its authored span.
@@ -393,10 +361,15 @@ impl ModuleQueryContext<'_> {
             else {
                 return Ok(None);
             };
+            let type_id = if segment + 1 == segment_count {
+                self.types()?.get_node_type_id(global_node_id)
+            } else {
+                None
+            };
 
             return Ok(Some(SymbolOccurrence {
                 symbols,
-                type_id: self.types()?.get_node_type_id(global_node_id),
+                type_id,
                 span,
             }));
         }
@@ -560,17 +533,6 @@ impl ModuleQueryContext<'_> {
         segment: usize,
         segment_count: usize,
     ) -> QueryResult<Option<Vec<dir::GlobalSymbolId>>> {
-        // the root retains its lexical declaration identities
-        if segment == 0
-            && let Some(declarations) = self
-                .resolved()?
-                .references
-                .declaration(source)
-                .and_then(dir::Reference::symbols)
-        {
-            return Ok(Some(declarations.to_vec()));
-        }
-
         // nominal patterns retain their exact selected variant separately
         if segment + 1 == segment_count
             && let Some(symbol) = self.pattern_variant_symbol(source)?
@@ -585,39 +547,26 @@ impl ModuleQueryContext<'_> {
             return Ok(Some(resolution.symbols().to_vec()));
         }
 
-        let reference = self
+        // namespace segments retain the exact authored declaration selected by resolve
+        let site = dir::ReferenceSite::Path {
+            node: source,
+            segment: index,
+        };
+        if segment + 1 == segment_count
+            && matches!(
+                self.resolved()?.references.get(site),
+                Some(dir::Reference::Bound(_))
+            )
+        {
+            return self.symbol_targets(source);
+        }
+
+        let targets = self
             .resolved()?
             .references
-            .get(source)
-            .ok_or(QueryError::missing(format!(
-                "qualified reference: {source:?}"
-            )))?;
-        let targets = match reference {
-            // the bound segment receives the selected declaration
-            dir::Reference::Bound(_) if segment + 1 == segment_count => {
-                self.symbol_targets(source)?
-            }
-
-            // the bound prefix receives its exact projected base declaration
-            dir::Reference::Projected {
-                base: dir::ReferenceTarget::Symbol(base),
-                from,
-            } if segment + 1
-                == usize::try_from(*from).map_err(|_| {
-                    QueryError::invalid(format!("projected segment: {source:?}"))
-                })? =>
-            {
-                Some(vec![*base])
-            }
-
-            // intermediate and unresolved segments have no recorded symbol identity
-            dir::Reference::Bound(_)
-            | dir::Reference::Namespace { .. }
-            | dir::Reference::Projected { .. }
-            | dir::Reference::Ambiguous(_)
-            | dir::Reference::TypeLiteral(_)
-            | dir::Reference::Missing => None,
-        };
+            .declaration(site)
+            .and_then(dir::Reference::symbols)
+            .map(<[_]>::to_vec);
 
         Ok(targets)
     }

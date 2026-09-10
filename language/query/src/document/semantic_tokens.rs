@@ -1020,6 +1020,16 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 dir::NodeType::Parameter => {
                     return Ok(Some((SemanticTokenType::Parameter, symbol_modifiers)));
                 }
+                dir::NodeType::DependencyItem
+                    if symbol_module
+                        .resolved()?
+                        .references
+                        .get(declaration)
+                        .and_then(dir::Reference::namespace)
+                        .is_some() =>
+                {
+                    return Ok(Some((SemanticTokenType::Namespace, symbol_modifiers)));
+                }
                 _ => {}
             }
         }

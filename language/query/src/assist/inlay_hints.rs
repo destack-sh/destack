@@ -309,19 +309,6 @@ impl ModuleQueryContext<'_> {
                 self.symbol_call_parameter_names(program, call, symbol_id)
             }
             dir::ConstructTarget::Newtype { .. } => Ok(vec![None; resolution.arguments.len()]),
-            // read dynamic construction names from their construct signature
-            dir::ConstructTarget::Dynamic {
-                function:
-                    dir::DynamicFunction::ConstructSignature(node)
-                    | dir::DynamicFunction::CallSignature(node)
-                    | dir::DynamicFunction::IndexRead(node)
-                    | dir::DynamicFunction::IndexWrite(node),
-                ..
-            } => self.signature_call_parameter_names(program, call, *node),
-            dir::ConstructTarget::Dynamic {
-                function: dir::DynamicFunction::Symbol(symbol),
-                ..
-            } => self.symbol_call_parameter_names(program, call, *symbol),
         }
     }
 

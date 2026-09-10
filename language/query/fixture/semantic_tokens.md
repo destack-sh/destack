@@ -1283,6 +1283,37 @@ encoding;
 @semantic_tokens.token range=main.ds#namespace_reference type=namespace
 ```
 
+### Highlight nested namespace type paths
+
+Each namespace segment and final type keeps its declaration kind.
+
+```ds model.ds
+export struct Packet {}
+```
+
+```ds library.ds
+export * as models from "./model";
+```
+
+```ds main.ds
+import * as library from "./library";
+            ^^^^^^^ import
+
+declare const packet: library.models.Packet;
+              ^^^^^^ binding
+                      ^^^^^^^ root
+                              ^^^^^^ namespace
+                                     ^^^^^^ type
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#import type=namespace modifiers=declaration
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#root type=namespace
+@semantic_tokens.token range=main.ds#namespace type=namespace
+@semantic_tokens.token range=main.ds#type type=struct
+```
+
 ### Omit exports without names
 
 Star and default exports without aliases do not carry name tokens.

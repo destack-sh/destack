@@ -20,55 +20,6 @@ pub(crate) fn offset_line_start(source: &str, offset: usize) -> QueryResult<usiz
     Ok(start)
 }
 
-/// Extract the string literal prefix before a cursor offset.
-pub(crate) fn extract_string_literal_prefix(
-    source: &str,
-    span: Span,
-    offset: u32,
-) -> QueryResult<String> {
-    // require the parser span to name an exact source range
-    let start = usize::try_from(span.start)
-        .map_err(|_| QueryError::invalid(format!("source span: {span:?}")))?;
-    let end = usize::try_from(span.end)
-        .map_err(|_| QueryError::invalid(format!("source span: {span:?}")))?;
-    let literal = source
-        .get(start..end)
-        .ok_or(QueryError::invalid(format!("source span: {span:?}")))?;
-    let offset_in_literal = offset
-        .checked_sub(span.start)
-        .ok_or(QueryError::invalid(format!(
-            "completion cursor: {span:?}, {offset:?}"
-        )))?;
-    let offset_in_literal = usize::try_from(offset_in_literal)
-        .map_err(|_| QueryError::invalid(format!("completion cursor: {span:?}, {offset:?}")))?;
-    if offset_in_literal > literal.len() {
-        return Err(QueryError::invalid(format!(
-            "completion cursor: {span:?}, {offset:?}"
-        )));
-    }
-
-    // compute the content boundaries inside quotes
-    let (content_start, content_end) = match literal.as_bytes().first().copied() {
-        Some(quote @ (b'"' | b'\'')) => {
-            let end = if literal.as_bytes().last() == Some(&quote) {
-                literal.len() - 1
-            } else {
-                literal.len()
-            };
-            (1, end)
-        }
-        _ => (0, literal.len()),
-    };
-
-    if offset_in_literal <= content_start {
-        return Ok(String::new());
-    }
-
-    // return the prefix up to the cursor
-    let prefix_end = offset_in_literal.min(content_end);
-    Ok(literal[content_start..prefix_end].to_string())
-}
-
 impl ModuleQueryContext<'_> {
     /// Return the required authored span of a node.
     pub(crate) fn node_span(

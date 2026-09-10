@@ -9,7 +9,7 @@ use super::Cursor;
 pub(crate) struct CallOccurrence<'a> {
     /// The call expression.
     pub(crate) id: dir::LocalNodeId<dir::Expression>,
-    /// The callee expression or constructor type.
+    /// The callee expression.
     pub(crate) target: dir::LocalNodeIdAny,
     /// The argument nodes in source order.
     pub(crate) arguments: &'a [dir::LocalNodeId<dir::Argument>],
@@ -38,7 +38,9 @@ impl<'a> CallOccurrence<'a> {
             dir::Expression::Call {
                 left, arguments, ..
             } => (left.into_any(), arguments.as_slice()),
-            dir::Expression::New { ty, arguments, .. } => (ty.into_any(), arguments.as_slice()),
+            dir::Expression::New {
+                left, arguments, ..
+            } => (left.into_any(), arguments.as_slice()),
             _ => return Ok(None),
         };
         let span = module.source_index()?.get(enclosing.source_id);

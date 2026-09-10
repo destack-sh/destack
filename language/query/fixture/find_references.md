@@ -959,6 +959,35 @@ const same = api;
 @find_references.reference location=main.ds#second_reference symbol=barrel.ds#api@1
 ```
 
+### Find a nested namespace in type paths
+
+A namespace re-export has the same reference identity in each qualified type path.
+
+```ds model.ds
+export struct Packet {}
+```
+
+```ds library.ds
+export * as models from "./model";
+            ^^^^^^ declaration
+```
+
+```ds main.ds
+import * as library from "./library";
+
+declare const first: library.models.Packet;
+                             ^^^^^^ first
+
+declare const second: library.models.Packet;
+                              ^^^^^^ second
+```
+
+```query find_references main.ds#first include_declaration=true
+@find_references.reference location=library.ds#declaration symbol=library.ds#models@1
+@find_references.reference location=main.ds#first symbol=library.ds#models@1
+@find_references.reference location=main.ds#second symbol=library.ds#models@1
+```
+
 ## Associated Types
 
 ### Find associated type occurrences

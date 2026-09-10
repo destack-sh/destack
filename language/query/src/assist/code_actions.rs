@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::ImportBinding;
 use crate::{
-    ExtractVariableRequest, ImportOrder, ImportPathOrder, InlineRequest, ModuleQueryContext,
-    ProgramQueryContext, QueryError, QueryPosition, QueryRange, QueryResult, SymbolUse,
+    DeclarationUse, ExtractVariableRequest, ImportOrder, ImportPathOrder, InlineRequest,
+    ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryRange, QueryResult,
 };
 
 /// Kind of code action.
@@ -302,10 +302,10 @@ impl ModuleQueryContext<'_> {
             {
                 continue;
             }
-            let (diagnostic_span, name, symbol_use) = self.unresolved_reference(diagnostic)?;
+            let (diagnostic_span, name, usage) = self.unresolved_reference(diagnostic)?;
 
             // produce one action per exact import plan
-            let imports = self.import_actions(program, diagnostic_span.file, &name, symbol_use)?;
+            let imports = self.import_actions(program, diagnostic_span.file, &name, usage)?;
             for (index, import) in imports.into_iter().enumerate() {
                 let title = format!("Import {name} from \"{}\"", import.specifier);
                 let mut file_edit = FilePatch::with_patches(diagnostic_span.file, import.patches);
@@ -328,7 +328,7 @@ impl ModuleQueryContext<'_> {
     fn unresolved_reference(
         &self,
         diagnostic: &Diagnostic,
-    ) -> QueryResult<(Span, String, SymbolUse)> {
+    ) -> QueryResult<(Span, String, DeclarationUse)> {
         // match the diagnostic span against the retained unresolved paths
         let view = self.view()?;
         for (node, path) in self.resolutions()?.unresolved_entries() {
@@ -340,17 +340,17 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            // import the path root in the space the node reads from
+            // select declarations that can begin the written reference
             let Some(root) = path.segments.first() else {
                 continue;
             };
             let name = self.strings().get(*root).to_string();
-            let symbol_use = match node.local_id.ty {
-                dir::NodeType::TypeExpression => SymbolUse::Type,
-                _ => SymbolUse::Value,
+            let usage = match node.local_id.ty {
+                dir::NodeType::TypeExpression => DeclarationUse::Type,
+                _ => DeclarationUse::Expression,
             };
 
-            return Ok((span, name, symbol_use));
+            return Ok((span, name, usage));
         }
 
         Err(QueryError::missing(format!(
@@ -365,7 +365,7 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
         file: destack_source::FileId,
         name: &str,
-        symbol_use: SymbolUse,
+        usage: DeclarationUse,
     ) -> QueryResult<Vec<ImportAction>> {
         let mut actions = Vec::new();
         let mut seen = FxHashSet::default();
@@ -378,11 +378,11 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            // require one declaration in the unresolved name's symbol space
+            // require one eligible declaration for the unresolved reference
             let export_declarations = candidate.resolve_declarations(program)?;
             if !export_declarations
                 .into_iter()
-                .any(|declaration| symbol_use.accepts_export(declaration))
+                .any(|declaration| usage.accepts_export(declaration))
             {
                 continue;
             }

@@ -4,9 +4,35 @@ use destack_source::Span;
 use super::CompletionCollector;
 use crate::source::ImportDeclarations;
 use crate::{
-    CompletionCandidate, CompletionEntry, CompletionInsertion, CompletionMember, ConstructorFamily,
-    Formatter, QueryError, QueryPosition, QueryResult,
+    CompletionCandidate, CompletionEntry, CompletionInsertion, CompletionItemKind,
+    CompletionMember, ConstructorFamily, DeclarationUse, Formatter, QueryError, QueryPosition,
+    QueryResult,
 };
+
+impl CompletionCandidate {
+    /// Select the insertion for one declaration and its use.
+    pub(super) fn with_declaration(
+        mut self,
+        symbol: dir::GlobalSymbolId,
+        usage: DeclarationUse,
+    ) -> Self {
+        match (usage, self.kind) {
+            (DeclarationUse::Expression, CompletionItemKind::Struct) => self.with_struct(symbol),
+            (DeclarationUse::Expression, CompletionItemKind::Newtype) => {
+                self.kind = CompletionItemKind::Constructor;
+
+                self.with_newtype_constructors(symbol)
+            }
+            (DeclarationUse::Expression, kind) if kind.is_callable() => {
+                self.with_symbol(symbol).with_call()
+            }
+            (DeclarationUse::Constructor, CompletionItemKind::Class) => {
+                self.with_class_constructors(symbol)
+            }
+            _ => self.with_symbol(symbol),
+        }
+    }
+}
 
 impl CompletionCollector<'_, '_, '_> {
     /// Render the call insertion for one callable symbol.
@@ -43,17 +69,7 @@ impl CompletionCollector<'_, '_, '_> {
         }
 
         // read the declaration's value type
-        if completion.type_id.is_none() && completion.kind.has_value_suffix() {
-            let module = self.program.module(symbol.module_id)?;
-            let type_id = module
-                .types()?
-                .get_symbol_type_id(symbol)
-                .ok_or(QueryError::missing(format!(
-                    "completion symbol type: {symbol:?}"
-                )))?;
-
-            completion = completion.with_type_id(type_id);
-        }
+        completion.type_id = self.resolve_type(&completion)?;
 
         Ok(completion)
     }
@@ -126,6 +142,7 @@ impl CompletionCollector<'_, '_, '_> {
         mut completion: CompletionCandidate,
         position: QueryPosition,
         replacement: Span,
+        has_arguments: bool,
         imports: Option<&ImportDeclarations>,
     ) -> QueryResult<Option<CompletionEntry>> {
         // read the selected declaration once
@@ -145,8 +162,10 @@ impl CompletionCollector<'_, '_, '_> {
         }
 
         // render the insertion selected before ranking
-        match completion.take_insertion() {
+        let insertion = completion.take_insertion();
+        match insertion {
             CompletionInsertion::Label => {}
+            CompletionInsertion::Call if has_arguments => {}
             CompletionInsertion::Call => {
                 let symbol = completion
                     .symbol()
@@ -181,6 +200,11 @@ impl CompletionCollector<'_, '_, '_> {
             CompletionInsertion::Snippet(text) => {
                 completion = completion.with_snippet(text);
             }
+        }
+
+        // preserve authored call arguments
+        if has_arguments {
+            completion.insertion = CompletionInsertion::Label;
         }
 
         // render the suffix shown in the completion list

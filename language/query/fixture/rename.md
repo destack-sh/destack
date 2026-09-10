@@ -881,6 +881,38 @@ import * as library from "./library.ds";
 library.ping();
 ```
 
+### Rename a nested namespace in type paths
+
+Renaming a namespace re-export updates the exact namespace segment in each type path.
+
+```ds model.ds
+export struct Packet {}
+```
+
+```ds library.ds
+export * as models from "./model";
+```
+
+```ds main.ds
+import * as library from "./library";
+
+declare const packet: library.models.Packet;
+                              ^^^^^^ target
+```
+
+```query rename main.ds#target new_name=types
+```
+
+```ds library.ds after
+export * as types from "./model";
+```
+
+```ds main.ds after
+import * as library from "./library";
+
+declare const packet: library.types.Packet;
+```
+
 ### Rename an imported type alias
 
 A local alias in the type symbol space changes without renaming the exported type.

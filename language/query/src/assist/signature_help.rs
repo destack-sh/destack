@@ -345,13 +345,6 @@ impl ModuleQueryContext<'_> {
             dir::ConstructTarget::Class { key, constructor } => {
                 self.class_signature_item(program, key, constructor, resolution)?
             }
-            dir::ConstructTarget::Dynamic { function, .. } => self.signature_node_item(
-                program,
-                function,
-                &[],
-                &resolution.arguments,
-                resolution.return_type,
-            )?,
             dir::ConstructTarget::Newtype { key, .. } => {
                 let Some(name) = program.symbol_name(key.symbol)? else {
                     return Err(QueryError::missing(format!(

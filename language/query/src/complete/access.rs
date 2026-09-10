@@ -1,8 +1,8 @@
 use destack_dir as dir;
-use destack_source::{FileId, ModuleId, Span};
+use destack_source::{FileId, Span};
 
 use crate::cursor::Cursor;
-use crate::{ModuleQueryContext, QueryError, QueryResult};
+use crate::{DeclarationUse, ModuleQueryContext, QueryError, QueryResult};
 
 use super::{CompletionPosition, CompletionPrefix, CompletionReceiver};
 
@@ -12,33 +12,35 @@ impl Cursor<'_, '_> {
         &self,
         prefix: Option<&CompletionPrefix>,
     ) -> QueryResult<Option<CompletionPosition>> {
-        // detect member access inside an existing member name token
-        if let Some(cursor_position) = self.offset.checked_sub(1)
-            && let Some(context) = self
+        // select the member name or the insertion point following its receiver
+        let mut position = if let Some(offset) = self.offset.checked_sub(1)
+            && let Some(position) = self
                 .module
-                .classify_member_access_name(self.file_id, cursor_position)?
+                .classify_member_access_name(self.file_id, offset)?
         {
-            return Ok(Some(context));
-        }
-
-        // resolve member access context immediately after a dot
-        if let Some(context) = self
+            Some(position)
+        } else if let Some(position) = self
             .module
             .classify_member_access_dot(self.file_id, self.offset)?
         {
-            return Ok(Some(context));
-        }
+            Some(position)
+        } else if let Some(prefix) = prefix {
+            self.module
+                .classify_member_access_dot(self.file_id, prefix.start)?
+        } else {
+            None
+        };
 
-        // resolve member access when the cursor is inside a member name
-        if let Some(token_at_cursor) = prefix
-            && let Some(context) = self
-                .module
-                .classify_member_access_dot(self.file_id, token_at_cursor.start)?
+        // select constructor insertion within a qualified construction target
+        if let Some(CompletionPosition::MemberAccess {
+            receiver: CompletionReceiver::Namespace { usage, .. },
+        }) = &mut position
+            && self.classify_constructor()?.is_some()
         {
-            return Ok(Some(context));
+            *usage = DeclarationUse::Constructor;
         }
 
-        Ok(None)
+        Ok(position)
     }
 }
 
@@ -63,21 +65,16 @@ impl ModuleQueryContext<'_> {
 
         // scan enclosing spans for one member expression at the cursor
         for enclosing_span in &enclosing {
-            let main_span = self.source_index()?.get_main(enclosing_span.source_id);
-            let Some(main_span) = main_span else {
+            let Some(node) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            let is_in_member_name = main_span.contains(cursor_position);
-            if !is_in_member_name {
-                continue;
-            }
-
-            let Some(dir_node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(main_span) = self.source_index()?.get_main(enclosing_span.source_id) else {
                 continue;
             };
-            let Some(receiver) =
-                CompletionReceiver::resolve_member(dir_node_id, Some(main_span), self)?
-            else {
+            let Some(span) = self.name_span(view, node, main_span, cursor_position)? else {
+                continue;
+            };
+            let Some(receiver) = CompletionReceiver::resolve_member(node, Some(span), self)? else {
                 continue;
             };
             let context = CompletionPosition::MemberAccess { receiver };
@@ -161,56 +158,28 @@ impl CompletionReceiver {
                 match view.get(source) {
                     dir::TypeExpression::Member { left, .. } => left.into_any(),
                     dir::TypeExpression::Reference { .. } => {
-                        return match module.resolved()?.references.get(global_source) {
-                            Some(dir::Reference::Namespace {
-                                module: module_id, ..
-                            }) => Ok(Some(Self::Namespace {
-                                module_id: *module_id,
-                            })),
-                            Some(dir::Reference::Projected {
-                                base: dir::ReferenceTarget::Namespace(module_id),
-                                ..
-                            }) => Ok(Some(Self::Namespace {
-                                module_id: *module_id,
-                            })),
-                            Some(dir::Reference::Projected {
-                                base: dir::ReferenceTarget::Symbol(_),
-                                ..
-                            }) => {
-                                let Some(selected_span) = selected_span else {
-                                    return Ok(None);
-                                };
-                                let Some((segment, _)) = module.qualified_type_segment(
-                                    view,
-                                    source.into(),
-                                    selected_span,
-                                )?
-                                else {
-                                    return Ok(None);
-                                };
-                                let segment = u16::try_from(segment).map_err(|_| {
-                                    QueryError::invalid(format!(
-                                        "completion member path: {global_source:?}"
-                                    ))
-                                })?;
-                                let site = dir::MemberSite::Path {
-                                    node: global_source,
-                                    segment,
-                                };
-
-                                Ok(Some(Self::Access { site }))
-                            }
-                            _ => Ok(None),
-                        };
+                        return Self::resolve_path(global_source, selected_span, module);
                     }
                     _ => return Ok(None),
                 }
             }
             _ => return Ok(None),
         };
+
+        // retain the declaration use recorded by the source node
+        let usage = if source.ty == dir::NodeType::TypeExpression {
+            DeclarationUse::Type
+        } else {
+            DeclarationUse::Expression
+        };
         let receiver = receiver.into_global(module.module_id());
-        let receiver = if let Some(module_id) = Self::namespace(receiver, module)? {
-            Self::Namespace { module_id }
+        let namespace = module
+            .resolved()?
+            .references
+            .get(receiver)
+            .and_then(dir::Reference::namespace);
+        let receiver = if let Some(module_id) = namespace {
+            Self::Namespace { module_id, usage }
         } else {
             let site = dir::MemberSite::Node(global_source);
 
@@ -220,18 +189,67 @@ impl CompletionReceiver {
         Ok(Some(receiver))
     }
 
-    /// Return the imported namespace selected by one receiver expression.
-    fn namespace(
-        receiver: dir::GlobalNodeIdAny,
+    /// Return the namespace or checked subject preceding one type path segment.
+    fn resolve_path(
+        source: dir::GlobalNodeIdAny,
+        selected_span: Option<Span>,
         module: &ModuleQueryContext<'_>,
-    ) -> QueryResult<Option<ModuleId>> {
-        let module_id = match module.resolved()?.references.get(receiver) {
-            Some(dir::Reference::Namespace {
-                module: module_id, ..
-            }) => Some(*module_id),
-            _ => None,
+    ) -> QueryResult<Option<Self>> {
+        let view = module.view()?;
+        let references = &module.resolved()?.references;
+
+        // a bare namespace can precede a newly typed dot
+        let Some(selected_span) = selected_span else {
+            return Ok(references
+                .get(source)
+                .and_then(dir::Reference::namespace)
+                .map(|module_id| Self::Namespace {
+                    module_id,
+                    usage: DeclarationUse::Type,
+                }));
+        };
+        let Some((segment, _)) =
+            module.qualified_type_segment(view, source.local_id, selected_span)?
+        else {
+            return Ok(None);
+        };
+        let segment = u16::try_from(segment)
+            .map_err(|_| QueryError::invalid(format!("completion member path: {source:?}")))?;
+        let Some(previous) = segment.checked_sub(1) else {
+            return Ok(None);
+        };
+        let site = dir::ReferenceSite::Path {
+            node: source,
+            segment: previous,
         };
 
-        Ok(module_id)
+        match (references.get(site), references.get(source)) {
+            // read the exact preceding namespace retained by resolve
+            (
+                Some(dir::Reference::Namespace {
+                    module: module_id, ..
+                }),
+                _,
+            ) => Ok(Some(Self::Namespace {
+                module_id: *module_id,
+                usage: DeclarationUse::Type,
+            })),
+            // read a nominal projection retained by the checker
+            (
+                _,
+                Some(dir::Reference::Projected {
+                    base: dir::ReferenceTarget::Symbol(_),
+                    from,
+                }),
+            ) if u32::from(segment) >= *from => {
+                let site = dir::MemberSite::Path {
+                    node: source,
+                    segment,
+                };
+
+                Ok(Some(Self::Access { site }))
+            }
+            _ => Ok(None),
+        }
     }
 }

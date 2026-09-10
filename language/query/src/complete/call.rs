@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::cursor::{CallOccurrence, Cursor};
 use crate::{ModuleQueryContext, QueryResult};
@@ -47,19 +48,40 @@ impl CallOccurrence<'_> {
 }
 
 impl Cursor<'_, '_> {
+    /// Return whether the completed call target has an authored argument list.
+    pub(crate) fn has_call_arguments(&self) -> QueryResult<bool> {
+        let view = self.module.view()?;
+        let index = self.module.source_index()?;
+
+        // select the call whose target contains the cursor
+        for enclosing in self.enclosing() {
+            let Some(call) = CallOccurrence::select(enclosing, self.module)? else {
+                continue;
+            };
+            let target = self.module.node_span(view, call.target)?;
+            if target.owns_cursor(self.offset) {
+                let region = NodeSpanType::Region(NodeSpanRegion::Arguments);
+
+                return Ok(index.get_side(enclosing.source_id, region).is_some());
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Classify completion in the target of an explicit construction.
     pub(super) fn classify_constructor(&self) -> QueryResult<Option<CompletionPosition>> {
-        // select an enclosing construction with an authored target type
+        // select an enclosing construction with an authored callee
         let view = self.module.view()?;
         for enclosing in self.enclosing() {
             let Some(call) = CallOccurrence::select(enclosing, self.module)? else {
                 continue;
             };
-            if call.target.ty != dir::NodeType::TypeExpression {
+            if !matches!(view.get(call.id), dir::Expression::New { .. }) {
                 continue;
             }
-            let target = dir::LocalNodeId::<dir::TypeExpression>::new(call.target.id);
-            if matches!(view.get(target), dir::TypeExpression::Missing) {
+            let target = dir::LocalNodeId::<dir::Expression>::new(call.target.id);
+            if matches!(view.get(target), dir::Expression::Missing) {
                 continue;
             }
 

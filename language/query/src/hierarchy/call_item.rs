@@ -189,12 +189,6 @@ impl CallItem {
         let selected = match &resolution.target {
             dir::ConstructTarget::Newtype { key, .. } => key.symbol,
             dir::ConstructTarget::Class { .. } => return Self::from_symbol(program, entry.callee),
-            // skip dynamic constructions, they index no declaration edge
-            dir::ConstructTarget::Dynamic { .. } => {
-                return Err(QueryError::invalid(format!(
-                    "call hierarchy construction {source:?} dispatches dynamically"
-                )));
-            }
         };
 
         // require the indexed edge to name this exact constructor
@@ -219,9 +213,7 @@ impl CallItem {
 
                 module.newtype_call_item(program, entry.callee, Some(call))
             }
-            dir::ConstructTarget::Class { .. } | dir::ConstructTarget::Dynamic { .. } => {
-                Err(QueryError::invalid("construct call item"))
-            }
+            dir::ConstructTarget::Class { .. } => Err(QueryError::invalid("construct call item")),
         }
     }
 
@@ -285,10 +277,7 @@ impl ModuleQueryContext<'_> {
                 dir::Expression::Call { left, .. } if left.into_any() == current => {
                     return CallableSelection::from_call(expression_id, self).map(Some);
                 }
-                dir::Expression::New {
-                    ty: type_expression,
-                    ..
-                } if type_expression.into_any() == current => {
+                dir::Expression::New { left, .. } if left.into_any() == current => {
                     return CallableSelection::from_call(expression_id, self).map(Some);
                 }
                 _ => return Ok(None),
@@ -328,7 +317,6 @@ impl CallableSelection<'_> {
                 symbol_id: key.symbol,
                 call: ConstructorCall::new(&key.arguments, resolution),
             }),
-            dir::ConstructTarget::Dynamic { .. } => Ok(CallableSelection::DeclarationFree),
         }
     }
 }
