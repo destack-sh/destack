@@ -147,6 +147,7 @@ impl<'a> InstantiateState<'a> {
             &self.accesses,
             &source.dispatch,
             &self.effects,
+            None,
             self.layout,
         );
         analyses.verify_functions(&self.specializations);

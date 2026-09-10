@@ -40,7 +40,7 @@ impl InstantiateState<'_> {
         interface: mir::TypeId,
         requirement: mir::FunctionId,
     ) -> CompilerResult<Dispatch> {
-        let Some(witness) = self.witnesses.get(&mut self.tree, receiver, interface) else {
+        let Some(witness) = self.witnesses.get(&self.tree, receiver, interface) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "a witness call to '{}' at a closed receiver without a witness",
@@ -84,7 +84,7 @@ impl InstantiateState<'_> {
         interface: mir::TypeId,
         member: StringId,
     ) -> CompilerResult<mir::GlobalId> {
-        let Some(witness) = self.witnesses.get(&mut self.tree, receiver, interface) else {
+        let Some(witness) = self.witnesses.get(&self.tree, receiver, interface) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "a witness const '{}' read at a closed receiver without a witness",
