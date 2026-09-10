@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactKey, EnvironmentBound, IndexKind};
+use destack_artifact::{ArtifactKey, EnvironmentBound, IndexKind, ModuleGraph};
 use destack_doc::{Generator, PackageReference};
 use destack_repository::{ArtifactReader, ExportKind, Package, TraceView};
 use destack_serde::Reflect;
@@ -148,7 +148,7 @@ impl CommandContext<'_> {
         let modules = {
             let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
             let graph = artifacts
-                .module_graph_reader(profile)
+                .read::<ModuleGraph>(profile)
                 .map_err(|error| CommandError::internal(error.to_string()))?;
             let environment = artifacts
                 .read::<EnvironmentBound>(profile)
@@ -156,9 +156,7 @@ impl CommandContext<'_> {
             let mut walk_roots = roots.to_vec();
             walk_roots.extend(environment.implicit_modules());
 
-            graph
-                .reachable(&walk_roots)
-                .map_err(|error| CommandError::internal(error.to_string()))?
+            graph.reachable(&walk_roots)
         };
 
         // retain every compiler phase composed while printing declarations

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirParsed, DirResolved, DirView, EnvironmentBound,
+    DirImported, DirParsed, DirResolved, DirView, EnvironmentBound, ModuleGraph,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -165,7 +165,7 @@ impl CommandContext<'_> {
         let modules = {
             let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
             let graph = artifacts
-                .module_graph_reader(profile)
+                .read::<ModuleGraph>(profile)
                 .map_err(|error| error.to_string())?;
             let global = artifacts
                 .read::<EnvironmentBound>(profile)
@@ -175,7 +175,6 @@ impl CommandContext<'_> {
 
             graph
                 .reachable(&walk_roots)
-                .map_err(|error| error.to_string())?
                 .into_iter()
                 .collect::<FxIndexSet<_>>()
         };
