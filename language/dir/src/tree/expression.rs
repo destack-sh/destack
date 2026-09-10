@@ -711,7 +711,11 @@ pub enum Expression {
     /// new Foo.Baz(2, 3)
     /// ```
     New {
-        ty: LocalNodeId<TypeExpression>,
+        /// The constructor value.
+        left: LocalNodeId<Expression>,
+        /// The explicit constructor type arguments.
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+        /// The constructor arguments.
         arguments: Vec<LocalNodeId<Argument>>,
     },
 

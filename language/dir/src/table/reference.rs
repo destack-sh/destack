@@ -1,20 +1,59 @@
-use destack_core::FxIndexMap as IndexMap;
+use destack_core::FxIndexMap;
 use destack_serde::Reflect;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, NodeSpanList, NodeSpanType};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::{ExportTarget, GlobalNodeIdAny, GlobalSymbolId, TypeLiteral};
 
-/// Name resolutions for one module, keyed by the reference node.
+/// Name resolutions for one module, keyed by their authored occurrences.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct ReferenceTable {
     /// The module id of the reference table.
     pub module_id: ModuleId,
-    /// Final targets keyed by their source node.
-    pub target_by_node: IndexMap<GlobalNodeIdAny, Reference>,
+    /// Resolved targets keyed by their authored occurrence.
+    pub targets: FxIndexMap<ReferenceSite, Reference>,
     /// Authored declarations that differ from their final target.
-    pub declaration_by_node: IndexMap<GlobalNodeIdAny, Reference>,
+    pub declarations: FxIndexMap<ReferenceSite, Reference>,
+}
+
+/// A reference node or one segment of its path.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub enum ReferenceSite {
+    /// A complete reference node.
+    Node(GlobalNodeIdAny),
+    /// One segment of a flat reference path.
+    Path {
+        /// The node containing the path.
+        node: GlobalNodeIdAny,
+        /// The zero based segment index.
+        segment: u16,
+    },
+}
+
+impl ReferenceSite {
+    /// Return the node containing this reference.
+    pub fn node(self) -> GlobalNodeIdAny {
+        match self {
+            Self::Node(node) | Self::Path { node, .. } => node,
+        }
+    }
+
+    /// Return the source span type for this reference.
+    pub fn span_type(self) -> NodeSpanType {
+        match self {
+            Self::Node(_) => NodeSpanType::Main,
+            Self::Path { segment, .. } => NodeSpanType::ListItem(NodeSpanList::Segment, segment),
+        }
+    }
+}
+
+impl From<GlobalNodeIdAny> for ReferenceSite {
+    fn from(node: GlobalNodeIdAny) -> Self {
+        Self::Node(node)
+    }
 }
 
 /// One scalar target selected while resolving a source reference.
@@ -43,48 +82,52 @@ impl ReferenceTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            target_by_node: IndexMap::default(),
-            declaration_by_node: IndexMap::default(),
+            targets: FxIndexMap::default(),
+            declarations: FxIndexMap::default(),
         }
     }
 
     /// Insert one final target and its authored declaration.
     pub fn insert_resolution(
         &mut self,
-        node: GlobalNodeIdAny,
+        site: impl Into<ReferenceSite>,
         declaration: Reference,
         target: Reference,
     ) {
+        let site = site.into();
+
         // retain only declarations that differ from their final target
         if declaration == target {
-            self.declaration_by_node.shift_remove(&node);
+            self.declarations.shift_remove(&site);
         } else {
-            self.declaration_by_node.insert(node, declaration);
+            self.declarations.insert(site, declaration);
         }
 
-        self.target_by_node.insert(node, target);
+        self.targets.insert(site, target);
     }
 
     /// Return one final target.
-    pub fn get(&self, node: GlobalNodeIdAny) -> Option<&Reference> {
-        self.target_by_node.get(&node)
+    pub fn get(&self, site: impl Into<ReferenceSite>) -> Option<&Reference> {
+        self.targets.get(&site.into())
     }
 
     /// Return the authored declaration, equal to the final target unless overridden.
-    pub fn declaration(&self, node: GlobalNodeIdAny) -> Option<&Reference> {
-        self.declaration_by_node
-            .get(&node)
-            .or_else(|| self.target_by_node.get(&node))
+    pub fn declaration(&self, site: impl Into<ReferenceSite>) -> Option<&Reference> {
+        let site = site.into();
+
+        self.declarations
+            .get(&site)
+            .or_else(|| self.targets.get(&site))
     }
 
     /// Return true when no references were resolved.
     pub fn is_empty(&self) -> bool {
-        self.target_by_node.is_empty()
+        self.targets.is_empty()
     }
 
     /// Return modules that own resolved reference targets.
     pub fn target_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
-        self.target_by_node.values().flat_map(|reference| {
+        self.targets.values().flat_map(|reference| {
             let mut modules: SmallVec<[ModuleId; 2]> = SmallVec::new();
             match reference {
                 Reference::Bound(symbols) => {

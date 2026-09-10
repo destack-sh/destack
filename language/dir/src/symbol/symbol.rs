@@ -287,6 +287,20 @@ impl SymbolKind {
         )
     }
 
+    /// Return whether this kind declares a value.
+    pub fn is_value(self) -> bool {
+        matches!(
+            self,
+            Self::Variable
+                | Self::Parameter
+                | Self::Function
+                | Self::Class
+                | Self::Variant
+                | Self::AssociatedConst
+                | Self::GenericConstParameter
+        )
+    }
+
     /// Check whether this kind declares a transparent type alias.
     #[inline]
     pub fn is_type_alias(self) -> bool {
@@ -297,45 +311,6 @@ impl SymbolKind {
     #[inline]
     pub fn is_binding(self) -> bool {
         matches!(self, Self::Variable | Self::Parameter)
-    }
-
-    /// Check whether this symbol kind can be used in type syntax.
-    pub fn can_be_used_as_type(self) -> bool {
-        matches!(
-            self,
-            Self::AssociatedType
-                | Self::Class
-                | Self::Enum
-                | Self::Variant
-                | Self::Extension
-                | Self::ExportAlias
-                | Self::Import
-                | Self::Interface
-                | Self::Newtype
-                | Self::NewtypeInterface
-                | Self::Struct
-                | Self::TypeAlias
-                | Self::GenericTypeParameter
-        )
-    }
-
-    /// Check whether this symbol kind can be used as a runtime value.
-    pub fn can_be_used_as_value(self) -> bool {
-        matches!(
-            self,
-            Self::AssociatedConst
-                | Self::Class
-                | Self::Enum
-                | Self::ExportAlias
-                | Self::Variant
-                | Self::Function
-                | Self::Import
-                | Self::Newtype
-                | Self::GenericLifetimeParameter
-                | Self::Parameter
-                | Self::Struct
-                | Self::Variable
-        )
     }
 }
 

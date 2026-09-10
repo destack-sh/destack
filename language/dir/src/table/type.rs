@@ -14,9 +14,10 @@ use elsa::sync::FrozenVec;
 
 use crate::{
     BorrowForm, BorrowFormId, Form, FunctionParameterType, FunctionSignatureId,
-    FunctionSignatureType, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalTypeId, MemberType,
-    MemberTypeId, RefinedType, RefinedTypeId, SegmentView, Type, TypeElement, TypeFlags,
-    TypeIndexSignature, TypeListId, TypeOperation, TypeOperationId, TypeProperty,
+    FunctionSignatureType, GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId,
+    LocalTypeId, MemberType, MemberTypeId, RefinedType, RefinedTypeId, SegmentView, Type,
+    TypeElement, TypeFlags, TypeIndexSignature, TypeListId, TypeOperation, TypeOperationId,
+    TypeProperty,
 };
 
 /// Cumulative type slots for one DIR module.
@@ -293,6 +294,15 @@ impl<'a> TypeTable<'a> {
         )
     }
 
+    /// Get one generic argument binding list.
+    pub fn generic_arguments(&self, list: TypeListId) -> &[GenericArgumentBinding] {
+        self.slice(
+            list,
+            |segment| &segment.generic_arguments,
+            |lists| &lists.generic_arguments,
+        )
+    }
+
     /// Get one index signature list.
     pub fn index_signatures(&self, list: TypeListId) -> &[TypeIndexSignature] {
         self.slice(
@@ -326,8 +336,14 @@ impl<'a> TypeTable<'a> {
             | Type::Erased(_)
             | Type::Parameter(_)
             | Type::This
-            | Type::Range(_)
-            | Type::Reference(_) => {}
+            | Type::Range(_) => {}
+
+            // declaration references
+            Type::Reference(reference) => {
+                for child in self.type_ids(reference.arguments) {
+                    visit(*child);
+                }
+            }
 
             // declaration applications
             Type::Application(instance) => {
@@ -414,6 +430,12 @@ impl<'a> TypeTable<'a> {
                     }
                 }
                 TypeOperation::TypeOf(_) => {}
+                TypeOperation::Instantiation(application) => {
+                    visit(application.target);
+                    for argument in self.type_ids(application.arguments) {
+                        visit(*argument);
+                    }
+                }
                 TypeOperation::KeyOf(unary) => visit(unary.target),
                 TypeOperation::NoInfer(unary) => visit(unary.target),
                 TypeOperation::Awaited(unary) => visit(unary.target),
@@ -467,6 +489,9 @@ impl<'a> TypeTable<'a> {
                 let function = self.signature(*function);
                 if let Some(this_parameter) = function.this_parameter {
                     visit(this_parameter);
+                }
+                for binding in self.generic_arguments(function.arguments) {
+                    visit(binding.argument);
                 }
                 for parameter in self.parameters(function.parameters) {
                     visit(parameter.ty);
@@ -602,6 +627,8 @@ pub struct TypeSegment {
     pub(crate) properties: ListPool<TypeProperty>,
     /// The function parameter lists referenced by type payloads.
     pub(crate) parameters: ListPool<FunctionParameterType>,
+    /// The generic argument binding lists referenced by type payloads.
+    pub(crate) generic_arguments: ListPool<GenericArgumentBinding>,
     /// The index signature lists referenced by type payloads.
     pub(crate) index_signatures: ListPool<TypeIndexSignature>,
     /// The string lists referenced by type payloads.
@@ -646,6 +673,7 @@ impl TypeSegment {
         self.elements.hash(&mut hasher);
         self.properties.hash(&mut hasher);
         self.parameters.hash(&mut hasher);
+        self.generic_arguments.hash(&mut hasher);
         self.index_signatures.hash(&mut hasher);
         self.strings.hash(&mut hasher);
         self.operations.hash(&mut hasher);
@@ -685,6 +713,7 @@ impl TypeSegment {
             elements: ListPool::new(0),
             properties: ListPool::new(0),
             parameters: ListPool::new(0),
+            generic_arguments: ListPool::new(0),
             index_signatures: ListPool::new(0),
             strings: ListPool::new(0),
             operations: ValuePool::new(0),
@@ -709,6 +738,7 @@ impl TypeSegment {
             elements: ListPool::new(base.elements.list_count()),
             properties: ListPool::new(base.properties.list_count()),
             parameters: ListPool::new(base.parameters.list_count()),
+            generic_arguments: ListPool::new(base.generic_arguments.list_count()),
             index_signatures: ListPool::new(base.index_signatures.list_count()),
             strings: ListPool::new(base.strings.list_count()),
             operations: ValuePool::new(base.operations.count()),
@@ -864,6 +894,11 @@ impl TypeSegment {
         self.parameters.get_maybe(list)
     }
 
+    /// Get one generic argument binding list when this segment owns it.
+    pub fn generic_arguments_maybe(&self, list: TypeListId) -> Option<&[GenericArgumentBinding]> {
+        self.generic_arguments.get_maybe(list)
+    }
+
     /// Get one index signature list when this segment owns it.
     pub fn index_signatures_maybe(&self, list: TypeListId) -> Option<&[TypeIndexSignature]> {
         self.index_signatures.get_maybe(list)
@@ -998,6 +1033,8 @@ pub struct TypeListArena {
     properties: ListArena<TypeProperty>,
     /// The function parameter lists.
     parameters: ListArena<FunctionParameterType>,
+    /// The generic argument binding lists.
+    generic_arguments: ListArena<GenericArgumentBinding>,
     /// The index signature lists.
     index_signatures: ListArena<TypeIndexSignature>,
     /// The string lists.
@@ -1018,6 +1055,7 @@ impl TypeListArena {
             elements: ListArena::new(base.elements.list_count()),
             properties: ListArena::new(base.properties.list_count()),
             parameters: ListArena::new(base.parameters.list_count()),
+            generic_arguments: ListArena::new(base.generic_arguments.list_count()),
             index_signatures: ListArena::new(base.index_signatures.list_count()),
             strings: ListArena::new(base.strings.list_count()),
         }
@@ -1029,6 +1067,7 @@ impl TypeListArena {
         segment.elements = ListPool::from_arena(self.elements);
         segment.properties = ListPool::from_arena(self.properties);
         segment.parameters = ListPool::from_arena(self.parameters);
+        segment.generic_arguments = ListPool::from_arena(self.generic_arguments);
         segment.index_signatures = ListPool::from_arena(self.index_signatures);
         segment.strings = ListPool::from_arena(self.strings);
     }
@@ -1040,6 +1079,7 @@ impl TypeListArena {
             elements: ListArena::new(0),
             properties: ListArena::new(0),
             parameters: ListArena::new(0),
+            generic_arguments: ListArena::new(0),
             index_signatures: ListArena::new(0),
             strings: ListArena::new(0),
         }
@@ -1173,6 +1213,8 @@ pub struct TypeTail<'a> {
     properties: ListInterner,
     /// Intern bookkeeping for the function parameter pool.
     parameters: ListInterner,
+    /// Intern bookkeeping for the generic argument binding pool.
+    generic_arguments: ListInterner,
     /// Intern bookkeeping for the index signature pool.
     index_signatures: ListInterner,
     /// Intern bookkeeping for the string pool.
@@ -1244,6 +1286,7 @@ impl<'a> TypeTail<'a> {
             tail.elements.seed(&base.elements);
             tail.properties.seed(&base.properties);
             tail.parameters.seed(&base.parameters);
+            tail.generic_arguments.seed(&base.generic_arguments);
             tail.index_signatures.seed(&base.index_signatures);
             tail.strings.seed(&base.strings);
             tail.operations.seed(&base.operations);
@@ -1279,6 +1322,14 @@ impl<'a> TypeTail<'a> {
     /// Get one function parameter list this pass interned, read past later interns.
     pub fn parameters_maybe(&self, list: TypeListId) -> Option<&'a [FunctionParameterType]> {
         self.lists.parameters.get_maybe(list)
+    }
+
+    /// Get one generic argument binding list this pass interned, read past later interns.
+    pub fn generic_arguments_maybe(
+        &self,
+        list: TypeListId,
+    ) -> Option<&'a [GenericArgumentBinding]> {
+        self.lists.generic_arguments.get_maybe(list)
     }
 
     /// Get one index signature list this pass interned, read past later interns.
@@ -1319,6 +1370,7 @@ impl<'a> TypeTail<'a> {
             elements: ListInterner::default(),
             properties: ListInterner::default(),
             parameters: ListInterner::default(),
+            generic_arguments: ListInterner::default(),
             index_signatures: ListInterner::default(),
             strings: ListInterner::default(),
             operations: ValueInterner::new(),
@@ -1463,6 +1515,17 @@ impl<'a> TypeTail<'a> {
             &self.lists.parameters,
             &self.committed,
             |base| &base.parameters,
+            values,
+        )
+    }
+
+    /// Intern one generic argument binding list.
+    pub fn intern_generic_arguments(&mut self, values: &[GenericArgumentBinding]) -> TypeListId {
+        intern_list(
+            &mut self.generic_arguments,
+            &self.lists.generic_arguments,
+            &self.committed,
+            |base| &base.generic_arguments,
             values,
         )
     }

@@ -1511,13 +1511,6 @@ pub enum ConstructTarget {
         /// The selected instantiated backing alternative.
         backing: GlobalTypeId,
     },
-    /// Construction through one erased interface construct signature.
-    Dynamic {
-        /// The erased receiver dispatch.
-        dispatch: DynamicDispatch,
-        /// The dispatched construct operation.
-        function: DynamicFunction,
-    },
 }
 
 impl ConstructTarget {
@@ -1525,7 +1518,6 @@ impl ConstructTarget {
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
             Self::Class { key, .. } | Self::Newtype { key, .. } => Some(key.symbol),
-            Self::Dynamic { .. } => None,
         }
     }
 
@@ -1540,7 +1532,6 @@ impl ConstructTarget {
                 }
             },
             Self::Newtype { key, .. } => Some(key.symbol),
-            Self::Dynamic { .. } => None,
         }
     }
 }
@@ -1560,8 +1551,6 @@ impl InstanceKeyVisit for ConstructTarget {
             }
             // visit the newtype declaration
             Self::Newtype { key, .. } => visit(key),
-            // visit the selections the erased dispatch carries
-            Self::Dynamic { dispatch, .. } => dispatch.visit_instance_keys(visit),
         }
     }
 }

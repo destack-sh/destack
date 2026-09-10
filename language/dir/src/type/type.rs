@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalNodeIdAny,
-    GlobalStaticId, GlobalSymbolId, LanguageItem, Literal, MappedTypeModifier, RangeEnd,
-    ScalarDomain, StaticKey, StringId, TypeFold, TypeLiteral, UnaryOperator,
+    Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalStaticId,
+    GlobalSymbolId, LanguageItem, Literal, MappedTypeModifier, RangeEnd, ScalarDomain, StaticKey,
+    StringId, TypeFold, TypeLiteral, UnaryOperator,
 };
 
 use super::{FloatType, IntegerType, PrimitiveType};
@@ -856,17 +856,29 @@ impl Lifetime {
     }
 }
 
-/// One written reference to a type declaration before application.
+/// One declaration reference with its explicitly bound generic arguments.
 ///
 /// Examples:
 /// ```ds
 /// Box                 // static declaration receiver in `Box.empty`
 /// Box.Output          // owner of a static associated type projection
-/// One type declaration reference before generic application.
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TypeReference {
     /// The referenced declaration symbol.
     pub symbol: GlobalSymbolId,
+    /// The explicit generic arguments, with omitted parameters left for invocation.
+    pub arguments: TypeListId,
+}
+
+impl TypeReference {
+    /// Create a declaration reference with no explicit generic arguments.
+    pub fn new(symbol: GlobalSymbolId) -> Self {
+        Self {
+            symbol,
+            arguments: TypeListId::EMPTY,
+        }
+    }
 }
 
 /// One declaration applied to its complete positional arguments.
@@ -1095,6 +1107,8 @@ pub enum TypeOperation {
     Infer(InferType),
     /// Type query expression, like `typeof value`.
     TypeOf(TypeOfType),
+    /// Explicit generic application to a value type, like `typeof create<int32>`.
+    Instantiation(InstantiationType),
     /// `keyof T`.
     KeyOf(UnaryType),
     /// Inference blocker like `NoInfer<T>`.
@@ -1157,6 +1171,7 @@ impl TypeOperation {
                 }
             }
             Self::TypeOf(_) => {}
+            Self::Instantiation(application) => collect(application.target.module_id),
             Self::KeyOf(unary) | Self::NoInfer(unary) | Self::Awaited(unary) => {
                 collect(unary.target.module_id);
             }
@@ -1182,8 +1197,17 @@ impl TypeOperation {
 /// Type query expression, like `typeof value`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct TypeOfType {
-    /// The queried value reference.
-    pub value: GlobalNodeIdAny,
+    /// The queried value declaration.
+    pub symbol: GlobalSymbolId,
+}
+
+/// Generic arguments applied to one value type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct InstantiationType {
+    /// The unapplied value type.
+    pub target: GlobalTypeId,
+    /// The written generic arguments.
+    pub arguments: TypeListId,
 }
 
 /// Compiler-provided string mapping.
@@ -2428,6 +2452,8 @@ pub struct FunctionSignatureType {
     pub asynchrony: Asynchrony,
     /// The template that owns this signature's generic parameters.
     pub template: Option<GlobalGenericTemplateId>,
+    /// The generic arguments fixed by explicit specialization.
+    pub arguments: TypeListId,
     /// The optional `this` parameter type.
     pub this_parameter: Option<GlobalTypeId>,
     /// The runtime parameter list.
