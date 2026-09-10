@@ -185,13 +185,6 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek_token_span()));
         }
 
-        // primitive type literals are first-class values outside value postfix syntax
-        if !self.peek_identifier_value_postfix() && self.peek_intrinsic_type_literal().is_some() {
-            let value = self.parse_type(TypePosition::Type, TypeStop::default())?;
-
-            return Ok(self.insert_type_expression_value(value));
-        }
-
         let (name, name_range) = self.eat_identifier_with_range()?;
 
         // classify an identifier-shaped expression from one consumed head
@@ -409,14 +402,6 @@ impl Parser {
         }
     }
 
-    /// Return whether the current identifier is followed by a value postfix.
-    fn peek_identifier_value_postfix(&self) -> bool {
-        let next = self.peek_next_token_type();
-
-        next == TokenType::Dot
-            || next == TokenType::Maybe && self.peek_token_type_at(2) == TokenType::Dot
-    }
-
     /// Return whether a type-family keyword starts a type value expression.
     fn peek_type_keyword_value(&self, keyword: Keyword, stop: ExpressionStop) -> bool {
         // reject keywords outside the type family
@@ -493,9 +478,13 @@ impl Parser {
                         false,
                     )
                 }),
-            TokenType::LessThan if self.peek_tree_literal_start() => self
-                .parse_tree_literal()
-                .map(|expression| (expression, false)),
+            TokenType::LessThan
+                if position != ExpressionPosition::Constructor
+                    && self.peek_tree_literal_start() =>
+            {
+                self.parse_tree_literal()
+                    .map(|expression| (expression, false))
+            }
             TokenType::TemplateString | TokenType::TemplateStringStart
                 if self.peek_template_literal_start() =>
             {

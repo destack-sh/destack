@@ -122,7 +122,7 @@ impl Parser {
         } else {
             let ty = self.parse_type_primary(&primary_start, position, stop)?;
 
-            self.parse_type_postfix(&primary_start, ty, position, stop)?
+            self.parse_type_postfix(&primary_start, ty, stop)?
         };
 
         // fold consumed prefixes from the operand outward

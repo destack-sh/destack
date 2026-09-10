@@ -11,8 +11,6 @@ pub(crate) enum TypePosition {
     /// Parse an ordinary type expression.
     #[default]
     Type,
-    /// Parse the receiver of a `new` expression.
-    NewReceiver,
     /// Parse an arrow return annotation.
     ArrowReturn,
 }

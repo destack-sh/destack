@@ -467,14 +467,8 @@ fn test_parse_property_with_value() {
     assert_node!(parser.tree, property, Property::Field { name: Name::Identifier(name), value, is_shorthand } => {
         assert_string!(parser, *name, "x");
         assert!(!*is_shorthand);
-        assert_node!(parser.tree, *value, Expression::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
-                assert_eq!(
-                    *value,
-                    TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
-                    })
-                );
-            });
+        assert_node!(parser.tree, *value, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "int32");
         });
     });
 }
@@ -663,14 +657,8 @@ fn test_parse_properties_recover_error_slot() {
     assert_node!(parser.tree, properties[0], Property::Error);
     assert_node!(parser.tree, properties[1], Property::Field { name: Name::Identifier(name), value, .. } => {
         assert_string!(parser, *name, "y");
-        assert_node!(parser.tree, *value, Expression::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Keyword { value } => {
-                assert_eq!(
-                    *value,
-                    TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
-                    })
-                );
-            });
+        assert_node!(parser.tree, *value, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "int32");
         });
     });
 }

@@ -1,11 +1,12 @@
 use crate::{
     CommentRetention, ExpressionPosition, ExpressionStop, TestParser, assert_comment,
-    assert_expression_path, assert_node, assert_string, block_expression_ids,
+    assert_expression_path, assert_node, assert_string, assert_value_expression_path,
+    block_expression_ids,
 };
 use destack_dir::{
     Block, BlockContext, BlockForm, CommentKind, Declaration, Expression, FunctionDeclaration,
     FunctionForm, IfForm, LetKind, Literal, MatchArm, Name, NodeType, Property, TokenType,
-    TypeExpression, YieldCardinality,
+    YieldCardinality,
 };
 
 #[test]
@@ -869,9 +870,9 @@ fn test_parse_new_without_receiver_as_statement_recovers_missing_constructor() {
 
     // new
     let new_id = expressions[0];
-    assert_node!(parser.tree, new_id, Expression::New { ty, arguments } => {
+    assert_node!(parser.tree, new_id, Expression::New { left, arguments, .. } => {
         // missing constructor
-        assert_node!(parser.tree, *ty, TypeExpression::Missing);
+        assert_node!(parser.tree, *left, Expression::Missing);
 
         // no dynamic arguments
         assert!(arguments.is_empty());
@@ -896,9 +897,9 @@ new
 
     // new
     let new_id = expressions[0];
-    assert_node!(parser.tree, new_id, Expression::New { ty, arguments } => {
+    assert_node!(parser.tree, new_id, Expression::New { left, arguments, .. } => {
         // missing constructor
-        assert_node!(parser.tree, *ty, TypeExpression::Missing);
+        assert_node!(parser.tree, *left, Expression::Missing);
 
         // no dynamic arguments
         assert!(arguments.is_empty());
@@ -923,16 +924,16 @@ next()
     assert_eq!(expressions.len(), 2);
 
     // new
-    assert_node!(parser.tree, expressions[0], Expression::New { ty, arguments } => {
-            assert_node!(parser.tree, *ty, TypeExpression::Missing);
-            assert!(arguments.is_empty());
+    assert_node!(parser.tree, expressions[0], Expression::New { left, arguments, .. } => {
+        assert_node!(parser.tree, *left, Expression::Missing);
+        assert!(arguments.is_empty());
     });
 
     // next()
     assert_node!(parser.tree, expressions[1], Expression::Call { left, generic_arguments, arguments, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "next");
-            assert!(generic_arguments.is_empty());
-            assert!(arguments.is_empty());
+        assert_value_expression_path!(parser, parser.tree.get(*left), "next");
+        assert!(generic_arguments.is_empty());
+        assert!(arguments.is_empty());
     });
 }
 
@@ -957,9 +958,9 @@ const value = 1
     assert_eq!(expressions.len(), 2);
 
     // new
-    assert_node!(parser.tree, expressions[0], Expression::New { ty, arguments } => {
-            assert_node!(parser.tree, *ty, TypeExpression::Missing);
-            assert!(arguments.is_empty());
+    assert_node!(parser.tree, expressions[0], Expression::New { left, arguments, .. } => {
+        assert_node!(parser.tree, *left, Expression::Missing);
+        assert!(arguments.is_empty());
     });
 
     // const value = 1

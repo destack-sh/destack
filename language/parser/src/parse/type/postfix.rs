@@ -34,7 +34,6 @@ impl Parser {
         &mut self,
         start: &ParseStart,
         mut left: LocalNodeId<TypeExpression>,
-        position: TypePosition,
         stop: TypeStop,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         loop {
@@ -57,9 +56,7 @@ impl Parser {
             let is_on_new_line = self.peek_is_on_new_line();
             let next = match token_type {
                 TokenType::OpenBracket => Some(self.parse_type_index_postfix(left, stop)?),
-                TokenType::OpenParenthesis if position != TypePosition::NewReceiver => {
-                    self.parse_type_static_call_postfix(start, left)?
-                }
+                TokenType::OpenParenthesis => self.parse_type_static_call_postfix(start, left)?,
                 TokenType::Dot => Some(self.parse_type_member_postfix(start, left)?),
                 TokenType::Not if !is_on_new_line => {
                     Some(self.parse_type_must_postfix(start, left))

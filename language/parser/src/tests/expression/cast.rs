@@ -1,7 +1,7 @@
 use crate::tests::TestParser;
 use crate::{
     ExpressionPosition, ExpressionStop, assert_comment, assert_expression_path, assert_node,
-    assert_path, assert_string,
+    assert_path, assert_string, assert_value_expression_path,
 };
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, CommentKind, Declaration,
@@ -885,11 +885,10 @@ fn test_parse_new_expression_with_generic_receiver_and_const_assertion_argument(
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         .unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
-        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
-            assert_path!(parser, *path, "Set");
-            assert_eq!(generic_arguments.len(), 1);
-        });
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
+        assert_value_expression_path!(parser, parser.tree.get(*left), "Set");
+        assert_eq!(generic_arguments.len(), 1);
+
         assert_eq!(arguments.len(), 1);
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {

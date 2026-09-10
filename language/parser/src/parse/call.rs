@@ -1,6 +1,7 @@
-use crate::parse::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
+use crate::parse::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
-    Expression, GenericArgument, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenType,
+    Expression, GenericArgument, Keyword, LocalNodeId, NodeType, OperatorPrecedence,
+    PostfixPosition, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
@@ -101,15 +102,30 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::New)?;
 
-        // constructor name
-        let ty = if self.peek_is_on_new_line() {
-            self.recover_missing_type_expression_here(NodeType::Expression)
+        // parse the complete constructor operand before its argument list
+        let left = if self.peek_is_on_new_line() || self.peek_expression_slot_boundary() {
+            self.recover_missing_expression_here(NodeType::Expression)
         } else {
-            self.parse_type_or_recover_missing(
-                TypePosition::NewReceiver,
-                TypeStop::default(),
-                NodeType::Expression,
+            self.parse_expression_at(
+                ExpressionPosition::Constructor,
+                ExpressionStop::default(),
+                OperatorPrecedence::Prefix,
             )?
+        };
+
+        // move the final type arguments onto the construction
+        let (left, generic_arguments) = match self.tree.get(left) {
+            Expression::Instantiation {
+                left: receiver,
+                generic_arguments,
+            } => {
+                let receiver = *receiver;
+                let generic_arguments = generic_arguments.clone();
+                self.tree.detach(left.into_any());
+
+                (receiver, generic_arguments)
+            }
+            _ => (left, Vec::new()),
         };
 
         // constructor arguments are optional
@@ -121,7 +137,11 @@ impl Parser {
         let arguments = arguments.unwrap_or_default();
 
         // call
-        let expression = Expression::New { ty, arguments };
+        let expression = Expression::New {
+            left,
+            generic_arguments,
+            arguments,
+        };
         let call_id = self.insert_node(expression, self.range_since(&start));
         if let Some(arguments_range) = arguments_range {
             let span_type = NodeSpanType::Region(NodeSpanRegion::Arguments);

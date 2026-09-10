@@ -1,8 +1,11 @@
 use crate::tests::TestParser;
-use crate::{ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_path};
+use crate::{
+    ExpressionPosition, ExpressionStop, assert_expression_path, assert_node,
+    assert_value_expression_path,
+};
 use destack_dir::{
-    BinaryOperator, Expression, Literal, Mutability, NodeType, TokenType, TypeExpression,
-    UnaryOperator, VarianceBound,
+    BinaryOperator, Expression, Literal, Mutability, NodeType, TokenType, UnaryOperator,
+    VarianceBound,
 };
 
 /// Unary operator spans point at the operator token.
@@ -175,11 +178,10 @@ fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
     // await (new Promise<void>(...))
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
         crate::assert_parenthesized!(parser.tree, *expression, parenthesized_expression => {
-            assert_node!(parser.tree, *parenthesized_expression, Expression::New { ty, arguments } => {
-                assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
-                    assert_path!(parser, *path, "Promise");
-                    assert_eq!(generic_arguments.len(), 1);
-                });
+            assert_node!(parser.tree, *parenthesized_expression, Expression::New { left, generic_arguments, arguments } => {
+                assert_value_expression_path!(parser, parser.tree.get(*left), "Promise");
+                assert_eq!(generic_arguments.len(), 1);
+
                 assert_eq!(arguments.len(), 1);
             });
         });
@@ -315,8 +317,8 @@ fn test_parse_new_constructor_call() {
     let expr_id = parser
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         .unwrap();
-    assert_node!(parser.tree, expr_id, Expression::New { ty, arguments } => {
-        assert_expression_path!(parser, parser.tree.get(*ty), "Foo");
+    assert_node!(parser.tree, expr_id, Expression::New { left, arguments, .. } => {
+        assert_value_expression_path!(parser, parser.tree.get(*left), "Foo");
         assert!(arguments.is_empty());
     });
 }

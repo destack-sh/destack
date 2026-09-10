@@ -1,7 +1,7 @@
 use crate::tests::TestParser;
 use crate::{
-    ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_path,
-    assert_string,
+    ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_string,
+    assert_value_expression_path,
 };
 use destack_dir::{
     BinaryOperator, Block, Declaration, Declarator, ExportKind, Expression, GenericArgument,
@@ -287,14 +287,13 @@ fn test_parse_new_type_arguments_with_spaces_in_statement() {
     let expression_id = parser.parse_statement();
 
     test.assert_no_errors(&parser);
-    assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
-        assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
-            assert_path!(parser, *path, "A");
-            assert_eq!(generic_arguments.len(), 1);
-            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                assert_expression_path!(parser, parser.tree.get(*value), "T");
-            });
+    assert_node!(parser.tree, expression_id, Expression::New { left, generic_arguments, arguments } => {
+        assert_value_expression_path!(parser, parser.tree.get(*left), "A");
+        assert_eq!(generic_arguments.len(), 1);
+        assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "T");
         });
+
         assert!(arguments.is_empty());
     });
 }

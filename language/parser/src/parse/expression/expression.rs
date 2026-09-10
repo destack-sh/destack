@@ -28,6 +28,8 @@ pub(crate) enum ExpressionPosition {
     Tree,
     /// Parse the operand of a `typeof` query.
     TypeQuery,
+    /// Parse a constructor operand before its argument list.
+    Constructor,
 }
 
 impl ExpressionPosition {
@@ -36,7 +38,7 @@ impl ExpressionPosition {
         match self {
             Self::Statement | Self::NestedStatement | Self::Block => Self::NestedStatement,
             Self::DecoratorHead | Self::DecoratorValue => Self::DecoratorValue,
-            Self::Value | Self::Tree | Self::TypeQuery => Self::Value,
+            Self::Value | Self::Tree | Self::TypeQuery | Self::Constructor => Self::Value,
         }
     }
 

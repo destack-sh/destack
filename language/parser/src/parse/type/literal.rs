@@ -47,15 +47,6 @@ impl Parser {
         TypeLiteral::from_sized_name(self.peek_token_str())
     }
 
-    /// Return an unambiguous intrinsic type literal in value space.
-    pub(crate) fn peek_intrinsic_type_literal(&self) -> Option<TypeLiteral> {
-        if !self.peek_is(TokenType::Identifier) {
-            return None;
-        }
-
-        self.peek_sized_type_literal()
-    }
-
     /// Return the type literal represented by the current token sequence.
     pub fn peek_type_literal(&self) -> Option<TypeLiteral> {
         // require identifier text

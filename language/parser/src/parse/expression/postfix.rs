@@ -80,6 +80,19 @@ impl Parser {
                 break;
             }
 
+            // leave the argument list and later postfixes to construction
+            if position == ExpressionPosition::Constructor
+                && !matches!(
+                    token_type,
+                    TokenType::Dot
+                        | TokenType::OpenBracket
+                        | TokenType::LessThan
+                        | TokenType::ShiftLeft
+                )
+            {
+                break;
+            }
+
             // classify newline ownership before dispatching the postfix
             let is_on_new_line = self.peek_is_on_new_line();
             let is_question_postfix =
@@ -226,12 +239,15 @@ impl Parser {
         position: ExpressionPosition,
         is_optional: bool,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if self.peek_is_on_new_line() || !self.peek_angle_group_expression_postfix() {
+        if self.peek_is_on_new_line()
+            || position != ExpressionPosition::Constructor
+                && !self.peek_angle_group_expression_postfix()
+        {
             return Ok(None);
         }
 
         let generic_arguments = self.parse_generic_argument_list(position)?;
-        if self.peek_is(TokenType::OpenParenthesis) {
+        if self.peek_is(TokenType::OpenParenthesis) && position != ExpressionPosition::Constructor {
             return self
                 .parse_call(
                     left,
