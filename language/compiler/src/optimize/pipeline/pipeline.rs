@@ -1,5 +1,5 @@
 use destack_artifact::{MirElaborated, MirOptimized};
-use destack_mir::{AnalysisCache, AnalysisOptions};
+use destack_mir::ModuleCache;
 
 use crate::CompilerResult;
 use crate::optimize::passes::{InsertSafepoints, InsertWriteBarriers};
@@ -25,8 +25,8 @@ pub(crate) fn optimize(elaborated: &MirElaborated) -> CompilerResult<MirOptimize
     };
 
     // execute module transformations and function groups
-    let options = AnalysisOptions::new(optimized.target);
-    let mut analyses = AnalysisCache::with_options(options);
+    let target_layout = optimized.target;
+    let mut analyses = ModuleCache::with_target_layout(target_layout);
     for step in STEPS {
         step.run(&mut optimized, &mut analyses)?;
     }

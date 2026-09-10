@@ -1,5 +1,5 @@
 use destack_artifact::MirOptimized;
-use destack_mir::{AnalysisCache, Function, Mutation};
+use destack_mir::{Function, ModuleCache, Mutation};
 
 use crate::CompilerResult;
 
@@ -19,7 +19,7 @@ impl Step<'_> {
     pub(super) fn run(
         &self,
         module: &mut MirOptimized,
-        analyses: &mut AnalysisCache,
+        analyses: &mut ModuleCache,
     ) -> CompilerResult<()> {
         // select the transformation scope
         match self {

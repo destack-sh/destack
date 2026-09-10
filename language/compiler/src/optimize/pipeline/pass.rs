@@ -1,5 +1,5 @@
 use destack_artifact::MirOptimized;
-use destack_mir::{AnalysisCache, FunctionCache, FunctionId, Mutation};
+use destack_mir::{FunctionCache, FunctionId, ModuleCache, Mutation};
 
 use crate::CompilerResult;
 
@@ -9,7 +9,7 @@ pub(crate) trait ModulePass: Send + Sync {
     fn run(
         &self,
         module: &mut MirOptimized,
-        analyses: &mut AnalysisCache,
+        analyses: &mut ModuleCache,
     ) -> CompilerResult<Mutation>;
 }
 
