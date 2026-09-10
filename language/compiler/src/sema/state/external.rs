@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirResolved, DirView};
+use destack_artifact::{ArtifactProjectionKey, DirResolved, DirView, ModuleGraph};
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -89,17 +89,20 @@ impl<'a> CheckState<'a> {
             return Ok(SmallVec::new());
         }
 
-        // read the graph's per interface projection, depending on that interface alone
-        let graph = self
+        // select implementations and track the interface projection
+        let symbols = self
             .artifacts
-            .module_graph_reader(self.profile)
+            .project::<ModuleGraph, _, _>(self.profile, |graph| {
+                let symbols = graph
+                    .interface_implementations(interface)
+                    .iter()
+                    .map(|implementation| (implementation.symbol, implementation.root))
+                    .collect::<SmallVec<[_; 4]>>();
+                let projection = ArtifactProjectionKey::ModuleGraphImplementations(interface);
+
+                (symbols, [projection])
+            })
             .map_err(CompilerError::from)?;
-        let symbols = graph
-            .interface_implementations(interface)
-            .map_err(CompilerError::from)?
-            .iter()
-            .map(|implementation| (implementation.symbol, implementation.root))
-            .collect::<SmallVec<[_; 4]>>();
 
         Ok(symbols)
     }
