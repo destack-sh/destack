@@ -454,11 +454,8 @@ impl FromStr for Intrinsic {
             "memory.ptr.copy" => Ok(Intrinsic::Memmove),
             "memory.ptr.copyNonOverlapping" => Ok(Intrinsic::Memcpy),
             "memory.ptr.writeBytes" => Ok(Intrinsic::Memset),
-            "memory.ptr.asReference" => Ok(Intrinsic::Transmute),
-            "memory.ptr.fromReference" => Ok(Intrinsic::Transmute),
             "memory.init.new" => Ok(Intrinsic::Transmute),
             "memory.init.assumeInit" => Ok(Intrinsic::Transmute),
-            "memory.init.asPointer" => Ok(Intrinsic::Transmute),
             "memory.init.assumeInitReference" => Ok(Intrinsic::Transmute),
             "collections.slice.intoUninit" => Ok(Intrinsic::Transmute),
             "memory.manuallyDrop.new" => Ok(Intrinsic::Transmute),
@@ -701,12 +698,9 @@ impl IntrinsicInstruction {
     pub fn from_name(name: &str) -> Option<Self> {
         let denoted = match name {
             "error.debug.breakpoint" => Self::Breakpoint,
-            "math.cast.int.truncate" => Self::Cast(CastOperator::Truncate),
-            "math.cast.int.saturate" => Self::Cast(CastOperator::Saturate),
-            // the target sign decides the operator, the lowering refines it
-            "math.cast.floatToInt.saturating" => {
-                Self::Cast(CastOperator::FloatToSignedIntSaturating)
-            }
+            "math.cast.int.truncate" => Self::Cast(CastOperator::IntToInt),
+            "math.cast.int.saturate" => Self::Cast(CastOperator::IntToIntSaturating),
+            "math.cast.floatToInt.saturating" => Self::Cast(CastOperator::FloatToIntSaturating),
             "collections.slice.fromRaw" => Self::SliceFromRaw,
             "collections.slice.get" => Self::SliceGet,
             "collections.slice.length" => Self::SliceLength,
@@ -728,6 +722,10 @@ impl IntrinsicInstruction {
             "memory.drop" => Self::Drop,
             "memory.ptr.swap" => Self::PointerSwap,
             "memory.ptr.dropInPlace" => Self::PointerDropInPlace,
+            "memory.ptr.asReference" => Self::Cast(CastOperator::PointerToReference),
+            "memory.ptr.fromReference" | "memory.init.asPointer" => {
+                Self::Cast(CastOperator::ReferenceToPointer)
+            }
             "sync.atomic.fence" => Self::AtomicFence,
             "sync.atomic.load" => Self::AtomicLoad,
             "sync.atomic.store" => Self::AtomicStore,

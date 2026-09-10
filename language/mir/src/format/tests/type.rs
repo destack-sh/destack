@@ -68,6 +68,8 @@ fn test_format_pointer_access() {
 function pointers(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, mutable>): ptr<int32, mutable> {
 entry(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, mutable>):
     v3: ptr<int32, mutable> = null
+    v4: ref<int32, managed, mutable, local> = cast.pointerToReference v1 -> ref<int32, managed, mutable, local>
+    v5: ptr<int32, mutable> = cast.referenceToPointer v4 -> ptr<int32, mutable>
     return v1
 }
 "#,

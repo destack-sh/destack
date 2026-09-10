@@ -1195,63 +1195,48 @@ impl Instruction {
     }
 }
 
-/// Kind of type cast.
+/// Scalar conversion operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum CastOperator {
-    /// Bitcast (reinterpret bits, same size).
+    /// Reinterpret bits at the same size.
     Bitcast,
-    /// Truncate integer to smaller width.
-    Truncate,
-    /// Clamp integer into the destination range.
-    Saturate,
-    /// Zero-extend integer to larger width.
-    ZeroExtend,
-    /// Sign-extend integer to larger width.
-    SignExtend,
-    /// Convert float to signed integer.
-    FloatToSignedInt,
-    /// Convert float to unsigned integer.
-    FloatToUnsignedInt,
-    /// Convert float to signed integer with saturation.
-    FloatToSignedIntSaturating,
-    /// Convert float to unsigned integer with saturation.
-    FloatToUnsignedIntSaturating,
-    /// Convert signed integer to float.
-    SignedIntToFloat,
-    /// Convert unsigned integer to float.
-    UnsignedIntToFloat,
-    /// Truncate float to smaller width.
-    FloatTruncate,
-    /// Extend float to larger width.
-    FloatExtend,
-    /// Convert float to another format at the same width.
-    FloatConvert,
-    /// Pointer to integer.
+    /// Convert integers, extending by source signedness or retaining low bits.
+    IntToInt,
+    /// Convert integers, clamping into the destination range.
+    IntToIntSaturating,
+    /// Convert an integer to a float, rounding to nearest with ties to even.
+    IntToFloat,
+    /// Convert a float to an integer, trapping on NaN or an out of range result.
+    FloatToInt,
+    /// Convert a float to an integer, clamping overflow and mapping NaN to zero.
+    FloatToIntSaturating,
+    /// Convert float formats, rounding to nearest with ties to even.
+    FloatToFloat,
+    /// Add the world memory base to a reference offset to obtain a native pointer.
+    ReferenceToPointer,
+    /// Subtract the world memory base from a native pointer to obtain a reference offset.
+    PointerToReference,
+    /// Convert a pointer to an integer.
     PointerToInt,
-    /// Integer to pointer.
+    /// Convert an integer to a pointer.
     IntToPointer,
 }
 
 impl CastOperator {
-    /// Text representation for formatting/parsing.
-    pub fn to_str(self) -> &'static str {
+    /// Return the MIR instruction name.
+    pub const fn to_str(self) -> &'static str {
         match self {
-            CastOperator::Bitcast => "cast.bit",
-            CastOperator::Truncate => "cast.truncate",
-            CastOperator::Saturate => "cast.saturate",
-            CastOperator::ZeroExtend => "cast.extend.u",
-            CastOperator::SignExtend => "cast.extend.s",
-            CastOperator::FloatToSignedInt => "cast.floatToInt.s",
-            CastOperator::FloatToUnsignedInt => "cast.floatToInt.u",
-            CastOperator::FloatToSignedIntSaturating => "cast.floatToIntSaturating.s",
-            CastOperator::FloatToUnsignedIntSaturating => "cast.floatToIntSaturating.u",
-            CastOperator::SignedIntToFloat => "cast.intToFloat.s",
-            CastOperator::UnsignedIntToFloat => "cast.intToFloat.u",
-            CastOperator::FloatTruncate => "cast.floatTruncate",
-            CastOperator::FloatExtend => "cast.floatExtend",
-            CastOperator::FloatConvert => "cast.floatConvert",
-            CastOperator::PointerToInt => "cast.pointerToInt",
-            CastOperator::IntToPointer => "cast.intToPointer",
+            Self::Bitcast => "cast.bit",
+            Self::IntToInt => "cast.intToInt",
+            Self::IntToIntSaturating => "cast.intToIntSaturating",
+            Self::IntToFloat => "cast.intToFloat",
+            Self::FloatToInt => "cast.floatToInt",
+            Self::FloatToIntSaturating => "cast.floatToIntSaturating",
+            Self::FloatToFloat => "cast.floatToFloat",
+            Self::ReferenceToPointer => "cast.referenceToPointer",
+            Self::PointerToReference => "cast.pointerToReference",
+            Self::PointerToInt => "cast.pointerToInt",
+            Self::IntToPointer => "cast.intToPointer",
         }
     }
 }
@@ -1267,22 +1252,17 @@ impl FromStr for CastOperator {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cast.bit" => Ok(CastOperator::Bitcast),
-            "cast.truncate" => Ok(CastOperator::Truncate),
-            "cast.saturate" => Ok(CastOperator::Saturate),
-            "cast.extend.u" => Ok(CastOperator::ZeroExtend),
-            "cast.extend.s" => Ok(CastOperator::SignExtend),
-            "cast.floatToInt.s" => Ok(CastOperator::FloatToSignedInt),
-            "cast.floatToInt.u" => Ok(CastOperator::FloatToUnsignedInt),
-            "cast.floatToIntSaturating.s" => Ok(CastOperator::FloatToSignedIntSaturating),
-            "cast.floatToIntSaturating.u" => Ok(CastOperator::FloatToUnsignedIntSaturating),
-            "cast.intToFloat.s" => Ok(CastOperator::SignedIntToFloat),
-            "cast.intToFloat.u" => Ok(CastOperator::UnsignedIntToFloat),
-            "cast.floatTruncate" => Ok(CastOperator::FloatTruncate),
-            "cast.floatExtend" => Ok(CastOperator::FloatExtend),
-            "cast.floatConvert" => Ok(CastOperator::FloatConvert),
-            "cast.pointerToInt" => Ok(CastOperator::PointerToInt),
-            "cast.intToPointer" => Ok(CastOperator::IntToPointer),
+            "cast.bit" => Ok(Self::Bitcast),
+            "cast.intToInt" => Ok(Self::IntToInt),
+            "cast.intToIntSaturating" => Ok(Self::IntToIntSaturating),
+            "cast.intToFloat" => Ok(Self::IntToFloat),
+            "cast.floatToInt" => Ok(Self::FloatToInt),
+            "cast.floatToIntSaturating" => Ok(Self::FloatToIntSaturating),
+            "cast.floatToFloat" => Ok(Self::FloatToFloat),
+            "cast.referenceToPointer" => Ok(Self::ReferenceToPointer),
+            "cast.pointerToReference" => Ok(Self::PointerToReference),
+            "cast.pointerToInt" => Ok(Self::PointerToInt),
+            "cast.intToPointer" => Ok(Self::IntToPointer),
             _ => Err(()),
         }
     }

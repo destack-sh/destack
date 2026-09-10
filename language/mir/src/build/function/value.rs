@@ -223,21 +223,6 @@ impl<'a> FunctionBuilder<'a> {
         self.cast(CastOperator::Bitcast, argument, to_type)
     }
 
-    /// Truncate integer to smaller width.
-    pub fn trunc(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
-        self.cast(CastOperator::Truncate, argument, to_type)
-    }
-
-    /// Zero-extend integer to larger width.
-    pub fn zext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
-        self.cast(CastOperator::ZeroExtend, argument, to_type)
-    }
-
-    /// Sign-extend integer to larger width.
-    pub fn sext(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
-        self.cast(CastOperator::SignExtend, argument, to_type)
-    }
-
     // instruction builders: selection
 
     /// Select between two values based on a boolean condition.

@@ -95,7 +95,7 @@ entry(v0: int32, v1: int32, v2: boolean, v3: float64):
     v6: int32 = negate v5
     v7: int32 = not v6
     v8: float64 = negate v3
-    v9: int64 = cast.extend.s v7 -> int64
+    v9: int64 = cast.intToInt v7 -> int64
     v10: float64 = intrinsic.math.float.sqrt(v3)
     v11: float64 = intrinsic.math.float.min(v8, v3)
     v12: float64 = intrinsic.math.float.fma(v8, v3, v11)
