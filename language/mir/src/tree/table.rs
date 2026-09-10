@@ -23,6 +23,27 @@ impl<N: Node, T> NodeTable<N, T> {
         }
     }
 
+    /// Create a table from values paired with their node ids.
+    pub(crate) fn from_entries(mut entries: Vec<(LocalNodeId<N>, T)>) -> Self {
+        // sort entries and reject duplicate node ids
+        entries.sort_unstable_by_key(|(node, _)| node.id);
+        if entries
+            .windows(2)
+            .any(|entries| entries[0].0 == entries[1].0)
+        {
+            unreachable!("duplicate node in table");
+        }
+
+        // store node ids and their values in parallel arrays
+        let (nodes, values) = entries.into_iter().unzip();
+
+        Self {
+            nodes,
+            values,
+            domain: PhantomData,
+        }
+    }
+
     /// Create a table covering one node set.
     pub(crate) fn from_nodes(nodes: &[LocalNodeId<N>], mut value: impl FnMut() -> T) -> Self {
         let mut nodes = nodes.to_vec();

@@ -1,0 +1,30 @@
+use std::sync::Arc;
+
+use crate::{
+    Analysis, DefinitionTable, DominatorTable, Function, LoopTable, Mutation, TargetLayout, Tree,
+};
+
+/// Symbolic scalar recurrences and loop exit counts.
+#[derive(Debug)]
+pub struct ScalarEvolution {}
+
+impl ScalarEvolution {
+    /// Construct scalar evolution for one function.
+    pub fn analyse(
+        _function: &Function,
+        _definitions: Arc<DefinitionTable>,
+        _dominators: Arc<DominatorTable>,
+        _loops: Arc<LoopTable>,
+        _target_layout: TargetLayout,
+        _tree: &Tree,
+    ) -> Self {
+        todo!("TODO #Incomplete: implement ScalarEvolution")
+    }
+}
+
+impl Analysis for ScalarEvolution {
+    const INVALIDATED_BY: Mutation = DefinitionTable::INVALIDATED_BY
+        .union(DominatorTable::INVALIDATED_BY)
+        .union(LoopTable::INVALIDATED_BY)
+        .union(Mutation::LAYOUT);
+}
