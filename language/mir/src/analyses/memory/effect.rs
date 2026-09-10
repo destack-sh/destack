@@ -633,7 +633,7 @@ impl<'a> MemoryEffectBuilder<'a> {
         // use callsite or callee tables for memory effects
         let call_entries = self.effect_table.call(callsite);
         let mut memory_effects = call_entries
-            .map(|tables| tables.memory.clone())
+            .and_then(|tables| tables.memory.clone())
             .or_else(|| self.callee_memory_effects(direct_target));
 
         // treat missing tables as fully unknown

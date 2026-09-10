@@ -1643,7 +1643,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
         let callsite = mir::Point::Instruction(call_inst);
-        test.effects.upsert_call(callsite).memory = mir::MemoryEffect::none();
+        test.effects.upsert_call(callsite).memory = Some(mir::MemoryEffect::none());
 
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();

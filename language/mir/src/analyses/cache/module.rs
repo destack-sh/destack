@@ -77,24 +77,24 @@ impl AnalysisCache {
         &self.options
     }
 
-    /// Return the call graph, computing it when required.
+    /// Return the call graph, analysing it when required.
     pub fn call(&mut self, tree: &mir::Tree, dispatch: &mir::DispatchTable) -> Arc<CallTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.call {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let resolution = self.resolution(tree, dispatch);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(CallTable::analyse(&resolution, tree));
         self.call = Some(result.clone());
 
         result
     }
 
-    /// Return resolved callees, computing them when required.
+    /// Return resolved callees, analysing them when required.
     pub fn resolution(
         &mut self,
         tree: &mir::Tree,
@@ -105,14 +105,14 @@ impl AnalysisCache {
             return result.clone();
         }
 
-        // compute and cache the result
-        let result = Arc::new(ResolutionTable::analyse(dispatch, tree));
+        // analyse and cache the result
+        let result = Arc::new(ResolutionTable::analyse(dispatch, None, tree));
         self.resolution = Some(result.clone());
 
         result
     }
 
-    /// Return function effects, computing them when required.
+    /// Return function effects, analysing them when required.
     pub fn effect(
         &mut self,
         tree: &mir::Tree,
@@ -125,11 +125,11 @@ impl AnalysisCache {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let resolution = self.resolution(tree, dispatch);
         let calls = self.call(tree, dispatch);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(EffectTable::analyse(
             &resolution,
             &calls,
@@ -142,7 +142,7 @@ impl AnalysisCache {
         result
     }
 
-    /// Return symbol references, computing them when required.
+    /// Return symbol references, analysing them when required.
     pub fn link(
         &mut self,
         tree: &mir::Tree,
@@ -155,17 +155,17 @@ impl AnalysisCache {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let calls = self.call(tree, dispatch);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(LinkTable::analyse(&calls, effects, drops, tree));
         self.link = Some(result.clone());
 
         result
     }
 
-    /// Return global accesses, computing them when required.
+    /// Return global accesses, analysing them when required.
     pub fn globals(
         &mut self,
         tree: &mir::Tree,
@@ -182,7 +182,7 @@ impl AnalysisCache {
         let calls = self.call(tree, dispatch);
         let effects = self.effect(tree, accesses, effects, dispatch);
 
-        // compute and cache the global accesses
+        // analyse and cache the global accesses
         let result = Arc::new(GlobalAccessTable::analyse(&calls, &effects, tree));
         self.globals = Some(result.clone());
 
@@ -223,14 +223,21 @@ impl AnalysisCache {
     );
 
     /// Return allocation escape results for the module.
-    pub fn escape(&mut self, tree: &mir::Tree) -> Arc<EscapeTable> {
+    pub fn escape(
+        &mut self,
+        tree: &mir::Tree,
+        effects: &mir::EffectTable,
+        dispatch: &mir::DispatchTable,
+    ) -> Arc<EscapeTable> {
         // reuse results while the function bodies remain unchanged
         if let Some(result) = &self.escape {
             return result.clone();
         }
 
-        // compute and cache the module's escape results
-        let result = Arc::new(EscapeTable::analyse(tree));
+        // analyse and cache the module's escape results
+        let resolution = self.resolution(tree, dispatch);
+        let calls = self.call(tree, dispatch);
+        let result = Arc::new(EscapeTable::analyse(&resolution, &calls, effects, tree));
         self.escape = Some(result.clone());
 
         result
@@ -252,12 +259,7 @@ impl AnalysisCache {
     );
     function_analysis_through_module!(moves, MoveTable, "Return function move paths.");
     function_analysis_through_module!(place, PlaceTable, "Return function canonical places.");
-    function_analysis_through_module!(
-        origin,
-        OriginTable,
-        "Return function borrow origin.",
-        resolution: &mir::ResolutionTable
-    );
+    function_analysis_through_module!(origin, OriginTable, "Return function borrow origin.");
     function_analysis_through_module!(
         postdominator,
         PostdominatorTable,
@@ -369,11 +371,6 @@ impl AnalysisCache {
 
         // invalidate function analyses that consume changed module results
         for (_, analyses) in &mut self.functions {
-            // invalidate borrow origins after dispatch resolution changes
-            if resolution_changed {
-                analyses.origin = None;
-            }
-
             // invalidate memory versions after function effects change
             if effects_changed {
                 analyses.accesses = None;
@@ -516,7 +513,7 @@ entry:
         let mut cache = AnalysisCache::new();
         let control = cache.control(function, &test.tree);
         let resolution = cache.resolution(&test.tree, &test.dispatch);
-        let origin = cache.origin(function, &test.tree, &resolution);
+        let origin = cache.origin(function, &test.tree);
         let calls = cache.call(&test.tree, &test.dispatch);
         let effects = cache.effect(&test.tree, &test.accesses, &test.effects, &test.dispatch);
 
@@ -524,10 +521,7 @@ entry:
         cache.invalidate(Mutation::DISPATCH);
         let new_resolution = cache.resolution(&test.tree, &test.dispatch);
         assert!(!Arc::ptr_eq(&resolution, &new_resolution));
-        assert!(!Arc::ptr_eq(
-            &origin,
-            &cache.origin(function, &test.tree, &new_resolution)
-        ));
+        assert!(Arc::ptr_eq(&origin, &cache.origin(function, &test.tree)));
         assert!(!Arc::ptr_eq(
             &calls,
             &cache.call(&test.tree, &test.dispatch)

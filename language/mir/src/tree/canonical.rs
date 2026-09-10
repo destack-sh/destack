@@ -134,7 +134,7 @@ impl Tree {
     }
 
     /// Return the direct child types of one node, including struct field types.
-    fn child_type_ids(&self, id: TypeId) -> Vec<TypeId> {
+    pub fn child_type_ids(&self, id: TypeId) -> Vec<TypeId> {
         let mut children = Vec::new();
         match self.get(id) {
             // read struct children through their field nodes

@@ -76,12 +76,10 @@ impl WitnessTable {
     }
 
     /// Return the witness recording how one type implements one interface.
-    pub fn get(&self, tree: &mut Tree, concrete: TypeId, constraint: TypeId) -> Option<&Witness> {
-        let concrete = erase_regions(tree, concrete);
-        let constraint = erase_regions(tree, constraint);
-
-        self.witnesses
-            .iter()
-            .find(|witness| witness.concrete == concrete && witness.constraint == constraint)
+    pub fn get(&self, tree: &Tree, concrete: TypeId, constraint: TypeId) -> Option<&Witness> {
+        self.witnesses.iter().find(|witness| {
+            tree.types_equal(witness.concrete, concrete)
+                && tree.types_equal(witness.constraint, constraint)
+        })
     }
 }

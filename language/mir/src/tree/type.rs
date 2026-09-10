@@ -824,6 +824,15 @@ impl Type {
         let mut erased = self.clone();
         erased.set_lifetime(Lifetime::empty());
 
+        // erase explicit region arguments on a type application
+        if let Type::Application { arguments, .. } = &mut erased {
+            for argument in arguments {
+                if let GenericArgument::Region { lifetime, .. } = argument {
+                    *lifetime = Lifetime::empty();
+                }
+            }
+        }
+
         erased
     }
 

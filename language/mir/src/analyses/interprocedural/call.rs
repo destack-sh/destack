@@ -24,10 +24,8 @@ pub struct CallTable {
     open_offsets: Vec<u32>,
     /// Open callsites grouped by caller.
     open_callsites: Vec<OpenCallSite>,
-    /// Component id by dense function id.
-    function_component: Vec<u32>,
-    /// Components that are recursive.
-    recursive_components: BitSet,
+    /// Recursive components in callee first order.
+    components: CallComponentGraph,
 }
 
 /// Directed edge in the call graph.
@@ -80,19 +78,12 @@ impl CallTable {
     pub fn component(&self, function_id: mir::LocalNodeId<mir::Function>) -> usize {
         let function = self.function_index(function_id);
 
-        self.function_component
-            .get(function)
-            .map(|component| *component as usize)
-            .unwrap_or_else(|| unreachable!("function outside call table: {function_id:?}"))
+        self.components.component(function) as usize
     }
 
     /// Return true when a component is recursive.
     pub fn is_recursive_component(&self, component: usize) -> bool {
-        if component >= self.recursive_components.len() {
-            unreachable!("component outside call table: {component}");
-        }
-
-        self.recursive_components.contains(component)
+        self.components.recursive.contains(component)
     }
 
     /// Return true when the function is part of a recursive component.
@@ -110,158 +101,100 @@ impl CallTable {
             .collect::<Vec<_>>();
         functions.sort_unstable();
 
-        let mut outgoing = Vec::new();
-        let mut incoming = Vec::new();
-        let mut open_callsites = Vec::new();
-
-        // scan each function for callsites
-        for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-            // skip functions without bodies
-            if function.entry().is_none() {
-                continue;
-            }
-
-            for block_id in function.blocks() {
-                let block = tree.get(*block_id);
-                let terminator = tree.get(block.terminator);
-
-                for &instruction_id in &block.instructions {
-                    let instruction = tree.get(instruction_id);
-
-                    let Some(callsite) = ScannedCallSite::from_instruction(
-                        function_id,
-                        instruction_id,
-                        instruction,
-                        resolution,
-                    ) else {
-                        continue;
-                    };
-
-                    Self::record_call(callsite, &mut outgoing, &mut incoming, &mut open_callsites);
-                }
-
-                if let Some(callsite) =
-                    ScannedCallSite::from_terminator(function_id, *block_id, terminator, resolution)
-                {
-                    Self::record_call(callsite, &mut outgoing, &mut incoming, &mut open_callsites);
-                }
-            }
-        }
-
-        // group every relation by its indexed function
-        outgoing.sort_unstable_by_key(|edge| (edge.caller.get(), edge.callsite, edge.callee.get()));
-        incoming.sort_unstable_by_key(|edge| (edge.callee.get(), edge.callsite, edge.caller.get()));
-        open_callsites.sort_unstable_by_key(|callsite| (callsite.caller.get(), callsite.callsite));
-
-        let outgoing_offsets = Self::offsets(&functions, &outgoing, |edge| edge.caller);
-        let incoming_offsets = Self::offsets(&functions, &incoming, |edge| edge.callee);
-        let open_offsets = Self::offsets(&functions, &open_callsites, |callsite| callsite.caller);
-
-        let mut graph = Self {
+        // collect outgoing edges and unresolved calls in one table
+        let mut result = Self {
             functions,
-            outgoing_offsets,
-            outgoing,
-            incoming_offsets,
-            incoming,
-            open_offsets,
-            open_callsites,
-            function_component: Vec::new(),
-            recursive_components: BitSet::new(0),
+            outgoing: Vec::new(),
+            incoming: Vec::new(),
+            open_callsites: Vec::new(),
+            outgoing_offsets: Vec::new(),
+            incoming_offsets: Vec::new(),
+            open_offsets: Vec::new(),
+            components: CallComponentGraph::default(),
         };
-        graph.build_components();
+        for (caller, function) in tree.iter_nodes::<mir::Function>() {
+            for &block_id in function.blocks() {
+                let block = tree.get(block_id);
+                for &instruction in &block.instructions {
+                    if let Some(dispatch) = tree.get(instruction).call_dispatch() {
+                        let point = mir::Point::Instruction(instruction);
+                        result.record_call(caller, point, dispatch, resolution.resolution(point));
+                    }
+                }
 
-        graph
+                // include invokes and tail calls at block exits
+                if let Some(dispatch) = tree.get(block.terminator).call_dispatch() {
+                    let point = mir::Point::Terminator(block_id);
+                    result.record_call(caller, point, dispatch, resolution.resolution(point));
+                }
+            }
+        }
+
+        // group outgoing and incoming edges by their indexed functions
+        result
+            .outgoing
+            .sort_unstable_by_key(|edge| (edge.caller, edge.callsite, edge.callee));
+        result.incoming = result.outgoing.clone();
+        result
+            .incoming
+            .sort_unstable_by_key(|edge| (edge.callee, edge.callsite, edge.caller));
+        result
+            .open_callsites
+            .sort_unstable_by_key(|callsite| (callsite.caller, callsite.callsite));
+        result.outgoing_offsets =
+            Self::offsets(&result.functions, &result.outgoing, |edge| edge.caller);
+        result.incoming_offsets =
+            Self::offsets(&result.functions, &result.incoming, |edge| edge.callee);
+        result.open_offsets =
+            Self::offsets(&result.functions, &result.open_callsites, |callsite| {
+                callsite.caller
+            });
+
+        // find recursive components using the outgoing edge ranges
+        let targets = result
+            .outgoing
+            .iter()
+            .map(|edge| result.function_index(edge.callee) as u32)
+            .collect::<Vec<_>>();
+        result.components = CallComponentGraph::analyse(&result.outgoing_offsets, &targets);
+
+        result
     }
 
-    /// Record one observed call.
+    /// Record known callees and unresolved alternatives at one callsite.
     fn record_call(
-        callsite: ScannedCallSite,
-        outgoing: &mut Vec<CallEdge>,
-        incoming: &mut Vec<CallEdge>,
-        open_callsites: &mut Vec<OpenCallSite>,
+        &mut self,
+        caller: mir::FunctionId,
+        callsite: mir::Point,
+        dispatch: mir::CallDispatch,
+        resolution: &mir::Resolution,
     ) {
-        // record resolved edges when a target is known
-        if let Some(callee) = callsite.known_target {
-            let edge = CallEdge {
-                caller: callsite.caller,
+        // add an edge for each known callee
+        self.outgoing
+            .extend(resolution.functions.iter().map(|&callee| CallEdge {
+                caller,
                 callee,
-                callsite: callsite.callsite,
-                dispatch: callsite.dispatch,
-            };
+                callsite,
+                dispatch,
+            }));
 
-            outgoing.push(edge);
-            incoming.push(edge);
-
-            return;
+        // retain calls that can select an additional target
+        if resolution.is_open {
+            self.open_callsites.push(OpenCallSite {
+                caller,
+                callsite,
+                dispatch,
+            });
         }
-
-        // record open callsites
-        let open_callsite = OpenCallSite {
-            caller: callsite.caller,
-            callsite: callsite.callsite,
-            dispatch: callsite.dispatch,
-        };
-
-        open_callsites.push(open_callsite);
     }
 
-    /// Build recursion components from closed call edges.
-    fn build_components(&mut self) {
-        let function_count = self.functions.len();
-
-        // count closed call edges per function
-        let mut edge_offsets = vec![0u32; function_count + 1];
-        for (source, &function_id) in self.functions.iter().enumerate() {
-            let count = self.outgoing(function_id).len();
-            edge_offsets[source + 1] = count as u32;
-        }
-
-        // prefix sum edge counts into CSR offsets
-        for source in 0..function_count {
-            edge_offsets[source + 1] += edge_offsets[source];
-        }
-
-        // copy closed call targets into dense edge storage
-        let mut edge_targets = Vec::with_capacity(edge_offsets[function_count] as usize);
-        for &function_id in &self.functions {
-            for edge in self.outgoing(function_id) {
-                let target = Self::index(&self.functions, edge.callee);
-                edge_targets.push(target as u32);
-            }
-        }
-
-        // partition the closed call graph
-        let graph = DenseGraph::new(&edge_offsets, &edge_targets);
-        let partition = graph.strongly_connected_components();
-
-        // count component sizes to identify multi-function cycles
-        let component_count = partition.component_count() as usize;
-        let mut component_sizes = vec![0usize; component_count];
-        for component in partition.components() {
-            component_sizes[*component as usize] += 1;
-        }
-
-        // map each function to its component
-        self.function_component = vec![0; function_count];
-        self.recursive_components = BitSet::new(component_count);
-        for function in 0..function_count {
-            let component = partition.component(function) as usize;
-            self.function_component[function] = component as u32;
-        }
-
-        // mark recursive components from cycles or direct self-calls
-        for (function, &function_id) in self.functions.iter().enumerate() {
-            let component = partition.component(function) as usize;
-            let is_cycle = component_sizes[component] > 1;
-            let is_self_call = self
-                .outgoing(function_id)
+    /// Iterate call components in callee first order.
+    pub fn components(&self) -> impl Iterator<Item = impl Iterator<Item = mir::FunctionId> + '_> {
+        self.components.components().map(|members| {
+            members
                 .iter()
-                .any(|edge| edge.callee == function_id);
-
-            if is_cycle || is_self_call {
-                self.recursive_components.insert(component);
-            }
-        }
+                .map(|&function| self.functions[function as usize])
+        })
     }
 
     /// Build dense offsets for entries sorted by function id.
@@ -322,6 +255,11 @@ pub struct CallComponentGraph {
     component: Vec<u32>,
     /// Whether each component contains a cycle, by component id.
     recursive: BitSet,
+
+    /// First member offset for each component and the final member count.
+    offsets: Vec<u32>,
+    /// Dense node indices grouped by component.
+    nodes: Vec<u32>,
 }
 
 impl CallComponentGraph {
@@ -350,10 +288,40 @@ impl CallComponentGraph {
             }
         }
 
+        // group nodes by Tarjan's callee first component order
+        let mut offsets = vec![0; count + 1];
+        for component in 0..count {
+            offsets[component + 1] = offsets[component] + sizes[component];
+        }
+        let mut cursors = offsets[..count].to_vec();
+        let mut nodes = vec![0; graph.node_count()];
+        for node in 0..graph.node_count() {
+            let component = partition.component(node) as usize;
+            nodes[cursors[component] as usize] = node as u32;
+            cursors[component] += 1;
+        }
+
         Self {
             component: partition.components().to_vec(),
             recursive,
+            offsets,
+            nodes,
         }
+    }
+
+    /// Return the dense function indices in one recursive component.
+    pub fn members(&self, component: usize) -> &[u32] {
+        let start = self.offsets[component] as usize;
+        let end = self.offsets[component + 1] as usize;
+
+        &self.nodes[start..end]
+    }
+
+    /// Iterate components in callee first order and their nodes in dense index order.
+    pub fn components(&self) -> impl ExactSizeIterator<Item = &[u32]> {
+        self.offsets
+            .windows(2)
+            .map(|range| &self.nodes[range[0] as usize..range[1] as usize])
     }
 
     /// Return the component id of a symbol by dense id.
@@ -373,74 +341,18 @@ impl CallComponentGraph {
 
     /// Return whether there are no components.
     pub fn is_empty(&self) -> bool {
-        self.recursive.is_empty()
-    }
-}
-
-/// Callsite scanned during call graph construction.
-struct ScannedCallSite {
-    /// The caller function id.
-    caller: mir::LocalNodeId<mir::Function>,
-    /// The callsite identity.
-    callsite: mir::Point,
-    /// Dispatch for the callsite.
-    dispatch: mir::CallDispatch,
-    /// Resolved target when known.
-    known_target: Option<mir::LocalNodeId<mir::Function>>,
-}
-
-impl ScannedCallSite {
-    /// Build a callsite from an instruction when it represents a call.
-    fn from_instruction(
-        caller: mir::LocalNodeId<mir::Function>,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
-        instruction: &mir::Instruction,
-        resolution: &ResolutionTable,
-    ) -> Option<Self> {
-        let dispatch = instruction.call_dispatch()?;
-        let callsite = mir::Point::Instruction(instruction_id);
-        let known_target = instruction
-            .call_direct_target()
-            .or_else(|| resolution.target(callsite));
-
-        Some(Self {
-            caller,
-            callsite,
-            dispatch,
-            known_target,
-        })
-    }
-
-    /// Build a callsite from a terminator when it represents a call.
-    fn from_terminator(
-        caller: mir::LocalNodeId<mir::Function>,
-        block_id: mir::LocalNodeId<mir::Block>,
-        terminator: &mir::Terminator,
-        resolution: &ResolutionTable,
-    ) -> Option<Self> {
-        let callsite = mir::Point::Terminator(block_id);
-        let dispatch = terminator.call_dispatch()?;
-        let known_target = terminator
-            .call_direct_target()
-            .or_else(|| resolution.target(callsite));
-
-        Some(Self {
-            caller,
-            callsite,
-            dispatch,
-            known_target,
-        })
+        self.component.is_empty()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::analyses::tests::TestModule;
+    use crate::{CallDispatch, CallEdge, OpenCallSite, Point};
 
     /// Direct calls create edges in the call graph.
     #[test]
-    fn test_call_graph_direct_call() {
+    fn test_record_direct_calls() {
         let test = TestModule::new(
             r#"
 function callee(): int32 {
@@ -463,20 +375,32 @@ entry:
         let mut analyses = test.module_analyses();
         let calls = analyses.call(&test.tree, &test.dispatch);
 
-        let outgoing = calls.outgoing(test_id);
-        let incoming = calls.incoming(callee_id);
+        let entry = test.tree.get(test.tree.get(test_id).block(0));
+        let edge = CallEdge {
+            caller: test_id,
+            callee: callee_id,
+            callsite: Point::Instruction(entry.instructions[0]),
+            dispatch: CallDispatch::Direct,
+        };
 
-        assert_eq!(outgoing.len(), 1);
-        assert_eq!(incoming.len(), 1);
-        assert_eq!(outgoing[0].dispatch, mir::CallDispatch::Direct);
-        assert_eq!(outgoing[0].callee, callee_id);
-        assert_eq!(incoming[0].caller, test_id);
+        assert_eq!(calls.outgoing(test_id), &[edge]);
+        assert_eq!(calls.incoming(callee_id), &[edge]);
         assert!(calls.open_callsites(test_id).is_empty());
+
+        // visit the callee before its caller when neither function recurses
+        let components = calls
+            .components()
+            .map(|members| members.collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        assert_eq!(components, vec![vec![callee_id], vec![test_id]]);
+        assert!(!calls.components.is_empty());
+        assert!(!calls.is_recursive_function(callee_id));
+        assert!(!calls.is_recursive_function(test_id));
     }
 
     /// Call graph components detect recursive functions.
     #[test]
-    fn test_call_graph_component_recursion() {
+    fn test_identify_recursive_components() {
         let test = TestModule::new(
             r#"
 function alpha(): void {
@@ -504,23 +428,39 @@ entry:
 "#,
         );
 
-        let a_id = test.function_id_by_name("alpha");
-        let b_id = test.function_id_by_name("beta");
-        let c_id = test.function_id_by_name("gamma");
-        let d_id = test.function_id_by_name("delta");
+        let alpha = test.function_id_by_name("alpha");
+        let beta = test.function_id_by_name("beta");
+        let gamma = test.function_id_by_name("gamma");
+        let delta = test.function_id_by_name("delta");
 
         let mut analyses = test.module_analyses();
         let calls = analyses.call(&test.tree, &test.dispatch);
 
-        assert!(calls.is_recursive_function(a_id));
-        assert!(calls.is_recursive_function(b_id));
-        assert!(calls.is_recursive_function(c_id));
-        assert!(!calls.is_recursive_function(d_id));
+        let components = calls
+            .components()
+            .map(|members| members.collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            components,
+            vec![vec![alpha, beta], vec![gamma], vec![delta]]
+        );
+        assert_eq!(
+            [alpha, beta, gamma, delta].map(|function| calls.is_recursive_function(function)),
+            [true, true, true, false]
+        );
+        assert_eq!(
+            [alpha, beta, gamma, delta].map(|function| calls
+                .outgoing(function)
+                .iter()
+                .map(|edge| edge.callee)
+                .collect::<Vec<_>>()),
+            [vec![beta], vec![alpha], vec![gamma], vec![]]
+        );
     }
 
     /// Indirect calls without tables stay open.
     #[test]
-    fn test_call_graph_indirect_open() {
+    fn test_record_open_indirect_calls() {
         let test = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
@@ -536,17 +476,22 @@ entry(v0: fn(int32) => int32, v1: int32):
         let mut analyses = test.module_analyses();
         let calls = analyses.call(&test.tree, &test.dispatch);
 
+        let entry = test.tree.get(test.tree.get(test_id).block(0));
+
         assert!(calls.outgoing(test_id).is_empty());
-        assert_eq!(calls.open_callsites(test_id).len(), 1);
         assert_eq!(
-            calls.open_callsites(test_id)[0].dispatch,
-            mir::CallDispatch::Indirect
+            calls.open_callsites(test_id),
+            &[OpenCallSite {
+                caller: test_id,
+                callsite: Point::Instruction(entry.instructions[0]),
+                dispatch: CallDispatch::Indirect,
+            }]
         );
     }
 
     /// Tail calls are tracked as call edges.
     #[test]
-    fn test_call_graph_tailcall_direct() {
+    fn test_record_direct_tail_calls() {
         let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
@@ -567,15 +512,22 @@ entry(v0: int32):
         let mut analyses = test.module_analyses();
         let calls = analyses.call(&test.tree, &test.dispatch);
 
-        let outgoing = calls.outgoing(test_id);
-        assert_eq!(outgoing.len(), 1);
-        assert_eq!(outgoing[0].callee, callee_id);
-        assert!(matches!(outgoing[0].callsite, mir::Point::Terminator(_)));
+        let entry = test.tree.get(test_id).block(0);
+
+        assert_eq!(
+            calls.outgoing(test_id),
+            &[CallEdge {
+                caller: test_id,
+                callee: callee_id,
+                callsite: Point::Terminator(entry),
+                dispatch: CallDispatch::Direct,
+            }]
+        );
     }
 
-    /// Tailcall.indirect remains open without tables.
+    /// Preserve unresolved targets for indirect tail calls.
     #[test]
-    fn test_call_graph_tailcall_indirect_open() {
+    fn test_record_open_indirect_tail_calls() {
         let test = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
@@ -590,18 +542,21 @@ entry(v0: fn(int32) => int32, v1: int32):
         let mut analyses = test.module_analyses();
         let calls = analyses.call(&test.tree, &test.dispatch);
 
-        let open_callsite = calls.open_callsites(test_id);
-        assert_eq!(open_callsite.len(), 1);
-        assert_eq!(open_callsite[0].dispatch, mir::CallDispatch::Indirect);
-        assert!(matches!(
-            open_callsite[0].callsite,
-            mir::Point::Terminator(_)
-        ));
+        let entry = test.tree.get(test_id).block(0);
+
+        assert_eq!(
+            calls.open_callsites(test_id),
+            &[OpenCallSite {
+                caller: test_id,
+                callsite: Point::Terminator(entry),
+                dispatch: CallDispatch::Indirect,
+            }]
+        );
     }
 
-    /// Call.indirect remains open without a known target.
+    /// Preserve unresolved targets beside unreferenced functions.
     #[test]
-    fn test_call_graph_call_indirect_open() {
+    fn test_preserve_open_calls_beside_unreferenced_functions() {
         let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
@@ -622,14 +577,25 @@ entry(v0: fn(int32) => int32, v1: int32):
         let mut analyses = test.module_analyses();
         let calls = analyses.call(&test.tree, &test.dispatch);
 
-        let open_callsite = calls.open_callsites(test_id);
-        assert_eq!(open_callsite.len(), 1);
-        assert_eq!(open_callsite[0].dispatch, mir::CallDispatch::Indirect);
+        let entry = test.tree.get(test.tree.get(test_id).block(0));
+
+        assert_eq!(
+            calls.open_callsites(test_id),
+            &[OpenCallSite {
+                caller: test_id,
+                callsite: Point::Instruction(entry.instructions[0]),
+                dispatch: CallDispatch::Indirect,
+            }]
+        );
+        let callee = test.function_id_by_name("callee");
+        assert_eq!(calls.outgoing(test_id), &[]);
+        assert_eq!(calls.incoming(callee), &[]);
+        assert_eq!(calls.outgoing(callee), &[]);
     }
 
     /// Direct invokes produce precise call edges.
     #[test]
-    fn test_call_graph_invoke_direct() {
+    fn test_record_direct_invokes() {
         let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
@@ -656,11 +622,17 @@ b2:
         let mut analyses = test.module_analyses();
         let calls = analyses.call(&test.tree, &test.dispatch);
 
-        let outgoing = calls.outgoing(test_id);
-        assert_eq!(outgoing.len(), 1);
-        assert_eq!(outgoing[0].callee, callee_id);
-        assert_eq!(outgoing[0].dispatch, mir::CallDispatch::Direct);
-        assert!(matches!(outgoing[0].callsite, mir::Point::Terminator(_)));
+        let entry = test.tree.get(test_id).block(0);
+
+        assert_eq!(
+            calls.outgoing(test_id),
+            &[CallEdge {
+                caller: test_id,
+                callee: callee_id,
+                callsite: Point::Terminator(entry),
+                dispatch: CallDispatch::Direct,
+            }]
+        );
         assert!(calls.open_callsites(test_id).is_empty());
     }
 }

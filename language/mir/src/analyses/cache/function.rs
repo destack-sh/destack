@@ -85,19 +85,19 @@ impl FunctionCache {
         self.options.target_layout
     }
 
-    /// Return alias relationships, computing them when required.
+    /// Return alias relationships, analysing them when required.
     pub fn alias(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<AliasTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.alias {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let definitions = self.definition(function, tree);
         let constants = self.constant(function, tree);
         let places = self.place(function, tree);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(AliasTable::analyse(
             function,
             &definitions,
@@ -111,17 +111,17 @@ impl FunctionCache {
         result
     }
 
-    /// Return known constants, computing them when required.
+    /// Return known constants, analysing them when required.
     pub fn constant(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<ConstantTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.constant {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let control = self.control(function, tree);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(ConstantTable::analyse(
             function,
             &control,
@@ -133,21 +133,21 @@ impl FunctionCache {
         result
     }
 
-    /// Return the control-flow graph, computing it when required.
+    /// Return the control-flow graph, analysing it when required.
     pub fn control(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<ControlTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.control {
             return result.clone();
         }
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(ControlTable::analyse(function, tree));
         self.control = Some(result.clone());
 
         result
     }
 
-    /// Return value definitions, computing them when required.
+    /// Return value definitions, analysing them when required.
     pub fn definition(
         &mut self,
         function: &mir::Function,
@@ -158,24 +158,24 @@ impl FunctionCache {
             return result.clone();
         }
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(DefinitionTable::analyse(function, tree));
         self.definition = Some(result.clone());
 
         result
     }
 
-    /// Return dominators, computing them when required.
+    /// Return dominators, analysing them when required.
     pub fn dominator(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<DominatorTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.dominator {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let control = self.control(function, tree);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(DominatorTable::analyse(control));
         self.dominator = Some(result.clone());
 
@@ -210,21 +210,21 @@ impl FunctionCache {
         self.evolution.insert(evolution)
     }
 
-    /// Return value liveness, computing it when required.
+    /// Return value liveness, analysing it when required.
     pub fn liveness(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<LivenessTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.liveness {
             return result.clone();
         }
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(LivenessTable::analyse(function, tree));
         self.liveness = Some(result.clone());
 
         result
     }
 
-    /// Return move-path initialization, computing it when required.
+    /// Return move-path initialization, analysing it when required.
     pub fn initialization(
         &mut self,
         function: &mir::Function,
@@ -235,12 +235,12 @@ impl FunctionCache {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let control = self.control(function, tree);
         let paths = self.moves(function, tree);
         let places = self.place(function, tree);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(InitializationTable::analyse(
             function, &control, paths, places, tree,
         ));
@@ -249,19 +249,19 @@ impl FunctionCache {
         result
     }
 
-    /// Return loops, computing them when required.
+    /// Return loops, analysing them when required.
     pub fn loops(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<LoopTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.loops {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let control = self.control(function, tree);
         let dominators = self.dominator(function, tree);
 
-        // compute and cache the result
-        let result = Arc::new(LoopTable::analyse(function, &control, &dominators, tree));
+        // analyse and cache the result
+        let result = Arc::new(LoopTable::analyse(function, &control, &dominators));
         self.loops = Some(result.clone());
 
         result
@@ -328,24 +328,24 @@ impl FunctionCache {
         result
     }
 
-    /// Return move paths, computing them when required.
+    /// Return move paths, analysing them when required.
     pub fn moves(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<MoveTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.moves {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let places = self.place(function, tree);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(MoveTable::analyse(function, &places, tree));
         self.moves = Some(result.clone());
 
         result
     }
 
-    /// Return canonical places, computing them when required.
+    /// Return canonical places, analysing them when required.
     pub fn place(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<PlaceTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.place {
@@ -355,39 +355,32 @@ impl FunctionCache {
         // reuse the function control graph
         let control = self.control(function, tree);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(PlaceTable::analyse(function, &control, tree));
         self.place = Some(result.clone());
 
         result
     }
 
-    /// Return borrow origins, computing them when required.
-    pub fn origin(
-        &mut self,
-        function: &mir::Function,
-        tree: &mir::Tree,
-        resolution: &mir::ResolutionTable,
-    ) -> Arc<OriginTable> {
+    /// Return borrow origins, analysing them when required.
+    pub fn origin(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<OriginTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.origin {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let control = self.control(function, tree);
         let places = self.place(function, tree);
 
-        // compute and cache the result
-        let result = Arc::new(OriginTable::analyse(
-            function, &control, &places, resolution, tree,
-        ));
+        // analyse and cache the result
+        let result = Arc::new(OriginTable::analyse(function, &control, &places, tree));
         self.origin = Some(result.clone());
 
         result
     }
 
-    /// Return postdominators, computing them when required.
+    /// Return postdominators, analysing them when required.
     pub fn postdominator(
         &mut self,
         function: &mir::Function,
@@ -398,24 +391,24 @@ impl FunctionCache {
             return result.clone();
         }
 
-        // compute the required analyses
+        // analyse the required inputs
         let control = self.control(function, tree);
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(PostdominatorTable::analyse(control));
         self.postdominator = Some(result.clone());
 
         result
     }
 
-    /// Return value uses, computing them when required.
+    /// Return value uses, analysing them when required.
     pub fn uses(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<UseTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.uses {
             return result.clone();
         }
 
-        // compute and cache the result
+        // analyse and cache the result
         let result = Arc::new(UseTable::analyse(function, tree));
         self.uses = Some(result.clone());
 

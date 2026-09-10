@@ -37,28 +37,6 @@ pub enum Projection {
     Deref,
 }
 
-impl Projection {
-    /// Replace value references inside this projection.
-    fn replace_value(&mut self, from: Value, to: Value) {
-        match self {
-            Self::Field { .. } | Self::Element { .. } | Self::Variant { .. } | Self::Deref => {}
-            Self::Index { index } => {
-                if *index == from {
-                    *index = to;
-                }
-            }
-            Self::Slice { start, length } => {
-                if *start == from {
-                    *start = to;
-                }
-                if *length == from {
-                    *length = to;
-                }
-            }
-        }
-    }
-}
-
 /// A rootless path through a MIR value or type shape.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub struct Path {
@@ -126,11 +104,26 @@ impl Path {
         Some(Self { projections })
     }
 
+    /// Map each value reference inside this path.
+    pub fn map_values(&mut self, mut map: impl FnMut(Value) -> Value) {
+        for projection in &mut self.projections {
+            match projection {
+                Projection::Index { index } => *index = map(*index),
+                Projection::Slice { start, length } => {
+                    *start = map(*start);
+                    *length = map(*length);
+                }
+                Projection::Field { .. }
+                | Projection::Element { .. }
+                | Projection::Variant { .. }
+                | Projection::Deref => {}
+            }
+        }
+    }
+
     /// Replace value references inside this path.
     pub fn replace_value(&mut self, from: Value, to: Value) {
-        for projection in &mut self.projections {
-            projection.replace_value(from, to);
-        }
+        self.map_values(|value| if value == from { to } else { value });
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{GenericArgument, Lifetime, Tree, Type, TypeId};
+use crate::{Tree, TypeId};
 
 /// Intern one type with every region erased, an identified declaration kept as it is.
 pub fn erase_regions(tree: &mut Tree, ty: TypeId) -> TypeId {
@@ -8,15 +8,7 @@ pub fn erase_regions(tree: &mut Tree, ty: TypeId) -> TypeId {
     }
 
     // erase the region written on the type and on its region arguments
-    let mut erased = tree.get(ty).clone();
-    erased.set_lifetime(Lifetime::empty());
-    if let Type::Application { arguments, .. } = &mut erased {
-        for argument in arguments.iter_mut() {
-            if let GenericArgument::Region { lifetime, .. } = argument {
-                *lifetime = Lifetime::empty();
-            }
-        }
-    }
+    let mut erased = tree.get(ty).erased_lifetime();
 
     // erase every child type
     let mut children = Vec::new();

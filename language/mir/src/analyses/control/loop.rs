@@ -1,4 +1,4 @@
-use destack_core::{FxIndexMap, FxIndexSet};
+use destack_core::{DenseGraph, FxIndexSet};
 
 use crate as mir;
 
@@ -15,22 +15,24 @@ pub struct LoopTable {
     header_to_loop: NodeTable<mir::Block, Option<usize>>,
     /// Innermost loop index for each block.
     block_to_loop: NodeTable<mir::Block, Option<usize>>,
+    /// Whether each block belongs to a cycle after removing natural backedges.
+    irreducible: NodeTable<mir::Block, bool>,
 }
 
 /// One natural loop in a MIR function.
 #[derive(Debug, Clone)]
 pub struct Loop {
     /// The loop header.
-    pub header: mir::LocalNodeId<mir::Block>,
+    pub header: mir::BlockId,
     /// The back edge sources.
-    pub latches: Vec<mir::LocalNodeId<mir::Block>>,
+    pub latches: Vec<mir::BlockId>,
     /// All blocks in the loop body, including the header.
-    pub blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
+    pub blocks: FxIndexSet<mir::BlockId>,
 
     /// The blocks with outgoing loop exits.
-    pub exiting_blocks: Vec<mir::LocalNodeId<mir::Block>>,
+    pub exiting_blocks: Vec<mir::BlockId>,
     /// The blocks reached by loop exits.
-    pub exit_blocks: Vec<mir::LocalNodeId<mir::Block>>,
+    pub exit_blocks: Vec<mir::BlockId>,
 
     /// Parent loop index, if this is a nested loop.
     pub parent: Option<usize>,
@@ -44,107 +46,121 @@ impl Loop {
         self.latches.len() == 1
     }
 
-    /// Return whether the loop has one exiting block.
+    /// Return whether the loop has one exit destination.
     pub fn has_single_exit(&self) -> bool {
-        self.exiting_blocks.len() == 1
+        self.exit_blocks.len() == 1
     }
 
     /// Return whether a block is inside this loop.
-    pub fn contains(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
+    pub fn contains(&self, block: mir::BlockId) -> bool {
         self.blocks.contains(&block)
     }
 }
 
 impl LoopTable {
-    /// Build loop analysis from dominator information.
+    /// Analyse natural loops from reachable backedges and dominators.
     pub fn analyse(
         function: &mir::Function,
-        cfg: &ControlTable,
-        dominator: &DominatorTable,
-        tree: &mir::Tree,
+        graph: &ControlTable,
+        dominators: &DominatorTable,
     ) -> Self {
-        // handle functions without bodies (imports)
+        // return empty tables for imported functions
         if function.entry().is_none() {
             return Self {
                 loops: Vec::new(),
                 header_to_loop: NodeTable::new(),
                 block_to_loop: NodeTable::new(),
+                irreducible: NodeTable::new(),
             };
         }
 
-        // collect back edges grouped by header
-        let back_edges_by_header = Self::find_back_edges(function, tree, dominator);
+        // build natural loops from each header's backedges
+        let (mut loops, header_to_loop) = Self::build_loops(function, graph, dominators);
 
-        // build loop structures from back edges
-        let (mut loops, header_to_loop) =
-            Self::build_loops(function, back_edges_by_header, tree, cfg, dominator);
-
-        // establish parent/child relationships and compute depths
-        Self::compute_nesting(&mut loops, &header_to_loop, dominator);
+        // set parent relationships and nesting depths
+        Self::build_nesting(&mut loops, &header_to_loop, dominators);
 
         // map each block to its innermost containing loop
         let block_to_loop = Self::build_block_map(function.blocks(), &loops);
+        let irreducible = Self::find_irreducible(function, graph, dominators);
 
         Self {
             loops,
             header_to_loop,
             block_to_loop,
+            irreducible,
         }
     }
 
-    /// Find all back edges grouped by their target (header).
-    fn find_back_edges(
+    /// Identify cycles that remain after removing natural loop backedges.
+    fn find_irreducible(
         function: &mir::Function,
-        tree: &mir::Tree,
-        dominator: &DominatorTable,
-    ) -> FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
-        let mut back_edges: FxIndexMap<
-            mir::LocalNodeId<mir::Block>,
-            Vec<mir::LocalNodeId<mir::Block>>,
-        > = FxIndexMap::default();
+        graph: &ControlTable,
+        dominators: &DominatorTable,
+    ) -> NodeTable<mir::Block, bool> {
+        let blocks = function.blocks();
+        let indices = NodeTable::from_entries(
+            blocks
+                .iter()
+                .enumerate()
+                .map(|(index, &block)| (block, index as u32))
+                .collect(),
+        );
+        let mut offsets = vec![0];
+        let mut targets = Vec::new();
 
-        for &block_id in function.blocks() {
-            let block = tree.get(block_id);
-            let terminator = tree.get(block.terminator);
-
-            // check each outgoing edge
-            for successor in terminator.successors(tree) {
-                // back edge: successor dominates the current block
-                if dominator.dominates(successor, block_id) {
-                    back_edges.entry(successor).or_default().push(block_id);
+        // retain reachable edges that do not return to a dominating header
+        for &block in blocks {
+            if graph.is_reachable(block) {
+                for successor in graph.successors(block) {
+                    if !dominators.dominates(successor, block) {
+                        targets.push(*indices.get(successor));
+                    }
                 }
             }
+            offsets.push(targets.len() as u32);
         }
 
-        back_edges
+        // mark the remaining cyclic components
+        let remaining = DenseGraph::new(&offsets, &targets);
+        let components = remaining.strongly_connected_components();
+        let mut sizes = vec![0; components.component_count() as usize];
+        for &component in components.components() {
+            sizes[component as usize] += 1;
+        }
+        let entries = blocks
+            .iter()
+            .enumerate()
+            .map(|(index, &block)| (block, sizes[components.component(index) as usize] > 1));
+
+        NodeTable::from_entries(entries.collect())
     }
 
-    /// Build loop structures from back edges.
+    /// Return whether a block belongs to a cycle that has no dominating loop header.
+    pub fn is_irreducible(&self, block: mir::BlockId) -> bool {
+        *self.irreducible.get(block)
+    }
+
+    /// Collect natural loops and index them by header.
     fn build_loops(
         function: &mir::Function,
-        back_edges_by_header: FxIndexMap<
-            mir::LocalNodeId<mir::Block>,
-            Vec<mir::LocalNodeId<mir::Block>>,
-        >,
-        tree: &mir::Tree,
-        cfg: &ControlTable,
-        dominator: &DominatorTable,
+        graph: &ControlTable,
+        dominators: &DominatorTable,
     ) -> (Vec<Loop>, NodeTable<mir::Block, Option<usize>>) {
+        // collect the latches of each reachable header
         let mut loops = Vec::new();
-        let mut header_to_loop = NodeTable::from_nodes(function.blocks(), || None);
+        for header in graph.reachable_blocks() {
+            let latches = graph
+                .predecessors(header)
+                .filter(|&predecessor| dominators.dominates(header, predecessor))
+                .collect::<Vec<_>>();
+            if latches.is_empty() {
+                continue;
+            }
 
-        // sort by header block ID for deterministic iteration order
-        let mut sorted_entries: Vec<_> = back_edges_by_header.into_iter().collect();
-        sorted_entries.sort_by_key(|(header, _)| *header);
-
-        for (header, latches) in sorted_entries {
-            // compute loop body via reverse reachability from latches
-            let blocks = Self::compute_loop_body(header, &latches, cfg, dominator);
-
-            // find exiting blocks and exit blocks
-            let (exiting_blocks, exit_blocks) = Self::compute_exits(&blocks, tree);
-
-            let loop_index = loops.len();
+            // collect the body and exits of this natural loop
+            let blocks = Self::collect_blocks(header, &latches, graph, dominators);
+            let (exiting_blocks, exit_blocks) = Self::collect_exits(&blocks, graph);
             loops.push(Loop {
                 header,
                 latches,
@@ -154,39 +170,38 @@ impl LoopTable {
                 parent: None,
                 depth: 0,
             });
-            *header_to_loop.get_mut(header) = Some(loop_index);
+        }
+
+        // preserve header order independently of control flow traversal
+        loops.sort_unstable_by_key(|natural_loop| natural_loop.header);
+        let mut header_to_loop = NodeTable::from_nodes(function.blocks(), || None);
+        for (index, natural_loop) in loops.iter().enumerate() {
+            *header_to_loop.get_mut(natural_loop.header) = Some(index);
         }
 
         (loops, header_to_loop)
     }
 
-    /// Compute a loop body from its latches.
-    fn compute_loop_body(
-        header: mir::LocalNodeId<mir::Block>,
-        latches: &[mir::LocalNodeId<mir::Block>],
-        cfg: &ControlTable,
-        dominator: &DominatorTable,
-    ) -> FxIndexSet<mir::LocalNodeId<mir::Block>> {
-        let mut body = FxIndexSet::default();
-        body.insert(header);
-
-        let mut worklist: Vec<mir::LocalNodeId<mir::Block>> = Vec::new();
-
-        // seed with latch blocks
+    /// Collect a loop body from its latches.
+    fn collect_blocks(
+        header: mir::BlockId,
+        latches: &[mir::BlockId],
+        graph: &ControlTable,
+        dominators: &DominatorTable,
+    ) -> FxIndexSet<mir::BlockId> {
+        // start with the header and its distinct latches
+        let mut body = FxIndexSet::from_iter([header]);
+        let mut worklist = Vec::new();
         for &latch in latches {
             if body.insert(latch) {
                 worklist.push(latch);
             }
         }
 
-        // reverse DFS: add predecessors that aren't the header
+        // collect dominated predecessors until the walk returns to the header
         while let Some(block) = worklist.pop() {
-            for predecessor in cfg.predecessors(block) {
-                if !dominator.dominates(header, predecessor) {
-                    continue;
-                }
-
-                if body.insert(predecessor) {
+            for predecessor in graph.predecessors(block) {
+                if dominators.dominates(header, predecessor) && body.insert(predecessor) {
                     worklist.push(predecessor);
                 }
             }
@@ -196,22 +211,17 @@ impl LoopTable {
     }
 
     /// Find exiting blocks and exit blocks for a loop.
-    fn compute_exits(
-        body: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
-        tree: &mir::Tree,
-    ) -> (
-        Vec<mir::LocalNodeId<mir::Block>>,
-        Vec<mir::LocalNodeId<mir::Block>>,
-    ) {
+    fn collect_exits(
+        body: &FxIndexSet<mir::BlockId>,
+        graph: &ControlTable,
+    ) -> (Vec<mir::BlockId>, Vec<mir::BlockId>) {
         let mut exiting_blocks = Vec::new();
         let mut exit_blocks_set = FxIndexSet::default();
 
         for &block_id in body {
-            let block = tree.get(block_id);
-            let terminator = tree.get(block.terminator);
             let mut is_exiting = false;
 
-            for successor in terminator.successors(tree) {
+            for successor in graph.successors(block_id) {
                 if !body.contains(&successor) {
                     exit_blocks_set.insert(successor);
                     is_exiting = true;
@@ -231,20 +241,20 @@ impl LoopTable {
         (exiting_blocks, exit_blocks)
     }
 
-    /// Compute parent relationships and nesting depths.
-    fn compute_nesting(
+    /// Set parent relationships and nesting depths.
+    fn build_nesting(
         loops: &mut [Loop],
         header_to_loop: &NodeTable<mir::Block, Option<usize>>,
-        dominator: &DominatorTable,
+        dominators: &DominatorTable,
     ) {
         let loop_count = loops.len();
 
-        // find parent for each loop by walking up dominator tree
+        // find each loop's parent through the dominator tree
         for i in 0..loop_count {
             let header = loops[i].header;
 
             // walk up immediate dominators to find containing loop
-            let mut current = dominator.immediate_dominator(header);
+            let mut current = dominators.immediate_dominator(header);
             while let Some(block) = current {
                 if let Some(parent_index) = *header_to_loop.get(block) {
                     // verify the header is actually in the parent's body
@@ -253,11 +263,11 @@ impl LoopTable {
                         break;
                     }
                 }
-                current = dominator.immediate_dominator(block);
+                current = dominators.immediate_dominator(block);
             }
         }
 
-        // compute depths from parent chain
+        // count each loop's ancestors
         for i in 0..loop_count {
             let mut depth = 0u32;
             let mut current = loops[i].parent;
@@ -273,19 +283,17 @@ impl LoopTable {
 
     /// Build mapping from blocks to their innermost containing loop.
     fn build_block_map(
-        blocks: &[mir::LocalNodeId<mir::Block>],
+        blocks: &[mir::BlockId],
         loops: &[Loop],
     ) -> NodeTable<mir::Block, Option<usize>> {
-        let mut block_to_loop = NodeTable::from_nodes(blocks, || None);
+        let mut block_to_loop = NodeTable::from_nodes(blocks, || None::<usize>);
 
-        // process deepest loops first so innermost wins
-        let mut indices: Vec<usize> = (0..loops.len()).collect();
-        indices.sort_by_key(|&i| std::cmp::Reverse(loops[i].depth));
-
-        for index in indices {
-            for &block in &loops[index].blocks {
-                if block_to_loop.get(block).is_none() {
-                    *block_to_loop.get_mut(block) = Some(index);
+        // retain the deepest containing loop for each block
+        for (index, natural_loop) in loops.iter().enumerate() {
+            for &block in &natural_loop.blocks {
+                let current = block_to_loop.get_mut(block);
+                if current.is_none_or(|current| loops[current].depth < natural_loop.depth) {
+                    *current = Some(index);
                 }
             }
         }
@@ -304,26 +312,26 @@ impl LoopTable {
     }
 
     /// Return whether a block is a loop header.
-    pub fn is_loop_header(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
+    pub fn is_loop_header(&self, block: mir::BlockId) -> bool {
         self.header_to_loop.get(block).is_some()
     }
 
     /// Return the loop with one header.
-    pub fn header_loop(&self, header: mir::LocalNodeId<mir::Block>) -> Option<&Loop> {
+    pub fn header_loop(&self, header: mir::BlockId) -> Option<&Loop> {
         let index = (*self.header_to_loop.get(header))?;
 
         Some(&self.loops[index])
     }
 
     /// Return the innermost loop containing one block.
-    pub fn innermost_loop(&self, block: mir::LocalNodeId<mir::Block>) -> Option<&Loop> {
+    pub fn innermost_loop(&self, block: mir::BlockId) -> Option<&Loop> {
         let index = (*self.block_to_loop.get(block))?;
 
         Some(&self.loops[index])
     }
 
     /// Return the nesting depth for one block.
-    pub fn loop_depth(&self, block: mir::LocalNodeId<mir::Block>) -> u32 {
+    pub fn loop_depth(&self, block: mir::BlockId) -> u32 {
         if let Some(index) = *self.block_to_loop.get(block) {
             self.loops[index].depth + 1
         } else {
@@ -332,13 +340,15 @@ impl LoopTable {
     }
 
     /// Return whether a block is inside any loop.
-    pub fn is_in_loop(&self, block: mir::LocalNodeId<mir::Block>) -> bool {
+    pub fn is_in_loop(&self, block: mir::BlockId) -> bool {
         self.block_to_loop.get(block).is_some()
     }
 
     /// Iterate over loops at a specific nesting depth.
     pub fn loops_at_depth(&self, depth: u32) -> impl Iterator<Item = &Loop> {
-        self.loops.iter().filter(move |lp| lp.depth == depth)
+        self.loops
+            .iter()
+            .filter(move |natural_loop| natural_loop.depth == depth)
     }
 
     /// Iterate over top-level (outermost) loops.
@@ -351,7 +361,7 @@ impl LoopTable {
         self.loops
             .iter()
             .enumerate()
-            .filter(move |(_, lp)| lp.parent == Some(loop_index))
+            .filter(move |(_, natural_loop)| natural_loop.parent == Some(loop_index))
     }
 
     /// Return one loop by index.
@@ -360,7 +370,7 @@ impl LoopTable {
     }
 
     /// Return the loop index for one header.
-    pub fn loop_index(&self, header: mir::LocalNodeId<mir::Block>) -> Option<usize> {
+    pub fn loop_index(&self, header: mir::BlockId) -> Option<usize> {
         *self.header_to_loop.get(header)
     }
 }
@@ -389,24 +399,30 @@ b1:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 1);
 
-        let lp = &analysis.loops()[0];
-        assert_eq!(lp.header, function.block(0));
-        assert_eq!(lp.latches.len(), 1);
-        assert_eq!(lp.blocks.len(), 1);
-        assert_eq!(lp.depth, 0);
-        assert!(lp.has_single_latch());
+        let natural_loop = &analysis.loops()[0];
+        assert_eq!(natural_loop.header, function.block(0));
+        assert_eq!(natural_loop.latches, vec![function.block(0)]);
+        assert_eq!(
+            natural_loop.blocks,
+            FxIndexSet::from_iter([function.block(0)])
+        );
+        assert_eq!(natural_loop.exiting_blocks, vec![function.block(0)]);
+        assert_eq!(natural_loop.exit_blocks, vec![function.block(1)]);
+        assert_eq!(natural_loop.parent, None);
+        assert_eq!(natural_loop.depth, 0);
+        assert!(natural_loop.has_single_latch());
     }
 
     /// Self-loop with an outside predecessor does not pull the predecessor into the loop body.
     #[test]
-    fn test_self_loop_excludes_predecessor() {
+    fn test_exclude_predecessor_from_self_loop() {
         let test = TestModule::new(
             r#"
 function selfLoopEntry(v0: boolean): void {
@@ -422,7 +438,7 @@ b2:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
@@ -432,9 +448,14 @@ b2:
         let block0 = function.block(0);
         let block1 = function.block(1);
 
-        let lp = analysis.header_loop(block1).unwrap();
-        assert!(lp.contains(block1));
-        assert!(!lp.contains(block0));
+        let natural_loop = analysis.header_loop(block1).unwrap();
+        assert_eq!(natural_loop.blocks, FxIndexSet::from_iter([block1]));
+        assert_eq!(
+            analysis
+                .innermost_loop(block0)
+                .map(|natural_loop| natural_loop.header),
+            None
+        );
     }
 
     /// While-style loop with separate header and latch is detected.
@@ -458,7 +479,7 @@ b3:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
@@ -468,18 +489,16 @@ b3:
         let block1 = function.block(1);
         let block2 = function.block(2);
 
-        let lp = analysis.header_loop(block1).unwrap();
+        let natural_loop = analysis.header_loop(block1).unwrap();
 
-        // block1 is header, block2 is latch
-        assert_eq!(lp.header, block1);
-        assert_eq!(lp.latches, vec![block2]);
-        assert!(lp.blocks.contains(&block1));
-        assert!(lp.blocks.contains(&block2));
-        assert_eq!(lp.blocks.len(), 2);
+        // identify the header and latch
+        assert_eq!(natural_loop.header, block1);
+        assert_eq!(natural_loop.latches, vec![block2]);
+        assert_eq!(natural_loop.blocks, FxIndexSet::from_iter([block1, block2]));
 
-        // block1 is the exiting block (branches to block3)
-        assert_eq!(lp.exiting_blocks, vec![block1]);
-        assert!(lp.has_single_exit());
+        // identify the block that exits the loop
+        assert_eq!(natural_loop.exiting_blocks, vec![block1]);
+        assert!(natural_loop.has_single_exit());
     }
 
     /// Nested loops have correct parent relationships and depths.
@@ -506,7 +525,7 @@ b4:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
@@ -521,23 +540,22 @@ b4:
         let inner = analysis.header_loop(block2).unwrap();
 
         // outer loop
-        assert!(outer.parent.is_none());
+        assert_eq!(outer.parent, None);
         assert_eq!(outer.depth, 0);
-        assert!(outer.contains(block1));
-        assert!(outer.contains(block2));
-        assert!(outer.contains(block3));
+        assert_eq!(
+            outer.blocks,
+            FxIndexSet::from_iter([block1, block2, block3])
+        );
 
         // inner loop
-        assert!(inner.parent.is_some());
+        assert_eq!(inner.parent, analysis.loop_index(block1));
         assert_eq!(inner.depth, 1);
-        assert!(inner.contains(block2));
-        assert!(inner.contains(block3));
-        assert!(!inner.contains(block1));
+        assert_eq!(inner.blocks, FxIndexSet::from_iter([block2, block3]));
     }
 
     /// Loop depth query returns correct values.
     #[test]
-    fn test_compute_loop_depth() {
+    fn test_measure_loop_depth() {
         let test = TestModule::new(
             r#"
 function depth(v0: boolean): void {
@@ -556,7 +574,7 @@ b3:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
@@ -566,19 +584,42 @@ b3:
         let block2 = function.block(2);
         let block3 = function.block(3);
 
-        // blocks outside loops have depth 0
+        // assign depth zero outside loops
         assert_eq!(analysis.loop_depth(block0), 0);
         assert_eq!(analysis.loop_depth(block3), 0);
         assert!(!analysis.is_in_loop(block0));
         assert!(!analysis.is_in_loop(block3));
 
-        // block1 is in outer loop only (depth 1)
+        // count the outer loop around block1
         assert_eq!(analysis.loop_depth(block1), 1);
         assert!(analysis.is_in_loop(block1));
 
-        // block2 is in nested loop (depth 2)
+        // count both loops around block2
         assert_eq!(analysis.loop_depth(block2), 2);
         assert!(analysis.is_in_loop(block2));
+
+        // identify each innermost loop and the direct nesting relationship
+        assert_eq!(
+            [block0, block1, block2, block3].map(|block| analysis
+                .innermost_loop(block)
+                .map(|natural_loop| natural_loop.header)),
+            [None, Some(block1), Some(block2), None],
+        );
+        let outer = analysis.loop_index(block1).unwrap();
+        assert_eq!(
+            analysis
+                .child_loops(outer)
+                .map(|(_, natural_loop)| natural_loop.header)
+                .collect::<Vec<_>>(),
+            vec![block2]
+        );
+        assert_eq!(
+            analysis
+                .top_level_loops()
+                .map(|natural_loop| natural_loop.header)
+                .collect::<Vec<_>>(),
+            vec![block1]
+        );
     }
 
     /// Function without loops returns empty analysis.
@@ -602,7 +643,7 @@ b3:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
@@ -637,22 +678,29 @@ b3:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 1);
 
-        let lp = &analysis.loops()[0];
-        assert_eq!(lp.header, function.block(1));
-        assert_eq!(lp.latches.len(), 2);
-        assert!(!lp.has_single_latch());
+        let natural_loop = &analysis.loops()[0];
+        assert_eq!(natural_loop.header, function.block(1));
+        assert_eq!(
+            natural_loop.latches,
+            vec![function.block(2), function.block(3)]
+        );
+        assert_eq!(
+            natural_loop.blocks,
+            FxIndexSet::from_iter([function.block(1), function.block(2), function.block(3)])
+        );
+        assert!(!natural_loop.has_single_latch());
     }
 
     /// Exiting blocks and exit blocks are computed correctly.
     #[test]
-    fn test_compute_exit_info() {
+    fn test_identify_loop_exits() {
         let test = TestModule::new(
             r#"
 function exits(v0: boolean, v1: boolean): void {
@@ -674,68 +722,26 @@ b4:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
         assert_eq!(analysis.num_loops(), 1);
 
-        let lp = &analysis.loops()[0];
+        let natural_loop = &analysis.loops()[0];
         let block1 = function.block(1);
         let block2 = function.block(2);
         let block3 = function.block(3);
         let block4 = function.block(4);
 
-        // two exiting blocks: block1 and block2
-        assert_eq!(lp.exiting_blocks.len(), 2);
-        assert!(lp.exiting_blocks.contains(&block1));
-        assert!(lp.exiting_blocks.contains(&block2));
+        // identify both blocks that exit the loop
+        assert_eq!(natural_loop.exiting_blocks, vec![block1, block2]);
 
-        // two exit blocks: block3 and block4
-        assert_eq!(lp.exit_blocks.len(), 2);
-        assert!(lp.exit_blocks.contains(&block3));
-        assert!(lp.exit_blocks.contains(&block4));
+        // identify both destinations outside the loop
+        assert_eq!(natural_loop.exit_blocks, vec![block3, block4]);
 
-        assert!(!lp.has_single_exit());
-    }
-
-    /// Innermost loop is returned for blocks in nested loops.
-    #[test]
-    fn test_return_innermost_loop() {
-        let test = TestModule::new(
-            r#"
-function innermost(v0: boolean): void {
-entry(v0: boolean):
-    jump b1(v0)
-
-b1(v1: boolean):
-    branch v1 => b2(v1) | b3
-
-b2(v2: boolean):
-    branch v2 => b2(v2) | b1(v2)
-
-b3:
-    return
-}
-"#,
-        );
-
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
-
-        let block1 = function.block(1);
-        let block2 = function.block(2);
-
-        // block2's innermost loop has block2 as header
-        let inner = analysis.innermost_loop(block2).unwrap();
-        assert_eq!(inner.header, block2);
-
-        // block1's innermost loop has block1 as header
-        let outer = analysis.innermost_loop(block1).unwrap();
-        assert_eq!(outer.header, block1);
+        assert!(!natural_loop.has_single_exit());
     }
 
     /// Top-level loops iterator returns only outermost loops.
@@ -759,48 +765,126 @@ b3:
 "#,
         );
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
         let analysis = analyses.loops(function, &test.tree);
 
-        let top_level: Vec<_> = analysis.top_level_loops().collect();
-        assert_eq!(top_level.len(), 2);
-        assert!(top_level.iter().all(|lp| lp.depth == 0));
-        assert!(top_level.iter().all(|lp| lp.parent.is_none()));
+        let top_level = analysis
+            .top_level_loops()
+            .map(|natural_loop| (natural_loop.header, natural_loop.depth, natural_loop.parent))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            top_level,
+            [(function.block(1), 0, None), (function.block(2), 0, None)]
+        );
     }
 
-    /// Child loops iterator returns direct children only.
+    /// Count a latch once when both branches return to the loop header.
     #[test]
-    fn test_iterate_child_loops() {
-        let test = TestModule::new(
+    fn test_deduplicate_latches() {
+        let program = TestModule::new(
             r#"
-function parentChild(v0: boolean, v1: boolean): void {
+function test(v0: boolean): void {
+entry(v0: boolean):
+    jump header
+
+header:
+    jump latch
+
+latch:
+    branch v0 => header | header
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let table = analyses.loops(function, &program.tree);
+        let header = function.block(1);
+        let latch = function.block(2);
+        let natural_loop = table.header_loop(header).expect("loop header");
+
+        assert_eq!(table.num_loops(), 1);
+        assert_eq!(natural_loop.latches, vec![latch]);
+        assert_eq!(natural_loop.blocks, FxIndexSet::from_iter([header, latch]));
+        assert_eq!(natural_loop.exiting_blocks, vec![]);
+        assert_eq!(natural_loop.exit_blocks, vec![]);
+        assert!(natural_loop.has_single_latch());
+    }
+
+    /// Recognize one exit destination reached from two different loop blocks.
+    #[test]
+    fn test_distinguish_exiting_blocks_from_exit_blocks() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
-    jump b1(v0, v1)
+    jump header
 
-b1(v2: boolean, v3: boolean):
-    branch v2 => b2(v3) | b3
+header:
+    branch v0 => latch | exit
 
-b2(v4: boolean):
-    branch v4 => b2(v4) | b1(v2, v4)
+latch:
+    branch v1 => header | exit
 
-b3:
+exit:
     return
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let table = analyses.loops(function, &program.tree);
+        let header = function.block(1);
+        let latch = function.block(2);
+        let exit = function.block(3);
+        let natural_loop = table.header_loop(header).expect("loop header");
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        assert_eq!(natural_loop.exiting_blocks, vec![header, latch]);
+        assert_eq!(natural_loop.exit_blocks, vec![exit]);
+        assert!(natural_loop.has_single_exit());
+    }
 
-        let block1 = function.block(1);
-        let outer_index = analysis.loop_index(block1).unwrap();
+    /// Exclude irreducible cycles from the natural loop forest.
+    #[test]
+    fn test_exclude_irreducible_cycles() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean): void {
+entry(v0: boolean):
+    branch v0 => left | right
 
-        let children: Vec<_> = analysis.child_loops(outer_index).collect();
-        assert_eq!(children.len(), 1);
-        assert_eq!(children[0].1.depth, 1);
+left:
+    jump right
+
+right:
+    branch v0 => left | exit
+
+exit:
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let table = analyses.loops(function, &program.tree);
+
+        assert!(table.loops().is_empty());
+        assert_eq!(
+            function
+                .blocks()
+                .iter()
+                .map(|&block| table.is_irreducible(block))
+                .collect::<Vec<_>>(),
+            vec![false, true, true, false]
+        );
+        assert_eq!(
+            function
+                .blocks()
+                .iter()
+                .map(|&block| table.loop_depth(block))
+                .collect::<Vec<_>>(),
+            vec![0, 0, 0, 0]
+        );
     }
 }

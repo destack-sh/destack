@@ -42,7 +42,7 @@ impl ValueUse {
 }
 
 impl UseTable {
-    /// Build operand uses for one function.
+    /// Analyse every operand occurrence in one function.
     pub fn analyse(function: &mir::Function, tree: &mir::Tree) -> Self {
         let value_count = function.value_capacity();
         let mut counts = vec![0u32; value_count];
@@ -210,6 +210,24 @@ b1(v4: int32):
         let entry_block = tree.get(entry);
         let exit = function.block(1);
 
+        // include the remaining instruction operands in the expected use table
+        assert_eq!(
+            uses.uses(mir::Value(0)),
+            &[ValueUse::Instruction {
+                block: entry,
+                instruction: entry_block.instructions[0],
+                index: 0,
+            }]
+        );
+        assert_eq!(
+            uses.uses(mir::Value(2)),
+            &[ValueUse::Instruction {
+                block: entry,
+                instruction: entry_block.instructions[1],
+                index: 0,
+            }]
+        );
+
         // v1 is used by both arithmetic instructions
         assert_eq!(
             uses.uses(mir::Value(1)),
@@ -241,6 +259,71 @@ b1(v4: int32):
             uses.uses(mir::Value(4)),
             &[ValueUse::Terminator {
                 block: exit,
+                index: 0
+            }]
+        );
+    }
+
+    /// Preserve repeated operands and both argument occurrences on repeated edges.
+    #[test]
+    fn test_preserve_operand_occurrences() {
+        let (tree, function_id) = TestModule::parse_function(
+            r#"
+function test(v0: boolean, v1: int32): int32 {
+entry(v0: boolean, v1: int32):
+    v2: int32 = add v1, v1
+    branch v0 => join(v2) | join(v2)
+
+join(v3: int32):
+    return v3
+}
+"#,
+        );
+        let function = tree.get(function_id);
+        let table = UseTable::analyse(function, &tree);
+        let entry = function.block(0);
+        let instruction = tree.get(entry).instructions[0];
+        let join = function.block(1);
+
+        assert_eq!(
+            table.uses(mir::Value(0)),
+            &[ValueUse::Terminator {
+                block: entry,
+                index: 0
+            }]
+        );
+        assert_eq!(
+            table.uses(mir::Value(1)),
+            &[
+                ValueUse::Instruction {
+                    block: entry,
+                    instruction,
+                    index: 0
+                },
+                ValueUse::Instruction {
+                    block: entry,
+                    instruction,
+                    index: 1
+                },
+            ]
+        );
+        assert_eq!(
+            table.uses(mir::Value(2)),
+            &[
+                ValueUse::Terminator {
+                    block: entry,
+                    index: 1
+                },
+                ValueUse::Terminator {
+                    block: entry,
+                    index: 2
+                },
+            ]
+        );
+        assert_eq!(
+            table.uses(mir::Value(3)),
+            &[ValueUse::Terminator {
+                block: join,
                 index: 0
             }]
         );

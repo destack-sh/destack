@@ -26,6 +26,7 @@ impl LinkSupergraph {
             .flat_map(|graph| graph.nodes().map(|(symbol, _)| symbol))
             .collect();
         symbols.sort_unstable();
+        symbols.dedup();
 
         // index each symbol to its dense id for edge translation
         let index: FxIndexMap<Symbol, u32> = symbols

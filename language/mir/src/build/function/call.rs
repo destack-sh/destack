@@ -184,6 +184,6 @@ impl<'a> FunctionBuilder<'a> {
             .last()
             .unwrap_or_else(|| unreachable!("a park mark before any instruction"));
         let call = self.effects.upsert_call(Point::Instruction(instruction));
-        call.behavior = FunctionBehavior::none().with_park();
+        call.behavior = Some(FunctionBehavior::none().with_park());
     }
 }

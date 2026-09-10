@@ -363,35 +363,6 @@ b2:
         assert_eq!(cfg.predecessors(block2).collect::<Vec<_>>(), vec![block1]);
     }
 
-    /// Collect the common predecessor of both branch targets.
-    #[test]
-    fn test_find_branch_predecessors() {
-        let (tree, function_id) = TestModule::parse_function(
-            r#"
-function testBranch(v0: boolean): void {
-entry(v0: boolean):
-    branch v0 => b1 | b2
-
-b1:
-    return
-
-b2:
-    return
-}
-"#,
-        );
-
-        let function = tree.get(function_id);
-        let cfg = ControlTable::analyse(function, &tree);
-
-        let block0 = function.block(0);
-        let block1 = function.block(1);
-        let block2 = function.block(2);
-
-        assert_eq!(cfg.predecessors(block1).collect::<Vec<_>>(), vec![block0]);
-        assert_eq!(cfg.predecessors(block2).collect::<Vec<_>>(), vec![block0]);
-    }
-
     /// Collect both predecessors of a diamond join.
     #[test]
     fn test_find_join_predecessors() {
@@ -416,11 +387,18 @@ b3:
         let function = tree.get(function_id);
         let cfg = ControlTable::analyse(function, &tree);
 
-        let block3 = function.block(3);
+        let [entry, left, right, join]: [_; 4] = function.blocks().try_into().unwrap();
+        let blocks = [entry, left, right, join];
+        let predecessors = blocks.map(|block| cfg.predecessors(block).collect::<Vec<_>>());
+        let successors = blocks.map(|block| cfg.successors(block).collect::<Vec<_>>());
 
         assert_eq!(
-            cfg.predecessors(block3).collect::<Vec<_>>(),
-            vec![function.block(1), function.block(2)]
+            predecessors,
+            [vec![], vec![entry], vec![entry], vec![left, right]]
+        );
+        assert_eq!(
+            successors,
+            [vec![left, right], vec![join], vec![join], vec![]]
         );
     }
 
@@ -479,11 +457,16 @@ b3:
         let function = tree.get(function_id);
         let cfg = ControlTable::analyse(function, &tree);
 
-        let reachable_block = function.block(1);
-        let unreachable_block = function.block(3);
-
-        assert!(cfg.is_reachable(reachable_block));
-        assert!(!cfg.is_reachable(unreachable_block));
+        let reachable = function
+            .blocks()
+            .iter()
+            .map(|&block| cfg.is_reachable(block))
+            .collect::<Vec<_>>();
+        assert_eq!(reachable, vec![true, true, true, false]);
+        assert_eq!(
+            cfg.reachable_blocks().collect::<Vec<_>>(),
+            function.blocks()[..3]
+        );
     }
 
     /// Retain both branch edges and their distinct arguments for a shared target.

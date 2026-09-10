@@ -7,10 +7,11 @@ use crate::{Analysis, DominatorTable, Mutation};
 pub struct DefinitionTable {
     /// Definition site for each SSA value.
     definitions: Vec<Option<ValueDefinition>>,
-    /// First input offset for each value and the final input count.
-    block_parameter_offsets: Vec<u32>,
-    /// Inputs grouped by block parameter value.
-    block_parameter_values: Vec<mir::Value>,
+
+    /// First incoming edge offset for each value and the final input count.
+    input_offsets: Vec<u32>,
+    /// Incoming edges grouped by block parameter value.
+    inputs: Vec<ValueInput>,
 }
 
 /// Definition site for one SSA value.
@@ -34,6 +35,15 @@ pub enum ValueDefinition {
     },
 }
 
+/// One incoming definition of a block parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ValueInput {
+    /// The incoming control flow edge.
+    pub edge: mir::Edge,
+    /// The explicit argument, absent when the terminator produces the value.
+    pub argument: Option<mir::Value>,
+}
+
 impl ValueDefinition {
     /// Return the defining block when this value is block local.
     pub fn block(self) -> Option<mir::LocalNodeId<mir::Block>> {
@@ -53,8 +63,9 @@ impl ValueDefinition {
 }
 
 impl DefinitionTable {
-    /// Build value definitions for one function.
+    /// Analyse value definitions and incoming block arguments for one function.
     pub fn analyse(function: &mir::Function, tree: &mir::Tree) -> Self {
+        // allocate one definition entry for each SSA value
         let value_count = function.value_capacity();
         let mut definitions = vec![None; value_count];
 
@@ -68,7 +79,7 @@ impl DefinitionTable {
         for &block_id in function.blocks() {
             let block = tree.get(block_id);
 
-            // entry parameters mirror the function parameters
+            // preserve the definitions shared by function and entry parameters
             if Some(block_id) != function.entry() {
                 for (index, parameter) in block.parameters.iter().enumerate() {
                     definitions[parameter.value.0 as usize] =
@@ -79,6 +90,7 @@ impl DefinitionTable {
                 }
             }
 
+            // record each instruction result
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
                 if let Some(destination) = instruction.destination() {
@@ -90,13 +102,13 @@ impl DefinitionTable {
             }
         }
 
-        let (block_parameter_offsets, block_parameter_values) =
-            Self::build_block_parameter_values(function, tree);
+        // index the incoming definitions of block parameters
+        let (input_offsets, inputs) = Self::build_inputs(function, tree);
 
         Self {
             definitions,
-            block_parameter_offsets,
-            block_parameter_values,
+            input_offsets,
+            inputs,
         }
     }
 
@@ -150,24 +162,21 @@ impl DefinitionTable {
             })
     }
 
-    /// Return values passed to one block parameter.
-    pub fn block_parameter_values(&self, parameter: mir::Value) -> &[mir::Value] {
+    /// Return every incoming definition of one block parameter.
+    pub fn inputs(&self, parameter: mir::Value) -> &[ValueInput] {
         let index = parameter.id() as usize;
         let offsets = self
-            .block_parameter_offsets
+            .input_offsets
             .get(index..=index + 1)
             .unwrap_or_else(|| unreachable!("value outside definition table: {parameter:?}"));
         let start = offsets[0] as usize;
         let end = offsets[1] as usize;
 
-        &self.block_parameter_values[start..end]
+        &self.inputs[start..end]
     }
 
     /// Build block parameter definitions from predecessor arguments.
-    fn build_block_parameter_values(
-        function: &mir::Function,
-        tree: &mir::Tree,
-    ) -> (Vec<u32>, Vec<mir::Value>) {
+    fn build_inputs(function: &mir::Function, tree: &mir::Tree) -> (Vec<u32>, Vec<ValueInput>) {
         let value_count = function.value_capacity();
         let mut entries = Vec::new();
 
@@ -177,13 +186,7 @@ impl DefinitionTable {
             let terminator = tree.get(block.terminator);
 
             for (edge, target) in terminator.targets(tree, block_id) {
-                Self::add_block_parameter_values(
-                    &mut entries,
-                    terminator,
-                    edge.successor,
-                    target,
-                    tree,
-                );
+                Self::add_inputs(&mut entries, terminator, edge, target, tree);
             }
         }
 
@@ -193,6 +196,8 @@ impl DefinitionTable {
         for (parameter, _) in &entries {
             offsets[parameter.id() as usize + 1] += 1;
         }
+
+        // convert input counts into contiguous ranges
         for value in 0..value_count {
             offsets[value + 1] += offsets[value];
         }
@@ -202,22 +207,41 @@ impl DefinitionTable {
         (offsets, values)
     }
 
-    /// Add one target's arguments to the block parameter value map.
-    fn add_block_parameter_values(
-        entries: &mut Vec<(mir::Value, mir::Value)>,
+    /// Record explicit arguments and values produced by one incoming edge.
+    fn add_inputs(
+        entries: &mut Vec<(mir::Value, ValueInput)>,
         terminator: &mir::Terminator,
-        successor: mir::Successor,
+        edge: mir::Edge,
         target: &mir::BlockTarget,
         tree: &mir::Tree,
     ) {
+        // require the edge's explicit arguments to match its destination parameters
         let parameters = terminator
-            .target_parameters(tree, successor, target)
+            .target_parameters(tree, edge.successor, target)
             .unwrap_or_else(|| unreachable!("verified block target has invalid argument count"));
         let arguments = target.arguments(tree);
+        let result_count = terminator.target_result_count(tree, edge.successor);
 
-        // pair target arguments with the destination block parameters
-        for (parameter, argument) in parameters.iter().zip(arguments) {
-            entries.push((parameter.value, *argument));
+        // record values produced by the terminator on this edge
+        for parameter in tree.get(target.block).parameters.iter().take(result_count) {
+            entries.push((
+                parameter.value,
+                ValueInput {
+                    edge,
+                    argument: None,
+                },
+            ));
+        }
+
+        // record each explicit argument occurrence
+        for (parameter, &argument) in parameters.iter().zip(arguments) {
+            entries.push((
+                parameter.value,
+                ValueInput {
+                    edge,
+                    argument: Some(argument),
+                },
+            ));
         }
     }
 }
@@ -228,33 +252,44 @@ impl Analysis for DefinitionTable {
 
 #[cfg(test)]
 mod tests {
-    use super::{DefinitionTable, ValueDefinition};
+    use super::{DefinitionTable, ValueDefinition, ValueInput};
     use crate::analyses::tests::TestModule;
+    use crate::{Edge, Successor, Value};
 
-    /// Preserve function parameters through their entry-block mirrors.
+    /// Distinguish function parameters from instruction results.
     #[test]
-    fn test_defines_function_parameters() {
+    fn test_identify_parameter_and_instruction_definitions() {
         let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    return v0
+    v1: int32 = add v0, v0
+    return v1
 }
 "#,
         );
         let function = tree.get(function_id);
         let definitions = DefinitionTable::analyse(function, &tree);
-        let parameter = function.parameters[0].value;
+        let block = function.block(0);
+        let instruction = tree.get(block).instructions[0];
 
         assert_eq!(
-            definitions.definition(parameter),
-            Some(ValueDefinition::FunctionParameter(0))
+            definitions.definitions().collect::<Vec<_>>(),
+            vec![
+                (Value(0), ValueDefinition::FunctionParameter(0)),
+                (
+                    Value(1),
+                    ValueDefinition::Instruction { block, instruction }
+                ),
+            ]
         );
+        assert_eq!(definitions.inputs(Value(0)), &[]);
+        assert_eq!(definitions.inputs(Value(1)), &[]);
     }
 
-    /// Fallible allocation success results are not treated as edge arguments.
+    /// Distinguish allocation results from explicit incoming arguments.
     #[test]
-    fn test_block_parameter_values_skip_fallible_allocation_result() {
+    fn test_identify_edge_results_and_arguments() {
         let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: int64, v1: int32): int32 {
@@ -277,17 +312,79 @@ b2(v4: int32):
         let success_payload = success.parameters[1].value;
         let failure_payload = failure.parameters[0].value;
 
-        // success result is produced by the terminator and has no edge argument
-        assert!(
-            definitions
-                .block_parameter_values(success_result)
-                .is_empty()
-        );
+        let source = function.block(0);
+        let normal = Edge::new(source, Successor::NewSuccess, function.block(1));
+        let failure = Edge::new(source, Successor::NewFailure, function.block(2));
 
-        // explicit payloads on both edges come from the same source value
         assert_eq!(
-            definitions.block_parameter_values(success_payload),
-            definitions.block_parameter_values(failure_payload)
+            definitions.inputs(success_result),
+            &[ValueInput {
+                edge: normal,
+                argument: None
+            }]
+        );
+        assert_eq!(
+            definitions.inputs(success_payload),
+            &[ValueInput {
+                edge: normal,
+                argument: Some(Value(1))
+            }]
+        );
+        assert_eq!(
+            definitions.inputs(failure_payload),
+            &[ValueInput {
+                edge: failure,
+                argument: Some(Value(1))
+            }]
+        );
+    }
+
+    /// Preserve both incoming arguments when a branch selects the same destination.
+    #[test]
+    fn test_preserve_repeated_incoming_edges() {
+        let (tree, function_id) = TestModule::parse_function(
+            r#"
+function test(v0: boolean, v1: int32, v2: int32): int32 {
+entry(v0: boolean, v1: int32, v2: int32):
+    branch v0 => join(v1) | join(v2)
+
+join(v3: int32):
+    return v3
+}
+"#,
+        );
+        let function = tree.get(function_id);
+        let table = DefinitionTable::analyse(function, &tree);
+        let entry = function.block(0);
+        let join = function.block(1);
+
+        assert_eq!(
+            table.inputs(Value(3)),
+            &[
+                ValueInput {
+                    edge: Edge::new(entry, Successor::BranchThen, join),
+                    argument: Some(Value(1))
+                },
+                ValueInput {
+                    edge: Edge::new(entry, Successor::BranchElse, join),
+                    argument: Some(Value(2))
+                },
+            ]
+        );
+        assert_eq!(
+            table.definitions().collect::<Vec<_>>(),
+            vec![
+                (Value(0), ValueDefinition::FunctionParameter(0)),
+                (Value(1), ValueDefinition::FunctionParameter(1)),
+                (Value(2), ValueDefinition::FunctionParameter(2)),
+                (
+                    Value(3),
+                    ValueDefinition::BlockParameter {
+                        block: join,
+                        index: 0
+                    }
+                ),
+            ]
         );
     }
 }

@@ -1,465 +1,1549 @@
 use std::sync::Arc;
 
+use destack_core::{BitSet, FxIndexMap};
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
 use crate as mir;
-use destack_core::BitSet;
+use crate::{
+    Analysis, ArgumentEscape, CallTable, ControlTable, EffectTable, Function, FunctionId, Mutation,
+    NodeTable, Point, ResolutionTable, Symbol, Tree, Value,
+};
 
-use crate::{Analysis, Mutation};
-
-/// Escape results for the functions in one module.
+/// Escape results for the defined functions in one module.
 #[derive(Debug)]
 pub struct EscapeTable {
-    /// Allocation escape results indexed by function.
-    functions: mir::NodeTable<mir::Function, Arc<Escape>>,
+    /// Results indexed by function identity.
+    functions: NodeTable<Function, Arc<Escape>>,
+}
+
+/// Allocation visibility and pointer escape results for one function.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct Escape {
+    /// Parameter and result relationships consumed by callers.
+    pub effect: EscapeEffect,
+    /// Allocation results sorted by program point.
+    allocations: Vec<(Point, AllocationEscape)>,
+    /// Values whose referents may be accessible outside this frame.
+    exposed: BitSet,
+}
+
+/// Visibility and reuse restrictions for one allocation.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct AllocationEscape {
+    /// Whether the allocation is reachable through the returned value.
+    pub is_returned: bool,
+    /// Whether the allocation is reachable through external storage.
+    pub is_retained: bool,
+    /// Whether the allocation can remain accessible across loop iterations.
+    pub is_persistent: bool,
+}
+
+/// Pointer flow from a function's inputs to its callers and external storage.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct EscapeEffect {
+    /// Escape paths for each explicit parameter.
+    pub parameters: Vec<ParameterEscape>,
+    /// Escape paths for the hidden environment, when the function has one.
+    pub environment: Option<ParameterEscape>,
+    /// Minimum loads from the result to an external pointer independent of the arguments.
+    pub external: Option<u32>,
+}
+
+/// Pointer retention and return paths for one function argument.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ParameterEscape {
+    /// Minimum dereferences before a pointer flows into externally retained storage.
+    pub retained: Option<u32>,
+    /// Minimum dereferences before a pointer flows into the returned value.
+    pub returned: Option<u32>,
+}
+
+/// Pointer locations, transfers, and calls extracted from one function.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct EscapeBody {
+    /// Number of SSA value locations at the start of the location table.
+    value_count: u32,
+    /// Loop depth at each location's definition.
+    depths: Vec<u32>,
+    /// Minimum external pointer depth permitted by each location's ownership type.
+    exposure_depths: Vec<i32>,
+    /// Whether each location starts with an external pointer.
+    external: Vec<bool>,
+    /// Locations that can retain values across iterations.
+    roots: Vec<u32>,
+
+    /// Explicit parameter locations in signature order.
+    parameters: Vec<u32>,
+    /// Hidden environment location, when present.
+    environment: Option<u32>,
+    /// Destination for externally retained pointers.
+    retained: u32,
+    /// Destination for the function's returned value.
+    result: u32,
+    /// Allocation operations, reference values, and storage locations in program point order.
+    allocations: Vec<Allocation>,
+
+    /// Local pointer transfers.
+    flows: Vec<EscapeFlow>,
+    /// Calls whose argument paths depend on another function.
+    calls: Vec<EscapeCall>,
+}
+
+/// One allocation operation and the storage its result addresses.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct Allocation {
+    /// The allocation instruction or terminator.
+    point: mir::Point,
+    /// The reference receiving the new storage address.
+    value: mir::Value,
+    /// The storage location in the pointer graph.
+    location: u32,
+}
+
+/// Arguments and result locations for one call's pointer flow.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct EscapeCall {
+    /// Known callees in symbol order.
+    targets: Vec<mir::Symbol>,
+    /// Whether additional callees remain possible.
+    is_open: bool,
+    /// Caller locations passed as explicit arguments.
+    arguments: Vec<u32>,
+    /// Caller location containing the hidden environment.
+    environment: Option<u32>,
+    /// Caller location receiving the result, absent for a discarded result.
+    result: Option<u32>,
+    /// Explicit argument escape declarations, when present.
+    arguments_declared: Vec<mir::CallArgumentEffect>,
+}
+
+/// One pointer flow with its load count, or minus one for an address operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+struct EscapeFlow {
+    /// The location supplying the value.
+    source: u32,
+    /// The location receiving the value.
+    destination: u32,
+    /// The number of loads applied to the source, or minus one to take its address.
+    dereferences: i32,
+}
+
+/// Extract pointer transfers using canonical places and control flow.
+struct EscapeBuilder<'a> {
+    /// The MIR tree.
+    tree: &'a mir::Tree,
+    /// Callees at each callsite.
+    resolution: &'a mir::ResolutionTable,
+    /// Explicit call argument effects.
+    effects: &'a mir::EffectTable,
+    /// Canonical addresses in this function.
+    places: mir::PlaceTable,
+    /// Storage locations for function locals.
+    locals: mir::NodeTable<mir::Local, u32>,
+    /// Pointer transfers being collected.
+    body: EscapeBody,
+}
+
+/// Reusable shortest path storage for one weighted pointer graph.
+struct EscapeSolver<'a> {
+    /// The extracted function locations and flows.
+    body: &'a EscapeBody,
+    /// First incoming flow offset for each location and the final flow count.
+    offsets: Vec<usize>,
+    /// Incoming flows grouped by destination.
+    flows: Vec<EscapeFlow>,
+
+    /// Whether external storage can retain the address of each location.
+    retained: Vec<bool>,
+    /// Whether the result can contain the address of each location.
+    returned: Vec<bool>,
+    /// Whether each location can remain accessible across iterations.
+    persistent: Vec<bool>,
+    /// Minimum load count for the current root's paths.
+    distances: Vec<Option<i32>>,
+    /// Locations visited by the current walk.
+    visited: Vec<u32>,
+    /// Locations waiting for a shorter path to propagate.
+    pending: Vec<u32>,
+    /// Locations already in the current path worklist.
+    queued: BitSet,
 }
 
 impl EscapeTable {
-    /// Analyse allocation escapes for every defined function in the module.
-    pub fn analyse(tree: &mir::Tree) -> Self {
-        // TODO #Incomplete: solve call components together and propagate parameter escape results
-        let functions = mir::NodeTable::from_entries(
-            tree.iter_nodes::<mir::Function>()
-                .filter(|(_, function)| function.is_defined())
-                .map(|(id, function)| (id, Arc::new(Escape::analyse(function, tree))))
-                .collect(),
-        );
+    /// Analyse pointer flow through each recursive component in callee first order.
+    pub fn analyse(
+        resolution: &ResolutionTable,
+        calls: &CallTable,
+        declared: &EffectTable,
+        tree: &Tree,
+    ) -> Self {
+        let mut bodies = FxIndexMap::default();
+        let mut effects = FxIndexMap::<Symbol, EscapeEffect>::default();
+        let mut results = FxIndexMap::default();
 
-        Self { functions }
+        // extract definitions and declarations through the same pointer graph model
+        for (id, function) in tree.iter_nodes::<Function>() {
+            let graph = Arc::new(ControlTable::analyse(function, tree));
+            let body = EscapeBody::analyse(function, graph, resolution, declared, tree);
+            effects.insert(function.symbol, body.initial_effect());
+            bodies.insert(id, body);
+        }
+
+        // propagate parameter paths without rescanning MIR instructions
+        for (component_index, component) in calls.components().enumerate() {
+            let functions = component.collect::<Vec<_>>();
+            loop {
+                let mut changed = false;
+                for &function in &functions {
+                    let result = bodies[&function].analyse_calls(&effects);
+                    let symbol = tree.get(function).symbol;
+                    if effects[&symbol] != result.effect {
+                        effects.insert(symbol, result.effect.clone());
+                        changed = true;
+                    }
+                    if tree.get(function).is_defined() {
+                        results.insert(function, result);
+                    }
+                }
+                if !changed || !calls.is_recursive_component(component_index) {
+                    break;
+                }
+            }
+        }
+
+        Self {
+            functions: NodeTable::from_entries(
+                results
+                    .into_iter()
+                    .map(|(function, result)| (function, Arc::new(result)))
+                    .collect(),
+            ),
+        }
     }
 
-    /// Return allocation escapes for one defined function.
-    pub fn function(&self, function: mir::FunctionId) -> &Arc<Escape> {
+    /// Return the complete escape result for one defined function.
+    pub fn function(&self, function: FunctionId) -> &Arc<Escape> {
         self.functions.get(function)
     }
 }
 
 impl Analysis for EscapeTable {
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
+    const INVALIDATED_BY: Mutation = ResolutionTable::INVALIDATED_BY.union(Mutation::EFFECT);
 }
 
-/// Escape analysis for allocation roots in one function.
-#[derive(Debug, Clone)]
-pub struct Escape {
-    /// Allocation root by SSA value id.
-    roots: Vec<Option<mir::Value>>,
-    /// Allocation roots that escape the function.
-    escaped: BitSet,
+impl From<ArgumentEscape> for ParameterEscape {
+    fn from(escape: ArgumentEscape) -> Self {
+        match escape {
+            ArgumentEscape::None => Self::default(),
+            ArgumentEscape::Return => Self {
+                retained: None,
+                returned: Some(0),
+            },
+            ArgumentEscape::Escape => Self {
+                retained: Some(0),
+                returned: Some(0),
+            },
+        }
+    }
 }
 
 impl Escape {
-    /// Return the allocation root for a value when known.
-    pub fn allocation(&self, value: impl Into<mir::Value>) -> Option<mir::Value> {
-        let value = value.into();
+    /// Return visibility and reuse restrictions for one allocation operation.
+    pub fn allocation(&self, point: Point) -> Option<&AllocationEscape> {
+        let index = self
+            .allocations
+            .binary_search_by_key(&point, |(point, _)| *point)
+            .ok()?;
 
-        self.roots.get(value.0 as usize).copied().flatten()
+        Some(&self.allocations[index].1)
     }
 
-    /// Return true when a value's allocation root escapes.
-    pub fn escapes(&self, value: impl Into<mir::Value>) -> bool {
-        self.allocation(value)
-            .is_some_and(|allocation| self.escaped.contains(allocation.id() as usize))
-    }
-
-    /// Return true when an allocation root stays inside this function.
-    pub fn stays_local(&self, value: impl Into<mir::Value>) -> bool {
-        self.allocation(value)
-            .is_some_and(|allocation| !self.escaped.contains(allocation.id() as usize))
-    }
-
-    /// Build escape analysis for one function.
-    pub fn analyse(function: &mir::Function, tree: &mir::Tree) -> Self {
-        let mut analysis = Self {
-            roots: vec![None; function.value_capacity()],
-            escaped: BitSet::new(function.value_capacity()),
-        };
-
-        // propagate allocation roots through local dataflow
-        let mut propagation = EscapePropagation::new(function, tree, &mut analysis.roots);
-        propagation.run();
-
-        // mark roots that cross function or memory boundaries
-        let mut escapes = EscapeMarker {
-            tree,
-            roots: &analysis.roots,
-            escaped: &mut analysis.escaped,
-        };
-        escapes.mark_function(function);
-
-        analysis
+    /// Return whether another frame or external storage may access this value's referent.
+    pub fn is_exposed(&self, value: Value) -> bool {
+        self.exposed.contains(value.id() as usize)
     }
 }
 
-/// Allocation root propagation state.
-struct EscapePropagation<'a, 'b> {
-    /// The function being analyzed.
-    function: &'a mir::Function,
-    /// The MIR tree being analyzed.
-    tree: &'a mir::Tree,
-    /// Allocation root by SSA value id.
-    roots: &'b mut [Option<mir::Value>],
-    /// Root stored in each local slot.
-    locals: mir::NodeTable<mir::Local, Option<mir::Value>>,
-}
-
-impl<'a, 'b> EscapePropagation<'a, 'b> {
-    /// Create propagation state.
-    fn new(
-        function: &'a mir::Function,
-        tree: &'a mir::Tree,
-        roots: &'b mut [Option<mir::Value>],
+impl EscapeBody {
+    /// Extract pointer flow from a defined function's operations and exact control flow edges.
+    pub fn analyse(
+        function: &mir::Function,
+        graph: Arc<mir::ControlTable>,
+        resolution: &mir::ResolutionTable,
+        effects: &mir::EffectTable,
+        tree: &mir::Tree,
     ) -> Self {
-        Self {
-            function,
+        // describe externally defined functions through their declarations
+        if !function.is_defined() {
+            return Self::declaration(function, tree);
+        }
+
+        // build the control and place tables required by storage flow
+        let dominators = mir::DominatorTable::analyse(graph.clone());
+        let loops = mir::LoopTable::analyse(function, &graph, &dominators);
+        let places = mir::PlaceTable::analyse(function, &graph, tree);
+        let count = function.value_capacity() as u32;
+        let mut body = Self {
+            exposure_depths: (0..count)
+                .map(|value| {
+                    i32::from(
+                        function.reference_kind(mir::Value(value), tree)
+                            == Some(mir::ReferenceKind::Unique),
+                    )
+                })
+                .collect(),
+            value_count: count,
+            depths: vec![0; count as usize],
+            external: vec![false; count as usize],
+            roots: Vec::new(),
+            parameters: function
+                .parameters
+                .iter()
+                .map(|parameter| parameter.value.id())
+                .collect(),
+            environment: None,
+            retained: count,
+            result: count + 1,
+            allocations: Vec::new(),
+            flows: Vec::new(),
+            calls: Vec::new(),
+        };
+
+        // create distinct destinations for returned and externally retained pointers
+        body.location(0, false);
+        body.location(0, false);
+        body.exposure_depths[body.result as usize] = i32::from(
+            tree.get(function.return_type).reference_kind() == Some(mir::ReferenceKind::Unique),
+        );
+        body.roots.extend([body.retained, body.result]);
+        if function.environment.is_some() {
+            body.environment = Some(body.location(0, false));
+        }
+        let locals = mir::NodeTable::from_entries(
+            function
+                .locals()
+                .iter()
+                .map(|&local| {
+                    let location = body.location(0, false);
+                    body.roots.push(location);
+                    (local, location)
+                })
+                .collect(),
+        );
+
+        // compare allocation depths with locals and parameters that span iterations
+        for block_id in graph.reachable_blocks() {
+            let block = tree.get(block_id);
+            let is_irreducible = loops.is_irreducible(block_id);
+            let depth = loops.loop_depth(block_id) + u32::from(is_irreducible);
+
+            // retain block arguments across each possible cycle entry
+            let parameter_depth = if loops.is_loop_header(block_id) || is_irreducible {
+                depth - 1
+            } else {
+                depth
+            };
+            for parameter in &block.parameters {
+                body.depths[parameter.value.id() as usize] = parameter_depth;
+                body.roots.push(parameter.value.id());
+            }
+
+            // assign storage to allocation instructions at this loop depth
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+                if let Some(destination) = instruction.destination() {
+                    body.depths[destination.id() as usize] = depth;
+                    if matches!(
+                        instruction,
+                        mir::Instruction::NewZeroed { .. }
+                            | mir::Instruction::NewUninit { .. }
+                            | mir::Instruction::NewSliceZeroed { .. }
+                            | mir::Instruction::NewSliceUninit { .. }
+                            | mir::Instruction::ContextBind { .. }
+                    ) {
+                        body.allocate(mir::Point::Instruction(instruction_id), destination, depth);
+                    }
+                }
+            }
+
+            // assign storage to fallible allocation results on their success edges
+            let terminator = tree.get(block.terminator);
+            for (edge, target) in terminator.targets(tree, block_id) {
+                if edge.successor == mir::Successor::NewSuccess {
+                    let result = tree.get(target.block).parameters[0].value;
+                    body.allocate(mir::Point::Terminator(block_id), result, depth);
+                }
+            }
+        }
+
+        // index allocation operations independently of traversal order
+        body.allocations
+            .sort_unstable_by_key(|allocation| allocation.point);
+
+        // translate operations into pointer transfers once before solving callees
+        let mut builder = EscapeBuilder {
             tree,
-            roots,
-            locals: mir::NodeTable::from_nodes(function.locals(), || None),
+            resolution,
+            effects,
+            places,
+            locals,
+            body,
+        };
+        for block in graph.reachable_blocks() {
+            builder.block(block);
+        }
+        builder
+            .body
+            .flows
+            .sort_unstable_by_key(|flow| (flow.destination, flow.source, flow.dereferences));
+        builder.body.flows.dedup();
+
+        builder.body
+    }
+
+    /// Return the initial parameter effects before recursive propagation.
+    pub fn initial_effect(&self) -> EscapeEffect {
+        EscapeEffect {
+            parameters: vec![ParameterEscape::default(); self.parameters.len()],
+            environment: self.environment.map(|_| ParameterEscape::default()),
+            external: None,
         }
     }
 
-    /// Propagate roots to a fixed point.
-    fn run(&mut self) {
-        let mut changed = true;
+    /// Describe a declaration using conservative parameter retention and external results.
+    fn declaration(function: &mir::Function, tree: &mir::Tree) -> Self {
+        // allocate parameter, result, and external retention locations
+        let count = function.parameters.len() as u32;
+        let environment = function.environment.map(|_| count + 2);
+        let total = count as usize + 2 + usize::from(environment.is_some());
+        let mut body = Self {
+            value_count: 0,
+            depths: vec![0; total],
+            exposure_depths: vec![0; total],
+            external: vec![false; total],
+            roots: vec![count, count + 1],
+            parameters: (0..count).collect(),
+            environment,
+            retained: count,
+            result: count + 1,
+            allocations: Vec::new(),
+            flows: Vec::new(),
+            calls: Vec::new(),
+        };
 
-        while changed {
-            changed = false;
+        // preserve ownership on returned references while allowing external pointers in contents
+        body.external[body.result as usize] = true;
+        body.exposure_depths[body.result as usize] = i32::from(
+            tree.get(function.return_type).reference_kind() == Some(mir::ReferenceKind::Unique),
+        );
+        for parameter in body.parameters.iter().copied().chain(body.environment) {
+            body.flows.push(EscapeFlow {
+                source: parameter,
+                destination: body.retained,
+                dereferences: 0,
+            });
+            body.flows.push(EscapeFlow {
+                source: parameter,
+                destination: body.result,
+                dereferences: 0,
+            });
+        }
 
-            // propagate through each block
-            for &block_id in self.function.blocks() {
-                changed |= self.propagate_block(block_id);
+        body
+    }
+
+    /// Append a storage location with its execution depth and initial visibility.
+    fn location(&mut self, depth: u32, is_external: bool) -> u32 {
+        let location = self.depths.len() as u32;
+        self.depths.push(depth);
+        self.external.push(is_external);
+        self.exposure_depths.push(0);
+
+        location
+    }
+
+    /// Record an allocation and the reference to its newly created storage.
+    fn allocate(&mut self, point: mir::Point, value: mir::Value, depth: u32) {
+        let location = self.location(depth, false);
+        self.allocations.push(Allocation {
+            point,
+            value,
+            location,
+        });
+        self.flows.push(EscapeFlow {
+            source: location,
+            destination: value.id(),
+            dereferences: -1,
+        });
+    }
+
+    /// Solve pointer flows using the current effects of all named callees.
+    pub fn analyse_calls(&self, effects: &FxIndexMap<Symbol, EscapeEffect>) -> Escape {
+        // copy local flows and initial pointer visibility
+        let count = self.depths.len();
+        let mut flows = self.flows.clone();
+        let mut external = self
+            .external
+            .iter()
+            .map(|&is_external| is_external.then_some(0))
+            .collect::<Vec<_>>();
+
+        // instantiate each callee's pointer paths at its argument and result locations
+        for call in &self.calls {
+            call.connect(self, effects, &mut flows, &mut external);
+        }
+        flows.sort_unstable_by_key(|flow| (flow.destination, flow.source, flow.dereferences));
+        flows.dedup();
+        let mut offsets = vec![0; count + 1];
+        for flow in &flows {
+            offsets[flow.destination as usize + 1] += 1;
+        }
+        for index in 0..count {
+            offsets[index + 1] += offsets[index];
+        }
+
+        // initialize the two externally observed destinations
+        let mut retained = vec![false; count];
+        let mut returned = vec![false; count];
+        retained[self.retained as usize] = true;
+        returned[self.result as usize] = true;
+        let mut solver = EscapeSolver {
+            body: self,
+            offsets,
+            flows,
+            retained,
+            returned,
+            persistent: vec![false; count],
+            distances: vec![None; count],
+            visited: Vec::new(),
+            pending: Vec::new(),
+            queued: BitSet::new(count),
+        };
+        solver.propagate();
+
+        // record parameter paths to returned and externally retained storage
+        let mut parameters = self.parameters.clone();
+        parameters.extend(self.environment);
+        let mut paths = solver.parameters(&parameters);
+        let environment = self.environment.map(|_| {
+            paths
+                .pop()
+                .unwrap_or_else(|| unreachable!("missing environment paths"))
+        });
+
+        // derive external result pointers before adding parameter aliases
+        let (external, exposed) = solver.analyse_visibility(&external);
+        let effect = EscapeEffect {
+            parameters: paths,
+            environment,
+            external,
+        };
+
+        // retain allocation identity independently of the references that can select it
+        let allocations = self
+            .allocations
+            .iter()
+            .map(|allocation| {
+                let index = allocation.location as usize;
+                (
+                    allocation.point,
+                    AllocationEscape {
+                        is_returned: solver.returned[index],
+                        is_retained: solver.retained[index],
+                        is_persistent: solver.persistent[index],
+                    },
+                )
+            })
+            .collect();
+
+        Escape {
+            effect,
+            allocations,
+            exposed,
+        }
+    }
+}
+
+impl EscapeSolver<'_> {
+    /// Propagate address visibility and persistence until no location changes.
+    fn propagate(&mut self) {
+        // schedule the storage roots that can retain pointers
+        let count = self.body.depths.len();
+        let mut pending = self.body.roots.clone();
+        pending.sort_unstable();
+        pending.dedup();
+        let mut queued = vec![false; count];
+        for &root in &pending {
+            queued[root as usize] = true;
+        }
+
+        // revisit a root only when its visibility or persistence changes
+        while let Some(root) = pending.pop() {
+            queued[root as usize] = false;
+            self.walk(root);
+            for &location in &self.visited {
+                let location = location as usize;
+                let distance = self.distances[location]
+                    .unwrap_or_else(|| unreachable!("visited location has no distance"));
+                if distance >= 0 {
+                    continue;
+                }
+                let retained = self.retained[root as usize];
+                let returned = self.returned[root as usize];
+                let persistent = self.persistent[root as usize]
+                    || self.body.depths[root as usize] < self.body.depths[location];
+                let changed = (retained && !self.retained[location])
+                    || (returned && !self.returned[location])
+                    || (persistent && !self.persistent[location]);
+                self.retained[location] |= retained;
+                self.returned[location] |= returned;
+                self.persistent[location] |= persistent;
+
+                // propagate newly visible addresses through the pointers their storage contains
+                if changed && !queued[location] {
+                    pending.push(location as u32);
+                    queued[location] = true;
+                }
             }
         }
     }
 
-    /// Propagate roots through one block.
-    fn propagate_block(&mut self, block_id: mir::BlockId) -> bool {
-        let block = self.tree.get(block_id);
-        let mut changed = false;
-
-        // propagate instruction roots
-        for &instruction_id in &block.instructions {
-            let instruction = self.tree.get(instruction_id);
-            changed |= self.propagate_instruction(instruction);
+    /// Find minimum dereference counts while preventing negative address cycles.
+    fn walk(&mut self, root: u32) {
+        // clear only the locations touched by the previous walk
+        for location in self.visited.drain(..) {
+            self.distances[location as usize] = None;
         }
 
-        // propagate each exact edge into its matching block parameters
+        // start the next walk at its root
+        self.visited.push(root);
+        self.distances[root as usize] = Some(0);
+        self.pending.push(root);
+        self.queued.insert(root as usize);
+
+        // relax incoming flows, clamping after an address has reached a location
+        while let Some(location) = self.pending.pop() {
+            let location = location as usize;
+            self.queued.remove(location);
+            let distance = self.distances[location]
+                .unwrap_or_else(|| unreachable!("queued escape location has no distance"));
+            let distance = distance.max(0);
+            for flow in &self.flows[self.offsets[location]..self.offsets[location + 1]] {
+                let source = flow.source as usize;
+                let candidate = distance + flow.dereferences;
+                if self.distances[source].is_none_or(|current| candidate < current) {
+                    if self.distances[source].is_none() {
+                        self.visited.push(flow.source);
+                    }
+                    self.distances[source] = Some(candidate);
+                    if self.queued.insert(source) {
+                        self.pending.push(flow.source);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Analyse external result pointers and values exposed through parameter aliases.
+    fn analyse_visibility(&self, external: &[Option<i32>]) -> (Option<u32>, BitSet) {
+        // index outgoing flows once for both visibility queries
+        let count = self.body.depths.len();
+        let mut outgoing = (0..self.flows.len()).collect::<Vec<_>>();
+        outgoing.sort_unstable_by_key(|&index| self.flows[index].source);
+        let mut offsets = vec![0; count + 1];
+        for flow in &self.flows {
+            offsets[flow.source as usize + 1] += 1;
+        }
+        for index in 0..count {
+            offsets[index + 1] += offsets[index];
+        }
+
+        // seed external pointers and addresses of retained storage
+        let mut depths = external
+            .iter()
+            .zip(&self.body.exposure_depths)
+            .zip(&self.retained)
+            .map(|((depth, minimum), &is_retained)| {
+                if is_retained {
+                    Some(-1)
+                } else {
+                    depth.map(|depth| depth.max(*minimum))
+                }
+            })
+            .collect::<Vec<_>>();
+        self.propagate_visibility(&mut depths, &offsets, &outgoing);
+        let external = depths[self.body.result as usize].map(|depth| depth.max(0) as u32);
+
+        // add parameter aliases to the established external paths
+        let parameters = self
+            .body
+            .parameters
+            .iter()
+            .map(|&parameter| (parameter, self.body.exposure_depths[parameter as usize]))
+            .chain(self.body.environment.map(|environment| (environment, 0)));
+        for (parameter, depth) in parameters {
+            let current = &mut depths[parameter as usize];
+            *current = Some(current.map_or(depth, |current| current.min(depth)));
+        }
+        self.propagate_visibility(&mut depths, &offsets, &outgoing);
+
+        // retain only the exposed SSA values
+        let mut exposed = BitSet::new(self.body.value_count as usize);
+        for (value, depth) in depths[..self.body.value_count as usize].iter().enumerate() {
+            if depth.is_some_and(|depth| depth <= 0) {
+                exposed.insert(value);
+            }
+        }
+
+        (external, exposed)
+    }
+
+    /// Propagate minimum visibility depths through outgoing address and load operations.
+    fn propagate_visibility(
+        &self,
+        depths: &mut [Option<i32>],
+        offsets: &[usize],
+        outgoing: &[usize],
+    ) {
+        // schedule each externally visible location
+        let mut pending = (0..depths.len())
+            .filter(|&index| depths[index].is_some())
+            .collect::<Vec<_>>();
+        let mut queued = BitSet::new(depths.len());
+        for &index in &pending {
+            queued.insert(index);
+        }
+
+        // propagate visibility through each address or load operation
+        while let Some(source) = pending.pop() {
+            queued.remove(source);
+            let depth = depths[source]
+                .unwrap_or_else(|| unreachable!("queued location has no visibility depth"));
+            for &index in &outgoing[offsets[source]..offsets[source + 1]] {
+                let flow = self.flows[index];
+                let destination = flow.destination as usize;
+                let candidate = (depth - flow.dereferences).max(-1);
+                if depths[destination].is_none_or(|current| candidate < current) {
+                    depths[destination] = Some(candidate);
+                    if queued.insert(destination) {
+                        pending.push(destination);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Record every parameter's shortest paths to retained storage and the result.
+    fn parameters(&mut self, parameters: &[u32]) -> Vec<ParameterEscape> {
+        let mut results = vec![ParameterEscape::default(); parameters.len()];
+
+        // walk each visible storage location once for all parameters
+        for root in 0..self.body.depths.len() {
+            if !self.retained[root] && !self.returned[root] {
+                continue;
+            }
+            self.walk(root as u32);
+            for (&parameter, result) in parameters.iter().zip(&mut results) {
+                if let Some(distance) = self.distances[parameter as usize] {
+                    let distance = distance.max(0) as u32;
+                    if self.retained[root] {
+                        result.retained = Some(
+                            result
+                                .retained
+                                .map_or(distance, |current| current.min(distance)),
+                        );
+                    }
+                    if self.returned[root] {
+                        result.returned = Some(
+                            result
+                                .returned
+                                .map_or(distance, |current| current.min(distance)),
+                        );
+                    }
+                }
+            }
+        }
+
+        results
+    }
+}
+
+impl EscapeCall {
+    /// Connect every possible callee's parameter paths to one caller's graph.
+    fn connect(
+        &self,
+        body: &EscapeBody,
+        effects: &FxIndexMap<Symbol, EscapeEffect>,
+        flows: &mut Vec<EscapeFlow>,
+        external: &mut [Option<i32>],
+    ) {
+        // preserve a conservative result for unresolved callees
+        if self.is_open {
+            self.connect_unknown(body, flows, external);
+        }
+
+        // instantiate effects from each named callee
+        for target in &self.targets {
+            let effect = effects
+                .get(target)
+                .unwrap_or_else(|| unreachable!("callee outside escape graph: {target:?}"));
+            for (index, &argument) in self.arguments.iter().enumerate() {
+                let parameter = self
+                    .arguments_declared
+                    .get(index)
+                    .map(|argument| ParameterEscape::from(argument.escape));
+                let parameter = parameter.as_ref().unwrap_or(&effect.parameters[index]);
+                self.connect_parameter(argument, parameter, body, flows);
+            }
+            if let Some(environment) = &effect.environment {
+                let argument = self
+                    .environment
+                    .unwrap_or_else(|| unreachable!("closure call has no environment"));
+                self.connect_parameter(argument, environment, body, flows);
+            }
+            if let (Some(result), Some(depth)) = (self.result, effect.external) {
+                let current = &mut external[result as usize];
+                let depth = depth as i32;
+                *current = Some(current.map_or(depth, |current| current.min(depth)));
+            }
+        }
+    }
+
+    /// Connect explicit argument declarations or conservative unknown call effects.
+    fn connect_unknown(
+        &self,
+        body: &EscapeBody,
+        flows: &mut Vec<EscapeFlow>,
+        external: &mut [Option<i32>],
+    ) {
+        for (index, &argument) in self.arguments.iter().enumerate() {
+            let escape = self
+                .arguments_declared
+                .get(index)
+                .map(|argument| argument.escape)
+                .unwrap_or(ArgumentEscape::Escape);
+            let parameter = ParameterEscape::from(escape);
+            self.connect_parameter(argument, &parameter, body, flows);
+        }
+        if let Some(environment) = self.environment {
+            flows.push(EscapeFlow {
+                source: environment,
+                destination: body.retained,
+                dereferences: 0,
+            });
+        }
+        if let Some(result) = self.result {
+            external[result as usize] = Some(0);
+        }
+    }
+
+    /// Connect one parameter's load counts to the caller's retained and returned destinations.
+    fn connect_parameter(
+        &self,
+        argument: u32,
+        parameter: &ParameterEscape,
+        body: &EscapeBody,
+        flows: &mut Vec<EscapeFlow>,
+    ) {
+        if let Some(dereferences) = parameter.retained {
+            flows.push(EscapeFlow {
+                source: argument,
+                destination: body.retained,
+                dereferences: dereferences as i32,
+            });
+        }
+        if let (Some(dereferences), Some(destination)) = (parameter.returned, self.result) {
+            flows.push(EscapeFlow {
+                source: argument,
+                destination,
+                dereferences: dereferences as i32,
+            });
+        }
+    }
+}
+
+impl EscapeBuilder<'_> {
+    /// Record one block's pointer transfers and incoming argument assignments.
+    fn block(&mut self, block_id: mir::BlockId) {
+        let block = self.tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            self.instruction(instruction_id, self.tree.get(instruction_id));
+        }
+
+        // connect every explicit successor argument to the matching parameter
         let terminator = self.tree.get(block.terminator);
         for (edge, target) in terminator.targets(self.tree, block_id) {
-            changed |= self.propagate_target(terminator, edge.successor, target);
+            let parameters = terminator
+                .target_parameters(self.tree, edge.successor, target)
+                .unwrap_or_else(|| unreachable!("verified edge has invalid argument count"));
+            for (parameter, &argument) in parameters.iter().zip(target.arguments(self.tree)) {
+                self.flow(argument.id(), parameter.value.id(), 0);
+            }
         }
 
-        changed
+        // route returned pointers and call results to their distinct destinations
+        match terminator {
+            mir::Terminator::Return { value } => {
+                if let Some(value) = value {
+                    self.flow(value.id(), self.body.result, 0);
+                }
+            }
+            mir::Terminator::Panic { payload } => {
+                if let Some(payload) = payload {
+                    self.flow(payload.id(), self.body.retained, 0);
+                }
+            }
+            mir::Terminator::Invoke { call, target, .. } => {
+                let count = terminator.target_result_count(self.tree, mir::Successor::InvokeNormal);
+                let result =
+                    (count != 0).then(|| self.tree.get(target.block).parameters[0].value.id());
+                self.call(mir::Point::Terminator(block_id), call, result);
+            }
+            mir::Terminator::TailCall { call } => self.call(
+                mir::Point::Terminator(block_id),
+                call,
+                Some(self.body.result),
+            ),
+            mir::Terminator::Error => unreachable!("recovered terminator reached escape analysis"),
+            mir::Terminator::Jump { .. }
+            | mir::Terminator::Branch { .. }
+            | mir::Terminator::Check { .. }
+            | mir::Terminator::Switch { .. }
+            | mir::Terminator::VariantSwitch { .. }
+            | mir::Terminator::NewZeroedTry { .. }
+            | mir::Terminator::NewUninitTry { .. }
+            | mir::Terminator::NewSliceZeroedTry { .. }
+            | mir::Terminator::NewSliceUninitTry { .. }
+            | mir::Terminator::UnwindResume
+            | mir::Terminator::Abort { .. }
+            | mir::Terminator::Unreachable => {}
+        }
     }
 
-    /// Propagate roots through one instruction.
-    fn propagate_instruction(&mut self, instruction: &mir::Instruction) -> bool {
+    /// Translate an instruction's pointer transfers and storage accesses.
+    fn instruction(
+        &mut self,
+        id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+    ) {
         match instruction {
-            mir::Instruction::NewZeroed { destination, .. }
-            | mir::Instruction::NewUninit { destination, .. }
-            | mir::Instruction::NewSliceZeroed { destination, .. }
-            | mir::Instruction::NewSliceUninit { destination, .. } => {
-                self.set_root(*destination, *destination)
+            mir::Instruction::LocalAddr {
+                destination, local, ..
+            } => self.flow(*self.locals.get(*local), destination.id(), -1),
+            mir::Instruction::LocalGet { destination, local } => {
+                self.flow(*self.locals.get(*local), destination.id(), 0)
             }
-            mir::Instruction::NewComplete {
-                destination, value, ..
+            mir::Instruction::LocalSet { local, value } => {
+                self.flow(value.id(), *self.locals.get(*local), 0)
             }
-            | mir::Instruction::Cast {
+            mir::Instruction::GlobalAddr { destination, .. }
+            | mir::Instruction::ContextCurrent { destination }
+            | mir::Instruction::DynamicFind { destination, .. } => {
+                self.body.external[destination.id() as usize] = true
+            }
+            mir::Instruction::FunctionEnvironmentCurrent { destination } => {
+                let environment = self.body.environment.unwrap_or_else(|| {
+                    unreachable!("environment instruction in a function without an environment")
+                });
+                self.flow(environment, destination.id(), 0);
+            }
+            mir::Instruction::Load {
                 destination,
-                argument: value,
+                pointer,
                 ..
             }
-            | mir::Instruction::FieldAddr {
+            | mir::Instruction::AtomicLoad {
                 destination,
-                aggregate: value,
+                pointer,
+                ..
+            } => self.flow(pointer.id(), destination.id(), 1),
+            mir::Instruction::Store { pointer, value }
+            | mir::Instruction::AtomicStore { pointer, value, .. } => {
+                self.store(*pointer, *value, 0)
+            }
+            mir::Instruction::AtomicRmw {
+                destination,
+                pointer,
+                value,
+                ..
+            } => {
+                self.store(*pointer, *value, 0);
+                self.flow(pointer.id(), destination.id(), 1);
+            }
+            mir::Instruction::AtomicCompareExchange {
+                destination,
+                pointer,
+                new_value,
+                ..
+            } => {
+                self.store(*pointer, *new_value, 0);
+                self.flow(pointer.id(), destination.id(), 1);
+            }
+            mir::Instruction::Call { destination, call } => self.call(
+                mir::Point::Instruction(id),
+                call,
+                destination.map(|value| value.id()),
+            ),
+            mir::Instruction::Drop { value } => self.flow(value.id(), self.body.retained, 0),
+            mir::Instruction::ContextReplace {
+                destination,
+                context,
+            } => {
+                self.flow(context.id(), self.body.retained, 0);
+                self.body.external[destination.id() as usize] = true;
+            }
+            mir::Instruction::ContextBind {
+                destination,
+                context,
+                variable,
+                value,
+                ..
+            } => {
+                self.store(*destination, *context, 0);
+                self.store(*destination, *variable, 0);
+                self.store(*destination, *value, 0);
+            }
+            mir::Instruction::ContextGet {
+                destination,
+                context,
+                ..
+            } => self.flow(context.id(), destination.id(), 1),
+            mir::Instruction::DynamicRead {
+                destination,
+                dynamic,
+                ..
+            } => self.flow(dynamic.id(), destination.id(), 1),
+            mir::Instruction::FunctionBind {
+                destination,
+                environment,
+                ..
+            } => self.flow(environment.id(), destination.id(), 0),
+            mir::Instruction::FunctionEnvironment {
+                destination,
+                function,
+            } => self.flow(function.id(), destination.id(), 0),
+            mir::Instruction::Cast {
+                destination,
+                argument,
                 ..
             }
-            | mir::Instruction::ElementAddr {
+            | mir::Instruction::NewComplete {
                 destination,
-                base: value,
+                value: argument,
                 ..
-            } => self.copy_root(*destination, *value),
+            } => self.flow(argument.id(), destination.id(), 0),
+            mir::Instruction::FieldAddr {
+                destination,
+                aggregate,
+                ..
+            }
+            | mir::Instruction::FieldGet {
+                destination,
+                aggregate,
+                ..
+            }
+            | mir::Instruction::ElementGet {
+                destination,
+                aggregate,
+                ..
+            } => self.flow(aggregate.id(), destination.id(), 0),
+            mir::Instruction::ElementAddr {
+                destination, base, ..
+            } => self.flow(base.id(), destination.id(), 0),
+            mir::Instruction::VariantPayload {
+                destination,
+                variant,
+                ..
+            }
+            | mir::Instruction::VariantPayloadAddr {
+                destination,
+                variant,
+                ..
+            } => self.flow(variant.id(), destination.id(), 0),
+            mir::Instruction::SliceView {
+                destination,
+                source,
+                ..
+            } => self.flow(source.id(), destination.id(), 0),
+            mir::Instruction::DynamicBind {
+                destination,
+                payload,
+                ..
+            } => self.flow(payload.id(), destination.id(), 0),
+            mir::Instruction::DynamicPayload {
+                destination,
+                dynamic,
+                ..
+            } => self.flow(dynamic.id(), destination.id(), 0),
             mir::Instruction::Select {
                 destination,
                 then_value,
                 else_value,
                 ..
-            } => self.copy_matching_root(*destination, *then_value, *else_value),
-            mir::Instruction::LocalGet { destination, local } => {
-                if let Some(root) = *self.locals.get(*local) {
-                    self.set_root(*destination, root)
-                } else {
-                    false
+            } => {
+                self.flow(then_value.id(), destination.id(), 0);
+                self.flow(else_value.id(), destination.id(), 0);
+            }
+            mir::Instruction::Aggregate {
+                destination,
+                values,
+            } => {
+                for value in self.tree.get_values(*values) {
+                    self.flow(value.id(), destination.id(), 0);
                 }
             }
-            mir::Instruction::LocalSet { local, value } => {
-                let root = self.root(*value);
-                self.set_local(*local, root)
+            mir::Instruction::FieldSet {
+                destination,
+                aggregate,
+                value,
+                ..
             }
-            _ => false,
+            | mir::Instruction::ElementSet {
+                destination,
+                aggregate,
+                value,
+                ..
+            } => {
+                self.flow(aggregate.id(), destination.id(), 0);
+                self.flow(value.id(), destination.id(), 0);
+            }
+            mir::Instruction::VariantNew {
+                destination,
+                payload,
+                ..
+            } => {
+                if let Some(payload) = payload {
+                    self.flow(payload.id(), destination.id(), 0);
+                }
+            }
+            mir::Instruction::Intrinsic {
+                destination,
+                intrinsic,
+                arguments,
+                ..
+            } => self.intrinsic(*destination, *intrinsic, self.tree.get_values(*arguments)),
+            mir::Instruction::Binary {
+                destination,
+                operator,
+                left,
+                right,
+            } if !operator.is_comparison() => {
+                self.flow(left.id(), destination.id(), 0);
+                self.flow(right.id(), destination.id(), 0);
+            }
+            mir::Instruction::Unary {
+                destination,
+                argument,
+                ..
+            } => self.flow(argument.id(), destination.id(), 0),
+            mir::Instruction::VectorSplat { destination, value } => {
+                self.flow(value.id(), destination.id(), 0)
+            }
+            mir::Instruction::VectorExtract {
+                destination,
+                vector,
+                ..
+            }
+            | mir::Instruction::VectorReduce {
+                destination,
+                vector,
+                ..
+            }
+            | mir::Instruction::VectorConvert {
+                destination,
+                vector,
+                ..
+            } => self.flow(vector.id(), destination.id(), 0),
+            mir::Instruction::VectorInsert {
+                destination,
+                vector,
+                value,
+                ..
+            } => {
+                self.flow(vector.id(), destination.id(), 0);
+                self.flow(value.id(), destination.id(), 0);
+            }
+            mir::Instruction::VectorShuffle {
+                destination,
+                left,
+                right,
+                ..
+            } => {
+                self.flow(left.id(), destination.id(), 0);
+                self.flow(right.id(), destination.id(), 0);
+            }
+            mir::Instruction::VectorSelect {
+                destination,
+                then_value,
+                else_value,
+                ..
+            } => {
+                self.flow(then_value.id(), destination.id(), 0);
+                self.flow(else_value.id(), destination.id(), 0);
+            }
+            mir::Instruction::Error => {
+                unreachable!("recovered instruction reached escape analysis")
+            }
+            mir::Instruction::Const { .. }
+            | mir::Instruction::Binary { .. }
+            | mir::Instruction::FunctionAddr { .. }
+            | mir::Instruction::VariantTag { .. }
+            | mir::Instruction::VariantTagLoad { .. }
+            | mir::Instruction::SliceLength { .. }
+            | mir::Instruction::DynamicType { .. }
+            | mir::Instruction::VectorCompare { .. }
+            | mir::Instruction::NewZeroed { .. }
+            | mir::Instruction::NewUninit { .. }
+            | mir::Instruction::NewSliceZeroed { .. }
+            | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::Release { .. }
+            | mir::Instruction::BarrierWrite { .. }
+            | mir::Instruction::AtomicFence { .. }
+            | mir::Instruction::Assume { .. }
+            | mir::Instruction::ProfileIncrement { .. }
+            | mir::Instruction::ProfileSample { .. }
+            | mir::Instruction::Poll
+            | mir::Instruction::Breakpoint => {}
         }
     }
 
-    /// Propagate roots through one control-flow target.
-    fn propagate_target(
+    /// Record pointer transfers performed by a compiler intrinsic.
+    fn intrinsic(
         &mut self,
-        terminator: &mir::Terminator,
-        successor: mir::Successor,
-        target: &mir::BlockTarget,
-    ) -> bool {
-        let result_count = terminator.target_result_count(self.tree, successor);
-        let block = self.tree.get(target.block);
-        let parameters = terminator
-            .target_parameters(self.tree, successor, target)
-            .unwrap_or_else(|| unreachable!("verified block target has invalid argument count"));
-        let arguments = target.arguments(self.tree);
-        let mut changed = false;
-
-        // root values produced directly by this edge
-        for parameter in block.parameters.iter().take(result_count) {
-            changed |= self.set_root(parameter.value, parameter.value);
+        destination: Option<mir::Value>,
+        intrinsic: mir::Intrinsic,
+        arguments: &[mir::Value],
+    ) {
+        match intrinsic {
+            mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
+                self.store(arguments[0], arguments[1], 1)
+            }
+            mir::Intrinsic::VolatileStore => self.store(arguments[0], arguments[1], 0),
+            mir::Intrinsic::VolatileLoad => {
+                if let Some(destination) = destination {
+                    self.flow(arguments[0].id(), destination.id(), 1);
+                }
+            }
+            mir::Intrinsic::Transmute
+            | mir::Intrinsic::SpaceCast
+            | mir::Intrinsic::BlackBox
+            | mir::Intrinsic::Expect => {
+                if let Some(destination) = destination {
+                    self.flow(arguments[0].id(), destination.id(), 0);
+                }
+            }
+            _ => {
+                // preserve pointer bits transformed by arithmetic and representation intrinsics
+                if let Some(destination) = destination {
+                    for argument in arguments {
+                        self.flow(argument.id(), destination.id(), 0);
+                    }
+                }
+            }
         }
-
-        // copy each argument root to its matching block parameter
-        for (parameter, argument) in parameters.iter().zip(arguments.iter()) {
-            changed |= self.copy_root(parameter.value, *argument);
-        }
-
-        changed
     }
 
-    /// Copy a root when the source has one.
-    fn copy_root(&mut self, destination: mir::Value, source: mir::Value) -> bool {
-        if let Some(root) = self.root(source) {
-            self.set_root(destination, root)
-        } else {
-            false
-        }
-    }
-
-    /// Copy a root when two sources share the same root.
-    fn copy_matching_root(
-        &mut self,
-        destination: mir::Value,
-        left: mir::Value,
-        right: mir::Value,
-    ) -> bool {
-        let Some(left) = self.root(left) else {
-            return false;
+    /// Store a pointer into a known local allocation or externally accessible storage.
+    fn store(&mut self, pointer: mir::Value, value: mir::Value, dereferences: i32) {
+        // resolve the storage receiving the pointer
+        let place = self.places.get(pointer);
+        let destination = match place.origin {
+            mir::PlaceOrigin::Local(local)
+                if !place.path.projections.contains(&mir::Projection::Deref) =>
+            {
+                *self.locals.get(local)
+            }
+            mir::PlaceOrigin::Value(root)
+                if !place.path.projections.contains(&mir::Projection::Deref) =>
+            {
+                // select instruction allocations with an unambiguous result
+                match self.body.allocations.iter().find(|allocation| {
+                    matches!(allocation.point, mir::Point::Instruction(_))
+                        && allocation.value == root
+                }) {
+                    Some(allocation) => allocation.location,
+                    None => self.body.retained,
+                }
+            }
+            mir::PlaceOrigin::Local(_)
+            | mir::PlaceOrigin::Value(_)
+            | mir::PlaceOrigin::Global(_) => self.body.retained,
         };
-        let Some(right) = self.root(right) else {
-            return false;
+
+        self.flow(value.id(), destination, dereferences);
+    }
+
+    /// Record arguments, environment, and return storage for one callsite.
+    fn call(&mut self, point: mir::Point, call: &mir::Call, result: Option<u32>) {
+        // translate possible callees to persistent symbols
+        let resolution = self.resolution.resolution(point);
+        let mut targets = resolution
+            .functions
+            .iter()
+            .map(|&function| self.tree.get(function).symbol)
+            .collect::<Vec<_>>();
+        targets.sort_unstable();
+        targets.dedup();
+
+        // record the hidden environment supplied by indirect calls
+        let environment = match call.callee {
+            mir::Callee::Indirect { value } => Some(value.id()),
+            _ => None,
         };
 
-        if left == right {
-            self.set_root(destination, left)
-        } else {
-            false
-        }
+        // apply explicit capture declarations to bodyless callees
+        let is_bodyless = resolution
+            .functions
+            .iter()
+            .all(|&function| !self.tree.get(function).is_defined());
+        let arguments_declared = self
+            .effects
+            .call(point)
+            .filter(|_| is_bodyless)
+            .map(|call| call.arguments.clone())
+            .unwrap_or_default();
+
+        // retain the arguments and destinations used when solving callees
+        self.body.calls.push(EscapeCall {
+            targets,
+            is_open: resolution.is_open,
+            arguments: self
+                .tree
+                .get_values(call.arguments)
+                .iter()
+                .map(|value| value.id())
+                .collect(),
+            environment,
+            result,
+            arguments_declared,
+        });
     }
 
-    /// Return the root for one value.
-    fn root(&self, value: mir::Value) -> Option<mir::Value> {
-        self.roots.get(value.0 as usize).copied().flatten()
-    }
-
-    /// Set a value root.
-    fn set_root(&mut self, value: mir::Value, root: mir::Value) -> bool {
-        let slot = &mut self.roots[value.0 as usize];
-        if *slot == Some(root) {
-            false
-        } else {
-            *slot = Some(root);
-            true
-        }
-    }
-
-    /// Set a local root.
-    fn set_local(&mut self, local: mir::LocalId, root: Option<mir::Value>) -> bool {
-        let slot = self.locals.get_mut(local);
-        if *slot == root {
-            false
-        } else {
-            *slot = root;
-            true
-        }
-    }
-}
-
-/// Escape marker for propagated allocation roots.
-struct EscapeMarker<'a, 'b> {
-    /// The MIR tree being analyzed.
-    tree: &'a mir::Tree,
-    /// Allocation root by SSA value id.
-    roots: &'a [Option<mir::Value>],
-    /// Allocation roots that escape.
-    escaped: &'b mut BitSet,
-}
-
-impl<'a, 'b> EscapeMarker<'a, 'b> {
-    /// Mark escaping roots in one function.
-    fn mark_function(&mut self, function: &mir::Function) {
-        for &block_id in function.blocks() {
-            self.mark_block(block_id);
-        }
-    }
-
-    /// Mark escaping roots in one block.
-    fn mark_block(&mut self, block_id: mir::BlockId) {
-        let block = self.tree.get(block_id);
-
-        // mark instruction escapes
-        for &instruction_id in &block.instructions {
-            let instruction = self.tree.get(instruction_id);
-            self.mark_instruction(instruction);
-        }
-
-        // mark terminator escapes
-        let terminator = self.tree.get(block.terminator);
-        self.mark_terminator(terminator);
-    }
-
-    /// Mark roots escaping through one instruction.
-    fn mark_instruction(&mut self, instruction: &mir::Instruction) {
-        match instruction {
-            mir::Instruction::Store { value, .. } => self.mark_value(*value),
-            mir::Instruction::Call { call, .. } => {
-                self.mark_values(&call.callee.uses());
-                self.mark_values(self.tree.get_values(call.arguments));
-            }
-            mir::Instruction::Intrinsic { arguments, .. } => {
-                self.mark_values(self.tree.get_values(*arguments));
-            }
-            _ => {}
-        }
-    }
-
-    /// Mark roots escaping through one terminator.
-    fn mark_terminator(&mut self, terminator: &mir::Terminator) {
-        match terminator {
-            mir::Terminator::Return { value: Some(value) } => self.mark_value(*value),
-            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
-                self.mark_values(&call.callee.uses());
-                self.mark_values(self.tree.get_values(call.arguments));
-            }
-            _ => {}
-        }
-    }
-
-    /// Mark all roots in a value slice as escaping.
-    fn mark_values(&mut self, values: &[mir::Value]) {
-        for &value in values {
-            self.mark_value(value);
-        }
-    }
-
-    /// Mark one value's root as escaping.
-    fn mark_value(&mut self, value: mir::Value) {
-        if let Some(root) = self.roots.get(value.0 as usize).copied().flatten() {
-            self.escaped.insert(root.id() as usize);
+    /// Append a pointer flow unless it copies a location into itself.
+    fn flow(&mut self, source: u32, destination: u32, dereferences: i32) {
+        if source != destination || dereferences < 0 {
+            self.body.flows.push(EscapeFlow {
+                source,
+                destination,
+                dereferences,
+            });
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use crate::analyses::tests::TestModule;
+    use crate::{AllocationEscape, EscapeEffect, ParameterEscape, Point, Value};
 
-    /// Keep allocation identities separate when analyzing multiple functions.
+    /// Keep allocations distinct when fallible operations share one success parameter.
     #[test]
-    fn test_analyse_function_escapes_in_one_module() {
+    fn test_return_fallible_allocations() {
         let program = TestModule::new(
             r#"
-function retained(): int32 {
-entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    v1: int32 = 0
-    return v1
-}
+function test(v0: boolean): uninit<ref<int32, unique, mutable, local>> {
+entry(v0: boolean):
+    branch v0 => left | right
 
-function returned(): ref<int32, unique, mutable, local> {
-entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    return v0
+left:
+    new.uninit.try int32 => join | failure
+
+right:
+    new.uninit.try int32 => join | failure
+
+join(v1: uninit<ref<int32, unique, mutable, local>>):
+    return v1
+
+failure:
+    unreachable
 }
 "#,
         );
         let mut analyses = program.module_analyses();
-        let escapes = analyses.escape(&program.tree);
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let blocks = program.tree.get(function).blocks();
+        let expected = AllocationEscape {
+            is_returned: true,
+            is_retained: false,
+            is_persistent: false,
+        };
 
-        // check the allocation and escape result for every value in both functions
-        let actual = program
-            .tree
-            .iter_nodes::<mir::Function>()
-            .map(|(id, function)| {
-                let escape = escapes.function(id);
-                (0..function.value_capacity())
-                    .map(|index| {
-                        let value = mir::Value::new(index as u32);
-                        (
-                            escape.allocation(value),
-                            escape.escapes(value),
-                            escape.stays_local(value),
-                        )
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
         assert_eq!(
-            actual,
-            vec![
-                vec![
-                    (Some(mir::Value::new(0)), false, true),
-                    (None, false, false)
-                ],
-                vec![(Some(mir::Value::new(0)), true, false)],
-            ]
+            escape.allocation(Point::Terminator(blocks[1])),
+            Some(&expected)
+        );
+        assert_eq!(
+            escape.allocation(Point::Terminator(blocks[2])),
+            Some(&expected)
         );
     }
 
-    /// Returned allocations escape their function.
+    /// Read the previous iteration's allocation after creating the next allocation.
     #[test]
-    fn test_escape_marks_returned_allocation() {
+    fn test_preserve_loop_allocations() {
         let program = TestModule::new(
             r#"
-function test(): ref<int32, unique, mutable, local> {
-entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    return v0
+function test(v0: boolean): int32 {
+    local l0: ref<int32, unique, mutable, local>
+
+entry(v0: boolean):
+    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v5: int32 = 7
+    store v1, v5
+    local.set l0, v1
+    jump loop
+
+loop:
+    v2: ref<int32, unique, mutable, local> = local.get l0
+    v3: ref<int32, unique, mutable, local> = new.zeroed int32
+    v4: int32 = load v2
+    store v3, v5
+    local.set l0, v3
+    branch v0 => loop | exit
+
+exit:
+    return v4
 }
 "#,
         );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let block = program.tree.get(program.tree.get(function).blocks()[1]);
 
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
-        let escape = Escape::analyse(function, &program.tree);
-
-        assert!(escape.escapes(mir::Value::new(0)));
+        assert_eq!(
+            escape.allocation(Point::Instruction(block.instructions[1])),
+            Some(&AllocationEscape {
+                is_returned: false,
+                is_retained: false,
+                is_persistent: true,
+            })
+        );
     }
 
-    /// Unpublished allocations remain local to their function.
+    /// Keep an allocation reusable when every reference expires within its loop iteration.
     #[test]
-    fn test_escape_keeps_unpublished_allocation_local() {
+    fn test_reuse_loop_allocations() {
         let program = TestModule::new(
             r#"
-function test(): int32 {
-entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+function test(v0: boolean): void {
+entry(v0: boolean):
+    jump loop
+
+loop:
+    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    branch v0 => loop | exit
+
+exit:
+    return
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let block = program.tree.get(program.tree.get(function).blocks()[1]);
+
+        assert_eq!(
+            escape.allocation(Point::Instruction(block.instructions[0])),
+            Some(&AllocationEscape::default())
+        );
+    }
+
+    /// Read a previous allocation after revisiting either entry of an irreducible cycle.
+    #[test]
+    fn test_preserve_irreducible_allocations() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean): int32 {
+    local l0: ref<int32, unique, mutable, local>
+
+entry(v0: boolean):
+    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v7: int32 = 7
+    store v1, v7
+    local.set l0, v1
+    branch v0 => left | right
+
+left:
+    v2: ref<int32, unique, mutable, local> = local.get l0
+    v3: ref<int32, unique, mutable, local> = new.zeroed int32
+    v4: int32 = load v2
+    store v3, v4
+    local.set l0, v3
+    jump right
+
+right:
+    branch v0 => left | exit
+
+exit:
+    v5: ref<int32, unique, mutable, local> = local.get l0
+    v6: int32 = load v5
+    return v6
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let block = program.tree.get(program.tree.get(function).blocks()[1]);
+
+        assert_eq!(
+            table
+                .function(function)
+                .allocation(Point::Instruction(block.instructions[1])),
+            Some(&AllocationEscape {
+                is_returned: false,
+                is_retained: false,
+                is_persistent: true,
+            })
+        );
+    }
+
+    /// Reuse storage when an irreducible cycle consumes each pointer within its allocation block.
+    #[test]
+    fn test_reuse_irreducible_allocations() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean): int32 {
+entry(v0: boolean):
     v1: int32 = 0
-    return v1
+    branch v0 => left | right(v1)
+
+left:
+    v2: ref<int32, unique, mutable, local> = new.zeroed int32
+    v3: int32 = load v2
+    jump right(v3)
+
+right(v4: int32):
+    branch v0 => left | exit
+
+exit:
+    return v4
 }
 "#,
         );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let block = program.tree.get(program.tree.get(function).blocks()[1]);
 
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
-        let escape = Escape::analyse(function, &program.tree);
-
-        assert!(escape.stays_local(mir::Value::new(0)));
+        assert_eq!(
+            table
+                .function(function)
+                .allocation(Point::Instruction(block.instructions[0])),
+            Some(&AllocationEscape::default()),
+        );
     }
 
-    /// Local slots propagate allocation roots before escaping.
+    /// Follow an allocation through a local address, store, and load before returning it.
     #[test]
-    fn test_escape_propagates_through_local_slots() {
+    fn test_return_through_local_storage() {
         let program = TestModule::new(
             r#"
 function test(): ref<int32, unique, mutable, local> {
@@ -467,90 +1551,220 @@ function test(): ref<int32, unique, mutable, local> {
 
 entry:
     v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    local.set l0, v0
-    v1: ref<int32, unique, mutable, local> = local.get l0
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = local.address l0
+    store v1, v0
+    v2: ref<int32, unique, mutable, local> = load v1
+    return v2
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let entry = program.tree.get(program.entry_block_id(function));
+
+        assert_eq!(
+            escape.allocation(Point::Instruction(entry.instructions[0])),
+            Some(&AllocationEscape {
+                is_returned: true,
+                is_retained: false,
+                is_persistent: false,
+            })
+        );
+    }
+
+    /// Record a returned pointer loaded from a parameter at one dereference.
+    #[test]
+    fn test_return_loaded_parameter() {
+        let program = TestModule::new(
+            r#"
+function test(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static, readonly, local>): ref<int32, borrowed, 'static, readonly, local> {
+entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static, readonly, local>):
+    v1: ref<int32, borrowed, 'static, readonly, local> = load v0
     return v1
 }
 "#,
         );
-
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
-        let escape = Escape::analyse(function, &program.tree);
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let escape = table.function(program.entry_function_id());
 
         assert_eq!(
-            escape.allocation(mir::Value::new(1)),
-            Some(mir::Value::new(0))
+            escape.effect,
+            EscapeEffect {
+                parameters: vec![ParameterEscape {
+                    retained: None,
+                    returned: Some(1)
+                }],
+                environment: None,
+                external: None,
+            }
         );
-        assert!(escape.escapes(mir::Value::new(1)));
+        assert_eq!(
+            [escape.is_exposed(Value(0)), escape.is_exposed(Value(1))],
+            [true, true]
+        );
     }
 
-    /// Block arguments propagate allocation roots through control flow.
+    /// Distinguish a unique parameter's private address from external pointers in its contents.
     #[test]
-    fn test_escape_propagates_through_block_arguments() {
+    fn test_distinguish_owned_parameter_contents() {
+        let program = TestModule::new(
+            r#"
+function test(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, local>): void {
+entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, local>):
+    v1: ref<int32, borrowed, 'static, readonly, local> = load v0
+    return
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let escape = table.function(program.entry_function_id());
+
+        assert_eq!(
+            [escape.is_exposed(Value(0)), escape.is_exposed(Value(1))],
+            [false, true]
+        );
+        assert_eq!(escape.effect.parameters, vec![ParameterEscape::default()]);
+    }
+
+    /// Retain a pointer stored through an incoming reference.
+    #[test]
+    fn test_store_through_parameter() {
+        let program = TestModule::new(
+            r#"
+function test(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, local>): void {
+entry(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, local>):
+    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    store v0, v1
+    return
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let entry = program.tree.get(program.entry_block_id(function));
+
+        assert_eq!(
+            escape.allocation(Point::Instruction(entry.instructions[0])),
+            Some(&AllocationEscape {
+                is_returned: false,
+                is_retained: true,
+                is_persistent: false,
+            })
+        );
+        assert!(escape.is_exposed(Value(1)));
+    }
+
+    /// Preserve a returned allocation address through integer vector operations.
+    #[test]
+    fn test_return_address_through_vector() {
+        let program = TestModule::new(
+            r#"
+function test(): usize {
+entry:
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: usize = cast.pointerToInt v0 -> usize
+    v2: vector<usize, 2> = vector.splat v1
+    v3: usize = 0
+    v4: usize = vector.extract v2, v3
+    return v4
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let entry = program.tree.get(program.entry_block_id(function));
+
+        assert_eq!(
+            escape.allocation(Point::Instruction(entry.instructions[0])),
+            Some(&AllocationEscape {
+                is_returned: true,
+                is_retained: false,
+                is_persistent: false,
+            })
+        );
+    }
+
+    /// Preserve returned allocation addresses through reversible bit operations.
+    #[test]
+    fn test_return_address_through_bit_operations() {
+        let program = TestModule::new(
+            r#"
+function test(): usize {
+entry:
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: usize = cast.pointerToInt v0 -> usize
+    v2: usize = intrinsic.math.bits.byteSwap(v1)
+    v3: usize = intrinsic.math.bits.byteSwap(v2)
+    return v3
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let block = program.tree.get(program.entry_block_id(function));
+
+        assert_eq!(
+            table
+                .function(function)
+                .allocation(Point::Instruction(block.instructions[0])),
+            Some(&AllocationEscape {
+                is_returned: true,
+                is_retained: false,
+                is_persistent: false,
+            })
+        );
+    }
+
+    /// Return either allocation selected by the branch.
+    #[test]
+    fn test_return_merged_allocations() {
         let program = TestModule::new(
             r#"
 function test(v0: boolean): ref<int32, unique, mutable, local> {
 entry(v0: boolean):
     v1: ref<int32, unique, mutable, local> = new.zeroed int32
-    branch v0 => b1(v1) | b2(v1)
+    v2: ref<int32, unique, mutable, local> = new.zeroed int32
+    branch v0 => join(v1) | join(v2)
 
-b1(v2: ref<int32, unique, mutable, local>):
-    return v2
-
-b2(v3: ref<int32, unique, mutable, local>):
+join(v3: ref<int32, unique, mutable, local>):
     return v3
 }
 "#,
         );
-
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
-        let escape = Escape::analyse(function, &program.tree);
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let entry = program.tree.get(program.entry_block_id(function));
+        let expected = AllocationEscape {
+            is_returned: true,
+            is_retained: false,
+            is_persistent: false,
+        };
 
         assert_eq!(
-            escape.allocation(mir::Value::new(2)),
-            Some(mir::Value::new(1))
+            escape.allocation(Point::Instruction(entry.instructions[0])),
+            Some(&expected)
         );
         assert_eq!(
-            escape.allocation(mir::Value::new(3)),
-            Some(mir::Value::new(1))
+            escape.allocation(Point::Instruction(entry.instructions[1])),
+            Some(&expected)
         );
-        assert!(escape.escapes(mir::Value::new(1)));
+        assert_eq!(escape.effect.parameters, vec![ParameterEscape::default()]);
     }
 
-    /// Fallible allocation results begin distinct allocation roots.
+    /// Keep arguments private when a known callee reads nothing and retains nothing.
     #[test]
-    fn test_escape_tracks_fallible_allocation_result() {
-        let program = TestModule::new(
-            r#"
-function test(v0: int64): uninit<slice<int32, managed, mutable, local>> {
-entry(v0: int64):
-    new.slice.uninit.try int32, v0 => b1 | b2
-
-b1(v1: uninit<slice<int32, managed, mutable, local>>):
-    return v1
-
-b2:
-    unreachable
-}
-"#,
-        );
-
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
-        let escape = Escape::analyse(function, &program.tree);
-
-        assert_eq!(
-            escape.allocation(mir::Value::new(1)),
-            Some(mir::Value::new(1))
-        );
-        assert!(escape.escapes(mir::Value::new(1)));
-    }
-
-    /// Call arguments escape their function.
-    #[test]
-    fn test_escape_marks_call_arguments() {
+    fn test_preserve_uncaptured_call_arguments() {
         let program = TestModule::new(
             r#"
 function sink(v0: ref<int32, unique, mutable, local>): void {
@@ -558,20 +1772,221 @@ entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function test(): int32 {
+function test(): void {
 entry:
     v0: ref<int32, unique, mutable, local> = new.zeroed int32
     call sink(v0): (ref<int32, unique, mutable, local>) => void
-    v1: int32 = 0
-    return v1
+    return
 }
 "#,
         );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let entry = program.tree.get(program.entry_block_id(function));
 
-        let function_id = program.function_id_by_name("test");
-        let function = program.tree.get(function_id);
-        let escape = Escape::analyse(function, &program.tree);
+        assert_eq!(
+            escape.allocation(Point::Instruction(entry.instructions[0])),
+            Some(&AllocationEscape::default())
+        );
+        assert!(!escape.is_exposed(Value(0)));
+    }
 
-        assert!(escape.escapes(mir::Value::new(0)));
+    /// Distinguish returning an argument from retaining it outside the call.
+    #[test]
+    fn test_discard_returned_argument() {
+        let program = TestModule::new(
+            r#"
+function identity(v0: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
+entry(v0: ref<int32, unique, mutable, local>):
+    return v0
+}
+
+function test(): void {
+entry:
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: ref<int32, unique, mutable, local> = call identity(v0): (ref<int32, unique, mutable, local>) => ref<int32, unique, mutable, local>
+    return
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let identity = table.function(program.function_id_by_name("identity"));
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let entry = program.tree.get(program.entry_block_id(function));
+
+        assert_eq!(
+            identity.effect.parameters,
+            vec![ParameterEscape {
+                retained: None,
+                returned: Some(0)
+            }]
+        );
+        assert_eq!(
+            escape.allocation(Point::Instruction(entry.instructions[0])),
+            Some(&AllocationEscape::default())
+        );
+        assert!(!escape.is_exposed(Value(1)));
+    }
+
+    /// Propagate returned parameters through mutually recursive calls.
+    #[test]
+    fn test_return_through_recursive_calls() {
+        let program = TestModule::new(
+            r#"
+function first(v0: ref<int32, unique, mutable, local>, v1: boolean): ref<int32, unique, mutable, local> {
+entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+    branch v1 => done | recurse
+
+recurse:
+    v2: ref<int32, unique, mutable, local> = call second(v0, v1): (ref<int32, unique, mutable, local>, boolean) => ref<int32, unique, mutable, local>
+    return v2
+
+done:
+    return v0
+}
+
+function second(v0: ref<int32, unique, mutable, local>, v1: boolean): ref<int32, unique, mutable, local> {
+entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+    v2: ref<int32, unique, mutable, local> = call first(v0, v1): (ref<int32, unique, mutable, local>, boolean) => ref<int32, unique, mutable, local>
+    return v2
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        for name in ["first", "second"] {
+            let escape = table.function(program.function_id_by_name(name));
+
+            assert_eq!(
+                escape.effect.parameters,
+                vec![
+                    ParameterEscape {
+                        retained: None,
+                        returned: Some(0)
+                    },
+                    ParameterEscape::default(),
+                ]
+            );
+        }
+    }
+
+    /// Track the environment returned by a known closure target.
+    #[test]
+    fn test_return_closure_environment() {
+        let program = TestModule::new(
+            r#"
+@environment(ref<int32, unique, mutable, local>)
+function captured(): ref<int32, unique, mutable, local> {
+entry:
+    v0: ref<int32, unique, mutable, local> = function.environment.current
+    return v0
+}
+
+function test(): ref<int32, unique, mutable, local> {
+entry:
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: function<() => ref<int32, unique, mutable, local>, once, unique, mutable, local> = function.bind captured, v0
+    v2: ref<int32, unique, mutable, local> = call.indirect v1(): () => ref<int32, unique, mutable, local>
+    return v2
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let block = program.tree.get(program.entry_block_id(function));
+
+        assert_eq!(
+            table
+                .function(function)
+                .allocation(Point::Instruction(block.instructions[0])),
+            Some(&AllocationEscape {
+                is_returned: true,
+                is_retained: false,
+                is_persistent: false
+            })
+        );
+        assert_eq!(
+            table
+                .function(program.function_id_by_name("captured"))
+                .effect
+                .environment,
+            Some(ParameterEscape {
+                retained: None,
+                returned: Some(0)
+            })
+        );
+    }
+
+    /// Retain arguments passed to an external call and expose its independent result.
+    #[test]
+    fn test_propagate_external_pointer_effects() {
+        let program = TestModule::new(
+            r#"
+external function retain(ref<int32, unique, mutable, local>): void
+external function fetch(): ref<int32, unique, mutable, local>
+external function borrow(): ref<int32, borrowed, 'static, readonly, local>
+
+function test(): ref<int32, unique, mutable, local> {
+entry:
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    call retain(v0): (ref<int32, unique, mutable, local>) => void
+    v1: ref<int32, unique, mutable, local> = call fetch(): () => ref<int32, unique, mutable, local>
+    return v1
+}
+
+function receive(): ref<int32, borrowed, 'static, readonly, local> {
+entry:
+    v0: ref<int32, borrowed, 'static, readonly, local> = call borrow(): () => ref<int32, borrowed, 'static, readonly, local>
+    return v0
+}
+"#,
+        );
+        let mut analyses = program.module_analyses();
+        let table = analyses.escape(&program.tree, &program.effects, &program.dispatch);
+        let function = program.entry_function_id();
+        let escape = table.function(function);
+        let entry = program.tree.get(program.entry_block_id(function));
+
+        assert_eq!(
+            escape.allocations,
+            vec![(
+                Point::Instruction(entry.instructions[0]),
+                AllocationEscape {
+                    is_returned: false,
+                    is_retained: true,
+                    is_persistent: false,
+                }
+            )]
+        );
+        assert_eq!(
+            escape.effect,
+            EscapeEffect {
+                parameters: vec![],
+                environment: None,
+                external: Some(1)
+            }
+        );
+        assert_eq!(
+            [escape.is_exposed(Value(0)), escape.is_exposed(Value(1))],
+            [true, false]
+        );
+
+        // expose a borrowed result at its address while preserving unique result storage
+        let borrowed = table.function(program.function_id_by_name("receive"));
+        assert_eq!(
+            borrowed.effect,
+            EscapeEffect {
+                parameters: vec![],
+                environment: None,
+                external: Some(0),
+            }
+        );
+        assert!(borrowed.is_exposed(Value(0)));
+        assert_eq!(borrowed.allocations, vec![]);
     }
 }

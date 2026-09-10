@@ -1,12 +1,12 @@
 use destack_core::StringPool;
-use destack_source::DiagnosticSeverity;
+use destack_source::{DiagnosticSeverity, ModuleId};
 
 use crate as mir;
 use crate::analyses::{AnalysisCache, FunctionCache};
 use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{AccessTable, DispatchTable, EffectTable, Function, LocalNodeId, Tree};
 
-/// Parsed MIR used by analysis tests.
+/// One parsed MIR module used by analysis tests.
 pub(crate) struct TestModule {
     /// The MIR tree.
     pub(crate) tree: Tree,
@@ -21,11 +21,20 @@ pub(crate) struct TestModule {
 }
 
 impl TestModule {
-    /// Create a new test program from MIR source text.
+    /// Parse MIR source in the default test module.
     pub(crate) fn new(source: &str) -> Self {
+        Self::parse(source, mir::TEST_MODULE)
+    }
+
+    /// Parse MIR source with a distinct module identity.
+    pub(crate) fn parse(source: &str, module: ModuleId) -> Self {
+        // parse the module with its declaring identity
         let file = test_file(source);
-        let parsed = Parser::parse(&file, ParseOptions::default())
-            .expect("MIR parser requires text content");
+        let options = ParseOptions {
+            module,
+            ..ParseOptions::default()
+        };
+        let parsed = Parser::parse(&file, options).expect("MIR parser requires text content");
         let (
             tree,
             _target_layout,
@@ -39,8 +48,9 @@ impl TestModule {
             diagnostics,
         ) = parsed.into_parts();
 
+        // reject malformed fixtures
         if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
-            panic!("failed to parse MIR");
+            panic!("failed to parse MIR: {diagnostics:?}");
         }
 
         Self {
@@ -65,17 +75,17 @@ impl TestModule {
         (test.tree, function)
     }
 
-    /// Create function analyses for this program.
+    /// Create function analyses for this module.
     pub(crate) fn function_analyses(&self) -> FunctionCache {
         FunctionCache::new()
     }
 
-    /// Create module analyses for this program.
+    /// Create analyses for this module.
     pub(crate) fn module_analyses(&self) -> AnalysisCache {
         AnalysisCache::new()
     }
 
-    /// Return the entry function id, preferring a function named `test`.
+    /// Return the defined function named `test`.
     pub(crate) fn entry_function_id(&self) -> LocalNodeId<Function> {
         // require the canonical test entry
         self.tree
@@ -112,7 +122,7 @@ impl TestModule {
             .collect()
     }
 
-    /// Return the first function id in the program.
+    /// Return the first function id in the module.
     pub(crate) fn first_function_id(&self) -> LocalNodeId<Function> {
         self.tree
             .iter_nodes::<Function>()

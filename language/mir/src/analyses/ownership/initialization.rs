@@ -426,16 +426,25 @@ impl InitializationTable {
             .unwrap_or_else(|| unreachable!("block target has invalid argument count"));
         let anchor = block.terminator.into_any();
 
-        // bind move-only arguments to successor parameters
-        for (parameter, argument) in parameters.iter().zip(arguments.iter().copied()) {
-            let Some(argument) = self.paths.value(argument) else {
-                continue;
-            };
-            let Some(parameter) = self.paths.value(parameter.value) else {
-                continue;
-            };
+        // collect every moved argument before assigning any successor parameter
+        let bindings = parameters
+            .iter()
+            .zip(arguments)
+            .filter_map(|(parameter, &argument)| {
+                let argument = self.paths.value(argument)?;
+                let parameter = self.paths.value(parameter.value)?;
 
-            state.bind(argument, parameter, anchor, &self.paths);
+                (argument != parameter).then_some((argument, parameter))
+            })
+            .collect::<Vec<_>>();
+        state.bind(&bindings, anchor, &self.paths);
+
+        // initialize the values produced by the selected successor edge
+        let count = terminator.target_result_count(tree, edge.successor);
+        for parameter in &tree.get(target.block).parameters[..count] {
+            if let Some(path) = self.paths.value(parameter.value) {
+                state.initialize(path, &self.paths);
+            }
         }
     }
 
@@ -643,34 +652,32 @@ impl InitializationState {
         }
     }
 
-    /// Transfer one move path tree into another.
+    /// Move edge arguments into successor parameters simultaneously.
     fn bind(
         &mut self,
-        argument: MovePathId,
-        parameter: MovePathId,
+        bindings: &[(MovePathId, MovePathId)],
         moved_at: LocalNodeIdAny,
         paths: &MoveTable,
     ) {
-        if argument == parameter {
-            return;
+        // read every source path before moving its storage
+        let mut states = Vec::new();
+        for &(argument, parameter) in bindings {
+            for path in paths.descendants(argument) {
+                let parameter = paths.map(path, argument, parameter);
+                states.push((parameter, self.get(path), self.moved_at(path)));
+            }
         }
 
-        let states = paths
-            .descendants(argument)
-            .map(|path| {
-                let parameter = paths.map(path, argument, parameter);
+        // consume source storage before initializing any destination
+        for &(argument, _) in bindings {
+            self.move_path(argument, moved_at, paths);
+        }
 
-                (parameter, self.get(path), self.moved_at(path))
-            })
-            .collect::<Vec<_>>();
-
-        // transfer each structural path into its matching parameter path
+        // assign each destination from the original edge state
         for (parameter, state, moved_at) in states {
             self.set(parameter, state);
             self.moved_at[parameter.index()] = moved_at;
         }
-
-        self.move_path(argument, moved_at, paths);
     }
 
     /// Return whether one complete path tree is initialized.
@@ -738,4 +745,295 @@ pub enum Initialization {
     Initialized,
     /// The path is initialized on only some incoming control flow paths.
     MaybeInitialized,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Initialization::{Initialized, MaybeInitialized, Uninitialized};
+    use crate::Value;
+    use crate::analyses::tests::TestModule;
+
+    /// Merge local initialization from every reachable branch.
+    #[test]
+    fn test_merge_local_initialization() {
+        let program = TestModule::new(
+            r#"
+function partial(v0: boolean, v1: ref<int32, unique, mutable, local>): void {
+    local l0: ref<int32, unique, mutable, local>
+
+entry(v0: boolean, v1: ref<int32, unique, mutable, local>):
+    branch v0 => left | right
+
+left:
+    local.set l0, v1
+    jump join
+
+right:
+    jump join
+
+join:
+    return
+}
+
+function complete(v0: boolean, v1: ref<int32, unique, mutable, local>): void {
+    local l0: ref<int32, unique, mutable, local>
+
+entry(v0: boolean, v1: ref<int32, unique, mutable, local>):
+    branch v0 => left | right
+
+left:
+    local.set l0, v1
+    jump join
+
+right:
+    local.set l0, v1
+    jump join
+
+join:
+    return
+}
+"#,
+        );
+
+        for (name, expected) in [
+            (
+                "partial",
+                [
+                    (Uninitialized, Uninitialized),
+                    (Uninitialized, Initialized),
+                    (Uninitialized, Uninitialized),
+                    (MaybeInitialized, MaybeInitialized),
+                ],
+            ),
+            (
+                "complete",
+                [
+                    (Uninitialized, Uninitialized),
+                    (Uninitialized, Initialized),
+                    (Uninitialized, Initialized),
+                    (Initialized, Initialized),
+                ],
+            ),
+        ] {
+            let function = program.tree.get(program.function_id_by_name(name));
+            let mut analyses = program.function_analyses();
+            let table = analyses.initialization(function, &program.tree);
+            let local = table.paths.local(function.locals()[0]).unwrap();
+            let actual = function
+                .blocks()
+                .iter()
+                .map(|&block| {
+                    (
+                        table.entry(block).unwrap().get(local),
+                        table.exit(block).unwrap().get(local),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, expected, "{name}");
+        }
+    }
+
+    /// Propagate a local move through the backedge and into the loop exit.
+    #[test]
+    fn test_propagate_loop_moves() {
+        let program = TestModule::new(
+            r#"
+function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
+    local l0: ref<int32, unique, mutable, local>
+
+entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+    local.set l0, v0
+    jump header
+
+header:
+    v2: ref<int32, unique, mutable, local> = local.get l0
+    branch v1 => header | done
+
+done:
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let table = analyses.initialization(function, &program.tree);
+        let local = table.paths.local(function.locals()[0]).unwrap();
+        let moved = program.tree.get(function.block(1)).instructions[0].into_any();
+        let actual = function
+            .blocks()
+            .iter()
+            .map(|&block| {
+                let entry = table.entry(block).unwrap();
+                let exit = table.exit(block).unwrap();
+
+                (
+                    entry.get(local),
+                    entry.moved_at(local),
+                    exit.get(local),
+                    exit.moved_at(local),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            actual,
+            [
+                (Uninitialized, None, Initialized, None),
+                (MaybeInitialized, Some(moved), Uninitialized, Some(moved)),
+                (Uninitialized, Some(moved), Uninitialized, Some(moved)),
+            ]
+        );
+    }
+
+    /// Ignore an unreachable initializer even when its block precedes the function entry.
+    #[test]
+    fn test_ignore_unreachable_initialization() {
+        let mut program = TestModule::new(
+            r#"
+function test(v0: ref<int32, unique, mutable, local>): void {
+    local l0: ref<int32, unique, mutable, local>
+
+entry(v0: ref<int32, unique, mutable, local>):
+    jump join
+
+dead:
+    local.set l0, v0
+    jump join
+
+join:
+    return
+}
+"#,
+        );
+        let id = program.entry_function_id();
+        let mut function = program.tree.get(id).clone();
+        let [entry, dead, join]: [_; 3] = function.blocks().try_into().unwrap();
+        function.replace_blocks(vec![dead, entry, join], &program.tree);
+        program.tree.set(id, function);
+
+        let function = program.tree.get(id);
+        let mut analyses = program.function_analyses();
+        let table = analyses.initialization(function, &program.tree);
+        let local = table.paths.local(function.locals()[0]).unwrap();
+        let actual = [entry, dead, join].map(|block| {
+            (
+                table.entry(block).map(|state| state.get(local)),
+                table.exit(block).map(|state| state.get(local)),
+            )
+        });
+
+        assert_eq!(
+            actual,
+            [
+                (Some(Uninitialized), Some(Uninitialized)),
+                (None, None),
+                (Some(Uninitialized), Some(Uninitialized)),
+            ]
+        );
+    }
+
+    /// Preserve both owned parameters when a backedge swaps their values.
+    #[test]
+    fn test_preserve_swapped_block_arguments() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): void {
+entry(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>):
+    branch v0 => entry(v0, v2, v1) | done
+
+done:
+    release v1
+    release v2
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let paths = analyses.moves(function, &program.tree);
+        let table = analyses.initialization(function, &program.tree);
+        let values = [Value(1), Value(2)].map(|value| paths.value(value).unwrap());
+        let actual = function
+            .blocks()
+            .iter()
+            .map(|&block| {
+                values.map(|value| {
+                    (
+                        table.entry(block).unwrap().get(value),
+                        table.exit(block).unwrap().get(value),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            actual,
+            [
+                [(Initialized, Initialized), (Initialized, Initialized)],
+                [(Initialized, Uninitialized), (Initialized, Uninitialized)],
+            ]
+        );
+    }
+
+    /// Initialize values produced on successful allocation and invoke edges.
+    #[test]
+    fn test_initialize_generated_edge_results() {
+        let program = TestModule::new(
+            r#"
+external function make(): ref<int32, unique, mutable, local>
+
+function allocate(): void {
+entry:
+    new.zeroed.try int32 => done | failure
+
+done(v0: ref<int32, unique, mutable, local>):
+    release v0
+    return
+
+failure:
+    return
+}
+
+function construct(): void {
+entry:
+    invoke make(): () => ref<int32, unique, mutable, local> => done | failure
+
+done(v0: ref<int32, unique, mutable, local>):
+    release v0
+    return
+
+failure:
+    unwind.resume
+}
+"#,
+        );
+        for name in ["allocate", "construct"] {
+            let function = program.tree.get(program.function_id_by_name(name));
+            let mut analyses = program.function_analyses();
+            let paths = analyses.moves(function, &program.tree);
+            let table = analyses.initialization(function, &program.tree);
+            let result = paths.value(Value(0)).unwrap();
+            let actual = function
+                .blocks()
+                .iter()
+                .map(|&block| {
+                    (
+                        table.entry(block).unwrap().get(result),
+                        table.exit(block).unwrap().get(result),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            assert_eq!(
+                actual,
+                [
+                    (Uninitialized, Uninitialized),
+                    (Initialized, Uninitialized),
+                    (Uninitialized, Uninitialized),
+                ],
+                "{name}"
+            );
+        }
+    }
 }

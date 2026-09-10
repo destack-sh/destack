@@ -85,7 +85,7 @@ impl Place {
 }
 
 impl PlaceTable {
-    /// Build canonical places for one function.
+    /// Analyse storage origins and address projections for one function.
     pub fn analyse(function: &Function, graph: &ControlTable, tree: &Tree) -> Self {
         let mut resolutions = vec![Resolution::Unknown; function.value_types().len()];
 
@@ -98,7 +98,7 @@ impl PlaceTable {
             );
         }
 
-        // forward the reference a local holds through its loads, unless its address escapes
+        // forward stored references through locals whose addresses are never taken
         let forwarded = Self::forwarded_locals(function, tree);
         let mut exits: FxIndexMap<LocalNodeId<Block>, FxIndexMap<LocalId, Resolution>> =
             FxIndexMap::default();
@@ -129,7 +129,6 @@ impl PlaceTable {
                     match instruction {
                         Instruction::LocalSet { local, value } if forwarded.contains(local) => {
                             held.insert(*local, Self::copy(*value, &resolutions));
-                            continue;
                         }
                         Instruction::LocalGet { destination, local }
                             if forwarded.contains(local) =>
@@ -143,16 +142,15 @@ impl PlaceTable {
                                 None => Resolution::Unknown,
                             };
                             is_changed |= Self::set(&mut resolutions, *destination, resolution);
-                            continue;
                         }
-                        _ => {}
+                        _ => {
+                            if let Some(destination) = instruction.destination() {
+                                let resolution =
+                                    Self::instruction(destination, instruction, &resolutions, tree);
+                                is_changed |= Self::set(&mut resolutions, destination, resolution);
+                            }
+                        }
                     }
-                    let Some(destination) = instruction.destination() else {
-                        continue;
-                    };
-                    let resolution =
-                        Self::instruction(destination, instruction, &resolutions, tree);
-                    is_changed |= Self::set(&mut resolutions, destination, resolution);
                 }
 
                 // record the references held at exit
@@ -224,25 +222,37 @@ impl PlaceTable {
                 },
                 resolutions,
             ),
-            // keep the storage a reinterpreted address names
+            Instruction::Select {
+                then_value,
+                else_value,
+                ..
+            } => {
+                let left = Self::copy(*then_value, resolutions);
+                let right = Self::copy(*else_value, resolutions);
+
+                left.merge(right)
+            }
+            Instruction::NewComplete { value, .. } => Self::copy(*value, resolutions),
+
+            // preserve the storage named by a reinterpreted address
             Instruction::Cast {
                 operator: CastOperator::Bitcast,
                 argument,
                 ..
             } => Self::copy(*argument, resolutions),
             Instruction::Intrinsic {
-                intrinsic: Intrinsic::Transmute,
+                intrinsic: Intrinsic::Transmute | Intrinsic::SpaceCast,
                 arguments,
                 ..
             } => match tree.get_values(*arguments) {
                 [argument] => Self::copy(*argument, resolutions),
-                _ => Resolution::Known(Place::value(destination)),
+                _ => unreachable!("representation cast requires one argument"),
             },
             _ => Resolution::Known(Place::value(destination)),
         }
     }
 
-    /// Return the locals holding a reference with an address kept inside the frame.
+    /// Return reference locals accessed exclusively through local loads and stores.
     fn forwarded_locals(function: &Function, tree: &Tree) -> FxIndexSet<LocalId> {
         let mut exposed = FxIndexSet::default();
         for &block_id in function.blocks() {
@@ -280,14 +290,7 @@ impl PlaceTable {
                 else {
                     continue;
                 };
-                merged = match (&merged, incoming) {
-                    (_, Resolution::Unknown) => merged,
-                    (Resolution::Unknown, incoming) => incoming.clone(),
-                    (Resolution::Known(current), Resolution::Known(next)) if current == next => {
-                        merged
-                    }
-                    _ => Resolution::Opaque,
-                };
+                merged = merged.merge(incoming.clone());
             }
             if merged != Resolution::Unknown {
                 held.insert(local, merged);
@@ -305,54 +308,24 @@ impl PlaceTable {
         resolutions: &[Resolution],
         tree: &Tree,
     ) -> Resolution {
-        let mut place = None;
+        let mut resolution = Resolution::Unknown;
+        let parameter = tree.get(block).parameters[index].value;
 
-        // merge the matching argument from every incoming edge
-        for predecessor in graph.predecessors(block) {
-            let predecessor_id = predecessor;
-            let predecessor = tree.get(predecessor_id);
-            let terminator = tree.get(predecessor.terminator);
-            for (edge, target) in terminator
-                .targets(tree, predecessor_id)
-                .into_iter()
-                .filter(|(_, target)| target.block == block)
-            {
-                let Some(parameters) = terminator.target_parameters(tree, edge.successor, target)
-                else {
-                    return Resolution::Opaque;
-                };
-                let parameter = tree.get(block).parameters[index].value;
-                let Some(argument_index) = parameters
-                    .iter()
-                    .position(|candidate| candidate.value == parameter)
-                else {
-                    let argument = Place::value(parameter);
-                    if place.as_ref().is_none_or(|place| place == &argument) {
-                        place = Some(argument);
-                        continue;
-                    }
-
-                    return Resolution::Opaque;
-                };
-                let Some(&argument) = target.arguments(tree).get(argument_index) else {
-                    return Resolution::Opaque;
-                };
-
-                match resolutions.get(argument.id() as usize) {
-                    Some(Resolution::Known(argument))
-                        if place.as_ref().is_none_or(|place| place == argument) =>
-                    {
-                        place = Some(argument.clone());
-                    }
-                    Some(Resolution::Unknown) => {}
-                    Some(Resolution::Known(_) | Resolution::Opaque) | None => {
-                        return Resolution::Opaque;
-                    }
-                }
-            }
+        // merge each exact incoming edge, including values produced by its terminator
+        for (edge, target) in graph.incoming_edges(block, tree) {
+            let source = tree.get(edge.source);
+            let terminator = tree.get(source.terminator);
+            let result_count = terminator.target_result_count(tree, edge.successor);
+            let incoming = if index < result_count {
+                Resolution::Known(Place::value(parameter))
+            } else {
+                let arguments = target.arguments(tree);
+                Self::copy(arguments[index - result_count], resolutions)
+            };
+            resolution = resolution.merge(incoming);
         }
 
-        place.map(Resolution::Known).unwrap_or(Resolution::Unknown)
+        resolution
     }
 
     /// Resolve one projected place.
@@ -421,4 +394,165 @@ enum Resolution {
     Known(Place),
     /// Incoming control flow carries different places.
     Opaque,
+}
+
+impl Resolution {
+    /// Merge incoming locations while preserving unresolved and conflicting states.
+    fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Unknown, other) => other,
+            (current, Self::Unknown) => current,
+            (Self::Known(left), Self::Known(right)) if left == right => Self::Known(left),
+            _ => Self::Opaque,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analyses::tests::TestModule;
+
+    /// Preserve agreeing references through selections and block arguments.
+    #[test]
+    fn test_merge_matching_places() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean, v1: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
+entry(v0: boolean, v1: ref<int32, unique, mutable, local>):
+    v2: ref<int32, unique, mutable, local> = select v0, v1, v1
+    branch v0 => join(v1) | join(v2)
+
+join(v3: ref<int32, unique, mutable, local>):
+    return v3
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let table = analyses.place(function, &program.tree);
+
+        assert_eq!(
+            table.values,
+            vec![
+                Place::value(Value(0)),
+                Place::value(Value(1)),
+                Place::value(Value(1)),
+                Place::value(Value(1))
+            ]
+        );
+    }
+
+    /// Keep conflicting incoming references opaque while preserving their projections.
+    #[test]
+    fn test_merge_distinct_places() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
+entry(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>):
+    branch v0 => join(v1) | join(v2)
+
+join(v3: ref<int32, unique, mutable, local>):
+    return v3
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let table = analyses.place(function, &program.tree);
+
+        assert_eq!(
+            table.values,
+            vec![
+                Place::value(Value(0)),
+                Place::value(Value(1)),
+                Place::value(Value(2)),
+                Place::value(Value(3))
+            ]
+        );
+    }
+
+    /// Compose field, element, and slice projections from the original storage.
+    #[test]
+    fn test_compose_address_projections() {
+        let program = TestModule::new(
+            r#"
+type Object {
+    values: [int32; 4];
+}
+
+function test<'a>(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64): void {
+entry(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64):
+    v3: ref<[int32; 4], borrowed, 'a, mutable, local> = field.address v0, 0
+    v4: ref<int32, borrowed, 'a, mutable, local> = element.address v3, v1
+    v5: slice<int32, borrowed, 'a, mutable, local> = slice.view v3, v1, v2
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let table = analyses.place(function, &program.tree);
+        let field = Place::value(Value(0)).with_projection(Projection::Field { index: 0 });
+
+        assert_eq!(
+            table.values,
+            vec![
+                Place::value(Value(0)),
+                Place::value(Value(1)),
+                Place::value(Value(2)),
+                field.clone(),
+                field
+                    .clone()
+                    .with_projection(Projection::Index { index: Value(1) }),
+                field.with_projection(Projection::Slice {
+                    start: Value(1),
+                    length: Value(2)
+                }),
+            ]
+        );
+    }
+
+    /// Forward unaddressed locals and preserve places through representation casts.
+    #[test]
+    fn test_forward_local_references() {
+        let program = TestModule::new(
+            r#"
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): void {
+    local l0: ref<int32, borrowed, 'a, readonly, local>
+    local l1: ref<int32, borrowed, 'a, readonly, local>
+
+entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+    local.set l0, v0
+    local.set l1, v0
+    v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, readonly, frame> = local.address l1
+    jump done
+
+done:
+    v2: ref<int32, borrowed, 'a, readonly, local> = local.get l0
+    v3: ref<int32, borrowed, 'a, readonly, local> = local.get l1
+    v4: usize = cast.bit v2 -> usize
+    v5: ref<int32, borrowed, 'a, readonly, local> = intrinsic.memory.raw.transmute(v4)
+    v6: ref<int32, borrowed, 'a, readonly, local> = intrinsic.space.cast(v5)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let table = analyses.place(function, &program.tree);
+
+        assert_eq!(
+            table.values,
+            vec![
+                Place::value(Value(0)),
+                Place::local(function.locals()[1]),
+                Place::value(Value(0)),
+                Place::value(Value(3)),
+                Place::value(Value(0)),
+                Place::value(Value(0)),
+                Place::value(Value(0)),
+            ]
+        );
+    }
 }

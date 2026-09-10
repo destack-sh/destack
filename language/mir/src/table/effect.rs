@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{Binding, BindingEffect, Function, LocalNodeId, Point, StorageSet};
+use crate::{
+    Binding, BindingEffect, Function, LocalNodeId, MemoryAccess, MemoryOperation, MemoryTarget,
+    Point, StorageSet,
+};
 
 /// Function and call effect tables for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -150,10 +153,10 @@ impl FunctionEffect {
 /// Effects for one callsite.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CallEffect {
-    /// Memory touched by this call.
-    pub memory: MemoryEffect,
-    /// Behavioral effects of this call.
-    pub behavior: FunctionBehavior,
+    /// Explicit or inferred memory effects, when available.
+    pub memory: Option<MemoryEffect>,
+    /// Additional or inferred behavioral effects, when available.
+    pub behavior: Option<FunctionBehavior>,
     /// Argument memory behavior when known.
     pub arguments: Vec<CallArgumentEffect>,
 }
@@ -258,6 +261,14 @@ impl MemoryEffect {
         self.read.union(self.write)
     }
 
+    /// Return the combined storage reads and writes of two effects.
+    pub fn union(&self, other: &Self) -> Self {
+        Self {
+            read: self.read.union(other.read),
+            write: self.write.union(other.write),
+        }
+    }
+
     /// Return this effect constrained to the given storage.
     pub fn with_storage(self, storage: StorageSet) -> Self {
         Self {
@@ -271,6 +282,24 @@ impl MemoryEffect {
             } else {
                 StorageSet::NONE
             },
+        }
+    }
+}
+
+impl From<&MemoryAccess> for MemoryEffect {
+    fn from(access: &MemoryAccess) -> Self {
+        // identify storage directly named by the access
+        let storage = match access.target {
+            MemoryTarget::Local(_) => StorageSet::FRAME,
+            MemoryTarget::Global(_) => StorageSet::GLOBAL,
+            _ => StorageSet::ANY,
+        };
+
+        // retain the operation's reads and writes
+        match access.operation {
+            MemoryOperation::Read => Self::read_only(storage),
+            MemoryOperation::Write => Self::write_only(storage),
+            MemoryOperation::ReadWrite => Self::read_write(storage),
         }
     }
 }
@@ -372,6 +401,35 @@ pub struct FunctionBehavior {
 }
 
 impl FunctionBehavior {
+    /// Combine alternative execution effects and return guarantees.
+    pub fn union(&self, other: &Self) -> Self {
+        Self {
+            determinism: if self.determinism == other.determinism {
+                self.determinism
+            } else {
+                Determinism::NonDeterministic
+            },
+            panic: if self.panic.may_panic() || other.panic.may_panic() {
+                PanicBehavior::MayPanic
+            } else {
+                PanicBehavior::CannotPanic
+            },
+            park: if self.park.may_park() || other.park.may_park() {
+                ParkBehavior::MayPark
+            } else {
+                ParkBehavior::CannotPark
+            },
+            return_behavior: if self.return_behavior == other.return_behavior {
+                self.return_behavior
+            } else {
+                ReturnBehavior::MayReturn
+            },
+            must_preserve_execution: self.must_preserve_execution || other.must_preserve_execution,
+            allocates: self.allocates || other.allocates,
+            frees: self.frees || other.frees,
+        }
+    }
+
     /// Create a behavior with no special effects.
     pub const fn none() -> Self {
         Self {
@@ -385,7 +443,7 @@ impl FunctionBehavior {
         }
     }
 
-    /// Create the behavior of one function no module defines: linked code outside the program, which cannot park.
+    /// Create the behavior of external linked code, which cannot park.
     pub const fn external() -> Self {
         Self {
             determinism: Determinism::NonDeterministic,
