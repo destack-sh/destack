@@ -166,7 +166,7 @@ impl<'a> DropAnalysis<'a> {
             let Some(mut state) = self.initialization.entry(block).cloned() else {
                 continue;
             };
-            let mut live = liveness.block(tree, block);
+            let mut live = liveness.cursor(tree, block);
 
             // destroy dead parameters or leave them to incoming edges
             for root in self.paths.roots().collect::<Vec<_>>() {
@@ -191,7 +191,7 @@ impl<'a> DropAnalysis<'a> {
         &mut self,
         block_id: mir::LocalNodeId<mir::Block>,
         state: &mut mir::InitializationState,
-        live: &mut mir::LiveSet<'_>,
+        live: &mut mir::LivenessCursor<'_>,
     ) {
         let block = self.tree.get(block_id);
 
@@ -413,7 +413,7 @@ impl<'a> DropAnalysis<'a> {
                 };
 
                 // read the exact target entry state
-                let live = self.liveness.block(self.tree, target.block);
+                let live = self.liveness.cursor(self.tree, target.block);
                 let retained = self.retention.block(target.block);
                 let mut dropped = Vec::new();
 
@@ -525,7 +525,7 @@ impl<'a> DropAnalysis<'a> {
     fn is_owner_live(
         &self,
         owner: mir::MovePathId,
-        live: &mir::LiveSet<'_>,
+        live: &mir::LivenessCursor<'_>,
         retained: &[mir::MovePathId],
     ) -> bool {
         let origin = self.paths.get(owner).place.origin;
