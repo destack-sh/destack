@@ -17,7 +17,7 @@ pub struct MirModule<'a> {
     /// The MIR artifact.
     pub lowered: Arc<MirLowered>,
     /// Analyses of the verified MIR tree.
-    pub analyses: mir::AnalysisCache,
+    pub analyses: mir::ModuleCache,
     /// The repository string pool.
     pub strings: Arc<StringPool>,
     /// The checked DIR the MIR lowered from, absent for parsed MIR.
@@ -32,8 +32,8 @@ impl<'a> MirModule<'a> {
         strings: Arc<StringPool>,
         dir: Option<Dir<'a>>,
     ) -> Self {
-        let options = mir::AnalysisOptions::new(lowered.target);
-        let analyses = mir::AnalysisCache::with_options(options);
+        let target_layout = lowered.target;
+        let analyses = mir::ModuleCache::with_target_layout(target_layout);
 
         Self {
             id,

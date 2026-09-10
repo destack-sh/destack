@@ -113,7 +113,7 @@ fn find_atomic_poll(
                     intrinsic: mir::Intrinsic::SpinLoop,
                     ..
                 } => hint_blocks.push(block_id),
-                _ if mir::instruction_has_side_effects(instruction) => return Ok(None),
+                _ if instruction.has_side_effects() => return Ok(None),
                 _ => {}
             }
         }
@@ -213,14 +213,14 @@ fn find_atomic_definition(
             if block == entry {
                 return Ok(None);
             }
-            let values = definitions.block_parameter_values(value);
-            if values.is_empty() {
+            let inputs = definitions.inputs(value);
+            if inputs.is_empty() {
                 return Err(ProviderError::internal(format!(
                     "MIR block parameter {value:?} has no incoming values"
                 )));
             }
 
-            for value in values.iter().copied() {
+            for value in inputs.iter().filter_map(|input| input.argument) {
                 let poll =
                     find_atomic_definition(value, natural_loop, entry, definitions, tree, visited)?;
                 if poll.is_some() {
@@ -246,7 +246,7 @@ fn find_atomic_definition(
         {
             return Ok(Some(instruction_id));
         }
-        _ if mir::instruction_has_side_effects(instruction) => return Ok(None),
+        _ if instruction.has_side_effects() => return Ok(None),
         _ => {}
     }
 

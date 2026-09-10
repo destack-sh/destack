@@ -128,7 +128,12 @@ fn collect_consumed_parameters(
                 consumed.insert(index);
             }
             Some(mir::ValueDefinition::BlockParameter { .. }) => {
-                pending.extend(definitions.block_parameter_values(value));
+                pending.extend(
+                    definitions
+                        .inputs(value)
+                        .iter()
+                        .filter_map(|input| input.argument),
+                );
             }
             Some(mir::ValueDefinition::Instruction { .. }) => {}
             None => {

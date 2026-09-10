@@ -40,7 +40,6 @@ function retain(value: rc.Rc<int32>): rc.Rc<int32> {
 /// Report canonical clone calls whose source can be moved instead.
 fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
     let tree = &module.lowered.tree;
-    let resolution = module.analyses.resolution(tree, &module.lowered.dispatch);
     let mut output = LintOutput::default();
 
     // inspect every defined function
@@ -53,7 +52,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
         let liveness = module.analyses.liveness(function_id, tree);
         let moves = module.analyses.moves(function_id, tree);
         let places = module.analyses.place(function_id, tree);
-        let origin = module.analyses.origin(function_id, tree, &resolution);
+        let origin = module.analyses.origin(function_id, tree);
         let loans = origin.loans();
 
         // inspect reachable instructions with their forward analysis states
@@ -62,7 +61,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                 continue;
             };
             let block = tree.get(block_id);
-            let mut live = liveness.block(tree, block_id);
+            let mut live = liveness.cursor(tree, block_id);
 
             for &instruction_id in &block.instructions {
                 // select the receiver of each canonical clone call
@@ -96,7 +95,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                 }
 
                 let instruction = tree.get(instruction_id);
-                let cx = mir::OriginContext::new(function, tree, &places, &resolution, loans);
+                let cx = mir::OriginContext::new(function, tree, &places, loans);
                 state.advance(&cx, instruction_id);
                 live.advance(instruction, tree);
             }
@@ -111,7 +110,7 @@ fn is_redundant_clone(
     place: &mir::Place,
     receiver_loan: mir::LoanId,
     state: &mir::OriginState,
-    live: &mir::LiveSet<'_>,
+    live: &mir::LivenessCursor<'_>,
     aliases: &mir::AliasTable,
     moves: &mir::MoveTable,
     places: &mir::PlaceTable,
