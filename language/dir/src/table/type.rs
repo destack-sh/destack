@@ -382,6 +382,7 @@ impl<'a> TypeTable<'a> {
                         let borrow = self.borrow_form(*borrow);
                         visit(borrow.region);
                         visit(borrow.access);
+                        visit(borrow.exclusivity);
                     }
                     Form::Managed { place } => visit(*place),
                     Form::Owned | Form::Raw | Form::Readonly => {}

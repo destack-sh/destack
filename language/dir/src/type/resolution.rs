@@ -1205,6 +1205,8 @@ pub struct PlaceResolution {
     pub lifetime: GlobalTypeId,
     /// The strongest access granted through the place.
     pub access: GlobalTypeId,
+    /// The exclusion guarantee available through the complete access path.
+    pub exclusivity: GlobalTypeId,
 }
 
 /// The union members one flow narrowing leaves live at a read.

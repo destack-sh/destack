@@ -632,13 +632,15 @@ impl BorrowFormId {
     }
 }
 
-/// One borrow form's solved region and access.
+/// One borrow form's region, access, and exclusion guarantee.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct BorrowForm {
     /// The solved borrow region: a region pair, parameter, or variable.
     pub region: GlobalTypeId,
-    /// The solved borrow access singleton.
+    /// The borrow access, a singleton, parameter, or inference variable.
     pub access: GlobalTypeId,
+    /// The exclusion guarantee, a singleton, parameter, or inference variable.
+    pub exclusivity: GlobalTypeId,
 }
 
 /// Unique identifier for one interned member projection payload.
@@ -764,9 +766,9 @@ impl TypeListId {
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum Access {
-    /// Shared readonly access.
+    /// Readonly access.
     Readonly,
-    /// Mutable access, exclusive on owned storage by the borrow check and aliased through handles.
+    /// Mutable access.
     Mutable,
 }
 
@@ -788,6 +790,39 @@ impl Access {
         match self {
             Self::Readonly => "readonly",
             Self::Mutable => "mutable",
+        }
+    }
+}
+
+/// Exclusion of conflicting access through independent references.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub enum Exclusivity {
+    /// Independent references may access the same storage.
+    Aliasable,
+    /// Independent references cannot perform conflicting access.
+    Exclusive,
+}
+
+impl Exclusivity {
+    /// Parse one canonical exclusion guarantee.
+    pub fn from_text(value: StringId) -> Option<Self> {
+        [Self::Aliasable, Self::Exclusive]
+            .into_iter()
+            .find(|exclusivity| value == StringId::for_text(exclusivity.text()))
+    }
+
+    /// Return whether this guarantee satisfies the requested guarantee.
+    pub fn grants(self, requested: Self) -> bool {
+        self >= requested
+    }
+
+    /// Return the canonical text of this guarantee.
+    pub const fn text(self) -> &'static str {
+        match self {
+            Self::Aliasable => "aliasable",
+            Self::Exclusive => "exclusive",
         }
     }
 }
@@ -2497,35 +2532,60 @@ pub struct FunctionType {
     pub place: GlobalTypeId,
 }
 
-/// The mode a call takes its receiver in, ordered from the weakest to the strongest.
+/// The ownership, access, and exclusion required to call a receiver.
 ///
 /// Examples:
 /// ```ds
-/// (x: T) => R                     // borrowed exclusively when elided
+/// (x: T) => R                     // mutable aliasable receiver when elided
 /// (&readonly this, x: T) => R     // borrowed readonly
 /// ^Function<(), void, "once">     // owned, callable once
 /// ```
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ReceiverMode {
-    /// The receiver is borrowed with one access.
-    Borrowed(Access),
+    /// The receiver is borrowed under explicit access and exclusion requirements.
+    Borrowed {
+        /// The access required to invoke the callable.
+        access: Access,
+        /// The exclusion required to invoke the callable.
+        exclusivity: Exclusivity,
+    },
     /// The receiver is taken by value.
     Owned,
 }
 
 impl ReceiverMode {
-    /// The mode an elided receiver takes: mutable access.
-    pub const ELIDED: Self = Self::Borrowed(Access::Mutable);
+    /// The mode an elided receiver takes: mutable aliasable access.
+    pub const ELIDED: Self = Self::Borrowed {
+        access: Access::Mutable,
+        exclusivity: Exclusivity::Aliasable,
+    };
 
     /// Parse one canonical receiver mode name.
     pub fn from_text(value: StringId) -> Option<Self> {
-        if value == StringId::for_text(Self::Owned.text()) {
-            return Some(Self::Owned);
-        }
+        // match the closed receiver forms through their canonical names
+        let forms = [
+            Self::Owned,
+            Self::Borrowed {
+                access: Access::Readonly,
+                exclusivity: Exclusivity::Aliasable,
+            },
+            Self::Borrowed {
+                access: Access::Mutable,
+                exclusivity: Exclusivity::Aliasable,
+            },
+            Self::Borrowed {
+                access: Access::Readonly,
+                exclusivity: Exclusivity::Exclusive,
+            },
+            Self::Borrowed {
+                access: Access::Mutable,
+                exclusivity: Exclusivity::Exclusive,
+            },
+        ];
 
-        Access::from_text(value).map(Self::Borrowed)
+        forms
+            .into_iter()
+            .find(|form| value == StringId::for_text(form.text()))
     }
 
     /// Return whether this mode is the elided default.
@@ -2537,15 +2597,24 @@ impl ReceiverMode {
     pub fn grants(self, requested: Self) -> bool {
         match (self, requested) {
             (Self::Owned, _) => true,
-            (Self::Borrowed(_), Self::Owned) => false,
-            (Self::Borrowed(granted), Self::Borrowed(requested)) => granted.grants(requested),
+            (Self::Borrowed { .. }, Self::Owned) => false,
+            (
+                Self::Borrowed {
+                    access,
+                    exclusivity,
+                },
+                Self::Borrowed {
+                    access: requested_access,
+                    exclusivity: requested_exclusivity,
+                },
+            ) => access.grants(requested_access) && exclusivity.grants(requested_exclusivity),
         }
     }
 
     /// Return the access one borrowed receiver mode takes.
     pub fn access(self) -> Option<Access> {
         match self {
-            Self::Borrowed(access) => Some(access),
+            Self::Borrowed { access, .. } => Some(access),
             Self::Owned => None,
         }
     }
@@ -2553,7 +2622,22 @@ impl ReceiverMode {
     /// Return the canonical text of this receiver mode.
     pub const fn text(self) -> &'static str {
         match self {
-            Self::Borrowed(access) => access.text(),
+            Self::Borrowed {
+                access: Access::Readonly,
+                exclusivity: Exclusivity::Aliasable,
+            } => "readonly",
+            Self::Borrowed {
+                access: Access::Mutable,
+                exclusivity: Exclusivity::Aliasable,
+            } => "mutable",
+            Self::Borrowed {
+                access: Access::Readonly,
+                exclusivity: Exclusivity::Exclusive,
+            } => "readonly exclusive",
+            Self::Borrowed {
+                access: Access::Mutable,
+                exclusivity: Exclusivity::Exclusive,
+            } => "exclusive",
             Self::Owned => "once",
         }
     }

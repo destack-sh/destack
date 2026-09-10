@@ -1652,6 +1652,12 @@ define_language_items! {
             Access => (Type, "memory/access", "Access"),
         }
 
+        /// `destack:memory/exclusivity`.
+        exclusivity {
+            /// Exclusion of conflicting access through independent references.
+            Exclusivity => (Type, "memory/exclusivity", "Exclusivity"),
+        }
+
         /// `destack:memory/arc`.
         arc {
             /// Shared reference-counted ownership.
@@ -1799,11 +1805,6 @@ define_language_items! {
             /// Runtime erasure capability.
             DynamicSafe => (NewtypeInterface, "memory/capability", "DynamicSafe"),
 
-            /// Non-exclusive overwrite capability.
-
-            /// Await-crossing safety capability.
-            SuspendSafe => (NewtypeInterface, "memory/capability", "SuspendSafe"),
-
             /// Shared-storage safety capability.
             SharedSafe => (NewtypeInterface, "memory/capability", "SharedSafe"),
 
@@ -1940,6 +1941,9 @@ define_language_items! {
             /// Project the access mode of a memory form.
             AccessOf => (Type, "memory/type", "AccessOf"),
 
+            /// Project the exclusion guarantee of a borrow form.
+            ExclusivityOf => (Type, "memory/type", "ExclusivityOf"),
+
             /// Ownership kind for qualified storage.
             Ownership => (Type, "memory/type", "Ownership"),
 
@@ -1948,6 +1952,9 @@ define_language_items! {
 
             /// Reborrow with an access mode.
             WithAccess => (Type, "memory/type", "WithAccess"),
+
+            /// Qualify a borrow with an exclusion guarantee.
+            WithExclusivity => (Type, "memory/type", "WithExclusivity"),
         }
     }
 
@@ -3021,9 +3028,6 @@ define_language_items! {
         atomic {
             /// Atomic synchronization scope.
             AtomicScope => (Enum, "sync/atomic", "AtomicScope"),
-
-            /// Atomic storage.
-            Atomic => (Newtype, "sync/atomic", "Atomic"),
 
             /// Atomic storage safety marker.
             AtomicSafe => (NewtypeInterface, "sync/atomic", "AtomicSafe"),

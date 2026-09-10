@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
-    Declarator, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause, InferForm,
-    Keyword, Literal, LocalNodeId, MatchArm, Mutability, Node, NodeFold, NodeType,
+    Declarator, DependencyItem, Exclusivity, ExportKind, GenericArgument, ImportAttributeClause,
+    InferForm, Keyword, Literal, LocalNodeId, MatchArm, Mutability, Node, NodeFold, NodeType,
     OperatorPrecedence, Pattern, PlaceModifier, Property, RangeEnd, StaticKey, SwitchCase,
     TemplateLiteral, TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
 };
@@ -624,6 +624,7 @@ pub enum Expression {
     /// ```
     BorrowOf {
         mutability: Option<Mutability>,
+        exclusivity: Option<Exclusivity>,
         variance: Option<VarianceBound>,
         right: LocalNodeId<Expression>,
     },

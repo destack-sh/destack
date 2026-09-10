@@ -8,8 +8,6 @@ use crate::LanguageItem;
 pub enum AutoInterface {
     /// Values supported by atomic storage.
     AtomicSafe,
-    /// Values safe to hold across a suspension point.
-    SuspendSafe,
     /// Ordered comparison interface.
     Compare,
     /// Complete by-value storage representation.
@@ -60,9 +58,8 @@ pub enum AutoInterface {
 
 impl AutoInterface {
     /// Every auto interface in declaration order.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 24] = [
         Self::AtomicSafe,
-        Self::SuspendSafe,
         Self::Compare,
         Self::Concrete,
         Self::Copy,
@@ -93,7 +90,6 @@ impl AutoInterface {
         match item {
             LanguageItem::AtomicSafe => Some(Self::AtomicSafe),
             LanguageItem::Drop => Some(Self::Drop),
-            LanguageItem::SuspendSafe => Some(Self::SuspendSafe),
             LanguageItem::Compare => Some(Self::Compare),
             LanguageItem::Concrete => Some(Self::Concrete),
             LanguageItem::Copy => Some(Self::Copy),
@@ -124,7 +120,6 @@ impl AutoInterface {
     pub fn name(self) -> &'static str {
         match self {
             Self::AtomicSafe => "AtomicSafe",
-            Self::SuspendSafe => "SuspendSafe",
             Self::Compare => "Compare",
             Self::Concrete => "Concrete",
             Self::Copy => "Copy",
@@ -155,7 +150,6 @@ impl AutoInterface {
     pub fn is_marker(self) -> bool {
         match self {
             Self::AtomicSafe
-            | Self::SuspendSafe
             | Self::Concrete
             | Self::Copy
             | Self::DynamicSafe
@@ -197,7 +191,6 @@ impl AutoInterface {
             | Self::PartialEqual
             | Self::Serialize => true,
             Self::AtomicSafe
-            | Self::SuspendSafe
             | Self::Copy
             | Self::DynamicSafe
             | Self::SharedSafe
@@ -215,10 +208,7 @@ impl AutoInterface {
 
     /// Return whether an unsafe extension may assume this interface.
     pub fn permits_unsafe_implementation(self) -> bool {
-        matches!(
-            self,
-            Self::SuspendSafe | Self::SharedSafe | Self::Unpin | Self::Zeroable
-        )
+        matches!(self, Self::SharedSafe | Self::Unpin | Self::Zeroable)
     }
 
     /// Return whether the compiler derives this interface field-wise without annotation.
@@ -292,7 +282,6 @@ impl From<AutoInterface> for LanguageItem {
     fn from(interface: AutoInterface) -> Self {
         match interface {
             AutoInterface::AtomicSafe => Self::AtomicSafe,
-            AutoInterface::SuspendSafe => Self::SuspendSafe,
             AutoInterface::Compare => Self::Compare,
             AutoInterface::Concrete => Self::Concrete,
             AutoInterface::Copy => Self::Copy,

@@ -25,6 +25,8 @@ impl BindingUse {
     pub const MUTABLE: Self = Self(1 << 4);
     /// The use takes the value out of the binding by value.
     pub const MOVE: Self = Self(1 << 5);
+    /// The use requires exclusion of conflicting access.
+    pub const EXCLUSIVE: Self = Self(1 << 6);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {

@@ -1,11 +1,11 @@
 use crate::{
     AssignOperator, Asynchrony, BinaryOperator, BindingKeyword, BlockContext, BlockForm,
-    DecoratorPosition, DependencyBinding, ExportKind, FunctionForm, FunctionPhase, FunctionRole,
-    IfForm, ImportAttributeClause, InferForm, LetKind, Literal, LocalNodeId, LocalNodeIdAny,
-    MappedTypeModifier, MethodAbstraction, Mutability, Name, Node, Path, PlaceModifier,
-    PostfixPosition, RangeEnd, StringId, SwitchSelector, TemplateChunk, ThisForm, TupleForm,
-    TypeLiteral, UnaryOperator, VarianceBound, VarianceModifier, Visibility, WhereRelation,
-    WhileForm, YieldCardinality,
+    DecoratorPosition, DependencyBinding, Exclusivity, ExportKind, FunctionForm, FunctionPhase,
+    FunctionRole, IfForm, ImportAttributeClause, InferForm, LetKind, Literal, LocalNodeId,
+    LocalNodeIdAny, MappedTypeModifier, MethodAbstraction, Mutability, Name, Node, Path,
+    PlaceModifier, PostfixPosition, RangeEnd, StringId, SwitchSelector, TemplateChunk, ThisForm,
+    TupleForm, TypeLiteral, UnaryOperator, VarianceBound, VarianceModifier, Visibility,
+    WhereRelation, WhileForm, YieldCardinality,
 };
 
 /// Rewrite every local node id one authored tree value embeds.
@@ -128,6 +128,7 @@ node_fold_leaves!(
     BlockForm,
     DecoratorPosition,
     DependencyBinding,
+    Exclusivity,
     ExportKind,
     FunctionForm,
     FunctionPhase,
