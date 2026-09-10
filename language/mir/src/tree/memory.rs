@@ -103,54 +103,45 @@ pub enum MemoryOrdering {
     /// Sequentially consistent (strongest, default).
     #[default]
     SequentiallyConsistent,
+    /// The ordering one template parameter names.
+    Parameter(u32),
 }
 
 impl MemoryOrdering {
-    /// Return the canonical text name.
-    pub fn to_str(self) -> &'static str {
-        match self {
+    /// Parse a canonical ordering name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "relaxed" => MemoryOrdering::Relaxed,
+            "acquire" => MemoryOrdering::Acquire,
+            "release" => MemoryOrdering::Release,
+            "acquireRelease" => MemoryOrdering::AcquireRelease,
+            "sequentiallyConsistent" => MemoryOrdering::SequentiallyConsistent,
+            _ => return None,
+        })
+    }
+
+    /// Return the ordering at one position of the language enum's declaration order.
+    pub fn from_ordinal(ordinal: u32) -> Option<Self> {
+        Some(match ordinal {
+            0 => MemoryOrdering::Relaxed,
+            1 => MemoryOrdering::Acquire,
+            2 => MemoryOrdering::Release,
+            3 => MemoryOrdering::AcquireRelease,
+            4 => MemoryOrdering::SequentiallyConsistent,
+            _ => return None,
+        })
+    }
+
+    /// Return the canonical MIR text for a closed ordering.
+    pub const fn label(self) -> Option<&'static str> {
+        Some(match self {
             MemoryOrdering::Relaxed => "relaxed",
             MemoryOrdering::Acquire => "acquire",
             MemoryOrdering::Release => "release",
             MemoryOrdering::AcquireRelease => "acquireRelease",
             MemoryOrdering::SequentiallyConsistent => "sequentiallyConsistent",
-        }
-    }
-}
-
-impl fmt::Display for MemoryOrdering {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.to_str())
-    }
-}
-
-impl FromStr for MemoryOrdering {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "relaxed" => Ok(MemoryOrdering::Relaxed),
-            "acquire" => Ok(MemoryOrdering::Acquire),
-            "release" => Ok(MemoryOrdering::Release),
-            "acquireRelease" => Ok(MemoryOrdering::AcquireRelease),
-            "sequentiallyConsistent" => Ok(MemoryOrdering::SequentiallyConsistent),
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryFrom<&str> for MemoryOrdering {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "Relaxed" => Ok(MemoryOrdering::Relaxed),
-            "Acquire" => Ok(MemoryOrdering::Acquire),
-            "Release" => Ok(MemoryOrdering::Release),
-            "AcquireRelease" => Ok(MemoryOrdering::AcquireRelease),
-            "SequentiallyConsistent" => Ok(MemoryOrdering::SequentiallyConsistent),
-            _ => Err(()),
-        }
+            MemoryOrdering::Parameter(_) => return None,
+        })
     }
 }
 
@@ -312,13 +303,13 @@ impl Default for AtomicAccess {
 pub struct CompareExchangeAccess {
     /// Access used when the comparison succeeds.
     pub success: AtomicAccess,
-    /// Ordering used by the failed comparison load.
-    pub failure_ordering: MemoryOrdering,
+    /// Explicit failure ordering, or derive from the success ordering.
+    pub failure_ordering: Option<MemoryOrdering>,
 }
 
 impl CompareExchangeAccess {
     /// Create one compare exchange access.
-    pub const fn new(success: AtomicAccess, failure_ordering: MemoryOrdering) -> Self {
+    pub const fn new(success: AtomicAccess, failure_ordering: Option<MemoryOrdering>) -> Self {
         Self {
             success,
             failure_ordering,
@@ -327,7 +318,7 @@ impl CompareExchangeAccess {
 
     /// Create one compare exchange access with default failure ordering.
     pub const fn with_success(success: AtomicAccess) -> Self {
-        Self::new(success, Self::default_failure_ordering(success.ordering))
+        Self::new(success, None)
     }
 
     /// Create one compare exchange access with default scope and failure ordering.
@@ -335,12 +326,20 @@ impl CompareExchangeAccess {
         Self::with_success(AtomicAccess::ordered(ordering))
     }
 
-    /// Return the default failure ordering for one success ordering.
-    pub const fn default_failure_ordering(success: MemoryOrdering) -> MemoryOrdering {
-        match success {
-            MemoryOrdering::Release => MemoryOrdering::Relaxed,
-            MemoryOrdering::AcquireRelease => MemoryOrdering::Acquire,
-            other => other,
+    /// Return the failure ordering, or the index of its unresolved parameter.
+    pub fn failure_ordering(self) -> Result<MemoryOrdering, u32> {
+        let ordering = match self.failure_ordering {
+            Some(ordering) => ordering,
+            None => match self.success.ordering {
+                MemoryOrdering::Release => MemoryOrdering::Relaxed,
+                MemoryOrdering::AcquireRelease => MemoryOrdering::Acquire,
+                ordering => ordering,
+            },
+        };
+
+        match ordering {
+            MemoryOrdering::Parameter(parameter) => Err(parameter),
+            ordering => Ok(ordering),
         }
     }
 }

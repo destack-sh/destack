@@ -1,4 +1,5 @@
-use super::{assert_format, assert_format_eq};
+use super::{assert_format, parse_fixture};
+use crate::{Instruction, MemoryOrdering};
 
 /// Formats allocation operations canonically.
 #[test]
@@ -119,29 +120,77 @@ entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
     );
 }
 
-/// Formats default compare-exchange failure ordering canonically.
+/// Preserve explicit and derived failure orderings through parameter substitution.
 #[test]
 fn test_format_atomic_compare_exchange_default_failure_ordering() {
-    assert_format_eq(
-        r#"
-function atomics<'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): (uint32, boolean) {
+    let source = r#"
+function atomics<const Order: uint32, const Failure: uint32, 'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): (uint32, boolean) {
 entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
     v1: uint32 = 1
     v2: uint32 = 2
-    v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
+    v3: (uint32, boolean) = atomic.cas v0, v1, v2, Order
+    v4: (uint32, boolean) = atomic.cas v0, v1, v2, Order, failure(Failure)
+    v5: (uint32, boolean) = atomic.cas v0, v1, v2, Order, failure(relaxed)
     return v3
 }
-"#,
-        r#"
-function atomics<'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): (uint32, boolean) {
-entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
-    v1: uint32 = 1
-    v2: uint32 = 2
-    v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
-    return v3
-}
-"#,
-    );
+"#;
+    assert_format(source);
+    let (tree, _) = parse_fixture(source);
+    let instructions = tree
+        .iter_nodes::<Instruction>()
+        .filter_map(|(_, instruction)| {
+            matches!(instruction, Instruction::AtomicCompareExchange { .. })
+                .then_some(instruction.clone())
+        })
+        .collect::<Vec<_>>();
+    let failures = instructions
+        .iter()
+        .map(|instruction| {
+            let Instruction::AtomicCompareExchange { access, .. } = instruction else {
+                unreachable!()
+            };
+            access.failure_ordering()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(failures, [Err(0), Err(1), Ok(MemoryOrdering::Relaxed)]);
+
+    // substitute each ordering without collapsing an explicit failure into the default
+    for (success, failure) in [
+        (MemoryOrdering::Relaxed, MemoryOrdering::Relaxed),
+        (MemoryOrdering::Acquire, MemoryOrdering::Acquire),
+        (MemoryOrdering::Release, MemoryOrdering::Relaxed),
+        (MemoryOrdering::AcquireRelease, MemoryOrdering::Acquire),
+        (
+            MemoryOrdering::SequentiallyConsistent,
+            MemoryOrdering::SequentiallyConsistent,
+        ),
+    ] {
+        let failures = instructions
+            .iter()
+            .cloned()
+            .map(|mut instruction| {
+                for ordering in instruction.orderings_mut() {
+                    *ordering = match *ordering {
+                        MemoryOrdering::Parameter(0) => success,
+                        MemoryOrdering::Parameter(1) => MemoryOrdering::Relaxed,
+                        ordering => ordering,
+                    };
+                }
+                let Instruction::AtomicCompareExchange { access, .. } = instruction else {
+                    unreachable!()
+                };
+                access.failure_ordering()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            failures,
+            [
+                Ok(failure),
+                Ok(MemoryOrdering::Relaxed),
+                Ok(MemoryOrdering::Relaxed)
+            ]
+        );
+    }
 }
 
 /// Formats cleanup and hold operations canonically.

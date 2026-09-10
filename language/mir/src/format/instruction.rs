@@ -3,14 +3,14 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::call::format_call;
-use super::r#type::format_generic_arguments;
+use super::r#type::{format_generic_arguments, format_parameter};
 use super::value::{
     format_constant_for_type, format_function_id, format_global_id, format_type_id,
 };
 
 use crate::{
     AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatNode, FunctionId,
-    GlobalId, Instruction, LocalNodeId, StorageSet, Type, Value, Writer,
+    GlobalId, Instruction, LocalNodeId, MemoryOrdering, StorageSet, Type, Value, Writer,
 };
 
 impl FormatNode for Instruction {
@@ -1366,9 +1366,24 @@ fn format_intrinsic_args<'a>(values: &[Value], f: &mut Writer<'a, '_>) -> Format
     write!(f, [token(")")])
 }
 
+/// Format one memory ordering, a parameter by its name.
+fn format_memory_ordering<'a>(
+    ordering: MemoryOrdering,
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    match ordering.label() {
+        Some(label) => write!(f, [token(label)]),
+        None => match ordering {
+            MemoryOrdering::Parameter(index) => format_parameter(index, f),
+            _ => unreachable!("a closed ordering carries a label"),
+        },
+    }
+}
+
 /// Format one atomic access suffix.
 fn format_atomic_access<'a>(access: AtomicAccess, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    write!(f, [token(","), space(), token(access.ordering.to_str())])?;
+    write!(f, [token(","), space()])?;
+    format_memory_ordering(access.ordering, f)?;
 
     format_atomic_context(access, f)
 }
@@ -1380,18 +1395,10 @@ fn format_atomic_compare_exchange_access<'a>(
 ) -> FormatResult<()> {
     format_atomic_access(access.success, f)?;
 
-    if access.failure_ordering != access.success.ordering {
-        write!(
-            f,
-            [
-                token(","),
-                space(),
-                token("failure"),
-                token("("),
-                token(access.failure_ordering.to_str()),
-                token(")")
-            ]
-        )?;
+    if let Some(ordering) = access.failure_ordering {
+        write!(f, [token(","), space(), token("failure"), token("(")])?;
+        format_memory_ordering(ordering, f)?;
+        write!(f, [token(")")])?;
     }
 
     Ok(())
@@ -1399,7 +1406,8 @@ fn format_atomic_compare_exchange_access<'a>(
 
 /// Format one fence access suffix.
 fn format_fence_access<'a>(access: FenceAccess, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    write!(f, [space(), token(access.ordering.to_str())])?;
+    write!(f, [space()])?;
+    format_memory_ordering(access.ordering, f)?;
     format_fence_context(access, f)
 }
 

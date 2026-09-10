@@ -4,8 +4,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     AddressKind, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
     CompareExchangeAccess, ConvertMode, Copy, CounterId, DispatchSlot, ExecutionScope, FenceAccess,
-    Instruction, LayoutMeasure, LocalNodeId, MemoryOrdering, SamplerId, StorageSet, TypeId,
-    UnaryOperator, Value, VectorReduceOperator,
+    GenericParameterDomain, Instruction, LayoutMeasure, LocalNodeId, MemoryOrdering, SamplerId,
+    StorageSet, TypeId, UnaryOperator, Value, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -1224,7 +1224,7 @@ impl Parser {
 
         let ordering = self.parse_memory_ordering()?;
         let mut success = AtomicAccess::ordered(ordering);
-        let mut failure_ordering = CompareExchangeAccess::default_failure_ordering(ordering);
+        let mut failure_ordering = None;
 
         while self.eat_token_if(TokenType::Comma) {
             let token = self
@@ -1237,7 +1237,7 @@ impl Parser {
             } else if token_text == "failure" {
                 self.eat_token(TokenType::Identifier)?;
                 self.eat_token(TokenType::OpenParenthesis)?;
-                failure_ordering = self.parse_memory_ordering()?;
+                failure_ordering = Some(self.parse_memory_ordering()?);
                 self.eat_token(TokenType::CloseParenthesis)?;
             } else {
                 return Err(ParseError::invalid(
@@ -1297,10 +1297,18 @@ impl Parser {
     fn parse_memory_ordering(&mut self) -> ParseResult<MemoryOrdering> {
         let token_start = self.pos();
         let token = self.eat_token(TokenType::Identifier)?;
-        self.tree
-            .source_text(token.span)
-            .parse::<MemoryOrdering>()
-            .map_err(|_| ParseError::invalid("memory ordering", token_start))
+        let text = self.tree.source_text(token.span);
+        if let Some(ordering) = MemoryOrdering::from_name(text) {
+            return Ok(ordering);
+        }
+        match self.generic_parameter(text) {
+            Some((index, parameter))
+                if matches!(parameter.domain, GenericParameterDomain::Value { .. }) =>
+            {
+                Ok(MemoryOrdering::Parameter(index))
+            }
+            _ => Err(ParseError::invalid("memory ordering", token_start)),
+        }
     }
 
     /// Parse one execution scope like `device`.

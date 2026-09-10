@@ -8,8 +8,8 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
     Constant, ConvertMode, Copy, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
-    GlobalId, IndexSlice, Intrinsic, LocalId, Node, NodeType, SamplerId, Tree, TypeId,
-    UnaryOperator, Value, ValueSlice, VectorReduceOperator,
+    GlobalId, IndexSlice, Intrinsic, LocalId, MemoryOrdering, Node, NodeType, SamplerId, Tree,
+    TypeId, UnaryOperator, Value, ValueSlice, VectorReduceOperator,
 };
 
 /// What one address instruction means for the borrow check.
@@ -1183,6 +1183,23 @@ impl Instruction {
         match self {
             Instruction::Call { call, .. } => Some(call.signature),
             _ => None,
+        }
+    }
+
+    /// Return the memory orderings this instruction carries, mutable.
+    pub fn orderings_mut(&mut self) -> SmallVec<[&mut MemoryOrdering; 2]> {
+        match self {
+            Instruction::AtomicLoad { access, .. }
+            | Instruction::AtomicStore { access, .. }
+            | Instruction::AtomicRmw { access, .. } => smallvec![&mut access.ordering],
+            Instruction::AtomicCompareExchange { access, .. } => {
+                let mut orderings = smallvec![&mut access.success.ordering];
+                orderings.extend(access.failure_ordering.as_mut());
+
+                orderings
+            }
+            Instruction::AtomicFence { access } => smallvec![&mut access.ordering],
+            _ => SmallVec::new(),
         }
     }
 
