@@ -11,8 +11,8 @@ import {
     jsonOptional,
 } from "../../protocol/serde.js";
 import type { BitSet } from "../core/bitset.js";
-import type { CallComponentGraph } from "../mir/analyses/link.js";
-import type { LinkTable } from "../mir/analyses/link.js";
+import type { CallComponentGraph } from "../mir/analyses/call/graph.js";
+import type { LinkTable } from "../mir/analyses/link/graph.js";
 import type { AccessTable } from "../mir/table/access.js";
 import type { DispatchTable } from "../mir/table/dispatch.js";
 import type { DropTable } from "../mir/table/drop.js";
@@ -31,13 +31,13 @@ import {
     encodeCallComponentGraph,
     fromJsonCallComponentGraph,
     toJsonCallComponentGraph,
-} from "../mir/analyses/link.js";
+} from "../mir/analyses/call/graph.js";
 import {
     decodeLinkTable,
     encodeLinkTable,
     fromJsonLinkTable,
     toJsonLinkTable,
-} from "../mir/analyses/link.js";
+} from "../mir/analyses/link/graph.js";
 import {
     decodeAccessTable,
     encodeAccessTable,
