@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload,
-    ArtifactProjectionFingerprint, ArtifactProjectionKey, Implementation, ModuleGraph,
+    ArtifactProjectionFingerprint, ArtifactProjectionKey, DirResolved, Implementation, ModuleGraph,
     SourceDependencyKey,
 };
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
@@ -217,7 +217,8 @@ impl Compiler {
 
             // collect every module's implementations and import edges
             for module in modules.iter().copied() {
-                self.collect_implementations(artifacts, profile, module, &mut implementations)?;
+                let selected = self.collect_implementations(artifacts, profile, module)?;
+                implementations.extend(selected);
                 let edges = self.module_edges(artifacts, profile, module, &module_set)?;
 
                 edge_count += edges.len() as u64;
@@ -260,7 +261,8 @@ impl Compiler {
             .copied()
             .collect::<Vec<_>>();
         for module in changed_modules.iter().copied() {
-            self.collect_implementations(artifacts, profile, module, &mut implementations)?;
+            let selected = self.collect_implementations(artifacts, profile, module)?;
+            implementations.extend(selected);
         }
         implementations.sort_unstable();
         implementations.dedup();
@@ -313,21 +315,26 @@ impl Compiler {
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
         module: ModuleId,
-        implementations: &mut Vec<Implementation>,
-    ) -> CompilerResult<()> {
-        let relations = artifacts
-            .component_relations(module, profile)
-            .map_err(CompilerError::from)?;
+    ) -> CompilerResult<Vec<Implementation>> {
+        // select interface implementations from the resolved relationships
+        artifacts
+            .project::<DirResolved, _, _>((module, profile), |resolved| {
+                let implementations = resolved
+                    .extensions
+                    .implementations()
+                    .map(|(symbol, root, interface)| Implementation {
+                        interface,
+                        symbol,
+                        root,
+                    })
+                    .collect::<Vec<_>>();
 
-        for (symbol, root, interface) in relations.implementations() {
-            implementations.push(Implementation {
-                interface,
-                symbol,
-                root,
-            });
-        }
-
-        Ok(())
+                (
+                    implementations,
+                    [ArtifactProjectionKey::DirResolvedComponentRelations],
+                )
+            })
+            .map_err(CompilerError::from)
     }
 
     /// Return the modules one module depends on, deduplicated in order.
@@ -338,20 +345,20 @@ impl Compiler {
         module: ModuleId,
         modules: &FxHashSet<ModuleId>,
     ) -> CompilerResult<Arc<[ModuleId]>> {
-        let relations = artifacts
-            .component_relations(module, profile)
-            .map_err(CompilerError::from)?;
+        // select defining modules from the resolved relationships
+        artifacts
+            .project::<DirResolved, _, _>((module, profile), |resolved| {
+                let edges = resolved
+                    .target_modules()
+                    .filter(|target| modules.contains(target) && *target != module)
+                    .collect::<IndexSet<_>>();
+                let edges = edges.into_iter().collect::<Arc<[ModuleId]>>();
 
-        // collect the defining modules of resolved targets
-        let mut edges = IndexSet::new();
-        for target in relations.target_modules() {
-            if modules.contains(&target) && target != module {
-                edges.insert(target);
-            }
-        }
-
-        let edges = edges.into_iter().collect::<Vec<_>>();
-
-        Ok(Arc::from(edges))
+                (
+                    edges,
+                    [ArtifactProjectionKey::DirResolvedComponentRelations],
+                )
+            })
+            .map_err(CompilerError::from)
     }
 }
