@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use crate as mir;
 use destack_core::{FxIndexMap, FxIndexSet};
 
@@ -21,82 +19,6 @@ fn block_target_with_arguments(
     target.arguments = tree.add_values(&arguments);
 
     target
-}
-
-/// Collect blocks reachable from the entry in function order.
-pub fn collect_reachable_blocks(
-    function: &mir::Function,
-    tree: &mir::Tree,
-    entry: mir::LocalNodeId<mir::Block>,
-) -> Vec<mir::LocalNodeId<mir::Block>> {
-    // seed worklist with entry
-    let mut worklist = VecDeque::new();
-    let mut visited = FxIndexSet::default();
-    worklist.push_back(entry);
-    visited.insert(entry);
-
-    // bfs over successors
-    while let Some(block) = worklist.pop_front() {
-        let block_data = tree.get(block);
-        let terminator = tree.get(block_data.terminator);
-        for successor in terminator.successors(tree) {
-            if visited.insert(successor) {
-                worklist.push_back(successor);
-            }
-        }
-    }
-
-    // preserve function block order
-    function
-        .blocks()
-        .iter()
-        .copied()
-        .filter(|block| visited.contains(block))
-        .collect()
-}
-
-/// Compute dominance frontiers for a list of blocks.
-pub fn compute_dominance_frontiers(
-    blocks: &[mir::LocalNodeId<mir::Block>],
-    cfg: &ControlTable,
-    dominator: &DominatorTable,
-) -> FxIndexMap<mir::LocalNodeId<mir::Block>, FxIndexSet<mir::LocalNodeId<mir::Block>>> {
-    // initialize frontiers for each block
-    let mut frontiers: FxIndexMap<
-        mir::LocalNodeId<mir::Block>,
-        FxIndexSet<mir::LocalNodeId<mir::Block>>,
-    > = blocks
-        .iter()
-        .copied()
-        .map(|block| (block, FxIndexSet::default()))
-        .collect();
-
-    // compute dominance frontiers with the standard algorithm
-    for &block in blocks {
-        let preds = cfg.predecessors(block);
-        if preds.len() < 2 {
-            continue;
-        }
-
-        let idom = dominator.immediate_dominator(block);
-        for &pred in preds {
-            let mut runner = pred;
-            while Some(runner) != idom
-                && runner != block
-                && dominator.immediate_dominator(runner).is_some()
-            {
-                if let Some(frontier) = frontiers.get_mut(&runner) {
-                    frontier.insert(block);
-                }
-
-                runner = dominator
-                    .immediate_dominator(runner)
-                    .unwrap_or_else(|| unreachable!("dominance runner has no parent"));
-            }
-        }
-    }
-
-    frontiers
 }
 
 /// Edge splitting policy for inserting edge blocks.
@@ -131,7 +53,6 @@ pub fn append_edge_arguments(
 }
 
 /// Ensure insertions happen on the correct edge when needed.
-// allow many arguments to keep the call sites explicit
 #[allow(clippy::too_many_arguments)]
 pub fn ensure_edge_block(
     predecessor: mir::LocalNodeId<mir::Block>,
@@ -327,7 +248,7 @@ impl BlockParamForwarding {
             let mut conflicts = vec![false; block.parameters.len()];
             let mut saw_pred = false;
 
-            for &pred in cfg.predecessors(block_id) {
+            for pred in cfg.predecessors(block_id) {
                 // read arguments for the predecessor edge
                 let pred_block = tree.get(pred);
                 let pred_terminator = tree.get(pred_block.terminator);

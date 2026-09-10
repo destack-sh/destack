@@ -275,7 +275,7 @@ impl PlaceTable {
         let mut held = FxIndexMap::default();
         for &local in forwarded {
             let mut merged = Resolution::Unknown;
-            for &predecessor in graph.predecessors(block) {
+            for predecessor in graph.predecessors(block) {
                 let Some(incoming) = exits.get(&predecessor).and_then(|exit| exit.get(&local))
                 else {
                     continue;
@@ -308,7 +308,7 @@ impl PlaceTable {
         let mut place = None;
 
         // merge the matching argument from every incoming edge
-        for &predecessor in graph.predecessors(block) {
+        for predecessor in graph.predecessors(block) {
             let predecessor_id = predecessor;
             let predecessor = tree.get(predecessor_id);
             let terminator = tree.get(predecessor.terminator);

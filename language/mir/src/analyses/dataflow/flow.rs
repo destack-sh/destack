@@ -1,10 +1,9 @@
 use std::collections::VecDeque;
 
-use crate as mir;
-use crate::NodeTable;
 use destack_core::FxIndexSet;
 
-use crate::ControlTable;
+use crate as mir;
+use crate::{ControlTable, NodeTable};
 
 /// Lattice for merging dataflow states.
 pub trait Lattice: Clone + PartialEq {
@@ -113,27 +112,21 @@ where
 
             // merge the function entry state and every reached incoming edge
             let mut merged = (block_id == entry).then(|| entry_state.clone());
-            for &predecessor in cfg.predecessors(block_id) {
-                let Some(predecessor_exit) = result.exit(predecessor) else {
+            for (edge, target) in cfg.incoming_edges(block_id, tree) {
+                let Some(predecessor_exit) = result.exit(edge.source) else {
                     continue;
                 };
-                let predecessor_block = tree.get(predecessor);
-                let terminator = tree.get(predecessor_block.terminator);
-                for (edge, target) in terminator
-                    .targets(tree, predecessor)
-                    .into_iter()
-                    .filter(|(_, target)| target.block == block_id)
-                {
-                    let state = transfer(
-                        ForwardTransfer::Edge { edge, target },
-                        predecessor_exit.clone(),
-                        tree,
-                    );
-                    merged = Some(match merged {
-                        Some(merged) => merged.meet(&state),
-                        None => state,
-                    });
-                }
+
+                // transfer and merge this exact edge's state
+                let state = transfer(
+                    ForwardTransfer::Edge { edge, target },
+                    predecessor_exit.clone(),
+                    tree,
+                );
+                merged = Some(match merged {
+                    Some(merged) => merged.meet(&state),
+                    None => state,
+                });
             }
             let Some(new_entry) = merged else {
                 continue;
@@ -281,7 +274,7 @@ where
             result.set_entry(block_id, entry_state);
 
             // enqueue predecessors that may observe the changed entry
-            for &predecessor in cfg.predecessors(block_id) {
+            for predecessor in cfg.predecessors(block_id) {
                 if !*in_worklist.get(predecessor) {
                     worklist.push_back(predecessor);
                     *in_worklist.get_mut(predecessor) = true;

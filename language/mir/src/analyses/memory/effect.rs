@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate as mir;
 use crate::{
-    AliasTable, Analysis, ConstantTable, MemoryAddress, MemoryLocation, MemoryRegion, Mutation,
-    NodeTable, StorageRoot, TargetLayout, collect_reachable_blocks,
+    AliasTable, Analysis, ConstantTable, ControlTable, MemoryAddress, MemoryLocation, MemoryRegion,
+    Mutation, NodeTable, StorageRoot, TargetLayout,
 };
 
 /// Classified memory effects for the operations in one function.
@@ -24,6 +24,7 @@ impl MemoryEffects {
     pub fn analyse(
         function: &mir::Function,
         constants: &ConstantTable,
+        control: &ControlTable,
         accesses: &mir::AccessTable,
         effects: &mir::EffectTable,
         target_layout: TargetLayout,
@@ -42,14 +43,14 @@ impl MemoryEffects {
         };
 
         // preserve empty results for declarations without bodies
-        let Some(entry) = function.entry() else {
+        let Some(_) = function.entry() else {
             return result;
         };
 
         // classify reachable operations using their explicit and derived effects
         let mut builder =
             MemoryEffectBuilder::new(function, tree, constants, accesses, effects, target_layout);
-        for block_id in collect_reachable_blocks(function, tree, entry) {
+        for block_id in control.reachable_blocks() {
             let block = tree.get(block_id);
 
             // retain each instruction's observable memory accesses

@@ -465,6 +465,95 @@ impl Terminator {
         }
     }
 
+    /// Return one target by its position in successor order.
+    pub fn target_at<'a>(
+        &'a self,
+        index: usize,
+        source: BlockId,
+        tree: &'a Tree,
+    ) -> Option<(Edge, &'a BlockTarget)> {
+        // select fixed successors by their terminator position
+        let target = match self {
+            Self::Jump { target } => (index == 0).then_some((Successor::Jump, target)),
+            Self::Branch {
+                then_target,
+                else_target,
+                ..
+            } => [
+                (Successor::BranchThen, then_target),
+                (Successor::BranchElse, else_target),
+            ]
+            .get(index)
+            .copied(),
+            Self::Check {
+                success, failure, ..
+            } => [
+                (Successor::CheckSuccess, success),
+                (Successor::CheckFailure, failure),
+            ]
+            .get(index)
+            .copied(),
+            Self::Invoke { target, unwind, .. } => [
+                (Successor::InvokeNormal, target),
+                (Successor::InvokeUnwind, unwind),
+            ]
+            .get(index)
+            .copied(),
+            Self::NewZeroedTry {
+                success, failure, ..
+            }
+            | Self::NewUninitTry {
+                success, failure, ..
+            }
+            | Self::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | Self::NewSliceUninitTry {
+                success, failure, ..
+            } => [
+                (Successor::NewSuccess, success),
+                (Successor::NewFailure, failure),
+            ]
+            .get(index)
+            .copied(),
+
+            // select the default before indexing integer switch cases
+            Self::Switch { default, cases, .. } => {
+                if index == 0 {
+                    Some((Successor::SwitchDefault, default))
+                } else {
+                    tree.get_switch_cases(*cases)
+                        .get(index - 1)
+                        .map(|case| (Successor::SwitchCase { value: case.value }, &case.target))
+                }
+            }
+
+            // account for an omitted default in exhaustive variant switches
+            Self::VariantSwitch { default, cases, .. } => {
+                if let Some(default) = default.as_ref().filter(|_| index == 0) {
+                    Some((Successor::SwitchDefault, default))
+                } else {
+                    let index = index - usize::from(default.is_some());
+
+                    tree.get_switch_cases(*cases)
+                        .get(index)
+                        .map(|case| (Successor::SwitchCase { value: case.value }, &case.target))
+                }
+            }
+
+            // return no target for terminal and recovered operations
+            Self::Error
+            | Self::Return { .. }
+            | Self::Panic { .. }
+            | Self::UnwindResume
+            | Self::Abort { .. }
+            | Self::Unreachable
+            | Self::TailCall { .. } => None,
+        };
+
+        target.map(|(successor, target)| target.edge(source, successor))
+    }
+
     /// Return successor parameters bound by one exact target.
     pub fn target_parameters<'a>(
         &self,
@@ -1000,7 +1089,7 @@ mod tests {
     use destack_core::FxIndexMap;
 
     use crate::parse::{ParseOptions, Parser, test_file};
-    use crate::{BlockId, Edge, Function, Successor, Terminator, Tree, Type};
+    use crate::{BlockId, Edge, Function, Successor, Terminator, Tree, Type, Value};
 
     /// Parse one MIR tree for terminator owner-method tests.
     fn parse_tree(source: &str) -> Tree {
@@ -1171,5 +1260,49 @@ b2(v3: int32):
         assert_eq!(success.arguments(&tree).len(), 1);
         assert_eq!(target.block, destination);
         assert_eq!(target.arguments(&tree), split_parameters);
+    }
+
+    /// Resolve switch positions with their exact edge identities and arguments.
+    #[test]
+    fn test_index_switch_targets() {
+        let tree = parse_tree(
+            r#"
+function test(v0: int32, v1: int32, v2: int32): int32 {
+entry(v0: int32, v1: int32, v2: int32):
+    switch v0, done(v1), 17 => done(v2), -4 => done(v0)
+
+done(v3: int32):
+    return v3
+}
+"#,
+        );
+        let entry = block(&tree, 0);
+        let done = block(&tree, 1);
+        let terminator = terminator(&tree, 0);
+
+        // retain case order, sparse case values, and distinct forwarded arguments
+        let actual: Vec<_> = (0..3)
+            .map(|index| {
+                let (edge, target) = terminator.target_at(index, entry, &tree).unwrap();
+
+                (edge, target.arguments(&tree).to_vec())
+            })
+            .collect();
+        let expected = [
+            (
+                Edge::new(entry, Successor::SwitchDefault, done),
+                vec![Value::new(1)],
+            ),
+            (
+                Edge::new(entry, Successor::SwitchCase { value: 17 }, done),
+                vec![Value::new(2)],
+            ),
+            (
+                Edge::new(entry, Successor::SwitchCase { value: -4 }, done),
+                vec![Value::new(0)],
+            ),
+        ];
+        assert_eq!(actual, expected);
+        assert_eq!(terminator.target_at(3, entry, &tree), None);
     }
 }

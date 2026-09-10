@@ -99,16 +99,6 @@ impl<N: Node, T: PartialEq> PartialEq for NodeTable<N, T> {
 
 impl<N: Node, T: Eq> Eq for NodeTable<N, T> {}
 
-impl<N: Node, T: Copy> NodeTable<N, Option<T>> {
-    /// Return one expected optional table entry.
-    pub(crate) fn expect(&self, node: LocalNodeId<N>) -> T {
-        match *self.get(node) {
-            Some(value) => value,
-            None => unreachable!("missing expected node table entry for {node:?}"),
-        }
-    }
-}
-
 impl<N: Node, T> Default for NodeTable<N, T> {
     fn default() -> Self {
         Self::new()

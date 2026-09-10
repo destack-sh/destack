@@ -146,7 +146,7 @@ impl ConstantTable {
             } else {
                 // merge predecessor exits
                 let mut merged: Option<ConstantState> = None;
-                for &pred in cfg.predecessors(block_id) {
+                for pred in cfg.predecessors(block_id) {
                     let Some(pred_exit) = block_exit.get(pred).as_ref() else {
                         continue;
                     };
@@ -380,7 +380,7 @@ impl ConstantTable {
         let mut is_seen = false;
 
         // scan predecessors
-        for &pred in cfg.predecessors(block_id) {
+        for pred in cfg.predecessors(block_id) {
             let Some(pred_exit) = block_exit.get(pred).as_ref() else {
                 continue;
             };

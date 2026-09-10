@@ -181,7 +181,7 @@ impl LoopTable {
 
         // reverse DFS: add predecessors that aren't the header
         while let Some(block) = worklist.pop() {
-            for &predecessor in cfg.predecessors(block) {
+            for predecessor in cfg.predecessors(block) {
                 if !dominator.dominates(header, predecessor) {
                     continue;
                 }

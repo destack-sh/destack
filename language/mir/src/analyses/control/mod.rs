@@ -1,3 +1,4 @@
+mod dominance;
 mod dominator;
 mod graph;
 mod r#loop;

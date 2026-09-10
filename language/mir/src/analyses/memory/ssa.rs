@@ -5,7 +5,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
     AliasTable, Analysis, ControlTable, DominatorTable, MemoryAccessEffect, MemoryEffects,
-    MemoryRegion, Mutation, NodeTable, collect_reachable_blocks, compute_dominance_frontiers,
+    MemoryRegion, Mutation, NodeTable,
 };
 
 /// Memory versions for one function.
@@ -135,8 +135,8 @@ impl MemoryNode {
 pub struct MemoryPhi {
     /// Block that owns this phi.
     pub block: mir::LocalNodeId<mir::Block>,
-    /// Incoming values keyed by predecessor block.
-    pub incoming: Vec<(mir::LocalNodeId<mir::Block>, MemoryAccessId)>,
+    /// Incoming memory keyed by predecessor block; none denotes initial function entry.
+    pub incoming: Vec<(Option<mir::LocalNodeId<mir::Block>>, MemoryAccessId)>,
 }
 
 /// Memory definition access.
@@ -309,11 +309,10 @@ impl MemorySSA {
         };
 
         // collect memory accesses and definition blocks
-        let collected = MemoryAccessCollection::collect(function, effects, entry, tree);
+        let collected = MemoryAccessCollection::collect(function, effects, cfg, tree);
 
         // compute dominance frontier for memory defs
-        let dominance_frontier =
-            compute_dominance_frontiers(&collected.reachable_blocks, cfg, dominator);
+        let dominance_frontier = dominator.frontiers();
 
         // insert memory phis for join points
         let phi_blocks = Self::phi_blocks(
@@ -330,10 +329,18 @@ impl MemorySSA {
         // create block phis
         let mut block_phis = NodeTable::from_nodes(function.blocks(), || None);
         for block in &phi_blocks {
+            // merge initial memory when a backedge returns to the entry
+            let incoming = if *block == entry {
+                vec![(None, live_on_entry)]
+            } else {
+                Vec::new()
+            };
+
+            // index the new phi by its block
             let phi_id = MemoryAccessId::from_index(accesses.len());
             accesses.push(MemoryNode::Phi(MemoryPhi {
                 block: *block,
-                incoming: Vec::new(),
+                incoming,
             }));
             *block_phis.get_mut(*block) = Some(phi_id);
         }
@@ -749,11 +756,11 @@ impl MemoryAccessCollection {
     fn collect(
         function: &mir::Function,
         effects: &MemoryEffects,
-        entry: mir::BlockId,
+        control: &ControlTable,
         tree: &mir::Tree,
     ) -> Self {
-        // collect reachable blocks
-        let reachable_blocks = collect_reachable_blocks(function, tree, entry);
+        // reuse the cached reachable blocks
+        let reachable_blocks: Vec<_> = control.reachable_blocks().collect();
         let reachable: FxIndexSet<_> = reachable_blocks.iter().copied().collect();
 
         // collect memory accesses per block
@@ -905,7 +912,7 @@ impl<'a> MemoryRenamer<'a> {
                 && let Some(MemoryNode::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
             {
                 let incoming = *stack.last().expect("missing memory definition");
-                phi.incoming.push((block, incoming));
+                phi.incoming.push((Some(block), incoming));
             }
         }
 
@@ -1842,8 +1849,8 @@ b3:
         let incoming_blocks: FxIndexSet<_> = phi.incoming.iter().map(|(block, _)| *block).collect();
         let body_block = function.block(2);
 
-        assert!(incoming_blocks.contains(&function.block(0)));
-        assert!(incoming_blocks.contains(&body_block));
+        assert!(incoming_blocks.contains(&Some(function.block(0))));
+        assert!(incoming_blocks.contains(&Some(body_block)));
     }
 
     /// Memory analysis skips the accesses unreachable blocks write.
@@ -1882,5 +1889,49 @@ b1:
             memory.instruction_accesses(store_inst).is_none(),
             "unreachable store should not be tracked"
         );
+    }
+
+    /// Merge initial memory with backedge stores when the entry is a loop header.
+    #[test]
+    fn test_merge_memory_at_entry_backedge() {
+        let test = TestProgram::new(
+            r#"
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32, v2: boolean): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32, v2: boolean):
+    v3: int32 = load v0
+    store v0, v1
+    branch v2 => entry(v0, v1, v2) | exit
+
+exit:
+    return v3
+}
+"#,
+        );
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let entry = function.block(0);
+        let instructions = &test.tree.get(entry).instructions;
+        let mut analyses = test.function_analyses();
+        let memory = analyses.memory(function, &test.tree, &test.accesses, &test.effects);
+        let alias = analyses.alias(function, &test.tree);
+        let load = memory
+            .instruction_access(instructions[0])
+            .expect("load access");
+        let store = memory
+            .instruction_access(instructions[1])
+            .expect("store access");
+        let phi = memory.block_phi(entry).expect("entry merge");
+
+        // distinguish the first invocation from subsequent loop iterations
+        let MemoryNode::Phi(merge) = memory.access(phi) else {
+            panic!("expected entry phi")
+        };
+        assert_eq!(
+            merge.incoming,
+            vec![(None, memory.live_on_entry()), (Some(entry), store)]
+        );
+        assert_eq!(memory.defining_access(load), Some(phi));
+        assert_eq!(memory.defining_access(store), Some(phi));
+        assert_eq!(memory.clobbering_use(load, &alias), phi);
     }
 }

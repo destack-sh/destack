@@ -176,7 +176,7 @@ impl FunctionCache {
         let control = self.control(function, tree);
 
         // compute and cache the result
-        let result = Arc::new(DominatorTable::analyse(function, &control, tree));
+        let result = Arc::new(DominatorTable::analyse(control));
         self.dominator = Some(result.clone());
 
         result
@@ -282,9 +282,11 @@ impl FunctionCache {
 
         // classify operations using the current constants and effect tables
         let constants = self.constant(function, tree);
+        let control = self.control(function, tree);
         let result = Arc::new(MemoryEffects::analyse(
             function,
             &constants,
+            &control,
             accesses,
             effects,
             self.target_layout(),
@@ -400,7 +402,7 @@ impl FunctionCache {
         let control = self.control(function, tree);
 
         // compute and cache the result
-        let result = Arc::new(PostdominatorTable::analyse(function, &control, tree));
+        let result = Arc::new(PostdominatorTable::analyse(control));
         self.postdominator = Some(result.clone());
 
         result
@@ -616,5 +618,66 @@ entry:
             Vec::<&MemoryAccessEffect>::new()
         );
         assert!(!Arc::ptr_eq(&effects, &updated));
+    }
+
+    /// Reuse graph analyses for value changes and rebuild them after control changes.
+    #[test]
+    fn test_invalidate_control_and_dominators() {
+        let (mut tree, function_id) = TestProgram::parse_function(
+            r#"
+function test(v0: boolean): void {
+entry(v0: boolean):
+    branch v0 => middle | done
+
+middle:
+    jump done
+
+done:
+    return
+}
+"#,
+        );
+        let function = tree.get(function_id).clone();
+        let entry = function.block(0);
+        let middle = function.block(1);
+        let exit = function.block(2);
+        let mut cache = FunctionCache::new();
+        let control = cache.control(&function, &tree);
+        let dominators = cache.dominator(&function, &tree);
+        let postdominators = cache.postdominator(&function, &tree);
+        assert_eq!(postdominators.immediate_postdominator(entry), Some(exit));
+        assert_eq!(dominators.immediate_dominator(exit), Some(entry));
+
+        // preserve cached graph results when only values change
+        cache.invalidate(Mutation::VALUE);
+        assert!(Arc::ptr_eq(&control, &cache.control(&function, &tree)));
+        assert!(Arc::ptr_eq(&dominators, &cache.dominator(&function, &tree)));
+        assert!(Arc::ptr_eq(
+            &postdominators,
+            &cache.postdominator(&function, &tree)
+        ));
+
+        // remove the direct edge from entry to exit and invalidate its dependents
+        let arguments = tree.add_values(&[]);
+        let terminator = tree.get(entry).terminator;
+        *tree.get_mut(terminator) = mir::Terminator::Jump {
+            target: mir::BlockTarget::new(middle, arguments),
+        };
+        cache.invalidate(Mutation::CONTROL);
+        let changed_control = cache.control(&function, &tree);
+        let changed_dominators = cache.dominator(&function, &tree);
+        let changed_postdominators = cache.postdominator(&function, &tree);
+        assert!(!Arc::ptr_eq(&control, &changed_control));
+        assert!(!Arc::ptr_eq(&dominators, &changed_dominators));
+        assert!(!Arc::ptr_eq(&postdominators, &changed_postdominators));
+        assert_eq!(
+            changed_postdominators.immediate_postdominator(entry),
+            Some(middle)
+        );
+        assert_eq!(
+            changed_control.predecessors(exit).collect::<Vec<_>>(),
+            vec![middle]
+        );
+        assert_eq!(changed_dominators.immediate_dominator(exit), Some(middle));
     }
 }
