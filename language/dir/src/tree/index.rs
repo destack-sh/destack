@@ -18,7 +18,7 @@ impl NodeIndexEntry {
     #[inline]
     pub(crate) fn new(local_id: u32, node_type: NodeType) -> Self {
         debug_assert!(
-            local_id < Self::LOCAL_ID_MASK,
+            local_id <= Self::LOCAL_ID_MASK,
             "DIR node local id exceeds packed index capacity: {local_id}"
         );
 
@@ -27,24 +27,10 @@ impl NodeIndexEntry {
         }
     }
 
-    /// Create one placeholder entry for a reserved node slot.
-    #[inline]
-    pub(crate) fn placeholder(node_type: NodeType) -> Self {
-        Self {
-            packed: Self::LOCAL_ID_MASK | ((node_type as u32) << Self::NODE_TYPE_SHIFT),
-        }
-    }
-
     /// Return the local arena id for this entry.
     #[inline]
     pub(crate) fn local_id(self) -> u32 {
         self.packed & Self::LOCAL_ID_MASK
-    }
-
-    /// Return whether this entry is a reserved slot without arena storage.
-    #[inline]
-    pub(crate) fn is_placeholder(self) -> bool {
-        self.local_id() == Self::LOCAL_ID_MASK
     }
 
     /// Return the concrete node type for this entry.

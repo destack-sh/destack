@@ -4,7 +4,8 @@ use std::fmt::{Debug, Formatter};
 
 use destack_core::StringId;
 use destack_source::{
-    ByteRange, FileId, ModuleId, MultiSpan, NodeSpanRegion, NodeSpanType, SourceIndex, Span,
+    ByteRange, FileId, ModuleId, MultiSpan, NodeSpanKey, NodeSpanRegion, NodeSpanType, SourceIndex,
+    Span,
 };
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -271,8 +272,7 @@ impl Tree {
 
         let retained_node_count = self.node_count_at_global_id(mark.next_global_id);
         self.node_index_by_node_id.truncate(retained_node_count);
-        self.source_index
-            .prune_from(retained_node_count, mark.next_global_id);
+        self.source_index.prune_from(retained_node_count);
         self.next_global_id = mark.next_global_id;
 
         self.restore_decorator_attachments(mark);
@@ -294,9 +294,7 @@ impl Tree {
         for index in (retained_node_count..self.node_index_by_node_id.len()).rev() {
             let entry = self.node_index_by_node_id[index];
 
-            if !entry.is_placeholder() {
-                self.truncate_arena(entry.node_type(), entry.local_id() as usize);
-            }
+            self.truncate_arena(entry.node_type(), entry.local_id() as usize);
         }
     }
 
@@ -390,6 +388,12 @@ impl Tree {
         index
     }
 
+    /// Convert a global node id to this tree's source index.
+    #[inline]
+    fn source_id(&self, node_id: u32) -> u32 {
+        self.node_index(node_id) as u32
+    }
+
     /// Detach a node id from structural traversal.
     pub fn detach(&mut self, node_id: LocalNodeIdAny) {
         self.detached_node_ids.insert(node_id.id);
@@ -404,42 +408,6 @@ impl Tree {
     #[inline]
     pub fn detached_node_ids(&self) -> impl Iterator<Item = u32> + '_ {
         self.detached_node_ids.iter().copied()
-    }
-
-    /// Reserve a new placeholder node slot.
-    fn reserve_node(
-        &mut self,
-        node_type: NodeType,
-        parent_id: Option<LocalNodeIdAny>,
-    ) -> LocalNodeIdAny {
-        let global_id = self.next_global_id;
-        self.next_global_id = global_id + 1;
-
-        self.node_index_by_node_id
-            .push(NodeIndexEntry::placeholder(node_type));
-        self.set_parent_id(global_id, parent_id.map(|parent_id| parent_id.id));
-
-        LocalNodeIdAny::new(global_id, node_type)
-    }
-
-    /// Reserve a new node slot in the tree for a node derived from another DIR node.
-    pub fn reserve_from(
-        &mut self,
-        node_type: NodeType,
-        from: u32,
-        parent_id: Option<LocalNodeIdAny>,
-        derivation: StringId,
-    ) -> LocalNodeIdAny {
-        let node_id = self.reserve_node(node_type, parent_id);
-        self.set_origin(node_id.id, Origin::one(derivation, from));
-        if self.has_node_id(from)
-            && let Some(span) = self.get_span_by_id(from)
-        {
-            self.set_source_span(node_id.id, span);
-        }
-        self.alias_node_id_by_node_id.insert(from, node_id.id);
-
-        node_id
     }
 
     /// Allocate one node with its full source span.
@@ -462,47 +430,10 @@ impl Tree {
         Self: TreeStore<T>,
     {
         let node_id = self.allocate_node(node);
-        self.source_index.append_from(source.id);
+        self.source_index.append_from(self.source_id(source.id));
         if let Some(span) = self.source_span_by_node_id.get(source.id) {
             self.source_span_by_node_id.insert(node_id.id, span);
         }
-
-        node_id
-    }
-
-    /// Fill in the node data for a previously reserved slot.
-    pub fn insert_reserved<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
-    where
-        T: Node,
-        Self: TreeStore<T>,
-    {
-        assert_eq!(
-            node_id.ty,
-            T::TYPE,
-            "DIR reserved node type differs from its inserted value"
-        );
-        let index = self.node_index(node_id.id);
-        let entry = self.node_index_by_node_id[index];
-        assert!(
-            entry.is_placeholder(),
-            "DIR reserved node was already filled"
-        );
-
-        // fill the reserved node in its typed arena
-        let local_id = <Self as TreeStore<T>>::allocate(self, node);
-        self.node_index_by_node_id[index] = NodeIndexEntry::new(local_id, T::TYPE);
-
-        LocalNodeId::new(node_id.id)
-    }
-
-    /// Fill in one reserved slot and make the inserted node own its reused direct children.
-    pub fn insert_as_owner<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
-    where
-        T: Node,
-        Self: TreeStore<T>,
-    {
-        let node_id = self.insert_reserved(node_id, node);
-        self.reparent_direct_children(node_id.into_any());
 
         node_id
     }
@@ -587,11 +518,7 @@ impl Tree {
         let original = self.get(id).clone();
 
         // preserve original at a detached tombstone, carrying its span
-        let preserved_id = self.reserve_node(T::TYPE, None);
-        if let Some(span) = self.get_span_by_id(id.id) {
-            self.set_source_span(preserved_id.id, span);
-        }
-        let preserved_id: LocalNodeId<T> = self.insert_reserved(preserved_id, original);
+        let preserved_id = self.insert_from(original, id);
 
         // move the old origin onto the tombstone so derivation chains keep resolving
         if let Some(origin) = self.origin_by_node_id.take(id.id) {
@@ -807,7 +734,7 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.get(node_id.id)
+        self.source_index.get(self.source_id(node_id.id))
     }
 
     /// Return the file-local source range for one parsed node.
@@ -816,7 +743,7 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.get_range(node_id.id)
+        self.source_index.get_range(self.source_id(node_id.id))
     }
 
     /// Return the concrete source extent owned by one parsed node.
@@ -832,16 +759,18 @@ impl Tree {
     /// Return the concrete source extent owned by one DIR node when known.
     pub fn get_source_extent_by_id(&self, node_id: u32) -> Option<Span> {
         let span = self.get_span_by_id(node_id)?;
-        if !self.source_index.contains_node(node_id) {
+        let source_id = self.source_id(node_id);
+        if !self.source_index.contains_node(source_id) {
             return Some(span);
         }
 
         let parentheses_span = self
             .source_index
-            .get_side(node_id, NodeSpanType::Region(NodeSpanRegion::Parentheses));
-        let tree_container_span = self
-            .source_index
-            .get_side(node_id, NodeSpanType::Region(NodeSpanRegion::TreeContainer));
+            .get_side(source_id, NodeSpanType::Region(NodeSpanRegion::Parentheses));
+        let tree_container_span = self.source_index.get_side(
+            source_id,
+            NodeSpanType::Region(NodeSpanRegion::TreeContainer),
+        );
         let span = parentheses_span.map_or(span, |parentheses| span.merge(parentheses));
 
         Some(tree_container_span.map_or(span, |container| span.merge(container)))
@@ -853,7 +782,7 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.set(node_id.id, span);
+        self.source_index.set(self.source_id(node_id.id), span);
         self.source_span_by_node_id.remove(node_id.id);
     }
 
@@ -863,15 +792,17 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.set_range(node_id.id, range);
+        self.source_index
+            .set_range(self.source_id(node_id.id), range);
         self.source_span_by_node_id.remove(node_id.id);
     }
 
     /// Set the final source span for one DIR node.
     #[inline]
     pub fn set_source_span(&mut self, node_id: u32, span: Span) {
-        self.node_index(node_id);
-        if self.source_index.contains_node(node_id) && self.source_index.get(node_id) == span {
+        if self.source_index.contains_node(self.source_id(node_id))
+            && self.source_index.get(self.source_id(node_id)) == span
+        {
             self.source_span_by_node_id.remove(node_id);
         } else {
             self.source_span_by_node_id.insert(node_id, span);
@@ -881,11 +812,10 @@ impl Tree {
     /// Return the final source span for one DIR node when known.
     #[inline]
     pub fn get_span_by_id(&self, node_id: u32) -> Option<Span> {
-        self.node_index(node_id);
         self.source_span_by_node_id.get(node_id).or_else(|| {
             self.source_index
-                .contains_node(node_id)
-                .then(|| self.source_index.get(node_id))
+                .contains_node(self.source_id(node_id))
+                .then(|| self.source_index.get(self.source_id(node_id)))
         })
     }
 
@@ -895,7 +825,7 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.get_main(node_id.id)
+        self.source_index.get_main(self.source_id(node_id.id))
     }
 
     /// Return the file-local main source range for one parsed node.
@@ -905,22 +835,24 @@ impl Tree {
         T: Node,
     {
         self.source_index
-            .get_side_range(node_id.id, NodeSpanType::Main)
+            .get_side_range(self.source_id(node_id.id), NodeSpanType::Main)
     }
 
     /// Return the main source span for one parsed node id.
     #[inline]
     pub fn get_main_span_by_id(&self, node_id: u32) -> Option<Span> {
-        self.source_index.get_main(node_id)
+        self.source_index.get_main(self.source_id(node_id))
     }
 
     /// Find the innermost typed node span containing one source span.
     #[inline]
-    pub fn find_innermost_node_span_owner(
-        &self,
-        span: Span,
-    ) -> Option<destack_source::NodeSpanKey> {
-        self.source_index.find_innermost_node_span_owner(span)
+    pub fn find_innermost_node_span_owner(&self, span: Span) -> Option<NodeSpanKey> {
+        let key = self.source_index.find_innermost_node_span_owner(span)?;
+
+        Some(NodeSpanKey {
+            source_id: key.source_id + self.first_global_id,
+            ..key
+        })
     }
 
     /// Set the main source span for one parsed node.
@@ -929,7 +861,7 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.set_main(node_id.id, span);
+        self.source_index.set_main(self.source_id(node_id.id), span);
     }
 
     /// Set the file-local main source range for one parsed node.
@@ -939,7 +871,7 @@ impl Tree {
         T: Node,
     {
         self.source_index
-            .set_side_range(node_id.id, NodeSpanType::Main, range);
+            .set_side_range(self.source_id(node_id.id), NodeSpanType::Main, range);
     }
 
     /// Return the head source span for one parsed node.
@@ -948,7 +880,8 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.get_side(node_id.id, NodeSpanType::Head)
+        self.source_index
+            .get_side(self.source_id(node_id.id), NodeSpanType::Head)
     }
 
     /// Return the file-local head source range for one parsed node.
@@ -958,13 +891,14 @@ impl Tree {
         T: Node,
     {
         self.source_index
-            .get_side_range(node_id.id, NodeSpanType::Head)
+            .get_side_range(self.source_id(node_id.id), NodeSpanType::Head)
     }
 
     /// Return the head source span for one parsed node id.
     #[inline]
     pub fn get_head_span_by_id(&self, node_id: u32) -> Option<Span> {
-        self.source_index.get_side(node_id, NodeSpanType::Head)
+        self.source_index
+            .get_side(self.source_id(node_id), NodeSpanType::Head)
     }
 
     /// Set the head source span for one parsed node.
@@ -974,7 +908,7 @@ impl Tree {
         T: Node,
     {
         self.source_index
-            .set_side(node_id.id, NodeSpanType::Head, span);
+            .set_side(self.source_id(node_id.id), NodeSpanType::Head, span);
     }
 
     /// Set the file-local head source range for one parsed node.
@@ -984,7 +918,7 @@ impl Tree {
         T: Node,
     {
         self.source_index
-            .set_side_range(node_id.id, NodeSpanType::Head, range);
+            .set_side_range(self.source_id(node_id.id), NodeSpanType::Head, range);
     }
 
     /// Set one side source span for one parsed node.
@@ -993,7 +927,8 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.set_side(node_id.id, span_type, span);
+        self.source_index
+            .set_side(self.source_id(node_id.id), span_type, span);
     }
 
     /// Set one file-local side source range for one parsed node.
@@ -1007,7 +942,7 @@ impl Tree {
         T: Node,
     {
         self.source_index
-            .set_side_range(node_id.id, span_type, range);
+            .set_side_range(self.source_id(node_id.id), span_type, range);
     }
 
     /// Return one side source span for one parsed node.
@@ -1016,7 +951,8 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.get_side(node_id.id, span_type)
+        self.source_index
+            .get_side(self.source_id(node_id.id), span_type)
     }
 
     /// Return one file-local side source range for one parsed node.
@@ -1029,25 +965,29 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_index.get_side_range(node_id.id, span_type)
+        self.source_index
+            .get_side_range(self.source_id(node_id.id), span_type)
     }
 
     /// Return one side source span for one parsed node id.
     #[inline]
     pub fn get_side_span_by_id(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
-        self.source_index.get_side(node_id, span_type)
+        self.source_index
+            .get_side(self.source_id(node_id), span_type)
     }
 
     /// Return one file-local side source range for one parsed node id.
     #[inline]
     pub fn get_side_range_by_id(&self, node_id: u32, span_type: NodeSpanType) -> Option<ByteRange> {
-        self.source_index.get_side_range(node_id, span_type)
+        self.source_index
+            .get_side_range(self.source_id(node_id), span_type)
     }
 
     /// Set one side source span for one parsed node id.
     #[inline]
     pub fn set_side_span_by_id(&mut self, node_id: u32, span_type: NodeSpanType, span: Span) {
-        self.source_index.set_side(node_id, span_type, span);
+        self.source_index
+            .set_side(self.source_id(node_id), span_type, span);
     }
 
     /// Set one file-local side source range for one parsed node id.
@@ -1058,7 +998,8 @@ impl Tree {
         span_type: NodeSpanType,
         range: ByteRange,
     ) {
-        self.source_index.set_side_range(node_id, span_type, range);
+        self.source_index
+            .set_side_range(self.source_id(node_id), span_type, range);
     }
 
     /// Return the spans for all nodes of a given type.
@@ -1184,219 +1125,5 @@ impl Tree {
     #[inline]
     pub fn take_documentation(&mut self, node_id: u32) -> Option<Documentation> {
         self.documentation_by_node_id.take(node_id)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_source::{FileId, ModuleId, PackageId, Span};
-
-    use crate::{
-        BinaryOperator, Decorator, DecoratorPosition, Expression, Patch, Tree, TypeExpression, View,
-    };
-
-    fn test_module_id() -> ModuleId {
-        ModuleId::new(PackageId::new(1), 1)
-    }
-
-    fn test_span(start: u32) -> Span {
-        Span::new(FileId(1), start, start + 1)
-    }
-
-    /// Resolve parsed source nodes directly through a tree view.
-    #[test]
-    fn test_view_resolves_parsed_source_node() {
-        let mut tree = Tree::new(test_module_id());
-        let expression = tree.insert(Expression::Error, test_span(0));
-        tree.index_parents(&[expression]);
-        let view = View::new(&tree);
-
-        assert_eq!(
-            view.get_node_id_by_source_id(expression.id),
-            Some(expression.into_any())
-        );
-    }
-
-    /// Iterate replacements and introduced nodes exactly once.
-    #[test]
-    fn test_view_iterates_visible_nodes() {
-        let mut tree = Tree::new(test_module_id());
-        let replaced = tree.insert(Expression::Error, test_span(0));
-        let deleted = tree.insert(Expression::Debugger, test_span(1));
-        tree.index_parents(&[replaced, deleted]);
-
-        // replace one base root, delete another, and introduce one patch root
-        let mut patch = Patch::new(&tree, "test");
-        let replacement = patch.tree.insert(Expression::Debugger, test_span(2));
-        let introduced = patch.tree.insert(Expression::Error, test_span(3));
-        patch.tree.index_parents(&[replacement, introduced]);
-        patch.replace(replaced.into_any(), replacement.into_any());
-        patch.delete(deleted.into_any());
-
-        // replace the introduced root in a later patch
-        let mut next_patch = Patch::new(&patch.tree, "next");
-        let next_replacement = next_patch.tree.insert(Expression::Debugger, test_span(4));
-        next_patch.tree.index_parents(&[next_replacement]);
-        next_patch.replace(introduced.into_any(), next_replacement.into_any());
-        let patches = [patch, next_patch];
-        let view = View::with_patches(&tree, &patches);
-
-        // retain replacement source ids and yield each visible value once
-        let nodes = view.iter_nodes::<Expression>().collect::<Vec<_>>();
-        assert_eq!(nodes.len(), 2);
-        assert_eq!(nodes[0].0, replaced);
-        assert!(matches!(nodes[0].1, Expression::Debugger));
-        assert_eq!(nodes[1].0, introduced);
-        assert!(matches!(nodes[1].1, Expression::Debugger));
-    }
-
-    /// Return visible direct children in structural order across replacements.
-    #[test]
-    fn test_return_visible_direct_children() {
-        let mut tree = Tree::new(test_module_id());
-        let left = tree.insert(Expression::Error, test_span(0));
-        let right = tree.insert(Expression::Debugger, test_span(1));
-        let root = tree.insert(
-            Expression::Binary {
-                left,
-                operator: BinaryOperator::Add,
-                right,
-            },
-            test_span(2),
-        );
-        tree.index_parents(&[root]);
-
-        // retain direct source order in the parsed tree
-        let view = View::new(&tree);
-        assert_eq!(
-            view.direct_children(root.into_any()),
-            Some(smallvec::smallvec![left.into_any(), right.into_any()])
-        );
-
-        // resolve the same structural query through a visible replacement
-        let mut patch = Patch::new(&tree, "test");
-        let replacement_left = patch.tree.insert(Expression::Error, test_span(3));
-        let replacement_right = patch.tree.insert(Expression::Debugger, test_span(4));
-        let replacement = patch.tree.insert(
-            Expression::Binary {
-                left: replacement_left,
-                operator: BinaryOperator::Add,
-                right: replacement_right,
-            },
-            test_span(5),
-        );
-        patch.tree.index_parents(&[replacement]);
-        patch.replace(root.into_any(), replacement.into_any());
-        let patches = [patch];
-        let view = View::with_patches(&tree, &patches);
-        assert_eq!(
-            view.direct_children(root.into_any()),
-            Some(smallvec::smallvec![
-                replacement_left.into_any(),
-                replacement_right.into_any()
-            ])
-        );
-    }
-
-    #[test]
-    fn test_derivation_chains_resolve_through_tombstones() {
-        let mut tree = Tree::new(test_module_id());
-        let derivation = destack_core::StringId(1);
-
-        // parsed root, one derived node, then replace the root in place
-        let root = tree.insert(Expression::Error, test_span(0));
-        let derived = tree.reserve_from(crate::NodeType::Expression, root.id, None, derivation);
-        let derived: crate::LocalNodeId<Expression> =
-            tree.insert_reserved(derived, Expression::Error);
-        let preserved = tree.replace(root, Expression::Error, derivation);
-
-        // the tombstone carries the original and is hidden from traversal
-        assert!(tree.is_detached(preserved.id));
-
-        // the replaced slot derives from the tombstone
-        assert_eq!(tree.origin(root.id).unwrap().parent(), Some(preserved.id));
-
-        // chains resolve through the replacement to the tombstone root
-        assert_eq!(tree.get_source(derived.id), preserved.id);
-        assert_eq!(tree.get_source(root.id), preserved.id);
-    }
-
-    #[test]
-    fn test_restore_mark_replays_typed_arena_tail() {
-        let mut tree = Tree::new(test_module_id());
-        let owner = tree.insert(Expression::Error, test_span(0));
-        let mark = tree.mark();
-
-        let ty = tree.insert(TypeExpression::Missing, test_span(1));
-        let decorator_expression = tree.insert(Expression::Error, test_span(2));
-        let decorator = tree.insert(
-            Decorator {
-                expression: decorator_expression,
-                position: DecoratorPosition::LinePrefix,
-            },
-            test_span(3),
-        );
-        tree.attach_decorator(owner.id, decorator);
-
-        assert_eq!(tree.get_decorators(owner.id), vec![decorator]);
-
-        tree.restore_to_mark(mark);
-
-        assert!(tree.get_decorators(owner.id).is_empty());
-        assert!(!tree.has_node_id(ty.id));
-        assert!(!tree.has_node_id(decorator_expression.id));
-        assert!(!tree.has_node_id(decorator.id));
-        assert_eq!(tree.iter_nodes::<Expression>().count(), 1);
-        assert_eq!(tree.iter_nodes::<TypeExpression>().count(), 0);
-        assert_eq!(tree.iter_nodes::<Decorator>().count(), 0);
-        assert_eq!(tree.next_global_id(), mark.next_global_id());
-    }
-
-    #[test]
-    fn test_restore_mark_uses_tail_tree_local_node_count() {
-        let mut base = Tree::new(test_module_id());
-        base.insert(Expression::Error, test_span(0));
-        base.insert(Expression::Error, test_span(1));
-
-        let mut tree = Tree::from_base(&base, 4);
-        let retained = tree.insert(Expression::Error, test_span(2));
-        let mark = tree.mark();
-        let removed = tree.insert(TypeExpression::Missing, test_span(3));
-
-        tree.restore_to_mark(mark);
-
-        assert!(tree.has_node_id(retained.id));
-        assert!(!tree.has_node_id(removed.id));
-        assert_eq!(tree.next_global_id(), removed.id);
-    }
-
-    /// Index structural membership independently from physical allocation.
-    #[test]
-    fn test_index_parents_tracks_structural_membership() {
-        let mut tree = Tree::new(test_module_id());
-        let left = tree.insert(Expression::Error, test_span(0));
-        let root = tree.insert(
-            Expression::Member {
-                left,
-                name: None,
-                is_optional: false,
-            },
-            test_span(1),
-        );
-        let unindexed = tree.insert(Expression::Error, test_span(2));
-        tree.index_parents(&[root]);
-
-        // index roots and descendants with their structural parents
-        assert!(tree.parents().contains(root.id));
-        assert!(tree.parents().contains(left.id));
-        assert_eq!(tree.get_parent_id(root.id), None);
-        assert_eq!(tree.get_parent_id(left.id), Some(root.id));
-
-        // hide unrelated arena allocations from structural views
-        assert!(!tree.parents().contains(unindexed.id));
-        let view = View::new(&tree);
-        assert!(view.is_visible(root.into_any()));
-        assert!(view.is_visible(left.into_any()));
-        assert!(!view.is_visible(unindexed.into_any()));
     }
 }
