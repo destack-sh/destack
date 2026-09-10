@@ -128,3 +128,45 @@ new Foo().bar()
 ```ds expected
 new Foo().bar();
 ```
+
+## Constructor Expressions
+
+### Indexed constructors
+
+Indexing selects the constructor before its arguments.
+
+```ds
+new constructors [ 0 ] ( value )
+new constructors [ 0 ] < Item > ( value ).member
+```
+
+```ds expected
+new constructors[0](value);
+new constructors[0]<Item>(value).member;
+```
+
+### Constructors returned by calls
+
+Parentheses separate the call that returns a constructor from the construction.
+
+```ds
+new ( selectConstructor ( ) ) ( value )
+new ( selectConstructor ( ).member ) ( value )
+```
+
+```ds expected
+new (selectConstructor())(value);
+new (selectConstructor().member)(value);
+```
+
+### Conditional constructors
+
+Parentheses retain the complete conditional operand.
+
+```ds
+new ( enabled ? Primary : Secondary ) ( value )
+```
+
+```ds expected
+new (enabled ? Primary : Secondary)(value);
+```

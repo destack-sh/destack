@@ -354,8 +354,12 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // new
-        Expression::New { ty, arguments } => {
-            format_new_expression(f, node_id, *ty, arguments)?;
+        Expression::New {
+            left,
+            generic_arguments,
+            arguments,
+        } => {
+            format_new_expression(f, node_id, *left, generic_arguments, arguments)?;
         }
 
         // chain

@@ -76,6 +76,7 @@ fn parent_requires_primary_expression(
         Expression::Member { left, .. }
         | Expression::Index { left, .. }
         | Expression::Call { left, .. }
+        | Expression::New { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. } => *left == parent_child_id,
 
@@ -201,9 +202,9 @@ fn expression_is_call_like_callee(
     parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(parent_expression_id) {
-        Expression::Call { left, .. } | Expression::Instantiation { left, .. } => {
-            *left == parent_child_id
-        }
+        Expression::Call { left, .. }
+        | Expression::New { left, .. }
+        | Expression::Instantiation { left, .. } => *left == parent_child_id,
         Expression::TaggedTemplateExpression { tag, .. } => *tag == parent_child_id,
         _ => false,
     }
@@ -747,6 +748,25 @@ pub(crate) fn expression_requires_parentheses_in_parent(
 
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
+
+    // group calls and assertions within a constructor operand
+    if let Expression::New { left, .. } = parent_expression
+        && *left == node_id
+    {
+        let mut operand = node_id;
+        loop {
+            match context.tree.get(operand) {
+                Expression::Member { left, .. }
+                | Expression::Index { left, .. }
+                | Expression::Instantiation { left, .. } => operand = *left,
+                Expression::Call { .. }
+                | Expression::Must { .. }
+                | Expression::Maybe { .. }
+                | Expression::Chain { .. } => return true,
+                _ => break,
+            }
+        }
+    }
 
     // assignment expressions need parentheses unless they are already in assignment position
     if let Expression::Assign { .. } = context.tree.get(node_id) {
