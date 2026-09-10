@@ -4,9 +4,9 @@ use std::sync::Arc;
 use destack_artifact::{DiagnosticBuilder, MirLowered};
 use destack_core::FxIndexSet;
 use destack_mir::{
-    AccessTable, AnalysisCache, AnalysisOptions, DispatchTable, DropTable, EffectTable, Function,
-    FunctionBehavior, FunctionCache, FunctionId, LocalNodeId, LocalNodeIdAny, ResolutionTable,
-    RetentionTable, TargetLayout, Tree,
+    AccessTable, AnalysisCache, AnalysisOptions, DispatchTable, DropTable, EffectTable,
+    EscapeTable, Function, FunctionBehavior, FunctionCache, FunctionId, LocalNodeId,
+    LocalNodeIdAny, ResolutionTable, RetentionTable, TargetLayout, Tree,
 };
 
 use crate::DiagnosticAnchor;
@@ -27,6 +27,8 @@ pub(crate) struct VerifyState<'a> {
     pub(in crate::verify) effects: Arc<EffectTable>,
     /// Static callsite resolutions.
     pub(in crate::verify) resolution: Arc<ResolutionTable>,
+    /// Allocation escape results for the module.
+    escapes: Arc<EscapeTable>,
 
     /// Verified ownership retention.
     retention: RetentionTable,
@@ -59,6 +61,7 @@ impl<'a> VerifyState<'a> {
         let mut analyses = AnalysisCache::new();
         let resolution = analyses.resolution(tree, dispatch);
         let effects = analyses.effect(tree, accesses, effects, dispatch);
+        let escapes = analyses.escape(tree);
 
         Self {
             tree,
@@ -67,6 +70,7 @@ impl<'a> VerifyState<'a> {
             target,
             effects,
             resolution,
+            escapes,
             retention: RetentionTable::default(),
             errors: Vec::new(),
         }
@@ -94,7 +98,9 @@ impl<'a> VerifyState<'a> {
 
             let options = AnalysisOptions::new(self.target);
             let mut analyses = FunctionCache::with_options(options);
-            let retention = FunctionChecker::new(function, tree, self, &mut analyses).check();
+            let escape = self.escapes.function(*id).clone();
+            let retention =
+                FunctionChecker::new(function, tree, escape, self, &mut analyses).check();
             self.retention.extend(retention);
         }
 

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use destack_mir::{
-    Access, AliasTable, Block, Copy, EscapeTable, Function, FunctionCache, InitializationTable,
-    LiveSet, LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, MemoryTable, MovePathId,
-    MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable, Point,
-    Projection, ReferenceKind, RetentionTable, Tree, Type, TypeId, Value,
+    Access, AliasTable, Block, Copy, Escape, Function, FunctionCache, InitializationTable, LiveSet,
+    LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, MemoryEffects, MovePathId, MoveTable,
+    OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable, Point, Projection,
+    ReferenceKind, RetentionTable, Tree, Type, TypeId, Value,
 };
 
 use destack_artifact::DiagnosticAnchor;
@@ -27,7 +27,7 @@ pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     /// Alias relation for physical memory accesses.
     pub(super) alias: Arc<AliasTable>,
     /// Memory effects for every operation.
-    pub(super) memory: Arc<MemoryTable>,
+    pub(super) accesses: Arc<MemoryEffects>,
     /// Places derived by address values.
     pub(super) places: Arc<PlaceTable>,
     /// Dense independently movable paths, owned pointees included.
@@ -35,7 +35,7 @@ pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     /// Solved borrow origin.
     pub(super) origin: Arc<OriginTable>,
     /// Whole-function escape decisions.
-    pub(super) escape: Arc<EscapeTable>,
+    pub(super) escape: Arc<Escape>,
     /// Verified ownership retention.
     retention: RetentionTable,
     /// Origin at the current operation.
@@ -53,6 +53,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
     pub(in crate::verify) fn new(
         function: &'a Function,
         tree: &'a Tree,
+        escape: Arc<Escape>,
         verification: &'a mut VerifyState<'b>,
         analyses: &mut FunctionCache,
     ) -> Self {
@@ -61,9 +62,9 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         let places = analyses.place(function, tree);
         let moves = analyses.moves(function, tree);
         let alias = analyses.alias(function, tree);
-        let memory = analyses.memory(function, tree, verification.accesses, &verification.effects);
+        let accesses =
+            analyses.accesses(function, tree, verification.accesses, &verification.effects);
         let origin = analyses.origin(function, tree, &verification.resolution);
-        let escape = analyses.escape(function, tree);
         let loan_count = origin.loans().len();
 
         Self {
@@ -73,7 +74,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
             initialization,
             liveness,
             alias,
-            memory,
+            accesses,
             places,
             moves,
             origin,
@@ -261,8 +262,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         *element
     }
 
-    /// Return one aggregate slot type, a newtype over a variant taking its value at the case
-    /// the value fills.
+    /// Return the aggregate element type, selecting a newtype variant case by the stored value.
     pub(super) fn slot_type(&self, aggregate: Value, index: usize, value: Value) -> TypeId {
         let ty = self.function.expect_value_type(aggregate);
         let ty = self.tree.represented(ty);
@@ -333,8 +333,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         self.verification.drops.has_hook(ty)
     }
 
-    /// Return whether one loan excludes every other access: a write over owned storage, which
-    /// the borrow check proves exclusive.
+    /// Return whether the loan writes to owned storage.
     pub(super) fn is_exclusive(&self, loan: &Loan) -> bool {
         loan.writes() && loan.place().is_some_and(|place| self.owns_place(place))
     }

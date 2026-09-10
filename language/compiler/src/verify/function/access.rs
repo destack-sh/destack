@@ -261,7 +261,7 @@ impl FunctionChecker<'_, '_> {
         }
 
         let effects = self
-            .memory
+            .accesses
             .instruction_effects(instruction_id)
             .cloned()
             .collect::<Vec<_>>();
@@ -311,7 +311,7 @@ impl FunctionChecker<'_, '_> {
         }
 
         let effects = self
-            .memory
+            .accesses
             .terminator_effects(block)
             .cloned()
             .collect::<Vec<_>>();
