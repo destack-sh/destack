@@ -444,5 +444,7 @@ just test
   - `docs`: edit the docs (in code or otherwise)
   - `dev`: make some meta change about the dev setup
 
+- Commits should be boring like boiled potatoes and dry bread. Do not tell a story. Just say what changed, as plainly as possible, with minimal explanation (as needed).
 - Do *not* mention the "meta" in commits in any way, commits are strictly about the *actual* changes to the repository (do not say stuff like "part 1", "landed feature X") 
-- When possible and sensible try to mention specific code concepts like `add SiteTable, rename Foo -> Bar` is nice and specific
+- Specifically, simple language is better (add, remove, reshape, move, update X to do Y, ...), and specific code concepts are better.
+- When possible and sensible try to mention specific code concepts - not files - as proper nouns, like `add SiteTable, rename Foo -> Bar`.
