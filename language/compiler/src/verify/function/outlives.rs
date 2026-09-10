@@ -1,6 +1,4 @@
-use destack_mir::{
-    Block, Lifetime, LocalNodeId, LocalNodeIdAny, Origin, Path, Point, Terminator, TypeId, Value,
-};
+use destack_mir::{Lifetime, LocalNodeIdAny, Origin, Path, Terminator, TypeId, Value};
 
 use crate::verify::VerifyError;
 
@@ -24,19 +22,16 @@ impl FunctionChecker<'_, '_> {
     /// Check tail-call result retention against the function return lifetime.
     pub(super) fn check_tail_call_return(
         &mut self,
-        block_id: LocalNodeId<Block>,
         terminator: &Terminator,
         anchor: LocalNodeIdAny,
     ) {
         let Terminator::TailCall { call } = terminator else {
             return;
         };
-        let callsite = Point::Terminator(block_id);
-        let function = self.resolved_target(callsite, terminator.call_direct_target());
         let arguments = self.tree.get_values(call.arguments);
         let bindings = self
             .context()
-            .call_result(&self.state, function, call.signature, arguments);
+            .call_result(&self.state, call.signature, arguments);
 
         self.check_return_bindings(bindings, anchor);
     }

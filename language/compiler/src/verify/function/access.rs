@@ -169,7 +169,7 @@ impl FunctionChecker<'_, '_> {
         self.check_terminator_memory(block_id, terminator, anchor);
 
         // check tail-call result retention against the function return lifetime
-        self.check_tail_call_return(block_id, terminator, anchor);
+        self.check_tail_call_return(terminator, anchor);
 
         // invalidate loans rooted in consumed terminator values
         for value in terminator.consumes(self.tree) {
@@ -338,7 +338,7 @@ impl FunctionChecker<'_, '_> {
                 let loan_id = self.active_loans[index];
                 let loan = self.origin.loans().get(loan_id);
 
-                // an assignment conflicts with every borrow, an opaque effect with an exclusive one
+                // check every borrow for assignments and exclusive borrows for opaque effects
                 let is_assignment = matches!(
                     effect.region,
                     MemoryRegion::Local(_) | MemoryRegion::Address { .. }
@@ -349,8 +349,7 @@ impl FunctionChecker<'_, '_> {
                 }
 
                 // skip opaque effects over loans confined to this frame
-                if matches!(effect.region, MemoryRegion::Any { .. })
-                    && !self.loan_reaches_outside(loan)
+                if matches!(effect.region, MemoryRegion::Any { .. }) && !self.is_loan_exposed(loan)
                 {
                     continue;
                 }
@@ -386,17 +385,23 @@ impl FunctionChecker<'_, '_> {
         }
     }
 
-    /// Return whether one loan's referent is reachable outside this frame.
-    fn loan_reaches_outside(&self, loan: &Loan) -> bool {
-        // global-rooted referents stay reachable ambiently
-        if loan
-            .place()
-            .is_some_and(|place| matches!(place.origin, PlaceOrigin::Global(_)))
-        {
+    /// Return whether an unrelated call can access the borrowed storage at this point.
+    fn is_loan_exposed(&self, loan: &Loan) -> bool {
+        // admit aliases to incoming borrows and global storage
+        let Some(place) = loan.place() else {
+            return true;
+        };
+        if matches!(place.origin, PlaceOrigin::Global(_)) || !self.owns_place(place) {
             return true;
         }
 
-        self.escape.escapes(loan.representation)
+        // find loans already stored through an alias to this owned storage
+        self.origin
+            .loans()
+            .blocking_change(place, self.state.escaped_loans(), |left, right| {
+                self.alias.may_overlap(left, right)
+            })
+            .is_some()
     }
 
     /// Return whether one memory effect may touch an active loan.

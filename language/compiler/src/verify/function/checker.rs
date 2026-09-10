@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use destack_mir::{
-    Access, AliasTable, Block, Copy, Escape, Function, FunctionCache, InitializationTable, LiveSet,
-    LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, MemoryEffects, MovePathId, MoveTable,
-    OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable, Point, Projection,
+    Access, AliasTable, Block, Copy, Function, FunctionCache, InitializationTable, LivenessCursor,
+    LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, MemoryEffectTable, MovePathId,
+    MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable, Projection,
     ReferenceKind, RetentionTable, Tree, Type, TypeId, Value,
 };
 
@@ -27,15 +27,13 @@ pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     /// Alias relation for physical memory accesses.
     pub(super) alias: Arc<AliasTable>,
     /// Memory effects for every operation.
-    pub(super) accesses: Arc<MemoryEffects>,
+    pub(super) accesses: Arc<MemoryEffectTable>,
     /// Places derived by address values.
     pub(super) places: Arc<PlaceTable>,
     /// Dense independently movable paths, owned pointees included.
     pub(super) moves: Arc<MoveTable>,
     /// Solved borrow origin.
     pub(super) origin: Arc<OriginTable>,
-    /// Whole-function escape decisions.
-    pub(super) escape: Arc<Escape>,
     /// Verified ownership retention.
     retention: RetentionTable,
     /// Origin at the current operation.
@@ -53,7 +51,6 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
     pub(in crate::verify) fn new(
         function: &'a Function,
         tree: &'a Tree,
-        escape: Arc<Escape>,
         verification: &'a mut VerifyState<'b>,
         analyses: &mut FunctionCache,
     ) -> Self {
@@ -63,8 +60,8 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         let moves = analyses.moves(function, tree);
         let alias = analyses.alias(function, tree);
         let accesses =
-            analyses.accesses(function, tree, verification.accesses, &verification.effects);
-        let origin = analyses.origin(function, tree, &verification.resolution);
+            analyses.memory_effect(function, tree, verification.accesses, &verification.effects);
+        let origin = analyses.origin(function, tree);
         let loan_count = origin.loans().len();
 
         Self {
@@ -78,7 +75,6 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
             places,
             moves,
             origin,
-            escape,
             state: OriginState::new(),
             active_loans: Vec::new(),
             rejected_loans: BitSet::new(loan_count),
@@ -89,13 +85,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
 
     /// Return the origin transfer context over this function's analyses.
     pub(super) fn context(&self) -> OriginContext<'_> {
-        OriginContext::new(
-            self.function,
-            self.tree,
-            &self.places,
-            &self.verification.resolution,
-            self.origin.loans(),
-        )
+        OriginContext::new(self.function, self.tree, &self.places, self.origin.loans())
     }
 
     /// Report one loan's access error at most once per anchor.
@@ -130,7 +120,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         self.state = state;
         let block = self.tree.get(block_id);
         let liveness = self.liveness.clone();
-        let mut live = liveness.block(self.tree, block_id);
+        let mut live = liveness.cursor(self.tree, block_id);
 
         // retain ownership live at block entry
         let entries = self.retention_entries(&live);
@@ -148,13 +138,8 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
 
             // check ownership and advance origin
             self.check_instruction(instruction_id, instruction);
-            let cx = OriginContext::new(
-                self.function,
-                self.tree,
-                &self.places,
-                &self.verification.resolution,
-                self.origin.loans(),
-            );
+            let cx =
+                OriginContext::new(self.function, self.tree, &self.places, self.origin.loans());
             self.state.advance(&cx, instruction_id);
 
             // advance liveness and retain ownership after the instruction
@@ -173,7 +158,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
     }
 
     /// Return live representations and the move-only owners they retain.
-    fn retention_entries(&self, live: &LiveSet<'_>) -> Vec<MovePathId> {
+    fn retention_entries(&self, live: &LivenessCursor<'_>) -> Vec<MovePathId> {
         let mut retention = Vec::new();
 
         // collect owners retained directly by SSA values
@@ -290,17 +275,8 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         slot.unwrap_or_else(|| unreachable!("aggregate has no slot {index}"))
     }
 
-    /// Return one callsite's statically resolved function.
-    pub(super) fn resolved_target(
-        &self,
-        callsite: Point,
-        direct: Option<LocalNodeId<Function>>,
-    ) -> Option<LocalNodeId<Function>> {
-        direct.or_else(|| self.verification.resolution.target(callsite))
-    }
-
     /// Derive loans retained by live values and places.
-    fn activate_loans(&mut self, live: &LiveSet<'_>) {
+    fn activate_loans(&mut self, live: &LivenessCursor<'_>) {
         self.active_loans = self.state.active_loans(
             |value| live.contains_value(value),
             |place| {
@@ -344,7 +320,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
     }
 
     /// Return whether one place is owned storage.
-    fn owns_place(&self, place: &Place) -> bool {
+    pub(super) fn owns_place(&self, place: &Place) -> bool {
         match (place.origin, place.path.first()) {
             (PlaceOrigin::Local(local), Some(Projection::Deref)) => {
                 let ty = self.tree.get(local).ty;

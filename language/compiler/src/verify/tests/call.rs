@@ -386,3 +386,218 @@ function start(name: &readonly string): Span {
 
     session.assert_mir_verified_diagnostics("main.ds", r#""#);
 }
+
+/// An unrelated callback can run before an owned allocation is published.
+#[test]
+fn test_allow_callback_before_publishing_owner() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: int32;
+}
+
+external function callback(): void
+external function publish(ref<Box, unique, mutable, local>): void
+
+function test(): int32 {
+entry:
+    v0: ref<Box, unique, mutable, local> = new.zeroed Box
+    v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
+    call callback(): () => void
+    v2: int32 = load v1
+    call publish(v0): (ref<Box, unique, mutable, local>) => void
+    return v2
+}
+"#,
+    );
+
+    program.assert_verified();
+}
+
+/// Passing a local borrow to one call permits an unrelated callback after that call returns.
+#[test]
+fn test_allow_callback_after_borrowed_argument() {
+    let mut program = TestProgram::mir(
+        r#"
+external function inspect<'a>(ref<int32, borrowed, 'a, mutable, local>): void
+external function callback(): void
+
+function test(v0: int32): int32 {
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    call inspect(v1): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void
+    call callback(): () => void
+    v2: int32 = load v1
+    return v2
+}
+"#,
+    );
+
+    program.assert_verified();
+}
+
+/// A callback cannot mutate a global while its exclusive borrow remains live.
+#[test]
+fn test_reject_callback_during_global_borrow() {
+    let mut program = TestProgram::mir(
+        r#"
+global value: int32 = 0
+
+external function callback(): void
+
+function test(): int32 {
+entry:
+    v0: ref<int32, borrowed, 'static, mutable, local> = global.address value
+    call callback(): () => void
+    v1: int32 = load v0
+    return v1
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:9:5
+   │
+ 6 │ function test(): int32 {
+ 7 │ entry:
+ 8 │     v0: ref<int32, borrowed, 'static, mutable, local> = global.address value
+   │     ------------------------------------------------------------------------ borrow starts here
+ 9 │     call callback(): () => void
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 │     v1: int32 = load v0
+11 │     return v1
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
+
+/// Publishing an owner consumes it and invalidates its live field borrow.
+#[test]
+fn test_reject_publishing_borrowed_owner() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: int32;
+}
+
+external function publish(ref<Box, unique, mutable, local>): void
+
+function test(): int32 {
+entry:
+    v0: ref<Box, unique, mutable, local> = new.zeroed Box
+    v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
+    call publish(v0): (ref<Box, unique, mutable, local>) => void
+    v2: int32 = load v1
+    return v2
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:12:5
+   │
+ 9 │ entry:
+10 │     v0: ref<Box, unique, mutable, local> = new.zeroed Box
+11 │     v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
+   │     ---------------------------------------------------------------------- borrow starts here
+12 │     call publish(v0): (ref<Box, unique, mutable, local>) => void
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+13 │     v2: int32 = load v1
+14 │     return v2
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
+
+/// A reference stored by a call keeps its source borrowed while the destination is live.
+#[test]
+fn test_reject_write_while_call_stored_borrow_lives() {
+    let mut program = TestProgram::mir(
+        r#"
+global initial: int32 = 0
+
+external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void
+
+function test(v0: int32): int32 {
+    local l0: int32
+    local l1: ref<int32, borrowed, 'frame, readonly, local>
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: ref<int32, borrowed, 'static, readonly, local> = global.address initial
+    local.set l1, v1
+    v2: ref<int32, borrowed, 'frame, readonly, frame> = local.address l0
+    v3: ref<ref<int32, borrowed, 'frame, readonly, local>, borrowed, 'frame, mutable, frame> = local.address l1
+    call save(v2, v3): <'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>) => void
+    local.set l0, v0
+    v4: ref<int32, borrowed, 'frame, readonly, local> = local.get l1
+    v5: int32 = load v4
+    return v5
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:17:5
+   │
+12 │     v1: ref<int32, borrowed, 'static, readonly, local> = global.address initial
+13 │     local.set l1, v1
+14 │     v2: ref<int32, borrowed, 'frame, readonly, frame> = local.address l0
+   │     -------------------------------------------------------------------- borrow starts here
+15 │     v3: ref<ref<int32, borrowed, 'frame, readonly, local>, borrowed, 'frame, mutable, frame> = local··
+16 │     call save(v2, v3): <'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, ··
+17 │     local.set l0, v0
+   │     ^^^^^^^^^^^^^^^^
+18 │     v4: ref<int32, borrowed, 'frame, readonly, local> = local.get l1
+19 │     v5: int32 = load v4
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
+
+/// Overwriting a local destination ends the borrow that a previous call stored there.
+#[test]
+fn test_release_call_stored_borrow_after_overwrite() {
+    let mut program = TestProgram::mir(
+        r#"
+global initial: int32 = 0
+
+external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void
+
+function test(v0: int32): int32 {
+    local l0: int32
+    local l1: ref<int32, borrowed, 'frame, readonly, local>
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: ref<int32, borrowed, 'static, readonly, local> = global.address initial
+    local.set l1, v1
+    v2: ref<int32, borrowed, 'frame, readonly, frame> = local.address l0
+    v3: ref<ref<int32, borrowed, 'frame, readonly, local>, borrowed, 'frame, mutable, frame> = local.address l1
+    call save(v2, v3): <'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>) => void
+    local.set l1, v1
+    local.set l0, v0
+    v4: ref<int32, borrowed, 'frame, readonly, local> = local.get l1
+    v5: int32 = load v4
+    return v5
+}
+"#,
+    );
+
+    program.assert_verified();
+}

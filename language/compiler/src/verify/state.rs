@@ -4,9 +4,9 @@ use std::sync::Arc;
 use destack_artifact::{DiagnosticBuilder, MirLowered};
 use destack_core::FxIndexSet;
 use destack_mir::{
-    AccessTable, AnalysisCache, AnalysisOptions, DispatchTable, DropTable, EffectTable,
-    EscapeTable, Function, FunctionBehavior, FunctionCache, FunctionId, LocalNodeId,
-    LocalNodeIdAny, ResolutionTable, RetentionTable, TargetLayout, Tree,
+    AccessTable, CallTable, DispatchTable, DropTable, EffectTable, Function, FunctionBehavior,
+    FunctionCache, FunctionId, LocalNodeId, LocalNodeIdAny, ResolutionTable, RetentionTable,
+    TargetLayout, Tree, WitnessTable,
 };
 
 use crate::DiagnosticAnchor;
@@ -25,10 +25,6 @@ pub(crate) struct VerifyState<'a> {
 
     /// Function and call effect table.
     pub(in crate::verify) effects: Arc<EffectTable>,
-    /// Static callsite resolutions.
-    pub(in crate::verify) resolution: Arc<ResolutionTable>,
-    /// Allocation escape results for the module.
-    escapes: Arc<EscapeTable>,
 
     /// Verified ownership retention.
     retention: RetentionTable,
@@ -45,6 +41,7 @@ impl<'a> VerifyState<'a> {
             &lowered.accesses,
             &lowered.dispatch,
             &lowered.effects,
+            Some(&lowered.witnesses),
             lowered.target,
         )
     }
@@ -56,12 +53,18 @@ impl<'a> VerifyState<'a> {
         accesses: &'a AccessTable,
         dispatch: &DispatchTable,
         effects: &EffectTable,
+        witnesses: Option<&WitnessTable>,
         target: TargetLayout,
     ) -> Self {
-        let mut analyses = AnalysisCache::new();
-        let resolution = analyses.resolution(tree, dispatch);
-        let effects = analyses.effect(tree, accesses, effects, dispatch);
-        let escapes = analyses.escape(tree);
+        let resolution = ResolutionTable::analyse(dispatch, witnesses, tree);
+        let calls = CallTable::analyse(&resolution, tree);
+        let effects = Arc::new(EffectTable::analyse(
+            &resolution,
+            &calls,
+            accesses,
+            effects,
+            tree,
+        ));
 
         Self {
             tree,
@@ -69,8 +72,6 @@ impl<'a> VerifyState<'a> {
             accesses,
             target,
             effects,
-            resolution,
-            escapes,
             retention: RetentionTable::default(),
             errors: Vec::new(),
         }
@@ -95,12 +96,9 @@ impl<'a> VerifyState<'a> {
         // verify each function
         for id in functions {
             let function = tree.get(*id);
-
-            let options = AnalysisOptions::new(self.target);
-            let mut analyses = FunctionCache::with_options(options);
-            let escape = self.escapes.function(*id).clone();
-            let retention =
-                FunctionChecker::new(function, tree, escape, self, &mut analyses).check();
+            let target_layout = self.target;
+            let mut analyses = FunctionCache::with_target_layout(target_layout);
+            let retention = FunctionChecker::new(function, tree, self, &mut analyses).check();
             self.retention.extend(retention);
         }
 
