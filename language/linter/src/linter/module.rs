@@ -7,7 +7,7 @@ use destack_artifact::{
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
-use super::{Dir, LintScope, LintSet, Linter, Mir};
+use super::{Dir, LintProgram, LintScope, LintSet, Linter, Mir};
 
 impl Linter {
     /// Collect dependencies for one module lint artifact.
@@ -48,8 +48,8 @@ impl Linter {
             dependencies
                 .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
             let artifacts = self.artifact_reader(context);
-            let graph = match artifacts.module_graph_reader(profile) {
-                Ok(graph) => graph,
+            let reachable = match LintProgram::load_modules(profile, &[module], &artifacts) {
+                Ok(modules) => modules,
                 Err(ProviderError::Blocked { .. }) => {
                     dependencies.mark_partial();
 
@@ -59,7 +59,6 @@ impl Linter {
             };
 
             // require the edges and the checked DIR of every reached module
-            let reachable = graph.reachable(&[module])?;
             for reached in reachable.iter().copied() {
                 dependencies.require_projection(
                     graph_key,

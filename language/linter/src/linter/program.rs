@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
-    DiagnosticControlIndex, DirChecked, EnvironmentBound, ProgramLinted,
+    DiagnosticControlIndex, DirChecked, EnvironmentBound, ModuleGraph, ProgramLinted,
 };
 use destack_core::FxIndexSet;
 use destack_repository::{
@@ -62,8 +62,7 @@ impl LintProgram {
         }
 
         // load the module graph and the target's import closure
-        let graph = artifacts.module_graph_reader(profile)?;
-        let modules = graph.reachable(&roots)?;
+        let modules = Self::load_modules(profile, &roots, artifacts)?;
 
         Ok(Some(Self {
             package,
@@ -72,6 +71,26 @@ impl LintProgram {
             roots: roots.into_boxed_slice(),
             modules: modules.into_boxed_slice(),
         }))
+    }
+
+    /// Load the modules reachable from the roots and track their import edges.
+    pub(super) fn load_modules(
+        profile: ProfileId,
+        roots: &[ModuleId],
+        artifacts: &ArtifactReader<'_>,
+    ) -> Result<Vec<ModuleId>, ProviderError> {
+        artifacts.project::<ModuleGraph, _, _>(profile, |graph| {
+            // select reachable modules and track every root and visited edge list
+            let modules = graph.reachable(roots);
+            let projections = roots
+                .iter()
+                .chain(&modules)
+                .copied()
+                .map(ArtifactProjectionKey::ModuleGraphEdges)
+                .collect::<FxIndexSet<_>>();
+
+            (modules, projections)
+        })
     }
 
     /// Return whether the target package owns one module.
@@ -122,8 +141,8 @@ impl Linter {
                 .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(root));
         }
         let artifacts = self.artifact_reader(context);
-        let graph = match artifacts.module_graph_reader(profile) {
-            Ok(graph) => graph,
+        let program_modules = match LintProgram::load_modules(profile, &roots, &artifacts) {
+            Ok(modules) => modules,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();
 
@@ -133,7 +152,6 @@ impl Linter {
         };
 
         // project the program's import closure from the target roots
-        let program_modules = graph.reachable(&roots)?;
         for module in program_modules.iter().copied() {
             dependencies
                 .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
@@ -166,7 +184,7 @@ impl Linter {
             graph_roots.dedup();
 
             // project modules introduced by compiler globals
-            let modules = graph.reachable(&graph_roots)?;
+            let modules = LintProgram::load_modules(profile, &graph_roots, &artifacts)?;
             for module in modules.iter().copied() {
                 if required.insert(module) {
                     dependencies.require_projection(
@@ -276,12 +294,11 @@ impl Linter {
         let artifacts = self.artifact_reader(context);
         let profile = program.profile.id();
         let environment = artifacts.read::<EnvironmentBound>(profile)?;
-        let graph = artifacts.module_graph_reader(profile)?;
         let mut roots = program.roots.to_vec();
         roots.extend(environment.globals.iter().copied());
         roots.sort_unstable();
         roots.dedup();
-        let module_ids = graph.reachable(&roots)?;
+        let module_ids = LintProgram::load_modules(profile, &roots, &artifacts)?;
         let indexed_modules = program.owned_module_ids().collect::<Vec<_>>();
         let indexes = lints.dir_indexes(LintScope::Program).collect::<Vec<_>>();
         let program = DirProgram::load(
