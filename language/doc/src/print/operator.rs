@@ -30,8 +30,18 @@ impl Printer<'_, '_, '_> {
                 Ok(format!("{left}[{index}]"))
             }
             dir::TypeOperation::Infer(infer) => self.infer(*infer),
+            dir::TypeOperation::Instantiation(application) => {
+                let target = self.type_operand(application.target, TypeOperand::Postfix)?;
+                let mut arguments = Vec::new();
+                for argument in self.types().type_ids(application.arguments) {
+                    arguments.push(self.global_type(*argument)?);
+                }
+                let arguments = arguments.join(", ");
+
+                Ok(format!("{target}<{arguments}>"))
+            }
             dir::TypeOperation::TypeOf(query) => {
-                let value = self.type_query(query.value)?;
+                let value = self.symbol(query.symbol)?;
 
                 Ok(format!("typeof {value}"))
             }
@@ -155,30 +165,6 @@ impl Printer<'_, '_, '_> {
             }
         }
         text.push('`');
-
-        Ok(text)
-    }
-
-    /// Format one type query operand.
-    fn type_query(&self, value: dir::GlobalNodeIdAny) -> DocResult<String> {
-        if value.local_id.ty != dir::NodeType::Expression
-            || value.module_id != self.module.module_id()
-        {
-            return Err(DocError::invalid(format!("type query: {value:?}")));
-        }
-
-        let expression = value.into_typed::<dir::Expression>().local_id;
-        let path = self
-            .module
-            .view()
-            .reference_path(expression)
-            .ok_or_else(|| DocError::invalid(format!("type query: {value:?}")))?;
-        let text = path
-            .segments
-            .iter()
-            .map(|segment| self.module.strings().get(*segment))
-            .collect::<Vec<_>>()
-            .join(".");
 
         Ok(text)
     }

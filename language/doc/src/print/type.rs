@@ -62,7 +62,20 @@ impl Printer<'_, '_, '_> {
             dir::Type::Primitive(primitive) => self.primitive(*primitive),
             dir::Type::Literal(literal) => self.literal(*literal),
             dir::Type::Application(instance) => return self.instance(*instance),
-            dir::Type::Reference(reference) => return self.symbol(reference.symbol),
+            dir::Type::Reference(reference) => {
+                let name = self.instance(dir::GenericApplication {
+                    symbol: reference.symbol,
+                    arguments: reference.arguments,
+                })?;
+                let module = self.program.module(reference.symbol.module_id)?;
+                let bindings = module.bindings();
+
+                if bindings.get_symbol(reference.symbol.local_id).kind == dir::SymbolKind::Class {
+                    format!("typeof {name}")
+                } else {
+                    name
+                }
+            }
             dir::Type::Region(region) => {
                 let extent = self.global_type(region.extent)?;
                 let space = self.global_type(region.space)?;
