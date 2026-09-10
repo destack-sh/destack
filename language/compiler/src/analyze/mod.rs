@@ -1,4 +1,6 @@
 mod error;
+mod module;
+mod program;
 mod provide;
 mod warning;
 

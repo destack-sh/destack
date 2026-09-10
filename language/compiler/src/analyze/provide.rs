@@ -11,6 +11,8 @@ use destack_source::{ModuleId, TargetId};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 
+use super::{module, program};
+
 impl Compiler {
     /// Collect inputs for one module's MIR analysis.
     pub(crate) fn collect_mir_analyzed(
@@ -27,7 +29,7 @@ impl Compiler {
         Ok(dependencies)
     }
 
-    /// Analyze symbol links for one module and target.
+    /// Analyse symbol links and extract function effects for one module and target.
     pub(crate) fn provide_mir_analyzed(
         &self,
         module: ModuleId,
@@ -41,24 +43,10 @@ impl Compiler {
             .read::<MirElaborated>((module, profile, target))
             .map_err(CompilerError::from)?;
 
-        // analyze the elaborated tree's symbol links
-        let mut analyses = mir::AnalysisCache::new();
-        let links = analyses.link(
-            &elaborated.tree,
-            &elaborated.effects,
-            &elaborated.dispatch,
-            &elaborated.drops,
-        );
+        // analyse the module and publish its extracted results
+        let analyzed = module::analyse(&elaborated)?;
 
-        // record the module initializer symbol
-        let initializer = elaborated
-            .initializer
-            .map(|function| elaborated.tree.get(function).symbol);
-
-        Ok(ArtifactPayload::MirAnalyzed(Arc::new(MirAnalyzed {
-            links: (*links).clone(),
-            initializer,
-        })))
+        Ok(ArtifactPayload::MirAnalyzed(Arc::new(analyzed)))
     }
 
     /// Collect inputs for the whole-program analysis of one profile and target.
@@ -138,10 +126,19 @@ impl Compiler {
             analyzed_modules.push(analyzed);
         }
 
-        // build the supergraph and derive whole-program reachability
-        let supergraph =
-            mir::LinkSupergraph::build(analyzed_modules.iter().map(|analyzed| &analyzed.links));
-        let analysis = ProgramAnalysis::analyze(&supergraph, &roots);
+        // reuse recursive components against the retained program artifact
+        let previous = context
+            .artifact_base()
+            .map(|base| {
+                base.artifact::<ProgramAnalysis>()
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: "program analysis base has the wrong artifact type".to_string(),
+                    })
+            })
+            .transpose()?;
+
+        // analyse the program and publish its derived results
+        let analysis = program::analyse(&analyzed_modules, &roots, previous.as_deref())?;
 
         Ok(ArtifactPayload::ProgramAnalysis(Arc::new(analysis)))
     }
