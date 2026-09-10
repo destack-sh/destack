@@ -47,7 +47,7 @@ impl<'a> FrameEmitter<'a> {
             let Some(body) = &function.body else {
                 continue;
             };
-            let liveness = mir::LivenessTable::build(function, &self.optimized.tree);
+            let liveness = mir::LivenessTable::analyse(function, &self.optimized.tree);
 
             // materialize exact liveness only at selected frame points
             let mut blocks = body.blocks().to_vec();

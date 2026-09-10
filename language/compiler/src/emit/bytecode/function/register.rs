@@ -110,7 +110,7 @@ impl<'a> RegisterAllocator<'a> {
             function,
             types,
             object,
-            liveness: mir::LivenessTable::build(function, &optimized.tree),
+            liveness: mir::LivenessTable::analyse(function, &optimized.tree),
             value_types,
             ranges: vec![None; value_count],
             reserved_word_count,
