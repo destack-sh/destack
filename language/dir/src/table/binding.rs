@@ -594,7 +594,7 @@ impl BindingSegment {
             SymbolVisibility::Scope | SymbolVisibility::Forward | SymbolVisibility::Member => {
                 self.get_scope_by_id_mut(scope.id).append(key, symbol_id);
             }
-            SymbolVisibility::Control => {}
+            SymbolVisibility::Hidden => {}
         }
 
         symbol_id

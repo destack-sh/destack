@@ -861,17 +861,17 @@ impl From<MemberDecision> for SubscriptDecision {
 pub enum SubscriptTarget {
     /// Structural tuple, field, or index-signature selection.
     Member(MemberAccess),
-    /// Protocol-backed subscript write call.
+    /// Protocol call that reads or writes an indexed value.
     Call(Call),
-    /// Protocol-backed subscript read.
-    Index(IndexRead),
+    /// Protocol call that lends an indexed place.
+    Index(IndexProjection),
 }
 
-/// One selected `Index.index` call and its bracket projection.
+/// One selected `Index.index` storage result and its dereference.
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]
-pub struct IndexRead {
+pub struct IndexProjection {
     /// The selected protocol call.
     pub call: Call,
     /// The dereference applied to the returned borrow arm.

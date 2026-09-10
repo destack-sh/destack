@@ -133,8 +133,8 @@ pub enum SymbolVisibility {
     Scope,
     /// Visible only through member lookup.
     Member,
-    /// Visible only through control label lookup.
-    Control,
+    /// Excluded from scope lookup.
+    Hidden,
 }
 
 /// The scope lookup role of a symbol.

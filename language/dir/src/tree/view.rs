@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 
 use crate::{
     Decorator, DirectChildCollector, Documentation, Expression, LocalNodeId, LocalNodeIdAny, Node,
-    NodeType, Patch, Path, Tree, TreeStore,
+    NodeType, Origin, Patch, Path, Tree, TreeStore,
 };
 
 /// A borrowed DIR tree with ordered structural patches.
@@ -314,6 +314,13 @@ impl<'a> View<'a> {
         }
 
         false
+    }
+
+    /// Return the origin of one visible node.
+    pub fn origin(&self, node: LocalNodeIdAny) -> Option<&'a Origin> {
+        let (tree, node) = self.visible_node(node)?;
+
+        tree.origin(node.id)
     }
 
     /// Get the source id for one visible typed node.
