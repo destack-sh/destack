@@ -245,12 +245,8 @@ pub enum WordLayout {
     Float32,
     /// Float64 value.
     Float64,
-    /// Local storage reference.
-    LocalReference,
-    /// Shared storage reference.
-    SharedReference,
-    /// Frame storage reference.
-    FrameReference,
+    /// World memory reference, its region classified by address.
+    Reference,
     /// Global storage reference.
     GlobalReference,
     /// Function pointer.
@@ -264,9 +260,8 @@ impl WordLayout {
     #[inline(always)]
     pub fn reference(storage: Storage) -> Self {
         match storage {
-            Storage::Heap(Space::Local) => Self::LocalReference,
-            Storage::Heap(Space::Shared) => Self::SharedReference,
-            Storage::Frame => Self::FrameReference,
+            Storage::Heap(Space::Local | Space::Shared | Space::Slot(_) | Space::Join(_))
+            | Storage::Frame => Self::Reference,
             Storage::Static(_) => Self::GlobalReference,
             Storage::Heap(Space::Constant | Space::Parameter(_)) => {
                 unreachable!("program references close every space")
@@ -284,11 +279,7 @@ impl WordLayout {
             Self::Int { width } | Self::Uint { width } => (width as usize).div_ceil(8),
             Self::Float32 => 4,
             Self::Float64 => 8,
-            Self::LocalReference
-            | Self::SharedReference
-            | Self::FrameReference
-            | Self::FunctionPointer
-            | Self::Pointer => pointer_bytes,
+            Self::Reference | Self::FunctionPointer | Self::Pointer => pointer_bytes,
             Self::GlobalReference => GlobalAddress::BYTE_LEN,
         }
     }
@@ -304,12 +295,9 @@ impl WordLayout {
             Self::Uint { width } => Word::uint(raw, width),
             Self::Float32 => Word::float32(f32::from_bits(raw as u32)),
             Self::Float64 => Word::float64(f64::from_bits(raw)),
-            Self::LocalReference
-            | Self::SharedReference
-            | Self::FrameReference
-            | Self::GlobalReference
-            | Self::FunctionPointer
-            | Self::Pointer => Word::from_bits(raw),
+            Self::Reference | Self::GlobalReference | Self::FunctionPointer | Self::Pointer => {
+                Word::from_bits(raw)
+            }
         }
     }
 
@@ -324,9 +312,7 @@ impl WordLayout {
             | Self::Character
             | Self::Float32
             | Self::Float64
-            | Self::LocalReference
-            | Self::SharedReference
-            | Self::FrameReference
+            | Self::Reference
             | Self::GlobalReference
             | Self::FunctionPointer
             | Self::Pointer => value.bits(),
@@ -547,9 +533,7 @@ impl ReferenceLayout {
 
     /// Return the storage implied by this reference.
     pub fn storage(self) -> Option<Storage> {
-        let bits = ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8;
-
-        Self::storage_from_bits(bits)
+        Self::storage_from_bits(self.storage_code())
     }
 
     /// Return the traced heap space when this reference names heap storage.
@@ -564,6 +548,11 @@ impl ReferenceLayout {
         self.kind()?;
 
         Some(WordLayout::reference(self.storage()?))
+    }
+
+    /// Return the packed storage code.
+    fn storage_code(self) -> u8 {
+        ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8
     }
 
     /// Decode reference storage from packed bits.
@@ -588,8 +577,8 @@ impl ReferenceLayout {
             Storage::Static(Space::Constant) => 3,
             Storage::Static(Space::Local) => 4,
             Storage::Static(Space::Shared) => 5,
-            Storage::Heap(Space::Constant | Space::Parameter(_))
-            | Storage::Static(Space::Parameter(_)) => {
+            Storage::Heap(Space::Constant | Space::Parameter(_) | Space::Slot(_) | Space::Join(_))
+            | Storage::Static(Space::Parameter(_) | Space::Slot(_) | Space::Join(_)) => {
                 unreachable!("program references close every space")
             }
         }
@@ -934,7 +923,7 @@ mod tests {
         let reference = reference(ReferenceKind::Managed, Storage::Heap(Space::Local));
 
         assert_eq!(reference.heap_space(), Some(Space::Local));
-        assert_eq!(reference.word_layout(), Some(WordLayout::LocalReference));
+        assert_eq!(reference.word_layout(), Some(WordLayout::Reference));
     }
 
     /// Managed shared references trace shared heap storage.
@@ -943,7 +932,7 @@ mod tests {
         let reference = reference(ReferenceKind::Managed, Storage::Heap(Space::Shared));
 
         assert_eq!(reference.heap_space(), Some(Space::Shared));
-        assert_eq!(reference.word_layout(), Some(WordLayout::SharedReference));
+        assert_eq!(reference.word_layout(), Some(WordLayout::Reference));
     }
 
     /// Frame and global references are not heap edges.

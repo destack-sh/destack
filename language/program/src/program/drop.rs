@@ -26,7 +26,9 @@ impl DropEntry {
             Storage::Heap(Space::Local) => self.local.get(),
             Storage::Heap(Space::Shared) => self.shared.get(),
             Storage::Static(_) => None,
-            Storage::Heap(Space::Constant | Space::Parameter(_)) => {
+            Storage::Heap(
+                Space::Constant | Space::Parameter(_) | Space::Slot(_) | Space::Join(_),
+            ) => {
                 unreachable!("program drops close every space")
             }
         }

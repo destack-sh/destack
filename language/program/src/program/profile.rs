@@ -1,5 +1,4 @@
 use destack_core::{FxIndexMap, StringId};
-use destack_heap::{HeapReference, SharedHeapReference};
 use destack_mir::FloatType;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -120,12 +119,8 @@ pub enum SampleValue {
         /// The floating-point format.
         format: FloatType,
     },
-    /// Local storage reference value.
-    LocalReference(HeapReference),
-    /// Shared storage reference value.
-    SharedReference(SharedHeapReference),
-    /// Frame storage reference value.
-    FrameReference(u64),
+    /// World memory reference value.
+    Reference(u64),
     /// Global storage reference value.
     GlobalReference(GlobalAddress),
     /// Function pointer value.
@@ -244,13 +239,7 @@ impl SampleKey {
                 bits: self.0,
                 format: FloatType::Float64,
             },
-            WordLayout::LocalReference => {
-                SampleValue::LocalReference(HeapReference::from_bits(self.0 as usize))
-            }
-            WordLayout::SharedReference => {
-                SampleValue::SharedReference(SharedHeapReference::from_bits(self.0 as usize))
-            }
-            WordLayout::FrameReference => SampleValue::FrameReference(self.0),
+            WordLayout::Reference => SampleValue::Reference(self.0),
             WordLayout::GlobalReference => {
                 SampleValue::GlobalReference(GlobalAddress::from_bits(self.0))
             }

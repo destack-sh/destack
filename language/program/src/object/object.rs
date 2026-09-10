@@ -88,7 +88,6 @@ impl Object {
             match ty {
                 mir::Type::Application { base, .. }
                 | mir::Type::Uninit { value: base }
-                | mir::Type::Atomic { value: base }
                 | mir::Type::ManuallyDrop { value: base }
                 | mir::Type::Newtype { inner: base, .. } => id = *base,
                 _ => return Some(id),
