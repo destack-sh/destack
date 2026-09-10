@@ -725,11 +725,11 @@ impl Analysis for LivenessTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     #[test]
     fn test_build_liveness_for_simple_block() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(): int32 {
 entry:
@@ -756,7 +756,7 @@ entry:
 
     #[test]
     fn test_build_liveness_across_blocks() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -785,7 +785,7 @@ b2:
 
     #[test]
     fn test_build_liveness_for_loop() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -817,7 +817,7 @@ b2:
 
     #[test]
     fn test_ignore_dead_values() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(): int32 {
 entry:
@@ -838,7 +838,7 @@ entry:
 
     #[test]
     fn test_query_liveness_before_operations() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: int32): int32 {
     local l0: int32

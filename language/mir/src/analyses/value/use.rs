@@ -186,12 +186,12 @@ mod tests {
     use crate as mir;
 
     use super::{UseTable, ValueUse};
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Value uses include instruction operands and terminator operands.
     #[test]
     fn test_collect_value_uses() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):

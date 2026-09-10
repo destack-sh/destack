@@ -216,12 +216,12 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
 mod tests {
     use crate as mir;
 
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Virtual calls resolve when receiver type and virtual table are closed.
     #[test]
     fn test_resolve_virtual_call() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -255,7 +255,7 @@ entry(v0: int32):
     /// Virtual calls do not resolve when the slot is outside the method table.
     #[test]
     fn test_leave_missing_virtual_slot_open() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -289,7 +289,7 @@ entry(v0: int32):
     /// Dynamic calls resolve when receiver and constraint tables are closed.
     #[test]
     fn test_resolve_dynamic_call() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -325,7 +325,7 @@ entry(v0: int32):
     /// Recompute dispatch targets and call edges after receiver types change.
     #[test]
     fn test_invalidate_receiver_types() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 function first(): int32 {
 entry:
@@ -400,7 +400,7 @@ entry(v0: int32):
     /// Dynamic calls do not resolve against field-offset slots.
     #[test]
     fn test_leave_dynamic_field_slot_open() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -430,7 +430,7 @@ entry(v0: int32):
     /// Virtual calls do not resolve without a dispatch table.
     #[test]
     fn test_leave_missing_virtual_table_open() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -452,7 +452,7 @@ entry(v0: int32):
 
     /// Return the first virtual callsite and class type.
     fn first_virtual_call(
-        program: &TestProgram,
+        program: &TestModule,
         function: mir::FunctionId,
     ) -> (mir::Point, mir::TypeId) {
         let function = program.tree.get(function);
@@ -480,7 +480,7 @@ entry(v0: int32):
 
     /// Return the first dynamic callsite, concrete receiver type, and constraint.
     fn first_dynamic_call(
-        program: &TestProgram,
+        program: &TestModule,
         function: mir::FunctionId,
     ) -> (mir::Point, mir::TypeId, mir::TypeId) {
         let function = program.tree.get(function);

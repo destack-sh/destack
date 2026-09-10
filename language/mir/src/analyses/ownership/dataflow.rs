@@ -296,12 +296,12 @@ impl<T: Clone + Eq + std::hash::Hash> Lattice for FxIndexSet<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Forward dataflow merges backedges into the function entry state.
     #[test]
     fn test_forward_dataflow_entry_backedge() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -338,7 +338,7 @@ exit:
     /// Forward dataflow visits every block when the first predecessor is unreachable.
     #[test]
     fn test_forward_dataflow_unreachable_predecessor_order() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -396,7 +396,7 @@ b2:
     /// Backward dataflow seeds tailcall blocks as exits.
     #[test]
     fn test_backward_dataflow_tailcall_exit() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -434,7 +434,7 @@ entry(v0: int32):
     /// Panic terminators act as backward dataflow exits.
     #[test]
     fn test_backward_dataflow_panic_exit() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(v0: ref<void, managed, readonly, local>): void {
 entry(v0: ref<void, managed, readonly, local>):

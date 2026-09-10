@@ -372,12 +372,12 @@ impl Analysis for LoopTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Self-loop (single block looping to itself) is detected.
     #[test]
     fn test_detect_self_loop() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function selfLoop(v0: boolean): void {
 entry(v0: boolean):
@@ -407,7 +407,7 @@ b1:
     /// Self-loop with an outside predecessor does not pull the predecessor into the loop body.
     #[test]
     fn test_self_loop_excludes_predecessor() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function selfLoopEntry(v0: boolean): void {
 entry(v0: boolean):
@@ -440,7 +440,7 @@ b2:
     /// While-style loop with separate header and latch is detected.
     #[test]
     fn test_detect_while_loop() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function whileLoop(v0: boolean): void {
 entry(v0: boolean):
@@ -485,7 +485,7 @@ b3:
     /// Nested loops have correct parent relationships and depths.
     #[test]
     fn test_detect_nested_loops() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function nested(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
@@ -538,7 +538,7 @@ b4:
     /// Loop depth query returns correct values.
     #[test]
     fn test_compute_loop_depth() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function depth(v0: boolean): void {
 entry(v0: boolean):
@@ -584,7 +584,7 @@ b3:
     /// Function without loops returns empty analysis.
     #[test]
     fn test_handle_no_loops() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function noLoops(v0: boolean): void {
 entry(v0: boolean):
@@ -619,7 +619,7 @@ b3:
     /// Multiple back edges to the same header create a single loop.
     #[test]
     fn test_merge_multiple_latches() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function multiLatch(v0: boolean): void {
 entry(v0: boolean):
@@ -653,7 +653,7 @@ b3:
     /// Exiting blocks and exit blocks are computed correctly.
     #[test]
     fn test_compute_exit_info() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function exits(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
@@ -703,7 +703,7 @@ b4:
     /// Innermost loop is returned for blocks in nested loops.
     #[test]
     fn test_return_innermost_loop() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function innermost(v0: boolean): void {
 entry(v0: boolean):
@@ -741,7 +741,7 @@ b3:
     /// Top-level loops iterator returns only outermost loops.
     #[test]
     fn test_iterate_top_level_loops() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function twoOuter(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):
@@ -773,7 +773,7 @@ b3:
     /// Child loops iterator returns direct children only.
     #[test]
     fn test_iterate_child_loops() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function parentChild(v0: boolean, v1: boolean): void {
 entry(v0: boolean, v1: boolean):

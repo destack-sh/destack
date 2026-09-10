@@ -1,4 +1,4 @@
-use super::graph::ControlGraph;
+use super::control::ControlGraph;
 
 /// Dominator links and traversal intervals indexed by compact graph node.
 #[derive(Debug, Clone)]

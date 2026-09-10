@@ -330,13 +330,13 @@ impl Analysis for ControlTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
     use crate::{Successor, Terminator, Value};
 
     /// Collect the predecessor of each block in a chain.
     #[test]
     fn test_find_predecessors_in_chain() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function linear(): void {
 entry:
@@ -366,7 +366,7 @@ b2:
     /// Collect the common predecessor of both branch targets.
     #[test]
     fn test_find_branch_predecessors() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function testBranch(v0: boolean): void {
 entry(v0: boolean):
@@ -395,7 +395,7 @@ b2:
     /// Collect both predecessors of a diamond join.
     #[test]
     fn test_find_join_predecessors() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function diamond(v0: boolean): void {
 entry(v0: boolean):
@@ -427,7 +427,7 @@ b3:
     /// Include the header itself as a predecessor of a self-loop.
     #[test]
     fn test_find_loop_predecessors() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function loop(v0: boolean): void {
 entry(v0: boolean):
@@ -456,7 +456,7 @@ b2:
     /// Exclude disconnected blocks from entry reachability.
     #[test]
     fn test_exclude_disconnected_blocks() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -489,7 +489,7 @@ b3:
     /// Retain both branch edges and their distinct arguments for a shared target.
     #[test]
     fn test_preserve_duplicate_branch_edges() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean, v1: int32, v2: int32): int32 {
 entry(v0: boolean, v1: int32, v2: int32):
@@ -526,7 +526,7 @@ join(v3: int32):
     /// Read changed arguments through the existing cached edge position.
     #[test]
     fn test_read_updated_edge_arguments() {
-        let (mut tree, function_id) = TestProgram::parse_function(
+        let (mut tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: int32, v1: int32): int32 {
 entry(v0: int32, v1: int32):
@@ -562,7 +562,7 @@ done(v2: int32):
     /// Visit each reachable block once when the function entry is last in block order.
     #[test]
     fn test_traverse_reordered_blocks() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -608,7 +608,7 @@ dead:
     /// Resolve repeated switch targets by their default and case positions.
     #[test]
     fn test_preserve_switch_edges() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: int32, v1: int32, v2: int32): int32 {
 entry(v0: int32, v1: int32, v2: int32):
@@ -661,7 +661,7 @@ dead:
     /// Return empty traversals for a function declaration.
     #[test]
     fn test_traverse_declaration() {
-        let (tree, function_id) = TestProgram::parse_function("external function test(): void");
+        let (tree, function_id) = TestModule::parse_function("external function test(): void");
         let function = tree.get(function_id);
         let control = ControlTable::analyse(function, &tree);
 
@@ -673,7 +673,7 @@ dead:
     /// Resolve variant case positions with and without a default target.
     #[test]
     fn test_preserve_variant_switch_edges() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 type Choice = variant<uint1> { 0uint1 = void; 1uint1 = void; }
 

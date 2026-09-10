@@ -362,12 +362,12 @@ impl<'a, 'b> EscapeMarker<'a, 'b> {
 mod tests {
     use super::*;
 
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Keep allocation identities separate when analyzing multiple functions.
     #[test]
     fn test_analyse_function_escapes_in_one_module() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function retained(): int32 {
 entry:
@@ -419,7 +419,7 @@ entry:
     /// Returned allocations escape their function.
     #[test]
     fn test_escape_marks_returned_allocation() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(): ref<int32, unique, mutable, local> {
 entry:
@@ -439,7 +439,7 @@ entry:
     /// Unpublished allocations remain local to their function.
     #[test]
     fn test_escape_keeps_unpublished_allocation_local() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -460,7 +460,7 @@ entry:
     /// Local slots propagate allocation roots before escaping.
     #[test]
     fn test_escape_propagates_through_local_slots() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(): ref<int32, unique, mutable, local> {
     local l0: ref<int32, unique, mutable, local>
@@ -488,7 +488,7 @@ entry:
     /// Block arguments propagate allocation roots through control flow.
     #[test]
     fn test_escape_propagates_through_block_arguments() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): ref<int32, unique, mutable, local> {
 entry(v0: boolean):
@@ -522,7 +522,7 @@ b2(v3: ref<int32, unique, mutable, local>):
     /// Fallible allocation results begin distinct allocation roots.
     #[test]
     fn test_escape_tracks_fallible_allocation_result() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(v0: int64): uninit<slice<int32, managed, mutable, local>> {
 entry(v0: int64):
@@ -551,7 +551,7 @@ b2:
     /// Call arguments escape their function.
     #[test]
     fn test_escape_marks_call_arguments() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function sink(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):

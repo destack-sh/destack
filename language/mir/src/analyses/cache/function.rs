@@ -522,13 +522,13 @@ impl Default for FunctionCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
     use crate::{MemoryAccessEffect, MemoryRegion};
 
     /// Classify accesses independently of memory SSA and refresh changed access metadata.
     #[test]
     fn test_classify_and_invalidate_accesses() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -623,7 +623,7 @@ entry:
     /// Reuse graph analyses for value changes and rebuild them after control changes.
     #[test]
     fn test_invalidate_control_and_dominators() {
-        let (mut tree, function_id) = TestProgram::parse_function(
+        let (mut tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):

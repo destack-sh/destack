@@ -931,7 +931,7 @@ impl<'a> MemoryRenamer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
     use crate::{MemoryAddress, MemoryLocation};
 
     /// Extract the effect payload for a memory access.
@@ -991,7 +991,7 @@ mod tests {
     /// MemorySSA links uses to the latest defining access in a straight line.
     #[test]
     fn test_memory_linear_def_use() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>):
@@ -1034,7 +1034,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     /// MemorySSA inserts phis at join points with multiple incoming defs.
     #[test]
     fn test_memory_phi_at_join() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
@@ -1087,7 +1087,7 @@ b3:
     /// MemorySSA uses alias analysis to skip non aliasing defs.
     #[test]
     fn test_memory_clobber_skips_disjoint_def() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -1133,7 +1133,7 @@ entry:
     #[test]
     fn test_memory_entries_overrides_instruction() {
         // input test
-        let mut test = TestProgram::new(
+        let mut test = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -1188,7 +1188,7 @@ entry:
     /// Local accesses are tracked independently of address memory.
     #[test]
     fn test_memory_local_access() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -1226,7 +1226,7 @@ entry:
     /// Local effects touch addresses built from local addresses.
     #[test]
     fn test_memory_local_effect_clobbers_local_address() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -1262,7 +1262,7 @@ entry:
     /// Free effects are modeled as read and write effects over any memory.
     #[test]
     fn test_memory_free_effect_any() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(v0: ref<int32, unique, mutable, local>): int32 {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -1295,7 +1295,7 @@ entry(v0: ref<int32, unique, mutable, local>):
     /// Allocation effects are modeled as read and write effects over any memory.
     #[test]
     fn test_memory_alloc_effect_any() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 type Point {
     int32;
@@ -1331,7 +1331,7 @@ entry:
     /// Memcpy produces a read followed by a write access for its operands.
     #[test]
     fn test_memory_memcpy_read_write_effects() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
@@ -1381,7 +1381,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b,
     /// Memcmp produces two read accesses for its operands.
     #[test]
     fn test_memory_memcmp_read_effects() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
@@ -1414,7 +1414,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b,
     /// Volatile accesses are marked as volatile effects.
     #[test]
     fn test_memory_volatile_marks_effects() {
-        let mut test = TestProgram::new(
+        let mut test = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>):
@@ -1474,7 +1474,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     /// Atomic accesses are treated as volatile effects.
     #[test]
     fn test_memory_atomic_marks_effects() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test<'a>(v0: ref<atomic<int32>, borrowed, 'a, mutable, local>): int32 {
 entry(v0: ref<atomic<int32>, borrowed, 'a, mutable, local>):
@@ -1512,7 +1512,7 @@ entry(v0: ref<atomic<int32>, borrowed, 'a, mutable, local>):
     /// Atomic fence produces a barrier access.
     #[test]
     fn test_memory_atomic_fence_barrier() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -1544,7 +1544,7 @@ entry:
     /// Calls without precise tables are modeled as read and write effects over any memory.
     #[test]
     fn test_memory_call_is_any_def() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
 
@@ -1585,7 +1585,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     /// Continuation loads see memory effects from invokes.
     #[test]
     fn test_memory_invoke_clobbers_continuation() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
 
@@ -1627,7 +1627,7 @@ b2:
     /// A call declaring no memory effects suppresses memory accesses.
     #[test]
     fn test_memory_skips_no_memory_call() {
-        let mut test = TestProgram::new(
+        let mut test = TestModule::new(
             r#"
 external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
 
@@ -1659,7 +1659,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     #[test]
     fn test_memory_access_entries_override() {
         // build the test program
-        let mut test = TestProgram::new(
+        let mut test = TestModule::new(
             r#"
 external function imported<'a, 'b>(ref<int32, borrowed, 'a, mutable, local>, ref<int32, borrowed, 'b, mutable, local>): void
 
@@ -1736,7 +1736,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b,
     /// Dynamic field reads retain their dispatch projections and exact widths.
     #[test]
     fn test_memory_tracks_dynamic_fields() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 type Writer {
     first: int32;
@@ -1805,7 +1805,7 @@ entry(v0: dynamic<Writer, managed, readonly, local>):
     /// Loop headers get memory phis when defs flow around the backedge.
     #[test]
     fn test_memory_loop_phi_in_header() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32):
@@ -1856,7 +1856,7 @@ b3:
     /// Memory analysis skips the accesses unreachable blocks write.
     #[test]
     fn test_memory_ignores_unreachable_blocks() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -1894,7 +1894,7 @@ b1:
     /// Merge initial memory with backedge stores when the entry is a loop header.
     #[test]
     fn test_merge_memory_at_entry_backedge() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32, v2: boolean): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32, v2: boolean):

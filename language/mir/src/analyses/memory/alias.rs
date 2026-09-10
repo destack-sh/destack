@@ -312,12 +312,12 @@ mod tests {
     use super::*;
 
     use crate::Instruction;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Independent local slots do not alias.
     #[test]
     fn test_alias_distinguishes_local_slots() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -348,7 +348,7 @@ entry:
     /// Constant propagation distinguishes projected array elements.
     #[test]
     fn test_alias_distinguishes_propagated_indices() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable, local>): void {
 entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):

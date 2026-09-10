@@ -436,12 +436,12 @@ impl ScannedCallSite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Direct calls create edges in the call graph.
     #[test]
     fn test_call_graph_direct_call() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function callee(): int32 {
 entry:
@@ -477,7 +477,7 @@ entry:
     /// Call graph components detect recursive functions.
     #[test]
     fn test_call_graph_component_recursion() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function alpha(): void {
 entry:
@@ -521,7 +521,7 @@ entry:
     /// Indirect calls without tables stay open.
     #[test]
     fn test_call_graph_indirect_open() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
@@ -547,7 +547,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Tail calls are tracked as call edges.
     #[test]
     fn test_call_graph_tailcall_direct() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -576,7 +576,7 @@ entry(v0: int32):
     /// Tailcall.indirect remains open without tables.
     #[test]
     fn test_call_graph_tailcall_indirect_open() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
@@ -602,7 +602,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Call.indirect remains open without a known target.
     #[test]
     fn test_call_graph_call_indirect_open() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -630,7 +630,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Direct invokes produce precise call edges.
     #[test]
     fn test_call_graph_invoke_direct() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):

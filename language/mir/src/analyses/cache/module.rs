@@ -392,12 +392,12 @@ impl Default for AnalysisCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Preserve unrelated body analyses while rebuilding shared effects and memory dependencies.
     #[test]
     fn test_invalidate_one_function() {
-        let mut test = TestProgram::new(
+        let mut test = TestModule::new(
             r#"
 function first(): int32 {
 entry:
@@ -501,7 +501,7 @@ entry:
     /// Invalidate dispatch-dependent module and function analyses together.
     #[test]
     fn test_invalidate_dispatch_dependencies() {
-        let test = TestProgram::new(
+        let test = TestModule::new(
             r#"
 function test(): int32 {
 entry:

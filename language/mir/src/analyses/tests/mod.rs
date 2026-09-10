@@ -1,3 +1,3 @@
-mod program;
+mod module;
 
-pub(crate) use program::*;
+pub(crate) use module::*;

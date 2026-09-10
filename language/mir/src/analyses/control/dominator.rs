@@ -142,12 +142,12 @@ impl Analysis for DominatorTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Find the common dominator of two branches and their join.
     #[test]
     fn test_find_common_dominators() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -191,7 +191,7 @@ join:
     /// Exclude an unreachable predecessor from the dominator tree.
     #[test]
     fn test_exclude_unreachable_blocks() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(): void {
 entry:
@@ -240,7 +240,7 @@ dead:
     /// Find dominators in a loop entered through two different blocks.
     #[test]
     fn test_find_dominators_in_irreducible_loop() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -288,7 +288,7 @@ done:
     /// Preserve the dominator chain through nested loops.
     #[test]
     fn test_find_dominators_in_nested_loops() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -341,7 +341,7 @@ done:
     /// Visit dominator children in reverse postorder after reordering function blocks.
     #[test]
     fn test_order_dominator_children() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -380,7 +380,7 @@ join:
     /// Put the join in both branch frontiers.
     #[test]
     fn test_find_frontiers_at_join() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -414,7 +414,7 @@ join:
     /// Include self-frontiers and entry backedges while excluding unreachable predecessors.
     #[test]
     fn test_find_frontiers_at_backedges() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -447,7 +447,7 @@ dead:
     /// Find common dominators when branches have cross edges before rejoining.
     #[test]
     fn test_find_dominators_across_cross_edges() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -508,7 +508,7 @@ done:
     /// Put a shared exit in each nested branch's frontier.
     #[test]
     fn test_find_frontiers_for_nested_branches() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):

@@ -229,12 +229,12 @@ impl Analysis for DefinitionTable {
 #[cfg(test)]
 mod tests {
     use super::{DefinitionTable, ValueDefinition};
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Preserve function parameters through their entry-block mirrors.
     #[test]
     fn test_defines_function_parameters() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -255,7 +255,7 @@ entry(v0: int32):
     /// Fallible allocation success results are not treated as edge arguments.
     #[test]
     fn test_block_parameter_values_skip_fallible_allocation_result() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: int64, v1: int32): int32 {
 entry(v0: int64, v1: int32):

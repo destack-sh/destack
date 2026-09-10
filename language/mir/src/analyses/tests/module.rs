@@ -7,7 +7,7 @@ use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{AccessTable, DispatchTable, EffectTable, Function, LocalNodeId, Tree};
 
 /// Parsed MIR used by analysis tests.
-pub(crate) struct TestProgram {
+pub(crate) struct TestModule {
     /// The MIR tree.
     pub(crate) tree: Tree,
     /// Canonical MIR dispatch table.
@@ -20,7 +20,7 @@ pub(crate) struct TestProgram {
     strings: StringPool,
 }
 
-impl TestProgram {
+impl TestModule {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
         let file = test_file(source);

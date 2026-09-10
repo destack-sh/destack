@@ -514,12 +514,12 @@ impl BehaviorAccumulator {
 #[cfg(test)]
 mod tests {
     use crate as mir;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Pure arithmetic functions have no memory or behavioral effects.
     #[test]
     fn test_function_effects_mark_pure_function() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function pure(v0: int32): int32 {
 entry(v0: int32):
@@ -546,7 +546,7 @@ entry(v0: int32):
     /// Allocation and free instructions are surfaced in function behavior.
     #[test]
     fn test_function_effects_mark_allocation_effects() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function allocate(): void {
 entry:
@@ -574,7 +574,7 @@ entry:
     /// Spin-loop hints require their containing function call to execute.
     #[test]
     fn test_function_effects_preserve_spin_loop_execution() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function backoff(): void {
 entry:
@@ -600,7 +600,7 @@ entry:
     /// Black-box hints require their containing function call to execute.
     #[test]
     fn test_function_effects_preserve_black_box_execution() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function conceal(v0: int32): int32 {
 entry(v0: int32):
@@ -626,7 +626,7 @@ entry(v0: int32):
     /// Breakpoints require their containing function call to execute.
     #[test]
     fn test_function_effects_preserve_breakpoint_execution() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function inspect(): void {
 entry:
@@ -652,7 +652,7 @@ entry:
     /// Direct calls propagate callee effects to callers.
     #[test]
     fn test_function_effects_propagate_direct_calls() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function allocate(): ref<int32, unique, mutable, local> {
 entry:
@@ -684,7 +684,7 @@ entry:
     /// Resolved virtual calls propagate callee effects to callers.
     #[test]
     fn test_function_effects_propagate_virtual_calls() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 function allocate(v0: int32): ref<int32, unique, mutable, local> {
 entry(v0: int32):
@@ -722,7 +722,7 @@ entry(v0: int32):
     /// Direct calls propagate declared effects from bodyless functions.
     #[test]
     fn test_function_effects_propagate_declared_calls() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 external function allocate(): void
 
@@ -755,7 +755,7 @@ entry:
     /// Direct calls propagate parking behavior from bodyless functions.
     #[test]
     fn test_function_effects_propagate_parking() {
-        let mut program = TestProgram::new(
+        let mut program = TestModule::new(
             r#"
 external function park(): void
 
@@ -788,7 +788,7 @@ entry:
     /// Open calls stay unknown until tables or dispatch proves a target.
     #[test]
     fn test_function_effects_mark_open_calls_external() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
@@ -815,7 +815,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Panic terminators are may-panic and no-return.
     #[test]
     fn test_function_effects_mark_panic_noreturn() {
-        let program = TestProgram::new(
+        let program = TestModule::new(
             r#"
 function fail(v0: ref<int32, managed, readonly, local>): void {
 entry(v0: ref<int32, managed, readonly, local>):

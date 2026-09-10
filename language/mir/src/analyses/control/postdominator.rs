@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
+use super::control::ControlGraph;
 use super::dominance::DominatorTree;
-use super::graph::ControlGraph;
 use crate::{Analysis, Block, ControlTable, LocalNodeId, Mutation};
 
 /// Postdominator tree for all blocks, rooted at terminal blocks and selected exitless blocks.
@@ -179,12 +179,12 @@ impl Analysis for PostdominatorTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::analyses::tests::TestProgram;
+    use crate::analyses::tests::TestModule;
 
     /// Make the join postdominate both branches and their entry.
     #[test]
     fn test_find_common_postdominators() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -228,7 +228,7 @@ join:
     /// Keep a return and an unreachable terminator as separate exits.
     #[test]
     fn test_separate_terminal_exits() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -272,7 +272,7 @@ done:
     /// Keep the return separate from a reachable infinite loop and include disconnected blocks.
     #[test]
     fn test_separate_returning_and_exitless_paths() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -320,7 +320,7 @@ dead:
     /// Discard an exitless root that can reach another selected root.
     #[test]
     fn test_remove_redundant_exitless_roots() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -368,7 +368,7 @@ spin:
     /// Select an exitless root by function block order despite reversed branch targets.
     #[test]
     fn test_select_exitless_roots_in_function_order() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -412,7 +412,7 @@ right:
     /// Find postdominators along paths to a loop's terminal exit.
     #[test]
     fn test_find_postdominators_in_loop_with_exit() {
-        let (tree, function_id) = TestProgram::parse_function(
+        let (tree, function_id) = TestModule::parse_function(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
