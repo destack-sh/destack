@@ -251,6 +251,7 @@ impl ModuleGraph {
                 ArtifactProjectionFingerprint::new(self.interface_implementations(interface)),
             ),
             ArtifactProjectionKey::DirResolvedComponentRelations
+            | ArtifactProjectionKey::ProgramAnalysisFunctionEffects(_)
             | ArtifactProjectionKey::Payload => None,
         }
     }

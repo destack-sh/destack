@@ -405,6 +405,12 @@ impl<'a> ArtifactPayloadRef<'a> {
             (payload, ArtifactProjectionKey::Payload) => Some(
                 ArtifactProjectionFingerprint::from_serialized_payload(&payload)?,
             ),
+            (
+                Self::ProgramAnalysis(payload),
+                ArtifactProjectionKey::ProgramAnalysisFunctionEffects(symbol),
+            ) => Some(ArtifactProjectionFingerprint::from_serialized_payload(
+                &payload.effects.function(symbol),
+            )?),
             (Self::ModuleGraph(payload), projection) => payload.fingerprint_projection(projection),
             (Self::DirResolved(payload), ArtifactProjectionKey::DirResolvedComponentRelations) => {
                 Some(payload.component_relations_fingerprint())

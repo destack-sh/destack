@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 
 use destack_core::{BlobId, StableHasher};
 use destack_dir::GlobalSymbolId;
+use destack_mir::Symbol;
 use destack_serde as serde;
 use destack_serde::Reflect;
 use destack_source::{FileId, ModuleId, PackageId};
@@ -146,6 +147,8 @@ pub enum ArtifactProjectionKey {
     ModuleGraphEdges(ModuleId),
     /// The implementations of one interface resolved across the module graph.
     ModuleGraphImplementations(GlobalSymbolId),
+    /// The memory, execution, and parameter escape effects of one program function.
+    ProgramAnalysisFunctionEffects(Symbol),
     /// The resolved relationships that shape the component graph.
     DirResolvedComponentRelations,
 }

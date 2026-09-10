@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_core::BitSet;
-use destack_mir::{self as mir, CallComponentGraph, LinkSupergraph, LinkTable, Symbol};
+use destack_mir::{self as mir, CallComponentTable, LinkSupergraph, LinkTable, Symbol};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -177,23 +177,28 @@ pub struct MirAnalyzed {
     pub links: LinkTable,
     /// The module initializer called by the runtime, when one exists.
     pub initializer: Option<Symbol>,
+    /// Extracted function effects and pointer flows.
+    pub functions: Vec<(Symbol, Arc<mir::FunctionEffectBody>)>,
 }
 
 /// Whole-program analysis columns shared across the optimization of every module.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct ProgramAnalysis {
     /// Every defined symbol in the program.
-    symbols: Vec<Symbol>,
+    pub symbols: Vec<Symbol>,
     /// Whether each symbol is reachable from a program root.
-    live: BitSet,
+    pub live: BitSet,
     /// Program-wide incoming reference count of each symbol.
-    references: Vec<u32>,
+    pub references: Vec<u32>,
     /// Whether each symbol's address is taken anywhere in the program.
-    address_taken: BitSet,
+    pub address_taken: BitSet,
     /// Whether each symbol is internal to the program.
-    internal: BitSet,
+    pub internal: BitSet,
     /// Strongly connected components of the whole-program call graph.
-    components: CallComponentGraph,
+    pub components: CallComponentTable,
+
+    /// Function effects and escape paths with reusable recursive components.
+    pub effects: mir::ProgramEffectTable,
 }
 
 impl ProgramAnalysis {
@@ -203,7 +208,11 @@ impl ProgramAnalysis {
     }
 
     /// Derive the whole-program columns from the supergraph and the program's roots.
-    pub fn analyze(supergraph: &LinkSupergraph, roots: &[Symbol]) -> Self {
+    pub fn analyze(
+        supergraph: &LinkSupergraph,
+        roots: &[Symbol],
+        effects: mir::ProgramEffectTable,
+    ) -> Self {
         Self {
             symbols: supergraph.symbols().to_vec(),
             live: supergraph.reachable(roots),
@@ -211,6 +220,7 @@ impl ProgramAnalysis {
             address_taken: supergraph.address_taken(),
             internal: supergraph.internal(roots),
             components: supergraph.call_components(),
+            effects,
         }
     }
 
