@@ -221,7 +221,17 @@ b0:
     // diagnostic and later items
     assert_eq!(diagnostics.len(), 1);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(tree.iter_nodes::<TypeDeclaration>().count(), 1);
+    assert_eq!(
+        tree.iter_nodes::<TypeDeclaration>()
+            .filter(|(_, declaration)| declaration.name.is_some())
+            .count(),
+        1
+    );
+    assert!(
+        tree.iter_nodes::<TypeDeclaration>()
+            .filter(|(_, declaration)| declaration.name.is_none())
+            .all(|(_, declaration)| declaration.definition.is_none())
+    );
     assert_eq!(tree.iter_nodes::<Function>().count(), 1);
 }
 
@@ -246,9 +256,9 @@ fn test_parse_rejects_direct_self_type_definition() {
 #[test]
 fn test_parse_restores_lifetime_scope_after_type_error() {
     let source = r#"
-type Broken<'L> = ref<int32, borrowed, 'Missing, mutable, local>
+type Broken<'L> = ref<int32, borrowed, 'Missing & local, mutable>
 
-type Later = ref<int32, borrowed, 'L, mutable, local>
+type Later = ref<int32, borrowed, 'L & local, mutable>
 
 function later(): void {
 b0:
@@ -262,7 +272,17 @@ b0:
     // both type declarations fail independently
     assert_eq!(diagnostics.len(), 2);
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
-    assert_eq!(tree.iter_nodes::<TypeDeclaration>().count(), 0);
+    assert_eq!(
+        tree.iter_nodes::<TypeDeclaration>()
+            .filter(|(_, declaration)| declaration.name.is_some())
+            .count(),
+        0
+    );
+    assert!(
+        tree.iter_nodes::<TypeDeclaration>()
+            .filter(|(_, declaration)| declaration.name.is_none())
+            .all(|(_, declaration)| declaration.definition.is_none())
+    );
     assert_eq!(tree.iter_nodes::<Function>().count(), 1);
 }
 
@@ -285,7 +305,7 @@ type Pair {
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
     // recovered fields
-    assert_node!(tree, declaration.ty, Type::Struct { fields, .. } => {
+    assert_node!(tree, declaration.definition.unwrap(), Type::Struct { fields, .. } => {
         assert_eq!(fields.len(), 2);
         assert_node!(tree, fields[0], Field { ty, .. } => {
             assert_error_type(&tree, *ty);
@@ -395,4 +415,28 @@ b0:
         assert!(!matches!(tree.get(instructions[2]), Instruction::Error));
         assert_node!(tree, *terminator, Terminator::Return { .. });
     });
+}
+
+/// Reject conflicting reference qualifiers through parser diagnostics.
+#[test]
+fn test_parse_rejects_invalid_reference_qualifiers() {
+    let cases = [
+        (
+            "type Bad = ref<int32, managed, readonly, exclusive, local>;",
+            "invalid exclusivity on an owning reference",
+        ),
+        (
+            "type Bad = ref<int32, borrowed, '_, mutable, readonly, local>;",
+            "invalid duplicate reference access",
+        ),
+    ];
+
+    for (source, expected) in cases {
+        let (_, diagnostics) = TestParser::new(source).parse_with_diagnostics();
+        let messages = diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(messages, [expected], "{source}");
+    }
 }

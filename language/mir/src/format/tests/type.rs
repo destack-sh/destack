@@ -94,8 +94,8 @@ entry(v0: Nullish, v1: null):
 fn test_format_reference_storage() {
     assert_format(
         r#"
-function storage<'a, 'b, 'c>(v0: ref<int32, borrowed, 'a, mutable, shared>, v1: ref<int32, borrowed, 'b, mutable, frame>, v2: ref<int32, borrowed, 'c, mutable, constant>, v3: ref<int32, borrowed, 'static, mutable, static>, v4: ref<int32, borrowed, 'static, mutable, shared static>): ref<int32, borrowed, 'a, mutable, shared> {
-entry(v0: ref<int32, borrowed, 'a, mutable, shared>, v1: ref<int32, borrowed, 'b, mutable, frame>, v2: ref<int32, borrowed, 'c, mutable, constant>, v3: ref<int32, borrowed, 'static, mutable, static>, v4: ref<int32, borrowed, 'static, mutable, shared static>):
+function storage<'a, 'b, 'c>(v0: ref<int32, borrowed, 'a & shared, mutable>, v1: ref<int32, borrowed, 'b & frame, mutable>, v2: ref<int32, borrowed, 'c & constant, mutable>, v3: ref<int32, borrowed, 'static & static, mutable>, v4: ref<int32, borrowed, 'static & shared static, mutable>): ref<int32, borrowed, 'a & shared, mutable> {
+entry(v0: ref<int32, borrowed, 'a & shared, mutable>, v1: ref<int32, borrowed, 'b & frame, mutable>, v2: ref<int32, borrowed, 'c & constant, mutable>, v3: ref<int32, borrowed, 'static & static, mutable>, v4: ref<int32, borrowed, 'static & shared static, mutable>):
     return v0
 }
 "#,
@@ -107,8 +107,8 @@ entry(v0: ref<int32, borrowed, 'a, mutable, shared>, v1: ref<int32, borrowed, 'b
 fn test_format_parameter_borrow_lifetime() {
     assert_format(
         r#"
-function borrowParam<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): ref<int32, borrowed, 'a, mutable, local> {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
+function borrowParam<'a>(v0: ref<int32, borrowed, 'a & local, mutable>): ref<int32, borrowed, 'a & local, mutable> {
+entry(v0: ref<int32, borrowed, 'a & local, mutable>):
     return v0
 }
 "#,
@@ -120,8 +120,8 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
 fn test_format_static_borrow_lifetime() {
     assert_format(
         r#"
-function staticBorrow(v0: ref<int32, borrowed, 'static, mutable, local>): ref<int32, borrowed, 'static, mutable, local> {
-entry(v0: ref<int32, borrowed, 'static, mutable, local>):
+function staticBorrow(v0: ref<int32, borrowed, 'static & local, mutable>): ref<int32, borrowed, 'static & local, mutable> {
+entry(v0: ref<int32, borrowed, 'static & local, mutable>):
     return v0
 }
 "#,
@@ -133,8 +133,8 @@ entry(v0: ref<int32, borrowed, 'static, mutable, local>):
 fn test_format_frame_borrow_lifetime() {
     assert_format(
         r#"
-function frameBorrow(v0: ref<int32, borrowed, 'frame, mutable, frame>): ref<int32, borrowed, 'frame, mutable, frame> {
-entry(v0: ref<int32, borrowed, 'frame, mutable, frame>):
+function frameBorrow(v0: ref<int32, borrowed, 'frame & frame, mutable>): ref<int32, borrowed, 'frame & frame, mutable> {
+entry(v0: ref<int32, borrowed, 'frame & frame, mutable>):
     return v0
 }
 "#,
@@ -147,12 +147,12 @@ fn test_format_named_lifetimes() {
     assert_format(
         r#"
 type Player<'LWorld, 'LMesh> {
-    world: ref<int32, borrowed, 'LWorld, mutable, local>;
-    mesh: ref<float64, borrowed, 'LMesh, mutable, local>;
+    world: ref<int32, borrowed, 'LWorld & local, mutable>;
+    mesh: ref<float64, borrowed, 'LMesh & local, mutable>;
 }
 
-function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld & local, 'LMesh & local>, borrowed, 'LPlayer, mutable, local>): void {
-entry(v0: ref<Player<'LWorld & local, 'LMesh & local>, borrowed, 'LPlayer, mutable, local>):
+function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld & local, 'LMesh & local>, borrowed, 'LPlayer & local, mutable>): void {
+entry(v0: ref<Player<'LWorld & local, 'LMesh & local>, borrowed, 'LPlayer & local, mutable>):
     return
 }
 "#,
@@ -185,7 +185,7 @@ fn test_format_type_applications() {
     assert_format(
         r#"
 type Box<T, 'a> {
-    value: ref<T, borrowed, 'a, readonly, local>;
+    value: ref<T, borrowed, 'a & local, readonly>;
 }
 
 function borrow(v0: Box<int32, 'static & local>): Box<int32, 'static & local> {
@@ -201,8 +201,8 @@ entry(v0: Box<int32, 'static & local>):
 fn test_format_lifetime_outlives_bounds() {
     assert_format(
         r#"
-function pass<'LA, 'LC>(v0: ref<int32, borrowed, 'LA, mutable, local>): ref<int32, borrowed, 'LC, mutable, local> where 'LA: 'LC {
-entry(v0: ref<int32, borrowed, 'LA, mutable, local>):
+function pass<'LA, 'LC>(v0: ref<int32, borrowed, 'LA & local, mutable>): ref<int32, borrowed, 'LC & local, mutable> where 'LA: 'LC {
+entry(v0: ref<int32, borrowed, 'LA & local, mutable>):
     return v0
 }
 "#,
@@ -214,8 +214,8 @@ entry(v0: ref<int32, borrowed, 'LA, mutable, local>):
 fn test_format_borrowed_slices() {
     assert_format(
         r#"
-function views<'a>(v0: slice<int32, borrowed, 'a, readonly, local>): void {
-entry(v0: slice<int32, borrowed, 'a, readonly, local>):
+function views<'a>(v0: slice<int32, borrowed, 'a & local, readonly>): void {
+entry(v0: slice<int32, borrowed, 'a & local, readonly>):
     return
 }
 "#,
@@ -468,5 +468,68 @@ type Point {
 "#
         .trim(),
         output,
+    );
+}
+
+/// Preserve joined storage places independently of their first term and storage duration.
+#[test]
+fn test_roundtrip_joined_storage_places() {
+    assert_format(
+        r#"
+type Borrows<space P, space Q, 'a> {
+    sharedFirst: ref<int32, borrowed, 'a & shared|heap(P), readonly>;
+    parameterFirst: ref<int32, borrowed, 'a & heap(P)|local, readonly>;
+    staticJoin: ref<int32, borrowed, 'a & static(Q|P), readonly>;
+    residenceJoin: ref<int32, borrowed, 'a & shared|frame|static, readonly>;
+}
+"#,
+    );
+}
+
+/// Preserve independent access and exclusivity on references, slices, and generic applications.
+#[test]
+fn test_format_borrow_qualifiers() {
+    assert_format(
+        r#"
+type Borrows<T, 'a, access A, exclusivity X> {
+    mutable: ref<T, borrowed, 'a, mutable>;
+    readonly: ref<T, borrowed, 'a, readonly>;
+    exclusive: ref<T, borrowed, 'a, mutable, exclusive>;
+    protected: ref<T, borrowed, 'a, readonly, exclusive>;
+    generic: ref<T, borrowed, 'a, A, X>;
+    slice: slice<T, borrowed, 'a, readonly, exclusive>;
+    erased: ref<T, borrowed, '_ & shared, readonly, exclusive>;
+    @held: ref<T, borrowed, 'a, readonly>;
+}
+
+type Applied = Borrows<int32, 'static & shared, readonly, exclusive>;
+"#,
+    );
+}
+
+/// Preserve forward recursive declarations and explicit variant tags in source order.
+#[test]
+fn test_format_recursive_variant_declarations() {
+    assert_format(
+        r#"
+type Node<T> {
+    next: ref<Node<T>, managed, mutable, local>;
+    value: T;
+}
+
+type Choice = variant<uint8> { 7uint8 = ref<Node<int32>, unique, mutable, local>; 2uint8 = int32; };
+"#,
+    );
+}
+
+/// Preserve captured lifetimes, their spaces, and bounds across nested binders.
+#[test]
+fn test_format_nested_lifetime_binders() {
+    assert_format(
+        "type Callback = <'a>(<'b>(ref<int32, borrowed, 'a, readonly>, ref<int32, borrowed, 'b, readonly>) => ref<int32, borrowed, 'a, readonly> where 'b: 'a) => void;",
+    );
+    assert_format_eq(
+        "type Callback = <'a>(<'a>(ref<int32, borrowed, 'a, readonly>) => void) => void;",
+        "type Callback = <'a>(<'a_1>(ref<int32, borrowed, 'a_1, readonly>) => void) => void;",
     );
 }

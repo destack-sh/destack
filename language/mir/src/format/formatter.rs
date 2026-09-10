@@ -7,8 +7,8 @@ use destack_source::{File, FileType, ModuleId};
 use super::FormatOptions;
 
 use crate::{
-    Block, Function, FunctionId, GenericParameter, Global, LifetimeParameter, LifetimeSlot, Local,
-    LocalNodeId, Node, TargetLayout, Tree, TreeImpl, Type, TypeDeclaration, TypeId, Value,
+    Block, Function, FunctionId, GenericParameter, Global, LifetimeParameter, Local, LocalNodeId,
+    Node, RegionBound, TargetLayout, Tree, TreeImpl, Type, TypeDeclaration, TypeId, Value,
     mentioned_types,
 };
 
@@ -31,7 +31,7 @@ pub struct Formatter<'a> {
     /// Canonical local indices for the current function.
     local_indices: FxIndexMap<LocalNodeId<Local>, usize>,
     /// Lifetime parameters currently in scope.
-    lifetimes: Vec<LifetimeParameter>,
+    lifetimes: Vec<Vec<String>>,
     /// Generic parameters currently in scope.
     generics: Vec<GenericParameter>,
     /// The items a selective format keeps.
@@ -101,13 +101,7 @@ impl<'a> Formatter<'a> {
         let imported = declarations
             .iter()
             .copied()
-            .filter(|declaration| {
-                let ty = self.tree.get(*declaration).ty;
-
-                self.tree
-                    .type_symbol(ty)
-                    .is_some_and(|symbol| !symbol.is_defined_in(module))
-            })
+            .filter(|declaration| !self.tree.get(*declaration).symbol.is_defined_in(module))
             .collect();
         self.selection = Some(Selection {
             declarations,
@@ -174,11 +168,14 @@ impl<'a> Formatter<'a> {
     }
 
     /// Return one lifetime name in the current scope.
-    pub(crate) fn lifetime_name(&self, slot: LifetimeSlot) -> Option<&str> {
-        let lifetime = self.lifetimes.get(slot.0 as usize)?;
-        let name = lifetime.name?;
-
-        Some(self.strings.get(name))
+    pub(crate) fn lifetime_name(&self, slot: RegionBound) -> Option<&str> {
+        let lifetimes = self
+            .lifetimes
+            .iter()
+            .rev()
+            .filter(|lifetimes| !lifetimes.is_empty())
+            .nth(slot.depth as usize)?;
+        lifetimes.get(slot.index as usize).map(String::as_str)
     }
 
     /// Return one value type in the current function.
@@ -235,7 +232,7 @@ impl<'a> Formatter<'a> {
 
         // enter the function lifetime and generic scope
         self.lifetimes.clear();
-        self.lifetimes.extend_from_slice(&body.lifetimes);
+        self.push_lifetimes(body.lifetimes.clone());
         self.generics.clear();
         self.generics.extend_from_slice(&body.generics);
     }
@@ -254,12 +251,39 @@ impl<'a> Formatter<'a> {
         self.function
     }
 
-    /// Replace the lifetime parameters and return the previous parameters.
-    pub(crate) fn replace_lifetimes(
-        &mut self,
-        lifetimes: Vec<LifetimeParameter>,
-    ) -> Vec<LifetimeParameter> {
-        std::mem::replace(&mut self.lifetimes, lifetimes)
+    /// Enter one lifetime binder.
+    pub(crate) fn push_lifetimes(&mut self, lifetimes: Vec<LifetimeParameter>) {
+        // choose names that remain distinct from every visible region parameter
+        let mut names = Vec::new();
+        for (index, lifetime) in lifetimes.iter().enumerate() {
+            let original = lifetime
+                .name
+                .map(|name| self.strings.get(name).to_string())
+                .unwrap_or_else(|| format!("'l{index}"));
+            let mut name = original.clone();
+            let mut suffix = 0;
+            while self
+                .lifetimes
+                .iter()
+                .flatten()
+                .chain(names.iter())
+                .any(|existing| *existing == name)
+                || self
+                    .generics
+                    .iter()
+                    .any(|parameter| self.strings.get(parameter.name) == name)
+            {
+                suffix += 1;
+                name = format!("{original}_{suffix}");
+            }
+            names.push(name);
+        }
+        self.lifetimes.push(names);
+    }
+
+    /// Leave the current lifetime binder.
+    pub(crate) fn pop_lifetimes(&mut self) {
+        self.lifetimes.pop();
     }
 
     /// Replace the generic parameters and return the previous parameters.

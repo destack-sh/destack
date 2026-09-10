@@ -1,11 +1,13 @@
 use destack_core::StringPool;
 
 use crate::build::ModuleBuilder;
+use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{
-    Access, BinaryOperator, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions,
-    Formatter, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime, LifetimeTerm,
-    MemoryOrdering, Multiplicity, Mutability, ReferenceKind, Space, Storage, StorageSet, Symbol,
-    TargetLayout, Tree, Type, TypeHeritage, TypeId,
+    Access, BinaryOperator, Callee, Copy, Exclusivity, ExecutionScope, Extent, FenceAccess,
+    FloatType, FormatOptions, Formatter, GenericArgument, GenericParameter, GenericParameterDomain,
+    Importer, LayoutBuilder, LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability,
+    Reference, Space, Storage, StorageSet, Substitution, Symbol, TargetLayout, TraceMap, Tree,
+    Type, TypeDeclaration, TypeHeritage, TypeId,
 };
 
 /// Format one test MIR tree.
@@ -98,7 +100,7 @@ fn test_build_function_with_locals() {
     let local = builder.local(i64_type, Mutability::Mutable);
     let constant_value = builder.iconst_i64(42);
     builder.local_set(local, constant_value);
-    let loaded_value = builder.local_get(local);
+    let loaded_value = builder.local_get(local, Copy::No);
     builder.return_(Some(loaded_value));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -336,7 +338,7 @@ fn test_build_function_with_panic_terminator() {
     let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let string_type = module.type_reference(
-        ReferenceKind::Managed,
+        Reference::Managed,
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
@@ -766,7 +768,7 @@ fn test_type_construction() {
     let callable_type = module.type_function(
         signature,
         Multiplicity::Repeatable,
-        ReferenceKind::Managed,
+        Reference::Managed,
         Lifetime::empty(),
         Storage::Heap(Space::Local),
         Access::Mutable,
@@ -860,14 +862,14 @@ fn test_construct_reference_and_pointer_types() {
     // create managed reference types
     let i32_type = module.type_int(32, true);
     let managed_readonly_type = module.type_reference(
-        ReferenceKind::Managed,
+        Reference::Managed,
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
         Storage::Heap(Space::Local),
     );
     let managed_mutable_type = module.type_reference(
-        ReferenceKind::Managed,
+        Reference::Managed,
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
@@ -881,7 +883,7 @@ fn test_construct_reference_and_pointer_types() {
     assert!(matches!(
         tree.get(managed_readonly_type),
         Type::Reference {
-            kind: ReferenceKind::Managed,
+            kind: Reference::Managed,
             access: Access::Readonly,
             ..
         }
@@ -889,7 +891,7 @@ fn test_construct_reference_and_pointer_types() {
     assert!(matches!(
         tree.get(managed_mutable_type),
         Type::Reference {
-            kind: ReferenceKind::Managed,
+            kind: Reference::Managed,
             access: Access::Mutable,
             ..
         }
@@ -917,7 +919,7 @@ fn test_build_new_zeroed() {
     let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let ref_type = module.type_reference(
-        ReferenceKind::Managed,
+        Reference::Managed,
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
@@ -954,7 +956,7 @@ fn test_build_new_slice_zeroed() {
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let slice_type = module.type_slice(
-        ReferenceKind::Managed,
+        Reference::Managed,
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
@@ -995,15 +997,15 @@ fn test_build_slice_view() {
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let source_type = module.type_slice(
-        ReferenceKind::Managed,
+        Reference::Managed,
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
         Storage::Heap(Space::Local),
     );
     let slice_type = module.type_slice(
-        ReferenceKind::Borrowed,
-        Lifetime::slot(0),
+        Reference::Borrowed(Exclusivity::Aliasable),
+        Lifetime::bound(0),
         i32_type,
         Access::Mutable,
         Storage::Heap(Space::Local),
@@ -1030,9 +1032,9 @@ fn test_build_slice_view() {
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function sliceTest<'a>(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable, local> {
+function sliceTest<'a>(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a & local, mutable> {
 entry(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v1, v2
+    v3: slice<int32, borrowed, 'a & local, mutable> = slice.view v0, v1, v2
     return v3
 }";
     assert_eq!(output, expected);
@@ -1250,7 +1252,7 @@ fn test_build_field_get_struct() {
     builder.switch_to_block(entry_block);
 
     let point = builder.function_parameter(0);
-    let y = builder.field_get(point, 1);
+    let y = builder.field_get(point, 1, Copy::No);
     builder.return_(Some(y));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1286,7 +1288,7 @@ fn test_build_field_get_tuple() {
     builder.switch_to_block(entry_block);
 
     let pair = builder.function_parameter(0);
-    let first = builder.field_get(pair, 0);
+    let first = builder.field_get(pair, 0, Copy::No);
     builder.return_(Some(first));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1303,9 +1305,9 @@ entry(v0: (int32, boolean)):
     assert_eq!(output, expected);
 }
 
-/// Field projection substitutes the lifetime arguments of an identified aggregate.
+/// Field projection substitutes the region arguments of an identified aggregate.
 #[test]
-fn test_build_field_get_from_lifetime_applied_type() {
+fn test_build_field_get_from_region_applied_type() {
     // define the referenced user type
     let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let int32 = module.type_int(32, true);
@@ -1328,11 +1330,11 @@ fn test_build_field_get_from_lifetime_applied_type() {
 
     // define a region-polymorphic aggregate borrowing the user
     let borrowed_user = module.type_reference(
-        ReferenceKind::Borrowed,
-        Lifetime::new([LifetimeTerm::Parameter(0)]),
+        Reference::Borrowed(Exclusivity::Aliasable),
+        Lifetime::new([Extent::Parameter(0)]),
         user,
         Access::Readonly,
-        Storage::Heap(Space::Parameter(0)),
+        Storage::Parameter(0),
     );
     let view_field_name = module.strings().intern("user");
     let view_field = module.field(Some(view_field_name), borrowed_user);
@@ -1362,29 +1364,35 @@ fn test_build_field_get_from_lifetime_applied_type() {
     );
 
     // project the field from one concrete region application
-    let static_view = module.tree_mut().intern_type(Type::Application {
+    let frame_view = module.tree_mut().intern_type(Type::Application {
         base: view,
         arguments: vec![GenericArgument::Region {
-            lifetime: Lifetime::static_storage(),
-            space: Space::Local,
+            lifetime: Lifetime::frame(),
+            storage: Storage::Frame,
         }],
     });
-    let static_user = module.type_reference(
-        ReferenceKind::Borrowed,
-        Lifetime::static_storage(),
+    let arguments = [GenericArgument::Region {
+        lifetime: Lifetime::frame(),
+        storage: Storage::Frame,
+    }];
+    let definition = Substitution::new(module.tree_mut(), &arguments).representation(view);
+    module.tree_mut().define_application(frame_view, definition);
+    let frame_user = module.type_reference(
+        Reference::Borrowed(Exclusivity::Aliasable),
+        Lifetime::frame(),
         user,
         Access::Readonly,
-        Storage::Heap(Space::Local),
+        Storage::Frame,
     );
     let header = module
-        .function_header("getStatic")
-        .parameter(static_view)
-        .result(static_user);
+        .function_header("getFrame")
+        .parameter(frame_view)
+        .result(frame_user);
     let mut builder = module.function(header);
     let entry = builder.block();
     builder.switch_to_block(entry);
     let value = builder.function_parameter(0);
-    let user = builder.field_get(value, 0);
+    let user = builder.field_get(value, 0, Copy::No);
     builder.return_(Some(user));
     builder.seal_block(entry);
     builder.finish().unwrap();
@@ -1403,9 +1411,9 @@ type View<'a> {
     user: ref<User, borrowed, 'a, readonly>;
 }
 
-function getStatic(v0: View<'static & local>): ref<User, borrowed, 'static, readonly, local> {
-entry(v0: View<'static & local>):
-    v1: ref<User, borrowed, 'static, readonly, local> = field.get v0, 0
+function getFrame(v0: View<'frame & frame>): ref<User, borrowed, 'frame & frame, readonly> {
+entry(v0: View<'frame & frame>):
+    v1: ref<User, borrowed, 'frame & frame, readonly> = field.get v0, 0
     return v1
 }";
     assert_eq!(output, expected);
@@ -1430,7 +1438,7 @@ fn test_build_element_get_array() {
     builder.switch_to_block(entry_block);
 
     let arr = builder.function_parameter(0);
-    let element = builder.element_get(arr, 1);
+    let element = builder.element_get(arr, 1, Copy::No);
     builder.return_(Some(element));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1635,4 +1643,162 @@ b3(v5: int32, v6: int32):
     return v7
 }";
     assert_eq!(output, expected);
+}
+
+/// Preserve joined places when importing a specialized function into a different type table.
+#[test]
+fn test_import_specialized_function_places() {
+    // build a function whose parameter and arguments share one joined place
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let integer = module.type_int(32, true);
+    let void = module.type_void();
+    let space = module
+        .tree_mut()
+        .intern_space_join([Space::Local, Space::Shared]);
+    let other_space = module
+        .tree_mut()
+        .intern_space_join([Space::Local, Space::Constant]);
+    let storage = module.tree_mut().intern_storage_join([
+        Storage::Frame,
+        Storage::Heap(space),
+        Storage::Heap(other_space),
+        Storage::Static(Space::Constant),
+    ]);
+    let lifetime = Lifetime::new([Extent::Static]);
+    let borrowed = module.tree_mut().intern_type(Type::Reference {
+        kind: Reference::Borrowed(Exclusivity::Aliasable),
+        lifetime: lifetime.clone(),
+        storage,
+        access: Access::Readonly,
+        pointee: integer,
+    });
+    let header = module
+        .function_header("selected")
+        .arguments([
+            GenericArgument::Space(space),
+            GenericArgument::Region { lifetime, storage },
+        ])
+        .parameter(borrowed)
+        .result(void);
+    let function = module.declare_function(header);
+    let (source, strings) = module.finish_tree();
+
+    // occupy the source join's index with a different join before importing
+    let mut destination = Tree::new();
+    destination.intern_space_join([Space::Local, Space::Constant]);
+    destination.intern_storage_join([Storage::Frame, Storage::Static(Space::Local)]);
+    let mut declared = |_| None;
+    let imported =
+        Importer::new(&mut destination, &mut declared).import_function_header(&source, function);
+    let function = destination.insert(imported);
+
+    // require matching places in both the signature and the specialization arguments
+    assert_eq!(
+        format_test_mir(&destination, &strings),
+        "external function selected<local|shared, 'static & frame|heap(local|shared)|heap(local|constant)|constant>(ref<int32, borrowed, 'static & frame|heap(local|shared)|heap(local|constant)|constant, readonly>): void",
+    );
+
+    // trace every movable or reclaimable location after importing the joined borrow
+    let parameter = destination.get(function).parameters[0].ty;
+    assert_eq!(
+        source.type_fingerprint(borrowed),
+        destination.type_fingerprint(parameter)
+    );
+    let mut layouts = LayoutTable::new();
+    let layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
+        .layout_type(parameter)
+        .unwrap();
+    assert_eq!(
+        layouts.layout(layout).trace_map,
+        TraceMap::Fixed {
+            local_offsets: Box::new([0]),
+            shared_offsets: Box::new([0]),
+            frame_offsets: Box::new([0]),
+        }
+    );
+}
+
+/// Preserve opaque declarations, aliases, and recursive applications across trees.
+#[test]
+fn test_import_recursive_declarations() {
+    let source = "\
+type Opaque<T>;
+
+type Alias = Opaque<int32>;
+
+type Node<T> {
+    next: ref<Node<T>, managed, mutable, local>;
+    value: T;
+}
+
+type Root = Node<int32>;
+
+type Other = Root;
+
+type Grow<T> {
+    next: ref<Grow<[T; 2]>, managed, mutable, local>;
+    value: T;
+}
+
+type Grown = Grow<int32>;
+
+type Wrap<T> {
+    value: T;
+}
+
+type Nested = Wrap<Wrap<int32>>;
+
+type Identity<T> = T;
+
+type Direct = Identity<int32>;
+
+type Indirect = Identity<Wrap<int32>>;";
+    let file = test_file(source);
+    let (source_tree, strings) = Parser::parse(&file, ParseOptions::default())
+        .unwrap()
+        .finish()
+        .unwrap();
+
+    // shift the destination's node ids and import every named declaration
+    let mut destination = Tree::new();
+    destination.intern_type(Type::Boolean);
+    let mut declared = |_| None;
+    let mut importer = Importer::new(&mut destination, &mut declared);
+    for (_, declaration) in source_tree.iter_nodes::<TypeDeclaration>() {
+        let ty = source_tree.identified_type(declaration.symbol).unwrap();
+        importer.import_type(&source_tree, ty);
+    }
+
+    // preserve the complete declaration text without expanding applications
+    assert_eq!(format_test_mir(&destination, &strings), source);
+
+    // supply the substituted definitions used by the layouts
+    let applications = destination
+        .iter_nodes::<Type>()
+        .filter_map(|(ty, definition)| match definition {
+            Type::Application { base, arguments } if destination.is_defined_type(*base) => {
+                Some((ty, *base, arguments.clone()))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    for (application, base, arguments) in applications {
+        let definition = Substitution::new(&mut destination, &arguments).representation(base);
+        destination.define_application(application, definition);
+    }
+
+    // lay out the finite values while keeping recursive reference targets symbolic
+    let mut layouts = LayoutTable::new();
+    for (name, size) in [("Grown", 16), ("Nested", 4), ("Direct", 4), ("Indirect", 4)] {
+        let declaration = destination
+            .iter_nodes::<TypeDeclaration>()
+            .map(|(_, declaration)| declaration)
+            .find(|declaration| declaration.name.is_some_and(|id| strings.get(id) == name))
+            .unwrap();
+        let ty = destination.identified_type(declaration.symbol).unwrap();
+        let layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
+            .layout_type(ty)
+            .unwrap();
+        assert_eq!(layouts.layout(layout).size, size);
+    }
 }

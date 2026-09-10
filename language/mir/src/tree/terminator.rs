@@ -1124,7 +1124,7 @@ mod tests {
         let block = tree.get(block);
         let parameter = block.parameters.get(index).expect("missing parameter");
 
-        tree.get(parameter.ty)
+        tree.type_definition(parameter.ty)
     }
 
     /// Parse fallible allocation edges with explicit success and failure payloads.

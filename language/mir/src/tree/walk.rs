@@ -205,6 +205,7 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         }
         Instruction::Error
         | Instruction::Const { .. }
+        | Instruction::Copy { .. }
         | Instruction::Binary { .. }
         | Instruction::Unary { .. }
         | Instruction::Select { .. }
@@ -315,12 +316,12 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Type, id.id);
 
     match ty {
+        Type::Declaration { declaration } => {
+            visitor.visit_type_declaration(tree, *declaration, tree.get(*declaration));
+        }
         Type::Error => {}
         Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => {
             walk_type_id(visitor, tree, pointee);
-        }
-        Type::Atomic { value } => {
-            walk_type_id(visitor, tree, value);
         }
         Type::Dynamic { constraint, .. } => {
             walk_type_id(visitor, tree, constraint);
@@ -409,8 +410,10 @@ fn walk_argument<V: NodeVisitor + ?Sized>(
     match argument {
         GenericArgument::Type(ty) => walk_type_id(visitor, tree, ty),
         GenericArgument::Value(value) => walk_static(visitor, tree, *value),
-        GenericArgument::Region { .. } | GenericArgument::Space(_) | GenericArgument::Access(_) => {
-        }
+        GenericArgument::Region { .. }
+        | GenericArgument::Space(_)
+        | GenericArgument::Access(_)
+        | GenericArgument::Exclusivity(_) => {}
     }
 }
 
@@ -423,8 +426,17 @@ pub fn walk_type_declaration<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::TypeDeclaration, id.id);
 
-    let declared_ty = tree.get(type_declaration.ty);
-    visitor.visit_type(tree, type_declaration.ty, declared_ty);
+    if let Some(definition) = type_declaration.definition {
+        walk_type_id(visitor, tree, &definition);
+    }
+    for base in type_declaration
+        .heritage
+        .extends
+        .iter()
+        .chain(&type_declaration.heritage.implements)
+    {
+        walk_type_id(visitor, tree, base);
+    }
 }
 
 /// Walk a Field.

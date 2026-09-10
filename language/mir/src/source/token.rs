@@ -192,6 +192,57 @@ pub enum TokenType {
 }
 
 impl TokenType {
+    /// Return whether this token is an identifier or a keyword usable as a member name.
+    pub(crate) const fn is_name(self) -> bool {
+        matches!(
+            self,
+            Self::Identifier
+                | Self::External
+                | Self::Export
+                | Self::Function
+                | Self::Global
+                | Self::Shared
+                | Self::Constant
+                | Self::Type
+                | Self::Block
+                | Self::Local
+                | Self::Return
+                | Self::Jump
+                | Self::Branch
+                | Self::Check
+                | Self::Switch
+                | Self::Panic
+                | Self::UnwindResume
+                | Self::Abort
+                | Self::Unreachable
+                | Self::TailCall
+                | Self::Call
+                | Self::CallIndirect
+                | Self::TailCallIndirect
+                | Self::CallVirtual
+                | Self::TailCallVirtual
+                | Self::CallDynamic
+                | Self::TailCallDynamic
+                | Self::TailCallWitness
+                | Self::Invoke
+                | Self::InvokeIndirect
+                | Self::InvokeVirtual
+                | Self::InvokeDynamic
+                | Self::InvokeWitness
+                | Self::Void
+                | Self::Boolean
+                | Self::Ref
+                | Self::Vector
+                | Self::Struct
+                | Self::Newtype
+                | Self::BooleanLiteral
+                | Self::TypeName
+                | Self::Ownership
+                | Self::Readonly
+                | Self::Const
+        )
+    }
+
     /// Return whether this token begins an invoke terminator.
     pub(crate) const fn is_invoke(self) -> bool {
         matches!(

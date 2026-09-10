@@ -79,8 +79,10 @@ impl<'a> Format<'a, Formatter<'a>> for Tree {
 fn items(tree: &Tree) -> Vec<(Option<u32>, Item)> {
     let mut items = Vec::new();
 
-    for (id, _) in tree.iter_nodes::<TypeDeclaration>() {
-        items.push((item_start(tree, id), Item::Type(id)));
+    for (id, declaration) in tree.iter_nodes::<TypeDeclaration>() {
+        if declaration.name.is_some() {
+            items.push((item_start(tree, id), Item::Type(id)));
+        }
     }
     for (id, _) in tree.iter_nodes::<Global>() {
         items.push((item_start(tree, id), Item::Global(id)));

@@ -41,7 +41,7 @@ function localAddr(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame & frame, mutable> = local.address l0
     return
 }
 "#,
@@ -116,8 +116,8 @@ entry(v0: int32):
     return v0
 }
 
-function borrow<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local> {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+function borrow<int32, 'a>(v0: ref<int32, borrowed, 'a & local, readonly>): ref<int32, borrowed, 'a & local, readonly> {
+entry(v0: ref<int32, borrowed, 'a & local, readonly>):
     return v0
 }
 
@@ -172,7 +172,7 @@ type Box<T> {
 }
 
 type Pair<T, U, 'a> {
-    left: ref<T, borrowed, 'a, readonly, local>;
+    left: ref<T, borrowed, 'a & local, readonly>;
     right: U;
 }
 
@@ -192,9 +192,9 @@ entry(v0: int32):
     return v1
 }
 
-function place<T, space S, access A, const N: usize, 'a>(v0: ref<T, borrowed, 'a, A, S>, v1: [T; N]): ref<T, borrowed, 'a, A, S static> {
-entry(v0: ref<T, borrowed, 'a, A, S>, v1: [T; N]):
-    v2: ref<T, borrowed, 'a, A, S static> = cast.bit v0 -> ref<T, borrowed, 'a, A, S static>
+function place<T, space S, access A, const N: usize, 'a>(v0: ref<T, borrowed, 'a & heap(S), A>, v1: [T; N]): ref<T, borrowed, 'a & static(S), A> {
+entry(v0: ref<T, borrowed, 'a & heap(S), A>, v1: [T; N]):
+    v2: ref<T, borrowed, 'a & static(S), A> = cast.bit v0 -> ref<T, borrowed, 'a & static(S), A>
     return v2
 }
 

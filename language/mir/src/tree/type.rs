@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
-    Constant, Discriminant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType,
-    SignatureParameter, Static, StaticId, StorageSet, Tree, TypeId,
+    Constant, Discriminant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, RegionBound,
+    SignatureParameter, Static, StaticId, StorageSet, Symbol, Tree, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -37,7 +37,7 @@ pub enum Mutability {
 pub enum Access {
     /// Readonly access.
     Readonly,
-    /// Mutable access, exclusive on owned storage by the borrow check and aliased through handles.
+    /// Mutable access.
     #[default]
     Mutable,
     /// The access one template parameter names.
@@ -69,6 +69,37 @@ impl Access {
     }
 }
 
+/// Exclusion of conflicting access through independent references.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum Exclusivity {
+    /// Independent references may access the same storage.
+    Aliasable,
+    /// Independent references cannot perform conflicting access.
+    Exclusive,
+    /// The guarantee named by one template parameter.
+    Parameter(u32),
+}
+
+impl Exclusivity {
+    /// Parse a canonical exclusion guarantee.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "aliasable" => Some(Self::Aliasable),
+            "exclusive" => Some(Self::Exclusive),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical MIR text for a closed guarantee.
+    pub const fn label(self) -> Option<&'static str> {
+        match self {
+            Self::Aliasable => Some("aliasable"),
+            Self::Exclusive => Some("exclusive"),
+            Self::Parameter(_) => None,
+        }
+    }
+}
+
 /// Runtime ownership domain.
 #[repr(u32)]
 #[derive(
@@ -96,7 +127,47 @@ pub enum Space {
     Constant,
     /// The space one template parameter names.
     Parameter(u32),
+    /// The space associated with a bound lifetime parameter.
+    Bound(RegionBound),
+    /// One of the spaces an interned join names, a borrow's referent in any of them.
+    Join(SpaceJoinId),
 }
+
+/// One interned space join of the tree.
+#[repr(transparent)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
+)]
+pub struct SpaceJoinId(pub u32);
+
+/// One interned set of possible storage locations.
+#[repr(transparent)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    Reflect,
+    SectionEntry,
+)]
+pub struct StorageJoinId(pub u32);
 
 impl Space {
     /// Return whether this is worker-local runtime storage.
@@ -120,17 +191,25 @@ impl Space {
             Space::Local => "local",
             Space::Shared => "shared",
             Space::Constant => "constant",
-            Space::Parameter(_) => return None,
+            Space::Parameter(_) | Space::Bound(_) | Space::Join(_) => return None,
         })
     }
 
-    /// Return the backing memory space set, a parameter spanning every runtime space.
-    pub const fn space_set(self) -> StorageSet {
+    /// Return the backing memory space set, an open space spanning every runtime space.
+    pub fn space_set(self, tree: &Tree) -> StorageSet {
         match self {
             Space::Local => StorageSet::LOCAL,
             Space::Shared => StorageSet::SHARED,
             Space::Constant => StorageSet::GLOBAL,
-            Space::Parameter(_) => StorageSet::LOCAL.union(StorageSet::SHARED),
+            Space::Parameter(_) | Space::Bound(_) => StorageSet::LOCAL
+                .union(StorageSet::SHARED)
+                .union(StorageSet::GLOBAL),
+            Space::Join(id) => tree
+                .space_join(id)
+                .iter()
+                .fold(StorageSet::NONE, |set, space| {
+                    set.union(space.space_set(tree))
+                }),
         }
     }
 }
@@ -156,8 +235,14 @@ pub enum Storage {
     Frame,
     /// Heap storage in one space.
     Heap(Space),
-    /// Static storage written once in one space.
+    /// Program-lifetime storage in one space.
     Static(Space),
+    /// The storage supplied for a template region parameter.
+    Parameter(u32),
+    /// The storage supplied for a bound region parameter.
+    Bound(RegionBound),
+    /// One of an interned set of storage locations.
+    Join(StorageJoinId),
 }
 
 impl Default for Storage {
@@ -180,20 +265,32 @@ impl Storage {
         Self::Static(space)
     }
 
-    /// Return the space coordinate of this storage.
-    pub const fn space(self) -> Space {
+    /// Return the space or joined spaces containing this storage.
+    pub fn space(self, tree: &mut Tree) -> Space {
         match self {
             Self::Frame => Space::Local,
             Self::Heap(space) | Self::Static(space) => space,
+            Self::Parameter(index) => Space::Parameter(index),
+            Self::Bound(bound) => Space::Bound(bound),
+            Self::Join(id) => {
+                let storages = tree.storage_join(id).to_vec();
+                let spaces = storages
+                    .into_iter()
+                    .map(|storage| storage.space(tree))
+                    .collect::<Vec<_>>();
+
+                tree.intern_space_join(spaces)
+            }
         }
     }
 
-    /// Return the residence coordinate of this storage.
-    pub const fn residence(self) -> Residence {
+    /// Return the concrete residence, when one is specified.
+    pub const fn residence(self) -> Option<Residence> {
         match self {
-            Self::Frame => Residence::Frame,
-            Self::Heap(_) => Residence::Heap,
-            Self::Static(_) => Residence::Static,
+            Self::Frame => Some(Residence::Frame),
+            Self::Heap(_) => Some(Residence::Heap),
+            Self::Static(_) => Some(Residence::Static),
+            Self::Parameter(_) | Self::Bound(_) | Self::Join(_) => None,
         }
     }
 
@@ -201,13 +298,23 @@ impl Storage {
     pub const fn heap_space(self) -> Option<Space> {
         match self {
             Self::Heap(space) => Some(space),
-            Self::Frame | Self::Static(_) => None,
+            Self::Frame | Self::Static(_) | Self::Parameter(_) | Self::Bound(_) | Self::Join(_) => {
+                None
+            }
         }
     }
 
     /// Return whether this storage is shared across workers.
-    pub const fn is_shared(self) -> bool {
-        matches!(self.space(), Space::Shared)
+    pub fn is_shared(self, tree: &Tree) -> bool {
+        match self {
+            Self::Heap(space) | Self::Static(space) => space.space_set(tree) == StorageSet::SHARED,
+            Self::Join(id) => {
+                let members = tree.storage_join(id);
+
+                !members.is_empty() && members.iter().all(|storage| storage.is_shared(tree))
+            }
+            Self::Frame | Self::Parameter(_) | Self::Bound(_) => false,
+        }
     }
 
     /// Return the canonical MIR text for a closed storage, the local space eliding.
@@ -219,7 +326,11 @@ impl Storage {
             Self::Heap(Space::Constant) | Self::Static(Space::Constant) => "constant",
             Self::Static(Space::Local) => "static",
             Self::Static(Space::Shared) => "shared static",
-            Self::Heap(Space::Parameter(_)) | Self::Static(Space::Parameter(_)) => return None,
+            Self::Heap(Space::Parameter(_) | Space::Bound(_) | Space::Join(_))
+            | Self::Static(Space::Parameter(_) | Space::Bound(_) | Space::Join(_))
+            | Self::Parameter(_)
+            | Self::Bound(_)
+            | Self::Join(_) => return None,
         })
     }
 
@@ -232,50 +343,61 @@ impl Storage {
             Self::Heap(Space::Constant) | Self::Static(Space::Constant) => "constant",
             Self::Static(Space::Local) => "static",
             Self::Static(Space::Shared) => "sharedStatic",
-            Self::Heap(Space::Parameter(_)) | Self::Static(Space::Parameter(_)) => return None,
+            Self::Heap(Space::Parameter(_) | Space::Bound(_) | Space::Join(_))
+            | Self::Static(Space::Parameter(_) | Space::Bound(_) | Space::Join(_))
+            | Self::Parameter(_)
+            | Self::Bound(_)
+            | Self::Join(_) => return None,
         })
     }
 
-    /// Return the storage region set used by memory effects, a parameter spanning every heap.
-    pub const fn storage_set(self) -> StorageSet {
+    /// Return the possible storage regions used by memory effects.
+    pub fn storage_set(self, tree: &Tree) -> StorageSet {
         match self {
             Self::Frame => StorageSet::FRAME,
-            Self::Heap(space) => space.space_set(),
+            Self::Heap(space) => space.space_set(tree),
             Self::Static(Space::Constant) => StorageSet::GLOBAL,
-            Self::Static(space) => StorageSet::GLOBAL.union(space.space_set()),
+            Self::Static(space) => StorageSet::GLOBAL.union(space.space_set(tree)),
+            Self::Parameter(_) | Self::Bound(_) => StorageSet::ANY,
+            Self::Join(id) => tree
+                .storage_join(id)
+                .iter()
+                .fold(StorageSet::NONE, |set, storage| {
+                    set.union(storage.storage_set(tree))
+                }),
         }
     }
 }
 
-/// Storage residence axis: where the bytes live across activations.
+/// Allocation residence.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Residence {
     /// Inside the current activation frame.
     Frame,
     /// Allocated on a heap.
     Heap,
-    /// Written once into static storage.
+    /// Allocated for the program lifetime.
     Static,
 }
 
-/// Kind of reference in MIR.
+/// Ownership or borrowing of storage addressed by a world-relative reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ReferenceKind {
+pub enum Reference {
     /// GC-managed reference.
     Managed,
     /// Unique typed heap reference.
     Unique,
-    /// Borrowed reference.
-    Borrowed,
+    /// Borrowed reference with an exclusion guarantee.
+    Borrowed(Exclusivity),
 }
 
-impl ReferenceKind {
+impl Reference {
     /// Return the canonical MIR name.
     pub fn name(self) -> &'static str {
         match self {
-            ReferenceKind::Managed => "managed",
-            ReferenceKind::Unique => "unique",
-            ReferenceKind::Borrowed => "borrowed",
+            Reference::Managed => "managed",
+            Reference::Unique => "unique",
+            Reference::Borrowed(_) => "borrowed",
         }
     }
 }
@@ -308,32 +430,24 @@ impl Multiplicity {
     }
 }
 
-/// Copyability of a type.
+/// Whether a value can be duplicated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Copy {
     /// Value can be copied freely.
     Yes,
-    /// Each use consumes the value.
+    /// Transfer the value without duplicating it.
     No,
 }
 
 impl Copy {
-    /// Return whether this type can be copied freely.
+    /// Return whether copying is enabled.
     pub fn is_yes(self) -> bool {
         matches!(self, Copy::Yes)
     }
 
-    /// Return whether this type is move only.
+    /// Return whether copying is disabled.
     pub fn is_no(self) -> bool {
         matches!(self, Copy::No)
-    }
-
-    /// Combine two copy properties for an aggregate type.
-    pub fn combine(self, other: Copy) -> Copy {
-        match (self, other) {
-            (Copy::Yes, Copy::Yes) => Copy::Yes,
-            _ => Copy::No,
-        }
     }
 }
 
@@ -358,6 +472,11 @@ impl TypeFingerprint {
 /// One logical MIR type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Type {
+    /// A type identified by its declaration.
+    Declaration {
+        /// The declaration, whose definition can refer back to this type.
+        declaration: LocalNodeId<TypeDeclaration>,
+    },
     /// Invalid type produced while recovering malformed MIR text.
     Error,
     /// Uninhabited type for execution that cannot complete normally.
@@ -386,15 +505,10 @@ pub enum Type {
         index: u32,
     },
 
-    /// Atomic storage cell for one value type.
-    Atomic {
-        /// The stored value type.
-        value: TypeId,
-    },
     /// Runtime-erased value satisfying one dynamic constraint.
     Dynamic {
         /// The reference kind of the erased payload.
-        kind: ReferenceKind,
+        kind: Reference,
         /// Lifetime roots for a borrowed erased payload.
         lifetime: Lifetime,
         /// The lowered dynamic constraint type.
@@ -407,7 +521,7 @@ pub enum Type {
     /// Reference with explicit kind and access.
     Reference {
         /// The reference kind.
-        kind: ReferenceKind,
+        kind: Reference,
         /// Lifetime roots for borrowed references.
         lifetime: Lifetime,
         /// The backing storage for this reference.
@@ -427,7 +541,7 @@ pub enum Type {
     /// Slice into memory, a repeated element with explicit kind and access.
     Slice {
         /// The reference kind of the slice base.
-        kind: ReferenceKind,
+        kind: Reference,
         /// Lifetime roots for borrowed slices.
         lifetime: Lifetime,
         /// The element type of the slice.
@@ -493,7 +607,7 @@ pub enum Type {
     },
     /// Bare function signature.
     FunctionSignature {
-        /// Lifetime parameters in signature-local slot order.
+        /// Lifetime parameters declared by this signature, an empty list introducing no binder.
         lifetimes: Vec<LifetimeParameter>,
         /// The parameters of the function.
         parameters: Vec<SignatureParameter>,
@@ -507,7 +621,7 @@ pub enum Type {
         /// The permitted number of invocations.
         multiplicity: Multiplicity,
         /// The reference kind of the captured environment.
-        kind: ReferenceKind,
+        kind: Reference,
         /// Lifetime roots for a borrowed captured environment.
         lifetime: Lifetime,
         /// The backing storage of the captured environment.
@@ -535,21 +649,11 @@ pub enum Type {
 pub struct VariantCase {
     /// The discriminant constant selecting this case.
     pub discriminant: Constant,
-    /// The stored payload type, the unique box of a boxed case.
+    /// The stored payload type.
     pub ty: TypeId,
-    /// Whether the case stores its payload behind a unique box it owns.
-    pub is_boxed: bool,
 }
 
 impl VariantCase {
-    /// Return the logical payload type, the pointee of a boxed case.
-    pub fn payload(&self, tree: &Tree) -> TypeId {
-        match (self.is_boxed, tree.get(self.ty)) {
-            (true, Type::Reference { pointee, .. }) => *pointee,
-            _ => self.ty,
-        }
-    }
-
     /// Return the logical discriminant bits when this case uses a scalar constant.
     pub fn discriminant(&self) -> Option<Discriminant> {
         let bits = match &self.discriminant {
@@ -713,7 +817,9 @@ impl Type {
     pub fn is_float(&self, tree: &Tree) -> bool {
         match self {
             Type::Float(_) => true,
-            Type::Vector { element, .. } => matches!(tree.get(*element), Type::Float(_)),
+            Type::Vector { element, .. } => {
+                matches!(tree.type_definition(*element), Type::Float(_))
+            }
             _ => false,
         }
     }
@@ -745,21 +851,24 @@ impl Type {
                 Self::byte_width(pointer_width_bits)
             }
             Type::Float(format) => Self::byte_width(format.width()),
-            Type::Uninit { value } | Type::ManuallyDrop { value } => {
-                tree.get(*value).byte_size(tree, pointer_width_bits)
-            }
-            Type::Newtype { inner, .. } => tree.get(*inner).byte_size(tree, pointer_width_bits),
+            Type::Uninit { value } | Type::ManuallyDrop { value } => tree
+                .type_definition(*value)
+                .byte_size(tree, pointer_width_bits),
+            Type::Newtype { inner, .. } => tree
+                .type_definition(*inner)
+                .byte_size(tree, pointer_width_bits),
             Type::FixedArray {
                 element, length, ..
             } => {
-                let element_size = tree.get(*element).byte_size(tree, pointer_width_bits)?;
+                let element_size = tree
+                    .type_definition(*element)
+                    .byte_size(tree, pointer_width_bits)?;
                 let Static::Integer(length) = *tree.static_value(*length) else {
                     return None;
                 };
 
                 element_size.checked_mul(u64::try_from(length).ok()?)
             }
-            Type::Application { base, .. } => tree.get(*base).byte_size(tree, pointer_width_bits),
             _ => None,
         }
     }
@@ -771,12 +880,12 @@ impl Type {
 
     /// Return whether this type is a managed reference.
     pub fn is_managed_reference(&self) -> bool {
-        self.reference_kind() == Some(ReferenceKind::Managed)
+        self.reference_kind() == Some(Reference::Managed)
     }
 
     /// Return whether this type is a borrowed reference.
     pub fn is_borrowed_reference(&self) -> bool {
-        self.reference_kind() == Some(ReferenceKind::Borrowed)
+        matches!(self.reference_kind(), Some(Reference::Borrowed(_)))
     }
 
     /// Return whether this type is a writable borrowed reference.
@@ -789,12 +898,12 @@ impl Type {
 
     /// Return whether this type is a unique reference.
     pub fn is_unique_reference(&self) -> bool {
-        self.reference_kind() == Some(ReferenceKind::Unique)
+        self.reference_kind() == Some(Reference::Unique)
     }
 
     /// Return whether this type owns unique storage.
     pub fn is_unique_storage(&self) -> bool {
-        self.reference_kind() == Some(ReferenceKind::Unique)
+        self.reference_kind() == Some(Reference::Unique)
     }
 
     /// Return whether this type carries a reference as its intrinsic representation.
@@ -808,6 +917,52 @@ impl Type {
         )
     }
 
+    /// Map array lengths and compile-time generic arguments.
+    pub fn map_values(&mut self, map: &mut impl FnMut(StaticId) -> StaticId) {
+        match self {
+            Type::FixedArray { length, .. } | Type::Vector { lanes: length, .. } => {
+                *length = map(*length)
+            }
+            Type::Application { arguments, .. } => {
+                for argument in arguments {
+                    if let GenericArgument::Value(value) = argument {
+                        *value = map(*value);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Map the storage of references and region arguments.
+    pub fn map_storages(&mut self, map: &mut impl FnMut(Storage) -> Storage) {
+        match self {
+            Type::Dynamic { storage, .. }
+            | Type::Reference { storage, .. }
+            | Type::Slice { storage, .. }
+            | Type::Function { storage, .. } => *storage = map(*storage),
+            Type::Application { arguments, .. } => {
+                for argument in arguments {
+                    if let GenericArgument::Region { storage, .. } = argument {
+                        *storage = map(*storage);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Map explicit space arguments.
+    pub fn map_spaces(&mut self, map: &mut impl FnMut(Space) -> Space) {
+        if let Type::Application { arguments, .. } = self {
+            for argument in arguments {
+                if let GenericArgument::Space(space) = argument {
+                    *space = map(*space);
+                }
+            }
+        }
+    }
+
     /// Replace the lifetime of a reference-like value.
     pub fn set_lifetime(&mut self, replacement: Lifetime) {
         match self {
@@ -819,10 +974,26 @@ impl Type {
         }
     }
 
-    /// Return this type with its verification-only lifetime erased.
-    pub fn erased_lifetime(&self) -> Type {
+    /// Erase lifetime requirements while preserving binders referenced by storage.
+    pub fn erased_lifetimes(&self) -> Type {
         let mut erased = self.clone();
         erased.set_lifetime(Lifetime::empty());
+        match &mut erased {
+            Type::Application { arguments, .. } => {
+                for argument in arguments {
+                    if let GenericArgument::Region { lifetime, .. } = argument {
+                        *lifetime = Lifetime::empty();
+                    }
+                }
+            }
+            Type::FunctionSignature { lifetimes, .. } => {
+                for parameter in lifetimes {
+                    parameter.name = None;
+                    parameter.outlives = Lifetime::empty();
+                }
+            }
+            _ => {}
+        }
 
         // erase explicit region arguments on a type application
         if let Type::Application { arguments, .. } = &mut erased {
@@ -837,7 +1008,7 @@ impl Type {
     }
 
     /// Return the reference kind for reference-like values.
-    pub fn reference_kind(&self) -> Option<ReferenceKind> {
+    pub fn reference_kind(&self) -> Option<Reference> {
         match self {
             Type::Dynamic { kind, .. }
             | Type::Reference { kind, .. }
@@ -882,7 +1053,7 @@ impl Type {
 
     /// Return the hidden storage types for one slice value.
     pub fn slice(
-        kind: ReferenceKind,
+        kind: Reference,
         element: TypeId,
         access: Access,
         storage: Storage,
@@ -921,83 +1092,6 @@ impl Type {
                 ..
             } => Some((lifetimes.as_slice(), parameters.as_slice(), *result)),
             _ => None,
-        }
-    }
-
-    /// Return the copy property of this type.
-    pub fn copy(&self, tree: &Tree) -> Copy {
-        match self {
-            // parse recovery nodes carry no copyable value
-            Type::Error => Copy::No,
-
-            // the uninhabited type has no values to move
-            Type::Never => Copy::Yes,
-            // primitives are always trivially copyable
-            Type::Void
-            | Type::Null
-            | Type::Boolean
-            | Type::Character
-            | Type::Int { .. }
-            | Type::Isize
-            | Type::Usize
-            | Type::Float { .. }
-            | Type::TypeId
-            | Type::Pointer { .. } => Copy::Yes,
-
-            // atomic cells are storage, so each use consumes them
-            Type::Atomic { .. } => Copy::No,
-
-            // an allocation under construction completes exactly once
-            Type::Uninit { .. } => Copy::No,
-
-            // a manually dropped value copies with the value it wraps
-            Type::ManuallyDrop { value } => tree.get(*value).copy(tree),
-
-            // once functions are consumed by invocation
-            Type::Function {
-                multiplicity: Multiplicity::Once,
-                ..
-            } => Copy::No,
-
-            // unique reference-like values carry ownership of their backing storage
-            Type::Dynamic { kind, .. }
-            | Type::Reference { kind, .. }
-            | Type::Slice { kind, .. }
-            | Type::Function { kind, .. } => match kind {
-                ReferenceKind::Unique => Copy::No,
-                ReferenceKind::Managed | ReferenceKind::Borrowed => Copy::Yes,
-            },
-
-            // anonymous aggregates copy when every element copies
-            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
-                tree.get(*element).copy(tree)
-            }
-            Type::Tuple { elements } => elements.iter().fold(Copy::Yes, |copy, element| {
-                copy.combine(tree.get(*element).copy(tree))
-            }),
-
-            // declared aggregates copy when their declaration permits and every child copies
-            Type::Struct { fields, copy } => fields.iter().fold(*copy, |copy, field| {
-                copy.combine(tree.get(tree.get(*field).ty).copy(tree))
-            }),
-            Type::Newtype { inner, copy } => copy.combine(tree.get(*inner).copy(tree)),
-            Type::Variant { cases, copy, .. } => cases.iter().fold(*copy, |copy, case| {
-                copy.combine(tree.get(case.ty).copy(tree))
-            }),
-
-            // signatures and thin function pointers contain no captured storage
-            Type::FunctionSignature { .. } | Type::FunctionPointer { .. } => Copy::Yes,
-
-            // decide an application through its base
-            Type::Application {
-                base, arguments, ..
-            } => Copy::under(tree, *base, &|index| match arguments.get(index as usize) {
-                Some(GenericArgument::Type(argument)) => tree.get(*argument).copy(tree),
-                _ => Copy::Yes,
-            }),
-
-            // move a parameter until instantiation decides
-            Type::Parameter { .. } => Copy::No,
         }
     }
 
@@ -1075,7 +1169,7 @@ pub enum GenericParameterDomain {
         /// The applied interfaces the parameter satisfies.
         bounds: Vec<TypeId>,
     },
-    /// The regions, an extent with its space.
+    /// The regions, a lifetime with its storage.
     Region {
         /// The region parameters this one outlives, by generic index.
         outlives: Vec<u32>,
@@ -1084,6 +1178,8 @@ pub enum GenericParameterDomain {
     Space,
     /// The reference accesses.
     Access,
+    /// The borrow exclusion guarantees.
+    Exclusivity,
     /// The values of one type.
     Value {
         /// The value type.
@@ -1096,30 +1192,34 @@ pub enum GenericParameterDomain {
 pub enum GenericArgument {
     /// A type.
     Type(TypeId),
-    /// A region: the extent a borrow lives within and the space it points into.
+    /// A region: the lifetime of a borrow and its possible storage locations.
     Region {
         /// The extent.
         lifetime: Lifetime,
-        /// The space.
-        space: Space,
+        /// The referenced storage.
+        storage: Storage,
     },
     /// A memory space.
     Space(Space),
     /// A reference access.
     Access(Access),
+    /// A borrow exclusion guarantee.
+    Exclusivity(Exclusivity),
     /// A value.
     Value(StaticId),
 }
 
-/// A named MIR type declaration.
+/// One type declaration and its optional definition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeDeclaration {
-    /// The declaration name.
-    pub name: StringId,
+    /// The persistent identity of the declaration.
+    pub symbol: Symbol,
+    /// The source name, absent for anonymous recursive types.
+    pub name: Option<StringId>,
+    /// The definition, absent for opaque or incomplete declarations.
+    pub definition: Option<TypeId>,
     /// The generic parameters a template takes, regions among them.
     pub generics: Vec<GenericParameter>,
-    /// The identified type.
-    pub ty: TypeId,
     /// The directly inherited and implemented types.
     pub heritage: TypeHeritage,
 }
@@ -1151,7 +1251,7 @@ impl Type {
             Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => {
                 *pointee = map(*pointee);
             }
-            Type::Atomic { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
+            Type::Uninit { value } | Type::ManuallyDrop { value } => {
                 *value = map(*value);
             }
             Type::Dynamic { constraint, .. } => {
@@ -1204,7 +1304,8 @@ impl Type {
             Type::Parameter { .. } => {}
             // struct children are field nodes, paired by their consumers
             Type::Struct { .. } => {}
-            Type::Error
+            Type::Declaration { .. }
+            | Type::Error
             | Type::Never
             | Type::Void
             | Type::Null
@@ -1220,24 +1321,12 @@ impl Type {
 }
 
 impl Tree {
-    /// Return the case one variant stores a payload representation in, when one does.
-    pub fn payload_case(&self, ty: TypeId, payload: TypeId) -> Option<u32> {
-        let Type::Variant { cases, .. } = self.get(ty) else {
-            return None;
-        };
-
-        cases
-            .iter()
-            .position(|case| self.same_representation(case.payload(self), payload))
-            .map(|index| index as u32)
-    }
-
     /// Return the payload type one variant stores at a case.
     pub fn case_payload(&self, ty: TypeId, case: u32) -> Option<TypeId> {
-        let Type::Variant { cases, .. } = self.get(ty) else {
+        let Type::Variant { cases, .. } = self.type_definition(ty) else {
             return None;
         };
 
-        cases.get(case as usize).map(|case| case.payload(self))
+        cases.get(case as usize).map(|case| case.ty)
     }
 }

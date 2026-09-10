@@ -103,7 +103,7 @@ fn static_type_needs_keyword(ty: TypeId, tree: &Tree) -> bool {
         return false;
     }
 
-    match tree.get(ty) {
+    match tree.type_definition(ty) {
         Type::FixedArray { .. }
         | Type::Tuple { .. }
         | Type::Struct { .. }

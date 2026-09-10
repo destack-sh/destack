@@ -17,6 +17,16 @@ impl Parser {
         let mut spans = Vec::new();
 
         while self.peek_is(TokenType::At) {
+            // leave generated field names for the field parser
+            if self
+                .peek_nth_token(1)
+                .is_some_and(|token| self.token_type(token).is_name())
+                && self
+                    .peek_nth_token(2)
+                    .is_some_and(|token| self.token_type(token) == TokenType::Colon)
+            {
+                break;
+            }
             let attribute_start = self.pos();
             let attribute = self.parse_attribute()?;
             let attribute_span = self.span_from_parse_start(attribute_start);

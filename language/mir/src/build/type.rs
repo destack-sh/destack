@@ -2,7 +2,7 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Multiplicity, ReferenceKind,
+    Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Multiplicity, Reference,
     Static, Storage, Type, TypeId, VariantCase,
 };
 
@@ -53,7 +53,7 @@ impl ModuleBuilder {
     /// Create a dynamic erased value type.
     pub fn type_dynamic(
         &mut self,
-        kind: ReferenceKind,
+        kind: Reference,
         lifetime: Lifetime,
         constraint: LocalNodeId<Type>,
         access: Access,
@@ -71,7 +71,7 @@ impl ModuleBuilder {
     /// Create a reference type.
     pub fn type_reference(
         &mut self,
-        kind: ReferenceKind,
+        kind: Reference,
         lifetime: Lifetime,
         pointee: LocalNodeId<Type>,
         access: Access,
@@ -118,7 +118,7 @@ impl ModuleBuilder {
     /// Create a slice type.
     pub fn type_slice(
         &mut self,
-        kind: ReferenceKind,
+        kind: Reference,
         lifetime: Lifetime,
         element: LocalNodeId<Type>,
         access: Access,
@@ -158,11 +158,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Type> {
         let cases = cases
             .into_iter()
-            .map(|(discriminant, ty)| VariantCase {
-                discriminant,
-                ty,
-                is_boxed: false,
-            })
+            .map(|(discriminant, ty)| VariantCase { discriminant, ty })
             .collect();
 
         self.tree.intern_type(Type::Variant {
@@ -205,7 +201,7 @@ impl ModuleBuilder {
         &mut self,
         signature: LocalNodeId<Type>,
         multiplicity: Multiplicity,
-        kind: ReferenceKind,
+        kind: Reference,
         lifetime: Lifetime,
         storage: Storage,
         access: Access,

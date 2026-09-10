@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{Function, LocalNodeId, ReferenceKind, Storage, Tree, Type};
+use crate::{Function, LocalNodeId, Reference, Storage, Tree, Type};
 
 /// Drop table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
@@ -76,9 +76,6 @@ impl DropTable {
         storage: Storage,
         tree: &Tree,
     ) -> bool {
-        if tree.get(ty).copy(tree).is_yes() {
-            return false;
-        }
         if self.destructor(ty, storage).is_some() || self.hook(ty).is_some() {
             return true;
         }
@@ -135,7 +132,7 @@ impl DropTable {
         tree: &Tree,
         seen: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> bool {
-        match tree.get(ty) {
+        match tree.type_definition(ty) {
             Type::Struct { fields, .. } => fields.iter().any(|field| {
                 let field = tree.get(*field);
 
@@ -163,7 +160,7 @@ impl DropTable {
                 applied != ty && self.children_require_destructor(applied, storage, tree, seen)
             }
             Type::Slice {
-                kind: ReferenceKind::Unique,
+                kind: Reference::Unique,
                 element,
                 storage,
                 ..
@@ -180,12 +177,9 @@ impl DropTable {
         tree: &Tree,
         seen: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> bool {
-        if tree.get(ty).copy(tree).is_yes() {
-            return false;
-        }
         if self.destructor(ty, storage).is_some()
             || self.hook(ty).is_some()
-            || tree.get(ty).is_unique_storage()
+            || tree.type_definition(ty).is_unique_storage()
         {
             return true;
         }

@@ -152,6 +152,7 @@ impl Instruction {
                 *result_type = remap.map_type(*result_type);
             }
             Instruction::Error
+            | Instruction::Copy { .. }
             | Instruction::Binary { .. }
             | Instruction::Unary { .. }
             | Instruction::Select { .. }

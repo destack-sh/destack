@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Space, Tree, TypeId};
+use crate::{Space, SpaceJoinId, Storage, StorageJoinId, Tree, TypeId};
 
 /// Compact identity of one interned compile-time value.
 #[repr(transparent)]
@@ -93,12 +93,6 @@ pub enum StaticKey {
 impl Tree {
     /// Intern one compile-time value.
     pub fn intern_static(&mut self, value: Static) -> StaticId {
-        let value = match value {
-            Static::Float(bits) if f64::from_bits(bits).is_nan() => {
-                Static::Float(f64::NAN.to_bits())
-            }
-            value => value,
-        };
         let hash = Self::intern_hash(&value);
         if let Some(ids) = self.static_index.get(&hash) {
             for id in ids {
@@ -115,6 +109,42 @@ impl Tree {
         id
     }
 
+    /// Intern one space join expression in the supplied order.
+    pub fn intern_space_join(&mut self, spaces: impl IntoIterator<Item = Space>) -> Space {
+        let spaces: Vec<_> = spaces.into_iter().collect();
+        if let Some(index) = self.space_joins.iter().position(|join| *join == spaces) {
+            return Space::Join(SpaceJoinId(index as u32));
+        }
+
+        let id = SpaceJoinId(self.space_joins.len() as u32);
+        self.space_joins.push(spaces);
+
+        Space::Join(id)
+    }
+
+    /// Return the spaces one interned join names.
+    pub fn space_join(&self, id: SpaceJoinId) -> &[Space] {
+        &self.space_joins[id.0 as usize]
+    }
+
+    /// Intern one storage join expression in the supplied order.
+    pub fn intern_storage_join(&mut self, storages: impl IntoIterator<Item = Storage>) -> Storage {
+        let storages: Vec<_> = storages.into_iter().collect();
+        if let Some(index) = self.storage_joins.iter().position(|join| *join == storages) {
+            return Storage::Join(StorageJoinId(index as u32));
+        }
+
+        let id = StorageJoinId(self.storage_joins.len() as u32);
+        self.storage_joins.push(storages);
+
+        Storage::Join(id)
+    }
+
+    /// Return the possible locations in a storage join.
+    pub fn storage_join(&self, id: StorageJoinId) -> &[Storage] {
+        &self.storage_joins[id.0 as usize]
+    }
+
     /// Return one interned compile-time value.
     pub fn static_value(&self, id: StaticId) -> &Static {
         self.statics.get(id.0)
@@ -122,6 +152,32 @@ impl Tree {
 }
 
 impl Static {
+    /// Map nested compile-time values.
+    pub fn map_values(&mut self, map: &mut impl FnMut(StaticId) -> StaticId) {
+        match self {
+            Self::Array(values) | Self::Tuple(values) => {
+                for value in values {
+                    *value = map(*value);
+                }
+            }
+            Self::FixedArray { value, .. } | Self::Newtype { value, .. } => *value = map(*value),
+            Self::Object(fields) | Self::Struct { fields, .. } => {
+                for field in fields {
+                    field.value = map(field.value);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Map the types named by this value.
+    pub fn map_types(&mut self, map: &mut impl FnMut(TypeId) -> TypeId) {
+        match self {
+            Self::Type(ty) | Self::Newtype { ty, .. } | Self::Struct { ty, .. } => *ty = map(*ty),
+            _ => {}
+        }
+    }
+
     /// Return the closed length this static names, absent for a value parameter.
     pub fn length(&self) -> Option<u64> {
         match self {

@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
     FloatType, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
-    LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity, ReferenceKind, SignatureParameter,
+    LifetimeParameter, Extent, Exclusivity, LocalNodeId, Multiplicity, Reference, SignatureParameter,
     Space, Static, StaticField, StaticId, StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint,
     TypeId,
 };
@@ -19,23 +19,12 @@ impl Tree {
 
         TypeFingerprint::from_raw(hasher.hasher.finish_u128())
     }
-
-    /// Return the stable structural fingerprint of one type with every lifetime erased.
-    pub fn type_shape_fingerprint(&self, ty: TypeId) -> TypeFingerprint {
-        let mut hasher = TypeHasher::new();
-        hasher.erase_lifetimes = true;
-        hasher.hash_type(ty, self);
-
-        TypeFingerprint::from_raw(hasher.hasher.finish_u128())
-    }
 }
 
 /// Stable structural type hasher.
 pub(super) struct TypeHasher {
     /// The stable hash under construction.
     hasher: StableHasher,
-    /// Whether lifetimes hash as absent.
-    erase_lifetimes: bool,
 }
 
 impl TypeHasher {
@@ -107,10 +96,7 @@ impl TypeHasher {
         let mut hasher = StableHasher::new();
         hasher.update_len_prefixed(b"destack.mir.type.v1");
 
-        Self {
-            hasher,
-            erase_lifetimes: false,
-        }
+        Self { hasher }
     }
 
     /// Create a generic instance hasher.
@@ -119,10 +105,7 @@ impl TypeHasher {
         hasher.update_len_prefixed(b"destack.mir.instance.v1");
         hasher.write_u64(base.raw());
 
-        Self {
-            hasher,
-            erase_lifetimes: false,
-        }
+        Self { hasher }
     }
 
     /// Hash one concrete static value.
@@ -167,7 +150,7 @@ impl TypeHasher {
             }
             Static::Space(space) => {
                 self.hasher.write_u8(16);
-                self.hash_space(*space);
+                self.hash_space(*space, tree);
             }
             Static::Type(ty) => {
                 self.hasher.write_u8(9);
@@ -234,17 +217,26 @@ impl TypeHasher {
         }
     }
 
+    /// Hash the persistent module and name of a symbol.
+    fn hash_symbol(&mut self, symbol: Symbol) {
+        match symbol.module() {
+            Some(module) => {
+                self.hasher.write_u8(1);
+                self.hasher.write_u64(module.package_id.raw());
+                self.hasher.write_u64(module.module_key.raw());
+            }
+            None => self.hasher.write_u8(0),
+        }
+        self.hasher.write_u64(symbol.raw());
+    }
+
     /// Hash one type through structural or identified identity.
     fn hash_type(&mut self, id: TypeId, tree: &Tree) {
-        // terminate identified recursion at the declaration symbol
-        if let Some(symbol) = tree.type_symbol(id) {
-            self.hasher.write_u8(0xff);
-            self.hasher.write_u64(symbol.raw());
-
-            return;
-        }
-
         match tree.get(id) {
+            Type::Declaration { declaration } => {
+                self.hasher.write_u8(0xff);
+                self.hash_symbol(tree.get(*declaration).symbol);
+            }
             Type::Error => self.hasher.write_u8(0),
             Type::Never => self.hasher.write_u8(1),
             Type::Void => self.hasher.write_u8(2),
@@ -263,10 +255,6 @@ impl TypeHasher {
                 self.hash_float_type(*format);
             }
             Type::TypeId => self.hasher.write_u8(10),
-            Type::Atomic { value } => {
-                self.hasher.write_u8(11);
-                self.hash_type(*value, tree);
-            }
             Type::Dynamic {
                 kind,
                 lifetime,
@@ -278,7 +266,7 @@ impl TypeHasher {
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
                 self.hash_type(*constraint, tree);
-                self.hash_storage(*storage);
+                self.hash_storage(*storage, tree);
                 self.hash_access(*access);
             }
             Type::Reference {
@@ -291,7 +279,7 @@ impl TypeHasher {
                 self.hasher.write_u8(13);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
-                self.hash_storage(*storage);
+                self.hash_storage(*storage, tree);
                 self.hash_access(*access);
                 self.hash_type(*pointee, tree);
             }
@@ -311,7 +299,7 @@ impl TypeHasher {
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
                 self.hash_type(*element, tree);
-                self.hash_storage(*storage);
+                self.hash_storage(*storage, tree);
                 self.hash_access(*access);
             }
             Type::Uninit { value } => {
@@ -355,7 +343,6 @@ impl TypeHasher {
                 for case in cases {
                     self.hash_constant(&case.discriminant, tree);
                     self.hash_type(case.ty, tree);
-                    self.hash_boolean(case.is_boxed);
                 }
                 self.hash_copy(*copy);
             }
@@ -393,7 +380,7 @@ impl TypeHasher {
                 });
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
-                self.hash_storage(*storage);
+                self.hash_storage(*storage, tree);
                 self.hash_access(*access);
             }
             Type::FunctionPointer { signature } => {
@@ -447,20 +434,24 @@ impl TypeHasher {
             }
             GenericArgument::Space(space) => {
                 self.hasher.write_u8(1);
-                self.hash_space(*space);
+                self.hash_space(*space, tree);
             }
             GenericArgument::Access(access) => {
                 self.hasher.write_u8(2);
                 self.hash_access(*access);
             }
+            GenericArgument::Exclusivity(exclusivity) => {
+                self.hasher.write_u8(5);
+                self.hash_exclusivity(*exclusivity);
+            }
             GenericArgument::Value(value) => {
                 self.hasher.write_u8(3);
                 self.hash_static(*value, tree);
             }
-            GenericArgument::Region { lifetime, space } => {
+            GenericArgument::Region { lifetime, storage } => {
                 self.hasher.write_u8(4);
                 self.hash_lifetime(lifetime);
-                self.hash_space(*space);
+                self.hash_storage(*storage, tree);
             }
         }
     }
@@ -576,7 +567,7 @@ impl TypeHasher {
     }
 
     /// Hash one MIR space.
-    fn hash_space(&mut self, space: Space) {
+    fn hash_space(&mut self, space: Space, tree: &Tree) {
         match space {
             Space::Local => self.hasher.write_u8(0),
             Space::Shared => self.hasher.write_u8(1),
@@ -584,6 +575,19 @@ impl TypeHasher {
             Space::Parameter(index) => {
                 self.hasher.write_u8(3);
                 self.hasher.write_u32(index);
+            }
+            Space::Bound(slot) => {
+                self.hasher.write_u8(4);
+                self.hasher.write_u32(slot.depth);
+                self.hasher.write_u32(slot.index);
+            }
+            Space::Join(id) => {
+                self.hasher.write_u8(5);
+                let spaces = tree.space_join(id).to_vec();
+                self.hasher.write_u32(spaces.len() as u32);
+                for space in spaces {
+                    self.hash_space(space, tree);
+                }
             }
         }
     }
@@ -611,29 +615,60 @@ impl TypeHasher {
         }
     }
 
-    /// Hash one MIR reference storage.
-    fn hash_storage(&mut self, storage: Storage) {
+    /// Hash the storage expression, preserving its places and structure across trees.
+    fn hash_storage(&mut self, storage: Storage, tree: &Tree) {
         match storage {
             Storage::Frame => self.hasher.write_u8(0),
+            Storage::Parameter(index) => {
+                self.hasher.write_u8(3);
+                self.hasher.write_u32(index);
+            }
+            Storage::Bound(bound) => {
+                self.hasher.write_u8(4);
+                self.hasher.write_u32(bound.depth);
+                self.hasher.write_u32(bound.index);
+            }
+            Storage::Join(id) => {
+                self.hasher.write_u8(5);
+                self.hash_length(tree.storage_join(id).len());
+                for &storage in tree.storage_join(id) {
+                    self.hash_storage(storage, tree);
+                }
+            }
             Storage::Heap(space) => {
                 self.hasher.write_u8(1);
-                self.hash_space(space);
+                self.hash_space(space, tree);
             }
             Storage::Static(space) => {
                 self.hasher.write_u8(2);
-                self.hash_space(space);
+                self.hash_space(space, tree);
             }
         }
     }
 
     /// Hash one MIR reference kind.
-    fn hash_reference_kind(&mut self, kind: ReferenceKind) {
+    fn hash_reference_kind(&mut self, kind: Reference) {
         let tag = match kind {
-            ReferenceKind::Managed => 0,
-            ReferenceKind::Unique => 1,
-            ReferenceKind::Borrowed => 2,
+            Reference::Managed => 0,
+            Reference::Unique => 1,
+            Reference::Borrowed(_) => 2,
         };
         self.hasher.write_u8(tag);
+        if let Reference::Borrowed(exclusivity) = kind {
+            self.hash_exclusivity(exclusivity);
+        }
+    }
+
+    /// Hash one exclusion guarantee.
+    fn hash_exclusivity(&mut self, exclusivity: Exclusivity) {
+        match exclusivity {
+            Exclusivity::Aliasable => self.hasher.write_u8(0),
+            Exclusivity::Exclusive => self.hasher.write_u8(1),
+            Exclusivity::Parameter(index) => {
+                self.hasher.write_u8(2);
+                self.hasher.write_u32(index);
+            }
+        }
     }
 
     /// Hash one MIR copy property.
@@ -656,21 +691,18 @@ impl TypeHasher {
 
     /// Hash one applied MIR lifetime.
     fn hash_lifetime(&mut self, lifetime: &Lifetime) {
-        if self.erase_lifetimes {
-            return self.hash_length(0);
-        }
-
-        self.hash_length(lifetime.terms.len());
-        for term in &lifetime.terms {
+        self.hash_length(lifetime.extents.len());
+        for term in &lifetime.extents {
             match term {
-                LifetimeTerm::Static => self.hasher.write_u8(0),
-                LifetimeTerm::Frame => self.hasher.write_u8(1),
-                LifetimeTerm::Slot(slot) => {
+                Extent::Static => self.hasher.write_u8(0),
+                Extent::Frame => self.hasher.write_u8(1),
+                Extent::Bound(slot) => {
                     self.hasher.write_u8(2);
-                    self.hasher.write_u32(slot.0);
+                    self.hasher.write_u32(slot.depth);
+                    self.hasher.write_u32(slot.index);
                 }
-                LifetimeTerm::Managed => self.hasher.write_u8(3),
-                LifetimeTerm::Parameter(index) => {
+                Extent::Managed => self.hasher.write_u8(3),
+                Extent::Parameter(index) => {
                     self.hasher.write_u8(4);
                     self.hasher.write_u32(*index);
                 }
@@ -682,10 +714,7 @@ impl TypeHasher {
     fn hash_lifetime_parameters(&mut self, lifetimes: &[LifetimeParameter]) {
         self.hash_length(lifetimes.len());
         for lifetime in lifetimes {
-            self.hash_length(lifetime.outlives.len());
-            for target in &lifetime.outlives {
-                self.hasher.write_u32(target.0);
-            }
+            self.hash_lifetime(&lifetime.outlives);
         }
     }
 
@@ -755,156 +784,5 @@ impl TypeHasher {
             AttributeIdentifier::Missing => self.hasher.write_u8(1),
             AttributeIdentifier::Error => self.hasher.write_u8(2),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_core::StringId;
-
-    use crate::{
-        Access, Copy, Field, GenericArgument, Lifetime, ReferenceKind, Space, Static, Storage,
-        Symbol, Tree, Type,
-    };
-
-    /// Structural instance symbols are independent of local type allocation order.
-    #[test]
-    fn test_mangle_structural_instances_across_trees() {
-        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.pick"));
-
-        let mut first = Tree::new();
-        let first_int = first.intern_type(Type::INT32);
-        let first_bool = first.intern_type(Type::Boolean);
-        let first_tuple = first.intern_type(Type::Tuple {
-            elements: vec![first_int, first_bool],
-        });
-        let first_int = GenericArgument::Type(first_int);
-        let first_bool = GenericArgument::Type(first_bool);
-        let first_tuple = GenericArgument::Type(first_tuple);
-
-        let mut second = Tree::new();
-        let second_bool = second.intern_type(Type::Boolean);
-        let second_int = second.intern_type(Type::INT32);
-        let second_tuple = second.intern_type(Type::Tuple {
-            elements: vec![second_int, second_bool],
-        });
-        let second_tuple = GenericArgument::Type(second_tuple);
-
-        assert_eq!(
-            base.instantiate(&[first_tuple], &first),
-            base.instantiate(&[second_tuple], &second)
-        );
-        assert_ne!(
-            base.instantiate(&[first_int], &first),
-            base.instantiate(&[first_bool], &first)
-        );
-    }
-
-    /// Nominal instance symbols follow declaration identity, so recursive layout stays out.
-    #[test]
-    fn test_mangle_identified_instances_by_symbol() {
-        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.consume"));
-        let first_name = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.First"));
-        let second_name = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.Second"));
-        let mut tree = Tree::new();
-
-        let first = tree.reserve_type(first_name);
-        let first_field = tree.intern_field(
-            Field {
-                name: None,
-                ty: first,
-            },
-            Vec::new(),
-        );
-        tree.define_type(
-            first,
-            Type::Struct {
-                fields: vec![first_field],
-                copy: Copy::No,
-            },
-        );
-
-        let second = tree.reserve_type(second_name);
-        tree.define_type(second, Type::Void);
-
-        let mut foreign_tree = Tree::new();
-        let foreign_first = foreign_tree.reserve_type(first_name);
-        foreign_tree.define_type(foreign_first, Type::Void);
-        let first = GenericArgument::Type(first);
-        let second = GenericArgument::Type(second);
-        let foreign_first = GenericArgument::Type(foreign_first);
-        assert_ne!(
-            base.instantiate(std::slice::from_ref(&first), &tree),
-            base.instantiate(&[second], &tree)
-        );
-        assert_eq!(
-            base.instantiate(&[first], &tree),
-            base.instantiate(&[foreign_first], &foreign_tree)
-        );
-    }
-
-    /// Lifetime variants select one shared runtime instance symbol.
-    #[test]
-    fn test_mangle_lifetime_variants_as_one_runtime_instance() {
-        let mut tree = Tree::new();
-        let pointee = tree.intern_type(Type::INT32);
-        let local = tree.intern_type(Type::Reference {
-            kind: ReferenceKind::Borrowed,
-            lifetime: Lifetime::slot(0),
-            storage: Storage::Heap(Space::Local),
-            access: Access::Readonly,
-            pointee,
-        });
-        let static_ = tree.intern_type(Type::Reference {
-            kind: ReferenceKind::Borrowed,
-            lifetime: Lifetime::static_storage(),
-            storage: Storage::Heap(Space::Local),
-            access: Access::Readonly,
-            pointee,
-        });
-        let local = tree.intern_representation(local);
-        let static_ = tree.intern_representation(static_);
-        assert_eq!(local, static_);
-
-        let local = GenericArgument::Type(local);
-        let static_ = GenericArgument::Type(static_);
-        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.inspect"));
-
-        assert_eq!(
-            base.instantiate(&[local], &tree),
-            base.instantiate(&[static_], &tree)
-        );
-    }
-
-    /// Static values contribute their exact value identity to instance symbols.
-    #[test]
-    fn test_mangle_static_instances_by_value() {
-        let mut tree = Tree::new();
-        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.take"));
-        let first = GenericArgument::Value(tree.intern_static(Static::Integer(4)));
-        let second = GenericArgument::Value(tree.intern_static(Static::Integer(8)));
-
-        assert_ne!(
-            base.instantiate(&[first], &tree),
-            base.instantiate(&[second], &tree)
-        );
-    }
-
-    /// Static instance symbols are independent of local static allocation order.
-    #[test]
-    fn test_mangle_static_instances_across_trees() {
-        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.buffer"));
-
-        let mut first = Tree::new();
-        let first_length = GenericArgument::Value(first.intern_static(Static::Integer(64)));
-
-        let mut second = Tree::new();
-        second.intern_static(Static::Integer(32));
-        let second_length = GenericArgument::Value(second.intern_static(Static::Integer(64)));
-
-        assert_eq!(
-            base.instantiate(&[first_length], &first),
-            base.instantiate(&[second_length], &second)
-        );
     }
 }

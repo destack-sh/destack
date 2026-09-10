@@ -131,7 +131,7 @@ pub struct Layout<T = LocalNodeId<Type>, L = LayoutId> {
     pub size: u32,
     /// Alignment requirement in bytes.
     pub alignment: u32,
-    /// Managed-reference trace map for this layout.
+    /// Reference trace map for this layout.
     pub trace_map: TraceMap,
 }
 

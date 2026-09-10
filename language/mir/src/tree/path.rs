@@ -1,11 +1,13 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Access, Lifetime, ReferenceKind, Value};
+use crate::{Access, Lifetime, Reference, Value};
 
 /// One projection in a MIR type path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Projection {
+    /// Any element of a repeated type.
+    Elements,
     /// A fixed concrete field projection.
     Field {
         /// The zero-based field index.
@@ -91,12 +93,20 @@ impl Path {
                 .projections
                 .iter()
                 .zip(&other.projections)
-                .all(|(left, right)| left == right)
+                .all(|(left, right)| left.contains(right))
     }
 
-    /// Remove one structural prefix from this path.
+    /// Return whether the paths can select overlapping storage.
+    pub fn overlaps(&self, other: &Self) -> bool {
+        self.projections
+            .iter()
+            .zip(&other.projections)
+            .all(|(left, right)| left.overlaps(right))
+    }
+
+    /// Remove one matching structural prefix from this path.
     pub fn strip_prefix(&self, prefix: &Self) -> Option<Self> {
-        if !prefix.contains(self) {
+        if prefix.projections.len() > self.projections.len() || !prefix.overlaps(self) {
             return None;
         }
         let projections = self.projections[prefix.projections.len()..].to_vec();
@@ -137,5 +147,5 @@ pub struct BorrowedPath {
     /// Access granted by the component.
     pub access: Access,
     /// The reference kind of the component.
-    pub kind: ReferenceKind,
+    pub kind: Reference,
 }

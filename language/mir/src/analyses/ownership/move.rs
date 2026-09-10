@@ -4,8 +4,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Analysis, Copy, Function, Instruction, Intrinsic, Local, LocalId, Mutation, NodeTable, Place,
-    PlaceOrigin, PlaceTable, Projection, ReferenceKind, Tree, Type, TypeId, Value,
+    Analysis, Function, Instruction, Intrinsic, Local, LocalId, Mutation, NodeTable, Place,
+    PlaceOrigin, PlaceTable, Projection, Reference, Tree, Type, TypeId, Value,
 };
 
 /// Dense structural paths whose initialization can change independently.
@@ -37,14 +37,11 @@ impl MoveTable {
             initialized_pointees: FxIndexSet::default(),
         };
 
-        // create roots for every move-only SSA value
+        // create roots for every SSA value
         for (index, ty) in function.value_types().iter().enumerate() {
             let Some(ty) = ty else {
                 continue;
             };
-            if Copy::decide(tree, *ty, &function.generics).is_yes() {
-                continue;
-            }
 
             // create an independent root for the SSA value
             let value = Value::new(index as u32);
@@ -52,12 +49,9 @@ impl MoveTable {
             table.values[index] = Some(path);
         }
 
-        // create roots for every move-only local
+        // create roots for every local
         for &local in function.locals() {
             let ty = tree.get(local).ty;
-            if Copy::decide(tree, ty, &function.generics).is_yes() {
-                continue;
-            }
 
             // create an independent root for the local
             let path = table.insert(Place::local(local), ty, None);
@@ -141,22 +135,14 @@ impl MoveTable {
                     table.initialized_pointees.insert(destination);
                 }
 
-                // read the address and the moved type out of a load or a store
-                let (pointer, ty) = match tree.get(instruction) {
-                    Instruction::Load {
-                        destination,
-                        pointer,
-                        ..
-                    } => (*pointer, function.expect_value_type(*destination)),
-                    Instruction::Store { pointer, value } => {
-                        (*pointer, function.expect_value_type(*value))
+                // track each address used by a load or store
+                let pointer = match tree.get(instruction) {
+                    Instruction::Load { pointer, .. } | Instruction::Store { pointer, .. } => {
+                        *pointer
                     }
                     _ => continue,
                 };
-                // keep the move-only addresses this walk has yet to reach
-                if Copy::decide(tree, ty, &function.generics).is_yes()
-                    || table.pointees.contains_key(&pointer)
-                {
+                if table.pointees.contains_key(&pointer) {
                     continue;
                 }
 
@@ -220,16 +206,13 @@ impl MoveTable {
                 if place.path.first() == Some(&Projection::Deref) {
                     let ty = tree.get(tree.represented(tree.get(local).ty));
                     let Type::Reference {
-                        kind: ReferenceKind::Unique,
+                        kind: Reference::Unique,
                         pointee,
                         ..
                     } = ty
                     else {
                         return None;
                     };
-                    if Copy::decide(tree, *pointee, &function.generics).is_yes() {
-                        return None;
-                    }
                     let root = Place::local(local).with_projection(Projection::Deref);
 
                     self.insert(root, *pointee, None)
@@ -239,20 +222,17 @@ impl MoveTable {
             }
             PlaceOrigin::Value(value) => {
                 let mut ty = tree.represented(function.expect_value_type(value));
-                while let Type::Uninit { value } | Type::ManuallyDrop { value } = tree.get(ty) {
+                while let Type::Uninit { value } | Type::ManuallyDrop { value } = tree.type_definition(ty) {
                     ty = tree.represented(*value);
                 }
                 let Type::Reference {
-                    kind: ReferenceKind::Unique,
+                    kind: Reference::Unique,
                     pointee,
                     ..
-                } = tree.get(ty)
+                } = tree.type_definition(ty)
                 else {
                     return None;
                 };
-                if Copy::decide(tree, *pointee, &function.generics).is_yes() {
-                    return None;
-                }
                 if place.path.first() != Some(&Projection::Deref) {
                     place.path.projections.insert(0, Projection::Deref);
                 }
@@ -406,7 +386,7 @@ impl MoveTable {
         elements: &FxIndexMap<TypeId, FxIndexSet<u32>>,
         tree: &Tree,
     ) {
-        let children = match tree.get(ty) {
+        let children = match tree.type_definition(ty) {
             Type::Struct { fields, .. } => fields
                 .iter()
                 .enumerate()

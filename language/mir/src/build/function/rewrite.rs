@@ -69,7 +69,10 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::FunctionAddr { .. }
                 | Instruction::NewZeroed { .. }
                 | Instruction::NewUninit { .. } => {}
-                Instruction::FunctionBind { environment, .. } => {
+                Instruction::Copy {
+                    value: environment, ..
+                }
+                | Instruction::FunctionBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
                 Instruction::FunctionEnvironment { function, .. } => {

@@ -49,9 +49,9 @@ b3(v3: uninit<slice<int32, managed, mutable, local>>):
 fn test_format_slice_view() {
     assert_format(
         r#"
-function subslice<'a>(v0: slice<int32, borrowed, 'a, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable, local> {
-entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v1, v2
+function subslice<'a>(v0: slice<int32, borrowed, 'a & local, mutable>, v1: int64, v2: int64): slice<int32, borrowed, 'a & local, mutable> {
+entry(v0: slice<int32, borrowed, 'a & local, mutable>, v1: int64, v2: int64):
+    v3: slice<int32, borrowed, 'a & local, mutable> = slice.view v0, v1, v2
     return v3
 }
 "#,
@@ -65,19 +65,22 @@ fn test_format_load_store_family() {
         r#"
 global counter: int32 = zeroinit
 
-function memory<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+function memory<'a>(v0: ref<int32, borrowed, 'a & local, mutable>): int32 {
     local l0: int32
 
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
-    v1: ref<int32, borrowed, 'static, mutable, local> = global.address counter
-    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
-    v3: int32 = load v0
+entry(v0: ref<int32, borrowed, 'a & local, mutable>):
+    v1: ref<int32, borrowed, 'static & local, mutable> = global.address counter
+    v2: ref<int32, borrowed, 'frame & frame, mutable> = local.address l0
+    v3: int32 = load.copy v0
+    v4: int32 = copy v3
     store v0, v3
-    local.set l0, v3
-    v4: int32 = local.get l0
-    v5: int32 = load v1
-    store v2, v5
-    return v4
+    local.set l0, v4
+    v5: int32 = local.get.copy l0
+    v6: int32 = local.get l0
+    v7: int32 = load.copy v1
+    store v2, v7
+    v8: int32 = load v2
+    return v8
 }
 "#,
     );
@@ -88,8 +91,8 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>):
 fn test_format_atomic_load_store_and_fence_family() {
     assert_format(
         r#"
-function atomics<'a>(v0: ref<atomic<int32>, borrowed, 'a, mutable, frame>): int32 {
-entry(v0: ref<atomic<int32>, borrowed, 'a, mutable, frame>):
+function atomics<'a>(v0: ref<int32, borrowed, 'a & frame, mutable>): int32 {
+entry(v0: ref<int32, borrowed, 'a & frame, mutable>):
     v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
     atomic.fence sequentiallyConsistent, scope(device), storage(shared)
@@ -104,8 +107,8 @@ entry(v0: ref<atomic<int32>, borrowed, 'a, mutable, frame>):
 fn test_format_atomic_compare_exchange_and_rmw_family() {
     assert_format(
         r#"
-function atomics<'a>(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>): uint32 {
-entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
+function atomics<'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): uint32 {
+entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
@@ -121,8 +124,8 @@ entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
 fn test_format_atomic_compare_exchange_default_failure_ordering() {
     assert_format_eq(
         r#"
-function atomics<'a>(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>): (uint32, boolean) {
-entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
+function atomics<'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): (uint32, boolean) {
+entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
@@ -130,8 +133,8 @@ entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
 }
 "#,
         r#"
-function atomics<'a>(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>): (uint32, boolean) {
-entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
+function atomics<'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): (uint32, boolean) {
+entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)

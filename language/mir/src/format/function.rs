@@ -6,10 +6,10 @@ use super::attribute::{write_attribute, write_attributes};
 use super::r#type::{format_generic_argument, format_generic_parameter};
 
 use crate::{
-    Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, LifetimeParameter,
-    Linkage, Local, LocalNodeId, Mutability, Tree, Writer, write_comments_after,
-    write_comments_before, write_inline_comment_after, write_node_leading_comments,
-    write_node_leading_comments_after_separator,
+    Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, Lifetime,
+    LifetimeParameter, Linkage, Local, LocalNodeId, Mutability, RegionBound, Tree, Writer,
+    write_comments_after, write_comments_before, write_inline_comment_after,
+    write_node_leading_comments, write_node_leading_comments_after_separator,
 };
 
 impl FormatNode for Function {
@@ -18,11 +18,11 @@ impl FormatNode for Function {
         id: LocalNodeId<Function>,
         f: &mut Writer<'a, '_>,
     ) -> FormatResult<()> {
+        f.context_mut().enter_function(id);
+
         // attributes
         format_function_attributes(id, self, f)?;
-
         // enter the function's value, lifetime, and generic scope
-        f.context_mut().enter_function(id);
 
         // imported function
         if self.linkage.is_import() {
@@ -87,26 +87,20 @@ pub(super) fn format_lifetime_where<'a>(
 ) -> FormatResult<()> {
     let mut first = true;
     for (slot, lifetime) in lifetimes.iter().enumerate() {
-        for target in &lifetime.outlives {
+        for target in &lifetime.outlives.extents {
             if first {
                 write!(f, [space(), token("where"), space()])?;
                 first = false;
             } else {
                 write!(f, [token(","), space()])?;
             }
-            let name = |slot: usize| {
-                lifetimes
-                    .get(slot)
-                    .and_then(|parameter| parameter.name)
-                    .map(|name| f.context().strings.get(name).to_string())
-                    .unwrap_or_else(|| format!("'l{slot}"))
-            };
-            let left = name(slot);
-            let right = name(target.0 as usize);
-            write!(
-                f,
-                [copied_text(&left), token(":"), space(), copied_text(&right)]
-            )?;
+            let left = f
+                .context()
+                .lifetime_name(RegionBound::new(slot as u32))
+                .expect("a declared lifetime has a display name")
+                .to_string();
+            write!(f, [copied_text(&left), token(":"), space()])?;
+            super::r#type::format_extents(&Lifetime::new([*target]), f)?;
         }
     }
 
@@ -154,16 +148,17 @@ fn format_function_name<'a>(
         format_generic_parameter(parameter, f)?;
     }
 
-    for (index, lifetime) in function.lifetimes.iter().enumerate() {
+    for index in 0..function.lifetimes.len() {
         if written > 0 {
             write!(f, [token(","), space()])?;
         }
         written += 1;
 
-        let name = lifetime
-            .name
-            .map(|name| f.context().strings.get(name).to_string())
-            .unwrap_or_else(|| format!("'l{index}"));
+        let name = f
+            .context()
+            .lifetime_name(RegionBound::new(index as u32))
+            .expect("a declared lifetime has a display name")
+            .to_string();
         write!(f, [copied_text(&name)])?;
     }
     write!(f, [token(">")])

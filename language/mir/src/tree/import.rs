@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 
 use crate::{
     Field, Function, FunctionId, FunctionParameter, GenericArgument, GenericParameter,
-    GenericParameterDomain, Global, GlobalId, Linkage, Static, StaticId, Symbol, Tree, Type,
-    TypeHeritage, TypeId,
+    GenericParameterDomain, Global, GlobalId, Linkage, Space, Static, StaticId, Storage, Symbol,
+    Tree, Type, TypeHeritage, TypeId,
 };
 
 /// The declared tree of one module, absent to leave the symbols naming that module reserved.
@@ -76,34 +76,39 @@ impl<'t, 'd> Importer<'t, 'd> {
         }
 
         // declare it as the source does, attributes included
-        if self.tree.type_declaration(reserved).is_none()
+        if self
+            .tree
+            .type_declaration(reserved)
+            .is_some_and(|id| self.tree.get(id).name.is_none())
             && let Some(source_declaration) = source.type_declaration(ty)
         {
             let declaration = source.get(source_declaration).clone();
-            let heritage = TypeHeritage {
-                extends: declaration
-                    .heritage
-                    .extends
+            if let Some(name) = declaration.name {
+                let heritage = TypeHeritage {
+                    extends: declaration
+                        .heritage
+                        .extends
+                        .iter()
+                        .map(|base| self.import_type(source, *base))
+                        .collect(),
+                    implements: declaration
+                        .heritage
+                        .implements
+                        .iter()
+                        .map(|base| self.import_type(source, *base))
+                        .collect(),
+                };
+                let generics = declaration
+                    .generics
                     .iter()
-                    .map(|base| self.import_type(source, *base))
-                    .collect(),
-                implements: declaration
-                    .heritage
-                    .implements
-                    .iter()
-                    .map(|base| self.import_type(source, *base))
-                    .collect(),
-            };
-            let generics = declaration
-                .generics
-                .iter()
-                .map(|parameter| self.import_generic(source, parameter))
-                .collect();
-            let inserted =
-                self.tree
-                    .insert_type_declaration(declaration.name, generics, reserved, heritage);
-            for attribute in source.attributes(source_declaration) {
-                self.tree.push_attribute(inserted, attribute.clone());
+                    .map(|parameter| self.import_generic(source, parameter))
+                    .collect();
+                let inserted = self
+                    .tree
+                    .insert_type_declaration(name, generics, reserved, heritage);
+                for attribute in source.attributes(source_declaration) {
+                    self.tree.push_attribute(inserted, attribute.clone());
+                }
             }
         }
 
@@ -166,6 +171,20 @@ impl<'t, 'd> Importer<'t, 'd> {
 
     /// Import the content of one type with its children imported.
     fn import_type_content(&mut self, source: &Tree, ty: TypeId) -> Type {
+        let ty = match source.get(ty) {
+            Type::Declaration { declaration } => source
+                .get(*declaration)
+                .definition
+                .expect("a defined declaration has a body"),
+            _ => ty,
+        };
+
+        // remap a declaration alias through its persistent identity
+        if matches!(source.get(ty), Type::Declaration { .. }) {
+            let imported = self.import_type(source, ty);
+
+            return self.tree.get(imported).clone();
+        }
         let mut definition = source.get(ty).clone();
 
         // intern each field under its imported type, attributes included
@@ -184,19 +203,12 @@ impl<'t, 'd> Importer<'t, 'd> {
             }
         }
 
-        // import the length a fixed array names
-        if let Type::FixedArray { length, .. } = &mut definition {
-            *length = self.import_static(source, *length);
-        }
+        // import compile-time values and their nested types
+        definition.map_values(&mut |value| self.import_static(source, value));
 
-        // import the value arguments here, the type arguments among the type children below
-        if let Type::Application { arguments, .. } = &mut definition {
-            for argument in arguments.iter_mut() {
-                if let GenericArgument::Value(value) = argument {
-                    *argument = GenericArgument::Value(self.import_static(source, *value));
-                }
-            }
-        }
+        // intern the space joins here, the type children below
+        definition.map_storages(&mut |storage| self.import_storage(source, storage));
+        definition.map_spaces(&mut |space| self.import_space(source, space));
 
         // import every type child
         definition.map_child_type_ids(&mut |child| self.import_type(source, child));
@@ -204,13 +216,54 @@ impl<'t, 'd> Importer<'t, 'd> {
         definition
     }
 
+    /// Intern one space of the source tree here, a join through its spaces.
+    fn import_space(&mut self, source: &Tree, space: Space) -> Space {
+        match space {
+            Space::Join(id) => {
+                let spaces: Vec<_> = source
+                    .space_join(id)
+                    .iter()
+                    .map(|space| self.import_space(source, *space))
+                    .collect();
+
+                self.tree.intern_space_join(spaces)
+            }
+            space => space,
+        }
+    }
+
+    /// Import storage and its interned joins.
+    fn import_storage(&mut self, source: &Tree, storage: Storage) -> Storage {
+        match storage {
+            Storage::Heap(space) => Storage::Heap(self.import_space(source, space)),
+            Storage::Static(space) => Storage::Static(self.import_space(source, space)),
+            Storage::Join(id) => {
+                let members = source
+                    .storage_join(id)
+                    .iter()
+                    .map(|storage| self.import_storage(source, *storage))
+                    .collect::<Vec<_>>();
+
+                self.tree.intern_storage_join(members)
+            }
+            storage => storage,
+        }
+    }
+
     /// Import one generic argument.
-    fn import_argument(&mut self, source: &Tree, argument: GenericArgument) -> GenericArgument {
+    pub fn import_argument(&mut self, source: &Tree, argument: GenericArgument) -> GenericArgument {
         match argument {
             GenericArgument::Type(ty) => GenericArgument::Type(self.import_type(source, ty)),
             GenericArgument::Value(value) => {
                 GenericArgument::Value(self.import_static(source, value))
             }
+            GenericArgument::Space(space) => {
+                GenericArgument::Space(self.import_space(source, space))
+            }
+            GenericArgument::Region { lifetime, storage } => GenericArgument::Region {
+                lifetime,
+                storage: self.import_storage(source, storage),
+            },
             argument => argument,
         }
     }
@@ -238,30 +291,12 @@ impl<'t, 'd> Importer<'t, 'd> {
 
     /// Import one static.
     fn import_static(&mut self, source: &Tree, id: StaticId) -> StaticId {
-        let value = match source.static_value(id).clone() {
-            Static::Type(ty) => Static::Type(self.import_type(source, ty)),
-            Static::Array(items) => Static::Array(
-                items
-                    .iter()
-                    .map(|item| self.import_static(source, *item))
-                    .collect(),
-            ),
-            Static::Tuple(items) => Static::Tuple(
-                items
-                    .iter()
-                    .map(|item| self.import_static(source, *item))
-                    .collect(),
-            ),
-            Static::FixedArray { value, length } => Static::FixedArray {
-                value: self.import_static(source, value),
-                length,
-            },
-            Static::Newtype { ty, value } => Static::Newtype {
-                ty: self.import_type(source, ty),
-                value: self.import_static(source, value),
-            },
-            other => other,
-        };
+        let mut value = source.static_value(id).clone();
+        value.map_values(&mut |value| self.import_static(source, value));
+        value.map_types(&mut |ty| self.import_type(source, ty));
+        if let Static::Space(space) = &mut value {
+            *space = self.import_space(source, *space);
+        }
 
         self.tree.intern_static(value)
     }

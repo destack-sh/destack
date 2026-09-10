@@ -2,8 +2,8 @@ use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
 
 use crate::{
-    Function, FunctionParameter, GenericArgument, GenericParameter, LifetimeParameter,
-    LifetimeSlot, LocalNodeId, Symbol, Type, Value,
+    Function, FunctionParameter, GenericArgument, GenericParameter, Lifetime, LifetimeParameter,
+    LocalNodeId, Symbol, Type, Value,
 };
 
 /// Header used to declare or build one MIR function.
@@ -90,7 +90,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
     }
 
     /// Add one lifetime parameter with its declared outlives slots.
-    pub fn lifetime_outlives(mut self, name: &str, outlives: Vec<LifetimeSlot>) -> Self {
+    pub fn lifetime_outlives(mut self, name: &str, outlives: Lifetime) -> Self {
         let name = self.strings.intern(name);
         self.lifetimes
             .push(LifetimeParameter::with_outlives(Some(name), outlives));

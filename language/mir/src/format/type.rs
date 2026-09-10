@@ -7,16 +7,16 @@ use super::r#static::format_static;
 use super::value::{format_function_id, format_type_id};
 
 use crate::{
-    Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
-    FunctionId, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
-    LifetimeParameter, LifetimeTerm, LocalNodeId, ReferenceKind, SignatureParameter, Space,
-    Storage, Type, TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId, Writer,
-    write_comments_before,
+    Access, Attribute, AttributeIdentifier, Copy, Exclusivity, Extent, Field, FieldSpan,
+    FormatNode, Formatter, FunctionId, GenericArgument, GenericParameter, GenericParameterDomain,
+    Lifetime, LifetimeParameter, LocalNodeId, Reference, RegionBound, SignatureParameter, Space,
+    SpaceJoinId, Storage, Type, TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId,
+    Writer, write_comments_before,
 };
 
 impl FormatNode for Type {
     fn format_node<'a>(&self, id: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-        format_type_maybe_named(f, id, self, true)
+        format_type_id(id, f)
     }
 }
 
@@ -82,15 +82,6 @@ impl Formatter<'_> {
 
         Ok(printed.as_str().to_string())
     }
-}
-
-/// Format one type in its expanded form, ignoring any named declaration.
-pub(super) fn format_type_expanded<'a>(
-    f: &mut Writer<'a, '_>,
-    id: LocalNodeId<Type>,
-    ty: &Type,
-) -> FormatResult<()> {
-    format_type_maybe_named(f, id, ty, false)
 }
 
 /// Format one named type declaration with its attributes and body.
@@ -328,22 +319,26 @@ fn format_struct_field_entry<'a>(
     format_struct_field(field, f)
 }
 
-/// Format one type, printing its declared name when one is available.
-fn format_type_maybe_named<'a>(
+/// Format one structural type or declared reference.
+pub(super) fn format_type_expanded<'a>(
     f: &mut Writer<'a, '_>,
     id: LocalNodeId<Type>,
     ty: &Type,
-    use_declaration: bool,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
-    if use_declaration && let Some(declaration_id) = tree.type_declaration(id) {
-        let declaration = tree.get(declaration_id);
-        let name = f.context().strings.get(declaration.name).to_string();
-
-        return write!(f, [copied_text(&name)]);
-    }
-
     match ty {
+        Type::Declaration { declaration } => {
+            let declaration = tree.get(*declaration);
+            if let Some(name) = declaration.name {
+                let name = f.context().strings.get(name).to_string();
+
+                write!(f, [copied_text(&name)])
+            } else if let Some(definition) = declaration.definition {
+                format_type_id(definition, f)
+            } else {
+                write!(f, [copied_text(&format!("type@{}", id.id))])
+            }
+        }
         Type::Error => write!(f, [token("<error>")]),
         Type::Never => write!(f, [token("never")]),
         Type::Void => write!(f, [token("void")]),
@@ -362,11 +357,6 @@ fn format_type_maybe_named<'a>(
         Type::Float(float_type) => write!(f, [token(float_type.label())]),
         Type::Parameter { index } => format_parameter(*index, f),
         Type::TypeId => write!(f, [token("typeId")]),
-        Type::Atomic { value } => {
-            write!(f, [token("atomic"), token("<")])?;
-            format_type_id(*value, f)?;
-            write!(f, [token(">")])
-        }
         Type::Dynamic {
             kind,
             lifetime,
@@ -486,9 +476,6 @@ fn format_type_maybe_named<'a>(
                     write!(f, [space()])?;
                 }
                 write!(f, [&case.discriminant, space(), token("="), space()])?;
-                if case.is_boxed {
-                    write!(f, [token("boxed"), space()])?;
-                }
                 write!(f, [FormatTypeId(case.ty), token(";")])?;
             }
             if !cases.is_empty() {
@@ -551,7 +538,7 @@ fn format_type_maybe_named<'a>(
 
 /// Format one fat descriptor's element followed by its reference qualifiers.
 fn format_view_header<'a>(
-    kind: ReferenceKind,
+    kind: Reference,
     lifetime: &Lifetime,
     storage: Storage,
     access: Access,
@@ -564,27 +551,34 @@ fn format_view_header<'a>(
 
 /// Format the kind, lifetime, access, and storage of one reference.
 fn format_reference_qualifiers<'a>(
-    kind: ReferenceKind,
+    kind: Reference,
     lifetime: &Lifetime,
     storage: Storage,
     access: Access,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let kind_token = match kind {
-        ReferenceKind::Managed => "managed",
-        ReferenceKind::Unique => "unique",
-        ReferenceKind::Borrowed => "borrowed",
+        Reference::Managed => "managed",
+        Reference::Unique => "unique",
+        Reference::Borrowed(_) => "borrowed",
     };
 
     write!(f, [token(","), space(), token(kind_token)])?;
-    format_lifetime(lifetime, f)?;
+    if matches!(kind, Reference::Borrowed(_)) {
+        write!(f, [token(","), space()])?;
+        format_region_argument(lifetime, storage, f)?;
+    } else {
+        format_lifetime(lifetime, f)?;
+    }
     format_access(access, f)?;
-
-    // one region parameter naming the lifetime names the storage too
-    if let ([LifetimeTerm::Parameter(index)], Storage::Heap(Space::Parameter(parameter))) =
-        (lifetime.terms.as_slice(), storage)
-        && *index == parameter
+    if let Reference::Borrowed(exclusivity) = kind
+        && exclusivity != Exclusivity::Aliasable
     {
+        write!(f, [token(","), space()])?;
+        format_exclusivity(exclusivity, f)?;
+    }
+
+    if matches!(kind, Reference::Borrowed(_)) {
         return Ok(());
     }
     write!(f, [token(","), space()])?;
@@ -596,16 +590,34 @@ fn format_reference_qualifiers<'a>(
 /// Format one reference storage qualifier.
 pub(super) fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match storage {
-        Storage::Static(Space::Shared) => write!(f, [token("shared"), space(), token("static")]),
-        Storage::Static(Space::Parameter(index)) => {
-            format_parameter(index, f)?;
-            write!(f, [space(), token("static")])
+        Storage::Frame => write!(f, [token("frame")]),
+        Storage::Parameter(index) => format_parameter(index, f),
+        Storage::Bound(bound) => format_extents(&Lifetime::new([Extent::Bound(bound)]), f),
+        Storage::Join(id) => {
+            let members = f.context().tree.storage_join(id).to_vec();
+            for (index, storage) in members.into_iter().enumerate() {
+                if index > 0 {
+                    write!(f, [token("|")])?;
+                }
+                format_storage(storage, f)?;
+            }
+
+            Ok(())
         }
-        Storage::Heap(Space::Parameter(index)) => format_parameter(index, f),
-        storage => match storage.label() {
-            Some(label) => write!(f, [token(label)]),
-            None => unreachable!("closed storage {storage:?} without a label"),
-        },
+        Storage::Heap(storage_space @ (Space::Parameter(_) | Space::Bound(_) | Space::Join(_))) => {
+            write!(f, [token("heap"), token("(")])?;
+            format_space(storage_space, f)?;
+            write!(f, [token(")")])
+        }
+        Storage::Heap(space) => format_space(space, f),
+        Storage::Static(Space::Local) => write!(f, [token("static")]),
+        Storage::Static(Space::Constant) => write!(f, [token("constant")]),
+        Storage::Static(Space::Shared) => write!(f, [token("shared"), space(), token("static")]),
+        Storage::Static(storage_space) => {
+            write!(f, [token("static"), token("(")])?;
+            format_space(storage_space, f)?;
+            write!(f, [token(")")])
+        }
     }
 }
 
@@ -615,9 +627,24 @@ pub(super) fn format_space<'a>(space: Space, f: &mut Writer<'a, '_>) -> FormatRe
         Some(label) => write!(f, [token(label)]),
         None => match space {
             Space::Parameter(index) => format_parameter(index, f),
+            Space::Bound(slot) => format_extents(&Lifetime::new([Extent::Bound(slot)]), f),
+            Space::Join(id) => format_space_join(id, f),
             space => unreachable!("closed space {space:?} without a label"),
         },
     }
+}
+
+/// Format one space join as its spaces separated by pipes.
+fn format_space_join<'a>(id: SpaceJoinId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    let spaces = f.context().tree.space_join(id).to_vec();
+    for (index, space) in spaces.into_iter().enumerate() {
+        if index > 0 {
+            write!(f, [token("|")])?;
+        }
+        format_space(space, f)?;
+    }
+
+    Ok(())
 }
 
 /// Format one generic argument.
@@ -627,36 +654,44 @@ pub(super) fn format_generic_argument<'a>(
 ) -> FormatResult<()> {
     match argument {
         GenericArgument::Type(ty) => format_type_id(*ty, f),
-        GenericArgument::Region { lifetime, space } => format_region_argument(lifetime, *space, f),
+        GenericArgument::Region { lifetime, storage } => {
+            format_region_argument(lifetime, *storage, f)
+        }
         GenericArgument::Space(space) => format_space(*space, f),
         GenericArgument::Access(access) => format_access_name(*access, f),
+        GenericArgument::Exclusivity(exclusivity) => format_exclusivity(*exclusivity, f),
         GenericArgument::Value(value) => format_static(*value, f),
     }
 }
 
-/// Format one region argument: its extent, then its space unless one region parameter names both.
+/// Format a complete region, abbreviated when one parameter supplies lifetime and storage.
 fn format_region_argument<'a>(
     lifetime: &Lifetime,
-    region_space: Space,
+    storage: Storage,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     // print an erased extent as the wildcard
     if lifetime.is_empty() {
         write!(f, [token("'_")])?;
     } else {
-        format_lifetime_terms(lifetime, f)?;
+        format_extents(lifetime, f)?;
     }
 
-    // one region parameter names both coordinates
-    if let ([LifetimeTerm::Parameter(index)], Space::Parameter(parameter)) =
-        (lifetime.terms.as_slice(), region_space)
+    // one region parameter or slot names both coordinates
+    if let ([Extent::Parameter(index)], Storage::Parameter(parameter)) =
+        (lifetime.extents.as_slice(), storage)
         && *index == parameter
+    {
+        return Ok(());
+    }
+    if let ([Extent::Bound(slot)], Storage::Bound(space)) = (lifetime.extents.as_slice(), storage)
+        && *slot == space
     {
         return Ok(());
     }
 
     write!(f, [space(), token("&"), space()])?;
-    format_space(region_space, f)
+    format_storage(storage, f)
 }
 
 /// Format one generic argument list, elided when empty.
@@ -686,7 +721,7 @@ fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut Writer<'a, '_>) -> FormatRes
     }
 
     write!(f, [token(","), space()])?;
-    format_lifetime_terms(lifetime, f)
+    format_extents(lifetime, f)
 }
 
 /// Format one type use with its applied generic arguments.
@@ -722,7 +757,7 @@ pub(super) fn format_function_signature<'a>(
     result: TypeId,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    let previous_lifetimes = f.context_mut().replace_lifetimes(lifetimes.to_vec());
+    f.context_mut().push_lifetimes(lifetimes.to_vec());
     format_lifetimes(lifetimes, f)?;
 
     write!(f, [token("(")])?;
@@ -736,33 +771,30 @@ pub(super) fn format_function_signature<'a>(
     format_type_id(result, f)?;
     super::function::format_lifetime_where(lifetimes, f)?;
 
-    f.context_mut().replace_lifetimes(previous_lifetimes);
+    f.context_mut().pop_lifetimes();
 
     Ok(())
 }
 
 /// Format the terms of one lifetime as a union.
-pub(super) fn format_lifetime_terms<'a>(
-    lifetime: &Lifetime,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<()> {
-    for (index, source) in lifetime.terms.iter().enumerate() {
+pub(super) fn format_extents<'a>(lifetime: &Lifetime, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    for (index, source) in lifetime.extents.iter().enumerate() {
         if index > 0 {
             write!(f, [space(), token("|"), space()])?;
         }
 
         match source {
-            LifetimeTerm::Static => write!(f, [token("'static")])?,
-            LifetimeTerm::Frame => write!(f, [token("'frame")])?,
-            LifetimeTerm::Managed => write!(f, [token("'managed")])?,
-            LifetimeTerm::Slot(index) => {
+            Extent::Static => write!(f, [token("'static")])?,
+            Extent::Frame => write!(f, [token("'frame")])?,
+            Extent::Managed => write!(f, [token("'managed")])?,
+            Extent::Bound(index) => {
                 if let Some(name) = f.context().lifetime_name(*index).map(str::to_string) {
                     write!(f, [copied_text(&name)])?;
                 } else {
-                    write!(f, [copied_text(&format!("'l{}", index.0))])?;
+                    write!(f, [copied_text(&format!("'l{}", index.index))])?;
                 }
             }
-            LifetimeTerm::Parameter(index) => {
+            Extent::Parameter(index) => {
                 let name = f
                     .context()
                     .parameter_name(*index)
@@ -788,15 +820,16 @@ fn format_lifetimes<'a>(
     }
 
     write!(f, [token("<")])?;
-    for (index, lifetime) in lifetimes.iter().enumerate() {
+    for index in 0..lifetimes.len() {
         if index > 0 {
             write!(f, [token(","), space()])?;
         }
 
-        let name = lifetime
-            .name
-            .map(|name| f.context().strings.get(name).to_string())
-            .unwrap_or_else(|| format!("'l{index}"));
+        let name = f
+            .context()
+            .lifetime_name(RegionBound::new(index as u32))
+            .expect("a declared lifetime has a display name")
+            .to_string();
         write!(f, [copied_text(&name)])?;
     }
 
@@ -866,6 +899,9 @@ pub(super) fn format_generic_parameter<'a>(
         }
         GenericParameterDomain::Space => write!(f, [token("space"), space(), copied_text(&name)]),
         GenericParameterDomain::Access => write!(f, [token("access"), space(), copied_text(&name)]),
+        GenericParameterDomain::Exclusivity => {
+            write!(f, [token("exclusivity"), space(), copied_text(&name)])
+        }
         GenericParameterDomain::Value { ty } => {
             write!(
                 f,
@@ -917,9 +953,18 @@ impl FormatNode for TypeDeclaration {
         f: &mut Writer<'a, '_>,
     ) -> FormatResult<()> {
         let attributes = f.context().tree.attributes(id);
-        let name = f.context().strings.get(self.name).to_string();
-        let type_id = self.ty;
-        let ty = f.context().tree.get(type_id);
+        let Some(name) = self.name else {
+            return Err(FormatError::SyntaxError {
+                message: "anonymous type has no source declaration",
+            });
+        };
+        let name = f.context().strings.get(name).to_string();
+        let type_id = f
+            .context()
+            .tree
+            .identified_type(self.symbol)
+            .expect("a declaration has an interned type");
+        let ty = f.context().tree.get(self.definition.unwrap_or(type_id));
         format_type_declaration(&name, attributes, Some(id), type_id, ty, f)
     }
 }
@@ -934,5 +979,14 @@ fn format_struct_field<'a>(field: &Field, f: &mut Writer<'a, '_>) -> FormatResul
     } else {
         format_type_id(field.ty, f)?;
         write!(f, [token(";")])
+    }
+}
+
+/// Format one exclusion guarantee or parameter.
+fn format_exclusivity<'a>(exclusivity: Exclusivity, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    match exclusivity {
+        Exclusivity::Aliasable => write!(f, [token("aliasable")]),
+        Exclusivity::Exclusive => write!(f, [token("exclusive")]),
+        Exclusivity::Parameter(index) => format_parameter(index, f),
     }
 }

@@ -185,6 +185,7 @@ impl Parser {
         match self.token_type(token) {
             TokenType::Identifier
             | TokenType::Const
+            | TokenType::Ownership
             | TokenType::Struct
             | TokenType::Call
             | TokenType::CallIndirect

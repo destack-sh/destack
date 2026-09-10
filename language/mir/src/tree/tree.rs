@@ -6,16 +6,14 @@ use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use super::intern::{TypeEntry, TypeIndexKey};
-
 use crate::source::{Token, TokenType};
 use crate::{
-    Access, Attribute, Block, BorrowedPath, CommentSpan, Copy, ExtentSlice, Field, FieldSpan,
-    FlagSlice, FloatType, Function, FunctionHeaderSpans, GenericArgument, Global, IndexSlice,
-    Instruction, Lifetime, Local, LocalNodeId, Node, NodeIndexEntry, NodeType, Path, Projection,
-    Provenance, ProvenanceTable, ReferenceKind, Space, Static, StaticId, Storage, SwitchCase,
-    SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
-    TypedValueSpan, Value, ValueSlice, VariantCase,
+    Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
+    FloatType, Function, FunctionHeaderSpans, GenericArgument, Global, IndexSlice, Instruction,
+    Lifetime, Local, LocalNodeId, Node, NodeIndexEntry, NodeType, Path, Projection, Provenance,
+    ProvenanceTable, Reference, Space, Static, StaticId, Storage, SwitchCase, SwitchCaseSlice,
+    Symbol, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId, TypedValueSpan, Value,
+    ValueSlice,
 };
 
 /// MIR tree for a single unit.
@@ -62,23 +60,27 @@ pub struct Tree {
     pub(crate) instructions: Arena<Instruction>,
     pub(crate) terminators: Arena<Terminator>,
     pub(crate) locals: Arena<Local>,
-    pub(crate) types: Arena<TypeEntry>,
+    pub(crate) types: Arena<Type>,
     pub(crate) type_declarations: Arena<TypeDeclaration>,
     pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
     /// Interned compile-time values.
     pub(crate) statics: Arena<Static>,
+    /// Interned space join expressions.
+    pub(crate) space_joins: Vec<Vec<Space>>,
+    /// Interned storage join expressions.
+    pub(crate) storage_joins: Vec<Vec<Storage>>,
 
-    /// Canonical type ids grouped by structural hash or identified symbol.
-    pub(crate) type_index: FxIndexMap<TypeIndexKey, SmallVec<[TypeId; 1]>>,
-    /// Cycle type ids keyed by canonical serialization.
-    pub(crate) canonical_index: FxIndexMap<String, TypeId>,
+    /// Interned type ids grouped by structural hash.
+    pub(crate) type_index: FxIndexMap<u64, SmallVec<[TypeId; 1]>>,
+    /// Declared type ids indexed by persistent symbol.
+    pub(crate) declared_types: FxIndexMap<Symbol, TypeId>,
+    /// Expanded generic applications.
+    pub(crate) representations: FxIndexMap<TypeId, TypeId>,
     /// Structural field ids grouped by hash.
     pub(crate) field_index: FxIndexMap<u64, SmallVec<[LocalNodeId<Field>; 1]>>,
     /// Canonical compile-time values grouped by structural hash.
     pub(crate) static_index: FxIndexMap<u64, SmallVec<[StaticId; 1]>>,
-
-    /// Lifetime parameters keyed by type node.
 
     // externalized instruction payloads
     /// Flat buffer of MIR values.
@@ -156,8 +158,11 @@ impl Tree {
             fields: Arena::new(),
             globals: Arena::new(),
             statics: Arena::new(),
+            space_joins: Vec::new(),
+            storage_joins: Vec::new(),
             type_index: FxIndexMap::default(),
-            canonical_index: FxIndexMap::default(),
+            declared_types: FxIndexMap::default(),
+            representations: FxIndexMap::default(),
             field_index: FxIndexMap::default(),
             static_index: FxIndexMap::default(),
 
@@ -177,11 +182,30 @@ impl Tree {
         tree
     }
 
+    /// Return the definition reached through declarations and expanded applications.
+    pub fn type_definition(&self, mut ty: TypeId) -> &Type {
+        // traverse transparent definitions while preserving unresolved declarations
+        let mut remaining = self.types.len();
+        loop {
+            let definition = match self.get(ty) {
+                Type::Declaration { declaration } => self.get(*declaration).definition,
+                Type::Application { .. } => self.representation(ty),
+                _ => None,
+            };
+            let Some(definition) = definition else {
+                return self.get(ty);
+            };
+            assert!(remaining > 0, "cyclic MIR type definition {ty:?}");
+            remaining -= 1;
+            ty = definition;
+        }
+    }
+
     /// Return the transparent representation type.
     pub fn repr_type(&self, mut ty: TypeId) -> TypeId {
         loop {
-            match self.get(ty) {
-                Type::Newtype { inner, .. } | Type::Application { base: inner, .. } => {
+            match self.type_definition(ty) {
+                Type::Newtype { inner, .. } => {
                     ty = *inner;
                 }
                 _ => return ty,
@@ -192,20 +216,9 @@ impl Tree {
     /// Return the transparent storage type, reading an application through its representation.
     pub fn storage_type(&self, mut ty: TypeId) -> TypeId {
         loop {
-            ty = match self.get(ty) {
-                Type::Uninit { value: base }
-                | Type::Atomic { value: base }
-                | Type::ManuallyDrop { value: base } => *base,
+            ty = match self.type_definition(ty) {
+                Type::Uninit { value: base } | Type::ManuallyDrop { value: base } => *base,
                 Type::Newtype { inner, .. } => *inner,
-                Type::Application {
-                    base, arguments, ..
-                } => match arguments.is_empty() {
-                    true => *base,
-                    false => match self.representation(ty) {
-                        Some(represented) => represented,
-                        None => return ty,
-                    },
-                },
                 _ => return ty,
             };
         }
@@ -214,14 +227,14 @@ impl Tree {
     /// Return the heap storage carried by one managed allocation result.
     pub fn managed_storage(&self, ty: TypeId) -> Option<Storage> {
         let ty = self.storage_type(ty);
-        let ty = self.get(ty);
+        let ty = self.type_definition(ty);
         let storage = ty.reference_storage()?;
 
-        (ty.reference_kind() == Some(ReferenceKind::Managed) && storage.heap_space().is_some())
+        (ty.reference_kind() == Some(Reference::Managed) && storage.heap_space().is_some())
             .then_some(storage)
     }
 
-    /// Return the lifetime terms one type stores across its regions.
+    /// Return the extents one type stores across its regions.
     pub fn type_lifetime(&self, ty: TypeId) -> Option<Lifetime> {
         let mut visited = FxIndexSet::default();
 
@@ -238,14 +251,14 @@ impl Tree {
             return None;
         }
 
-        let lifetime = match self.get(ty) {
+        let lifetime = match self.type_definition(ty) {
             Type::Dynamic {
-                kind: ReferenceKind::Borrowed,
+                kind: Reference::Borrowed(_),
                 lifetime,
                 ..
             }
             | Type::Function {
-                kind: ReferenceKind::Borrowed,
+                kind: Reference::Borrowed(_),
                 lifetime,
                 ..
             } if !lifetime.is_empty() => Some(lifetime.clone()),
@@ -255,12 +268,12 @@ impl Tree {
                 pointee,
                 ..
             } => {
-                let own = (*kind == ReferenceKind::Borrowed).then(|| lifetime.clone());
+                let own = (matches!(kind, Reference::Borrowed(_))).then(|| lifetime.clone());
                 let nested = self.type_lifetime_inner(*pointee, visited);
                 let terms = own
                     .into_iter()
                     .chain(nested)
-                    .flat_map(|lifetime| lifetime.terms);
+                    .flat_map(|lifetime| lifetime.extents);
 
                 Some(Lifetime::new(terms)).filter(|lifetime| !lifetime.is_empty())
             }
@@ -270,12 +283,12 @@ impl Tree {
                 element,
                 ..
             } => {
-                let own = (*kind == ReferenceKind::Borrowed).then(|| lifetime.clone());
+                let own = (matches!(kind, Reference::Borrowed(_))).then(|| lifetime.clone());
                 let nested = self.type_lifetime_inner(*element, visited);
                 let terms = own
                     .into_iter()
                     .chain(nested)
-                    .flat_map(|lifetime| lifetime.terms);
+                    .flat_map(|lifetime| lifetime.extents);
 
                 Some(Lifetime::new(terms)).filter(|lifetime| !lifetime.is_empty())
             }
@@ -286,7 +299,7 @@ impl Tree {
                 });
 
                 Some(Lifetime::new(
-                    nested_lifetimes.flat_map(|lifetime| lifetime.terms.into_iter()),
+                    nested_lifetimes.flat_map(|lifetime| lifetime.extents.into_iter()),
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
@@ -306,7 +319,7 @@ impl Tree {
                     discriminant
                         .into_iter()
                         .chain(nested_lifetimes)
-                        .flat_map(|lifetime| lifetime.terms.into_iter()),
+                        .flat_map(|lifetime| lifetime.extents.into_iter()),
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
@@ -316,13 +329,13 @@ impl Tree {
                     .filter_map(|element| self.type_lifetime_inner(*element, visited));
 
                 Some(Lifetime::new(
-                    nested_lifetimes.flat_map(|lifetime| lifetime.terms.into_iter()),
+                    nested_lifetimes.flat_map(|lifetime| lifetime.extents.into_iter()),
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
-            Type::FixedArray { element, .. }
-            | Type::Vector { element, .. }
-            | Type::Atomic { value: element } => self.type_lifetime_inner(*element, visited),
+            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
+                self.type_lifetime_inner(*element, visited)
+            }
             // collect the regions an application's arguments carry
             Type::Application { arguments, .. } => {
                 let nested_lifetimes = arguments.iter().filter_map(|argument| match argument {
@@ -332,7 +345,7 @@ impl Tree {
                 });
 
                 Some(Lifetime::new(
-                    nested_lifetimes.flat_map(|lifetime| lifetime.terms.into_iter()),
+                    nested_lifetimes.flat_map(|lifetime| lifetime.extents.into_iter()),
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
@@ -361,7 +374,7 @@ impl Tree {
         }
 
         let type_id = ty;
-        let ty = self.get(ty);
+        let ty = self.type_definition(ty);
         if ty.is_borrowed_reference() {
             visited.swap_remove(&type_id);
 
@@ -393,8 +406,7 @@ impl Tree {
             }
             | Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
-            | Type::Vector { element, .. }
-            | Type::Atomic { value: element } => {
+            | Type::Vector { element, .. } => {
                 self.type_contains_borrowed_refs_inner(*element, visited)
             }
             Type::Application { base, .. } => {
@@ -434,7 +446,7 @@ impl Tree {
         path: Path,
         borrowed_paths: &mut Vec<BorrowedPath>,
     ) {
-        match self.get(ty) {
+        match self.type_definition(ty) {
             // record reference-like leaves
             Type::Dynamic {
                 kind,
@@ -443,6 +455,12 @@ impl Tree {
                 ..
             }
             | Type::Reference {
+                kind,
+                lifetime,
+                access,
+                ..
+            }
+            | Type::Slice {
                 kind,
                 lifetime,
                 access,
@@ -457,9 +475,9 @@ impl Tree {
                 let lifetime = lifetime.clone();
                 // track managed handles and empty borrows only for origin
                 let is_included = match kind {
-                    ReferenceKind::Borrowed => is_tracking || !lifetime.is_empty(),
-                    ReferenceKind::Managed => is_tracking,
-                    ReferenceKind::Unique => false,
+                    Reference::Borrowed(_) => is_tracking || !lifetime.is_empty(),
+                    Reference::Managed => is_tracking,
+                    Reference::Unique => false,
                 };
                 if is_included {
                     borrowed_paths.push(BorrowedPath {
@@ -494,7 +512,7 @@ impl Tree {
             // descend through transparent storage wrappers
             Type::Newtype { inner, .. }
             | Type::Uninit { value: inner }
-            | Type::Atomic { value: inner } => {
+            | Type::ManuallyDrop { value: inner } => {
                 self.collect_type_borrowed_paths(*inner, is_tracking, path, borrowed_paths);
             }
             // descend into each possible storage shape
@@ -507,91 +525,16 @@ impl Tree {
                     self.collect_type_borrowed_paths(case.ty, is_tracking, path, borrowed_paths);
                 }
             }
-            // record borrowed slices as leaves
-            Type::Slice {
-                kind: ReferenceKind::Borrowed,
-                lifetime,
-                access,
-                ..
-            } => {
-                let lifetime = lifetime.clone();
-                if is_tracking || !lifetime.is_empty() {
-                    borrowed_paths.push(BorrowedPath {
-                        path,
-                        lifetime,
-                        access: *access,
-                        kind: ReferenceKind::Borrowed,
-                    });
-                }
+            // retain each reference path within repeated elements
+            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
+                let path = path.with_projection(Projection::Elements);
+                self.collect_type_borrowed_paths(*element, is_tracking, path, borrowed_paths);
             }
-            // summarize repeated element lifetimes at the container path
-            Type::FixedArray { element, .. }
-            | Type::Slice { element, .. }
-            | Type::Vector { element, .. } => {
-                // track a managed slice handle without element references by itself
-                if let Type::Slice {
-                    kind: ReferenceKind::Managed,
-                    lifetime,
-                    access,
-                    ..
-                } = self.get(ty)
-                    && is_tracking
-                {
-                    let mut element_paths = Vec::new();
-                    self.collect_type_borrowed_paths(
-                        *element,
-                        is_tracking,
-                        Path::root(),
-                        &mut element_paths,
-                    );
-                    if element_paths.is_empty() {
-                        borrowed_paths.push(BorrowedPath {
-                            path,
-                            lifetime: lifetime.clone(),
-                            access: *access,
-                            kind: ReferenceKind::Managed,
-                        });
-                        return;
-                    }
-                }
-                let mut element_paths = Vec::new();
-                self.collect_type_borrowed_paths(
-                    *element,
-                    is_tracking,
-                    Path::root(),
-                    &mut element_paths,
-                );
-
-                if !element_paths.is_empty() {
-                    let access = element_paths
-                        .iter()
-                        .map(|borrowed| borrowed.access)
-                        .max()
-                        .unwrap_or(Access::Readonly);
-                    let is_borrowed = element_paths
-                        .iter()
-                        .any(|borrowed| borrowed.kind == ReferenceKind::Borrowed);
-                    let kind = if is_borrowed {
-                        ReferenceKind::Borrowed
-                    } else {
-                        ReferenceKind::Managed
-                    };
-                    let lifetime = Lifetime::new(
-                        element_paths
-                            .into_iter()
-                            .flat_map(|borrowed| borrowed.lifetime.terms),
-                    );
-                    borrowed_paths.push(BorrowedPath {
-                        path,
-                        lifetime,
-                        access,
-                        kind,
-                    });
-                }
-            }
-            // read an application through its representation, its base while undefined
-            Type::Application { base, .. } => {
-                let applied = self.representation(ty).unwrap_or(*base);
+            // read the substituted definition of an application
+            Type::Application { .. } => {
+                let applied = self
+                    .representation(ty)
+                    .unwrap_or_else(|| unreachable!("unexpanded MIR application {ty:?}"));
 
                 self.collect_type_borrowed_paths(applied, is_tracking, path, borrowed_paths);
             }
@@ -708,7 +651,7 @@ impl Tree {
 
     /// Return the boolean type id.
     pub fn boolean_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Boolean)) {
+        if let Some(type_id) = self.find_type(&Type::Boolean) {
             return type_id;
         }
 
@@ -717,7 +660,7 @@ impl Tree {
 
     /// Return the character type id.
     pub fn character_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Character)) {
+        if let Some(type_id) = self.find_type(&Type::Character) {
             return type_id;
         }
 
@@ -726,7 +669,7 @@ impl Tree {
 
     /// Return the void type id.
     pub fn void_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
+        if let Some(type_id) = self.find_type(&Type::Void) {
             return type_id;
         }
 
@@ -735,7 +678,7 @@ impl Tree {
 
     /// Return the isize type id.
     pub fn isize_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Isize)) {
+        if let Some(type_id) = self.find_type(&Type::Isize) {
             return type_id;
         }
 
@@ -744,7 +687,7 @@ impl Tree {
 
     /// Return the usize type id.
     pub fn usize_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Usize)) {
+        if let Some(type_id) = self.find_type(&Type::Usize) {
             return type_id;
         }
 
@@ -753,14 +696,9 @@ impl Tree {
 
     /// Return an integer type id for width and signedness.
     pub fn int_type(&self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(|ty| {
-            matches!(
-                ty,
-                Type::Int {
-                    width: w,
-                    is_signed: s,
-                } if *w == width && *s == signed
-            )
+        if let Some(type_id) = self.find_type(&Type::Int {
+            width,
+            is_signed: signed,
         }) {
             return type_id;
         }
@@ -770,55 +708,11 @@ impl Tree {
 
     /// Return a float type id for format.
     pub fn float_type(&self, format: FloatType) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type_by_predicate(
-            |ty| matches!(ty, Type::Float(float_type) if *float_type == format),
-        ) {
+        if let Some(type_id) = self.find_type(&Type::Float(format)) {
             return type_id;
         }
 
         unreachable!("missing float type id for {}", format.label());
-    }
-
-    /// Return the storage type of the hidden environment field: a managed reference or nothing.
-    pub fn function_environment_type(&self) -> LocalNodeId<Type> {
-        // look up the void and reference types the variant stores
-        let Some(void_type) = self.find_type(&Type::Void) else {
-            unreachable!("missing void type for function environment storage");
-        };
-        let Some(reference) = self.find_type(&Self::environment_reference(void_type)) else {
-            unreachable!("missing canonical function environment reference type");
-        };
-
-        // look up the variant over those two payloads
-        let stores =
-            |cases: &[VariantCase], payload: TypeId| cases.iter().any(|case| case.ty == payload);
-        let Some(type_id) = self.find_type_by_predicate(|ty| {
-            matches!(ty, Type::Variant { cases, .. }
-                if cases.len() == 2 && stores(cases, reference) && stores(cases, void_type))
-        }) else {
-            unreachable!("missing canonical function environment storage type");
-        };
-
-        type_id
-    }
-
-    /// Ensure the storage type of the hidden environment field: a managed reference or nothing.
-    pub fn ensure_function_environment_type(&mut self) -> LocalNodeId<Type> {
-        let void_type = self.intern_type(Type::Void);
-        let reference = self.intern_type(Self::environment_reference(void_type));
-
-        self.intern_union(vec![reference, void_type], Copy::Yes)
-    }
-
-    /// Return the managed reference one environment stores.
-    fn environment_reference(void_type: TypeId) -> Type {
-        Type::Reference {
-            kind: ReferenceKind::Managed,
-            lifetime: Lifetime::empty(),
-            storage: Storage::Heap(Space::Local),
-            access: Access::Mutable,
-            pointee: void_type,
-        }
     }
 
     /// Get a reference to a node by id.
@@ -830,15 +724,6 @@ impl Tree {
     {
         let local_id = self.node_local_id(id.id);
         <Self as TreeImpl<T>>::get(self, local_id)
-    }
-
-    /// Find the first type id matching a predicate.
-    fn find_type_by_predicate(
-        &self,
-        predicate: impl Fn(&Type) -> bool,
-    ) -> Option<LocalNodeId<Type>> {
-        self.iter_nodes::<Type>()
-            .find_map(|(type_id, ty)| predicate(ty).then_some(type_id))
     }
 
     /// Get a mutable reference to a node by id.
@@ -1493,11 +1378,7 @@ impl TreeImpl<TypeDeclaration> for Tree {
 impl TreeImpl<Type> for Tree {
     #[inline]
     fn get(tree: &Tree, idx: u32) -> &Type {
-        match tree.types.get(idx) {
-            TypeEntry::Structural { ty, .. } | TypeEntry::Identified { ty, .. } => ty,
-            // parse recovery leaves failed definitions reserved: they read poisoned
-            TypeEntry::Reserved { .. } => &Type::Error,
-        }
+        tree.types.get(idx)
     }
 }
 

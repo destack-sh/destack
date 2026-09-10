@@ -5,6 +5,16 @@ use crate::{
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
+    /// Duplicate one SSA value.
+    pub fn copy(&mut self, value: Value) -> Value {
+        let destination = self.allocate_value();
+        let ty = self.expect_value_type(value, "copy source");
+        self.insert_instruction(Instruction::Copy { destination, value });
+        self.define_value(destination, ty);
+
+        destination
+    }
+
     /// Insert one typed constant.
     pub fn constant(&mut self, value: Constant, ty: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
@@ -142,7 +152,16 @@ impl<'a> FunctionBuilder<'a> {
         let right_type_id = self.expect_value_type(right_value, "binary right");
         let left_type = self.tree.get(left_type_id);
         let right_type = self.tree.get(right_type_id);
-        if left_type != right_type {
+
+        // compare addresses across reference qualifications
+        let is_address_comparison =
+            matches!(operator, BinaryOperator::Equal | BinaryOperator::NotEqual)
+                && matches!(
+                    (left_type, right_type),
+                    (Type::Reference { .. }, Type::Reference { .. })
+                        | (Type::Pointer { .. }, Type::Pointer { .. })
+                );
+        if left_type != right_type && !is_address_comparison {
             self.expect_build::<()>(Err(BuildError::MismatchedBinaryOperands {
                 operator,
                 left: format!("{:?}", self.tree.get(left_type_id)),
@@ -229,9 +248,7 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let then_type = self.expect_value_type(then_value, "select then");
         let else_type = self.expect_value_type(else_value, "select else");
-        let then_ty = self.tree.get(then_type);
-        let else_ty = self.tree.get(else_type);
-        if then_ty != else_ty {
+        if then_type != else_type {
             self.expect_build::<()>(Err(BuildError::MismatchedSelectOperands {
                 then_type,
                 else_type,

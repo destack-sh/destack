@@ -7,7 +7,7 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
-    Constant, ConvertMode, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
+    Constant, ConvertMode, Copy, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
     GlobalId, IndexSlice, Intrinsic, LocalId, Node, NodeType, SamplerId, Tree, TypeId,
     UnaryOperator, Value, ValueSlice, VectorReduceOperator,
 };
@@ -44,6 +44,14 @@ impl AddressKind {
 /// One MIR instruction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Instruction {
+    /// Duplicate one SSA value.
+    Copy {
+        /// The SSA value to define.
+        destination: Value,
+        /// The value to duplicate.
+        value: Value,
+    },
+
     /// Recovered invalid instruction syntax.
     Error,
 
@@ -110,6 +118,8 @@ pub enum Instruction {
     // local variables (local.get, local.set, local.address)
     /// Load from a local variable (stack slot).
     LocalGet {
+        /// Whether this read duplicates its source.
+        copy: Copy,
         /// The SSA value to define with the loaded value.
         destination: Value,
         /// The local variable to load from.
@@ -226,6 +236,8 @@ pub enum Instruction {
     // memory (pointers)
     /// Load from a pointer (dereference).
     Load {
+        /// Whether this read duplicates its source.
+        copy: Copy,
         /// The SSA value to define with the loaded value.
         destination: Value,
         /// The pointer to load from.
@@ -253,6 +265,8 @@ pub enum Instruction {
     // aggregate projection
     /// Extract one structural field from an aggregate value.
     FieldGet {
+        /// Whether this read duplicates its source.
+        copy: Copy,
         /// The SSA value to define with the extracted field.
         destination: Value,
         /// The aggregate value to extract from.
@@ -286,6 +300,8 @@ pub enum Instruction {
     },
     /// Extract one statically selected fixed-array element.
     ElementGet {
+        /// Whether this read duplicates its source.
+        copy: Copy,
         /// The SSA value to define with the extracted element.
         destination: Value,
         /// The fixed-array aggregate to extract from.
@@ -346,6 +362,8 @@ pub enum Instruction {
     },
     /// Extract the payload of one statically selected variant case.
     VariantPayload {
+        /// Whether this read duplicates its source.
+        copy: Copy,
         /// The SSA value to define with the extracted payload.
         destination: Value,
         /// The variant value to extract from.
@@ -594,10 +612,9 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeId,
     },
-    /// Release one unique representation's backing allocation to the heap (`release`).
+    /// Release ownership of an allocation while retaining its initialized contents for live aliases.
     ///
-    /// Emitted after drop elaboration has destroyed the allocation contents; the heap frees an
-    /// allocation the managed graph never retained and leaves the rest to the collector.
+    /// Run finalization once the allocation is unreachable, before reclaiming its storage.
     Release {
         /// The unique heap representation whose backing allocation is returned.
         value: Value,
@@ -864,10 +881,13 @@ impl Instruction {
         }
     }
 
+    /// Return the SSA value defined by this instruction.
     pub fn destination(&self) -> Option<Value> {
         match self {
             Instruction::Error => None,
-            Instruction::Const { destination, .. } => Some(*destination),
+            Instruction::Copy { destination, .. } | Instruction::Const { destination, .. } => {
+                Some(*destination)
+            }
             Instruction::Binary { destination, .. } => Some(*destination),
             Instruction::Unary { destination, .. } => Some(*destination),
             Instruction::Cast { destination, .. } => Some(*destination),
@@ -941,6 +961,7 @@ impl Instruction {
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
             Instruction::Error => smallvec![],
+            Instruction::Copy { value, .. } => smallvec![*value],
             Instruction::Const { .. } => smallvec![],
             Instruction::Binary { left, right, .. } => smallvec![*left, *right],
             Instruction::Unary { argument, .. } => smallvec![*argument],

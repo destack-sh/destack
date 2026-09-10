@@ -21,6 +21,10 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Error => {
             panic!("recovered MIR instruction reached optimizer");
         }
+        mir::Instruction::Copy { destination, value } => mir::Instruction::Copy {
+            destination: *destination,
+            value: substitute(value),
+        },
         mir::Instruction::Binary {
             destination,
             operator,
@@ -119,10 +123,12 @@ pub fn instruction_substitute_uses(
             result_type: *result_type,
         },
         mir::Instruction::Load {
+            copy,
             destination,
             pointer,
             result_type,
         } => mir::Instruction::Load {
+            copy: *copy,
             destination: *destination,
             pointer: substitute(pointer),
             result_type: *result_type,
@@ -195,10 +201,12 @@ pub fn instruction_substitute_uses(
             value: substitute(value),
         },
         mir::Instruction::FieldGet {
+            copy,
             destination,
             aggregate,
             field,
         } => mir::Instruction::FieldGet {
+            copy: *copy,
             destination: *destination,
             aggregate: substitute(aggregate),
             field: *field,
@@ -215,10 +223,12 @@ pub fn instruction_substitute_uses(
             value: substitute(value),
         },
         mir::Instruction::ElementGet {
+            copy,
             destination,
             aggregate,
             index,
         } => mir::Instruction::ElementGet {
+            copy: *copy,
             destination: *destination,
             aggregate: substitute(aggregate),
             index: *index,
@@ -260,10 +270,12 @@ pub fn instruction_substitute_uses(
             variant: substitute(variant),
         },
         mir::Instruction::VariantPayload {
+            copy,
             destination,
             variant,
             case,
         } => mir::Instruction::VariantPayload {
+            copy: *copy,
             destination: *destination,
             variant: substitute(variant),
             case: *case,

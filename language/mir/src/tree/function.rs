@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Binding, Block, FunctionId, FunctionParameter, GenericArgument, GenericParameter, Instruction,
-    LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, ReferenceKind, Storage, Symbol,
+    LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Reference, Storage, Symbol,
     Tree, Type, TypeId, Value,
 };
 
@@ -612,7 +612,7 @@ impl Function {
     pub fn pointee_type(&self, value: Value, tree: &Tree) -> Option<TypeId> {
         let ty = self.expect_value_type(value);
 
-        match tree.get(ty) {
+        match tree.type_definition(ty) {
             Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => Some(*pointee),
             Type::Slice { element, .. } => Some(*element),
             _ => None,
@@ -620,17 +620,17 @@ impl Function {
     }
 
     /// Return the reference kind for one reference-like value.
-    pub fn reference_kind(&self, value: Value, tree: &Tree) -> Option<ReferenceKind> {
+    pub fn reference_kind(&self, value: Value, tree: &Tree) -> Option<Reference> {
         let ty = self.expect_value_type(value);
 
-        tree.get(ty).reference_kind()
+        tree.type_definition(ty).reference_kind()
     }
 
     /// Return the storage for one reference-like value.
     pub fn reference_storage(&self, value: Value, tree: &Tree) -> Option<Storage> {
         let ty = self.expect_value_type(value);
 
-        tree.get(ty).reference_storage()
+        tree.type_definition(ty).reference_storage()
     }
 
     /// Return the width of one unsigned integer value.
@@ -642,7 +642,7 @@ impl Function {
     ) -> Option<u16> {
         let ty = self.expect_value_type(value);
 
-        match tree.get(ty) {
+        match tree.type_definition(ty) {
             Type::Int {
                 width,
                 is_signed: false,

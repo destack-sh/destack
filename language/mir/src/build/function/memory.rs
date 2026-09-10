@@ -2,8 +2,8 @@ use destack_core::StringId;
 
 use crate::build::FunctionBuilder;
 use crate::{
-    Access, AddressKind, Block, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability,
-    ReferenceKind, Storage, Type, Value,
+    Access, AddressKind, Block, Copy, Exclusivity, Global, Instruction, Lifetime, Local,
+    LocalNodeId, Mutability, Reference, Storage, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -29,9 +29,13 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Load from a local variable.
-    pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
+    pub fn local_get(&mut self, local: LocalNodeId<Local>, copy: Copy) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::LocalGet { destination, local });
+        self.insert_instruction(Instruction::LocalGet {
+            copy,
+            destination,
+            local,
+        });
         let local_ty = self.tree.get(local).ty;
         self.define_value(destination, local_ty);
         destination
@@ -100,11 +104,11 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Load one global value through its address.
-    pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
+    pub fn load_global(&mut self, global: LocalNodeId<Global>, copy: Copy) -> Value {
         let global_ty = self.tree.get(global).ty;
         let global_space = self.tree.get(global).space;
         let global_pointer = self.tree.intern_type(Type::Reference {
-            kind: ReferenceKind::Borrowed,
+            kind: Reference::Borrowed(Exclusivity::Aliasable),
             lifetime: Lifetime::empty(),
             storage: Storage::global(global_space),
             access: Access::Readonly,
@@ -112,7 +116,7 @@ impl<'a> FunctionBuilder<'a> {
         });
         let pointer = self.global_addr(global, global_pointer, AddressKind::Projection);
 
-        self.load(pointer, global_ty)
+        self.load(pointer, global_ty, copy)
     }
 
     /// Store one global value through its address.
@@ -120,7 +124,7 @@ impl<'a> FunctionBuilder<'a> {
         let global_ty = self.tree.get(global).ty;
         let global_space = self.tree.get(global).space;
         let global_pointer = self.tree.intern_type(Type::Reference {
-            kind: ReferenceKind::Borrowed,
+            kind: Reference::Borrowed(Exclusivity::Aliasable),
             lifetime: Lifetime::empty(),
             storage: Storage::global(global_space),
             access: Access::Mutable,
@@ -132,9 +136,15 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Load from a pointer.
-    pub fn load(&mut self, pointer_value: Value, result_type: LocalNodeId<Type>) -> Value {
+    pub fn load(
+        &mut self,
+        pointer_value: Value,
+        result_type: LocalNodeId<Type>,
+        copy: Copy,
+    ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Load {
+            copy,
             destination,
             pointer: pointer_value,
             result_type,

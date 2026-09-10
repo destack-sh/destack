@@ -1,7 +1,7 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    AddressKind, BinaryOperator, ConvertMode, DispatchSlot, Instruction, LocalNodeId, Tree, Type,
-    TypeId, Value, VectorReduceOperator,
+    AddressKind, BinaryOperator, ConvertMode, Copy, DispatchSlot, Instruction, LocalNodeId, Tree,
+    Type, TypeId, Value, VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -20,7 +20,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Extract one structural field from an aggregate.
-    pub fn field_get(&mut self, aggregate: Value, field: u32) -> Value {
+    pub fn field_get(&mut self, aggregate: Value, field: u32, copy: Copy) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
         let field_type = self.projected_type(aggregate_type, |tree, aggregate| {
@@ -33,6 +33,7 @@ impl<'a> FunctionBuilder<'a> {
         });
         let field_type = self.expect_build(field_type);
         self.insert_instruction(Instruction::FieldGet {
+            copy,
             destination,
             aggregate,
             field,
@@ -106,12 +107,13 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Extract the payload of one statically selected variant case.
-    pub fn variant_payload(&mut self, variant: Value, case: u32) -> Value {
+    pub fn variant_payload(&mut self, variant: Value, case: u32, copy: Copy) -> Value {
         let destination = self.allocate_value();
         let variant_type = self.expect_value_type(variant, "variant.payload variant");
         let payload_type = self.variant_case_type(variant_type, case);
         let payload_type = self.expect_build(payload_type);
         self.insert_instruction(Instruction::VariantPayload {
+            copy,
             destination,
             variant,
             case,
@@ -163,12 +165,13 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Extract one statically selected fixed-array element.
-    pub fn element_get(&mut self, aggregate: Value, index: u32) -> Value {
+    pub fn element_get(&mut self, aggregate: Value, index: u32, copy: Copy) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "element.get aggregate");
         let element_type = self.fixed_array_element_type(aggregate_type, index);
         let element_type = self.expect_build(element_type);
         self.insert_instruction(Instruction::ElementGet {
+            copy,
             destination,
             aggregate,
             index,
@@ -465,9 +468,9 @@ impl<'a> FunctionBuilder<'a> {
         variant_type: LocalNodeId<Type>,
         case: u32,
     ) -> BuildResult<LocalNodeId<Type>> {
-        self.projected_type(variant_type, |tree, variant| match variant {
+        self.projected_type(variant_type, |_, variant| match variant {
             Type::Variant { cases, .. } => match cases.get(case as usize) {
-                Some(entry) => Ok(entry.payload(tree)),
+                Some(entry) => Ok(entry.ty),
                 None => Err(BuildError::InvalidCaseIndex {
                     variant: variant_type,
                     case,
@@ -486,7 +489,7 @@ impl<'a> FunctionBuilder<'a> {
         // project an application through its representation
         let owner = self.tree.represented(TypeId::from(owner));
 
-        project(self.tree, self.tree.get(owner))
+        project(self.tree, self.tree.type_definition(owner))
     }
 
     /// Resolve one statically selected fixed-array element type.

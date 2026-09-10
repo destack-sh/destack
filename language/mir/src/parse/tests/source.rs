@@ -48,11 +48,17 @@ type Child extends Parent, Base implements Left, Right { }
     let child = declarations[4];
     assert_eq!(
         child.heritage.extends,
-        vec![declarations[0].ty, declarations[1].ty]
+        vec![
+            tree.identified_type(declarations[0].symbol).unwrap(),
+            tree.identified_type(declarations[1].symbol).unwrap()
+        ]
     );
     assert_eq!(
         child.heritage.implements,
-        vec![declarations[2].ty, declarations[3].ty]
+        vec![
+            tree.identified_type(declarations[2].symbol).unwrap(),
+            tree.identified_type(declarations[3].symbol).unwrap()
+        ]
     );
 }
 

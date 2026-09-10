@@ -78,14 +78,6 @@ impl<'a> Format<'a, Formatter<'a>> for Constant {
 
 /// Format a type id by canonical MIR name.
 pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    if let Some(declaration_id) = f.context().tree.type_declaration(ty) {
-        let tree = f.context().tree;
-        let declaration = tree.get(declaration_id);
-        let name = f.context().strings.get(declaration.name).to_string();
-
-        return write!(f, [copied_text(&name)]);
-    }
-
     // name an anonymous type met again inside its own expansion
     if f.context().expanding.contains(&ty) {
         return write!(f, [copied_text(&format!("type@{}", ty.id))]);
@@ -134,7 +126,7 @@ pub(super) fn format_constant_for_type<'a>(
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let ty = constant_storage_type(ty, f);
-    let expected = f.context().tree.get(ty);
+    let expected = f.context().tree.type_definition(ty);
 
     match (constant, expected) {
         (
@@ -182,7 +174,7 @@ pub(super) fn format_constant_for_type<'a>(
 
 /// Return the storage type used to format one typed constant.
 fn constant_storage_type<'a>(ty: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> LocalNodeId<Type> {
-    let expected = f.context().tree.get(ty);
+    let expected = f.context().tree.type_definition(ty);
     if let Type::Newtype { inner, .. } = expected {
         *inner
     } else {

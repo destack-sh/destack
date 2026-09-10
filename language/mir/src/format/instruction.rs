@@ -24,6 +24,14 @@ impl FormatNode for Instruction {
                 message: "cannot format recovered MIR instruction",
             }),
 
+            Instruction::Copy { destination, value } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [space(), token("="), space(), token("copy"), space(), value]
+                )
+            }
+
             Instruction::Const { destination, value } => {
                 let destination_type = typed_destination_type(*destination, f)?;
                 format_typed_destination(*destination, f)?;
@@ -123,7 +131,11 @@ impl FormatNode for Instruction {
                 )
             }
 
-            Instruction::LocalGet { destination, local } => {
+            Instruction::LocalGet {
+                copy,
+                destination,
+                local,
+            } => {
                 let local_index = f.context().local_index(*local)?;
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -132,7 +144,11 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("local.get"),
+                        token(if copy.is_yes() {
+                            "local.get.copy"
+                        } else {
+                            "local.get"
+                        }),
                         space(),
                         copied_text(&format!("l{local_index}"))
                     ]
@@ -347,6 +363,7 @@ impl FormatNode for Instruction {
                 )
             }
             Instruction::Load {
+                copy,
                 destination,
                 pointer,
                 ..
@@ -358,7 +375,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("load"),
+                        token(if copy.is_yes() { "load.copy" } else { "load" }),
                         space(),
                         pointer
                     ]
@@ -386,6 +403,7 @@ impl FormatNode for Instruction {
             }
 
             Instruction::FieldGet {
+                copy,
                 destination,
                 aggregate,
                 field,
@@ -397,7 +415,11 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("field.get"),
+                        token(if copy.is_yes() {
+                            "field.get.copy"
+                        } else {
+                            "field.get"
+                        }),
                         space(),
                         aggregate,
                         token(","),
@@ -496,6 +518,7 @@ impl FormatNode for Instruction {
             }
 
             Instruction::VariantPayload {
+                copy,
                 destination,
                 variant,
                 case,
@@ -507,7 +530,11 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("variant.payload"),
+                        token(if copy.is_yes() {
+                            "variant.payload.copy"
+                        } else {
+                            "variant.payload"
+                        }),
                         space(),
                         variant,
                         token(","),
@@ -566,6 +593,7 @@ impl FormatNode for Instruction {
             }
 
             Instruction::ElementGet {
+                copy,
                 destination,
                 aggregate,
                 index,
@@ -577,7 +605,11 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("element.get"),
+                        token(if copy.is_yes() {
+                            "element.get.copy"
+                        } else {
+                            "element.get"
+                        }),
                         space(),
                         aggregate,
                         token(","),

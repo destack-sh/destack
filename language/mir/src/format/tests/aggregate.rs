@@ -93,9 +93,11 @@ fn test_format_aggregate_access() {
         r#"
 function aggregateAccess(v0: (int32, float64), v1: [int32; 10]): int32 {
 entry(v0: (int32, float64), v1: [int32; 10]):
-    v2: int32 = field.get v0, 0
-    v3: int32 = element.get v1, 2
-    return v2
+    v2: int32 = field.get.copy v0, 0
+    v3: int32 = element.get.copy v1, 2
+    v4: int32 = field.get v0, 0
+    v5: int32 = element.get v1, 2
+    return v4
 }
 "#,
     );

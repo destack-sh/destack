@@ -116,7 +116,7 @@ impl Parser {
         let token_text = self.tree.source_text(token.span).to_string();
         let token_start = token.start();
         let expected_type = self.constant_storage_type(expected_type)?;
-        let expected = self.tree.get(expected_type).clone();
+        let expected = self.tree.type_definition(expected_type).clone();
 
         // validate the literal against the expected type
         match kind {
@@ -203,7 +203,7 @@ impl Parser {
 
                 // expected integer shape
                 let has_suffix = token_text.chars().any(|c| c.is_ascii_alphabetic());
-                let (width, is_signed) = match self.tree.get(expected_type) {
+                let (width, is_signed) = match self.tree.type_definition(expected_type) {
                     Type::Int { width, is_signed } => (*width, *is_signed),
                     Type::Isize => (self.target_layout.pointer_bits(), true),
                     Type::Usize => (self.target_layout.pointer_bits(), false),
@@ -261,7 +261,7 @@ impl Parser {
         &self,
         expected_type: LocalNodeId<Type>,
     ) -> ParseResult<LocalNodeId<Type>> {
-        let expected = self.tree.get(expected_type);
+        let expected = self.tree.type_definition(expected_type);
         if let Type::Newtype { inner, .. } = expected {
             Ok(*inner)
         } else {

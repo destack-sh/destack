@@ -1,31 +1,37 @@
-use crate::{Tree, TypeId};
+use crate::{Field, StaticId, Tree, Type, TypeId};
 
-/// Intern one type with every region erased, an identified declaration kept as it is.
-pub fn erase_regions(tree: &mut Tree, ty: TypeId) -> TypeId {
-    // keep a declaration as written
+/// Erase lifetimes while preserving declaration identities and memory spaces.
+pub fn erase_lifetimes(tree: &mut Tree, ty: TypeId) -> TypeId {
+    // preserve declaration identities and terminate recursive definitions
     if tree.is_identified_type(ty) {
         return ty;
     }
 
-    // erase the region written on the type and on its region arguments
-    let mut erased = tree.get(ty).erased_lifetime();
+    // erase the lifetimes written directly on this type
+    let mut erased = tree.get(ty).erased_lifetimes();
 
-    // erase every child type
-    let mut children = Vec::new();
-    erased.map_child_type_ids(&mut |child| {
-        children.push(child);
-        child
-    });
-    let mut erased_children = Vec::with_capacity(children.len());
-    for child in children {
-        erased_children.push(erase_regions(tree, child));
+    // erase field types while preserving names and attributes
+    if let Type::Struct { fields, .. } = &mut erased {
+        for field in fields {
+            let declared = tree.get(*field).clone();
+            let attributes = tree.attributes(*field).to_vec();
+            let ty = erase_lifetimes(tree, declared.ty);
+            *field = tree.intern_field(Field { ty, ..declared }, attributes);
+        }
     }
-    let mut erased_children = erased_children.into_iter();
-    erased.map_child_type_ids(&mut |_| {
-        erased_children
-            .next()
-            .unwrap_or_else(|| unreachable!("erased child count changed"))
-    });
+
+    // erase the remaining child types
+    erased.map_values(&mut |value| erase_value(tree, value));
+    erased.map_child_type_ids(&mut |child| erase_lifetimes(tree, child));
 
     tree.intern_type(erased)
+}
+
+/// Erase lifetime requirements from types reflected in a compile-time value.
+fn erase_value(tree: &mut Tree, id: StaticId) -> StaticId {
+    let mut value = tree.static_value(id).clone();
+    value.map_values(&mut |value| erase_value(tree, value));
+    value.map_types(&mut |ty| erase_lifetimes(tree, ty));
+
+    tree.intern_static(value)
 }

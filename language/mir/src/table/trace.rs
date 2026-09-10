@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::SectionEntry;
 use destack_serde::Reflect;
 
-use crate::{Discriminant, Space, Storage, VariantEncoding};
+use crate::{Discriminant, Storage, StorageSet, Tree, VariantEncoding};
 
 /// Reference trace map for one value layout.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -12,11 +12,11 @@ pub enum TraceMap {
     Empty,
     /// The payload stores reference words at fixed byte offsets.
     Fixed {
-        /// Byte offsets of encoded local heap references.
+        /// Byte offsets of references that may address the local heap.
         local_offsets: Box<[u32]>,
-        /// Byte offsets of encoded shared heap references.
+        /// Byte offsets of references that may address the shared heap.
         shared_offsets: Box<[u32]>,
-        /// Byte offsets of encoded frame references.
+        /// Byte offsets of references that may address frames.
         frame_offsets: Box<[u32]>,
     },
     /// The payload stores one nested map at a byte offset.
@@ -55,30 +55,47 @@ impl TraceMap {
         Self::Empty
     }
 
-    /// Create the canonical trace map for one reference-like value.
-    pub fn reference(storage: Storage) -> Self {
-        // frame references must be rewritten when continuations move
-        if storage == Storage::Frame {
-            return Self::Fixed {
-                local_offsets: Box::new([]),
-                shared_offsets: Box::new([]),
-                frame_offsets: Box::new([0]),
-            };
+    /// Trace a world-relative reference in each possible reclaimable storage category.
+    pub fn reference(storage: Storage, tree: &Tree) -> Self {
+        let storage = Self::reference_storage(storage, tree);
+        if storage.is_empty() {
+            return Self::Empty;
         }
 
-        // every heap reference keeps its allocation live, a borrow through its interior address
-        match storage.heap_space() {
-            None | Some(Space::Constant | Space::Parameter(_)) => Self::Empty,
-            Some(Space::Local) => Self::Fixed {
-                local_offsets: Box::new([0]),
-                shared_offsets: Box::new([]),
-                frame_offsets: Box::new([]),
-            },
-            Some(Space::Shared) => Self::Fixed {
-                local_offsets: Box::new([]),
-                shared_offsets: Box::new([0]),
-                frame_offsets: Box::new([]),
-            },
+        Self::Fixed {
+            local_offsets: storage
+                .contains(StorageSet::LOCAL)
+                .then_some(0)
+                .into_iter()
+                .collect(),
+            shared_offsets: storage
+                .contains(StorageSet::SHARED)
+                .then_some(0)
+                .into_iter()
+                .collect(),
+            frame_offsets: storage
+                .contains(StorageSet::FRAME)
+                .then_some(0)
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    /// Return the storage categories that can require tracing.
+    fn reference_storage(storage: Storage, tree: &Tree) -> StorageSet {
+        match storage {
+            Storage::Static(_) => StorageSet::NONE,
+            Storage::Join(id) => tree
+                .storage_join(id)
+                .iter()
+                .fold(StorageSet::NONE, |set, storage| {
+                    set.union(Self::reference_storage(*storage, tree))
+                }),
+            storage => storage.storage_set(tree).intersection(
+                StorageSet::LOCAL
+                    .union(StorageSet::SHARED)
+                    .union(StorageSet::FRAME),
+            ),
         }
     }
 

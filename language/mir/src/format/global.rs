@@ -139,7 +139,7 @@ fn data_init_element_type<'a>(
 ) -> Option<LocalNodeId<Type>> {
     let ty = ty?;
 
-    match f.context().tree.get(ty) {
+    match f.context().tree.type_definition(ty) {
         Type::FixedArray { element, .. } | Type::Vector { element, .. } => Some(*element),
         Type::Tuple { elements, .. } => elements.get(index).copied(),
         Type::Struct { fields, .. } => fields

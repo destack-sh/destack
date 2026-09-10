@@ -199,37 +199,22 @@ impl Parser {
 
     /// Reserve identified types before parsing concrete function arguments.
     fn reserve_types(&mut self) {
-        let start = self.pos;
-
-        loop {
-            self.pos = start;
-            let previous_count = self.type_declaration_map.len();
-            while !self.peek_is(TokenType::End) {
-                self.skip_attribute_tokens();
-
-                if self.peek_is(TokenType::Type) {
-                    self.bump();
-
-                    let Ok((name, _)) = self.parse_symbol_name() else {
-                        continue;
-                    };
-                    if self.type_declaration_map.contains_key(&name) {
-                        continue;
-                    }
-
+        // reserve each name without inspecting its definition
+        while !self.peek_is(TokenType::End) {
+            self.skip_attribute_tokens();
+            if self.peek_is(TokenType::Type) {
+                self.bump();
+                let Ok((name, _)) = self.parse_symbol_name() else {
+                    continue;
+                };
+                if !self.type_declaration_map.contains_key(&name) {
                     let name_id = self.strings.intern(&name);
                     let symbol = Symbol::named(self.module, name_id);
                     let type_id = self.tree.reserve_type(symbol);
                     self.type_declaration_map.insert(name, type_id);
-
-                    continue;
                 }
-
+            } else {
                 self.bump();
-            }
-
-            if self.type_declaration_map.len() == previous_count {
-                break;
             }
         }
     }
@@ -685,7 +670,7 @@ impl Parser {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
                 let is_nominal = expected_type
-                    .is_some_and(|ty| matches!(self.tree.get(ty), Type::Struct { .. }));
+                    .is_some_and(|ty| matches!(self.tree.type_definition(ty), Type::Struct { .. }));
                 if is_nominal {
                     let value = self.strings.intern(&value);
 
@@ -788,7 +773,7 @@ impl Parser {
     ) -> Option<LocalNodeId<Type>> {
         let expected_type = expected_type?;
 
-        match self.tree.get(expected_type) {
+        match self.tree.type_definition(expected_type) {
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => Some(*element),
             Type::Tuple { elements, .. } => elements.get(index).copied(),
             Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),

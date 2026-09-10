@@ -4,8 +4,8 @@ use destack_core::FxIndexSet;
 
 use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
-    NewtypeLayout, NodeVisitor, Primitive, Representation, Scalar, ScalarField, StructLayout,
-    TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeDeclaration, TypeId, Validity, Vector,
+    NewtypeLayout, NodeVisitor, Primitive, Representation, Scalar, ScalarField, Static,
+    StructLayout, TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeId, Validity, Vector,
     walk_type,
 };
 
@@ -38,6 +38,8 @@ pub enum LayoutError {
         /// Unsupported representation.
         construct: String,
     },
+    /// A type or array length still requires substitution.
+    Unresolved(TypeId),
     /// One variant case carries a non-scalar discriminant.
     InvalidDiscriminant {
         /// Invalid discriminant representation.
@@ -55,6 +57,7 @@ impl fmt::Display for LayoutError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Missing { ty } => write!(formatter, "missing concrete layout for {ty:?}"),
+            Self::Unresolved(ty) => write!(formatter, "unresolved layout for {ty:?}"),
             Self::Unsupported { construct, .. } => {
                 write!(
                     formatter,
@@ -98,7 +101,7 @@ impl ReachableTypeCollector {
 }
 
 impl NodeVisitor for ReachableTypeCollector {
-    fn visit_type(&mut self, tree: &Tree, id: LocalNodeId<Type>, ty: &Type) {
+    fn visit_type(&mut self, tree: &Tree, id: LocalNodeId<Type>, _ty: &Type) {
         // stop reference cycles at their first visited type
         if !self.visited.insert(id) {
             return;
@@ -106,7 +109,18 @@ impl NodeVisitor for ReachableTypeCollector {
 
         self.types.push(id);
 
-        walk_type(self, tree, id, ty);
+        // reference layouts do not require layouts for their targets
+        let ty = tree.type_definition(id);
+        match ty {
+            Type::Reference { .. }
+            | Type::Pointer { .. }
+            | Type::Slice { .. }
+            | Type::Dynamic { .. }
+            | Type::Function { .. }
+            | Type::FunctionPointer { .. } => {}
+            Type::Application { .. } if tree.representation(id).is_none() => {}
+            _ => walk_type(self, tree, id, ty),
+        }
     }
 }
 
@@ -123,20 +137,17 @@ impl<'tree> LayoutBuilder<'tree> {
 
     /// Compute every value layout reachable from runtime MIR roots.
     pub fn layout_reachable_types(&mut self) -> Result<(), LayoutError> {
-        // traverse named representations
-        let mut reachable = ReachableTypeCollector::new();
-        for (id, declaration) in self.tree.iter_nodes::<TypeDeclaration>() {
-            NodeVisitor::visit_type_declaration(&mut reachable, self.tree, id, declaration);
-        }
-
         // traverse global storage representations
+        let mut reachable = ReachableTypeCollector::new();
         for (id, global) in self.tree.iter_nodes::<Global>() {
             NodeVisitor::visit_global(&mut reachable, self.tree, id, global);
         }
 
         // traverse callable signatures and bodies
         for (id, function) in self.tree.iter_nodes::<Function>() {
-            NodeVisitor::visit_function(&mut reachable, self.tree, id, function);
+            if function.generics.is_empty() {
+                NodeVisitor::visit_function(&mut reachable, self.tree, id, function);
+            }
         }
 
         // lay out every type the walk reached
@@ -149,11 +160,6 @@ impl<'tree> LayoutBuilder<'tree> {
 
     /// Compute a layout when one reachable MIR type has a value representation.
     fn layout_reachable_type(&mut self, ty: LocalNodeId<Type>) -> Result<(), LayoutError> {
-        // skip types over template parameters, which lay out at instantiation
-        if TypeId::from(ty).mentions_parameter(self.tree) {
-            return Ok(());
-        }
-
         match self.tree.get(ty) {
             // skip types without runtime representations
             Type::Error | Type::Never | Type::FunctionSignature { .. } | Type::Parameter { .. } => {
@@ -161,7 +167,8 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // compute one layout for each represented type
-            Type::Void
+            Type::Declaration { .. }
+            | Type::Void
             | Type::Null
             | Type::Boolean
             | Type::Character
@@ -170,7 +177,6 @@ impl<'tree> LayoutBuilder<'tree> {
             | Type::Usize
             | Type::Float(_)
             | Type::TypeId
-            | Type::Atomic { .. }
             | Type::Dynamic { .. }
             | Type::Application { .. }
             | Type::Reference { .. }
@@ -212,9 +218,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     )));
                 }
             },
-            Type::Atomic { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
-                Some(*value)
-            }
+            Type::Uninit { value } | Type::ManuallyDrop { value } => Some(*value),
             _ => None,
         };
         if let Some(represented) = represented {
@@ -268,7 +272,7 @@ impl<'tree> LayoutBuilder<'tree> {
 
                 Ok(Layout::scalar(scalar, bytes, self.pointer_alignment()))
             }
-            Type::Parameter { .. } => Err(self.unsupported("an open type")),
+            Type::Parameter { .. } => Err(LayoutError::Unresolved(ty)),
             Type::TypeId => Ok(Layout::scalar(
                 Scalar::new(Primitive::Integer { width: 32 }),
                 4,
@@ -291,7 +295,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: scalar.niche(0),
                     size: self.pointer_bytes(),
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(storage),
+                    trace_map: TraceMap::reference(storage, self.tree),
                 })
             }
 
@@ -328,7 +332,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: reference.niche(0),
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(storage),
+                    trace_map: TraceMap::reference(storage, self.tree),
                 })
             }
 
@@ -336,6 +340,9 @@ impl<'tree> LayoutBuilder<'tree> {
             Type::FixedArray {
                 element, length, ..
             } => {
+                if matches!(self.tree.static_value(length), Static::Parameter(_)) {
+                    return Err(LayoutError::Unresolved(ty));
+                }
                 let length = self
                     .tree
                     .static_value(length)
@@ -448,6 +455,9 @@ impl<'tree> LayoutBuilder<'tree> {
 
             // vectors store fixed scalar lanes inline
             Type::Vector { element, lanes, .. } => {
+                if matches!(self.tree.static_value(lanes), Static::Parameter(_)) {
+                    return Err(LayoutError::Unresolved(ty));
+                }
                 let lanes = self
                     .tree
                     .static_value(lanes)
@@ -496,14 +506,14 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: payload.niche(0),
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(storage),
+                    trace_map: TraceMap::reference(storage, self.tree),
                 })
             }
 
             // closures store a function identity and erased environment reference
             Type::Function { storage, .. } => {
                 let environment_offset = self.pointer_bytes();
-                let environment_trace = TraceMap::reference(storage);
+                let environment_trace = TraceMap::reference(storage, self.tree);
                 let function = self.function_scalar();
                 let environment = Scalar::new(Primitive::Pointer {
                     width: self.target.pointer_bits(),
@@ -534,9 +544,18 @@ impl<'tree> LayoutBuilder<'tree> {
                 ))
             }
 
+            Type::Declaration { declaration } => {
+                let definition = self
+                    .tree
+                    .get(declaration)
+                    .definition
+                    .ok_or_else(|| self.unsupported("opaque type"))?;
+                let layout = self.layout_type(definition)?;
+
+                Ok(self.layouts.layout(layout).clone())
+            }
             // transparent storage forms are handled before layout construction
-            Type::Atomic { .. }
-            | Type::Application { .. }
+            Type::Application { .. }
             | Type::Uninit { .. }
             | Type::ManuallyDrop { .. }
             | Type::Error
@@ -623,7 +642,7 @@ impl<'tree> LayoutBuilder<'tree> {
         Ok(Layout::scalar(scalar, size, self.natural_alignment(size)))
     }
 
-    /// Return one reference scalar reserving the nullish words as a niche.
+    /// Return a world-relative reference scalar reserving the nullish words.
     fn reference_scalar(&self) -> Scalar {
         Scalar::reference(Primitive::Pointer {
             width: self.target.pointer_bits(),
