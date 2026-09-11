@@ -1,5 +1,5 @@
 use crate::DestackFormatter;
-use destack_dir::{Keyword, Mutability, Visibility};
+use destack_dir::{Access, Keyword, Mutability, Visibility};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
@@ -69,5 +69,16 @@ pub(crate) fn write_mutability_prefix<'ast>(
     match mutability {
         Some(Mutability::Immutable) => write!(f, [Keyword::Readonly, space()]),
         Some(Mutability::Mutable) | None => Ok(()),
+    }
+}
+
+/// Write one borrow access prefix when present.
+pub(crate) fn write_access_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    access: Option<Access>,
+) -> FormatResult<()> {
+    match access {
+        Some(Access::Mutable) | None => Ok(()),
+        Some(access) => write!(f, [token(access.text()), space()]),
     }
 }

@@ -13,7 +13,7 @@ use crate::declaration::signature::{
     write_grouped_parameters_with_return_type, write_signature_hug_parameter_list_with_this,
     write_signature_parameter_list_with_this, write_signature_return_type,
 };
-use crate::declaration::write_visibility_prefix;
+use crate::declaration::{write_access_prefix, write_visibility_prefix};
 use crate::expression::format_type_template_literal;
 use crate::file::{
     ignore_ranges_for_nodes, node_has_ignore_directive, node_has_trailing_line_ignore_directive,
@@ -26,11 +26,11 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
-    Comment, ConstructorType, Declaration, Exclusivity, Expression, FunctionForm,
-    FunctionSignature, FunctionTypeExpression, GenericArgument, GenericParameter, InferForm,
-    Keyword, LocalNodeId, MappedTypeModifier, Member, Mutability, Name, Node, NodeType, Parameter,
-    Property, RangeEnd, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm,
-    TypeExpression, TypeLiteral, TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
+    Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
+    FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Keyword, LocalNodeId,
+    MappedTypeModifier, Member, Mutability, Name, Node, NodeType, Parameter, Property, RangeEnd,
+    TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm, TypeExpression, TypeLiteral,
+    TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
 use destack_fir::format::{FormatElement as FirElement, FormatError, FormatLayout, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -2917,8 +2917,7 @@ fn write_type_expression_body_inner<'ast>(
         }
         TypeExpression::BorrowedOf {
             lifetime,
-            mutability,
-            exclusivity,
+            access,
             variance,
             target_type,
         } => {
@@ -2928,16 +2927,7 @@ fn write_type_expression_body_inner<'ast>(
                 write!(f, [lifetime, space()])?;
             }
 
-            if let Some(mutability) = mutability {
-                match mutability {
-                    Mutability::Immutable => write!(f, [Keyword::Readonly, space()])?,
-                    Mutability::Mutable => {}
-                }
-            }
-
-            if *exclusivity == Some(Exclusivity::Exclusive) {
-                write!(f, [token("exclusive"), space()])?;
-            }
+            write_access_prefix(f, *access)?;
 
             if let Some(variance) = variance {
                 match variance {

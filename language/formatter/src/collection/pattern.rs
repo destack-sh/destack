@@ -8,10 +8,11 @@ use crate::annotation::{
 };
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::context::CapturedFormat;
+use crate::declaration::write_access_prefix;
 use crate::operator::write_range_operator;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
-    AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Exclusivity, Expression,
+    Access, AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression,
     LocalNodeId, Mutability, Node, NodeType, Parameter, Pattern, PatternField, RangeEnd, Tree,
     TreeStore, TypeExpression,
 };
@@ -302,24 +303,12 @@ fn format_prefixed_pattern<'ast>(
     node_id: LocalNodeId<Pattern>,
     prefix: &'static str,
     right: LocalNodeId<Pattern>,
-    mutability: Option<Mutability>,
-    exclusivity: Option<Exclusivity>,
+    access: Option<Access>,
 ) -> FormatResult<()> {
     write!(f, [token(prefix)])?;
+    write_access_prefix(f, access)?;
 
-    if let Some(mutability) = mutability {
-        match mutability {
-            Mutability::Immutable => write!(f, [token("readonly"), space()])?,
-            Mutability::Mutable => {}
-        }
-    }
-
-    if exclusivity == Some(Exclusivity::Exclusive) {
-        write!(f, [token("exclusive"), space()])?;
-    }
-
-    let operand_has_space = matches!(mutability, Some(Mutability::Immutable))
-        || exclusivity == Some(Exclusivity::Exclusive);
+    let operand_has_space = matches!(access, Some(access) if access != Access::Mutable);
     write_prefix_pattern_operand(f, node_id, right, operand_has_space)?;
 
     Ok(())
@@ -730,16 +719,13 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 });
             }
 
-            Pattern::BorrowOf {
-                right,
-                mutability,
-                exclusivity,
-            } => {
-                format_prefixed_pattern(f, node_id, "&", *right, *mutability, *exclusivity)?;
+            Pattern::BorrowOf { right, access } => {
+                format_prefixed_pattern(f, node_id, "&", *right, *access)?;
             }
 
             Pattern::MoveOf { right, mutability } => {
-                format_prefixed_pattern(f, node_id, "^", *right, *mutability, None)?;
+                let access = mutability.map(Mutability::access);
+                format_prefixed_pattern(f, node_id, "^", *right, access)?;
             }
 
             Pattern::DereferenceOf { right } => {

@@ -8,6 +8,7 @@ use crate::chain::{
     transparent_inner_expression,
 };
 use crate::declaration::statement::format_block_wide;
+use crate::declaration::write_access_prefix;
 use crate::expression::{
     ExpressionLeftPath, expression_needs_parentheses_in_parent, format_expression,
     format_index_expression, format_member_expression,
@@ -20,10 +21,7 @@ use crate::operator::r#type::{
 };
 use crate::operator::{write_postfix_base_expression, write_range_operator};
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
-    Exclusivity, Expression, LocalNodeId, Mutability, NodeType, PostfixPosition, RangeEnd,
-    UnaryOperator,
-};
+use destack_dir::{Expression, LocalNodeId, NodeType, PostfixPosition, RangeEnd, UnaryOperator};
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::{format_with, group, soft_block_indent, space, token};
 use destack_fir::write;
@@ -313,21 +311,12 @@ pub(crate) fn format_operator_expression<'ast>(
 
         // reference
         Expression::BorrowOf {
-            mutability,
-            exclusivity,
+            access,
             variance,
             right,
         } => {
             write!(f, [token("&")])?;
-            if let Some(mutability) = mutability {
-                match mutability {
-                    Mutability::Immutable => write!(f, [token("readonly"), space()])?,
-                    Mutability::Mutable => {}
-                }
-            }
-            if *exclusivity == Some(Exclusivity::Exclusive) {
-                write!(f, [token("exclusive"), space()])?;
-            }
+            write_access_prefix(f, *access)?;
 
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
