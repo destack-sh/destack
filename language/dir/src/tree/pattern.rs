@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Exclusivity, Expression, LocalNodeId, Mutability, Name, Node, NodeFold, NodeType, RangeEnd,
+    Access, Expression, LocalNodeId, Mutability, Name, Node, NodeFold, NodeType, RangeEnd,
     TypeExpression,
 };
 
@@ -38,8 +38,7 @@ pub enum Pattern {
     },
     /// Borrow pattern (like `&x`).
     BorrowOf {
-        mutability: Option<Mutability>,
-        exclusivity: Option<Exclusivity>,
+        access: Option<Access>,
         right: LocalNodeId<Pattern>,
     },
     /// Move pattern (like `^x`).

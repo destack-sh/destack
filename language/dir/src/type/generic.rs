@@ -162,8 +162,6 @@ impl GenericParameterKind {
 pub enum MemoryParameter {
     /// Borrow access.
     Access,
-    /// Borrow exclusion guarantee.
-    Exclusivity,
     /// Ownership form.
     Ownership,
     /// Relative or concrete placement.
@@ -179,7 +177,6 @@ impl MemoryParameter {
     pub const fn language_item(self) -> LanguageItem {
         match self {
             Self::Access => LanguageItem::Access,
-            Self::Exclusivity => LanguageItem::Exclusivity,
             Self::Ownership => LanguageItem::Ownership,
             Self::Place => LanguageItem::Place,
             Self::Space => LanguageItem::Space,
@@ -191,7 +188,6 @@ impl MemoryParameter {
     pub fn from_language_item(item: LanguageItem) -> Option<Self> {
         match item {
             LanguageItem::Access => Some(Self::Access),
-            LanguageItem::Exclusivity => Some(Self::Exclusivity),
             LanguageItem::Ownership => Some(Self::Ownership),
             LanguageItem::Place => Some(Self::Place),
             LanguageItem::Space => Some(Self::Space),
@@ -480,7 +476,6 @@ impl GenericParameterBinding {
             (GenericParameterOrigin::Receiver, _) => "this".to_string(),
             (_, Some(MemoryParameter::Region)) => free_region_name(regions_in_scope),
             (_, Some(MemoryParameter::Access)) => format!("A{position}"),
-            (_, Some(MemoryParameter::Exclusivity)) => format!("X{position}"),
             (_, Some(MemoryParameter::Ownership)) => format!("O{position}"),
             (_, Some(MemoryParameter::Place)) => format!("P{position}"),
             (_, Some(MemoryParameter::Space)) => format!("S{position}"),

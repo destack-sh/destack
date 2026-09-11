@@ -1646,16 +1646,16 @@ define_language_items! {
 
     /// Memory types.
     memory {
+        /// `destack:memory/pointer`.
+        pointer {
+            /// Unchecked native machine address.
+            Pointer => (Newtype, "memory/pointer", "Pointer"),
+        }
+
         /// `destack:memory/access`.
         access {
             /// Access mode for qualified storage.
             Access => (Type, "memory/access", "Access"),
-        }
-
-        /// `destack:memory/exclusivity`.
-        exclusivity {
-            /// Exclusion of conflicting access through independent references.
-            Exclusivity => (Type, "memory/exclusivity", "Exclusivity"),
         }
 
         /// `destack:memory/arc`.
@@ -1941,9 +1941,6 @@ define_language_items! {
             /// Project the access mode of a memory form.
             AccessOf => (Type, "memory/type", "AccessOf"),
 
-            /// Project the exclusion guarantee of a borrow form.
-            ExclusivityOf => (Type, "memory/type", "ExclusivityOf"),
-
             /// Ownership kind for qualified storage.
             Ownership => (Type, "memory/type", "Ownership"),
 
@@ -1952,9 +1949,6 @@ define_language_items! {
 
             /// Reborrow with an access mode.
             WithAccess => (Type, "memory/type", "WithAccess"),
-
-            /// Qualify a borrow with an exclusion guarantee.
-            WithExclusivity => (Type, "memory/type", "WithExclusivity"),
         }
     }
 
@@ -2372,6 +2366,12 @@ define_language_items! {
         divide {
             /// Division operator protocol.
             Divide => (NewtypeInterface, "ops/divide", "Divide"),
+        }
+
+        /// `destack:ops/equate`.
+        equate {
+            /// Default comparison and hashing for stored values.
+            DefaultEqual => (NewtypeInterface, "ops/equate", "DefaultEqual"),
         }
 
         /// `destack:ops/equality`.

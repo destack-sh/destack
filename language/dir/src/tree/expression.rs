@@ -3,8 +3,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
-    Declarator, DependencyItem, Exclusivity, ExportKind, GenericArgument, ImportAttributeClause,
+    Access, Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block,
+    Declaration, Declarator, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
     InferForm, Keyword, Literal, LocalNodeId, MatchArm, Mutability, Node, NodeFold, NodeType,
     OperatorPrecedence, Pattern, PlaceModifier, Property, RangeEnd, StaticKey, SwitchCase,
     TemplateLiteral, TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
@@ -623,8 +623,7 @@ pub enum Expression {
     /// &readonly extends T
     /// ```
     BorrowOf {
-        mutability: Option<Mutability>,
-        exclusivity: Option<Exclusivity>,
+        access: Option<Access>,
         variance: Option<VarianceBound>,
         right: LocalNodeId<Expression>,
     },

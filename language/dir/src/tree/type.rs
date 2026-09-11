@@ -2,10 +2,10 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Exclusivity, Expression, FunctionSignature, GenericArgument, GenericParameter, Literal,
-    LocalNodeId, MemberSlot, MemberSpace, Mutability, Name, Node, NodeFold, NodeType, Parameter,
-    Path, RangeEnd, ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm,
-    TypeLiteral, VarianceBound, Visibility, WhereClause,
+    Access, Expression, FunctionSignature, GenericArgument, GenericParameter, Literal, LocalNodeId,
+    MemberSlot, MemberSpace, Mutability, Name, Node, NodeFold, NodeType, Parameter, Path, RangeEnd,
+    ScopeKind, StaticKey, StringId, SymbolKind, ThisForm, TupleElement, TupleForm, TypeLiteral,
+    VarianceBound, Visibility, WhereClause,
 };
 
 /// One type-surface member.
@@ -622,9 +622,7 @@ pub enum TypeExpression {
     /// ```
     BorrowedOf {
         lifetime: Option<LocalNodeId<TypeExpression>>,
-        mutability: Option<Mutability>,
-        /// The explicitly requested exclusion guarantee.
-        exclusivity: Option<Exclusivity>,
+        access: Option<Access>,
         variance: Option<VarianceBound>,
         target_type: LocalNodeId<TypeExpression>,
     },

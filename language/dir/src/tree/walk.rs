@@ -431,8 +431,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         }
         TypeExpression::BorrowedOf {
             lifetime,
-            mutability: _,
-            exclusivity: _,
+            access: _,
             variance: _,
             target_type,
         } => {
@@ -1164,8 +1163,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::BorrowOf {
-            mutability: _,
-            exclusivity: _,
+            access: _,
             variance: _,
             right,
         } => {
@@ -1828,11 +1826,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Pattern::BorrowOf {
-            right,
-            mutability: _,
-            exclusivity: _,
-        } => {
+        Pattern::BorrowOf { right, access: _ } => {
             let right_pattern = tree.get(*right);
             visitor.visit_pattern(tree, *right, right_pattern);
         }
