@@ -6,5 +6,5 @@ import { Task } from "./task.ds";
 @languageItem("async.AsyncReader")
 export interface AsyncReader {
     /// Read bytes into `buffer`.
-    read(buffer: &[uint8]): Task<Result<usize, IoError>>;
+    read(&this, buffer: &[uint8]): Task<Result<usize, IoError>>;
 }

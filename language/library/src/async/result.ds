@@ -1,5 +1,5 @@
 import { Err, Ok, Result } from "destack:error";
-import { Copy, Default } from "destack:memory";
+import { Copy, Default, ImmutableOf } from "destack:memory";
 import { FromResidual } from "destack:ops";
 
 import { Poll } from "./poll.ds";
@@ -72,14 +72,14 @@ export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<
     }
 
     /// Run a side effect on success and keep the original result.
-    async tap(this, f: (value: &readonly T) => void): Task<Result<T, E>> {
+    async tap(this, f: (value: ImmutableOf<T>) => void): Task<Result<T, E>> {
         const result = await this;
 
         result.tap(f)
     }
 
     /// Run a side effect on failure and keep the original result.
-    async tapErr(this, f: (error: &readonly E) => void): Task<Result<T, E>> {
+    async tapErr(this, f: (error: ImmutableOf<E>) => void): Task<Result<T, E>> {
         const result = await this;
 
         result.tapErr(f)

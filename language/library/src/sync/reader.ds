@@ -4,7 +4,7 @@ import { IoError, Result, todo } from "destack:error";
 @languageItem("sync.Reader")
 export interface Reader {
     /// Read bytes into `buffer`.
-    read(buffer: &[uint8]): Result<usize, IoError>;
+    read(&this, buffer: &[uint8]): Result<usize, IoError>;
 }
 
 /// Read until end of input.

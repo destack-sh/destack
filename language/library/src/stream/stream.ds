@@ -8,5 +8,5 @@ export local newtype interface Stream<T> {
     type Return = void;
 
     /// Advance and transfer the next yield or completion.
-    next(): Task<IteratorResult<T, this.Return>>;
+    next(&this): Task<IteratorResult<T, this.Return>>;
 }

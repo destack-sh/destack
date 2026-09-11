@@ -1,4 +1,3 @@
-import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 
 import { Label, LabelSelector } from "./entity.ds";
@@ -232,51 +231,51 @@ export extension of World {
     }
 
     /// Close this world.
-    close(): Result<void, HostError> {
+    close(&readonly this): Result<void, HostError> {
         worldClose(this.handle)
     }
 
     /// Return fresh state for this world.
-    describe(): Result<World, HostError> {
+    describe(&readonly this): Result<World, HostError> {
         worldDescribe(this.handle)
     }
 
     /// Advance this world by one scheduler step.
-    tick(): Result<TickResult, HostError> {
+    tick(&readonly this): Result<TickResult, HostError> {
         worldTick(this.handle)
     }
 
     /// Create one runtime in this world.
-    runtime(options?: RuntimeCreateOptions): Result<Runtime, HostError> {
+    runtime(&readonly this, options?: RuntimeCreateOptions): Result<Runtime, HostError> {
         runtimeCreate(this.handle, options).andThen((handle) => runtimeDescribe(handle))
     }
 }
 
 export extension of Runtime {
     /// Close this runtime.
-    close(): Result<void, HostError> {
+    close(&readonly this): Result<void, HostError> {
         runtimeClose(this.handle)
     }
 
     /// Return fresh state for this runtime.
-    describe(): Result<Runtime, HostError> {
+    describe(&readonly this): Result<Runtime, HostError> {
         runtimeDescribe(this.handle)
     }
 
     /// Create one worker in this runtime.
-    worker(options?: WorkerCreateOptions): Result<Worker, HostError> {
+    worker(&readonly this, options?: WorkerCreateOptions): Result<Worker, HostError> {
         workerCreate(this.handle, options).andThen((handle) => workerDescribe(handle))
     }
 }
 
 export extension of Worker {
     /// Close this worker.
-    close(): Result<void, HostError> {
+    close(&readonly this): Result<void, HostError> {
         workerClose(this.handle)
     }
 
     /// Return fresh state for this worker.
-    describe(): Result<Worker, HostError> {
+    describe(&readonly this): Result<Worker, HostError> {
         workerDescribe(this.handle)
     }
 }

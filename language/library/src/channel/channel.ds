@@ -1,6 +1,5 @@
 import { Task } from "destack:async";
 import { Error, Result } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 /// Channel send failure kind.
 @languageItem("channel.SendErrorKind")
@@ -34,8 +33,8 @@ export struct SendError<T> {
 
 export extension<T> of SendError<T> implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
-        MaybeOwned.borrowed("channel send failed")
+    display(&readonly this): string {
+        "channel send failed"
     }
 }
 
@@ -51,8 +50,8 @@ export struct ReceiveError {
 
 export extension of ReceiveError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
-        MaybeOwned.borrowed("channel receive failed")
+    display(&readonly this): string {
+        "channel receive failed"
     }
 }
 
@@ -66,10 +65,10 @@ export interface ChannelOptions {
 @languageItem("channel.Sender")
 export interface Sender<T> {
     /// Send one value.
-    send(value: ^T): Result<void, SendError<T>>;
+    send(value: T): Result<void, SendError<T>>;
 
     /// Try to send one value without blocking.
-    trySend(value: ^T): Result<void, SendError<T>>;
+    trySend(value: T): Result<void, SendError<T>>;
 
     /// Close this sender.
     close(): void;
@@ -92,10 +91,10 @@ export interface Receiver<T> {
 @languageItem("channel.AsyncSender")
 export interface AsyncSender<T> {
     /// Send one value.
-    send(value: ^T): Task<Result<void, SendError<T>>>;
+    send(value: T): Task<Result<void, SendError<T>>>;
 
     /// Try to send one value without suspending.
-    trySend(value: ^T): Result<void, SendError<T>>;
+    trySend(value: T): Result<void, SendError<T>>;
 
     /// Close this sender.
     close(): void;

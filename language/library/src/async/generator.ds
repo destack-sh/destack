@@ -69,12 +69,12 @@ export local class Generator<Y, R = void, N = void> {
     }
 
     /// Advance the generator with one value.
-    next(value: N | undefined): GeneratorResult<Y, R> {
+    next(&this, value: N | undefined): GeneratorResult<Y, R> {
         return this.state.advance(GeneratorNext { kind: "next", value });
     }
 
     /// Finalize the generator and return the completion value.
-    return(value: R): GeneratorResult<Y, R> {
+    return(&this, value: R): GeneratorResult<Y, R> {
         return this.state.advance(GeneratorReturn { kind: "return", value });
     }
 }
@@ -85,7 +85,7 @@ export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y> {
     type Return = R;
 
     /// Advance the generator and return the next yield or completion.
-    next(): IteratorResult<Y, R> {
+    next(&this): IteratorResult<Y, R> {
         this.next(undefined)
     }
 }
@@ -261,12 +261,12 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
     }
 
     /// Queue one generator step with an explicit value.
-    next(value: N | undefined): Promise<GeneratorResult<Y, R>> {
+    next(&this, value: N | undefined): Promise<GeneratorResult<Y, R>> {
         return this.state.enqueue(GeneratorNext { kind: "next", value });
     }
 
     /// Finalize the generator and return its completion asynchronously.
-    return(value: R): Promise<GeneratorResult<Y, R>> {
+    return(&this, value: R): Promise<GeneratorResult<Y, R>> {
         return this.state.enqueue(GeneratorReturn { kind: "return", value });
     }
 }
@@ -277,7 +277,7 @@ export extension<Y: Copy, R: Copy, N> of AsyncGenerator<Y, R, N> implements Asyn
     type Return = R;
 
     /// Advance and return the next yield or completion.
-    next(): Promise<IteratorResult<Y, R>> {
+    next(&this): Promise<IteratorResult<Y, R>> {
         this.next(undefined)
     }
 }

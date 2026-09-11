@@ -1,7 +1,7 @@
 import { todo } from "destack:error";
 import { Exclude, NoInfer } from "destack:types";
 
-import { SourceAccessor } from "./accessor.ds";
+import { SignalArgument, SourceAccessor } from "./accessor.ds";
 import { DerivationSignal, DerivationValue } from "./derive.ds";
 import { MemoOptions, SignalOptions } from "./options.ds";
 import { Setter } from "./setter.ds";
@@ -16,11 +16,11 @@ export function createSignal<T>(): Signal<T | undefined> {
 
 /// Create a ready writable signal from a derivation and an initial settled value.
 export function createSignal<Output>(
-    derive: ^Function<(&readonly NoInfer<DerivationValue<Output>>,), Output>,
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>>,), Output>,
     options: SignalOptions<DerivationValue<Output>> &
         MemoOptions<DerivationValue<Output>> & {
             /// Initial settled value used until the first derived value is ready.
-            loadingValue: ^DerivationValue<Output>;
+            loadingValue: DerivationValue<Output>;
         },
 ): Signal<DerivationValue<Output>> {
     todo("signal.createSignal")
@@ -28,7 +28,7 @@ export function createSignal<Output>(
 
 /// Create a writable signal from one synchronous, polling, or asynchronous derivation.
 export function createSignal<Output>(
-    derive: ^Function<(&readonly NoInfer<DerivationValue<Output>> | undefined,), Output>,
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>> | undefined,), Output>,
     options?: SignalOptions<DerivationValue<Output>> & MemoOptions<DerivationValue<Output>>,
 ): DerivationSignal<Output> {
     todo("signal.createSignal")
@@ -36,7 +36,7 @@ export function createSignal<Output>(
 
 /// Create a writable signal from one initial value.
 export function createSignal<T>(
-    value: ^Exclude<T, Function>,
+    value: Exclude<T, Function>,
     options?: SignalOptions<T>,
 ): Signal<T> {
     todo("signal.createSignal")

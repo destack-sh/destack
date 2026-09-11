@@ -10,7 +10,7 @@ export local newtype interface AsyncIterator<T: Copy> {
     type Return: Copy = void;
 
     /// Advance and return the next yield or completion.
-    next(): Promise<IteratorResult<T, this.Return>>;
+    next(&this): Promise<IteratorResult<T, this.Return>>;
 }
 
 /// Value that can produce an async iterator.
@@ -20,7 +20,7 @@ export local newtype interface AsyncIterable<T: Copy> {
     type Iterator: AsyncIterator<T> = AsyncIterator<T>;
 
     /// Return an asynchronous iterator over this value.
-    asyncIterator(): this.Iterator;
+    asyncIterator(this): this.Iterator;
 }
 
 /// Every async iterator is trivially async-iterable as itself.

@@ -11,5 +11,5 @@ export newtype SeekFrom =
 @languageItem("sync.Seeker")
 export interface Seeker {
     /// Seek to a new stream position.
-    seek(from: SeekFrom): Result<uint64, IoError>;
+    seek(&this, from: SeekFrom): Result<uint64, IoError>;
 }

@@ -1,4 +1,3 @@
-import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 import { SocketHandle } from "destack:net/binding";
 import { ResourceId } from "destack:runtime/resource";

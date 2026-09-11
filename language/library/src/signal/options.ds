@@ -1,3 +1,5 @@
+import { SignalArgument } from "./accessor.ds";
+
 /// Options for a writable signal.
 export type SignalOptions<T> = {
     /// Diagnostic name.
@@ -6,7 +8,7 @@ export type SignalOptions<T> = {
     /// Equality check, or false to notify after every write.
     ///
     /// The default uses `==` for values with `PartialEqual` and otherwise notifies.
-    equals?: false | ^((left: &readonly T, right: &readonly T) => boolean);
+    equals?: false | ^((left: SignalArgument<T>, right: SignalArgument<T>) => boolean);
 
     /// Whether writes inside an owner are expected.
     ownedWrite?: boolean;
@@ -29,7 +31,7 @@ export type MemoOptions<T> = {
     /// Equality check, or false to notify after every update.
     ///
     /// The default uses `==` for values with `PartialEqual` and otherwise notifies.
-    equals?: false | ^((left: &readonly T, right: &readonly T) => boolean);
+    equals?: false | ^((left: SignalArgument<T>, right: SignalArgument<T>) => boolean);
 
     /// Function invoked whenever the memo loses its last observer.
     unobserved?: ^(() => void);
@@ -38,7 +40,7 @@ export type MemoOptions<T> = {
     lazy?: boolean;
 
     /// Initial settled value used until the first derived value is ready.
-    loadingValue?: ^T;
+    loadingValue?: T;
 };
 
 /// Options for a signal effect.

@@ -1,4 +1,4 @@
-import { Drop } from "destack:memory";
+import { Copy, Dispose } from "destack:memory";
 
 /// Shared cancellation request.
 @languageItem("async.AbortSignal")
@@ -36,7 +36,7 @@ export local class AbortController {
 }
 
 /// Active abort listener registration.
-export local struct AbortSubscription implements Drop {
+export local struct AbortSubscription implements Dispose, !Copy {
     /// The registered state when still active.
     private readonly state: AbortState | undefined;
 
@@ -44,7 +44,7 @@ export local struct AbortSubscription implements Drop {
     private readonly listener: AbortListener;
 
     /// Stop observing the signal.
-    drop(&this): void {
+    dispose(this): void {
         if (this.state != undefined) {
             this.state.remove(this.listener);
         }

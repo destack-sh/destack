@@ -1,11 +1,12 @@
 import { todo } from "destack:error";
-import { Copy } from "destack:memory";
-import { Equal, Hash } from "destack:ops";
+import { Copy, Default } from "destack:memory";
+import { Equality, Equate } from "destack:ops";
 
 import {
     Accessor,
     PollingAccessor,
     PollingSourceAccessor,
+    SignalArgument,
     SignalRef,
     SourceAccessor,
 } from "./accessor.ds";
@@ -15,12 +16,15 @@ import { DerivationMayPend, DerivationValue } from "./derive.ds";
 export type Maybe<T> = T | void | null | undefined | false;
 
 /// Options for reactive array mapping.
-export type MapArrayOptions<Item, Output, Key = Item> = {
+export type MapArrayOptions<Item, Output, Key = Item, E = Equality<Key>> = {
     /// Identity mode or a stable key derived from each item.
-    keyed?: boolean | ^((item: &readonly Item) => Key);
+    keyed?: boolean | ^((item: SignalArgument<Item>) => Key);
 
     /// Value derived when the input is empty.
     fallback?: ^(() => Output);
+
+    /// The key comparer.
+    comparer?: E;
 
     /// Diagnostic name.
     name?: string;
@@ -39,7 +43,7 @@ export type RepeatOptions<Output, From = Accessor<usize | undefined>> = {
 };
 
 /// Reactive item argument selected for copyable and affine values.
-local type MapItem<Item> = Item extends Copy ? Item : SignalRef<Item>;
+local type MapItem<Item> = (Item,) extends (Copy,) ? Item : SignalRef<Item>;
 
 /// Ready or polling list accessor accepted by array mapping.
 local type ListAccessor<Item> =
@@ -79,12 +83,11 @@ local type RepeatAccessor<Count, From, Output> = true extends
     : SourceAccessor<DerivationValue<Output>[]>;
 
 /// Map a reactive array and retain rows by item equality and hash.
-export function mapArray<List: ListAccessor<unknown>, Output>(
+export function mapArray<List: ListAccessor<unknown>, Output, E = Equality<ListItem<List>>>(
     list: List,
     map: ^Function<(MapItem<ListItem<List>>, SourceAccessor<usize>), Output>,
-    options?: MapArrayOptions<ListItem<List>, Output> & { keyed?: true },
-): MapArrayAccessor<List, Output>
-    where ListItem<List>: Hash, ListItem<List>: Equal<ListItem<List>> {
+    options?: MapArrayOptions<ListItem<List>, Output, ListItem<List>, E> & { keyed?: true },
+): MapArrayAccessor<List, Output> where E: Equate<ListItem<List>>, E: Default {
     todo("signal.mapArray")
 }
 
@@ -98,13 +101,37 @@ export function mapArray<List: ListAccessor<unknown>, Output>(
 }
 
 /// Map a reactive array and retain rows by a derived key.
-export function mapArray<List: ListAccessor<unknown>, Key: Hash, Output>(
+export function mapArray<List: ListAccessor<unknown>, Key, Output, E = Equality<Key>>(
     list: List,
     map: ^Function<(SourceAccessor<ListItem<List>>, SourceAccessor<usize>), Output>,
-    options: MapArrayOptions<ListItem<List>, Output, Key> & {
-        keyed: ^Function<(&readonly ListItem<List>,), Key>;
+    options: MapArrayOptions<ListItem<List>, Output, Key, E> & {
+        keyed: ^Function<(SignalArgument<ListItem<List>>,), Key>;
     },
-): MapArrayAccessor<List, Output> where Key: Equal<Key> {
+): MapArrayAccessor<List, Output> where E: Equate<Key>, E: Default {
+    todo("signal.mapArray")
+}
+
+/// Map a reactive array and retain rows by item equality and hash.
+export function mapArray<List: ListAccessor<unknown>, Output, E = Equality<ListItem<List>>>(
+    list: List,
+    map: ^Function<(MapItem<ListItem<List>>, SourceAccessor<usize>), Output>,
+    options: MapArrayOptions<ListItem<List>, Output, ListItem<List>, E> & {
+        keyed?: true;
+        comparer: E;
+    },
+): MapArrayAccessor<List, Output> where E: Equate<ListItem<List>> {
+    todo("signal.mapArray")
+}
+
+/// Map a reactive array and retain rows by a derived key.
+export function mapArray<List: ListAccessor<unknown>, Key, Output, E = Equality<Key>>(
+    list: List,
+    map: ^Function<(SourceAccessor<ListItem<List>>, SourceAccessor<usize>), Output>,
+    options: MapArrayOptions<ListItem<List>, Output, Key, E> & {
+        keyed: ^Function<(SignalArgument<ListItem<List>>,), Key>;
+        comparer: E;
+    },
+): MapArrayAccessor<List, Output> where E: Equate<Key> {
     todo("signal.mapArray")
 }
 

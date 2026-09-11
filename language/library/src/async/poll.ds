@@ -90,26 +90,31 @@ export extension<T> of Poll<T> implements Try, FromResidual<Pending> {
     }
 }
 
-/// Value polled for readiness and woken through registered waiters.
+/// Single-consumer value with one registered waiter.
 export newtype interface Pollable<T> {
     /// Return the result when it is available.
-    poll(&readonly this): Poll<T>;
+    poll(&exclusive this): Poll<T>;
 
-    /// Register one fiber to wake when readiness may change.
-    enlist(&readonly this, fiber: Fiber): void;
+    /// Set or clear the fiber to wake when readiness may change.
+    setWaiter(&exclusive this, fiber: Fiber | undefined): void;
 }
 
-export extension<T, P: Pollable<T>> of P implements Awaitable<T> {
-    /// Park the current fiber until the value polls ready.
-    static park(pollable: P): T {
-        loop {
-            match (pollable.poll()) {
-                Ready { value } => return value
-                Pending {} => {
-                    pollable.enlist(Fiber.current());
-                    Fiber.park();
+export extension<T, P: Pollable<T>, 'a> of &'a exclusive P implements Awaitable<T> {
+    /// Hold exclusive access until the value is ready or the wait is cancelled.
+    static park(pollable: &'a exclusive P): T {
+        // register before checking readiness and retain exclusion through suspension
+        try {
+            loop {
+                pollable.setWaiter(Fiber.current());
+                match (pollable.poll()) {
+                    Ready { value } => return value
+                    Pending {} => Fiber.park()
                 }
             }
+        }
+        // clear registration when receiving finishes or unwinds
+        finally {
+            pollable.setWaiter(undefined);
         }
     }
 }

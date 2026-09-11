@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { ValueOf } from "destack:memory";
 
 import { MutexGuard } from "./mutex.ds";
 
@@ -11,22 +12,26 @@ export shared class Condvar {
     }
 
     /// Wait and reacquire the mutex before returning.
-    wait<T>(guard: MutexGuard<T>): MutexGuard<T> {
+    wait<'a, T>(&readonly this, guard: MutexGuard<'a, T>): MutexGuard<'a, T> {
         todo("Condvar.wait")
     }
 
     /// Wait while `condition` returns true.
-    waitWhile<T>(guard: MutexGuard<T>, condition: (value: &readonly T) => boolean): MutexGuard<T> {
+    waitWhile<'a, T>(
+        &readonly this,
+        guard: MutexGuard<'a, T>,
+        condition: (value: &immutable shared ValueOf<T>) => boolean,
+    ): MutexGuard<'a, T> {
         todo("Condvar.waitWhile")
     }
 
     /// Wake one waiting worker.
-    notifyOne(): void {
+    notifyOne(&readonly this): void {
         todo("Condvar.notifyOne");
     }
 
     /// Wake all waiting workers.
-    notifyAll(): void {
+    notifyAll(&readonly this): void {
         todo("Condvar.notifyAll");
     }
 }

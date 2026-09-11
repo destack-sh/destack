@@ -4,8 +4,8 @@ import { IoError, Result } from "destack:error";
 @languageItem("sync.Writer")
 export interface Writer {
     /// Write bytes from `buffer`.
-    write(buffer: &readonly [uint8]): Result<usize, IoError>;
+    write(&this, buffer: &readonly [uint8]): Result<usize, IoError>;
 
     /// Flush buffered writes.
-    flush(): Result<void, IoError>;
+    flush(&this): Result<void, IoError>;
 }

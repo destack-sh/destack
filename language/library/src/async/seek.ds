@@ -7,5 +7,5 @@ import { Task } from "./task.ds";
 @languageItem("async.AsyncSeeker")
 export interface AsyncSeeker {
     /// Seek to a new stream position.
-    seek(from: SeekFrom): Task<Result<uint64, IoError>>;
+    seek(&this, from: SeekFrom): Task<Result<uint64, IoError>>;
 }

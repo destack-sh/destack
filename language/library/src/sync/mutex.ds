@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Default, Dispose, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Default, Dispose, Region, ValueOf } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Atomic } from "./atomic.ds";
@@ -8,10 +8,10 @@ import { Atomic } from "./atomic.ds";
 @languageItem("sync.Mutex")
 export shared class Mutex<T> {
     /// The lock state.
-    state: Atomic<uint32> = Atomic.new(0);
+    private state: Atomic<uint32> = Atomic.new(0);
 
     /// The protected value.
-    value: T;
+    private value: T;
 
     /// Create a mutex protecting `value`.
     constructor(value: T) {
@@ -19,17 +19,17 @@ export shared class Mutex<T> {
     }
 
     /// Lock this mutex, blocking the current worker.
-    lock(): MutexGuard<T> {
+    lock<'a>(&'a readonly this): MutexGuard<'a, T> {
         todo("Mutex.lock")
     }
 
     /// Try to lock this mutex without blocking.
-    tryLock(): MutexGuard<T> | undefined {
+    tryLock<'a>(&'a readonly this): MutexGuard<'a, T> | undefined {
         todo("Mutex.tryLock")
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(&this): &T {
+    getExclusive(&exclusive this): &exclusive shared ValueOf<T> {
         todo("Mutex.getExclusive")
     }
 
@@ -47,22 +47,39 @@ export extension<T: Default> of Mutex<T> implements Default {
 }
 
 /// Active mutex lock guard.
-export local struct MutexGuard<T> {
+export local struct MutexGuard<'a, T> {
     /// The locked mutex.
-    mutex: *Mutex<T>;
+    private mutex: &'a readonly Mutex<T>;
 }
 
-export extension<T> of MutexGuard<T> implements Dispose, Dereference<"mutable"> {
-    /// The projected result form.
-    type Output = T;
+export extension<'a, T> of MutexGuard<'a, T> implements Dispose, !Copy, Dereference<"exclusive"> {
+    /// The pointee type.
+    type Target = shared ValueOf<T>;
 
     /// Unlock this guard.
-    dispose(): void {
+    dispose(this): void {
         todo("MutexGuard.dispose");
     }
 
     /// Borrow the protected value.
-    dereference(&this): WithAccess<&this.Output, "mutable"> {
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "exclusive">,
+    ): Borrowed<this.Target, R, "exclusive"> {
+        todo("MutexGuard.dereference")
+    }
+}
+
+export extension<'a, T> of MutexGuard<'a, T> implements Dereference<"readonly"> {
+    /// The pointee type.
+    type Target = shared ValueOf<T>;
+
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = "immutable";
+
+    /// Borrow the protected value with readonly access.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "readonly">,
+    ): Borrowed<this.Target, R, "immutable"> {
         todo("MutexGuard.dereference")
     }
 }

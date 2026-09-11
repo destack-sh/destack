@@ -1,5 +1,5 @@
 import { todo, trap } from "destack:error";
-import { AsyncDispose, Cell, Drop } from "destack:memory";
+import { AsyncDispose, Cell, Copy, Dispose } from "destack:memory";
 
 import { Awaitable } from "./awaitable.ds";
 import { Fiber } from "./fiber.ds";
@@ -7,7 +7,7 @@ import { Promise } from "./promise.ds";
 
 /// Single-consumer asynchronous result.
 @languageItem("async.Task")
-export local struct Task<T> implements Awaitable<T>, Drop {
+export local struct Task<T> implements Awaitable<T>, Dispose, !Copy {
     /// Shared task state.
     private readonly state: TaskState<T>;
 
@@ -58,14 +58,14 @@ export local struct Task<T> implements Awaitable<T>, Drop {
         this.state.cancel();
     }
 
-    /// Request producer cancellation when this task is discarded.
-    drop(&this): void {
+    /// Request producer cancellation when this task is disposed.
+    dispose(this): void {
         this.state.cancel();
     }
 }
 
 /// Producer retained by one lowered async body.
-local struct TaskProducer<T> implements Drop {
+local struct TaskProducer<T> implements Dispose, !Copy {
     /// Shared task state.
     private readonly state: TaskState<T>;
 
@@ -82,7 +82,7 @@ local struct TaskProducer<T> implements Drop {
     }
 
     /// Complete this task through cancellation after cleanup.
-    drop(&this): void {
+    dispose(this): void {
         this.state.completeCancellation();
     }
 }
@@ -269,7 +269,7 @@ local struct TaskTaken {
 /// Asynchronous disposal waits for every child before it completes.
 /// Cancellation requests are delivered cooperatively at cancellable asynchronous operations.
 @languageItem("async.TaskScope")
-export local struct TaskScope implements AsyncDispose, Drop {
+export local struct TaskScope implements AsyncDispose, !Copy {
     /// Opaque task scope identity.
     private handle: uint64;
 
@@ -289,13 +289,8 @@ export local struct TaskScope implements AsyncDispose, Drop {
     }
 
     /// Cancel pending children and wait for their cleanup.
-    async asyncDispose(): Promise<void> {
+    async asyncDispose(this): Promise<void> {
         todo("TaskScope.asyncDispose")
-    }
-
-    /// Cancel pending children without waiting for cleanup.
-    drop(&this): void {
-        todo("TaskScope.drop");
     }
 }
 

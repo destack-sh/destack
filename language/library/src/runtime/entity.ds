@@ -1,4 +1,3 @@
-import { Array } from "destack:collections";
 /// Runtime entity identifier.
 @languageItem("runtime.EntityId")
 export newtype EntityId = string;

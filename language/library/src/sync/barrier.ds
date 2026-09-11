@@ -6,10 +6,10 @@ import { Atomic } from "./atomic.ds";
 @languageItem("sync.Barrier")
 export shared class Barrier {
     /// The required participant count.
-    count: usize;
+    private count: usize;
 
     /// The current arrival count.
-    arrived: Atomic<usize> = Atomic.new(0);
+    private arrived: Atomic<usize> = Atomic.new(0);
 
     /// Create a barrier for `count` participants.
     constructor(count: usize) {

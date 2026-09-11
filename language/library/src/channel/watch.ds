@@ -1,27 +1,30 @@
 import { Task } from "destack:async";
 import { Result, todo } from "destack:error";
-import { Dispose, SharedSafe, WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Region, SharedSafe, ValueOf } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { ReceiveError, SendError } from "./channel.ds";
 
-/// Borrowed snapshot of a watched value.
-export local struct WatchRef<T> {
-    /// The receiver that owns this snapshot.
-    private receiver: *WatchReceiver<T>;
-}
+/// Stable readonly snapshot of one watched value.
+export local class WatchRef<out T> implements Dereference<"readonly"> {
+    /// The pointee type.
+    type Target = ValueOf<T>;
 
-export extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
-    /// The projected result form.
-    type Output = T;
+    /// The retained value.
+    private readonly value: T;
 
-    /// Release this snapshot.
-    dispose(): void {
-        todo("WatchRef.dispose");
+    /// Retain one watched value.
+    private constructor(value: T) {
+        this.value = value;
     }
 
-    /// Borrow the watched value.
-    dereference(&readonly this): WithAccess<&this.Output, "readonly"> {
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = "immutable";
+
+    /// Borrow the retained value.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "readonly">,
+    ): Borrowed<this.Target, R, "immutable"> {
         todo("WatchRef.dereference")
     }
 }
@@ -30,10 +33,10 @@ export extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
 @languageItem("channel.watch.WatchSender")
 export interface WatchSender<T> {
     /// Replace the watched value.
-    send(value: ^T): Result<void, SendError<T>>;
+    send(value: T): Result<void, SendError<T>>;
 
-    /// Replace the watched value and return the old value.
-    sendReplace(value: ^T): T;
+    /// Replace the watched value and return a copy of the old value.
+    sendReplace(value: T): T where T: Copy;
 
     /// Return whether all receivers are closed.
     isClosed(): boolean;
@@ -62,13 +65,13 @@ export interface WatchReceiver<T> {
 }
 
 /// Create a local watch channel.
-export function channel<T>(value: ^T): (WatchSender<T>, WatchReceiver<T>) {
+export function channel<T>(value: T): (WatchSender<T>, WatchReceiver<T>) {
     todo("watch.channel")
 }
 
 /// Create a shared watch channel.
 export function sharedChannel<T: SharedSafe>(
-    value: ^T,
+    value: T,
 ): (WatchSender<shared T>, WatchReceiver<shared T>) {
     todo("watch.sharedChannel")
 }

@@ -1,6 +1,6 @@
 import { Slice } from "destack:collections";
 import { todo } from "destack:error";
-import { Access, MaybeUninit, WithAccess } from "destack:memory";
+import { Access, Borrowed, MaybeUninit, Region } from "destack:memory";
 
 import { Bytes } from "./bytes.ds";
 
@@ -8,13 +8,13 @@ import { Bytes } from "./bytes.ds";
 @languageItem("bytes.ByteBuffer")
 export class ByteBuffer {
     /// The owned byte storage.
-    storage: ^[MaybeUninit<uint8>] = Slice.new();
+    private storage: ^[MaybeUninit<uint8>] = Slice.new();
 
     /// The initialized byte count.
-    initializedLength: isize = 0;
+    private initializedLength: isize = 0;
 
     /// The allocated byte capacity.
-    allocatedCapacity: usize = 0;
+    private allocatedCapacity: usize = 0;
 
     /// Create an empty byte buffer.
     static new(): ^ByteBuffer {
@@ -32,22 +32,22 @@ export class ByteBuffer {
     }
 
     /// Return the initialized byte count.
-    get length(): isize {
+    get length(&readonly this): isize {
         this.initializedLength
     }
 
     /// Return the initialized byte count.
-    get size(): isize {
+    get size(&readonly this): isize {
         this.initializedLength
     }
 
     /// Return the allocated byte capacity.
-    get capacity(): usize {
+    get capacity(&readonly this): usize {
         this.allocatedCapacity
     }
 
     /// Return whether this buffer has no initialized bytes.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.initializedLength == 0
     }
 
@@ -82,9 +82,9 @@ export class ByteBuffer {
     }
 
     /// Borrow initialized bytes.
-    asBytes<const A: Access = "readonly">(
-        this: WithAccess<&ByteBuffer, A>,
-    ): WithAccess<&[uint8], A> {
+    asBytes<const R: Region, const A: Access = "readonly">(
+        this: Borrowed<ByteBuffer, R, A>,
+    ): Borrowed<[uint8], R, A> {
         todo("ByteBuffer.asBytes")
     }
 

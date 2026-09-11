@@ -7,7 +7,7 @@ export local class Owner implements Dispose {
     private constructor() {}
 
     /// Dispose this owner and its retained children.
-    dispose(&readonly this): void {
+    dispose(this): void {
         todo("Owner.dispose");
     }
 }

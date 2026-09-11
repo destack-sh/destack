@@ -1,16 +1,16 @@
 import { todo } from "destack:error";
 import { NoInfer } from "destack:types";
 
-import { SourceAccessor } from "./accessor.ds";
+import { SignalArgument, SourceAccessor } from "./accessor.ds";
 import { DerivationAccessor, DerivationValue } from "./derive.ds";
 import { MemoOptions } from "./options.ds";
 
 /// Create a ready memo from one derivation and an initial settled value.
 export function createMemo<Output>(
-    derive: ^Function<(&readonly NoInfer<DerivationValue<Output>>,), Output>,
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>>,), Output>,
     options: MemoOptions<DerivationValue<Output>> & {
         /// Initial settled value used until the first derived value is ready.
-        loadingValue: ^DerivationValue<Output>;
+        loadingValue: DerivationValue<Output>;
     },
 ): SourceAccessor<DerivationValue<Output>> {
     todo("signal.createMemo")
@@ -18,7 +18,7 @@ export function createMemo<Output>(
 
 /// Create a memo from one synchronous, polling, or asynchronous derivation.
 export function createMemo<Output>(
-    derive: ^Function<(&readonly NoInfer<DerivationValue<Output>> | undefined,), Output>,
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>> | undefined,), Output>,
     options?: MemoOptions<DerivationValue<Output>>,
 ): DerivationAccessor<Output> {
     todo("signal.createMemo")

@@ -1,4 +1,3 @@
-import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 
 import { IpAddress } from "./address.ds";

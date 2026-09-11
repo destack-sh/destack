@@ -1,6 +1,7 @@
 import { Task } from "destack:async";
 import { todo } from "destack:error";
 import { HostError } from "destack:error/host";
+import { Copy } from "destack:memory";
 import {
     AddressLookupQuery,
     AddressLookupResult,
@@ -13,23 +14,23 @@ import {
 
 /// Owned stream socket.
 @languageItem("net.Connection")
-export struct Connection {
+export struct Connection implements !Copy {
     /// Host socket handle.
-    handle: SocketHandle;
+    private handle: SocketHandle;
 }
 
 /// Owned stream listener.
 @languageItem("net.Listener")
-export struct Listener {
+export struct Listener implements !Copy {
     /// Host listener socket handle.
-    handle: SocketHandle;
+    private handle: SocketHandle;
 }
 
 /// Owned datagram socket.
 @languageItem("net.DatagramSocket")
-export struct DatagramSocket {
+export struct DatagramSocket implements !Copy {
     /// Host socket handle.
-    handle: SocketHandle;
+    private handle: SocketHandle;
 }
 
 /// Stream listen options.

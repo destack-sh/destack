@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Dispose } from "destack:memory";
+import { Copy, Dispose } from "destack:memory";
 
 import { Atomic } from "./atomic.ds";
 
@@ -7,7 +7,7 @@ import { Atomic } from "./atomic.ds";
 @languageItem("sync.Semaphore")
 export shared class Semaphore {
     /// The available permit count.
-    state: Atomic<isize>;
+    private state: Atomic<isize>;
 
     /// Create a semaphore with `permits` available permits.
     constructor(permits: usize) {
@@ -15,7 +15,7 @@ export shared class Semaphore {
     }
 
     /// Return the number of immediately available permits.
-    get availablePermits(): usize {
+    get availablePermits(&readonly this): usize {
         todo("Semaphore.availablePermits")
     }
 
@@ -48,15 +48,15 @@ export shared class Semaphore {
 /// Active semaphore permit.
 export local struct SemaphorePermit {
     /// The semaphore that issued this permit.
-    semaphore: *Semaphore;
+    private semaphore: Semaphore;
 
     /// The number of acquired permits.
-    count: usize;
+    private count: usize;
 }
 
-export extension of SemaphorePermit implements Dispose {
+export extension of SemaphorePermit implements Dispose, !Copy {
     /// Release this permit.
-    dispose(): void {
+    dispose(this): void {
         todo("SemaphorePermit.dispose");
     }
 
