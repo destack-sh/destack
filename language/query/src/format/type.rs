@@ -251,13 +251,13 @@ impl Formatter<'_, '_, '_> {
     fn borrowed_form(&self, borrow: dir::BorrowFormId, value: &str) -> QueryResult<String> {
         let borrow = *self.types()?.borrow_form(borrow);
 
-        // split the region into its extent and space coordinates
+        // read the region extent and space
         let (extent, space) = self.read_type(borrow.region, |type_value, _| match type_value {
             dir::Type::Region(pair) => Ok((pair.extent, Some(pair.space))),
             _ => Ok((borrow.region, None)),
         })?;
         // render literal referent spaces in target position, keeping written local
-        let value = match space {
+        let target = match space {
             None => value.to_string(),
             Some(space) => match self.space_literal(space)? {
                 Some(space) => format!("{} {value}", space.text()),
@@ -270,16 +270,44 @@ impl Formatter<'_, '_, '_> {
 
         // written non-tick extents render the full borrow application
         let Some(lifetime) = self.borrow_extent_prefix(extent)? else {
-            return self.borrow_application(&borrow, &value);
+            return self.borrow_application(&borrow, value);
         };
 
-        self.borrow_access(borrow.access, Some(&lifetime), &value)
+        // render concrete qualifiers directly and retain generic arguments in Borrowed
+        let access = self.read_type(borrow.access, |ty, _| {
+            Ok(match ty {
+                dir::Type::Literal(dir::Literal::String(text)) => dir::Access::from_text(*text),
+                _ => None,
+            })
+        })?;
+        let exclusivity = self.read_type(borrow.exclusivity, |ty, _| {
+            Ok(match ty {
+                dir::Type::Literal(dir::Literal::String(text)) => {
+                    dir::Exclusivity::from_text(*text)
+                }
+                _ => None,
+            })
+        })?;
+        let (Some(access), Some(exclusivity)) = (access, exclusivity) else {
+            return self.borrow_application(&borrow, value);
+        };
+        let access = match access {
+            dir::Access::Mutable => "",
+            dir::Access::Readonly => "readonly ",
+        };
+        let exclusivity = match exclusivity {
+            dir::Exclusivity::Aliasable => "",
+            dir::Exclusivity::Exclusive => "exclusive ",
+        };
+
+        Ok(format!("&{lifetime}{access}{exclusivity}{target}"))
     }
 
     /// Format one full borrow application.
     fn borrow_application(&self, borrow: &dir::BorrowForm, value: &str) -> QueryResult<String> {
         let region = self.global_type(borrow.region)?;
         let access = self.global_type(borrow.access)?;
+        let exclusivity = self.global_type(borrow.exclusivity)?;
         let symbol = self
             .program
             .environment_bound()?
@@ -288,7 +316,9 @@ impl Formatter<'_, '_, '_> {
             .ok_or(QueryError::missing("Borrowed language item"))?;
         let borrowed = self.symbol(symbol)?;
 
-        Ok(format!("{borrowed}<{value}, {region}, {access}>"))
+        Ok(format!(
+            "{borrowed}<{value}, {region}, {access}, {exclusivity}>"
+        ))
     }
 
     /// Return whether one term is an induced memory parameter.
@@ -362,77 +392,11 @@ impl Formatter<'_, '_, '_> {
         Ok(format!("{name}<{value}, {argument}>"))
     }
 
-    /// Apply one borrow access to a borrowed type.
-    fn borrow_access(
-        &self,
-        type_id: dir::GlobalTypeId,
-        lifetime: Option<&str>,
-        value: &str,
-    ) -> QueryResult<String> {
-        // induced extents elide from the reference prefix
-        let borrowed = match lifetime {
-            Some(lifetime) => format!("&{lifetime}{value}"),
-            None => format!("&{value}"),
-        };
-
-        self.read_type(type_id, |type_value, formatter| {
-            // parse a concrete access literal once
-            let access = match type_value {
-                dir::Type::Literal(dir::Literal::String(value)) => dir::Access::from_text(*value),
-                _ => None,
-            };
-
-            match (access, type_value, lifetime) {
-                // render concrete access with its source modifier
-                (Some(dir::Access::Mutable), _, _) => Ok(borrowed.clone()),
-                (Some(dir::Access::Readonly), _, Some(lifetime)) => {
-                    Ok(format!("&{lifetime}readonly {borrowed}"))
-                }
-                (Some(_), _, None) => {
-                    let access = formatter.local_type(type_value)?;
-
-                    formatter.memory_application(dir::LanguageItem::WithAccess, &borrowed, &access)
-                }
-
-                // render generic access through WithAccess
-                (_, dir::Type::Parameter(parameter), _) => {
-                    let parameter_binding = formatter
-                        .module
-                        .generics()?
-                        .get_parameter(parameter.local_id);
-                    if parameter_binding.memory_parameter() != Some(dir::MemoryParameter::Access) {
-                        return Err(QueryError::invalid(format!("borrow access: {type_id:?}")));
-                    }
-
-                    let access = formatter.generic_parameter_type(*parameter)?;
-                    formatter.memory_application(dir::LanguageItem::WithAccess, &borrowed, &access)
-                }
-
-                // reject invalid checked borrow access
-                _ => Err(QueryError::invalid(format!("borrow access: {type_id:?}"))),
-            }
-        })
-    }
-
     /// Format one placement form.
     fn placed_form(&self, type_id: dir::GlobalTypeId, value: &str) -> QueryResult<String> {
-        match self.space_literal(type_id)? {
-            // elide the default local space
-            Some(dir::Space::Local) => Ok(value.to_string()),
+        let place = self.global_type(type_id)?;
 
-            // retain explicit nonlocal spaces
-            Some(space) => Ok(format!("{} {value}", space.text())),
-
-            // elide places induced by checked memory forms
-            None if self.is_induced_memory_term(type_id)? => Ok(value.to_string()),
-
-            // retain explicit parametric places
-            None => {
-                let place = self.global_type(type_id)?;
-
-                self.memory_application(dir::LanguageItem::Managed, value, &place)
-            }
-        }
+        self.memory_application(dir::LanguageItem::Managed, value, &place)
     }
 
     /// Format one scalar interval type.

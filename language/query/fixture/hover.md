@@ -625,6 +625,41 @@ function read(): int32 {
 @hover.item index=0 declaration="const count: int32" location=main.ds#definition range=main.ds#reference
 ```
 
+### Preserve managed value storage in inferred types
+
+```ds main.ds
+import { Managed } from "destack:memory";
+
+function read(value: Managed<int32>): void {
+    const copy = value;
+          ^^^^ definition
+    copy;
+    ^^^^ reference
+}
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="const copy: Managed<int32, \"local\">" location=main.ds#definition range=main.ds#reference
+```
+
+### Preserve borrowed handle storage in inferred types
+
+```ds main.ds
+import { Managed } from "destack:memory";
+
+class User {}
+function read<'a>(value: &'a readonly Managed<User>): void {
+    const copy = value;
+          ^^^^ definition
+    copy;
+    ^^^^ reference
+}
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="const copy: &'a readonly Managed<User, \"local\">" location=main.ds#definition range=main.ds#reference
+```
+
 ## Imports
 
 ### Hover over an imported function
