@@ -4,7 +4,7 @@ use destack_core::FxIndexSet;
 
 use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
-    NewtypeLayout, NodeVisitor, Primitive, Representation, Scalar, ScalarField, Static,
+    NewtypeLayout, NodeVisitor, Primitive, Reference, Representation, Scalar, ScalarField, Static,
     StructLayout, TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeId, Validity, Vector,
     walk_type,
 };
@@ -285,9 +285,9 @@ impl<'tree> LayoutBuilder<'tree> {
                 Ok(Layout::scalar(scalar, bytes, self.natural_alignment(bytes)))
             }
 
-            // references occupy one pointer, reserving the nullish words as a niche
-            Type::Reference { storage, .. } => {
-                let scalar = self.reference_scalar();
+            // lay out one world-relative reference with its permitted values
+            Type::Reference { kind, storage, .. } => {
+                let scalar = self.reference_scalar(kind);
 
                 Ok(Layout {
                     shape: LayoutShape::Scalar,
@@ -295,7 +295,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: scalar.niche(0),
                     size: self.pointer_bytes(),
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(storage, self.tree),
+                    trace_map: TraceMap::reference(kind, storage, self.tree),
                 })
             }
 
@@ -316,8 +316,8 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // slices store their base reference followed by one element count
-            Type::Slice { storage, .. } => {
-                let reference = self.reference_scalar();
+            Type::Slice { kind, storage, .. } => {
+                let reference = self.reference_scalar(kind);
                 let length = Scalar::new(Primitive::Integer {
                     width: self.target.pointer_bits(),
                 });
@@ -332,7 +332,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: reference.niche(0),
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(storage, self.tree),
+                    trace_map: TraceMap::reference(kind, storage, self.tree),
                 })
             }
 
@@ -492,8 +492,8 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // dynamic values store one erased payload reference and dispatch table id
-            Type::Dynamic { storage, .. } => {
-                let payload = self.reference_scalar();
+            Type::Dynamic { kind, storage, .. } => {
+                let payload = self.reference_scalar(kind);
                 let table = Scalar::new(Primitive::Integer { width: 32 });
                 let representation = Representation::ScalarPair([
                     ScalarField::new(payload, 0),
@@ -506,14 +506,14 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: payload.niche(0),
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(storage, self.tree),
+                    trace_map: TraceMap::reference(kind, storage, self.tree),
                 })
             }
 
             // closures store a function identity and erased environment reference
-            Type::Function { storage, .. } => {
+            Type::Function { kind, storage, .. } => {
                 let environment_offset = self.pointer_bytes();
-                let environment_trace = TraceMap::reference(storage, self.tree);
+                let environment_trace = TraceMap::reference(kind, storage, self.tree);
                 let function = self.function_scalar();
                 let environment = Scalar::new(Primitive::Pointer {
                     width: self.target.pointer_bits(),
@@ -642,11 +642,17 @@ impl<'tree> LayoutBuilder<'tree> {
         Ok(Layout::scalar(scalar, size, self.natural_alignment(size)))
     }
 
-    /// Return a world-relative reference scalar reserving the nullish words.
-    fn reference_scalar(&self) -> Scalar {
-        Scalar::reference(Primitive::Pointer {
+    /// Return a world-relative scalar with validity determined by its reference kind.
+    fn reference_scalar(&self, kind: Reference) -> Scalar {
+        let primitive = Primitive::Pointer {
             width: self.target.pointer_bits(),
-        })
+        };
+
+        if kind == Reference::Raw {
+            Scalar::new(primitive)
+        } else {
+            Scalar::reference(primitive)
+        }
     }
 
     /// Return one callable identity scalar reserving the nullish words as a niche.

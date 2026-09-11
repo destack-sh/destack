@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::SectionEntry;
 use destack_serde::Reflect;
 
-use crate::{Discriminant, Storage, StorageSet, Tree, VariantEncoding};
+use crate::{Discriminant, Reference, Storage, StorageSet, Tree, VariantEncoding};
 
 /// Reference trace map for one value layout.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -56,7 +56,11 @@ impl TraceMap {
     }
 
     /// Trace a world-relative reference in each possible reclaimable storage category.
-    pub fn reference(storage: Storage, tree: &Tree) -> Self {
+    pub fn reference(kind: Reference, storage: Storage, tree: &Tree) -> Self {
+        if kind == Reference::Raw {
+            return Self::Empty;
+        }
+
         let storage = Self::reference_storage(storage, tree);
         if storage.is_empty() {
             return Self::Empty;

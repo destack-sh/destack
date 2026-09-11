@@ -3,11 +3,11 @@ use destack_core::StringPool;
 use crate::build::ModuleBuilder;
 use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{
-    Access, BinaryOperator, Callee, Copy, Exclusivity, ExecutionScope, Extent, FenceAccess,
-    FloatType, FormatOptions, Formatter, GenericArgument, GenericParameter, GenericParameterDomain,
-    Importer, LayoutBuilder, LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability,
-    Reference, Space, Storage, StorageSet, Substitution, Symbol, TargetLayout, TraceMap, Tree,
-    Type, TypeDeclaration, TypeHeritage, TypeId,
+    Access, BinaryOperator, Callee, Copy, ExecutionScope, Extent, FenceAccess, FloatType,
+    FormatOptions, Formatter, GenericArgument, GenericParameter, GenericParameterDomain, Importer,
+    LayoutBuilder, LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability, Reference,
+    Space, Storage, StorageSet, Substitution, Symbol, TargetLayout, TraceMap, Tree, Type,
+    TypeDeclaration, TypeHeritage, TypeId,
 };
 
 /// Format one test MIR tree.
@@ -1004,7 +1004,7 @@ fn test_build_slice_view() {
         Storage::Heap(Space::Local),
     );
     let slice_type = module.type_slice(
-        Reference::Borrowed(Exclusivity::Aliasable),
+        Reference::Borrowed,
         Lifetime::bound(0),
         i32_type,
         Access::Mutable,
@@ -1330,7 +1330,7 @@ fn test_build_field_get_from_region_applied_type() {
 
     // define a region-polymorphic aggregate borrowing the user
     let borrowed_user = module.type_reference(
-        Reference::Borrowed(Exclusivity::Aliasable),
+        Reference::Borrowed,
         Lifetime::new([Extent::Parameter(0)]),
         user,
         Access::Readonly,
@@ -1378,7 +1378,7 @@ fn test_build_field_get_from_region_applied_type() {
     let definition = Substitution::new(module.tree_mut(), &arguments).representation(view);
     module.tree_mut().define_application(frame_view, definition);
     let frame_user = module.type_reference(
-        Reference::Borrowed(Exclusivity::Aliasable),
+        Reference::Borrowed,
         Lifetime::frame(),
         user,
         Access::Readonly,
@@ -1666,7 +1666,7 @@ fn test_import_specialized_function_places() {
     ]);
     let lifetime = Lifetime::new([Extent::Static]);
     let borrowed = module.tree_mut().intern_type(Type::Reference {
-        kind: Reference::Borrowed(Exclusivity::Aliasable),
+        kind: Reference::Borrowed,
         lifetime: lifetime.clone(),
         storage,
         access: Access::Readonly,
@@ -1716,6 +1716,20 @@ fn test_import_specialized_function_places() {
             frame_offsets: Box::new([0]),
         }
     );
+
+    // raw references preserve addressing without retaining storage or excluding null
+    let mut raw = destination.type_definition(parameter).clone();
+    let Type::Reference { kind, .. } = &mut raw else {
+        panic!("expected the imported reference");
+    };
+    *kind = Reference::Raw;
+    let raw = destination.intern_type(raw);
+    let raw_layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
+        .layout_type(raw)
+        .unwrap();
+    assert_eq!(layouts.layout(raw_layout).trace_map, TraceMap::Empty);
+    assert_eq!(layouts.layout(raw_layout).niche, None);
+    assert_eq!(layouts.layout(raw_layout).size, layouts.layout(layout).size);
 }
 
 /// Preserve opaque declarations, aliases, and recursive applications across trees.
