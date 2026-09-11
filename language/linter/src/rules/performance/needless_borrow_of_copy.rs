@@ -49,16 +49,15 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
         let dir::TypeExpression::BorrowedOf {
             lifetime,
-            mutability,
-            exclusivity,
+            access,
             target_type,
             ..
         } = view.get(declared_type)
         else {
             continue;
         };
-        let access = mutability.unwrap_or(dir::Mutability::Mutable).access();
-        if access != dir::Access::Readonly || *exclusivity == Some(dir::Exclusivity::Exclusive) {
+        let access = access.unwrap_or(dir::Access::Mutable);
+        if access != dir::Access::Readonly {
             continue;
         }
         if let Some(lifetime) = lifetime
@@ -156,7 +155,11 @@ function increment(value: &int32): void {
     *value += 1;
 }
 
-function read(value: &readonly exclusive int32): int32 {
+function read(value: &immutable int32): int32 {
+    return *value;
+}
+
+function readExclusive(value: &exclusive int32): int32 {
     return *value;
 }
 "#,

@@ -73,7 +73,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .coercions
                 .coercion(assignment.value.into_global_any(module.id))
                 .is_some()
-            || module.place_access(assignment.target)? != Some(dir::Access::Mutable)
+            || module.place_access(assignment.target)? != Some(dir::Access::Exclusive)
         {
             continue;
         }
@@ -143,8 +143,12 @@ mod tests {
             r#"
 import { rc } from "destack:memory";
 
-function retain(value: &rc.Rc<int32>): void {
+function retain(value: &exclusive rc.Rc<int32>): void {
     *value = value.clone();
+}
+
+function replaceAlias(target: &rc.Rc<int32>, source: &readonly rc.Rc<int32>): void {
+    *target = source.clone();
 }
 "#,
         );
@@ -165,7 +169,7 @@ struct Pair {
     right: rc.Rc<int32>;
 }
 
-function replace(pair: &Pair): void {
+function replace(pair: &exclusive Pair): void {
     pair.left = pair.right.clone();
 }
 "#,
@@ -180,7 +184,7 @@ struct Pair {
     right: rc.Rc<int32>;
 }
 
-function replace(pair: &Pair): void {
+function replace(pair: &exclusive Pair): void {
     pair.left.cloneFrom(pair.right);
 }
 "#,

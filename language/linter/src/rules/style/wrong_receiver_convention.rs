@@ -142,8 +142,8 @@ fn receiver_form(
     let form = match module.dir.default_ownership(type_id)? {
         Some(dir::Ownership::Owned) => ReceiverForm::Value,
         Some(dir::Ownership::Borrowed) => match module.dir.borrow_access(type_id)? {
-            Some(dir::Access::Readonly) => ReceiverForm::Readonly,
-            Some(dir::Access::Mutable) => ReceiverForm::Mutable,
+            Some(dir::Access::Readonly | dir::Access::Immutable) => ReceiverForm::Readonly,
+            Some(dir::Access::Mutable | dir::Access::Exclusive) => ReceiverForm::Mutable,
             None => return Ok(None),
         },
         Some(dir::Ownership::Managed | dir::Ownership::Raw) | None => return Ok(None),

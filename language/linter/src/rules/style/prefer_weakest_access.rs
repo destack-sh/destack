@@ -61,15 +61,15 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         let dir::TypeExpression::BorrowedOf {
             lifetime,
-            mutability,
+            access,
             target_type,
             ..
         } = view.get(declared_type)
         else {
             continue;
         };
-        let declared_access = mutability.unwrap_or(dir::Mutability::Mutable).access();
-        if declared_access == dir::Access::Readonly {
+        let declared_access = access.unwrap_or(dir::Access::Mutable);
+        if declared_access != dir::Access::Mutable {
             continue;
         }
         let Some(callable) = module.enclosing_callable(parameter.into_any()) else {
@@ -100,26 +100,30 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // combine the access required by every binding in the parameter
         let mut has_binding = false;
-        let mut required = dir::Access::Readonly;
+        let mut needs_access = false;
         for symbol in module.symbols_declared_within(parameter.into_any()) {
             has_binding = true;
-            let access = module.weakest_binding_access(symbol, body.into_any(), &occurrences)?;
-            if access.grants(required) {
-                required = access;
-            }
+            let access = module.required_access_within(
+                &dir::AccessPath::symbol(symbol),
+                body.into_any(),
+                &occurrences,
+            );
+            needs_access |= access != dir::Access::Readonly;
         }
-        if !has_binding || required == declared_access || !declared_access.grants(required) {
+        if !has_binding || needs_access {
             continue;
         }
 
-        // replace only the authored access keyword
-        let span = access_span(module, declared_type, *target_type, declared_access)?;
+        // highlight the borrowed type prefix
+        let borrowed = module.source_extent(declared_type.into_any())?;
+        let target = module.source_extent(target_type.into_any())?;
+        let span = Span::new(borrowed.file, borrowed.start, target.start);
         let diagnostic = lint
             .diagnostic(
                 format!(
                     "parameter grants {} access but only {} access is used",
                     declared_access.text(),
-                    required.text()
+                    dir::Access::Readonly.text()
                 ),
                 span,
             )
@@ -128,34 +132,6 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     }
 
     Ok(output)
-}
-
-/// Return the authored access keyword within one borrowed type prefix.
-fn access_span(
-    module: &DirModule<'_>,
-    borrowed: dir::LocalNodeId<dir::TypeExpression>,
-    target: dir::LocalNodeId<dir::TypeExpression>,
-    access: dir::Access,
-) -> Result<Span, ProviderError> {
-    let borrowed = module.source_extent(borrowed.into_any())?;
-    let target = module.source_extent(target.into_any())?;
-    let prefix = Span::new(borrowed.file, borrowed.start, target.start);
-    if access == dir::Access::Mutable {
-        return Ok(prefix);
-    }
-    let source = module.source(prefix)?;
-    let keyword = access.text();
-    let start = source.find(keyword).ok_or_else(|| {
-        ProviderError::internal(format!(
-            "borrowed type with {access:?} access has no authored `{keyword}` keyword"
-        ))
-    })? as u32;
-
-    Ok(Span::new(
-        prefix.file,
-        prefix.start + start,
-        prefix.start + start + keyword.len() as u32,
-    ))
 }
 
 /// Build the readonly access annotation.
@@ -233,7 +209,7 @@ function read(counter: &readonly Counter): int32 {
         );
     }
 
-    /// Preserve exclusive access used to replace the borrowed place.
+    /// Preserve mutable access used to replace the borrowed place.
     #[test]
     fn test_accepts_a_mutable_replacement() {
         let session = TestSession::dir(
@@ -252,7 +228,7 @@ function replace(counter: &Counter, replacement: Counter): void {
         session.assert_no_diagnostics();
     }
 
-    /// Preserve exclusive access passed to another exclusive parameter.
+    /// Preserve mutable access passed to another mutable parameter.
     #[test]
     fn test_accepts_a_mutable_call() {
         let session = TestSession::dir(
@@ -273,7 +249,7 @@ function forward(counter: &Counter): void {
         session.assert_no_diagnostics();
     }
 
-    /// Preserve exclusive access returned from the callable.
+    /// Preserve mutable access returned from the callable.
     #[test]
     fn test_accepts_a_returned_mutable_borrow() {
         let session = TestSession::dir(
@@ -292,7 +268,7 @@ function identity<'a>(counter: &'a Counter): &'a Counter {
         session.assert_no_diagnostics();
     }
 
-    /// Preserve exclusive access used by a returned function.
+    /// Preserve mutable access used by a returned function.
     #[test]
     fn test_accepts_a_captured_mutable_borrow() {
         let session = TestSession::dir(
@@ -307,6 +283,20 @@ function replaceLater<'a>(counter: &'a Counter): () => void {
         *counter = Counter { value: 0 };
     };
 }
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
+    /// Preserve explicit immutable and exclusive parameter requirements.
+    #[test]
+    fn test_preserves_declared_exclusion() {
+        let session = TestSession::dir(
+            &PREFER_WEAKEST_ACCESS,
+            r#"
+function immutable(value: &immutable int32): int32 { return *value; }
+function exclusive(value: &exclusive int32): int32 { return *value; }
 "#,
         );
 

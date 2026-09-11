@@ -16,14 +16,14 @@ Instead, you SHOULD call `take` to move out the existing collection and leave it
 "#,
         example: {
             reported: r#"
-function removeAll(values: &int32[]): int32[] {
+function removeAll(values: &exclusive int32[]): int32[] {
     return values.drain().toArray();
 }
 "#,
             accepted: r#"
 import { take } from "destack:memory";
 
-function removeAll(values: &int32[]): int32[] {
+function removeAll(values: &exclusive int32[]): int32[] {
     return take(values);
 }
 "#,
@@ -74,37 +74,21 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if module.representation_item(drain.receiver.into_any())? != Some(result) {
             continue;
         }
-        let Some(adjusted_receiver) = module.call_receiver_type_id(collect.receiver)? else {
-            continue;
-        };
-        if module.dir.borrow_access(adjusted_receiver)? != Some(dir::Access::Mutable) {
-            continue;
-        }
-
-        // leave shared storage, where other holders interleave with the drain
-        let stored = module.dir.strip_form(receiver_type)?;
-        if let dir::Type::Application(instance) = module.dir.get_type(stored)?
-            && module.dir.declaration_space(instance.symbol)? == Some(dir::Space::Shared)
-        {
+        if module.place_access(drain.receiver)? != Some(dir::Access::Exclusive) {
             continue;
         }
 
         // preserve grouping beneath a newly introduced exclusive borrow
         let span = module.source_extent(expression.into_any())?;
-        let is_borrowed = matches!(
-            module.dir.get_type(receiver_type)?,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Borrowed(_),
-                ..
-            })
-        );
+        let is_borrowed =
+            module.dir.default_ownership(receiver_type)? == Some(dir::Ownership::Borrowed);
         let precedence = if is_borrowed {
             dir::OperatorPrecedence::Lowest
         } else {
             dir::OperatorPrecedence::Prefix
         };
         let receiver = module.expression_source(drain.receiver, precedence)?;
-        let borrow = if is_borrowed { "" } else { "&" };
+        let borrow = if is_borrowed { "" } else { "&exclusive " };
 
         // recommend moving the existing allocation from the complete expression
         let diagnostic = lint
@@ -130,7 +114,7 @@ mod tests {
         let session = TestSession::dir(
             &DRAIN_COLLECT,
             r#"
-function removeAll(values: &int32[]): int32[] {
+function removeAll(values: &exclusive int32[]): int32[] {
     return values.drain().toArray();
 }
 "#,
@@ -141,7 +125,7 @@ function removeAll(values: &int32[]): int32[] {
 warning[drain-collect]: complete drain is collected into the same collection type
  ──▶ main.ds:2:12
   │
-1 │ function removeAll(values: &int32[]): int32[] {
+1 │ function removeAll(values: &exclusive int32[]): int32[] {
 2 │     return values.drain().toArray();
   │            ^^^^^^^^^^^^^^^^^^^^^^^^
 3 │ }
@@ -158,7 +142,7 @@ warning[drain-collect]: complete drain is collected into the same collection typ
         let session = TestSession::dir(
             &DRAIN_COLLECT,
             r#"
-function removeAll(values: &int32[]): int32[] {
+function removeAll(values: &exclusive int32[]): int32[] {
     return values.drain().collect<^int32[]>();
 }
 "#,
@@ -169,7 +153,7 @@ function removeAll(values: &int32[]): int32[] {
 warning[drain-collect]: complete drain is collected into the same collection type
  ──▶ main.ds:2:12
   │
-1 │ function removeAll(values: &int32[]): int32[] {
+1 │ function removeAll(values: &exclusive int32[]): int32[] {
 2 │     return values.drain().collect<^int32[]>();
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │ }
@@ -191,6 +175,10 @@ import { ConcurrentSet } from "destack:collections";
 function removeAll(values: &ConcurrentSet<int32>): ^ConcurrentSet<int32> {
     return values.drain().collect();
 }
+
+function removeAliased(values: &int32[]): int32[] {
+    return values.drain().toArray();
+}
 "#,
         );
 
@@ -203,7 +191,7 @@ function removeAll(values: &ConcurrentSet<int32>): ^ConcurrentSet<int32> {
         let session = TestSession::dir(
             &DRAIN_COLLECT,
             r#"
-function removeAll(values: &int32[]): int64[] {
+function removeAll(values: &exclusive int32[]): int64[] {
     return values.drain().map((value) => value as int64).toArray();
 }
 "#,
@@ -220,7 +208,7 @@ function removeAll(values: &int32[]): int64[] {
             r#"
 import { Set } from "destack:collections";
 
-function removeAll(values: &int32[]): Set<int32> {
+function removeAll(values: &exclusive int32[]): Set<int32> {
     return values.drain().collect();
 }
 "#,

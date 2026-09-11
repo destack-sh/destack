@@ -105,27 +105,13 @@ impl DirModule<'_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::Access>, ProviderError> {
-        let view = self.view();
-        let mut expression = expression;
+        let place = self
+            .decisions
+            .place_resolution(expression.into_global_any(self.id));
 
-        // follow projections to the nearest place the checker resolved
-        loop {
-            if let Some(place) = self
-                .decisions
-                .place_resolution(expression.into_global_any(self.id))
-            {
-                return self.dir.memory_access(place.access).map(Some);
-            }
-
-            expression = match view.get(expression) {
-                dir::Expression::Member { left, .. } | dir::Expression::Index { left, .. } => *left,
-                dir::Expression::Unary {
-                    operator: dir::UnaryOperator::Dereference,
-                    right,
-                } => *right,
-                _ => return Ok(None),
-            };
-        }
+        place
+            .map(|place| self.dir.memory_access(place.access))
+            .transpose()
     }
 
     /// Return the place beneath one explicit dereference.
@@ -206,16 +192,6 @@ impl DirModule<'_> {
         })
     }
 
-    /// Return the weakest access sufficient for one binding's checked uses.
-    pub(crate) fn weakest_binding_access(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        within: dir::LocalNodeIdAny,
-        occurrences: &[dir::AccessOccurrence],
-    ) -> Result<dir::Access, ProviderError> {
-        self.required_access_within(&dir::AccessPath::symbol(symbol), within, occurrences)
-    }
-
     /// Return whether one access path takes a mutable use beneath a node.
     pub(crate) fn takes_mutable_within(
         &self,
@@ -240,28 +216,16 @@ impl DirModule<'_> {
         root: &dir::AccessPath,
         within: dir::LocalNodeIdAny,
         occurrences: &[dir::AccessOccurrence],
-    ) -> Result<dir::Access, ProviderError> {
-        let view = self.view();
-        let mut required = dir::Access::Readonly;
+    ) -> dir::Access {
+        let uses = self.access_uses_within(root, within, occurrences);
+        let writes = uses.may_mutate() || uses.contains(dir::BindingUse::MUTABLE);
+        let excludes = uses.contains(dir::BindingUse::EXCLUSIVE);
 
-        // combine access requirements beneath the binding storage
-        for occurrence in occurrences {
-            if !view.is_inside(occurrence.node, within) || !occurrence.path.starts_with(root) {
-                continue;
-            }
-
-            // a write or a mutable use requires mutable access, every other use readonly
-            let takes_mutable = occurrence.uses.contains(dir::BindingUse::WRITE)
-                || occurrence.uses.contains(dir::BindingUse::MUTABLE);
-            let access = match takes_mutable {
-                true => dir::Access::Mutable,
-                false => dir::Access::Readonly,
-            };
-            if access.grants(required) {
-                required = access;
-            }
+        match (writes, excludes) {
+            (false, false) => dir::Access::Readonly,
+            (true, false) => dir::Access::Mutable,
+            (false, true) => dir::Access::Immutable,
+            (true, true) => dir::Access::Exclusive,
         }
-
-        Ok(required)
     }
 }

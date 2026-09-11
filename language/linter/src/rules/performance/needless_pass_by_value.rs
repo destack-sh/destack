@@ -302,9 +302,9 @@ function increment(v0: int32): int32 { return v0 + 1; }
             &NEEDLESS_PASS_BY_VALUE,
             r#"
 class Packet { code: int32; }
-function read(value: &readonly exclusive Packet): int32 { return value.code; }
+function read(value: &immutable Packet): int32 { return value.code; }
 
-function packetCode(v0: ^Packet): int32 { return read(&readonly exclusive v0); }
+function packetCode(v0: ^Packet): int32 { return read(&immutable v0); }
 "#,
         );
 

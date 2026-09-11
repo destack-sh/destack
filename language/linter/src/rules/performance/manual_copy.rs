@@ -15,14 +15,14 @@ Instead, you SHOULD use the collection's bulk copy operation.
 "#,
         example: {
             reported: r#"
-function copy(target: &int32[], source: &readonly int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index] = source[index];
     }
 }
 "#,
             accepted: r#"
-function copy(target: &int32[], source: &readonly int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     target.view(0, source.length).copyFrom(source.view(0));
 }
 "#,
@@ -162,7 +162,7 @@ impl IndexLoop {
         let ownership = module.dir.default_ownership(target_type)?;
         let has_unique_target = ownership == Some(dir::Ownership::Owned)
             || ownership == Some(dir::Ownership::Borrowed)
-                && module.dir.borrow_access(target_type)? == Some(dir::Access::Mutable);
+                && module.dir.borrow_access(target_type)? == Some(dir::Access::Exclusive);
 
         Ok(has_unique_target)
     }
@@ -279,7 +279,7 @@ mod tests {
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: &int32[], source: &readonly int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index] = source[index];
     }
@@ -292,7 +292,7 @@ function copy(target: &int32[], source: &readonly int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: &int32[], source: &readonly int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 0; index < source.length; index++) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index] = source[index];
@@ -311,7 +311,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: &int32[], source: &readonly int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (const index of 0..source.length) {
         target[index] = source[index];
     }
@@ -324,7 +324,7 @@ function copy(target: &int32[], source: &readonly int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: &int32[], source: &readonly int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (const index of 0..source.length) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index] = source[index];
@@ -343,7 +343,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: &int32[], source: &readonly int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index + 1] = source[index];
     }
@@ -356,7 +356,7 @@ function copy(target: &int32[], source: &readonly int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: &int32[], source: &readonly int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 0; index < source.length; index++) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index + 1] = source[index];
@@ -375,7 +375,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: &int32[], source: &readonly int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 2; index < source.length; index++) {
         target[index] = source[index];
     }
@@ -388,7 +388,7 @@ function copy(target: &int32[], source: &readonly int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: &int32[], source: &readonly int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 2; index < source.length; index++) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index] = source[index];
@@ -407,7 +407,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: &int32[], source: &readonly int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (const index of 2..=source.length - 2) {
         target[index - 2] = source[index + 1];
     }
@@ -420,7 +420,7 @@ function copy(target: &int32[], source: &readonly int32[]): void {
 warning[manual-copy]: index loop copies corresponding collection elements
  ──▶ main.ds:2:5
   │
-1 │ function copy(target: &int32[], source: &readonly int32[]): void {
+1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (const index of 2..=source.length - 2) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │         target[index - 2] = source[index + 1];
@@ -440,8 +440,8 @@ warning[manual-copy]: index loop copies corresponding collection elements
             &MANUAL_COPY,
             r#"
 function copy(
-    left: &int32[],
-    right: &int32[],
+    left: &exclusive int32[],
+    right: &exclusive int32[],
     source: &readonly int32[],
 ): void {
     for (let index: isize = 0; index < source.length; index++) {
@@ -479,7 +479,7 @@ warning[manual-copy]: index loop copies corresponding collection elements
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function double(target: &int32[], source: &readonly int32[]): void {
+function double(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index] = source[index] * 2;
     }
@@ -496,7 +496,7 @@ function double(target: &int32[], source: &readonly int32[]): void {
         let session = TestSession::dir(
             &MANUAL_COPY,
             r#"
-function copy(target: &int32[], source: &readonly int32[]): void {
+function copy(target: &exclusive int32[], source: &readonly int32[]): void {
     for (let index: isize = 0; index < source.length; index++) {
         target[index] = source[index];
         target[index] += 1;
@@ -519,6 +519,13 @@ function copy(target: int32[], source: int32[]): void {
         target[index] = source[index];
     }
 }
+
+function copyAliased(target: &int32[], source: &readonly int32[]): void {
+    for (let index: isize = 0; index < source.length; index++) {
+        target[index] = source[index];
+    }
+}
+
 "#,
         );
 
