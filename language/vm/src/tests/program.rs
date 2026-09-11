@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_bytecode as bytecode;
 use destack_core::Optional;
-use destack_mir::{Access, ReferenceKind, Space, Storage, TraceMap};
+use destack_mir::{Access, Reference, Space, Storage, TraceMap};
 use destack_program as program;
 use destack_program::{
     AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
@@ -401,10 +401,10 @@ impl TestProgram {
         mut self,
         ty: u32,
         pointee: u32,
-        kind: ReferenceKind,
+        kind: Reference,
         storage: Storage,
     ) -> Self {
-        let reference = ReferenceLayout::new(TypeId(pointee), kind, storage, Access::Mutable);
+        let reference = ReferenceLayout::new(TypeId(pointee), kind, Access::Mutable);
         let shape = LayoutShapeBuilder::Reference(reference);
         let trace = Self::reference_trace(kind, storage);
         self.insert_layout(TestLayout {
@@ -419,26 +419,25 @@ impl TestProgram {
     }
 
     /// Return the exact trace map for one reference representation.
-    fn reference_trace(kind: ReferenceKind, storage: Storage) -> TraceMap {
+    fn reference_trace(kind: Reference, storage: Storage) -> TraceMap {
         match (kind, storage) {
-            (ReferenceKind::Managed, Storage::Heap(Space::Local)) => TraceMap::Fixed {
+            (Reference::Managed, Storage::Heap(Space::Local)) => TraceMap::Fixed {
                 local_offsets: Box::new([0]),
                 shared_offsets: Box::new([]),
                 frame_offsets: Box::new([]),
             },
-            (ReferenceKind::Managed, Storage::Heap(Space::Shared)) => TraceMap::Fixed {
+            (Reference::Managed, Storage::Heap(Space::Shared)) => TraceMap::Fixed {
                 local_offsets: Box::new([]),
                 shared_offsets: Box::new([0]),
                 frame_offsets: Box::new([]),
             },
-            (
-                ReferenceKind::Managed | ReferenceKind::Unique | ReferenceKind::Borrowed,
-                Storage::Frame,
-            ) => TraceMap::Fixed {
-                local_offsets: Box::new([]),
-                shared_offsets: Box::new([]),
-                frame_offsets: Box::new([0]),
-            },
+            (Reference::Managed | Reference::Unique | Reference::Borrowed(_), Storage::Frame) => {
+                TraceMap::Fixed {
+                    local_offsets: Box::new([]),
+                    shared_offsets: Box::new([]),
+                    frame_offsets: Box::new([0]),
+                }
+            }
             _ => TraceMap::empty(),
         }
     }
