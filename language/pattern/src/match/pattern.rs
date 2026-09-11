@@ -51,19 +51,15 @@ impl Matcher<'_, '_> {
             }
             (
                 dir::Pattern::BorrowOf {
-                    mutability: pattern_mutability,
-                    exclusivity: pattern_exclusivity,
+                    access: pattern_access,
                     right: pattern_right,
                 },
                 dir::Pattern::BorrowOf {
-                    mutability: candidate_mutability,
-                    exclusivity: candidate_exclusivity,
+                    access: candidate_access,
                     right: candidate_right,
                 },
             ) => {
-                if pattern_mutability != candidate_mutability
-                    || pattern_exclusivity != candidate_exclusivity
-                {
+                if pattern_access != candidate_access {
                     return Ok(false);
                 }
 

@@ -21,24 +21,23 @@ alias.fetch(third)
     );
 }
 
-/// Match equivalent borrow qualifier orders and reject different guarantees.
+/// Match borrow expressions by access.
 #[test]
 fn test_match_borrow_qualifiers() {
     TestMatcher::new(
-        "&readonly exclusive $VALUE",
+        "&immutable $VALUE",
         r#"
-&readonly exclusive first;
-&exclusive readonly second;
+&immutable first;
+&second;
 &readonly third;
 &exclusive fourth;
 "#,
     )
     .assert(
         r#"
-&readonly exclusive first;
-^^^^^^^^^^^^^^^^^^^^^^^^^ match VALUE.node="first"
-&exclusive readonly second;
-^^^^^^^^^^^^^^^^^^^^^^^^^^ match VALUE.node="second"
+&immutable first;
+^^^^^^^^^^^^^^^^ match VALUE.node="first"
+&second;
 &readonly third;
 &exclusive fourth;
 "#,
