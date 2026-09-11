@@ -377,6 +377,7 @@ pub(crate) fn classify_keyword_bytes(bytes: &[u8]) -> Option<Keyword> {
         b"protected" => Some(Keyword::Protected),
         b"public" => Some(Keyword::Public),
         b"readonly" => Some(Keyword::Readonly),
+        b"immutable" => Some(Keyword::Immutable),
         b"exclusive" => Some(Keyword::Exclusive),
         b"return" => Some(Keyword::Return),
         b"satisfies" => Some(Keyword::Satisfies),

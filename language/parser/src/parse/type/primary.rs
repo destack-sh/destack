@@ -2,7 +2,7 @@ use crate::parse::r#type::operator::{TypeOperator, TypePrefixOperator};
 use crate::parse::{DeclarationHeader, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
-    Exclusivity, LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, TokenType,
+    Access, LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, TokenType,
     TypeExpression, VarianceBound,
 };
 use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanType};
@@ -31,10 +31,8 @@ enum TypePrefix {
     Borrowed {
         /// The named borrow lifetime.
         lifetime: Option<LocalNodeId<TypeExpression>>,
-        /// The mutability modifier.
-        mutability: Option<Mutability>,
-        /// The exclusion modifier.
-        exclusivity: Option<Exclusivity>,
+        /// The borrow access.
+        access: Option<Access>,
         /// The variance modifier.
         variance: Option<VarianceBound>,
         /// The operator source range.
@@ -173,21 +171,18 @@ impl Parser {
                 true => Some(self.parse_lifetime_type()),
                 false => None,
             };
-        let (mutability, exclusivity) = if token.is(TokenType::ElementwiseAnd) {
-            self.parse_borrow_qualifiers()?
-        } else {
-            (Some(self.parse_reference_mutability()), None)
-        };
-        let variance = self.parse_variance_bound_if_present();
         let prefix = if token.is(TokenType::ElementwiseAnd) {
+            let access = Some(self.parse_borrow_access()?);
+            let variance = self.parse_variance_bound_if_present();
             TypePrefix::Borrowed {
                 lifetime,
-                mutability,
-                exclusivity,
+                access,
                 variance,
                 range: token.range(),
             }
         } else {
+            let mutability = Some(self.parse_reference_mutability());
+            let variance = self.parse_variance_bound_if_present();
             TypePrefix::Owned {
                 mutability,
                 variance,
@@ -230,15 +225,13 @@ impl Parser {
             ),
             TypePrefix::Borrowed {
                 lifetime,
-                mutability,
-                exclusivity,
+                access,
                 variance,
                 range,
             } => (
                 TypeExpression::BorrowedOf {
                     lifetime,
-                    mutability,
-                    exclusivity,
+                    access,
                     variance,
                     target_type,
                 },

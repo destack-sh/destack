@@ -7,9 +7,9 @@ use crate::parse::{
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_core::StringId;
 use destack_dir::{
-    BlockContext, Exclusivity, Expression, InferForm, Keyword, Literal, LocalNodeId, Mutability,
-    NodeType, OperatorPrecedence, Path, RangeEnd, TokenLiteral, TokenType, TypeExpression,
-    UnaryOperator, VarianceBound,
+    Access, BlockContext, Expression, InferForm, Keyword, Literal, LocalNodeId, NodeType,
+    OperatorPrecedence, Path, RangeEnd, TokenLiteral, TokenType, TypeExpression, UnaryOperator,
+    VarianceBound,
 };
 use destack_source::ByteRange;
 use smallvec::{SmallVec, smallvec};
@@ -26,10 +26,8 @@ enum ValuePrefix {
     },
     /// One borrow prefix.
     Borrow {
-        /// The mutability modifier.
-        mutability: Option<Mutability>,
-        /// The exclusion modifier.
-        exclusivity: Option<Exclusivity>,
+        /// The borrow access.
+        access: Option<Access>,
         /// The variance modifier.
         variance: Option<VarianceBound>,
         /// The operator source range.
@@ -109,12 +107,11 @@ impl Parser {
 
         // parse one borrow prefix
         let token = self.eat_reference_prefix_operator()?.token;
-        let (mutability, exclusivity) = self.parse_borrow_qualifiers()?;
+        let access = Some(self.parse_borrow_access()?);
         let variance = self.parse_variance_bound_if_present();
 
         Ok(Some(ValuePrefix::Borrow {
-            mutability,
-            exclusivity,
+            access,
             variance,
             range: token.range(),
         }))
@@ -131,14 +128,12 @@ impl Parser {
                 (Expression::Unary { operator, right }, range)
             }
             ValuePrefix::Borrow {
-                mutability,
-                exclusivity,
+                access,
                 variance,
                 range,
             } => (
                 Expression::BorrowOf {
-                    mutability,
-                    exclusivity,
+                    access,
                     variance,
                     right,
                 },

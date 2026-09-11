@@ -1,10 +1,10 @@
 use crate::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use destack_dir::{
-    Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind, Declaration,
-    Declarator, Exclusivity, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
-    GenericArgument, GenericParameter, IntegerType, Literal, Mutability, NodeType, Parameter,
-    Pattern, PatternField, ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
-    UnaryOperator, VarianceModifier, WhereClause, YieldCardinality,
+    Access, Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind,
+    Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
+    GenericArgument, GenericParameter, IntegerType, Literal, NodeType, Parameter, Pattern,
+    PatternField, ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral, UnaryOperator,
+    VarianceModifier, WhereClause, YieldCardinality,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -527,29 +527,13 @@ fn test_parse_function_type_with_unqualified_this_parameter() {
 /// Parse borrowed receiver shorthand in function types.
 #[test]
 fn test_parse_function_type_with_borrowed_this_parameter() {
-    for (prefix, access, exclusion) in [
-        ("&", Mutability::Mutable, None),
-        ("&readonly ", Mutability::Immutable, None),
-        (
-            "&exclusive ",
-            Mutability::Mutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&'a readonly exclusive ",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&exclusive readonly ",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&'a exclusive const ",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
+    for (prefix, expected) in [
+        ("&", Access::Mutable),
+        ("&readonly ", Access::Readonly),
+        ("&exclusive ", Access::Exclusive),
+        ("&immutable ", Access::Immutable),
+        ("&'a immutable ", Access::Immutable),
+        ("&'a readonly ", Access::Readonly),
     ] {
         let source = format!("type T = ({prefix}this, value: Bar) => Baz");
         let test = TestParser::new(&source);
@@ -569,8 +553,8 @@ fn test_parse_function_type_with_borrowed_this_parameter() {
                         assert_string!(parser, *name, "this");
                         let name_range = parser.tree.get_main_range(this_parameter).unwrap();
                         assert_eq!(parser.range_str(name_range), "this");
-                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { mutability, exclusivity, target_type, .. } => {
-                            assert_eq!((*mutability, *exclusivity), (Some(access), exclusion));
+                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { access, target_type, .. } => {
+                            assert_eq!(*access, Some(expected));
                             assert_node!(parser.tree, *target_type, TypeExpression::This);
                         });
                     });

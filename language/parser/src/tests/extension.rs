@@ -1,6 +1,6 @@
 use destack_dir::{
-    Declaration, ExtensionDeclaration, GenericArgument, GenericParameter, IntegerType, Member,
-    Mutability, Parameter, ThisForm, TypeExpression, TypeLiteral, WhereClause,
+    Access, Declaration, ExtensionDeclaration, GenericArgument, GenericParameter, IntegerType,
+    Member, Parameter, ThisForm, TypeExpression, TypeLiteral, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -376,8 +376,8 @@ extension<T> of Slice<T> {
             let this_parameter = signature.this_parameter.expect("expected this parameter");
             assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
                 assert_string!(parser, *name, "this");
-                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { mutability, target_type, .. } => {
-                    assert_eq!(*mutability, Some(Mutability::Mutable));
+                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { access, target_type, .. } => {
+                    assert_eq!(*access, Some(Access::Mutable));
                     assert_node!(parser.tree, *target_type, TypeExpression::This);
                 });
             });

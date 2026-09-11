@@ -4,7 +4,7 @@ use crate::parse::{
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
-    Asynchrony, BlockContext, Declarator, Exclusivity, Expression, Keyword, LetKind, LocalNodeId,
+    Access, Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId,
     Mutability, NodeType, OperatorPrecedence, Pattern, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
@@ -316,34 +316,25 @@ impl Parser {
         }
     }
 
-    /// Parse borrow qualifiers in either order, rejecting repeated qualifiers.
-    pub(crate) fn parse_borrow_qualifiers(
-        &mut self,
-    ) -> ParserResult<(Option<Mutability>, Option<Exclusivity>)> {
-        let mut mutability = None;
-        let mut exclusivity = None;
+    /// Parse one borrow access modifier, defaulting to mutable.
+    pub(crate) fn parse_borrow_access(&mut self) -> ParserResult<Access> {
+        let access = match self.peek_keyword() {
+            Some(Keyword::Readonly | Keyword::Const) => Access::Readonly,
+            Some(Keyword::Immutable) => Access::Immutable,
+            Some(Keyword::Exclusive) => Access::Exclusive,
+            _ => return Ok(Access::Mutable),
+        };
+        self.bump();
 
-        // consume each qualifier once, treating const as readonly
-        loop {
-            match self.peek_keyword() {
-                Some(Keyword::Readonly | Keyword::Const) => {
-                    if mutability.is_some() {
-                        return Err(ParserError::unexpected(self.peek_token()));
-                    }
-                    mutability = Some(Mutability::Immutable);
-                }
-                Some(Keyword::Exclusive) => {
-                    if exclusivity.is_some() {
-                        return Err(ParserError::unexpected(self.peek_token()));
-                    }
-                    exclusivity = Some(Exclusivity::Exclusive);
-                }
-                _ => break,
-            }
-            self.bump();
+        // reject a second access modifier
+        if matches!(
+            self.peek_keyword(),
+            Some(Keyword::Readonly | Keyword::Const | Keyword::Immutable | Keyword::Exclusive)
+        ) {
+            return Err(ParserError::unexpected(self.peek_token()));
         }
 
-        Ok((Some(mutability.unwrap_or(Mutability::Mutable)), exclusivity))
+        Ok(access)
     }
 
     /// Parse a single declarator with an optional value unless `require_value` is set.

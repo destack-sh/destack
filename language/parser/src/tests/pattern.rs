@@ -1,6 +1,6 @@
 use destack_dir::{
-    Exclusivity, Expression, Literal, LocalNodeId, Mutability, Name, Pattern, PatternField,
-    RangeEnd, TokenType, Tree, TypeExpression,
+    Access, Expression, Literal, LocalNodeId, Mutability, Name, Pattern, PatternField, RangeEnd,
+    TokenType, Tree, TypeExpression,
 };
 
 use crate::{
@@ -89,36 +89,19 @@ fn test_parse_computed_pattern_field_with_missing_close_bracket() {
 
 #[test]
 fn test_parse_pattern_reference() {
-    for (source, access, exclusion) in [
-        ("&_", Mutability::Mutable, None),
-        ("&readonly _", Mutability::Immutable, None),
-        (
-            "&exclusive _",
-            Mutability::Mutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&readonly exclusive _",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&exclusive readonly _",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&exclusive const _",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
+    for (source, expected) in [
+        ("&_", Access::Mutable),
+        ("&readonly _", Access::Readonly),
+        ("&const _", Access::Readonly),
+        ("&immutable _", Access::Immutable),
+        ("&exclusive _", Access::Exclusive),
     ] {
         let test = TestParser::new(source);
         let mut parser = test.prepare();
         let pattern_id = parser.parse_pattern().unwrap();
 
-        assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability, exclusivity, right } => {
-            assert_eq!((*mutability, *exclusivity), (Some(access), exclusion));
+        assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { access, right } => {
+            assert_eq!(*access, Some(expected));
             assert_node!(parser.tree, *right, Pattern::Wildcard);
         });
         assert_eq!(parser.peek_token_type(), TokenType::End);
@@ -130,8 +113,8 @@ fn test_parse_pattern_reference() {
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern().unwrap();
     // &
-    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability: Some(mutability), right, exclusivity: None } => {
-        assert_eq!(*mutability, Mutability::Mutable);
+    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { access: Some(access), right } => {
+        assert_eq!(*access, Access::Mutable);
         // 1
         assert_node!(parser.tree, *right, Pattern::Expression { value } => {
             assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(1)));
@@ -145,10 +128,10 @@ fn test_parse_pattern_reference_chain_compact() {
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern().unwrap();
 
-    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability, right, exclusivity: None } => {
-        assert_eq!(*mutability, Some(Mutability::Mutable));
-        assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability, right, exclusivity: None } => {
-            assert_eq!(*mutability, Some(Mutability::Mutable));
+    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { access, right } => {
+        assert_eq!(*access, Some(Access::Mutable));
+        assert_node!(parser.tree, *right, Pattern::BorrowOf { access, right } => {
+            assert_eq!(*access, Some(Access::Mutable));
             assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
                 assert_string!(parser, *name, "item");
             });
@@ -362,8 +345,8 @@ fn test_parse_pattern_dereference_before_borrow() {
     let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
-        assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability: Some(mutability), right, exclusivity: None } => {
-            assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, *right, Pattern::BorrowOf { access: Some(access), right } => {
+            assert_eq!(*access, Access::Readonly);
             assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
                 assert_string!(parser, *name, "inner");
             });

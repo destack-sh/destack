@@ -353,7 +353,7 @@ impl Parser {
         loop {
             match self.peek_keyword_at(offset) {
                 Some(Keyword::Readonly | Keyword::Const) => offset += 1,
-                Some(Keyword::Exclusive) if is_borrowed => offset += 1,
+                Some(Keyword::Immutable | Keyword::Exclusive) if is_borrowed => offset += 1,
                 _ => break,
             }
         }

@@ -4,8 +4,8 @@ use crate::{
     assert_expression_path, assert_node, assert_value_expression_path,
 };
 use destack_dir::{
-    BinaryOperator, Exclusivity, Expression, Literal, Mutability, NodeType, TokenType,
-    TypeExpression, UnaryOperator, VarianceBound,
+    Access, BinaryOperator, Expression, Literal, NodeType, TokenType, TypeExpression,
+    UnaryOperator, VarianceBound,
 };
 
 /// Unary operator spans point at the operator token.
@@ -243,32 +243,15 @@ fn test_parse_dereference_variable() {
         assert_expression_path!(parser, parser.tree.get(*right), "x");
     });
 }
-/// Parse each borrow qualifier combination without changing the operand.
+/// Parse each borrow access without changing the operand.
 #[test]
 fn test_parse_reference_variable() {
-    for (source, access, exclusion) in [
-        ("&x", Mutability::Mutable, None),
-        ("&readonly x", Mutability::Immutable, None),
-        (
-            "&exclusive x",
-            Mutability::Mutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&readonly exclusive x",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&exclusive readonly x",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
-        (
-            "&exclusive const x",
-            Mutability::Immutable,
-            Some(Exclusivity::Exclusive),
-        ),
+    for (source, expected) in [
+        ("&x", Access::Mutable),
+        ("&readonly x", Access::Readonly),
+        ("&const x", Access::Readonly),
+        ("&immutable x", Access::Immutable),
+        ("&exclusive x", Access::Exclusive),
     ] {
         let test = TestParser::new(source);
         let mut parser = test.prepare();
@@ -276,8 +259,8 @@ fn test_parse_reference_variable() {
             .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
             .unwrap();
 
-        assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability, exclusivity, variance: None, right } => {
-            assert_eq!((*mutability, *exclusivity), (Some(access), exclusion));
+        assert_node!(parser.tree, expr_id, Expression::BorrowOf { access, variance: None, right } => {
+            assert_eq!(*access, Some(expected));
             assert_expression_path!(parser, parser.tree.get(*right), "x");
         });
         assert_eq!(parser.peek_token_type(), TokenType::End);
@@ -285,15 +268,17 @@ fn test_parse_reference_variable() {
     }
 }
 
-/// Reject repeated access or exclusivity qualifiers at the repeated keyword.
+/// Reject repeated or combined borrow access modifiers at the second keyword.
 #[test]
 fn test_reject_repeated_borrow_qualifiers() {
     for (source, repeated) in [
         ("&readonly readonly value", "readonly"),
         ("&exclusive exclusive value", "exclusive"),
         ("&readonly const value", "const"),
-        ("&exclusive readonly exclusive value", "exclusive"),
-        ("&readonly exclusive readonly value", "readonly"),
+        ("&exclusive readonly value", "readonly"),
+        ("&readonly exclusive value", "exclusive"),
+        ("&immutable immutable value", "immutable"),
+        ("&immutable exclusive value", "exclusive"),
     ] {
         for node in [
             NodeType::Expression,
@@ -335,11 +320,11 @@ fn test_parse_reference_chain_compact() {
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         .unwrap();
 
-    assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability, variance, right, exclusivity: None } => {
-        assert_eq!(*mutability, Some(Mutability::Mutable));
+    assert_node!(parser.tree, expr_id, Expression::BorrowOf { access, variance, right } => {
+        assert_eq!(*access, Some(Access::Mutable));
         assert_eq!(*variance, None);
-        assert_node!(parser.tree, *right, Expression::BorrowOf { mutability, variance, right, exclusivity: None } => {
-            assert_eq!(*mutability, Some(Mutability::Mutable));
+        assert_node!(parser.tree, *right, Expression::BorrowOf { access, variance, right } => {
+            assert_eq!(*access, Some(Access::Mutable));
             assert_eq!(*variance, None);
             assert_expression_path!(parser, parser.tree.get(*right), "value");
         });
@@ -356,7 +341,7 @@ fn test_parse_reference_member_call() {
     let expr_id = parser
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         .unwrap();
-    assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability: Some(Mutability::Mutable), variance: None, right, exclusivity: None } => {
+    assert_node!(parser.tree, expr_id, Expression::BorrowOf { access: Some(Access::Mutable), variance: None, right } => {
         assert_node!(parser.tree, *right, Expression::Call { left, generic_arguments: _, arguments, .. } => {
             assert!(arguments.is_empty());
             assert_expression_path!(parser, parser.tree.get(*left), "self.foo");
@@ -372,8 +357,8 @@ fn test_parse_bound_reference_expression() {
     let expr_id = parser
         .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
         .unwrap();
-    assert_node!(parser.tree, expr_id, Expression::BorrowOf { mutability: Some(mutability), variance, right, exclusivity: None } => {
-        assert_eq!(*mutability, Mutability::Immutable);
+    assert_node!(parser.tree, expr_id, Expression::BorrowOf { access: Some(access), variance, right } => {
+        assert_eq!(*access, Access::Readonly);
         assert_eq!(*variance, Some(VarianceBound::Super));
         assert_expression_path!(parser, parser.tree.get(*right), "T");
     });
