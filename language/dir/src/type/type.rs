@@ -633,7 +633,7 @@ impl BorrowFormId {
 }
 
 /// One borrow form's solved region and access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct BorrowForm {
     /// The solved borrow region: a region pair, parameter, or variable.
     pub region: GlobalTypeId,
@@ -923,7 +923,7 @@ pub struct MemberType {
 /// function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8;
 /// function stream<S: Source<type Chunk = string, type Error = E>>(source: S): E;
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct RefinedType {
     /// The refined base application.
     pub base: GlobalTypeId,
@@ -940,7 +940,7 @@ pub struct RefinedType {
 /// Mode.Read
 /// Mode.Write
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct VariantType {
     /// The instantiated enum.
     pub owner: GlobalTypeId,
@@ -949,7 +949,7 @@ pub struct VariantType {
 }
 
 /// One region pair: the lifetime extent and the referent space set.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct RegionType {
     /// The lifetime extent: a lifetime singleton, parameter, or variable.
     pub extent: GlobalTypeId,
@@ -1075,7 +1075,7 @@ impl Form {
 /// ```ds
 /// Dynamic<Printable>    // a boxed value known to satisfy Printable
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct DynamicType {
     /// The `Dynamic<T>` constraint.
     pub constraint: GlobalTypeId,
@@ -1285,7 +1285,7 @@ impl TryFrom<&str> for StringMapping {
 /// ```ds
 /// T extends string ? Text : Raw
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct ConditionalType {
     /// The left operand.
     pub left: GlobalTypeId,
@@ -1300,7 +1300,7 @@ pub struct ConditionalType {
 }
 
 /// A runtime guard narrowing applied to one source type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct NarrowType {
     /// The source type being narrowed.
     pub source: GlobalTypeId,
@@ -1316,7 +1316,7 @@ pub struct NarrowType {
 /// ```ds
 /// { [K in keyof T]: T[K] }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct MappedType {
     /// The mapped parameter.
     pub parameter: MappedTypeParameter,
@@ -1333,7 +1333,7 @@ pub struct MappedType {
 /// [K in keyof T]
 /// [K in "name" | "age" as Uppercase<K>]
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct MappedTypeParameter {
     /// The parameter name like `K`.
     pub name: StringId,
@@ -1369,7 +1369,7 @@ pub struct MappedTypeModifiers {
 /// User["name"]
 /// Pair[0]
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct IndexType {
     /// The indexed type.
     pub left: GlobalTypeId,
@@ -1397,7 +1397,7 @@ pub struct TemplateLiteralType {
 /// ```ds
 /// T extends Array<infer E> ? E : never
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct InferType {
     /// The inferred binding name.
     pub name: Option<StringId>,
@@ -1413,7 +1413,7 @@ pub struct InferType {
 /// ```ds
 /// keyof User
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct UnaryType {
     /// The target type.
     pub target: GlobalTypeId,
@@ -1426,7 +1426,7 @@ pub struct UnaryType {
 /// N * 2
 /// Mode == "inline"
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct StaticBinaryType {
     /// The applied operator.
     pub operator: StaticBinaryOperator,
@@ -1738,7 +1738,7 @@ impl TryFrom<BinaryOperator> for StaticBinaryOperator {
 /// !Wide
 /// -Offset
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct StaticUnaryType {
     /// The applied operator.
     pub operator: StaticUnaryOperator,
@@ -1815,7 +1815,7 @@ impl TryFrom<UnaryOperator> for StaticUnaryOperator {
 /// [uint8; 4]
 /// FixedArray<uint8, 4>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct FixedArrayType {
     /// The element type.
     pub element: GlobalTypeId,
@@ -2201,7 +2201,7 @@ impl RangeType {
 /// [uint8]
 /// Slice<uint8>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct SliceType {
     /// The element type.
     pub element: GlobalTypeId,
@@ -2234,7 +2234,7 @@ pub enum TupleForm {
 }
 
 /// An element in a tuple type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct TypeElement {
     /// The optional label for the element.
     pub label: Option<StringId>,
@@ -2301,7 +2301,7 @@ impl ObjectType {
 ///     set value(input: string | number);
 /// }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct TypeProperty {
     /// The property key.
     pub key: StaticKey,
@@ -2425,7 +2425,7 @@ impl PropertyAccess {
 /// ```ds
 /// { [key: string]: int32 }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct TypeIndexSignature {
     /// The parameter name like `K`.
     pub name: StringId,
@@ -2474,7 +2474,7 @@ pub struct FunctionSignatureType {
 /// ```ds
 /// (value?: int32, ...rest: string[]) => void
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct FunctionParameterType {
     /// The authored parameter name, when the parameter declares one.
     pub name: Option<StringId>,
@@ -2487,7 +2487,7 @@ pub struct FunctionParameterType {
 }
 
 /// A fat callable value with one assignable function signature.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct FunctionType {
     /// The function signature.
     pub signature: GlobalTypeId,
@@ -2560,7 +2560,7 @@ impl ReceiverMode {
 }
 
 /// A thin callable value with no captured environment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct FunctionPointerType {
     /// The function signature.
     pub signature: GlobalTypeId,

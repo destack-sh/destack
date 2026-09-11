@@ -9,9 +9,10 @@ use crate::{
     GenericParameterOrigin, GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId,
     GlobalStaticId, GlobalSymbolId, GlobalTypeId, InstanceOrigin, IntegerType, LanguageItem,
     Literal, LocalCaptureFrameId, LocalGenericParameterId, LocalGenericTemplateId, LocalNodeId,
-    LocalScopeId, MemberKind, MemberOrigin, MemberRole, MemberSlot, MemberSpace, MethodAbstraction,
-    Node, PrimitiveType, RangeEnd, ScalarFamilySet, Space, StaticKey, UnaryOperator,
-    VarianceModifier, Visibility, WhereRelation,
+    LocalScopeId, MappedTypeModifiers, MemberKind, MemberOrigin, MemberRole, MemberSlot,
+    MemberSpace, MethodAbstraction, Node, PrimitiveType, RangeEnd, ScalarFamilySet, Space,
+    StaticBinaryOperator, StaticKey, StaticUnaryOperator, UnaryOperator, VarianceModifier,
+    Visibility, WhereRelation,
 };
 
 /// Read every type id embedded in a checked value.
@@ -310,8 +311,11 @@ type_leaves!(
     RangeEnd,
     ScalarFamilySet,
     Literal,
+    MappedTypeModifiers,
     Space,
     StaticKey,
+    StaticBinaryOperator,
+    StaticUnaryOperator,
     UnaryOperator,
     VarianceModifier,
     Visibility,
