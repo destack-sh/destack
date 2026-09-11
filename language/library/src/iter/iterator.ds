@@ -251,8 +251,8 @@ export extension<T, I: Iterator<T> & Iterable<T, type Iterator = I>> of I {
         todo("Iterator.find")
     }
 
-    /// Return the index of the first value accepted by `predicate`.
-    findIndex(this, predicate: (value: T, index: isize) => boolean): isize | undefined {
+    /// Return the first accepted value's index, or -1 when absent.
+    findIndex(this, predicate: (value: T, index: isize) => boolean): isize {
         todo("Iterator.findIndex")
     }
 

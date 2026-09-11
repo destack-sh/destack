@@ -96,8 +96,8 @@ export extension of string
         todo("String.equalSlice")
     }
 
-    /// Return a one-code-unit string at the given UTF-16 index, or undefined out of bounds.
-    charAt(&readonly this, index: isize): ^string | undefined {
+    /// Return one UTF-16 code unit as a string, or the empty string out of bounds.
+    charAt(&readonly this, index: isize): ^string {
         todo("String.charAt")
     }
 
@@ -106,8 +106,8 @@ export extension of string
         todo("String.at")
     }
 
-    /// Get the UTF-16 code unit at the given index.
-    charCodeAt(&readonly this, index: isize): uint16 | undefined {
+    /// Return the UTF-16 code unit at the index, or NaN out of bounds.
+    charCodeAt(&readonly this, index: isize): number {
         todo("String.charCodeAt")
     }
 
@@ -126,13 +126,13 @@ export extension of string
         todo("String.includes")
     }
 
-    /// Find the first index of a substring.
-    indexOf(&readonly this, search: &readonly string, position?: isize): isize | undefined {
+    /// Return the first substring index, or -1 when absent.
+    indexOf(&readonly this, search: &readonly string, position?: isize): isize {
         todo("String.indexOf")
     }
 
-    /// Find the last index of a substring.
-    lastIndexOf(&readonly this, search: &readonly string, position?: isize): isize | undefined {
+    /// Return the last substring index, or -1 when absent.
+    lastIndexOf(&readonly this, search: &readonly string, position?: isize): isize {
         todo("String.lastIndexOf")
     }
 
@@ -179,8 +179,8 @@ export extension of string
         todo("String.replaceAll")
     }
 
-    /// Find the first match of `pattern`.
-    search(&readonly this, pattern: &readonly string | RegExp): isize | undefined {
+    /// Return the first match index, or -1 when absent.
+    search(&readonly this, pattern: &readonly string | RegExp): isize {
         todo("String.search")
     }
 
