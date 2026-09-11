@@ -1,316 +1,142 @@
+use destack_core::{FxIndexMap, FxIndexSet, float_from_bits, float_to_bits};
+
 use crate as mir;
-use std::collections::VecDeque;
+use crate::{Analysis, DefinitionTable, NodeTable, TargetLayout, UseTable, ValueUse};
 
-use crate::{Analysis, ControlTable, DefinitionTable, Lattice, NodeTable, TargetLayout};
-use destack_core::{FxIndexMap, float_from_bits, float_to_bits};
-
-// TODO #Incomplete: replace propagation with SCCP after migrating alias and access queries
-
-/// Constant propagation for one function.
+/// Constants and executable control-flow edges for one function.
 #[derive(Debug)]
 pub struct ConstantTable {
-    /// Constants known at their SSA definitions.
-    values: Vec<Option<mir::Constant>>,
-    /// Constants available at block entry indexed by block id.
-    block_entry: NodeTable<mir::Block, Option<ConstantState>>,
-    /// Constants available at block exit indexed by block id.
-    block_exit: NodeTable<mir::Block, Option<ConstantState>>,
+    /// Value lattices indexed by SSA value identity.
+    values: Vec<ConstantValue>,
+    /// Blocks executable under the solved constants.
+    blocks: NodeTable<mir::Block, bool>,
+    /// Exact executable edges, including distinct targets to the same block.
+    edges: FxIndexSet<mir::Edge>,
 }
 
-/// Mapping from SSA values to known constants.
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct ConstantState {
-    /// Known constant values.
-    constants: FxIndexMap<mir::Value, mir::Constant>,
+/// Constant lattice for one scalar, aggregate, or variant value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConstantValue {
+    /// No executable definition has supplied a value yet.
+    Unknown,
+    /// One scalar constant.
+    Scalar(mir::Constant),
+    /// Constant components of an aggregate.
+    Aggregate(Vec<ConstantValue>),
+    /// One known variant case and its payload.
+    Variant {
+        /// The logical case index.
+        case: u32,
+        /// The case's discriminant constant.
+        discriminant: mir::Constant,
+        /// The case payload, absent for a payloadless case.
+        payload: Option<Box<ConstantValue>>,
+    },
+    /// Executable definitions do not agree on a constant.
+    Overdefined,
 }
 
-impl ConstantState {
-    /// Create an empty constant map.
-    pub fn new() -> Self {
-        Self {
-            constants: FxIndexMap::default(),
+impl ConstantValue {
+    /// Merge another executable definition into this value.
+    fn merge(&mut self, other: &Self) -> bool {
+        // preserve lattice endpoints and identical constants
+        if matches!(other, Self::Unknown) || matches!(self, Self::Overdefined) || self == other {
+            return false;
         }
-    }
+        if matches!(self, Self::Unknown) {
+            *self = other.clone();
+            return true;
+        }
 
-    /// Return the constant for one SSA value.
-    pub fn get(&self, value: impl Into<mir::Value>) -> Option<&mir::Constant> {
-        let value = value.into();
-        self.constants.get(&value)
-    }
-
-    /// Insert a constant value for a given SSA value.
-    pub fn insert(&mut self, value: impl Into<mir::Value>, constant: mir::Constant) {
-        let value = value.into();
-
-        self.constants.insert(value, constant);
-    }
-
-    /// Remove any constant for a given SSA value.
-    pub fn remove(&mut self, value: impl Into<mir::Value>) {
-        let value = value.into();
-
-        self.constants.shift_remove(&value);
-    }
-
-    /// Iterate over known constants.
-    pub fn iter(&self) -> impl Iterator<Item = (mir::Value, &mir::Constant)> + '_ {
-        self.constants
-            .iter()
-            .map(|(value, constant)| (*value, constant))
-    }
-}
-
-impl ConstantLookup for ConstantState {
-    /// Return the constant value for a MIR value when known.
-    fn get_constant(&self, value: mir::Value) -> Option<&mir::Constant> {
-        self.get(value)
-    }
-}
-
-impl Lattice for ConstantState {
-    /// Intersect constants that agree on both inputs.
-    fn meet(&self, other: &Self) -> Self {
-        let mut constants = FxIndexMap::default();
-
-        for (value, constant) in &self.constants {
-            if let Some(other_constant) = other.constants.get(value)
-                && other_constant == constant
-            {
-                constants.insert(*value, constant.clone());
+        // merge matching aggregate components and variant payloads independently
+        match (&mut *self, other) {
+            (Self::Aggregate(left), Self::Aggregate(right)) if left.len() == right.len() => {
+                let mut changed = false;
+                for (left, right) in left.iter_mut().zip(right) {
+                    changed |= left.merge(right);
+                }
+                changed
+            }
+            (
+                Self::Variant {
+                    case: left_case,
+                    payload: left,
+                    ..
+                },
+                Self::Variant {
+                    case: right_case,
+                    payload: right,
+                    ..
+                },
+            ) if left_case == right_case => match (left, right) {
+                (Some(left), Some(right)) => left.merge(right),
+                (None, None) => false,
+                _ => unreachable!("one variant case has inconsistent payload shapes"),
+            },
+            _ => {
+                *self = Self::Overdefined;
+                true
             }
         }
+    }
 
-        Self { constants }
+    /// Return the scalar constant, when one is known.
+    pub fn scalar(&self) -> Option<&mir::Constant> {
+        match self {
+            Self::Scalar(constant) => Some(constant),
+            _ => None,
+        }
     }
 }
 
 impl ConstantTable {
-    /// Build constant propagation for a function.
+    /// Analyse scalar and aggregate constants along executable control-flow edges.
     pub fn analyse(
         function: &mir::Function,
-        cfg: &ControlTable,
-        target_layout: TargetLayout,
+        uses: &UseTable,
+        target: TargetLayout,
         tree: &mir::Tree,
     ) -> Self {
-        Self::build_with_entry_constants(function, tree, cfg, target_layout, ConstantState::new())
+        ConstantSolver::new(function, uses, target, tree).solve(&FxIndexMap::default())
     }
 
-    /// Build constant propagation with seeded entry constants.
-    fn build_with_entry_constants(
-        function: &mir::Function,
-        tree: &mir::Tree,
-        cfg: &ControlTable,
-        target_layout: TargetLayout,
-        entry_constants: ConstantState,
-    ) -> Self {
-        // select the entry block
-        let entry = match function.entry() {
-            Some(entry) => entry,
-            None => {
-                return Self {
-                    values: vec![None; function.value_capacity()],
-                    block_entry: NodeTable::new(),
-                    block_exit: NodeTable::new(),
-                };
-            }
-        };
-
-        // init state maps
-        let mut block_entry = NodeTable::from_nodes(function.blocks(), || None);
-        let mut block_exit = NodeTable::from_nodes(function.blocks(), || None);
-
-        // seed entry state
-        *block_entry.get_mut(entry) = Some(entry_constants);
-
-        // init worklist
-        let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist = NodeTable::from_nodes(function.blocks(), || false);
-        worklist.push_back(entry);
-        *in_worklist.get_mut(entry) = true;
-
-        // process blocks until fixed point
-        while let Some(block_id) = worklist.pop_front() {
-            // remove block from worklist
-            *in_worklist.get_mut(block_id) = false;
-
-            // compute entry state
-            let entry_state = if block_id == entry {
-                block_entry.get(entry).as_ref().cloned().unwrap_or_else(|| {
-                    panic!("missing constant propagation entry state: {entry:?}")
-                })
-            } else {
-                // merge predecessor exits
-                let mut merged: Option<ConstantState> = None;
-                for pred in cfg.predecessors(block_id) {
-                    let Some(pred_exit) = block_exit.get(pred).as_ref() else {
-                        continue;
-                    };
-
-                    merged = Some(match merged {
-                        Some(state) => state.meet(pred_exit),
-                        None => pred_exit.clone(),
-                    });
-                }
-
-                // skip until predecessors are processed
-                let Some(mut merged_state) = merged else {
-                    continue;
-                };
-
-                // apply block parameter constants
-                Self::apply_parameters(block_id, tree, cfg, &block_exit, &mut merged_state);
-                merged_state
-            };
-
-            // update entry state if needed
-            let entry_changed = block_entry
-                .get(block_id)
-                .as_ref()
-                .map(|old| old != &entry_state)
-                .unwrap_or(true);
-
-            if entry_changed || block_id == entry {
-                // record entry state
-                *block_entry.get_mut(block_id) = Some(entry_state.clone());
-
-                // compute exit state
-                let exit_state =
-                    Self::transfer(block_id, &entry_state, tree, target_layout.pointer_bits());
-                let exit_changed = block_exit
-                    .get(block_id)
-                    .as_ref()
-                    .map(|old| old != &exit_state)
-                    .unwrap_or(true);
-
-                if exit_changed {
-                    // record exit state
-                    *block_exit.get_mut(block_id) = Some(exit_state);
-
-                    // enqueue successors
-                    let block = tree.get(block_id);
-                    let terminator = tree.get(block.terminator);
-                    for succ in terminator.successors(tree) {
-                        if !*in_worklist.get(succ) {
-                            *in_worklist.get_mut(succ) = true;
-                            worklist.push_back(succ);
-                        }
-                    }
-                }
-            }
-        }
-
-        let values = Self::collect_values(function, tree, &block_entry, &block_exit);
-
-        Self {
-            values,
-            block_entry,
-            block_exit,
-        }
-    }
-
-    /// Return constants at block entry.
-    pub fn entry(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantState {
-        let constants = self.block_entry.get(block);
-
-        match constants {
-            Some(constants) => constants,
-            None => ConstantState::empty(),
-        }
-    }
-
-    /// Return constants at block exit.
-    pub fn exit(&self, block: mir::LocalNodeId<mir::Block>) -> &ConstantState {
-        let constants = self.block_exit.get(block);
-
-        match constants {
-            Some(constants) => constants,
-            None => ConstantState::empty(),
-        }
-    }
-
-    /// Return one constant at block entry.
-    pub fn constant_at_entry(
-        &self,
-        block: mir::LocalNodeId<mir::Block>,
-        value: mir::Value,
-    ) -> Option<&mir::Constant> {
-        self.entry(block).get(value)
-    }
-
-    /// Return one constant at block exit.
-    pub fn constant_at_exit(
-        &self,
-        block: mir::LocalNodeId<mir::Block>,
-        value: mir::Value,
-    ) -> Option<&mir::Constant> {
-        self.exit(block).get(value)
-    }
-
-    /// Return the constant known for one SSA value.
-    pub fn constant(&self, value: mir::Value) -> Option<&mir::Constant> {
-        self.values
-            .get(value.id() as usize)
-            .and_then(Option::as_ref)
-    }
-
-    /// Build constant propagation with constant parameters seeded at entry.
+    /// Analyse a function with explicitly supplied parameter constants.
     pub fn with_parameter_constants(
         function: &mir::Function,
         tree: &mir::Tree,
-        target_layout: TargetLayout,
-        param_constants: &FxIndexMap<mir::Value, mir::Constant>,
+        target: TargetLayout,
+        constants: &FxIndexMap<mir::Value, mir::Constant>,
     ) -> Self {
-        // build a control flow graph for the function
-        let cfg = ControlTable::analyse(function, tree);
+        let uses = UseTable::analyse(function, tree);
 
-        // seed entry constants from the provided parameter map
-        let mut entry_constants = ConstantState::new();
-        for (value, constant) in param_constants {
-            entry_constants.insert(*value, constant.clone());
-        }
-
-        Self::build_with_entry_constants(function, tree, &cfg, target_layout, entry_constants)
+        ConstantSolver::new(function, &uses, target, tree).solve(constants)
     }
 
-    /// Collect constants at their canonical SSA definitions.
-    fn collect_values(
-        function: &mir::Function,
-        tree: &mir::Tree,
-        block_entry: &NodeTable<mir::Block, Option<ConstantState>>,
-        block_exit: &NodeTable<mir::Block, Option<ConstantState>>,
-    ) -> Vec<Option<mir::Constant>> {
-        let mut values = vec![None; function.value_capacity()];
+    /// Return the lattice value solved for one SSA definition.
+    pub fn value(&self, value: mir::Value) -> &ConstantValue {
+        &self.values[value.id() as usize]
+    }
 
-        // retain seeded function parameters
-        if let Some(entry) = function.entry()
-            && let Some(constants) = block_entry.get(entry)
-        {
-            for parameter in &function.parameters {
-                values[parameter.value.id() as usize] = constants.get(parameter.value).cloned();
-            }
-        }
+    /// Return the scalar constant solved for one SSA definition.
+    pub fn constant(&self, value: mir::Value) -> Option<&mir::Constant> {
+        self.value(value).scalar()
+    }
 
-        // retain block parameters and instruction results
-        for &block_id in function.blocks() {
-            let block = tree.get(block_id);
-            if let Some(constants) = block_entry.get(block_id) {
-                for parameter in &block.parameters {
-                    values[parameter.value.id() as usize] = constants.get(parameter.value).cloned();
-                }
-            }
+    /// Return whether a block is executable under the solved constants.
+    pub fn is_executable(&self, block: mir::BlockId) -> bool {
+        *self.blocks.get(block)
+    }
 
-            let Some(constants) = block_exit.get(block_id) else {
-                continue;
-            };
-            for &instruction_id in &block.instructions {
-                let Some(destination) = tree.get(instruction_id).destination() else {
-                    continue;
-                };
-                values[destination.id() as usize] = constants.get(destination).cloned();
-            }
-        }
+    /// Return whether an exact control-flow edge is executable.
+    pub fn is_edge_executable(&self, edge: mir::Edge) -> bool {
+        self.edges.contains(&edge)
+    }
+}
 
-        values
+impl ConstantLookup for ConstantTable {
+    /// Return the scalar constant for one SSA definition.
+    fn get_constant(&self, value: mir::Value) -> Option<&mir::Constant> {
+        self.constant(value)
     }
 }
 
@@ -320,222 +146,520 @@ impl Analysis for ConstantTable {
         .union(mir::Mutation::LAYOUT);
 }
 
-/// Constant state for a block parameter.
-#[derive(Debug, Clone)]
-enum ParamState {
-    /// No predecessor has been processed yet.
-    Unseen,
-    /// All seen predecessors agree on a constant value.
-    Constant(mir::Constant),
-    /// The value differs across predecessors or is not constant.
-    Overdefined,
+/// Sparse worklist for executable edges and their dependent SSA operations.
+struct ConstantSolver<'a> {
+    /// The function whose constants are being solved.
+    function: &'a mir::Function,
+    /// The MIR definitions and operands.
+    tree: &'a mir::Tree,
+    /// The target's scalar widths.
+    target: TargetLayout,
+    /// Dependent operations grouped by their used values.
+    uses: &'a UseTable,
+    /// Operations awaiting reevaluation.
+    pending: FxIndexSet<mir::Point>,
+    /// The current value and edge lattices.
+    table: ConstantTable,
 }
 
-impl ConstantTable {
-    /// Apply block parameter constants derived from predecessor arguments.
-    fn apply_parameters(
-        block_id: mir::LocalNodeId<mir::Block>,
-        tree: &mir::Tree,
-        cfg: &ControlTable,
-        block_exit: &NodeTable<mir::Block, Option<ConstantState>>,
-        entry_state: &mut ConstantState,
-    ) {
-        // resolve constants for block parameters
-        let constants = Self::resolve_parameters(block_id, tree, cfg, block_exit);
-        let block = tree.get(block_id);
+impl<'a> ConstantSolver<'a> {
+    /// Allocate the value lattices and index their dependent operations.
+    fn new(
+        function: &'a mir::Function,
+        uses: &'a UseTable,
+        target: TargetLayout,
+        tree: &'a mir::Tree,
+    ) -> Self {
+        // allocate executable block states and the initial operation worklist
+        let blocks = NodeTable::from_nodes(function.blocks(), || false);
+        let mut pending = FxIndexSet::default();
+        if let Some(entry) = function.entry() {
+            pending.reserve(tree.get(entry).instructions.len() + 1);
+        }
 
-        // apply constants to entry state
-        for param in &block.parameters {
-            let param_value = param.value;
-
-            if let Some(constant) = constants.get(&param_value) {
-                entry_state.insert(param_value, constant.clone());
-                continue;
-            }
-
-            entry_state.remove(param_value);
+        Self {
+            function,
+            tree,
+            target,
+            uses,
+            pending,
+            table: ConstantTable {
+                values: vec![ConstantValue::Unknown; function.value_capacity()],
+                blocks,
+                edges: FxIndexSet::default(),
+            },
         }
     }
 
-    /// Resolve constant values for block parameters from predecessor arguments.
-    fn resolve_parameters(
-        block_id: mir::LocalNodeId<mir::Block>,
-        tree: &mir::Tree,
-        cfg: &ControlTable,
-        block_exit: &NodeTable<mir::Block, Option<ConstantState>>,
-    ) -> FxIndexMap<mir::Value, mir::Constant> {
-        // early exit for blocks without parameters
-        let block = tree.get(block_id);
-        if block.parameters.is_empty() {
-            return FxIndexMap::default();
+    /// Solve value changes and newly executable edges to a fixed point.
+    fn solve(mut self, parameters: &FxIndexMap<mir::Value, mir::Constant>) -> ConstantTable {
+        let Some(entry) = self.function.entry() else {
+            return self.table;
+        };
+
+        // seed runtime parameters and explicitly supplied constants
+        for parameter in &self.function.parameters {
+            let value = parameters
+                .get(&parameter.value)
+                .map_or(ConstantValue::Overdefined, |constant| {
+                    ConstantValue::Scalar(constant.clone())
+                });
+            self.table.values[parameter.value.id() as usize] = value;
+        }
+        self.activate(entry);
+
+        // reevaluate only operations affected by a value or executable edge
+        while let Some(point) = self.pending.pop() {
+            match point {
+                mir::Point::Instruction(instruction) => self.instruction(instruction),
+                mir::Point::Terminator(block) => self.terminator(block),
+            }
         }
 
-        // track parameter states across predecessors
-        let mut states = vec![ParamState::Unseen; block.parameters.len()];
-        let mut is_seen = false;
+        self.table
+    }
 
-        // scan predecessors
-        for pred in cfg.predecessors(block_id) {
-            let Some(pred_exit) = block_exit.get(pred).as_ref() else {
+    /// Schedule each operation when a block first becomes executable.
+    fn activate(&mut self, block: mir::BlockId) {
+        if *self.table.blocks.get(block) {
+            return;
+        }
+        *self.table.blocks.get_mut(block) = true;
+
+        // evaluate instructions in source order before the terminator
+        self.pending.insert(mir::Point::Terminator(block));
+        for &instruction in self.tree.get(block).instructions.iter().rev() {
+            self.pending.insert(mir::Point::Instruction(instruction));
+        }
+    }
+
+    /// Merge an executable value and schedule its dependent operations.
+    fn update(&mut self, value: mir::Value, incoming: ConstantValue) {
+        if !self.table.values[value.id() as usize].merge(&incoming) {
+            return;
+        }
+
+        // schedule only uses in executable blocks
+        for use_site in self.uses.uses(value) {
+            if !self.table.is_executable(use_site.block()) {
                 continue;
+            }
+            let point = match use_site {
+                ValueUse::Instruction { instruction, .. } => mir::Point::Instruction(*instruction),
+                ValueUse::Terminator { block, .. } => mir::Point::Terminator(*block),
             };
+            self.pending.insert(point);
+        }
+    }
 
-            // process every exact edge from this predecessor
-            let pred_block = tree.get(pred);
-            let pred_terminator = tree.get(pred_block.terminator);
-            for (edge, target) in pred_terminator
-                .targets(tree, pred)
-                .into_iter()
-                .filter(|(_, target)| target.block == block_id)
-            {
-                is_seen = true;
+    /// Evaluate one instruction's result under the current operand lattices.
+    fn instruction(&mut self, id: mir::LocalNodeId<mir::Instruction>) {
+        let instruction = self.tree.get(id);
+        let Some(destination) = instruction.destination() else {
+            return;
+        };
 
-                // require the verified target shape
-                let Some(parameters) =
-                    pred_terminator.target_parameters(tree, edge.successor, target)
-                else {
-                    states.fill(ParamState::Overdefined);
-                    continue;
-                };
-                let arguments = target.arguments(tree);
-
-                // update parameter states from arguments
-                for (parameter, argument) in parameters.iter().zip(arguments) {
-                    let Some(index) = block
-                        .parameters
+        // propagate aggregate components and selected values without flattening their lattices
+        let result = match instruction {
+            mir::Instruction::Intrinsic {
+                intrinsic:
+                    intrinsic @ (mir::Intrinsic::AddOverflow
+                    | mir::Intrinsic::SubOverflow
+                    | mir::Intrinsic::MulOverflow),
+                arguments,
+                ..
+            } => {
+                let arguments = self.tree.get_values(*arguments);
+                if arguments
+                    .iter()
+                    .any(|value| matches!(self.table.value(*value), ConstantValue::Unknown))
+                {
+                    ConstantValue::Unknown
+                } else {
+                    let constants = arguments
                         .iter()
-                        .position(|candidate| candidate.value == parameter.value)
-                    else {
-                        states.fill(ParamState::Overdefined);
-                        break;
-                    };
-                    let argument_constant = pred_exit.get(*argument);
-                    states[index] = match (&states[index], argument_constant) {
-                        (ParamState::Unseen, Some(constant)) => {
-                            ParamState::Constant(constant.clone())
-                        }
-                        (ParamState::Unseen, None) => ParamState::Overdefined,
-                        (ParamState::Constant(existing), Some(constant))
-                            if existing == constant =>
-                        {
-                            ParamState::Constant(existing.clone())
-                        }
-                        (ParamState::Constant(_), Some(_)) => ParamState::Overdefined,
-                        (ParamState::Constant(_), None) => ParamState::Overdefined,
-                        (ParamState::Overdefined, _) => ParamState::Overdefined,
-                    };
+                        .map(|value| self.table.constant(*value).cloned())
+                        .collect::<Option<Vec<_>>>();
+                    let folded =
+                        constants.and_then(|arguments| fold_overflow(*intrinsic, &arguments));
+
+                    folded.map_or(ConstantValue::Overdefined, |(value, overflow)| {
+                        ConstantValue::Aggregate(vec![
+                            ConstantValue::Scalar(value),
+                            ConstantValue::Scalar(mir::Constant::Boolean { value: overflow }),
+                        ])
+                    })
                 }
             }
-        }
-
-        // return empty if no predecessors were processed
-        if !is_seen {
-            return FxIndexMap::default();
-        }
-
-        // collect constants for parameters
-        let mut constants = FxIndexMap::default();
-        for (param, state) in block.parameters.iter().zip(states) {
-            let param_value = param.value;
-
-            if let ParamState::Constant(constant) = state {
-                constants.insert(param_value, constant);
+            mir::Instruction::Const { value, .. } => match value {
+                mir::Constant::Uninit
+                | mir::Constant::Parameter(_)
+                | mir::Constant::Layout { .. }
+                | mir::Constant::Witness { .. } => ConstantValue::Overdefined,
+                _ => ConstantValue::Scalar(value.clone()),
+            },
+            mir::Instruction::Select {
+                condition,
+                then_value,
+                else_value,
+                ..
+            } => match self.table.value(*condition) {
+                ConstantValue::Scalar(mir::Constant::Boolean { value: true }) => {
+                    self.table.value(*then_value).clone()
+                }
+                ConstantValue::Scalar(mir::Constant::Boolean { value: false }) => {
+                    self.table.value(*else_value).clone()
+                }
+                ConstantValue::Unknown => ConstantValue::Unknown,
+                _ => {
+                    let mut value = self.table.value(*then_value).clone();
+                    value.merge(self.table.value(*else_value));
+                    value
+                }
+            },
+            mir::Instruction::Aggregate { values, .. } => ConstantValue::Aggregate(
+                self.tree
+                    .get_values(*values)
+                    .iter()
+                    .map(|value| self.table.value(*value).clone())
+                    .collect(),
+            ),
+            mir::Instruction::FieldGet {
+                aggregate,
+                field: index,
+                ..
             }
-        }
+            | mir::Instruction::ElementGet {
+                aggregate, index, ..
+            } => match self.table.value(*aggregate) {
+                ConstantValue::Aggregate(values) => values[*index as usize].clone(),
+                ConstantValue::Unknown => ConstantValue::Unknown,
+                _ => ConstantValue::Overdefined,
+            },
+            mir::Instruction::FieldSet {
+                aggregate,
+                field: index,
+                value,
+                ..
+            }
+            | mir::Instruction::ElementSet {
+                aggregate,
+                index,
+                value,
+                ..
+            } => match self.table.value(*aggregate) {
+                ConstantValue::Aggregate(values) => {
+                    let mut values = values.clone();
+                    values[*index as usize] = self.table.value(*value).clone();
+                    ConstantValue::Aggregate(values)
+                }
+                ConstantValue::Unknown => ConstantValue::Unknown,
+                _ => ConstantValue::Overdefined,
+            },
+            mir::Instruction::VariantNew {
+                case,
+                payload,
+                result_type,
+                ..
+            } => {
+                let ty = self.tree.represented(*result_type);
+                let mir::Type::Variant { cases, .. } = self.tree.get(ty) else {
+                    unreachable!("variant.new requires a represented variant type");
+                };
+                ConstantValue::Variant {
+                    case: *case,
+                    discriminant: cases[*case as usize].discriminant.clone(),
+                    payload: payload.map(|value| Box::new(self.table.value(value).clone())),
+                }
+            }
+            mir::Instruction::VariantTag { variant, .. } => match self.table.value(*variant) {
+                ConstantValue::Variant { discriminant, .. } => {
+                    ConstantValue::Scalar(discriminant.clone())
+                }
+                ConstantValue::Unknown => ConstantValue::Unknown,
+                _ => ConstantValue::Overdefined,
+            },
+            mir::Instruction::VariantPayload { variant, case, .. } => {
+                match self.table.value(*variant) {
+                    ConstantValue::Variant {
+                        case: selected,
+                        payload: Some(payload),
+                        ..
+                    } if case == selected => *payload.clone(),
+                    ConstantValue::Unknown => ConstantValue::Unknown,
+                    _ => ConstantValue::Overdefined,
+                }
+            }
+            mir::Instruction::Binary { .. }
+            | mir::Instruction::Unary { .. }
+            | mir::Instruction::Cast { .. }
+            | mir::Instruction::Intrinsic { .. } => self.scalar(instruction),
+            _ => ConstantValue::Overdefined,
+        };
 
-        constants
+        self.update(destination, result);
     }
 
-    /// Transfer constants through a block's instructions.
-    fn transfer(
-        block_id: mir::LocalNodeId<mir::Block>,
-        entry_state: &ConstantState,
-        tree: &mir::Tree,
-        pointer_width_bits: u16,
-    ) -> ConstantState {
-        // clone entry state for updates
-        let block = tree.get(block_id);
-        let mut state = entry_state.clone();
-
-        // update state per instruction
-        for &instruction_id in &block.instructions {
-            let instruction = tree.get(instruction_id);
-            let Some(destination) = instruction.destination() else {
-                continue;
-            };
-
-            if let Some(constant) =
-                Self::instruction_constant(instruction, tree, &state, pointer_width_bits)
-            {
-                state.insert(destination, constant);
-            } else {
-                state.remove(destination);
-            }
+    /// Evaluate scalar operations after all required operands become constants.
+    fn scalar(&self, instruction: &mir::Instruction) -> ConstantValue {
+        // defer unresolved operands and reject runtime-dependent operations
+        let operands = instruction.reads(self.tree);
+        if operands
+            .iter()
+            .any(|value| matches!(self.table.value(*value), ConstantValue::Overdefined))
+        {
+            return ConstantValue::Overdefined;
+        }
+        if operands
+            .iter()
+            .any(|value| matches!(self.table.value(*value), ConstantValue::Unknown))
+        {
+            return ConstantValue::Unknown;
         }
 
-        state
-    }
-
-    /// Evaluate a constant for an instruction when possible.
-    fn instruction_constant(
-        instruction: &mir::Instruction,
-        tree: &mir::Tree,
-        state: &ConstantState,
-        pointer_width_bits: u16,
-    ) -> Option<mir::Constant> {
-        // evaluate known constant producing instructions
-        match instruction {
-            mir::Instruction::Const { value, .. } => Some(value.clone()),
+        // reuse the MIR constant folders for scalar operation semantics
+        let folded = match instruction {
             mir::Instruction::Binary {
                 operator,
                 left,
                 right,
                 ..
-            } => {
-                // fold binary ops with constant operands
-                let left_constant = state.get(*left)?;
-                let right_constant = state.get(*right)?;
-                fold_binary(*operator, left_constant.clone(), right_constant.clone())
-            }
+            } => match (self.table.constant(*left), self.table.constant(*right)) {
+                (Some(left), Some(right)) => fold_binary(*operator, left.clone(), right.clone()),
+                _ => None,
+            },
             mir::Instruction::Unary {
                 operator, argument, ..
-            } => {
-                // fold unary ops with constant operands
-                let arg_constant = state.get(*argument)?;
-                fold_unary(*operator, arg_constant.clone())
-            }
+            } => self
+                .table
+                .constant(*argument)
+                .and_then(|value| fold_unary(*operator, value.clone())),
             mir::Instruction::Cast {
                 operator,
                 argument,
                 to_type,
                 ..
-            } => {
-                // fold casts with constant operands
-                let arg_constant = state.get(*argument)?;
+            } => self.table.constant(*argument).and_then(|value| {
                 fold_cast(
                     *operator,
-                    arg_constant.clone(),
+                    value.clone(),
                     *to_type,
-                    pointer_width_bits,
-                    tree,
+                    self.target.pointer_bits(),
+                    self.tree,
                 )
+            }),
+            mir::Instruction::Intrinsic {
+                intrinsic,
+                arguments,
+                ..
+            } => {
+                let constants = self
+                    .tree
+                    .get_values(*arguments)
+                    .iter()
+                    .map(|value| self.table.constant(*value).cloned())
+                    .collect::<Option<Vec<_>>>();
+                constants.and_then(|constants| fold_intrinsic(*intrinsic, &constants))
             }
             _ => None,
+        };
+
+        folded.map_or(ConstantValue::Overdefined, ConstantValue::Scalar)
+    }
+
+    /// Evaluate a runtime check whose required scalar operands are constants.
+    fn check(&self, constraint: &mir::CheckConstraint) -> Option<bool> {
+        match constraint {
+            mir::CheckConstraint::Bounds {
+                index,
+                length,
+                is_signed,
+                ..
+            } => {
+                let (index, width, _) = decode_int_constant(self.table.constant(*index)?)?;
+                let (length, _, _) = decode_int_constant(self.table.constant(*length)?)?;
+                let is_negative = *is_signed && index & (1 << (width - 1)) != 0;
+
+                Some(!is_negative && index < length)
+            }
+            mir::CheckConstraint::Null { value } => match self.table.constant(*value)? {
+                mir::Constant::Null => Some(false),
+                _ => None,
+            },
+            mir::CheckConstraint::DivZero { divisor } => {
+                let (bits, _, _) = decode_int_constant(self.table.constant(*divisor)?)?;
+
+                Some(bits != 0)
+            }
+            mir::CheckConstraint::ShiftRange {
+                value,
+                bit_width,
+                is_signed,
+            } => {
+                let (bits, width, _) = decode_int_constant(self.table.constant(*value)?)?;
+                let is_negative = *is_signed && bits & (1 << (width - 1)) != 0;
+
+                Some(!is_negative && bits < u128::from(*bit_width))
+            }
+            mir::CheckConstraint::Narrow {
+                value,
+                to_width,
+                is_signed,
+            } => {
+                let (bits, width, source_signed) =
+                    decode_int_constant(self.table.constant(*value)?)?;
+                let to_width = u16::from(*to_width);
+                if !(1..=128).contains(&to_width) {
+                    return None;
+                }
+                let is_negative = source_signed && bits & (1 << (width - 1)) != 0;
+                if *is_signed {
+                    let (minimum, maximum) = integer_bounds(to_width, true)?;
+                    if is_negative {
+                        Some(signed_from_bits(bits, width) >= minimum)
+                    } else {
+                        Some(bits <= maximum as u128)
+                    }
+                } else {
+                    let maximum = u128::MAX >> (128 - to_width);
+
+                    Some(!is_negative && bits <= maximum)
+                }
+            }
+            mir::CheckConstraint::Overflow {
+                operator,
+                left,
+                right,
+                is_signed,
+            } => {
+                let (left, width, _) = decode_int_constant(self.table.constant(*left)?)?;
+                let (right, _, _) = decode_int_constant(self.table.constant(*right)?)?;
+                if *is_signed {
+                    let left = signed_from_bits(left, width);
+                    let right = signed_from_bits(right, width);
+                    let result = match operator {
+                        mir::BinaryOperator::Add => left.checked_add(right),
+                        mir::BinaryOperator::Subtract => left.checked_sub(right),
+                        mir::BinaryOperator::Multiply => left.checked_mul(right),
+                        mir::BinaryOperator::Divide => left.checked_div(right),
+                        _ => return None,
+                    };
+                    let (minimum, maximum) = integer_bounds(width, true)?;
+
+                    Some(result.is_some_and(|value| value >= minimum && value <= maximum))
+                } else {
+                    let result = match operator {
+                        mir::BinaryOperator::Add => left.checked_add(right),
+                        mir::BinaryOperator::Subtract => left.checked_sub(right),
+                        mir::BinaryOperator::Multiply => left.checked_mul(right),
+                        mir::BinaryOperator::Divide => left.checked_div(right),
+                        _ => return None,
+                    };
+                    let maximum = u128::MAX >> (128 - width);
+
+                    Some(result.is_some_and(|value| value <= maximum))
+                }
+            }
+            mir::CheckConstraint::IsType { .. } | mir::CheckConstraint::IsSubtype { .. } => None,
+        }
+    }
+
+    /// Propagate values through each executable successor of one terminator.
+    fn terminator(&mut self, block: mir::BlockId) {
+        let terminator = self.tree.get(self.tree.get(block).terminator);
+        let targets = terminator.targets(self.tree, block);
+        let selected = match terminator {
+            mir::Terminator::Branch { condition, .. } => match self.table.value(*condition) {
+                ConstantValue::Unknown => return,
+                ConstantValue::Scalar(mir::Constant::Boolean { value }) => Some(if *value {
+                    mir::Successor::BranchThen
+                } else {
+                    mir::Successor::BranchElse
+                }),
+                _ => None,
+            },
+            mir::Terminator::Check { constraint, .. } => {
+                if let Some(is_valid) = self.check(constraint) {
+                    Some(if is_valid {
+                        mir::Successor::CheckSuccess
+                    } else {
+                        mir::Successor::CheckFailure
+                    })
+                } else if constraint
+                    .uses()
+                    .iter()
+                    .any(|value| matches!(self.table.value(*value), ConstantValue::Unknown))
+                {
+                    return;
+                } else {
+                    None
+                }
+            }
+            mir::Terminator::Switch { value, cases, .. } => {
+                let value = match self.table.value(*value) {
+                    ConstantValue::Unknown => return,
+                    ConstantValue::Scalar(mir::Constant::Int { value, .. }) => Some(*value),
+                    ConstantValue::Scalar(mir::Constant::UInt { value, .. }) => {
+                        Some(*value as i128)
+                    }
+                    _ => None,
+                };
+                value.map(|value| {
+                    if self
+                        .tree
+                        .get_switch_cases(*cases)
+                        .iter()
+                        .any(|case| case.value == value)
+                    {
+                        mir::Successor::SwitchCase { value }
+                    } else {
+                        mir::Successor::SwitchDefault
+                    }
+                })
+            }
+            mir::Terminator::VariantSwitch { value, .. } => match self.table.value(*value) {
+                ConstantValue::Unknown => return,
+                ConstantValue::Variant { case, .. } => {
+                    let case = mir::Successor::SwitchCase {
+                        value: i128::from(*case),
+                    };
+                    Some(if targets.iter().any(|(edge, _)| edge.successor == case) {
+                        case
+                    } else {
+                        mir::Successor::SwitchDefault
+                    })
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+
+        // bind explicit edge arguments after any values produced by the terminator itself
+        for (edge, target) in targets {
+            if selected.is_some_and(|selected| selected != edge.successor) {
+                continue;
+            }
+            self.table.edges.insert(edge);
+            let result_count = terminator.target_result_count(self.tree, edge.successor);
+            let parameters = &self.tree.get(target.block).parameters;
+            let arguments = target.arguments(self.tree);
+            assert_eq!(
+                parameters.len(),
+                result_count + arguments.len(),
+                "MIR edge parameter count mismatch"
+            );
+            for parameter in &parameters[..result_count] {
+                self.update(parameter.value, ConstantValue::Overdefined);
+            }
+            for (parameter, argument) in parameters[result_count..].iter().zip(arguments) {
+                self.update(parameter.value, self.table.value(*argument).clone());
+            }
+            self.activate(target.block);
         }
     }
 }
 
-impl ConstantState {
-    /// Return a shared empty constant map.
-    fn empty() -> &'static Self {
-        // initialize the shared empty state
-        static EMPTY: std::sync::OnceLock<ConstantState> = std::sync::OnceLock::new();
-
-        EMPTY.get_or_init(Self::new)
-    }
-}
-
-/// mir::Constant type information for literal values.
+/// The scalar or symbolic type of a constant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstantType {
     /// The open type of a value parameter.
@@ -545,9 +669,17 @@ pub enum ConstantType {
     /// Boolean constant type.
     Boolean,
     /// Integer constant type.
-    Int { width: u16, signed: bool },
+    Int {
+        /// The integer width in bits.
+        width: u16,
+        /// Whether the integer is signed.
+        signed: bool,
+    },
     /// Floating point constant type.
-    Float { format: mir::FloatType },
+    Float {
+        /// The floating point format.
+        format: mir::FloatType,
+    },
     /// Character constant type.
     Char,
     /// Untyped storage constant type.
@@ -604,6 +736,7 @@ pub fn constant_matches_type(
 ) -> bool {
     let destination_type = destination_type.into();
 
+    // compare the constant type with the destination type
     match (constant_type, tree.get(destination_type)) {
         (ConstantType::Parameter, _) => true,
         (ConstantType::Null, mir::Type::Pointer { .. }) => true,
@@ -854,7 +987,7 @@ pub fn constant_tree_from_global(
     ))
 }
 
-/// Fold a pure intrinsic with constant arguments.
+/// Fold an intrinsic when constant operands satisfy its preconditions.
 pub fn fold_intrinsic(
     intrinsic: mir::Intrinsic,
     arguments: &[mir::Constant],
@@ -862,16 +995,27 @@ pub fn fold_intrinsic(
     // reject empty argument lists
     let first = arguments.first()?;
 
+    // fold scalar integer arithmetic and preserve prediction hints
+    if intrinsic == mir::Intrinsic::Expect {
+        return Some(first.clone());
+    }
+    if let Some(result) = fold_integer_intrinsic(intrinsic, arguments) {
+        return Some(result);
+    }
+
     // fold integer unary intrinsics
     let folded_integer_unary = match intrinsic {
+        mir::Intrinsic::IsolateLowestOne => {
+            fold_int_unary(first, |value, _| Some(value & value.wrapping_neg()))
+        }
         mir::Intrinsic::LeadingZeroCount => fold_int_unary(first, |value, width| {
             let leading = value.leading_zeros();
             let adjust = u32::from(128u16.saturating_sub(width));
             Some((leading - adjust) as u128)
         }),
-        mir::Intrinsic::TrailingZeroCount => {
-            fold_int_unary(first, |value, _width| Some(value.trailing_zeros() as u128))
-        }
+        mir::Intrinsic::TrailingZeroCount => fold_int_unary(first, |value, width| {
+            Some(u128::from(value.trailing_zeros().min(u32::from(width))))
+        }),
         mir::Intrinsic::PopulationCount => {
             fold_int_unary(first, |value, _width| Some(value.count_ones() as u128))
         }
@@ -879,7 +1023,7 @@ pub fn fold_intrinsic(
             if width % 8 != 0 {
                 return None;
             }
-            let swapped = value.swap_bytes();
+            let swapped = value.swap_bytes() >> (128 - width);
             Some(mask_to_width(swapped, width))
         }),
         mir::Intrinsic::BitReverse => fold_int_unary(first, |value, width| {
@@ -897,12 +1041,14 @@ pub fn fold_intrinsic(
     let folded_integer_binary = match intrinsic {
         mir::Intrinsic::RotateLeft => fold_int_binary(arguments, |value, shift, width| {
             let shift = (shift % u128::from(width)) as u32;
-            let rotated = value.rotate_left(shift);
+            let complementary = (u32::from(width) - shift) % u32::from(width);
+            let rotated = (value << shift) | (value >> complementary);
             Some(mask_to_width(rotated, width))
         }),
         mir::Intrinsic::RotateRight => fold_int_binary(arguments, |value, shift, width| {
             let shift = (shift % u128::from(width)) as u32;
-            let rotated = value.rotate_right(shift);
+            let complementary = (u32::from(width) - shift) % u32::from(width);
+            let rotated = (value >> shift) | (value << complementary);
             Some(mask_to_width(rotated, width))
         }),
         _ => None,
@@ -948,9 +1094,204 @@ pub fn fold_intrinsic(
         }
         mir::Intrinsic::Atan2 => fold_float_binary(arguments, |left, right| left.atan2(right)),
         mir::Intrinsic::Pow => fold_float_binary(arguments, |left, right| left.powf(right)),
-        mir::Intrinsic::Fma => fold_float_ternary(arguments, |a, b, c| a.mul_add(b, c)),
+        mir::Intrinsic::Fma => fold_fma(arguments),
         _ => None,
     }
+}
+
+/// Fold integer arithmetic and report whether its declared range overflowed.
+fn fold_overflow(
+    intrinsic: mir::Intrinsic,
+    arguments: &[mir::Constant],
+) -> Option<(mir::Constant, bool)> {
+    let [left, right] = arguments else {
+        return None;
+    };
+    let (left, width, is_signed) = decode_int_constant(left)?;
+    let (right, right_width, right_signed) = decode_int_constant(right)?;
+    if width != right_width || is_signed != right_signed {
+        return None;
+    }
+
+    // compute the wrapped result independently of overflow detection
+    let (wrapped, unsigned) = match intrinsic {
+        mir::Intrinsic::AddOverflow | mir::Intrinsic::AddUnchecked | mir::Intrinsic::SatAdd => {
+            (left.wrapping_add(right), left.checked_add(right))
+        }
+        mir::Intrinsic::SubOverflow | mir::Intrinsic::SubUnchecked | mir::Intrinsic::SatSub => {
+            (left.wrapping_sub(right), left.checked_sub(right))
+        }
+        mir::Intrinsic::MulOverflow | mir::Intrinsic::MulUnchecked => {
+            (left.wrapping_mul(right), left.checked_mul(right))
+        }
+        _ => return None,
+    };
+    let mask = u128::MAX >> (128 - width);
+    let overflow = if is_signed {
+        let left = signed_from_bits(left, width);
+        let right = signed_from_bits(right, width);
+        let result = match intrinsic {
+            mir::Intrinsic::AddOverflow | mir::Intrinsic::AddUnchecked | mir::Intrinsic::SatAdd => {
+                left.checked_add(right)
+            }
+            mir::Intrinsic::SubOverflow | mir::Intrinsic::SubUnchecked | mir::Intrinsic::SatSub => {
+                left.checked_sub(right)
+            }
+            _ => left.checked_mul(right),
+        };
+        let maximum = (mask >> 1) as i128;
+
+        result.is_none_or(|value| value < -maximum - 1 || value > maximum)
+    } else {
+        unsigned.is_none_or(|value| value > mask)
+    };
+
+    Some((encode_int_constant(wrapped, width, is_signed), overflow))
+}
+
+/// Fold scalar integer intrinsics in the operand's declared width.
+fn fold_integer_intrinsic(
+    intrinsic: mir::Intrinsic,
+    arguments: &[mir::Constant],
+) -> Option<mir::Constant> {
+    let first = arguments.first()?;
+    let second = arguments.get(1)?;
+    let (left, width, is_signed) = decode_int_constant(first)?;
+    let (right, right_width, right_signed) = decode_int_constant(second)?;
+    if width != right_width || is_signed != right_signed {
+        return None;
+    }
+    let mask = u128::MAX >> (128 - width);
+
+    // enforce unchecked arithmetic preconditions and select saturation endpoints
+    match intrinsic {
+        mir::Intrinsic::AddUnchecked
+        | mir::Intrinsic::SubUnchecked
+        | mir::Intrinsic::MulUnchecked => {
+            let (value, overflow) = fold_overflow(intrinsic, arguments)?;
+
+            return (!overflow).then_some(value);
+        }
+        mir::Intrinsic::SatAdd | mir::Intrinsic::SatSub => {
+            let (value, overflow) = fold_overflow(intrinsic, arguments)?;
+            if !overflow {
+                return Some(value);
+            }
+            let endpoint = if is_signed {
+                if left & (1 << (width - 1)) == 0 {
+                    mask >> 1
+                } else {
+                    1 << (width - 1)
+                }
+            } else if intrinsic == mir::Intrinsic::SatAdd {
+                mask
+            } else {
+                0
+            };
+
+            return Some(encode_int_constant(endpoint, width, is_signed));
+        }
+        mir::Intrinsic::ShlUnchecked | mir::Intrinsic::ShrUnchecked => {
+            let operator = if intrinsic == mir::Intrinsic::ShlUnchecked {
+                mir::BinaryOperator::ShiftLeft
+            } else {
+                mir::BinaryOperator::ShiftRight
+            };
+
+            return fold_binary(operator, first.clone(), second.clone());
+        }
+        _ => {}
+    }
+
+    // apply signed arithmetic with explicit division and range preconditions
+    let value = if is_signed {
+        let left = signed_from_bits(left, width);
+        let right = signed_from_bits(right, width);
+        let minimum = -((mask >> 1) as i128) - 1;
+        match intrinsic {
+            mir::Intrinsic::Midpoint => {
+                let floor = (left & right) + ((left ^ right) >> 1);
+
+                (floor + i128::from(floor < 0 && (left ^ right) & 1 != 0)) as u128
+            }
+            mir::Intrinsic::Clamp => {
+                let (upper, upper_width, upper_signed) = decode_int_constant(arguments.get(2)?)?;
+                if upper_width != width || !upper_signed {
+                    return None;
+                }
+                let upper = signed_from_bits(upper, width);
+                if right > upper {
+                    return None;
+                }
+
+                left.clamp(right, upper) as u128
+            }
+            mir::Intrinsic::DivideCeil
+            | mir::Intrinsic::DivUnchecked
+            | mir::Intrinsic::RemUnchecked
+            | mir::Intrinsic::RemainderEuclidean => {
+                if right == 0 || (left == minimum && right == -1) {
+                    return None;
+                }
+                match intrinsic {
+                    mir::Intrinsic::DivideCeil => {
+                        (left / right + i128::from(left % right != 0 && (left < 0) == (right < 0)))
+                            as u128
+                    }
+                    mir::Intrinsic::DivUnchecked => (left / right) as u128,
+                    mir::Intrinsic::RemUnchecked => (left % right) as u128,
+                    _ => left.rem_euclid(right) as u128,
+                }
+            }
+            mir::Intrinsic::IsMultipleOf => {
+                let value = if right == 0 {
+                    left == 0
+                } else if right == -1 {
+                    true
+                } else {
+                    left % right == 0
+                };
+
+                return Some(mir::Constant::Boolean { value });
+            }
+            mir::Intrinsic::AbsDiff => {
+                return Some(encode_int_constant(left.abs_diff(right), width, false));
+            }
+            _ => return None,
+        }
+    }
+    // apply unsigned arithmetic in the full u128 range
+    else {
+        match intrinsic {
+            mir::Intrinsic::Midpoint => (left & right) + ((left ^ right) >> 1),
+            mir::Intrinsic::Clamp => {
+                let (upper, upper_width, upper_signed) = decode_int_constant(arguments.get(2)?)?;
+                if upper_width != width || upper_signed || right > upper {
+                    return None;
+                }
+
+                left.clamp(right, upper)
+            }
+            mir::Intrinsic::DivideCeil if right != 0 => left.div_ceil(right),
+            mir::Intrinsic::DivUnchecked if right != 0 => left / right,
+            mir::Intrinsic::RemUnchecked | mir::Intrinsic::RemainderEuclidean if right != 0 => {
+                left % right
+            }
+            mir::Intrinsic::IsMultipleOf => {
+                let value = if right == 0 {
+                    left == 0
+                } else {
+                    left.is_multiple_of(right)
+                };
+
+                return Some(mir::Constant::Boolean { value });
+            }
+            mir::Intrinsic::AbsDiff => left.abs_diff(right),
+            _ => return None,
+        }
+    };
+
+    Some(encode_int_constant(value, width, is_signed))
 }
 
 /// Round one binary64 value to the nearest integer with ties toward positive infinity.
@@ -1035,11 +1376,8 @@ fn fold_float_binary(
     Some(encode_float_constant(folded, width))
 }
 
-/// Fold a float ternary intrinsic.
-fn fold_float_ternary(
-    arguments: &[mir::Constant],
-    f: impl FnOnce(f64, f64, f64) -> f64,
-) -> Option<mir::Constant> {
+/// Fold a fused multiply-add in the declared precision.
+fn fold_fma(arguments: &[mir::Constant]) -> Option<mir::Constant> {
     // expect exactly three operands
     let first = arguments.first()?;
     let second = arguments.get(1)?;
@@ -1053,8 +1391,13 @@ fn fold_float_ternary(
         return None;
     }
 
-    // apply the operation
-    let folded = f(first_value, second_value, third_value);
+    // round the fused operation once in the declared precision
+    let folded = match width {
+        mir::FloatType::Float32 => {
+            (first_value as f32).mul_add(second_value as f32, third_value as f32) as f64
+        }
+        mir::FloatType::Float64 => first_value.mul_add(second_value, third_value),
+    };
 
     // reencode in the original width
     Some(encode_float_constant(folded, width))
@@ -1067,11 +1410,13 @@ fn decode_int_constant(constant: &mir::Constant) -> Option<(u128, u16, bool)> {
             value,
             width,
             is_signed,
-        } => {
+        } if (1..=128).contains(width) => {
             let masked = mask_to_width(*value as u128, *width);
             Some((masked, *width, *is_signed))
         }
-        mir::Constant::UInt { value, width } => Some((*value, *width, false)),
+        mir::Constant::UInt { value, width } if (1..=128).contains(width) => {
+            Some((mask_to_width(*value, *width), *width, false))
+        }
         _ => None,
     }
 }
@@ -1125,10 +1470,12 @@ fn signed_from_bits(value: u128, width: u16) -> i128 {
         return value as i128;
     }
 
+    // mask the value to its declared integer width
     let mask = (1u128 << width) - 1;
     let masked = value & mask;
     let sign_bit = 1u128 << (width - 1);
 
+    // extend the sign bit through the host integer
     if masked & sign_bit != 0 {
         (masked | !mask) as i128
     } else {
@@ -1180,6 +1527,7 @@ fn constant_tree_from_scalar(
     // read type
     let ty = tree.get(ty);
 
+    // resolve the underlying newtype
     if let mir::Type::Newtype { inner, .. } = ty {
         return constant_tree_from_scalar(constant, *inner, tree);
     }
@@ -1252,10 +1600,12 @@ fn constant_tree_from_zero(
                 None => return ConstantTree::Unknown,
             };
 
+            // bound aggregate expansion by its element count
             if length > max_aggregate_elements {
                 return ConstantTree::Unknown;
             }
 
+            // construct the repeated element value
             let element_value =
                 constant_tree_from_zero(*element, tree, max_aggregate_elements, pointer_width_bits);
             let elements = (0..length).map(|_| element_value.clone()).collect();
@@ -1321,6 +1671,7 @@ fn constant_tree_from_bytes(
         None => return ConstantTree::Unknown,
     };
 
+    // require matching lengths within the aggregate limit
     if length != bytes.len() || length > max_aggregate_elements {
         return ConstantTree::Unknown;
     }
@@ -1328,6 +1679,7 @@ fn constant_tree_from_bytes(
     // require 8 bit integer element type
     let element = *element;
 
+    // require an integer element type
     let mir::Type::Int {
         width,
         is_signed: signed,
@@ -1336,6 +1688,7 @@ fn constant_tree_from_bytes(
         return ConstantTree::Unknown;
     };
 
+    // require one byte per element
     if *width != 8 {
         return ConstantTree::Unknown;
     }
@@ -1392,10 +1745,12 @@ fn constant_tree_from_aggregate_initializer(
                 None => return ConstantTree::Unknown,
             };
 
+            // require matching lengths within the aggregate limit
             if length != elements.len() || length > max_aggregate_elements {
                 return ConstantTree::Unknown;
             }
 
+            // collect the aggregate elements
             let values = elements
                 .iter()
                 .map(|element_init| {
@@ -1418,6 +1773,7 @@ fn constant_tree_from_aggregate_initializer(
                 return ConstantTree::Unknown;
             }
 
+            // collect the aggregate fields
             let values = elements
                 .iter()
                 .zip(element_types)
@@ -1438,6 +1794,7 @@ fn constant_tree_from_aggregate_initializer(
                 return ConstantTree::Unknown;
             }
 
+            // collect the aggregate elements
             let values = elements
                 .iter()
                 .zip(fields)
@@ -1514,6 +1871,23 @@ pub fn fold_binary_signed(
     width: u16,
     operator: mir::BinaryOperator,
 ) -> Option<mir::Constant> {
+    // restrict evaluation to representable integers and valid shift counts
+    if !(1..=128).contains(&width) {
+        return None;
+    }
+    if matches!(
+        operator,
+        mir::BinaryOperator::ShiftLeft
+            | mir::BinaryOperator::ShiftRight
+            | mir::BinaryOperator::UnsignedShiftRight
+    ) && u128::try_from(right)
+        .ok()
+        .is_none_or(|right| right >= u128::from(width))
+    {
+        return None;
+    }
+
+    // construct signed results in the operand width
     let result_int = |value: i128| {
         Some(mir::Constant::Int {
             value: truncate_signed(value, width),
@@ -1523,6 +1897,7 @@ pub fn fold_binary_signed(
     };
     let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
+    // fold the signed integer operation
     match operator {
         mir::BinaryOperator::Add => result_int(left.wrapping_add(right)),
         mir::BinaryOperator::Subtract => result_int(left.wrapping_sub(right)),
@@ -1546,13 +1921,15 @@ pub fn fold_binary_signed(
         mir::BinaryOperator::Xor => result_int(left ^ right),
         mir::BinaryOperator::ShiftLeft => result_int(left.wrapping_shl(right as u32)),
         mir::BinaryOperator::ShiftRight => result_int(left.wrapping_shr(right as u32)),
+        mir::BinaryOperator::UnsignedShiftRight => {
+            result_int((mask_to_width(left as u128, width) >> right as u32) as i128)
+        }
         mir::BinaryOperator::Equal => result_bool(left == right),
         mir::BinaryOperator::NotEqual => result_bool(left != right),
         mir::BinaryOperator::LessThan => result_bool(left < right),
         mir::BinaryOperator::LessEqual => result_bool(left <= right),
         mir::BinaryOperator::GreaterThan => result_bool(left > right),
         mir::BinaryOperator::GreaterEqual => result_bool(left >= right),
-        _ => None,
     }
 }
 
@@ -1563,6 +1940,21 @@ pub fn fold_binary_unsigned(
     width: u16,
     operator: mir::BinaryOperator,
 ) -> Option<mir::Constant> {
+    // restrict evaluation to representable integers and valid shift counts
+    if !(1..=128).contains(&width) {
+        return None;
+    }
+    if matches!(
+        operator,
+        mir::BinaryOperator::ShiftLeft
+            | mir::BinaryOperator::ShiftRight
+            | mir::BinaryOperator::UnsignedShiftRight
+    ) && right >= u128::from(width)
+    {
+        return None;
+    }
+
+    // construct unsigned results in the operand width
     let result_uint = |value: u128| {
         Some(mir::Constant::UInt {
             value: mask_to_width(value, width),
@@ -1571,6 +1963,7 @@ pub fn fold_binary_unsigned(
     };
     let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
+    // fold the unsigned integer operation
     match operator {
         mir::BinaryOperator::Add => result_uint(left.wrapping_add(right)),
         mir::BinaryOperator::Subtract => result_uint(left.wrapping_sub(right)),
@@ -1620,6 +2013,7 @@ pub fn fold_binary_float(
     };
     let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
+    // round the result to its declared float format
     if format == mir::FloatType::Float32 {
         let left = f32::from_bits(left_bits as u32);
         let right = f32::from_bits(right_bits as u32);
@@ -1640,9 +2034,11 @@ pub fn fold_binary_float(
         };
     }
 
+    // decode the float operands
     let left = float_from_bits(format.format(), left_bits);
     let right = float_from_bits(format.format(), right_bits);
 
+    // fold the float operation
     match operator {
         mir::BinaryOperator::Add => result_float(left + right),
         mir::BinaryOperator::Subtract => result_float(left - right),
@@ -1667,6 +2063,7 @@ pub fn fold_binary_bool(
 ) -> Option<mir::Constant> {
     let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
+    // fold the boolean operation
     match operator {
         mir::BinaryOperator::And => result_bool(left && right),
         mir::BinaryOperator::Or => result_bool(left || right),
@@ -1896,7 +2293,10 @@ pub fn fold_cast(
             // convert signed int to float
             match value {
                 mir::Constant::Int { value, .. } => Some(mir::Constant::Float {
-                    bits: float_to_bits(target_format.format(), value as f64),
+                    bits: match target_format {
+                        mir::FloatType::Float32 => (value as f32).to_bits() as u64,
+                        mir::FloatType::Float64 => (value as f64).to_bits(),
+                    },
                     format: target_format,
                 }),
                 _ => Some(value),
@@ -1913,7 +2313,10 @@ pub fn fold_cast(
             // convert unsigned int to float
             match value {
                 mir::Constant::UInt { value, .. } => Some(mir::Constant::Float {
-                    bits: float_to_bits(target_format.format(), value as f64),
+                    bits: match target_format {
+                        mir::FloatType::Float32 => (value as f32).to_bits() as u64,
+                        mir::FloatType::Float64 => (value as f64).to_bits(),
+                    },
                     format: target_format,
                 }),
                 _ => Some(value),
@@ -1988,89 +2391,32 @@ fn integer_bounds(width: u16, is_signed: bool) -> Option<(i128, i128)> {
         return None;
     }
 
+    // interpret the result with its declared signedness
     if is_signed {
-        let shift = (width - 1) as u32;
-        let min = -(1_i128 << shift);
-        let max = (1_i128 << shift) - 1;
+        let max = i128::MAX >> (128 - width);
+        let min = !max;
         Some((min, max))
     } else {
-        let shift = width as u32;
-        let max = (1_i128 << shift) - 1;
+        let max = (u128::MAX >> (128 - width)) as i128;
         Some((0, max))
     }
 }
 
-/// Convert a float to an integer when the conversion is in range and finite.
+/// Convert a finite float whose truncated value fits the integer bounds.
 fn float_to_int_checked(value: f64, min_bound: i128, max_bound: i128) -> Option<i128> {
-    if !value.is_finite() {
+    // compare against exact power-of-two limits before the host's saturating conversion
+    let truncated = value.trunc();
+    let upper = (max_bound as u128 + 1) as f64;
+    if !truncated.is_finite() || truncated < min_bound as f64 || truncated >= upper {
         return None;
     }
 
-    let min_float = min_bound as f64;
-    let max_float = max_bound as f64;
-    let max_rounded = max_float.trunc() as i128;
-    let max_is_rounded_up = max_rounded > max_bound;
-
-    let min_ok = value >= min_float;
-    let max_ok = if max_is_rounded_up {
-        value < max_float
-    } else {
-        value <= max_float
-    };
-
-    if !min_ok || !max_ok {
-        return None;
-    }
-
-    let truncated = value.trunc() as i128;
-    if truncated < min_bound || truncated > max_bound {
-        return None;
-    }
-
-    Some(truncated)
+    Some(truncated as i128)
 }
 
 /// Convert a float to an integer with saturation.
 fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128 {
-    if value.is_nan() {
-        return 0;
-    }
-
-    if !value.is_finite() {
-        return if value.is_sign_negative() {
-            min_bound
-        } else {
-            max_bound
-        };
-    }
-
-    let min_float = min_bound as f64;
-    let max_float = max_bound as f64;
-    let max_rounded = max_float.trunc() as i128;
-    let max_is_rounded_up = max_rounded > max_bound;
-
-    if value <= min_float {
-        return min_bound;
-    }
-
-    if max_is_rounded_up {
-        if value >= max_float {
-            return max_bound;
-        }
-    } else if value >= max_float {
-        return max_bound;
-    }
-
-    let truncated = value.trunc() as i128;
-    if truncated < min_bound {
-        return min_bound;
-    }
-
-    if truncated > max_bound {
-        return max_bound;
-    }
-
-    truncated
+    (value as i128).clamp(min_bound, max_bound)
 }
 
 /// Create a signed or unsigned integer constant.
@@ -2117,53 +2463,33 @@ fn sign_extend(value: i128, from_width: u16, to_width: u16) -> i128 {
 
 /// Try to fold a unary operation on a constant.
 pub fn fold_unary(operator: mir::UnaryOperator, value: mir::Constant) -> Option<mir::Constant> {
-    match (operator, &value) {
-        (
-            mir::UnaryOperator::Negate,
-            mir::Constant::Int {
-                value: v,
-                width,
-                is_signed: true,
-            },
-        ) => Some(mir::Constant::Int {
-            value: v.wrapping_neg(),
-            width: *width,
-            is_signed: true,
-        }),
+    // fold integers in their declared width
+    if let Some((bits, width, is_signed)) = decode_int_constant(&value) {
+        let bits = match operator {
+            mir::UnaryOperator::Negate => bits.wrapping_neg(),
+            mir::UnaryOperator::Not => !bits,
+        };
 
+        return Some(encode_int_constant(
+            mask_to_width(bits, width),
+            width,
+            is_signed,
+        ));
+    }
+
+    // preserve floating negation and boolean inversion
+    match (operator, value) {
         (mir::UnaryOperator::Negate, mir::Constant::Float { bits, format }) => {
-            let value = -float_from_bits(format.format(), *bits);
+            let value = -float_from_bits(format.format(), bits);
 
             Some(mir::Constant::Float {
                 bits: float_to_bits(format.format(), value),
-                format: *format,
+                format,
             })
         }
-
-        (mir::UnaryOperator::Not, mir::Constant::Boolean { value: v }) => {
-            Some(mir::Constant::Boolean { value: !v })
+        (mir::UnaryOperator::Not, mir::Constant::Boolean { value }) => {
+            Some(mir::Constant::Boolean { value: !value })
         }
-
-        (
-            mir::UnaryOperator::Not,
-            mir::Constant::Int {
-                value: v,
-                width,
-                is_signed,
-            },
-        ) => Some(mir::Constant::Int {
-            value: !v,
-            width: *width,
-            is_signed: *is_signed,
-        }),
-
-        (mir::UnaryOperator::Not, mir::Constant::UInt { value: v, width }) => {
-            Some(mir::Constant::UInt {
-                value: !v,
-                width: *width,
-            })
-        }
-
         _ => None,
     }
 }
@@ -2173,37 +2499,9 @@ mod tests {
     use super::*;
     use crate::analyses::tests::TestModule;
 
-    /// Readonly global loads are not represented as scalar constants.
-    #[test]
-    fn test_readonly_global_load_not_constant() {
-        let test = TestModule::new(
-            r#"
-readonly global flag: boolean = true
-
-function test(): boolean {
-entry:
-    v0: ref<boolean, borrowed, 'static, readonly, local> = global.address flag
-    v1: boolean = load v0
-    return v1
-}
-"#,
-        );
-
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function, &test.tree);
-
-        let block0 = function.block(0);
-        let constant = analysis
-            .constant_at_exit(block0, mir::Value::new(1))
-            .cloned();
-        assert_eq!(constant, None);
-    }
-
     /// Mutable globals are not treated as constants.
     #[test]
-    fn test_mutable_global_not_constant() {
+    fn test_keep_mutable_global_loads_unknown() {
         let test = TestModule::new(
             r#"
 global flag: boolean = true
@@ -2222,44 +2520,13 @@ entry:
         let mut analyses = test.function_analyses();
         let analysis = analyses.constant(function, &test.tree);
 
-        let block0 = function.block(0);
-        let constant = analysis
-            .constant_at_exit(block0, mir::Value::new(1))
-            .cloned();
-        assert_eq!(constant, None);
-    }
-
-    /// Non scalar globals are not treated as constants.
-    #[test]
-    fn test_non_scalar_global_not_constant() {
-        let test = TestModule::new(
-            r#"
-readonly global flag: boolean = zeroinit
-
-function test(): boolean {
-entry:
-    v0: ref<boolean, borrowed, 'static, readonly, local> = global.address flag
-    v1: boolean = load v0
-    return v1
-}
-"#,
-        );
-
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function, &test.tree);
-
-        let block0 = function.block(0);
-        let constant = analysis
-            .constant_at_exit(block0, mir::Value::new(1))
-            .cloned();
+        let constant = analysis.constant(mir::Value::new(1)).cloned();
         assert_eq!(constant, None);
     }
 
     /// Constant results of binary operations are propagated.
     #[test]
-    fn test_constant_from_binary() {
+    fn test_fold_constant_addition() {
         let test = TestModule::new(
             r#"
 function test(): int32 {
@@ -2277,10 +2544,7 @@ entry:
         let mut analyses = test.function_analyses();
         let analysis = analyses.constant(function, &test.tree);
 
-        let block0 = function.block(0);
-        let constant = analysis
-            .constant_at_exit(block0, mir::Value::new(2))
-            .cloned();
+        let constant = analysis.constant(mir::Value::new(2)).cloned();
         assert_eq!(
             constant,
             Some(mir::Constant::Int {
@@ -2291,43 +2555,42 @@ entry:
         );
     }
 
-    /// Block parameters become constant when all predecessors agree.
+    /// Preserve agreeing parameters while widening conflicting parameters at the same join.
     #[test]
-    fn test_constant_from_block_param() {
-        let test = TestModule::new(
+    fn test_join_agreeing_and_conflicting_arguments() {
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
     v1: boolean = true
-    branch v0 => b1(v1) | b2(v1)
+    v2: boolean = false
+    branch v0 => left | right
 
-b1(v2: boolean):
-    jump b3(v2)
+left:
+    jump join(v1, v1)
 
-b2(v3: boolean):
-    jump b3(v3)
+right:
+    jump join(v1, v2)
 
-b3(v4: boolean):
+join(v3: boolean, v4: boolean):
     return v4
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
 
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function, &test.tree);
-
-        let block3 = function.block(3);
-        let constant = analysis
-            .constant_at_entry(block3, mir::Value::new(4))
-            .cloned();
-        assert_eq!(constant, Some(mir::Constant::Boolean { value: true }));
+        assert_eq!(
+            constants.value(mir::Value(3)),
+            &ConstantValue::Scalar(mir::Constant::Boolean { value: true })
+        );
+        assert_eq!(constants.value(mir::Value(4)), &ConstantValue::Overdefined);
     }
 
     /// Fallible allocation result parameters do not consume edge arguments.
     #[test]
-    fn test_constant_from_fallible_allocation_success_argument() {
+    fn test_preserve_arguments_after_allocation_results() {
         let test = TestModule::new(
             r#"
 function test(v0: int64): boolean {
@@ -2353,49 +2616,14 @@ b2:
         let success = function.block(1);
         let success_block = test.tree.get(success);
         let argument = success_block.parameters[1].value;
-        let constant = analysis.constant_at_entry(success, argument).cloned();
+        let constant = analysis.constant(argument).cloned();
 
         assert_eq!(constant, Some(mir::Constant::Boolean { value: true }));
     }
 
-    /// Block parameters are not constant when predecessors disagree.
-    #[test]
-    fn test_conflicting_block_param() {
-        let test = TestModule::new(
-            r#"
-function test(v0: boolean): boolean {
-entry(v0: boolean):
-    v1: boolean = true
-    v2: boolean = false
-    branch v0 => b1(v1) | b2(v2)
-
-b1(v3: boolean):
-    jump b3(v3)
-
-b2(v4: boolean):
-    jump b3(v4)
-
-b3(v5: boolean):
-    return v5
-}
-"#,
-        );
-
-        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function, &test.tree);
-
-        let block3 = function.block(3);
-        let constant = analysis
-            .constant_at_entry(block3, mir::Value::new(5))
-            .cloned();
-        assert_eq!(constant, None);
-    }
-
     /// Conflicting arguments to a single target are not treated as constants.
     #[test]
-    fn test_conflicting_target_arguments() {
+    fn test_distinguish_arguments_on_repeated_edges() {
         let test = TestModule::new(
             r#"
 function test(v0: boolean): boolean {
@@ -2415,10 +2643,514 @@ b1(v3: boolean):
         let mut analyses = test.function_analyses();
         let analysis = analyses.constant(function, &test.tree);
 
-        let block1 = function.block(1);
-        let constant = analysis
-            .constant_at_entry(block1, mir::Value::new(3))
-            .cloned();
+        let constant = analysis.constant(mir::Value::new(3)).cloned();
         assert_eq!(constant, None);
+    }
+
+    /// Follow only the selected edge when two branch arms pass different values to one block.
+    #[test]
+    fn test_select_branch_arguments() {
+        let program = TestModule::new(
+            r#"
+function test(): int32 {
+entry:
+    v0: boolean = true
+    v1: int32 = 7
+    v2: int32 = 9
+    branch v0 => join(v1) | join(v2)
+
+join(v3: int32):
+    return v3
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let edge = mir::Edge::new(
+            function.block(0),
+            mir::Successor::BranchThen,
+            function.block(1),
+        );
+
+        assert_eq!(
+            constants.constant(mir::Value(3)),
+            Some(&mir::Constant::int32(7))
+        );
+        assert_eq!(constants.edges.iter().copied().collect::<Vec<_>>(), [edge]);
+    }
+
+    /// Widen a loop recurrence after its executable backedge supplies a different value.
+    #[test]
+    fn test_widen_constants_changed_by_loop_backedges() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean): int32 {
+entry(v0: boolean):
+    v1: int32 = 0
+    v2: int32 = 1
+    jump loop(v1)
+
+loop(v3: int32):
+    v4: int32 = add v3, v2
+    branch v0 => loop(v4) | exit(v3)
+
+exit(v5: int32):
+    return v5
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let actual = (0..6)
+            .map(|value| constants.value(mir::Value(value)).clone())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            actual,
+            [
+                ConstantValue::Overdefined,
+                ConstantValue::Scalar(mir::Constant::int32(0)),
+                ConstantValue::Scalar(mir::Constant::int32(1)),
+                ConstantValue::Overdefined,
+                ConstantValue::Overdefined,
+                ConstantValue::Overdefined,
+            ]
+        );
+    }
+
+    /// Preserve constant fields when another field remains dynamic.
+    #[test]
+    fn test_preserve_constant_fields_beside_dynamic_fields() {
+        let program = TestModule::new(
+            r#"
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = 7
+    v2: (int32, int32) = aggregate (v0, v1)
+    v3: int32 = field.get v2, 1
+    v4: int32 = field.get v2, 0
+    return v3
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+
+        assert_eq!(
+            constants.constant(mir::Value(3)),
+            Some(&mir::Constant::int32(7))
+        );
+        assert_eq!(constants.value(mir::Value(4)), &ConstantValue::Overdefined);
+    }
+
+    /// Fold integer bit operations in the operand width.
+    #[test]
+    fn test_fold_bit_operations_in_the_declared_width() {
+        let program = TestModule::new(
+            r#"
+function test(): uint32 {
+entry:
+    v0: uint32 = 0
+    v1: uint32 = 1
+    v2: uint32 = 2147483648
+    v3: uint32 = intrinsic.math.bits.trailingZeroCount(v0)
+    v4: uint32 = intrinsic.math.bits.byteSwap(v1)
+    v5: uint32 = intrinsic.math.bits.rotateLeft(v2, v1)
+    v6: uint32 = intrinsic.math.bits.rotateRight(v1, v1)
+    v7: uint32 = not v0
+    v8: uint32 = intrinsic.math.bits.isolateLowestOne(v2)
+    return v7
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let actual = (3..9)
+            .map(|value| constants.constant(mir::Value(value)).cloned())
+            .collect::<Vec<_>>();
+        let expected = [32, 16777216, 1, 2147483648, 4294967295, 2147483648]
+            .map(|value| Some(mir::Constant::UInt { value, width: 32 }));
+
+        assert_eq!(actual, expected);
+    }
+
+    /// Select a failed division check before evaluating the guarded arithmetic.
+    #[test]
+    fn test_select_check_failure() {
+        let program = TestModule::new(
+            r#"
+function test(): int32 {
+entry:
+    v0: int32 = 0
+    check div.zero v0 => divide | failure
+
+divide:
+    v1: int32 = 7
+    v2: int32 = div v1, v0
+    return v2
+
+failure:
+    v3: int32 = -1
+    return v3
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let executable = function
+            .blocks()
+            .iter()
+            .map(|block| constants.is_executable(*block))
+            .collect::<Vec<_>>();
+
+        assert_eq!(executable, [true, false, true]);
+        assert_eq!(constants.value(mir::Value(2)), &ConstantValue::Unknown);
+    }
+
+    /// Round a fused multiply-add once at binary32 precision.
+    #[test]
+    fn test_round_float32_fma() {
+        let program = TestModule::new(
+            r#"
+function test(): float32 {
+entry:
+    v0: float32 = 1.000244140625
+    v1: float32 = 8.271806125530277e-25
+    v2: float32 = intrinsic.math.float.fma(v0, v0, v1)
+    return v2
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+
+        assert_eq!(
+            constants.constant(mir::Value(2)),
+            Some(&mir::Constant::Float {
+                bits: 0x3f801001,
+                format: mir::FloatType::Float32
+            }),
+        );
+    }
+
+    /// Preserve declared rounding and integer limits during scalar conversion.
+    #[test]
+    fn test_convert_float_limits() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int64 = 4611686293305294849
+    v1: uint64 = 9223372586610589697
+    v2: float32 = cast.intToFloat.s v0 -> float32
+    v3: float32 = cast.intToFloat.u v1 -> float32
+    v4: float64 = 1.7014118346046923e38
+    v5: int128 = cast.floatToInt.s v4 -> int128
+    v6: int128 = cast.floatToIntSaturating.s v4 -> int128
+    v7: float64 = 127.9
+    v8: int8 = cast.floatToInt.s v7 -> int8
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let actual = [2, 3, 5, 6, 8].map(|value| constants.constant(mir::Value(value)).cloned());
+
+        assert_eq!(
+            actual,
+            [
+                Some(mir::Constant::Float {
+                    bits: 0x5e800001,
+                    format: mir::FloatType::Float32
+                }),
+                Some(mir::Constant::Float {
+                    bits: 0x5f000001,
+                    format: mir::FloatType::Float32
+                }),
+                None,
+                Some(mir::Constant::Int {
+                    value: i128::MAX,
+                    width: 128,
+                    is_signed: true
+                }),
+                Some(mir::Constant::Int {
+                    value: 127,
+                    width: 8,
+                    is_signed: true
+                }),
+            ]
+        );
+    }
+
+    /// Clamp overflowing signed addition and subtraction to their respective limits.
+    #[test]
+    fn test_saturate_signed_addition_and_subtraction() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = 127
+    v1: int8 = 1
+    v2: int8 = -128
+    v3: int8 = intrinsic.math.arithmetic.saturating.add(v0, v1)
+    v4: int8 = intrinsic.math.arithmetic.saturating.subtract(v2, v1)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        for (value, expected) in [
+            (3, mir::Constant::int8(127)),
+            (4, mir::Constant::int8(-128)),
+        ] {
+            assert_eq!(
+                constants.constant(mir::Value(value)),
+                Some(&expected),
+                "v{value}"
+            );
+        }
+    }
+
+    /// Produce both the wrapped integer and overflow flag from overflowing addition.
+    #[test]
+    fn test_fold_wrapped_value_and_overflow_flag() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = 127
+    v1: int8 = 1
+    v2: (int8, boolean) = intrinsic.math.arithmetic.overflowing.add(v0, v1)
+    v3: int8 = field.get v2, 0
+    v4: boolean = field.get v2, 1
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        for (value, expected) in [
+            (3, mir::Constant::int8(-128)),
+            (4, mir::Constant::Boolean { value: true }),
+        ] {
+            assert_eq!(
+                constants.constant(mir::Value(value)),
+                Some(&expected),
+                "v{value}"
+            );
+        }
+
+        assert_eq!(
+            constants.value(mir::Value(2)),
+            &ConstantValue::Aggregate(vec![
+                ConstantValue::Scalar(mir::Constant::int8(-128)),
+                ConstantValue::Scalar(mir::Constant::Boolean { value: true }),
+            ])
+        );
+    }
+
+    /// Round the midpoint of signed minimum and maximum toward zero.
+    #[test]
+    fn test_round_signed_midpoint_toward_zero() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = 127
+    v1: int8 = -128
+    v2: int8 = intrinsic.math.arithmetic.midpoint(v0, v1)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let expected = mir::Constant::int8(0);
+        assert_eq!(constants.constant(mir::Value(2)), Some(&expected));
+    }
+
+    /// Round a negative quotient upward and return a nonnegative Euclidean remainder.
+    #[test]
+    fn test_fold_signed_division_rounding() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = -128
+    v1: int8 = 3
+    v2: int8 = intrinsic.math.arithmetic.divideCeil(v0, v1)
+    v3: int8 = intrinsic.math.arithmetic.remainderEuclidean(v0, v1)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        for (value, expected) in [(2, mir::Constant::int8(-42)), (3, mir::Constant::int8(1))] {
+            assert_eq!(
+                constants.constant(mir::Value(value)),
+                Some(&expected),
+                "v{value}"
+            );
+        }
+    }
+
+    /// Represent the full distance between signed limits in the unsigned result type.
+    #[test]
+    fn test_fold_unsigned_distance_between_signed_limits() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = 127
+    v1: int8 = -128
+    v2: uint8 = intrinsic.math.arithmetic.absDiff(v1, v0)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let expected = mir::Constant::UInt {
+            value: 255,
+            width: 8,
+        };
+        assert_eq!(constants.constant(mir::Value(2)), Some(&expected));
+    }
+
+    /// Recognize that the signed minimum is divisible by minus one.
+    #[test]
+    fn test_fold_divisibility_by_minus_one() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = -128
+    v1: int8 = -1
+    v2: boolean = intrinsic.math.arithmetic.isMultipleOf(v0, v1)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let expected = mir::Constant::Boolean { value: true };
+        assert_eq!(constants.constant(mir::Value(2)), Some(&expected));
+    }
+
+    /// Clamp values below, within, and above the declared integer interval.
+    #[test]
+    fn test_fold_clamp_endpoints() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = -128
+    v1: int8 = 1
+    v2: int8 = 3
+    v3: int8 = 127
+    v4: int8 = intrinsic.math.arithmetic.clamp(v0, v1, v2)
+    v5: int8 = intrinsic.math.arithmetic.clamp(v1, v1, v2)
+    v6: int8 = intrinsic.math.arithmetic.clamp(v3, v1, v2)
+    v7: int8 = 2
+    v8: int8 = intrinsic.math.arithmetic.clamp(v7, v1, v2)
+    v9: int8 = intrinsic.math.arithmetic.clamp(v2, v1, v2)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        for (value, expected) in [(4, 1), (5, 1), (6, 3), (8, 2), (9, 3)] {
+            assert_eq!(
+                constants.constant(mir::Value(value)),
+                Some(&mir::Constant::int8(expected)),
+                "v{value}"
+            );
+        }
+    }
+
+    /// Fold unchecked addition within the signed range, including its maximum.
+    #[test]
+    fn test_fold_unchecked_addition_within_integer_limits() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = 127
+    v1: int8 = 1
+    v2: int8 = 3
+    v3: int8 = intrinsic.math.arithmetic.unchecked.add(v1, v2)
+    v4: int8 = 0
+    v5: int8 = intrinsic.math.arithmetic.unchecked.add(v0, v4)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+
+        assert_eq!(
+            constants.constant(mir::Value(3)),
+            Some(&mir::Constant::int8(4))
+        );
+        assert_eq!(
+            constants.constant(mir::Value(5)),
+            Some(&mir::Constant::int8(127))
+        );
+    }
+
+    /// Select a switch case without merging default arguments sent to the same target.
+    #[test]
+    fn test_select_switch_arguments_on_repeated_targets() {
+        let program = TestModule::new(
+            r#"
+function test(): int32 {
+entry:
+    v0: int32 = 1
+    v1: int32 = 7
+    v2: int32 = 9
+    switch v0, join(v2), 1 => join(v1), 2 => unused(v2)
+
+join(v3: int32):
+    return v3
+
+unused(v4: int32):
+    return v4
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let edge = mir::Edge::new(
+            function.block(0),
+            mir::Successor::SwitchCase { value: 1 },
+            function.block(1),
+        );
+
+        assert_eq!(
+            constants.constant(mir::Value(3)),
+            Some(&mir::Constant::int32(7))
+        );
+        assert_eq!(constants.value(mir::Value(4)), &ConstantValue::Unknown);
+        assert_eq!(constants.edges.iter().copied().collect::<Vec<_>>(), [edge]);
     }
 }

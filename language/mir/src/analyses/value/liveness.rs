@@ -3,8 +3,8 @@ use std::cmp::Reverse;
 use destack_core::{BitSet, FxIndexSet};
 
 use crate::{
-    Analysis, Block, Function, Instruction, Local, LocalNodeId, Mutation, NodeTable, PlaceOrigin,
-    PlaceTable, Tree, Value,
+    Analysis, Block, ControlTable, Function, Instruction, Local, LocalNodeId, Mutation, NodeTable,
+    PlaceOrigin, PlaceTable, Tree, Value,
 };
 
 /// Liveness for one MIR function.
@@ -86,10 +86,11 @@ struct BlockLiveness {
 
 impl LivenessTable {
     /// Build liveness for one MIR function.
-    pub fn analyse(function: &Function, tree: &Tree) -> Self {
+    pub fn analyse(function: &Function, control: &ControlTable, tree: &Tree) -> Self {
         let mut locals = function.locals().to_vec();
         locals.sort_unstable_by_key(|local| local.get());
 
+        // index locals in their stable order
         let mut local_indices = NodeTable::from_nodes(&locals, || 0);
         for (index, local) in locals.iter().copied().enumerate() {
             *local_indices.get_mut(local) = index;
@@ -102,7 +103,7 @@ impl LivenessTable {
         let mut liveness = Self::initialize(function, locals);
 
         // propagate liveness to a fixed point
-        Self::propagate_to_fixed_point(&mut liveness, function, tree, &blocks);
+        Self::propagate_to_fixed_point(&mut liveness, control, tree, &blocks);
 
         liveness
     }
@@ -223,6 +224,7 @@ impl LivenessTable {
             liveness.value_def.insert(destination.0 as usize);
         }
 
+        // record the local defined by a store
         if let Instruction::LocalSet { local, .. } = instruction {
             let index = *local_indices.get(*local);
             seen_local_defs.insert(index);
@@ -244,22 +246,22 @@ impl LivenessTable {
         }
     }
 
-    /// Propagate liveness until the block states stabilize.
+    /// Propagate changed liveness entries to their predecessors.
     fn propagate_to_fixed_point(
         liveness: &mut Self,
-        function: &Function,
+        control: &ControlTable,
         tree: &Tree,
         blocks: &NodeTable<Block, BlockLiveness>,
     ) {
-        let mut changed = true;
-
-        while changed {
-            changed = false;
-
-            for &block_id in function.blocks().iter().rev() {
-                if Self::propagate_block(liveness, block_id, tree, blocks) {
-                    changed = true;
-                }
+        // visit successors before predecessors and reschedule only affected blocks
+        let mut pending = control.reverse_postorder().collect::<FxIndexSet<_>>();
+        while let Some(block) = pending.pop() {
+            if Self::propagate_block(liveness, block, tree, blocks) {
+                pending.extend(
+                    control
+                        .predecessors(block)
+                        .filter(|block| control.is_reachable(*block)),
+                );
             }
         }
     }
@@ -279,10 +281,12 @@ impl LivenessTable {
         let mut next_value_live_out = BitSet::new(block_liveness.value_use.len());
         let mut next_local_live_out = BitSet::new(block_liveness.local_use.len());
 
+        // merge liveness from each successor
         for successor in terminator.successors(tree) {
             let successor_value_live_in = liveness.value_live_in.get(successor);
             next_value_live_out.union_with(successor_value_live_in);
 
+            // merge live locals from the successor
             let successor_local_live_in = liveness.local_live_in.get(successor);
             next_local_live_out.union_with(successor_local_live_in);
         }
@@ -292,10 +296,12 @@ impl LivenessTable {
         next_value_live_in.subtract(&block_liveness.value_def);
         next_value_live_in.union_with(&block_liveness.value_use);
 
+        // remove local definitions and add incoming uses
         let mut next_local_live_in = next_local_live_out.clone();
         next_local_live_in.subtract(&block_liveness.local_def);
         next_local_live_in.union_with(&block_liveness.local_use);
 
+        // record changed block states
         let mut changed = false;
 
         // update value entry state
@@ -465,6 +471,7 @@ impl LivenessTable {
             return true;
         }
 
+        // inspect uses in the selected block
         let block = tree.get(block_id);
         if !block
             .parameters
@@ -481,7 +488,7 @@ impl LivenessTable {
             .any(|instruction| tree.get(*instruction).reads(tree).contains(&value));
         let terminator = tree.get(block.terminator);
 
-        is_used || terminator.uses(tree).contains(&value)
+        is_used || terminator.uses(tree).contains(&value) || self.is_value_live_out(block_id, value)
     }
 
     /// Return whether one value is live at block exit.
@@ -504,6 +511,7 @@ impl LivenessTable {
         for &instruction_id in block.instructions.iter().skip(instruction_index + 1) {
             let instruction = tree.get(instruction_id);
 
+            // retain an operand until this instruction executes
             if instruction.reads(tree).contains(&value) {
                 return true;
             }
@@ -540,10 +548,12 @@ impl LivenessTable {
         for instruction_id in block.instructions.iter().skip(instruction_offset).rev() {
             let instruction = tree.get(*instruction_id);
 
+            // remove the value defined by this instruction
             if let Some(destination) = instruction.destination() {
                 live.shift_remove(&destination);
             }
 
+            // retain the operands read by this instruction
             for used in instruction.reads(tree) {
                 live.insert(used);
             }
@@ -566,6 +576,7 @@ impl LivenessTable {
             return self.local_live_in(block_id).collect();
         }
 
+        // start with locals live at the block exit
         let mut live = self.local_live_out(block_id).collect::<FxIndexSet<_>>();
 
         // walk later local reads and writes backward
@@ -606,21 +617,6 @@ impl LivenessTable {
         block_id: LocalNodeId<Block>,
     ) -> FxIndexSet<LocalNodeId<Local>> {
         self.local_live_out(block_id).collect()
-    }
-
-    /// Return all values live somewhere in the function.
-    pub fn all_live_values(&self) -> FxIndexSet<Value> {
-        let mut values = FxIndexSet::default();
-
-        for live in self.value_live_in.values() {
-            values.extend(live.iter().map(|index| Value(index as u32)));
-        }
-
-        for live in self.value_live_out.values() {
-            values.extend(live.iter().map(|index| Value(index as u32)));
-        }
-
-        values
     }
 
     /// Return one local's compact liveness index.
@@ -727,36 +723,57 @@ mod tests {
     use super::*;
     use crate::analyses::tests::TestModule;
 
+    /// Keep values and local storage live until their final read and omit unused definitions.
     #[test]
-    fn test_build_liveness_for_simple_block() {
-        let (tree, function_id) = TestModule::parse_function(
+    fn test_expire_values_and_locals_after_last_use() {
+        let program = TestModule::new(
             r#"
-function test(): int32 {
-entry:
-    v0: int32 = 1
-    v1: int32 = 2
+function test(v0: int32): int32 {
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v3: int32 = 99
+    v1: int32 = local.get l0
     v2: int32 = add v0, v1
     return v2
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let control = ControlTable::analyse(function, &program.tree);
+        let liveness = LivenessTable::analyse(function, &control, &program.tree);
+        let entry = function.block(0);
+        let local = function.local(0);
+        let block = program.tree.get(entry);
+        let mut cursor = liveness.cursor(&program.tree, entry);
+        assert_eq!(cursor.values().collect::<Vec<_>>(), [Value(0)]);
+        assert!(!cursor.contains_local(local));
 
-        let function = tree.get(function_id);
-        let liveness = LivenessTable::analyse(function, &tree);
-
-        let entry = function.entry().expect("missing entry");
-
-        assert!(!liveness.is_value_live_in(entry, Value::new(0)));
-        assert!(!liveness.is_value_live_in(entry, Value::new(1)));
-        assert!(!liveness.is_value_live_in(entry, Value::new(2)));
-        assert_eq!(liveness.value_live_out(entry).count(), 0);
-        assert!(liveness.is_value_live_after_instruction(entry, 0, Value::new(0), &tree));
-        assert!(liveness.is_value_live_after_instruction(entry, 2, Value::new(2), &tree));
+        for (index, values, local_live) in [
+            (0, vec![Value(0)], true),
+            (1, vec![Value(0)], true),
+            (2, vec![Value(0), Value(1)], false),
+            (3, vec![Value(2)], false),
+        ] {
+            cursor.advance(program.tree.get(block.instructions[index]), &program.tree);
+            assert_eq!(
+                cursor.values().collect::<Vec<_>>(),
+                values,
+                "after instruction {index}"
+            );
+            assert_eq!(
+                cursor.contains_local(local),
+                local_live,
+                "after instruction {index}"
+            );
+        }
     }
 
+    /// Keep a dominating value live on the branch that reads it.
     #[test]
-    fn test_build_liveness_across_blocks() {
-        let (tree, function_id) = TestModule::parse_function(
+    fn test_keep_values_live_only_on_reading_branches() {
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -772,20 +789,33 @@ b2:
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let control = ControlTable::analyse(function, &program.tree);
+        let liveness = LivenessTable::analyse(function, &control, &program.tree);
+        for (index, incoming, outgoing) in [
+            (0, vec![], vec![1]),
+            (1, vec![1], vec![]),
+            (2, vec![], vec![]),
+        ] {
+            let block = function.block(index);
+            let actual_in = liveness
+                .value_live_in(block)
+                .map(|value| value.id())
+                .collect::<Vec<_>>();
+            let actual_out = liveness
+                .value_live_out(block)
+                .map(|value| value.id())
+                .collect::<Vec<_>>();
 
-        let function = tree.get(function_id);
-        let liveness = LivenessTable::analyse(function, &tree);
-
-        let block1 = function.block(1);
-        let block2 = function.block(2);
-
-        assert!(liveness.is_value_live_in(block1, Value::new(1)));
-        assert!(!liveness.is_value_live_in(block2, Value::new(1)));
+            assert_eq!(actual_in, incoming, "block {index} entry");
+            assert_eq!(actual_out, outgoing, "block {index} exit");
+        }
     }
 
+    /// Keep external loop inputs live while defining block parameters at their entries.
     #[test]
-    fn test_build_liveness_for_loop() {
-        let (tree, function_id) = TestModule::parse_function(
+    fn test_keep_loop_inputs_live_across_backedges() {
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -802,93 +832,72 @@ b2:
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let control = ControlTable::analyse(function, &program.tree);
+        let liveness = LivenessTable::analyse(function, &control, &program.tree);
+        for (index, incoming, outgoing) in [
+            (0, vec![], vec![0]),
+            (1, vec![0], vec![0, 4]),
+            (2, vec![4], vec![]),
+        ] {
+            let block = function.block(index);
+            let actual_in = liveness
+                .value_live_in(block)
+                .map(|value| value.id())
+                .collect::<Vec<_>>();
+            let actual_out = liveness
+                .value_live_out(block)
+                .map(|value| value.id())
+                .collect::<Vec<_>>();
 
-        let function = tree.get(function_id);
-        let liveness = LivenessTable::analyse(function, &tree);
-
-        let block1 = function.block(1);
-        let block2 = function.block(2);
-
-        assert!(!liveness.is_value_live_in(block1, Value::new(2)));
-        assert!(liveness.is_value_live_in(block1, Value::new(0)));
-        assert!(liveness.is_value_live_out(block1, Value::new(4)));
-        assert!(liveness.is_value_live_in(block2, Value::new(4)));
+            assert_eq!(actual_in, incoming, "block {index} entry");
+            assert_eq!(actual_out, outgoing, "block {index} exit");
+        }
     }
 
+    /// Define the invoke result on its normal edge and retain inputs read during unwind.
     #[test]
-    fn test_ignore_dead_values() {
-        let (tree, function_id) = TestModule::parse_function(
+    fn test_define_invoke_results_on_normal_edges() {
+        let program = TestModule::new(
             r#"
-function test(): int32 {
-entry:
-    v0: int32 = 1
-    v1: int32 = 2
-    return v1
-}
-"#,
-        );
+external function called(int32): int32
 
-        let function = tree.get(function_id);
-        let liveness = LivenessTable::analyse(function, &tree);
-
-        let entry = function.entry().expect("missing entry");
-
-        assert!(!liveness.is_value_live_after_instruction(entry, 0, Value::new(0), &tree));
-    }
-
-    #[test]
-    fn test_query_liveness_before_operations() {
-        let (tree, function_id) = TestModule::parse_function(
-            r#"
 function test(v0: int32): int32 {
-    local l0: int32
-
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
-    v2: int32 = add v0, v1
-    return v2
+    invoke called(v0): (int32) => int32 => normal | unwind
+
+normal(v1: int32):
+    return v1
+
+unwind:
+    return v0
+
+unused:
+    return v0
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let control = ControlTable::analyse(function, &program.tree);
+        let liveness = LivenessTable::analyse(function, &control, &program.tree);
+        for (index, incoming, outgoing) in [
+            (0, vec![], vec![0]),
+            (1, vec![], vec![]),
+            (2, vec![0], vec![]),
+            (3, vec![], vec![]),
+        ] {
+            let block = function.block(index);
+            let actual_in = liveness
+                .value_live_in(block)
+                .map(|value| value.id())
+                .collect::<Vec<_>>();
+            let actual_out = liveness
+                .value_live_out(block)
+                .map(|value| value.id())
+                .collect::<Vec<_>>();
 
-        let function = tree.get(function_id);
-        let liveness = LivenessTable::analyse(function, &tree);
-        let entry = function.entry().expect("missing entry");
-        let local = function.local(0);
-        let instructions = tree.get(entry).instructions.clone();
-
-        let mut live = liveness.cursor(&tree, entry);
-
-        // retain the entry parameter before the defining local store
-        assert_eq!(
-            live.values().collect::<FxIndexSet<_>>(),
-            FxIndexSet::from_iter([Value::new(0)])
-        );
-        assert!(!live.contains_local(local));
-        live.advance(tree.get(instructions[0]), &tree);
-
-        // retain the local until its final load
-        assert_eq!(
-            live.values().collect::<FxIndexSet<_>>(),
-            FxIndexSet::from_iter([Value::new(0)])
-        );
-        assert!(live.contains_local(local));
-        live.advance(tree.get(instructions[1]), &tree);
-
-        // retain SSA operands until the arithmetic operation
-        assert_eq!(
-            live.values().collect::<FxIndexSet<_>>(),
-            FxIndexSet::from_iter([Value::new(0), Value::new(1)])
-        );
-        assert!(!live.contains_local(local));
-        live.advance(tree.get(instructions[2]), &tree);
-
-        // retain only the return value before the terminator
-        assert_eq!(
-            live.values().collect::<FxIndexSet<_>>(),
-            FxIndexSet::from_iter([Value::new(2)])
-        );
-        assert!(!live.contains_local(local));
+            assert_eq!(actual_in, incoming, "block {index} entry");
+            assert_eq!(actual_out, outgoing, "block {index} exit");
+        }
     }
 }

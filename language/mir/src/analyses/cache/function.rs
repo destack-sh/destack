@@ -114,12 +114,12 @@ impl FunctionCache {
         }
 
         // analyse the required inputs
-        let control = self.control(function, tree);
+        let uses = self.uses(function, tree);
 
         // analyse and cache the result
         let result = Arc::new(ConstantTable::analyse(
             function,
-            &control,
+            &uses,
             self.target_layout(),
             tree,
         ));
@@ -213,7 +213,8 @@ impl FunctionCache {
         }
 
         // analyse and cache the result
-        let result = Arc::new(LivenessTable::analyse(function, tree));
+        let control = self.control(function, tree);
+        let result = Arc::new(LivenessTable::analyse(function, &control, tree));
         self.liveness = Some(result.clone());
 
         result
