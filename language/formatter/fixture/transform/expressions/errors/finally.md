@@ -35,3 +35,48 @@ try {
     cleanup()
 }
 ```
+
+### comments before catch and finally
+
+Keep comments before their clauses.
+
+```ds
+try { foo() }
+// recover
+catch (error) { handle(error) }
+// clean up
+finally { cleanup() }
+```
+
+```ds expected
+try {
+    foo()
+}
+// recover
+catch (error) {
+    handle(error)
+}
+// clean up
+finally {
+    cleanup()
+}
+```
+
+### comment after finally
+
+Keep the comment between the keyword and its body.
+
+```ds
+try { foo() } finally
+// clean up
+{ cleanup() }
+```
+
+```ds expected
+try {
+    foo()
+} finally // clean up
+{
+    cleanup()
+}
+```

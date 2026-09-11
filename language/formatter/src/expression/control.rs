@@ -1310,6 +1310,28 @@ pub(crate) fn format_loop_expression<'ast>(
     format_statement_body_block(f, body)
 }
 
+/// Write a catch or finally keyword after its leading comments.
+fn write_try_clause_keyword<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    keyword: Keyword,
+    start: u32,
+) -> FormatResult<()> {
+    let comments = f.context().comments().comments_before(start).to_vec();
+    if comments.is_empty() {
+        write!(f, [space()])?;
+    } else {
+        write!(
+            f,
+            [
+                hard_line_break(),
+                FormatLeadingComments::Comments(&comments)
+            ]
+        )?;
+    }
+
+    write!(f, [keyword])
+}
+
 /// Write one catch parameter inside parentheses.
 fn write_catch_parameter<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1354,8 +1376,9 @@ pub(crate) fn format_try_expression<'ast>(
 
     // catch block
     if let Some(catch) = catch {
+        let start = f.context().node_token_start(catch);
+        write_try_clause_keyword(f, Keyword::Catch, start)?;
         let catch = f.context().tree.get(catch);
-        write!(f, [space(), Keyword::Catch])?;
         if let Some(catch_pattern) = catch.pattern {
             write!(f, [space()])?;
             write_catch_parameter(f, catch_pattern, catch.ty)?;
@@ -1365,7 +1388,14 @@ pub(crate) fn format_try_expression<'ast>(
 
     // finally block
     if let Some(finally) = finally {
-        write!(f, [space(), Keyword::Finally])?;
+        let start = f.context().node_token_start(finally);
+        let keyword =
+            f.context()
+                .token_before_token_start(start)
+                .ok_or(FormatError::SyntaxError {
+                    message: "missing finally keyword",
+                })?;
+        write_try_clause_keyword(f, Keyword::Finally, keyword.span.start)?;
         write_try_branch_after_keyword(f, finally, force_expanded_branches)?;
     }
 
