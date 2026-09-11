@@ -6,16 +6,10 @@ use std::path::Path;
 use crate::sema::{CheckState, GenericTemplateId, VariableKind};
 use crate::{CompilerError, CompilerResult};
 
-/// Nesting depth after which formatted types elide their details.
-const FORMAT_DEPTH: usize = 4;
-
-/// Element count after which formatted lists elide their tails.
-const FORMAT_WIDTH: usize = 4;
-
 impl CheckState<'_> {
     /// Format one type for diagnostics.
     pub(in crate::sema) fn format_type(&self, id: dir::GlobalTypeId) -> String {
-        self.format_depth(id, FORMAT_DEPTH)
+        self.format_type_recursive(None, id, &mut Vec::new())
             .unwrap_or_else(|error| unreachable!("check type formatting failed: {error:?}"))
     }
 
@@ -25,30 +19,25 @@ impl CheckState<'_> {
         module: ModuleId,
         id: dir::GlobalTypeId,
     ) -> String {
-        self.format_depth_at(Some(module), id, FORMAT_DEPTH)
+        self.format_type_recursive(Some(module), id, &mut Vec::new())
             .unwrap_or_else(|error| unreachable!("check type formatting failed: {error:?}"))
     }
 
-    /// Format one type up to a nesting depth.
-    fn format_depth(&self, id: dir::GlobalTypeId, depth: usize) -> CompilerResult<String> {
-        self.format_depth_at(None, id, depth)
-    }
-
     /// Format one type relative to an optional source module.
-    fn format_depth_at(
+    fn format_type_recursive(
         &self,
         module: Option<ModuleId>,
         id: dir::GlobalTypeId,
-        depth: usize,
+        active: &mut Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<String> {
-        // elide the details past the depth limit
-        if depth == 0 {
-            return Ok("…".to_string());
-        }
-
-        // resolve the root before rendering it
+        // reject recursive expansion of the same resolved type
         let id = self.shallow_resolve(id)?;
-        let next = depth - 1;
+        if active.contains(&id) {
+            return Err(CompilerError::Internal {
+                message: format!("recursive type formatting: {id:?}"),
+            });
+        }
+        active.push(id);
 
         // render by the type's own head
         let rendered = match self.ty(id)? {
@@ -72,19 +61,33 @@ impl CheckState<'_> {
             dir::Type::Key(key) => self.format_key_type(&key),
             dir::Type::Region(region) => format!(
                 "{} & {}",
-                self.format_depth(region.extent, next)?,
-                self.format_depth(region.space, next)?
+                self.format_type_recursive(module, region.extent, active)?,
+                self.format_type_recursive(module, region.space, active)?
             ),
             dir::Type::Static(value) => self.format_static(value),
             dir::Type::Range(range) => self.format_range(&range),
 
             dir::Type::Parameter(parameter) => self.format_parameter(parameter),
             dir::Type::Reference(reference) => {
-                self.format_symbol_path_maybe_at(module, reference.symbol)
+                let name = self.format_symbol_path_maybe_at(module, reference.symbol);
+                let name = if reference.arguments.is_empty() {
+                    name
+                } else {
+                    let arguments = self.type_ids(id.module_id, reference.arguments)?;
+                    let arguments = self.format_list_at(module, arguments, active)?;
+
+                    format!("{name}<{arguments}>")
+                };
+                let bindings = Self::reached(self.binding_table(reference.symbol.module_id));
+                if bindings.get_symbol(reference.symbol.local_id).kind == dir::SymbolKind::Class {
+                    format!("typeof {name}")
+                } else {
+                    name
+                }
             }
             // render array applications in their written element form
             dir::Type::Application(_) if let Some(element) = self.array_element(id)? => {
-                let element = self.format_depth_at(module, element, next)?;
+                let element = self.format_type_recursive(module, element, active)?;
 
                 format!("{element}[]")
             }
@@ -94,23 +97,23 @@ impl CheckState<'_> {
                     name
                 } else {
                     let arguments = self.type_ids(id.module_id, instance.arguments)?;
-                    let arguments = self.format_list_at(module, arguments, next)?;
+                    let arguments = self.format_list_at(module, arguments, active)?;
 
                     format!("{name}<{arguments}>")
                 }
             }
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
-                let owner = self.format_depth_at(module, member.owner, next)?;
+                let owner = self.format_type_recursive(module, member.owner, active)?;
                 let key = self.format_static_key(&member.key);
 
                 format!("{owner}.{key}")
             }
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(id.module_id, refined)?;
-                let base = self.format_depth_at(module, refined.base, next)?;
+                let base = self.format_type_recursive(module, refined.base, active)?;
                 let key = self.format_static_key(&refined.key);
-                let value = self.format_depth_at(module, refined.value, next)?;
+                let value = self.format_type_recursive(module, refined.value, active)?;
 
                 format!("{base}<type {key} = {value}>")
             }
@@ -122,23 +125,27 @@ impl CheckState<'_> {
             dir::Type::Slice(slice) => {
                 format!(
                     "Slice<{}>",
-                    self.format_depth_at(module, slice.element, next)?
+                    self.format_type_recursive(module, slice.element, active)?
                 )
             }
             dir::Type::FixedArray(array) => {
-                let element = self.format_depth_at(module, array.element, next)?;
-                let count = self.format_depth_at(module, array.count, next)?;
+                let element = self.format_type_recursive(module, array.element, active)?;
+                let count = self.format_type_recursive(module, array.count, active)?;
 
                 format!("FixedArray<{element}, {count}>")
             }
             dir::Type::Tuple(tuple) => {
-                let elements = self
-                    .tuple_elements(id.module_id, tuple.elements)?
-                    .iter()
-                    .map(|element| element.ty)
-                    .collect::<Vec<_>>();
+                // retain each element's arity in the displayed tuple
+                let elements = self.tuple_elements(id.module_id, tuple.elements)?;
+                let mut formatted = Vec::new();
+                for element in elements.iter() {
+                    let ty = self.format_type_recursive(module, element.ty, active)?;
+                    let rest = if element.is_rest { "..." } else { "" };
+                    let optional = if element.is_optional { "?" } else { "" };
+                    formatted.push(format!("{rest}{ty}{optional}"));
+                }
 
-                format!("({})", self.format_list_at(module, &elements, next)?)
+                format!("({})", formatted.join(", "))
             }
 
             dir::Type::Object(shape) => {
@@ -146,39 +153,39 @@ impl CheckState<'_> {
                 let index_signatures =
                     self.object_index_signatures(id.module_id, shape.index_signatures)?;
 
-                // render each property up to the width
+                // render each property
                 let mut fields = Vec::new();
-                for property in object_properties.iter().take(FORMAT_WIDTH) {
+                for property in object_properties.iter() {
                     let key = self.format_static_key(&property.key);
                     let optional = if property.is_optional { "?" } else { "" };
 
                     fields.push(match property.access {
                         dir::PropertyAccess::Read(ty) => {
-                            let ty = self.format_depth_at(module, ty, next)?;
+                            let ty = self.format_type_recursive(module, ty, active)?;
 
                             format!("readonly {key}{optional}: {ty}")
                         }
                         dir::PropertyAccess::Write(ty) => {
-                            let ty = self.format_depth_at(module, ty, next)?;
+                            let ty = self.format_type_recursive(module, ty, active)?;
 
                             format!("set {key}(value: {ty})")
                         }
                         dir::PropertyAccess::ReadWrite { read, write } if read == write => {
-                            let ty = self.format_depth_at(module, read, next)?;
+                            let ty = self.format_type_recursive(module, read, active)?;
 
                             format!("{key}{optional}: {ty}")
                         }
                         dir::PropertyAccess::ReadWrite { read, write } => {
-                            let read = self.format_depth_at(module, read, next)?;
-                            let write = self.format_depth_at(module, write, next)?;
+                            let read = self.format_type_recursive(module, read, active)?;
+                            let write = self.format_type_recursive(module, write, active)?;
 
                             format!("get {key}(): {read}; set {key}(value: {write})")
                         }
                     });
                 }
 
-                // render the index signatures in the width the properties left
-                for signature in index_signatures.iter().take(FORMAT_WIDTH - fields.len()) {
+                // render each index signature
+                for signature in index_signatures.iter() {
                     let readonly = if signature.is_readonly {
                         "readonly "
                     } else {
@@ -186,16 +193,10 @@ impl CheckState<'_> {
                     };
                     let optional = if signature.is_optional { "?" } else { "" };
                     let name = self.text(signature.name);
-                    let key = self.format_depth_at(module, signature.key_type, next)?;
-                    let value = self.format_depth_at(module, signature.value_type, next)?;
+                    let key = self.format_type_recursive(module, signature.key_type, active)?;
+                    let value = self.format_type_recursive(module, signature.value_type, active)?;
 
                     fields.push(format!("{readonly}[{name}: {key}]{optional}: {value}"));
-                }
-
-                // mark the fields left out of the width
-                let field_count = object_properties.len() + index_signatures.len();
-                if field_count > FORMAT_WIDTH {
-                    fields.push("…".to_string());
                 }
 
                 // render an empty shape as braces
@@ -211,17 +212,20 @@ impl CheckState<'_> {
                     self.signature_parameters(id.module_id, function.parameters)?;
 
                 let mut parameters = Vec::new();
-                for parameter in signature_parameters.iter().take(FORMAT_WIDTH) {
-                    parameters.push(self.format_function_parameter_at(module, parameter, next)?);
-                }
-                if signature_parameters.len() > FORMAT_WIDTH {
-                    parameters.push("…".to_string());
+                for parameter in signature_parameters.iter() {
+                    parameters.push(self.format_function_parameter_at(module, parameter, active)?);
                 }
                 let result = match function.return_type {
-                    Some(return_type) => self.format_depth_at(module, return_type, next)?,
+                    Some(return_type) => self.format_type_recursive(module, return_type, active)?,
                     None => "void".to_string(),
                 };
-                let generic = self.format_generic_parameters_at(module, function.template, next)?;
+                let arguments = self.signature_arguments(id.module_id, function.arguments)?;
+                let generic = self.format_generic_parameters_at(
+                    module,
+                    function.template,
+                    arguments,
+                    active,
+                )?;
                 let construct = match function.is_construct {
                     true => "new ",
                     false => "",
@@ -235,7 +239,7 @@ impl CheckState<'_> {
             // print the receiver the stdlib elides as the bare signature
             dir::Type::Function(function) => match self.receiver_mode(function.receiver)? {
                 mode if mode.is_elided() => {
-                    self.format_depth_at(module, function.signature, next)?
+                    self.format_type_recursive(module, function.signature, active)?
                 }
                 mode => {
                     let receiver = format!("\"{}\"", mode.text());
@@ -245,7 +249,7 @@ impl CheckState<'_> {
                         "Function",
                         function.signature,
                         Some(&receiver),
-                        next,
+                        active,
                     )?
                 }
             },
@@ -254,18 +258,15 @@ impl CheckState<'_> {
                 "FunctionPointer",
                 function.signature,
                 None,
-                next,
+                active,
             )?,
 
             dir::Type::Union(union) => {
                 let union_elements = self.type_ids(id.module_id, union.elements)?;
 
                 let mut elements = Vec::new();
-                for element in union_elements.iter().copied().take(FORMAT_WIDTH) {
-                    elements.push(self.format_depth_at(module, element, next)?);
-                }
-                if union_elements.len() > FORMAT_WIDTH {
-                    elements.push("…".to_string());
+                for element in union_elements.iter().copied() {
+                    elements.push(self.format_type_recursive(module, element, active)?);
                 }
 
                 elements.join(" | ")
@@ -274,30 +275,29 @@ impl CheckState<'_> {
                 let intersection_elements = self.type_ids(id.module_id, intersection.elements)?;
 
                 let mut elements = Vec::new();
-                for element in intersection_elements.iter().copied().take(FORMAT_WIDTH) {
-                    elements.push(self.format_depth_at(module, element, next)?);
-                }
-                if intersection_elements.len() > FORMAT_WIDTH {
-                    elements.push("…".to_string());
+                for element in intersection_elements.iter().copied() {
+                    elements.push(self.format_type_recursive(module, element, active)?);
                 }
 
                 elements.join(" & ")
             }
 
-            dir::Type::Form(form) => self.format_form_at(module, id.module_id, &form, next)?,
+            dir::Type::Form(form) => self.format_form_at(module, id.module_id, &form, active)?,
             dir::Type::Dynamic(dynamic) => {
                 format!(
                     "Dynamic<{}>",
-                    self.format_depth_at(module, dynamic.constraint, next)?
+                    self.format_type_recursive(module, dynamic.constraint, active)?
                 )
             }
 
             dir::Type::Operation(operation) => {
                 let operation = self.type_operation(id.module_id, operation)?;
 
-                self.format_operation_at(module, id.module_id, &operation, next)?
+                self.format_operation_at(module, id.module_id, &operation, active)?
             }
         };
+
+        active.pop();
 
         Ok(rendered)
     }
@@ -307,14 +307,11 @@ impl CheckState<'_> {
         &self,
         module: Option<ModuleId>,
         ids: &[dir::GlobalTypeId],
-        depth: usize,
+        active: &mut Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<String> {
         let mut formatted = Vec::new();
-        for id in ids.iter().take(FORMAT_WIDTH) {
-            formatted.push(self.format_depth_at(module, *id, depth)?);
-        }
-        if ids.len() > FORMAT_WIDTH {
-            formatted.push("…".to_string());
+        for id in ids.iter() {
+            formatted.push(self.format_type_recursive(module, *id, active)?);
         }
 
         Ok(formatted.join(", "))
@@ -325,7 +322,8 @@ impl CheckState<'_> {
         &self,
         module: Option<ModuleId>,
         template: Option<dir::GlobalGenericTemplateId>,
-        depth: usize,
+        arguments: &[dir::GenericArgumentBinding],
+        active: &mut Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<String> {
         let Some(template_id) = template else {
             return Ok(String::new());
@@ -341,6 +339,12 @@ impl CheckState<'_> {
         let mut parameters = Vec::new();
         for parameter in declared {
             let parameter = parameter.into_global(template_id.module_id);
+            if arguments
+                .iter()
+                .any(|binding| binding.parameter == parameter)
+            {
+                continue;
+            }
             let binding = self.generic_parameter(parameter)?.cloned().ok_or_else(|| {
                 CompilerError::Internal {
                     message: format!("callable parameter {parameter:?} is missing"),
@@ -374,11 +378,11 @@ impl CheckState<'_> {
 
             // render the declared bound and default
             if let Some(constraint) = binding.constraint {
-                let constraint = self.format_depth_at(module, constraint, depth)?;
+                let constraint = self.format_type_recursive(module, constraint, active)?;
                 label = format!("{label}: {constraint}");
             }
             if let Some(default) = binding.default {
-                let default = self.format_depth_at(module, default, depth)?;
+                let default = self.format_type_recursive(module, default, active)?;
                 label = format!("{label} = {default}");
             }
             parameters.push(label);
@@ -399,12 +403,12 @@ impl CheckState<'_> {
         head: &str,
         signature: dir::GlobalTypeId,
         tail: Option<&str>,
-        depth: usize,
+        active: &mut Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<String> {
         // read the signature the callable applies
         let signature_id = self.shallow_resolve(signature)?;
         let Some(signature) = self.signature_head(signature_id)? else {
-            let signature = self.format_depth_at(module, signature, depth)?;
+            let signature = self.format_type_recursive(module, signature, active)?;
 
             return Ok(match tail {
                 Some(tail) => format!("{head}<{signature}, {tail}>"),
@@ -414,20 +418,12 @@ impl CheckState<'_> {
         let signature_parameters =
             self.signature_parameters(signature_id.module_id, signature.parameters)?;
 
-        // render the parameters up to the width
+        // render each parameter
         let mut parameters = Vec::new();
-        for parameter in signature_parameters
-            .iter()
-            .take(FORMAT_WIDTH)
-            .cloned()
-            .collect::<Vec<_>>()
-        {
-            let parameter = self.format_function_parameter_at(module, &parameter, depth)?;
+        for parameter in signature_parameters {
+            let parameter = self.format_function_parameter_at(module, parameter, active)?;
 
             parameters.push(parameter);
-        }
-        if signature_parameters.len() > FORMAT_WIDTH {
-            parameters.push("…".to_string());
         }
 
         // render a lone parameter with a trailing comma
@@ -437,7 +433,7 @@ impl CheckState<'_> {
             _ => format!("({})", parameters.join(", ")),
         };
         let result = match signature.return_type {
-            Some(return_type) => self.format_depth_at(module, return_type, depth)?,
+            Some(return_type) => self.format_type_recursive(module, return_type, active)?,
             None => "void".to_string(),
         };
 
@@ -453,10 +449,10 @@ impl CheckState<'_> {
         &self,
         module: Option<ModuleId>,
         parameter: &dir::FunctionParameterType,
-        depth: usize,
+        active: &mut Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<String> {
         // render the parameter type, spreading a rest parameter
-        let parameter_type = self.format_depth_at(module, parameter.ty, depth)?;
+        let parameter_type = self.format_type_recursive(module, parameter.ty, active)?;
         let parameter_type = if parameter.is_rest {
             format!("...{parameter_type}")
         } else {
@@ -478,9 +474,9 @@ impl CheckState<'_> {
         module: Option<ModuleId>,
         owner: ModuleId,
         form: &dir::FormType,
-        depth: usize,
+        active: &mut Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<String> {
-        let value = self.format_depth_at(module, form.value, depth)?;
+        let value = self.format_type_recursive(module, form.value, active)?;
 
         // render by the form's own constructor
         let rendered = match &form.form {
@@ -588,20 +584,20 @@ impl CheckState<'_> {
         module: Option<ModuleId>,
         owner: ModuleId,
         operation: &dir::TypeOperation,
-        depth: usize,
+        active: &mut Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<String> {
         // render by the operation's own kind
         let rendered = match operation {
             dir::TypeOperation::Conditional(conditional) => format!(
                 "{} extends {} ? {} : {}",
-                self.format_depth_at(module, conditional.left, depth)?,
-                self.format_depth_at(module, conditional.right, depth)?,
-                self.format_depth_at(module, conditional.then_type, depth)?,
-                self.format_depth_at(module, conditional.else_type, depth)?,
+                self.format_type_recursive(module, conditional.left, active)?,
+                self.format_type_recursive(module, conditional.right, active)?,
+                self.format_type_recursive(module, conditional.then_type, active)?,
+                self.format_type_recursive(module, conditional.else_type, active)?,
             ),
             dir::TypeOperation::Narrow(narrow) => {
-                let source = self.format_depth_at(module, narrow.source, depth)?;
-                let target = self.format_depth_at(module, narrow.target, depth)?;
+                let source = self.format_type_recursive(module, narrow.source, active)?;
+                let target = self.format_type_recursive(module, narrow.target, active)?;
                 if narrow.is_positive {
                     format!("Narrow<{source}, {target}>")
                 } else {
@@ -611,34 +607,44 @@ impl CheckState<'_> {
             dir::TypeOperation::KeyOf(unary) => {
                 format!(
                     "keyof {}",
-                    self.format_depth_at(module, unary.target, depth)?
+                    self.format_type_recursive(module, unary.target, active)?
                 )
             }
             dir::TypeOperation::NoInfer(unary) => {
                 format!(
                     "NoInfer<{}>",
-                    self.format_depth_at(module, unary.target, depth)?
+                    self.format_type_recursive(module, unary.target, active)?
                 )
             }
             dir::TypeOperation::Awaited(unary) => {
                 format!(
                     "Awaited<{}>",
-                    self.format_depth_at(module, unary.target, depth)?
+                    self.format_type_recursive(module, unary.target, active)?
                 )
             }
             dir::TypeOperation::Index(index) => format!(
                 "{}[{}]",
-                self.format_depth_at(module, index.left, depth)?,
-                self.format_depth_at(module, index.index, depth)?,
+                self.format_type_recursive(module, index.left, active)?,
+                self.format_type_recursive(module, index.index, active)?,
             ),
             dir::TypeOperation::TypeOf(query) => {
-                format!("typeof {}", self.format_type_query(query.value))
+                format!("typeof {}", self.format_symbol(query.symbol))
+            }
+            dir::TypeOperation::Instantiation(application) => {
+                let target = self.format_type_recursive(module, application.target, active)?;
+                let mut arguments = Vec::new();
+                for argument in self.type_ids(owner, application.arguments)? {
+                    arguments.push(self.format_type_recursive(module, *argument, active)?);
+                }
+                let arguments = arguments.join(", ");
+
+                format!("{target}<{arguments}>")
             }
             dir::TypeOperation::StaticBinary(binary) => format!(
                 "{} {} {}",
-                self.format_depth_at(module, binary.left, depth)?,
+                self.format_type_recursive(module, binary.left, active)?,
                 format_static_binary_operator(binary.operator),
-                self.format_depth_at(module, binary.right, depth)?,
+                self.format_type_recursive(module, binary.right, active)?,
             ),
             dir::TypeOperation::StaticUnary(unary) => {
                 let operator = match unary.operator {
@@ -649,17 +655,23 @@ impl CheckState<'_> {
 
                 format!(
                     "{operator}{}",
-                    self.format_depth_at(module, unary.target, depth)?
+                    self.format_type_recursive(module, unary.target, active)?
                 )
             }
             dir::TypeOperation::TryOutput { value } => {
-                format!("Output<{}>", self.format_depth_at(module, *value, depth)?)
+                format!(
+                    "Output<{}>",
+                    self.format_type_recursive(module, *value, active)?
+                )
             }
             dir::TypeOperation::TryResidual { value } => {
-                format!("Residual<{}>", self.format_depth_at(module, *value, depth)?)
+                format!(
+                    "Residual<{}>",
+                    self.format_type_recursive(module, *value, active)?
+                )
             }
             dir::TypeOperation::StringMapping { target, .. } => {
-                self.format_depth_at(module, *target, depth)?
+                self.format_type_recursive(module, *target, active)?
             }
             dir::TypeOperation::Mapped(_) => "{ [mapped] }".to_string(),
             dir::TypeOperation::TemplateLiteral(template) => {
@@ -669,7 +681,7 @@ impl CheckState<'_> {
                 for (index, segment) in strings.iter().enumerate() {
                     rendered.push_str(&self.text(*segment));
                     if let Some(span) = spans.get(index) {
-                        let span = self.format_depth_at(module, *span, depth)?;
+                        let span = self.format_type_recursive(module, *span, active)?;
                         rendered.push_str(&format!("${{{span}}}"));
                     }
                 }
@@ -684,26 +696,6 @@ impl CheckState<'_> {
         };
 
         Ok(rendered)
-    }
-
-    /// Format one type query operand.
-    fn format_type_query(&self, value: dir::GlobalNodeIdAny) -> String {
-        if value.local_id.ty != dir::NodeType::Expression {
-            return self.node_label(value);
-        }
-
-        // render the reference path the value names
-        let id = value.into_typed::<dir::Expression>().local_id;
-        let Some(path) = self.module(value.module_id).view().reference_path(id) else {
-            return self.node_label(value);
-        };
-
-        // join the path segments
-        path.segments
-            .iter()
-            .map(|segment| self.text(*segment))
-            .collect::<Vec<_>>()
-            .join(".")
     }
 
     /// Format one scalar literal type.
