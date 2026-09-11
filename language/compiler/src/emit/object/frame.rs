@@ -37,17 +37,22 @@ impl<'a> FrameEmitter<'a> {
     }
 
     /// Emit every runtime-visible frame state in logical operation order.
-    pub(super) fn emit(&self) -> Result<Vec<FrameState>, EmitError> {
+    pub(super) fn emit(
+        &self,
+        analyses: &mut mir::ModuleCache,
+    ) -> Result<Vec<FrameState>, EmitError> {
         // collect frame states from the emitted functions
         let mut states = Vec::new();
         let points = self.frame_points();
 
         // emit functions in stable MIR identity order
-        for (_, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
+        for (function_id, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
             let Some(body) = &function.body else {
                 continue;
             };
-            let liveness = mir::LivenessTable::analyse(function, &self.optimized.tree);
+
+            // reuse liveness for the immutable optimized function
+            let liveness = analyses.liveness(function_id, &self.optimized.tree);
 
             // materialize exact liveness only at selected frame points
             let mut blocks = body.blocks().to_vec();

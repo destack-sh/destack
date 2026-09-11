@@ -1,6 +1,7 @@
 use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional};
+use destack_mir::ModuleCache;
 use destack_source::ModuleId;
 
 use crate::{EmitError, ObjectEmitter};
@@ -32,7 +33,7 @@ impl<'a> BytecodeEmitter<'a> {
     }
 
     /// Emit one relocatable bytecode object.
-    pub fn emit(&self) -> Result<bytecode::Object, EmitError> {
+    pub fn emit(&self, analyses: &mut ModuleCache) -> Result<bytecode::Object, EmitError> {
         // allocate the bytecode object tables
         let mut frames = Vec::new();
         let mut registers = Vec::new();
@@ -50,6 +51,8 @@ impl<'a> BytecodeEmitter<'a> {
                 continue;
             }
 
+            // reuse the liveness queried during object frame emission
+            let liveness = analyses.liveness(function_id, &self.optimized.tree);
             let emitted = FunctionEmitter::new(
                 self.module,
                 self.optimized,
@@ -57,6 +60,7 @@ impl<'a> BytecodeEmitter<'a> {
                 &self.types,
                 function_id,
                 function,
+                &liveness,
             )?
             .emit()?;
             functions.push(self.append(

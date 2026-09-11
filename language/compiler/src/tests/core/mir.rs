@@ -83,9 +83,10 @@ impl TestProgram {
     #[track_caller]
     pub(crate) fn assert_bytecode(&self, expected: &str) -> Object {
         let optimized = self.optimized();
+        let mut analyses = mir::ModuleCache::with_target_layout(optimized.target);
 
         // emit and format the exact relocatable bytecode object
-        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
+        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new(), &mut analyses)
             .expect("test MIR should emit object metadata");
         let mut function_names = optimized
             .tree
@@ -105,7 +106,7 @@ impl TestProgram {
             .map(|(_, name)| name)
             .collect::<Vec<_>>();
         let bytecode = BytecodeEmitter::new(self.module_id(), &optimized, &object)
-            .emit()
+            .emit(&mut analyses)
             .expect("test MIR should emit bytecode");
         let formatted =
             format_bytecode(&bytecode, &function_names, BytecodeFormatOptions::default())
@@ -121,7 +122,8 @@ impl TestProgram {
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub(crate) fn assert_native(&self, expected: &str) -> destack_native::Object {
         let optimized = self.optimized();
-        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
+        let mut analyses = mir::ModuleCache::with_target_layout(optimized.target);
+        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new(), &mut analyses)
             .expect("test MIR should emit object metadata");
         let emitter = NativeEmitter::new(
             self.module_id(),

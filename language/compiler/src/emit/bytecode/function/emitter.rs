@@ -99,6 +99,7 @@ impl<'a> FunctionEmitter<'a> {
         types: &'a TypeEmitter<'a>,
         function_id: mir::FunctionId,
         function: &'a mir::Function,
+        liveness: &mir::LivenessTable,
     ) -> Result<Self, EmitError> {
         // require a defined function body
         let body = function
@@ -112,7 +113,8 @@ impl<'a> FunctionEmitter<'a> {
             .map(|(index, block)| (*block, bytecode::Label(index as u32)))
             .collect();
         let registers =
-            RegisterAllocator::new(module, optimized, function, types, object)?.build()?;
+            RegisterAllocator::new(module, optimized, function, types, object, liveness)?
+                .build()?;
         let RegisterAllocation {
             register_count,
             values,

@@ -30,12 +30,13 @@ impl TestModule {
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Self {
         let (optimized, strings) = Self::parse(source);
+        let mut analyses = mir::ModuleCache::with_target_layout(optimized.target);
 
         // emit common metadata and relocatable bytecode
-        let object =
-            ObjectEmitter::new(module, &optimized, dependencies).expect("object emission failed");
+        let object = ObjectEmitter::new(module, &optimized, dependencies, &mut analyses)
+            .expect("object emission failed");
         let bytecode = BytecodeEmitter::new(module, &optimized, &object)
-            .emit()
+            .emit(&mut analyses)
             .expect("MIR should emit bytecode");
 
         Self {
@@ -53,12 +54,13 @@ impl TestModule {
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Self {
         let (optimized, strings) = Self::parse(source);
+        let mut analyses = mir::ModuleCache::with_target_layout(optimized.target);
 
         // emit common metadata with canonical bytecode beside native code
-        let object =
-            ObjectEmitter::new(module, &optimized, dependencies).expect("object emission failed");
+        let object = ObjectEmitter::new(module, &optimized, dependencies, &mut analyses)
+            .expect("object emission failed");
         let bytecode = BytecodeEmitter::new(module, &optimized, &object)
-            .emit()
+            .emit(&mut analyses)
             .expect("MIR should emit bytecode");
         let native = NativeEmitter::new(
             module,

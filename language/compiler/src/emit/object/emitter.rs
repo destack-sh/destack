@@ -44,6 +44,7 @@ impl ObjectEmitter {
         module: ModuleId,
         optimized: &MirOptimized,
         dependencies: impl IntoIterator<Item = ModuleId>,
+        analyses: &mut mir::ModuleCache,
     ) -> Result<Self, EmitError> {
         // assign stable object type identities
         let mut types = Vec::new();
@@ -143,7 +144,7 @@ impl ObjectEmitter {
         // collect the execution sites and frames under object-local identities
         let points = PointMap::build(optimized);
         let sites = SiteEmitter::emit(module, optimized, &points)?;
-        let frames = FrameEmitter::new(module, optimized, &points, &sites).emit()?;
+        let frames = FrameEmitter::new(module, optimized, &points, &sites).emit(analyses)?;
         let allocation_points = sites.allocations.iter().map(|site| site.point).collect();
 
         // build the object state shared by every execution form

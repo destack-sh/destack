@@ -4,6 +4,7 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirOptimized,
     Output,
 };
+use destack_mir::ModuleCache;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 
@@ -206,18 +207,22 @@ impl Compiler {
             .read::<DirResolved>((module, profile))
             .map_err(CompilerError::from)?;
 
-        // collect imports and create the relocatable object
+        // collect resolved imports
         let modules = resolved
             .target_modules()
             .filter(|target| *target != module)
             .collect::<Vec<_>>();
-        let mut object = ObjectEmitter::new(module, &optimized, modules)?;
+
+        // share analyses across object and code emission
+        let mut analyses = ModuleCache::with_target_layout(optimized.target);
+        let mut object = ObjectEmitter::new(module, &optimized, modules, &mut analyses)?;
 
         // emit every representation selected by this Program target
         for code in target_config.code.iter().copied() {
             object = match code {
                 Code::Bytecode => {
-                    let bytecode = BytecodeEmitter::new(module, &optimized, &object).emit()?;
+                    let bytecode =
+                        BytecodeEmitter::new(module, &optimized, &object).emit(&mut analyses)?;
 
                     object.bytecode(bytecode)
                 }

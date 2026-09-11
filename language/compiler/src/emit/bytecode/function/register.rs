@@ -32,8 +32,8 @@ pub(crate) struct RegisterAllocator<'a> {
     types: &'a TypeEmitter<'a>,
     /// Common object operation order.
     object: &'a ObjectEmitter,
-    /// CFG-correct MIR value liveness.
-    liveness: mir::LivenessTable,
+    /// Cached liveness of the optimized MIR function.
+    liveness: &'a mir::LivenessTable,
     /// Bytecode value types keyed by MIR value.
     value_types: Vec<Option<bytecode::ValueType>>,
     /// Assigned register ranges keyed by MIR value.
@@ -74,6 +74,7 @@ impl<'a> RegisterAllocator<'a> {
         function: &'a mir::Function,
         types: &'a TypeEmitter<'a>,
         object: &'a ObjectEmitter,
+        liveness: &'a mir::LivenessTable,
     ) -> Result<Self, EmitError> {
         // project every MIR value into its fixed bytecode representation
         let body = function
@@ -110,7 +111,7 @@ impl<'a> RegisterAllocator<'a> {
             function,
             types,
             object,
-            liveness: mir::LivenessTable::analyse(function, &optimized.tree),
+            liveness,
             value_types,
             ranges: vec![None; value_count],
             reserved_word_count,
