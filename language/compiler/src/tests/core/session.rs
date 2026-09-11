@@ -4,9 +4,10 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::{env, thread};
 
 use destack_artifact::{
-    Artifact, ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound,
-    DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, DirView, EnvironmentBound, MirElaborated, MirLowered, ModuleGraph,
+    Artifact, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion,
+    BuildId, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, DirView, EnvironmentBound, MirElaborated,
+    MirLowered, ModuleGraph,
 };
 use destack_core::BlobStore;
 use destack_dir as dir;
@@ -449,9 +450,8 @@ impl TestSession {
     #[track_caller]
     pub(crate) fn assert_mir_diagnostics(&self, path: &str, expected: &str) {
         let key = self.mir_lowered_key(path);
-        let _ = self.require_artifact_result(key);
 
-        assert_snapshot(self.diagnostic_snapshot_for(&[key]), expected);
+        self.assert_diagnostics(key, expected);
     }
 
     /// Assert the diagnostics of one module's verified MIR.
@@ -459,12 +459,9 @@ impl TestSession {
     pub(crate) fn assert_mir_verified_diagnostics(&self, path: &str, expected: &str) {
         let entry = self.module_entry(path);
         let target = TargetId::new(entry.module.package_id, "native");
-        let lowered = ArtifactKey::mir_lowered(entry.module.id, entry.profile, target);
         let key = ArtifactKey::mir_verified(entry.module.id, entry.profile, target);
-        let _ = self.require_artifact_result(key);
 
-        // include lowering failures so a verify assertion never passes vacuously
-        assert_snapshot(self.diagnostic_snapshot_for(&[lowered, key]), expected);
+        self.assert_diagnostics(key, expected);
     }
 
     /// Return one successfully lowered MIR artifact.
@@ -923,8 +920,15 @@ impl TestSession {
     pub(crate) fn assert_diagnostics(&self, key: ArtifactKey, expected: &str) {
         self.print_trace_if_requested("diagnostics");
 
-        // diagnostics read stored collections, so the artifact builds first
-        self.require_artifact(key);
+        // require the selected artifact to complete or report its own diagnostics
+        match self.require_artifact_result(key) {
+            Ok(_) => {}
+            Err(SessionError::ArtifactFailed {
+                key: failed,
+                failure,
+            }) if failed == key && matches!(*failure, ArtifactFailure::Diagnostics) => {}
+            Err(error) => panic!("test artifact failed: {error}"),
+        }
 
         assert_snapshot(self.diagnostic_snapshot(key), expected);
     }
@@ -1204,6 +1208,11 @@ impl TestSession {
         selection: DirRows,
         materialized: bool,
     ) -> String {
+        // provide the highest requested stage before reading its component tables
+        self.require_artifact(match materialized {
+            true => ArtifactKey::dir_materialized(entry.module.id, entry.profile),
+            false => ArtifactKey::dir_checked(entry.module.id, entry.profile),
+        });
         let parsed = self.dir_parsed(entry);
         let expanded = self.dir_expanded(entry);
         let checked = self.dir_view(entry.module.id, entry.profile, false);
@@ -1342,10 +1351,6 @@ impl TestSession {
     /// Return one module's stages stacked through checked, or through materialized.
     fn dir_view(&self, module_id: ModuleId, profile: ProfileId, materialized: bool) -> DirView {
         let key = (module_id, profile);
-        self.require_artifact(match materialized {
-            true => ArtifactKey::dir_materialized(module_id, profile),
-            false => ArtifactKey::dir_checked(module_id, profile),
-        });
         let reader = self.repository.artifact_reader(self.revision());
         DirView::new(
             reader.read::<DirParsed>(module_id).unwrap_or_else(read),
@@ -1665,8 +1670,14 @@ impl TestSession {
         dir::TypeTable<'static>,
         dir::StaticTable<'static>,
     )> {
-        // stack each foreign module's declared and checked tables
+        // provide foreign modules together before reading their tables
         let externals = self.entry_external_modules(entry);
+        self.require_all(
+            externals
+                .iter()
+                .map(|module| ArtifactKey::dir_checked(*module, entry.profile)),
+        )
+        .expect("foreign checked artifacts should provide");
 
         externals
             .into_iter()
