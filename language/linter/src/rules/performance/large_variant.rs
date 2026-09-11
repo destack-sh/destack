@@ -50,7 +50,14 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
 
     // inspect every declared variant representation
     for (declaration_id, declaration) in tree.iter_nodes::<mir::TypeDeclaration>() {
-        let Some(variant) = select_variant_layout(declaration.ty, tree, layouts)? else {
+        // open templates have no single storage size
+        if !declaration.generics.is_empty() {
+            continue;
+        }
+        let Some(definition) = declaration.definition else {
+            continue;
+        };
+        let Some(variant) = select_variant_layout(definition, tree, layouts)? else {
             continue;
         };
         let Some(excess) = measure_largest_case_excess(variant, layouts)? else {

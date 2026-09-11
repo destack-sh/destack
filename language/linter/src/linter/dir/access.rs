@@ -90,6 +90,7 @@ impl DirModule<'_> {
                 && (occurrence.uses.may_mutate()
                     || occurrence.uses.contains(dir::BindingUse::MUTABLE)
                     || occurrence.uses.contains(dir::BindingUse::MOVE)
+                    || occurrence.uses.contains(dir::BindingUse::EXCLUSIVE)
                     || occurrence.uses.contains(dir::BindingUse::CAPTURE))
         });
         if has_incompatible_use {

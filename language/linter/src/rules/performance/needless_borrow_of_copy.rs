@@ -50,6 +50,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let dir::TypeExpression::BorrowedOf {
             lifetime,
             mutability,
+            exclusivity,
             target_type,
             ..
         } = view.get(declared_type)
@@ -57,7 +58,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
         let access = mutability.unwrap_or(dir::Mutability::Mutable).access();
-        if access != dir::Access::Readonly {
+        if access != dir::Access::Readonly || *exclusivity == Some(dir::Exclusivity::Exclusive) {
             continue;
         }
         if let Some(lifetime) = lifetime
@@ -145,14 +146,18 @@ function negate(value: boolean): boolean {
         );
     }
 
-    /// Preserve mutable scalar borrows that can update caller storage.
+    /// Preserve scalar borrows that require mutation or exclusion.
     #[test]
-    fn test_accepts_mutable_borrow() {
+    fn test_accepts_required_borrows() {
         let session = TestSession::dir(
             &NEEDLESS_BORROW_OF_COPY,
             r#"
 function increment(value: &int32): void {
     *value += 1;
+}
+
+function read(value: &readonly exclusive int32): int32 {
+    return *value;
 }
 "#,
         );

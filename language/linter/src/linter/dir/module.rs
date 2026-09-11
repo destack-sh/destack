@@ -156,12 +156,7 @@ impl<'a> DirModule<'a> {
 
     /// Return whether the value one node carries copies, by the verdict sema recorded.
     pub(crate) fn satisfies_copy(&self, ty: dir::GlobalTypeId) -> Result<bool, ProviderError> {
-        let ty = self.dir.strip_form(ty)?;
-
-        // a type sema never visited has no verdict and raises no lint
-        self.dir.read_declaration_tables(ty.module_id, |tables| {
-            Ok(tables.representations.copies(ty).unwrap_or(false))
-        })
+        Ok(self.dir.copies(ty)? == Some(true))
     }
 
     /// Return whether one node cannot complete normally.

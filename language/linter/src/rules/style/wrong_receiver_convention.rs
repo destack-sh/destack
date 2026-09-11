@@ -38,14 +38,14 @@ struct Buffer {
     }
 }
 
-/// The authored ownership behavior of one receiver parameter.
+/// The checked ownership behavior of one receiver parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReceiverForm {
     /// A receiver consumed by value.
     Value,
     /// A receiver observed through readonly borrowing.
     Readonly,
-    /// A receiver borrowed with mutable or exclusive access.
+    /// A receiver borrowed with mutable access.
     Mutable,
 }
 
@@ -115,19 +115,11 @@ fn receiver_form(
     module: &DirModule<'_>,
 ) -> Result<Option<ReceiverForm>, ProviderError> {
     // read the explicit receiver type or its checked implicit binding
-    let (type_id, declared_type) = if let Some(parameter) = signature.this_parameter {
+    let type_id = if let Some(parameter) = signature.this_parameter {
         let Some(declared_type) = module.view().get(parameter).declared_type() else {
             return Ok(None);
         };
-        if matches!(
-            module.view().get(declared_type),
-            dir::TypeExpression::This | dir::TypeExpression::OwnedOf { .. }
-        ) {
-            return Ok(Some(ReceiverForm::Value));
-        }
-        let type_id = module.node_type_id(declared_type.into_any())?;
-
-        (type_id, Some(declared_type))
+        module.node_type_id(declared_type.into_any())?
     } else {
         let global = member.into_global_any(module.id);
         let symbol = module
@@ -139,27 +131,22 @@ fn receiver_form(
                 ))
             })?;
         let symbol = symbol.into_global(module.id);
-        let type_id = module.types.get_symbol_type_id(symbol).ok_or_else(|| {
+        module.types.get_symbol_type_id(symbol).ok_or_else(|| {
             ProviderError::internal(format!(
                 "checked implicit receiver {symbol:?} has no reduced type"
             ))
-        })?;
-
-        (type_id, None)
+        })?
     };
-    // retain explicitly mutable borrows and classify every other non-consuming receiver
-    let is_mutable = declared_type.is_some_and(|declared_type| {
-        matches!(
-            module.view().get(declared_type),
-            dir::TypeExpression::BorrowedOf { mutability, .. }
-                if mutability.map(dir::Mutability::access) != Some(dir::Access::Readonly)
-        )
-    });
+
+    // classify reduced ownership and access
     let form = match module.dir.default_ownership(type_id)? {
         Some(dir::Ownership::Owned) => ReceiverForm::Value,
-        Some(dir::Ownership::Borrowed) if is_mutable => ReceiverForm::Mutable,
-        Some(dir::Ownership::Borrowed | dir::Ownership::Managed) => ReceiverForm::Readonly,
-        Some(dir::Ownership::Raw) | None => return Ok(None),
+        Some(dir::Ownership::Borrowed) => match module.dir.borrow_access(type_id)? {
+            Some(dir::Access::Readonly) => ReceiverForm::Readonly,
+            Some(dir::Access::Mutable) => ReceiverForm::Mutable,
+            None => return Ok(None),
+        },
+        Some(dir::Ownership::Managed | dir::Ownership::Raw) | None => return Ok(None),
     };
 
     Ok(Some(form))

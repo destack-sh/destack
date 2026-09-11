@@ -66,7 +66,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                 if matches!(
                     tree.get(ty),
                     mir::Type::Reference {
-                        kind: mir::ReferenceKind::Managed,
+                        kind: mir::Reference::Managed,
                         ..
                     }
                 ) {

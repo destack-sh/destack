@@ -4,6 +4,11 @@ use destack_repository::ProviderError;
 use super::Dir;
 
 impl Dir<'_> {
+    /// Read the Copy decision recorded by the type's module.
+    pub(crate) fn copies(&self, ty: dir::GlobalTypeId) -> Result<Option<bool>, ProviderError> {
+        self.read_declaration_tables(ty.module_id, |tables| Ok(tables.representations.copies(ty)))
+    }
+
     /// Return whether one checked type is a mutable managed reference.
     pub(crate) fn is_mutable_reference(
         &self,
