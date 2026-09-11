@@ -2,7 +2,7 @@ mod traversal;
 
 use proc_macro::TokenStream;
 
-/// Derive one structural type fold.
+/// Derive a structural type visit and fold.
 #[proc_macro_derive(TypeFold)]
 pub fn type_fold(input: TokenStream) -> TokenStream {
     traversal::expand_type(input)

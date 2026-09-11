@@ -214,7 +214,7 @@ pub enum GenericParameterKey {
 /// class Box<T> { ... }            // one template with one parameter
 /// function zip<A, B>(...) { ... } // one template with two parameters
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct GenericTemplate {
     /// The source node that declares this template.
     pub source: GlobalNodeIdAny,
@@ -245,19 +245,6 @@ impl GenericTemplate {
     }
 }
 
-impl TypeFold for GenericTemplate {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        for predicate in &mut self.predicates {
-            predicate.map_types(map)?;
-        }
-
-        Ok(())
-    }
-}
-
 /// One where clause declared on a generic template.
 ///
 /// Instantiation sites prove each predicate and the declaring
@@ -267,7 +254,7 @@ impl TypeFold for GenericTemplate {
 /// ```ds
 /// get<Q: Hash>(key: &readonly Q): V | undefined where K: Borrow<Q>
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct WherePredicate {
     /// The source where clause node.
     pub source: GlobalNodeIdAny,
@@ -279,18 +266,6 @@ pub struct WherePredicate {
     pub right: GlobalTypeId,
 }
 
-impl TypeFold for WherePredicate {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        self.left = map(self.left)?;
-        self.right = map(self.right)?;
-
-        Ok(())
-    }
-}
-
 /// One declaration-side generic parameter.
 ///
 /// Examples:
@@ -298,7 +273,7 @@ impl TypeFold for WherePredicate {
 /// <T: Serializable = string>
 /// <const Size: usize>
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct GenericParameterBinding {
     /// The generic template that owns this parameter.
     pub template: LocalGenericTemplateId,
@@ -342,19 +317,6 @@ pub fn free_region_name<'a>(taken: impl IntoIterator<Item = &'a str>) -> String 
         .unwrap_or_else(|| unreachable!("the free region names are unbounded"))
 }
 
-impl TypeFold for GenericParameterBinding {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        self.ty = map(self.ty)?;
-        self.constraint.map_types(map)?;
-        self.default.map_types(map)?;
-
-        Ok(())
-    }
-}
-
 /// Unique identifier for generic instances.
 #[repr(transparent)]
 #[derive(
@@ -395,7 +357,7 @@ pub struct GlobalInstanceId {
 /// pick<float64>(30.5, 40.5)  // template: pick, arguments: (float64)
 /// Array<int32>               // template: Array, arguments: (int32)
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Instance {
     /// The closed declaration and its generic arguments, in parameter order.
     pub key: InstanceKey,
@@ -403,15 +365,6 @@ pub struct Instance {
     pub source: GlobalNodeIdAny,
     /// The source that introduced this instance.
     pub origin: InstanceOrigin,
-}
-
-impl TypeFold for Instance {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        self.key.map_types(map)
-    }
 }
 
 /// One source introducing a generic instance.

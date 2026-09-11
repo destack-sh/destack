@@ -22,7 +22,7 @@ use crate::{
 /// pick<float64>(30.5)  // symbol: pick, arguments: (float64)
 /// Box<int32>           // symbol: Box, arguments: (int32)
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct InstanceKey {
     /// The selected declaration.
     pub symbol: GlobalSymbolId,
@@ -50,25 +50,6 @@ impl InstanceKey {
         self.receiver = receiver;
 
         self
-    }
-}
-
-impl TypeFold for InstanceKey {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        if let Some(receiver) = &mut self.receiver {
-            *receiver = map(*receiver)?;
-        }
-        for binding in &mut self.arguments {
-            binding.map_types(map)?;
-        }
-        for dependent in &mut self.dependents {
-            *dependent = map(*dependent)?;
-        }
-
-        Ok(())
     }
 }
 

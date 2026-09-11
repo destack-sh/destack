@@ -7,48 +7,59 @@ use syn::{Data, DeriveInput, Fields, GenericParam, Ident, Index, parse_macro_inp
 /// One generated recursive DIR operation.
 #[derive(Clone, Copy)]
 enum Traversal {
-    /// Checked type ids.
-    Type,
-    /// Authored tree node ids.
-    Node,
+    /// Checked type ids rewritten in place.
+    TypeFold,
+    /// Checked type ids read without mutation.
+    TypeVisit,
+    /// Authored tree node ids rewritten in place.
+    NodeFold,
     /// Checked selections.
-    InstanceKey,
+    InstanceKeyVisit,
 }
 
 /// Expand one `TypeFold` derive invocation.
 pub(crate) fn expand_type(input: TokenStream) -> TokenStream {
-    expand(input, Traversal::Type)
+    expand(input, &[Traversal::TypeVisit, Traversal::TypeFold])
 }
 
 /// Expand one `NodeFold` derive invocation.
 pub(crate) fn expand_node(input: TokenStream) -> TokenStream {
-    expand(input, Traversal::Node)
+    expand(input, &[Traversal::NodeFold])
 }
 
 /// Expand one `InstanceKeyVisit` derive invocation.
 pub(crate) fn expand_selection(input: TokenStream) -> TokenStream {
-    expand(input, Traversal::InstanceKey)
+    expand(input, &[Traversal::InstanceKeyVisit])
 }
 
 /// Expand one recursive derive invocation.
-fn expand(input: TokenStream, traversal: Traversal) -> TokenStream {
+fn expand(input: TokenStream, traversals: &[Traversal]) -> TokenStream {
+    // parse the item once for every requested traversal
     let input = parse_macro_input!(input as DeriveInput);
+    let mut output = TokenStream2::new();
 
-    match expand_input(input, traversal) {
-        Ok(tokens) => tokens.into(),
-        Err(error) => error.to_compile_error().into(),
+    // generate each implementation from the same fields
+    for traversal in traversals {
+        match expand_input(&input, *traversal) {
+            Ok(tokens) => output.extend(tokens),
+            Err(error) => return error.to_compile_error().into(),
+        }
     }
+
+    output.into()
 }
 
 /// Expand one parsed recursive derive input.
-fn expand_input(input: DeriveInput, traversal: Traversal) -> syn::Result<TokenStream2> {
-    let ident = input.ident;
+fn expand_input(input: &DeriveInput, traversal: Traversal) -> syn::Result<TokenStream2> {
+    // select the operation and its recursive field traversal
+    let ident = &input.ident;
     let body = body(&input.data, traversal)?;
-    let mut generics = input.generics;
+    let mut generics = input.generics.clone();
     let trait_ident = match traversal {
-        Traversal::Type => quote!(destack_dir::TypeFold),
-        Traversal::Node => quote!(destack_dir::NodeFold),
-        Traversal::InstanceKey => quote!(destack_dir::InstanceKeyVisit),
+        Traversal::TypeFold => quote!(destack_dir::TypeFold),
+        Traversal::TypeVisit => quote!(destack_dir::TypeVisit),
+        Traversal::NodeFold => quote!(destack_dir::NodeFold),
+        Traversal::InstanceKeyVisit => quote!(destack_dir::InstanceKeyVisit),
     };
 
     // require recursive support for each generic type parameter
@@ -61,7 +72,20 @@ fn expand_input(input: DeriveInput, traversal: Traversal) -> syn::Result<TokenSt
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
 
     let implementation = match traversal {
-        Traversal::Type => quote! {
+        Traversal::TypeVisit => quote! {
+            impl #impl_generics destack_dir::TypeVisit for #ident #type_generics #where_clause {
+                fn visit_types<TypeVisitError>(
+                    &self,
+                    visit: &mut impl FnMut(destack_dir::GlobalTypeId)
+                        -> ::core::result::Result<(), TypeVisitError>,
+                ) -> ::core::result::Result<(), TypeVisitError> {
+                    #body
+
+                    ::core::result::Result::Ok(())
+                }
+            }
+        },
+        Traversal::TypeFold => quote! {
             impl #impl_generics destack_dir::TypeFold for #ident #type_generics #where_clause {
                 fn map_types<TypeFoldError>(
                     &mut self,
@@ -75,7 +99,7 @@ fn expand_input(input: DeriveInput, traversal: Traversal) -> syn::Result<TokenSt
                 }
             }
         },
-        Traversal::Node => quote! {
+        Traversal::NodeFold => quote! {
             impl #impl_generics destack_dir::NodeFold for #ident #type_generics #where_clause {
                 fn map_nodes<NodeFoldError>(
                     &mut self,
@@ -89,7 +113,7 @@ fn expand_input(input: DeriveInput, traversal: Traversal) -> syn::Result<TokenSt
                 }
             }
         },
-        Traversal::InstanceKey => quote! {
+        Traversal::InstanceKeyVisit => quote! {
             impl #impl_generics destack_dir::InstanceKeyVisit
                 for #ident #type_generics #where_clause
             {
@@ -120,8 +144,8 @@ fn body(data: &Data, traversal: Traversal) -> syn::Result<TokenStream2> {
                     }
                 };
                 let place = match traversal {
-                    Traversal::Type | Traversal::Node => quote!(&mut #place),
-                    Traversal::InstanceKey => quote!(&#place),
+                    Traversal::TypeFold | Traversal::NodeFold => quote!(&mut #place),
+                    Traversal::TypeVisit | Traversal::InstanceKeyVisit => quote!(&#place),
                 };
 
                 apply(place, traversal)
@@ -175,9 +199,10 @@ fn bindings(fields: &Fields, names: &[Ident]) -> TokenStream2 {
 /// Apply one recursive operation to a field place.
 fn apply(place: TokenStream2, traversal: Traversal) -> TokenStream2 {
     match traversal {
-        Traversal::Type => quote!(destack_dir::TypeFold::map_types(#place, map)?;),
-        Traversal::Node => quote!(destack_dir::NodeFold::map_nodes(#place, map)?;),
-        Traversal::InstanceKey => {
+        Traversal::TypeFold => quote!(destack_dir::TypeFold::map_types(#place, map)?;),
+        Traversal::TypeVisit => quote!(destack_dir::TypeVisit::visit_types(#place, visit)?;),
+        Traversal::NodeFold => quote!(destack_dir::NodeFold::map_nodes(#place, map)?;),
+        Traversal::InstanceKeyVisit => {
             quote!(destack_dir::InstanceKeyVisit::visit_instance_keys(#place, visit);)
         }
     }

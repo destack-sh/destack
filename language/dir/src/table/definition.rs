@@ -196,7 +196,7 @@ pub struct DefinitionSegment {
 }
 
 /// One indexable receiver root, keying extension lookup and conflicts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum TypeRoot {
     /// A declared nominal root.
     Declaration(GlobalSymbolId),
@@ -204,15 +204,6 @@ pub enum TypeRoot {
     Primitive(PrimitiveType),
     /// The tuple constructor root.
     Tuple,
-}
-
-impl TypeFold for TypeRoot {
-    fn map_types<E>(
-        &mut self,
-        _map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        Ok(())
-    }
 }
 
 impl DefinitionSegment {

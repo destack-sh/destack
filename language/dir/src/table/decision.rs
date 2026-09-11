@@ -143,7 +143,7 @@ pub enum AwaitTarget {
 /// readFile(path)?          // Try.branch, then FromResidual.fromResidual at the target
 /// maybeValue?              // a nullish operand branches on its own absent case
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct ResidualDecision {
     /// The transfer target.
     pub target: ResidualTarget,
@@ -156,7 +156,7 @@ pub struct ResidualDecision {
 }
 
 /// One residual transfer target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ResidualTarget {
     /// The enclosing try expression.
     Try(GlobalNodeId<Expression>),
@@ -173,19 +173,8 @@ impl InstanceKeyVisit for ResidualDecision {
     }
 }
 
-impl TypeFold for ResidualDecision {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        self.residual.map_types(map)?;
-        self.branch.map_types(map)?;
-        self.from_residual.map_types(map)
-    }
-}
-
 /// One decided pattern coverage proof.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct CoverageDecision {
     /// Whether the unguarded arms cover the scrutinee.
     pub is_exhaustive: bool,
@@ -197,15 +186,6 @@ pub struct CoverageDecision {
 
 impl InstanceKeyVisit for CoverageDecision {
     fn visit_instance_keys(&self, _visit: &mut dyn FnMut(&InstanceKey)) {}
-}
-
-impl TypeFold for CoverageDecision {
-    fn map_types<E>(
-        &mut self,
-        _map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        Ok(())
-    }
 }
 
 impl Decision {
