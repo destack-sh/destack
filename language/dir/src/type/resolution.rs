@@ -612,6 +612,8 @@ impl OperationResolution<Call> {
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]
 pub enum CallableTarget {
+    /// Allocating function for a selected class constructor.
+    Constructor(Box<ConstructDecision>),
     /// Function-typed runtime expression.
     Expression {
         /// The selected generic argument bindings.
@@ -639,6 +641,11 @@ impl CallableTarget {
     /// Return the selected generic argument bindings.
     pub fn generic_arguments(&self) -> &[GenericArgumentBinding] {
         match self {
+            Self::Constructor(construction) => match &construction.target {
+                ConstructTarget::Class { key, .. } | ConstructTarget::Newtype { key, .. } => {
+                    &key.arguments
+                }
+            },
             Self::Expression { generic_arguments }
             | Self::Dynamic {
                 generic_arguments, ..
@@ -652,13 +659,14 @@ impl CallableTarget {
         match self {
             Self::Symbol { function, .. } => function.receiver.as_ref().map(AdjustedReceiver::ty),
             Self::Dynamic { dispatch, .. } => Some(dispatch.receiver.ty()),
-            Self::Expression { .. } => None,
+            Self::Expression { .. } | Self::Constructor(_) => None,
         }
     }
 
     /// Return the selected declaration symbol, when this target has one.
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
+            Self::Constructor(construction) => construction.target.symbol(),
             Self::Symbol { function, .. } => Some(function.key.symbol),
             Self::Dynamic {
                 function: DynamicFunction::Symbol(symbol),
@@ -693,7 +701,9 @@ impl FunctionValue {
     pub fn key(&self) -> Option<&InstanceKey> {
         match &self.target {
             CallableTarget::Symbol { function, .. } => Some(&function.key),
-            CallableTarget::Expression { .. } | CallableTarget::Dynamic { .. } => None,
+            CallableTarget::Expression { .. }
+            | CallableTarget::Dynamic { .. }
+            | CallableTarget::Constructor(_) => None,
         }
     }
 }

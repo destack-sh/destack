@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CastOrigin, ConstructDecision, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId,
-    InstanceKeyVisit, SegmentView, Type, TypeFold,
+    CastOrigin, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId, InstanceKeyVisit,
+    SegmentView, Type, TypeFold,
 };
 
 /// Cumulative checked coercions for one DIR module.
@@ -116,13 +116,6 @@ pub struct Coercion {
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]
 pub enum CoercionAdjustment {
-    /// Convert a class declaration value into an allocating constructor function.
-    Constructor {
-        /// The callable type after this adjustment.
-        target: GlobalTypeId,
-        /// The construction performed over the function's supplied parameters.
-        construction: Box<ConstructDecision>,
-    },
     /// Borrow one value with the target lifetime and access.
     Borrow {
         /// The borrowed type.
@@ -241,7 +234,6 @@ impl CoercionAdjustment {
     pub const fn target(&self) -> GlobalTypeId {
         match self {
             Self::Borrow { target }
-            | Self::Constructor { target, .. }
             | Self::Read { target }
             | Self::Union { target, .. }
             | Self::Erase { target }
@@ -259,7 +251,6 @@ impl CoercionAdjustment {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Borrow { .. } => "borrow",
-            Self::Constructor { .. } => "constructor",
             Self::Read { .. } => "read",
             Self::Union { .. } => "union",
             Self::Erase { .. } => "erase",
