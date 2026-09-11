@@ -4,8 +4,8 @@ use crate::parse::{
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
-    Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
-    NodeType, OperatorPrecedence, Pattern, TokenType,
+    Asynchrony, BlockContext, Declarator, Exclusivity, Expression, Keyword, LetKind, LocalNodeId,
+    Mutability, NodeType, OperatorPrecedence, Pattern, TokenType,
 };
 use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
@@ -314,6 +314,36 @@ impl Parser {
         else {
             Mutability::Mutable
         }
+    }
+
+    /// Parse borrow qualifiers in either order, rejecting repeated qualifiers.
+    pub(crate) fn parse_borrow_qualifiers(
+        &mut self,
+    ) -> ParserResult<(Option<Mutability>, Option<Exclusivity>)> {
+        let mut mutability = None;
+        let mut exclusivity = None;
+
+        // consume each qualifier once, treating const as readonly
+        loop {
+            match self.peek_keyword() {
+                Some(Keyword::Readonly | Keyword::Const) => {
+                    if mutability.is_some() {
+                        return Err(ParserError::unexpected(self.peek_token()));
+                    }
+                    mutability = Some(Mutability::Immutable);
+                }
+                Some(Keyword::Exclusive) => {
+                    if exclusivity.is_some() {
+                        return Err(ParserError::unexpected(self.peek_token()));
+                    }
+                    exclusivity = Some(Exclusivity::Exclusive);
+                }
+                _ => break,
+            }
+            self.bump();
+        }
+
+        Ok((Some(mutability.unwrap_or(Mutability::Mutable)), exclusivity))
     }
 
     /// Parse a single declarator with an optional value unless `require_value` is set.

@@ -1,6 +1,6 @@
 use destack_dir::{
-    Expression, Literal, LocalNodeId, Mutability, Name, Pattern, PatternField, RangeEnd, TokenType,
-    Tree, TypeExpression,
+    Exclusivity, Expression, Literal, LocalNodeId, Mutability, Name, Pattern, PatternField,
+    RangeEnd, TokenType, Tree, TypeExpression,
 };
 
 use crate::{
@@ -89,25 +89,48 @@ fn test_parse_computed_pattern_field_with_missing_close_bracket() {
 
 #[test]
 fn test_parse_pattern_reference() {
-    // &_
-    let test = TestParser::new("&_");
-    let mut parser = test.prepare();
-    let pattern_id = parser.parse_pattern().unwrap();
-    // &
-    assert_node!(parser.tree, pattern_id,
-        Pattern::BorrowOf { mutability: Some(mutability), right } => {
-            assert_eq!(*mutability, Mutability::Mutable);
-            // _
-            assert_node!(parser.tree, *right, Pattern::Wildcard)
-        }
-    );
+    for (source, access, exclusion) in [
+        ("&_", Mutability::Mutable, None),
+        ("&readonly _", Mutability::Immutable, None),
+        (
+            "&exclusive _",
+            Mutability::Mutable,
+            Some(Exclusivity::Exclusive),
+        ),
+        (
+            "&readonly exclusive _",
+            Mutability::Immutable,
+            Some(Exclusivity::Exclusive),
+        ),
+        (
+            "&exclusive readonly _",
+            Mutability::Immutable,
+            Some(Exclusivity::Exclusive),
+        ),
+        (
+            "&exclusive const _",
+            Mutability::Immutable,
+            Some(Exclusivity::Exclusive),
+        ),
+    ] {
+        let test = TestParser::new(source);
+        let mut parser = test.prepare();
+        let pattern_id = parser.parse_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability, exclusivity, right } => {
+            assert_eq!((*mutability, *exclusivity), (Some(access), exclusion));
+            assert_node!(parser.tree, *right, Pattern::Wildcard);
+        });
+        assert_eq!(parser.peek_token_type(), TokenType::End);
+        test.assert_no_errors(&parser);
+    }
 
     // &1
     let test = TestParser::new("&1");
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern().unwrap();
     // &
-    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability: Some(mutability), right } => {
+    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability: Some(mutability), right, exclusivity: None } => {
         assert_eq!(*mutability, Mutability::Mutable);
         // 1
         assert_node!(parser.tree, *right, Pattern::Expression { value } => {
@@ -122,9 +145,9 @@ fn test_parse_pattern_reference_chain_compact() {
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern().unwrap();
 
-    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability, right } => {
+    assert_node!(parser.tree, pattern_id, Pattern::BorrowOf { mutability, right, exclusivity: None } => {
         assert_eq!(*mutability, Some(Mutability::Mutable));
-        assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability, right } => {
+        assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability, right, exclusivity: None } => {
             assert_eq!(*mutability, Some(Mutability::Mutable));
             assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
                 assert_string!(parser, *name, "item");
@@ -339,7 +362,7 @@ fn test_parse_pattern_dereference_before_borrow() {
     let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
-        assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability: Some(mutability), right } => {
+        assert_node!(parser.tree, *right, Pattern::BorrowOf { mutability: Some(mutability), right, exclusivity: None } => {
             assert_eq!(*mutability, Mutability::Immutable);
             assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
                 assert_string!(parser, *name, "inner");

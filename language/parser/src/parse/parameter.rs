@@ -342,20 +342,24 @@ impl Parser {
             return None;
         }
 
-        if self.peek_keyword_at(1) == Some(Keyword::This) {
-            return Some(self.peek_token_at(1).range());
+        // skip the optional borrow lifetime
+        let is_borrowed = self.peek_is(TokenType::ElementwiseAnd);
+        let mut offset = 1;
+        if is_borrowed && self.peek_token_type_at(offset) == TokenType::Lifetime {
+            offset += 1;
         }
 
-        let has_access_modifier = matches!(
-            self.peek_keyword_at(1),
-            Some(Keyword::Readonly | Keyword::Const)
-        );
-        if has_access_modifier {
-            return (self.peek_keyword_at(2) == Some(Keyword::This))
-                .then(|| self.peek_token_at(2).range());
+        // leave qualifier validation to the type parser
+        loop {
+            match self.peek_keyword_at(offset) {
+                Some(Keyword::Readonly | Keyword::Const) => offset += 1,
+                Some(Keyword::Exclusive) if is_borrowed => offset += 1,
+                _ => break,
+            }
         }
 
-        None
+        (self.peek_keyword_at(offset) == Some(Keyword::This))
+            .then(|| self.peek_token_at(offset).range())
     }
 
     /// Parse one parameter pattern or named binding.

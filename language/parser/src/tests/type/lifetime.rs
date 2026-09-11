@@ -2,14 +2,14 @@ use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_node, assert_path, assert_string};
 use destack_dir::{
-    Declaration, Expression, GenericArgument, GenericParameter, Mutability, TypeDeclaration,
-    TypeExpression,
+    Declaration, Exclusivity, Expression, GenericArgument, GenericParameter, Mutability,
+    TypeDeclaration, TypeExpression,
 };
 
 /// Parse one named borrow lifetime ahead of the access modifier.
 #[test]
 fn test_parse_borrow_with_named_lifetime() {
-    let test = TestParser::new("type View = &'a readonly Buffer");
+    let test = TestParser::new("type View = &'a exclusive readonly Buffer");
     let mut parser = test.prepare();
     let expr_id = parser
         .parse_expression(ExpressionPosition::Statement, ExpressionStop::default())
@@ -17,8 +17,9 @@ fn test_parse_borrow_with_named_lifetime() {
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { lifetime, mutability, target_type, .. } => {
+            assert_node!(parser.tree, *value, TypeExpression::BorrowedOf { lifetime, mutability, exclusivity, target_type, .. } => {
                 assert_eq!(*mutability, Some(Mutability::Immutable));
+                assert_eq!(*exclusivity, Some(Exclusivity::Exclusive));
                 let lifetime = lifetime.expect("expected lifetime");
                 assert_node!(parser.tree, lifetime, TypeExpression::Lifetime { name } => {
                     assert_string!(parser, *name, "'a");

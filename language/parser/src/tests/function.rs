@@ -1,10 +1,10 @@
 use crate::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind, Declaration,
-    Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase, GenericArgument,
-    GenericParameter, IntegerType, Literal, Mutability, NodeType, Parameter, Pattern, PatternField,
-    ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral, UnaryOperator,
-    VarianceModifier, WhereClause, YieldCardinality,
+    Declarator, Exclusivity, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
+    GenericArgument, GenericParameter, IntegerType, Literal, Mutability, NodeType, Parameter,
+    Pattern, PatternField, ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
+    UnaryOperator, VarianceModifier, WhereClause, YieldCardinality,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -527,32 +527,58 @@ fn test_parse_function_type_with_unqualified_this_parameter() {
 /// Parse borrowed receiver shorthand in function types.
 #[test]
 fn test_parse_function_type_with_borrowed_this_parameter() {
-    let test = TestParser::new("type T = (&readonly this, value: Bar) => Baz");
-    let mut parser = test.prepare();
-    let expr_id = parser
-        .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
-        .unwrap();
+    for (prefix, access, exclusion) in [
+        ("&", Mutability::Mutable, None),
+        ("&readonly ", Mutability::Immutable, None),
+        (
+            "&exclusive ",
+            Mutability::Mutable,
+            Some(Exclusivity::Exclusive),
+        ),
+        (
+            "&'a readonly exclusive ",
+            Mutability::Immutable,
+            Some(Exclusivity::Exclusive),
+        ),
+        (
+            "&exclusive readonly ",
+            Mutability::Immutable,
+            Some(Exclusivity::Exclusive),
+        ),
+        (
+            "&'a exclusive const ",
+            Mutability::Immutable,
+            Some(Exclusivity::Exclusive),
+        ),
+    ] {
+        let source = format!("type T = ({prefix}this, value: Bar) => Baz");
+        let test = TestParser::new(&source);
+        let mut parser = test.prepare();
+        let expr_id = parser
+            .parse_expression(ExpressionPosition::Value, ExpressionStop::default())
+            .unwrap();
 
-    // type T = (&readonly this, value: Bar) => Baz
-    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
-                assert_eq!(function.this_form, Some(ThisForm::Implicit));
-                assert_eq!(function.parameters.len(), 1);
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+                assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
+                    assert_eq!(function.this_form, Some(ThisForm::Implicit));
+                    assert_eq!(function.parameters.len(), 1);
 
-                let this_parameter = function.this_parameter.expect("expected this parameter");
-                assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
-                    assert_string!(parser, *name, "this");
-                    let name_range = parser.tree.get_main_range(this_parameter).unwrap();
-                    assert_eq!(parser.range_str(name_range), "this");
-                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { mutability, target_type, .. } => {
-                        assert_eq!(*mutability, Some(Mutability::Immutable));
-                        assert_node!(parser.tree, *target_type, TypeExpression::This);
+                    let this_parameter = function.this_parameter.expect("expected this parameter");
+                    assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
+                        assert_string!(parser, *name, "this");
+                        let name_range = parser.tree.get_main_range(this_parameter).unwrap();
+                        assert_eq!(parser.range_str(name_range), "this");
+                        assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { mutability, exclusivity, target_type, .. } => {
+                            assert_eq!((*mutability, *exclusivity), (Some(access), exclusion));
+                            assert_node!(parser.tree, *target_type, TypeExpression::This);
+                        });
                     });
                 });
             });
         });
-    });
+        test.assert_no_errors(&parser);
+    }
 }
 
 /// Parse readonly receiver shorthand in function types.

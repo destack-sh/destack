@@ -102,11 +102,12 @@ impl Parser {
                 TokenType::ElementwiseAnd | TokenType::LogicalAnd
             ) {
                 self.eat_reference_prefix_operator()?;
-                let mutability = Some(self.parse_reference_mutability());
+                let (mutability, exclusivity) = self.parse_borrow_qualifiers()?;
                 let right_id = self.parse_pattern_until(stops).in_node(NodeType::Pattern)?;
                 self.insert_node(
                     Pattern::BorrowOf {
                         mutability,
+                        exclusivity,
                         right: right_id,
                     },
                     self.range_since(&start),

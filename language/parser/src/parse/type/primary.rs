@@ -2,8 +2,8 @@ use crate::parse::r#type::operator::{TypeOperator, TypePrefixOperator};
 use crate::parse::{DeclarationHeader, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 use destack_dir::{
-    LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, TokenType, TypeExpression,
-    VarianceBound,
+    Exclusivity, LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, TokenType,
+    TypeExpression, VarianceBound,
 };
 use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanType};
 use smallvec::{SmallVec, smallvec};
@@ -33,6 +33,8 @@ enum TypePrefix {
         lifetime: Option<LocalNodeId<TypeExpression>>,
         /// The mutability modifier.
         mutability: Option<Mutability>,
+        /// The exclusion modifier.
+        exclusivity: Option<Exclusivity>,
         /// The variance modifier.
         variance: Option<VarianceBound>,
         /// The operator source range.
@@ -171,12 +173,17 @@ impl Parser {
                 true => Some(self.parse_lifetime_type()),
                 false => None,
             };
-        let mutability = Some(self.parse_reference_mutability());
+        let (mutability, exclusivity) = if token.is(TokenType::ElementwiseAnd) {
+            self.parse_borrow_qualifiers()?
+        } else {
+            (Some(self.parse_reference_mutability()), None)
+        };
         let variance = self.parse_variance_bound_if_present();
         let prefix = if token.is(TokenType::ElementwiseAnd) {
             TypePrefix::Borrowed {
                 lifetime,
                 mutability,
+                exclusivity,
                 variance,
                 range: token.range(),
             }
@@ -224,12 +231,14 @@ impl Parser {
             TypePrefix::Borrowed {
                 lifetime,
                 mutability,
+                exclusivity,
                 variance,
                 range,
             } => (
                 TypeExpression::BorrowedOf {
                     lifetime,
                     mutability,
+                    exclusivity,
                     variance,
                     target_type,
                 },
