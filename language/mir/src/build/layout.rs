@@ -28,6 +28,11 @@ pub struct LayoutBuilder<'tree> {
 /// Failure to construct one physical MIR layout.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LayoutError {
+    /// One required concrete type layout is absent.
+    Missing {
+        /// The type whose layout is required.
+        ty: TypeId,
+    },
     /// One MIR type has no supported physical representation.
     Unsupported {
         /// Unsupported representation.
@@ -49,6 +54,7 @@ impl fmt::Display for LayoutError {
     /// Format one physical layout failure.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Missing { ty } => write!(formatter, "missing concrete layout for {ty:?}"),
             Self::Unsupported { construct, .. } => {
                 write!(
                     formatter,

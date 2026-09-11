@@ -1,11 +1,11 @@
 use std::ops::Range;
 
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 
 use crate as mir;
 use crate::{
-    AliasTable, Analysis, ConstantTable, ControlTable, MemoryAddress, MemoryLocation, MemoryRegion,
-    Mutation, NodeTable, StorageRoot, TargetLayout,
+    AliasTable, Analysis, ConstantTable, ControlTable, LayoutError, MemoryAccessOrder,
+    MemoryAddress, MemoryLocation, MemoryRegion, Mutation, NodeTable,
 };
 
 /// Classified memory effects for the operations in one function.
@@ -27,7 +27,6 @@ impl MemoryEffectTable {
         control: &ControlTable,
         accesses: &mir::AccessTable,
         effects: &mir::EffectTable,
-        target_layout: TargetLayout,
         tree: &mir::Tree,
     ) -> Self {
         // allocate entries for every operation in the function
@@ -48,8 +47,7 @@ impl MemoryEffectTable {
         };
 
         // classify reachable operations using their explicit and derived effects
-        let mut builder =
-            MemoryEffectBuilder::new(function, tree, constants, accesses, effects, target_layout);
+        let mut builder = MemoryEffectBuilder::new(function, tree, constants, accesses, effects);
         for block_id in control.reachable_blocks() {
             let block = tree.get(block_id);
 
@@ -81,6 +79,20 @@ impl MemoryEffectTable {
         }
 
         result
+    }
+
+    /// Return whether an instruction's execution or explicit accesses can have observable effects.
+    pub fn has_side_effects(
+        &self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        tree: &mir::Tree,
+    ) -> bool {
+        tree.get(instruction).has_side_effects()
+            || self.instruction_effects(instruction).any(|effect| {
+                effect.writes
+                    || effect.is_barrier
+                    || !matches!(effect.order, MemoryAccessOrder::Plain)
+            })
     }
 
     /// Iterate the memory effects of one instruction.
@@ -119,8 +131,8 @@ pub struct MemoryAccessEffect {
     pub reads: bool,
     /// Whether the instruction writes memory.
     pub writes: bool,
-    /// Whether the instruction is volatile.
-    pub is_volatile: bool,
+    /// The strongest ordering required by this access.
+    pub order: MemoryAccessOrder,
     /// Whether the instruction acts as a memory barrier.
     pub is_barrier: bool,
     /// The memory region being accessed.
@@ -129,55 +141,53 @@ pub struct MemoryAccessEffect {
 
 impl MemoryAccessEffect {
     /// Return whether this effect may clobber one memory location.
-    pub fn clobbers_location(&self, location: &MemoryLocation, alias: &AliasTable) -> bool {
-        if self.is_barrier {
-            return true;
-        }
+    pub fn clobbers_location(
+        &self,
+        location: &MemoryLocation,
+        alias: &AliasTable,
+    ) -> Result<bool, LayoutError> {
+        let region = MemoryRegion::Address {
+            location: location.clone(),
+            spaces: location.spaces(),
+        };
 
-        self.writes && self.may_touch_location(location, alias)
+        self.clobbers_region(&region, alias)
     }
 
     /// Return whether this effect may touch one memory location.
-    pub fn may_touch_location(&self, location: &MemoryLocation, alias: &AliasTable) -> bool {
-        // reject disjoint memory spaces
-        if !self.region.spaces().may_alias(location.spaces()) {
-            return false;
-        }
+    pub fn may_touch_location(
+        &self,
+        location: &MemoryLocation,
+        alias: &AliasTable,
+    ) -> Result<bool, LayoutError> {
+        let region = MemoryRegion::Address {
+            location: location.clone(),
+            spaces: location.spaces(),
+        };
 
-        // compare local access roots
-        if let MemoryRegion::Local(local) = self.region {
-            let storage = StorageRoot::LocalSlot(local);
-
-            return alias.may_touch_root(location, &storage);
-        }
-
-        // compare addressed accesses through alias analysis
-        if let MemoryRegion::Address {
-            location: effect_location,
-            ..
-        } = &self.region
-        {
-            return alias.alias(effect_location, location).may_alias();
-        }
-
-        // treat imprecise accesses as touching compatible locations
-        true
+        self.region.may_alias(&region, alias)
     }
 
     /// Return whether this effect is trackable by memory optimizations.
     pub fn is_trackable(&self) -> bool {
-        !self.is_volatile && !self.is_barrier && !matches!(self.region, MemoryRegion::Any { .. })
+        matches!(self.order, MemoryAccessOrder::Plain)
+            && !self.is_barrier
+            && !matches!(self.region, MemoryRegion::Any { .. })
     }
 
     /// Return whether this effect describes the same region as another effect.
-    pub fn matches_region(&self, alias: &AliasTable, other: &MemoryAccessEffect) -> bool {
+    pub fn matches_region(
+        &self,
+        alias: &AliasTable,
+        other: &MemoryAccessEffect,
+    ) -> Result<bool, LayoutError> {
         // reject disjoint memory spaces
         if !self.region.spaces().may_alias(other.region.spaces()) {
-            return false;
+            return Ok(false);
         }
 
         // compare concrete locations
-        match (&self.region, &other.region) {
+        Ok(match (&self.region, &other.region) {
             (MemoryRegion::Local(local), MemoryRegion::Local(other_local)) => local == other_local,
             (
                 MemoryRegion::Address { location, .. },
@@ -186,80 +196,69 @@ impl MemoryAccessEffect {
                     ..
                 },
             ) => {
-                if !location.has_compatible_value(other_location) {
-                    return false;
+                if !location.has_compatible_value(other_location, &alias.layouts)? {
+                    return Ok(false);
                 }
 
-                alias.alias(location, other_location).is_must_alias()
+                alias.alias(location, other_location)?.is_must_alias()
             }
             _ => false,
+        })
+    }
+
+    /// Return whether this effect may clobber a queried region.
+    pub fn clobbers_region(
+        &self,
+        region: &MemoryRegion,
+        alias: &AliasTable,
+    ) -> Result<bool, LayoutError> {
+        // preserve memory ordering independently of location disambiguation
+        if self.is_barrier || !matches!(self.order, MemoryAccessOrder::Plain) {
+            return Ok(true);
         }
+
+        Ok(self.writes && self.region.may_alias(region, alias)?)
     }
 
     /// Return whether this effect may alias another effect.
-    pub fn may_alias(&self, alias: &AliasTable, other: &MemoryAccessEffect) -> bool {
-        // reject disjoint memory spaces
-        if !self.region.spaces().may_alias(other.region.spaces()) {
-            return false;
-        }
-
-        // compare concrete locations
-        match (&self.region, &other.region) {
-            (MemoryRegion::Any { .. }, _) | (_, MemoryRegion::Any { .. }) => true,
-            (MemoryRegion::Local(local), MemoryRegion::Local(other)) => local == other,
-            (
-                MemoryRegion::Address { location, .. },
-                MemoryRegion::Address {
-                    location: other_location,
-                    ..
-                },
-            ) => alias.alias(location, other_location).may_alias(),
-            _ => false,
-        }
+    pub fn may_alias(
+        &self,
+        alias: &AliasTable,
+        other: &MemoryAccessEffect,
+    ) -> Result<bool, LayoutError> {
+        self.region.may_alias(&other.region, alias)
     }
 
-    /// Create an access effect for reads.
-    fn read(region: MemoryRegion, is_volatile: bool) -> Self {
+    /// Create a memory access with its operation and ordering.
+    fn new(
+        region: MemoryRegion,
+        operation: mir::MemoryOperation,
+        order: MemoryAccessOrder,
+    ) -> Self {
         Self {
-            reads: true,
-            writes: false,
-            is_volatile,
-            is_barrier: false,
-            region,
-        }
-    }
-
-    /// Create an access effect for writes.
-    fn write(region: MemoryRegion, is_volatile: bool) -> Self {
-        Self {
-            reads: false,
-            writes: true,
-            is_volatile,
-            is_barrier: false,
-            region,
-        }
-    }
-
-    /// Create an access effect for read/write.
-    fn read_write(region: MemoryRegion, is_volatile: bool) -> Self {
-        Self {
-            reads: true,
-            writes: true,
-            is_volatile,
+            reads: matches!(
+                operation,
+                mir::MemoryOperation::Read | mir::MemoryOperation::ReadWrite
+            ),
+            writes: matches!(
+                operation,
+                mir::MemoryOperation::Write | mir::MemoryOperation::ReadWrite
+            ),
+            order,
             is_barrier: false,
             region,
         }
     }
 
     /// Create a barrier access effect.
-    fn barrier() -> Self {
+    fn barrier(access: mir::FenceAccess) -> Self {
         Self {
             reads: false,
-            writes: true,
-            is_volatile: false,
+            writes: false,
+            order: MemoryAccessOrder::Atomic(mir::AtomicAccess::new(access.ordering, access.scope)),
             is_barrier: true,
             region: MemoryRegion::Any {
-                spaces: mir::StorageSet::ANY,
+                spaces: access.storage,
             },
         }
     }
@@ -277,8 +276,6 @@ struct MemoryEffectBuilder<'a> {
     accesses: &'a mir::AccessTable,
     /// Explicit effect table.
     effect_table: &'a mir::EffectTable,
-    /// Type context for layout sensitive operations.
-    target_layout: TargetLayout,
 }
 
 impl<'a> MemoryEffectBuilder<'a> {
@@ -289,7 +286,6 @@ impl<'a> MemoryEffectBuilder<'a> {
         constants: &'a ConstantTable,
         accesses: &'a mir::AccessTable,
         effect_table: &'a mir::EffectTable,
-        target_layout: TargetLayout,
     ) -> Self {
         // build collector state
         Self {
@@ -298,7 +294,6 @@ impl<'a> MemoryEffectBuilder<'a> {
             constants,
             accesses,
             effect_table,
-            target_layout,
         }
     }
 
@@ -316,10 +311,10 @@ impl<'a> MemoryEffectBuilder<'a> {
         // classify instruction memory effects
         match instruction {
             mir::Instruction::Error => {
-                panic!("invalid MIR instruction reached optimizer");
+                unreachable!("invalid MIR instruction reached memory effect analysis");
             }
 
-            // pure instructions
+            // omit instructions that access no memory
             mir::Instruction::Const { .. }
             | mir::Instruction::Binary { .. }
             | mir::Instruction::Unary { .. }
@@ -366,9 +361,13 @@ impl<'a> MemoryEffectBuilder<'a> {
             | mir::Instruction::VariantTagLoad {
                 variant: pointer, ..
             } => {
-                let effect = self.address_effect(*pointer, mir::MemoryOperation::Read, false);
+                let effect = self.address_effect(
+                    *pointer,
+                    mir::MemoryOperation::Read,
+                    MemoryAccessOrder::Plain,
+                );
 
-                Self::single_effect(effect)
+                smallvec![effect]
             }
             mir::Instruction::DynamicRead {
                 dynamic,
@@ -386,52 +385,93 @@ impl<'a> MemoryEffectBuilder<'a> {
                     Some(*result_type),
                     reference_kind,
                     reference_storage,
-                    self.target_layout.pointer_bits(),
-                    self.tree,
                 );
                 region.set_spaces(self.address_storage_set(*dynamic));
 
-                Self::single_effect(MemoryAccessEffect::read(region, false))
+                smallvec![MemoryAccessEffect::new(
+                    region,
+                    mir::MemoryOperation::Read,
+                    MemoryAccessOrder::Plain
+                )]
             }
             mir::Instruction::Store { pointer, .. } => {
-                let effect = self.address_effect(*pointer, mir::MemoryOperation::Write, false);
+                let effect = self.address_effect(
+                    *pointer,
+                    mir::MemoryOperation::Write,
+                    MemoryAccessOrder::Plain,
+                );
 
-                Self::single_effect(effect)
+                smallvec![effect]
             }
-            mir::Instruction::AtomicLoad { pointer, .. } => {
-                let effect = self.address_effect(*pointer, mir::MemoryOperation::Read, true);
+            mir::Instruction::AtomicLoad {
+                pointer, access, ..
+            } => {
+                let effect = self.address_effect(
+                    *pointer,
+                    mir::MemoryOperation::Read,
+                    MemoryAccessOrder::Atomic(*access),
+                );
 
-                Self::single_effect(effect)
+                smallvec![effect]
             }
-            mir::Instruction::AtomicStore { pointer, .. } => {
-                let effect = self.address_effect(*pointer, mir::MemoryOperation::Write, true);
+            mir::Instruction::AtomicStore {
+                pointer, access, ..
+            } => {
+                let effect = self.address_effect(
+                    *pointer,
+                    mir::MemoryOperation::Write,
+                    MemoryAccessOrder::Atomic(*access),
+                );
 
-                Self::single_effect(effect)
+                smallvec![effect]
             }
-            mir::Instruction::AtomicCompareExchange { pointer, .. }
-            | mir::Instruction::AtomicRmw { pointer, .. } => {
-                let effect = self.address_effect(*pointer, mir::MemoryOperation::ReadWrite, true);
+            mir::Instruction::AtomicCompareExchange {
+                pointer, access, ..
+            } => {
+                let effect = self.address_effect(
+                    *pointer,
+                    mir::MemoryOperation::ReadWrite,
+                    MemoryAccessOrder::Atomic(access.success),
+                );
 
-                Self::single_effect(effect)
+                smallvec![effect]
             }
-            mir::Instruction::AtomicFence { .. } => {
-                Self::single_effect(MemoryAccessEffect::barrier())
+            mir::Instruction::AtomicRmw {
+                pointer, access, ..
+            } => {
+                let effect = self.address_effect(
+                    *pointer,
+                    mir::MemoryOperation::ReadWrite,
+                    MemoryAccessOrder::Atomic(*access),
+                );
+
+                smallvec![effect]
+            }
+            mir::Instruction::AtomicFence { access } => {
+                smallvec![MemoryAccessEffect::barrier(*access)]
             }
             mir::Instruction::BarrierWrite { .. } => {
-                Self::single_effect(MemoryAccessEffect::read_write(
+                smallvec![MemoryAccessEffect::new(
                     MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                    false,
-                ))
+                    mir::MemoryOperation::ReadWrite,
+                    MemoryAccessOrder::Plain
+                )]
             }
             mir::Instruction::LocalGet { local, .. } => {
-                let mut effect = MemoryAccessEffect::read(MemoryRegion::Local(*local), false);
-                self.apply_local_region(&mut effect);
-                Self::single_effect(effect)
+                let effect = MemoryAccessEffect::new(
+                    MemoryRegion::Local(*local),
+                    mir::MemoryOperation::Read,
+                    MemoryAccessOrder::Plain,
+                );
+                smallvec![effect]
             }
             mir::Instruction::LocalSet { local, .. } => {
-                let mut effect = MemoryAccessEffect::write(MemoryRegion::Local(*local), false);
-                self.apply_local_region(&mut effect);
-                Self::single_effect(effect)
+                let effect = MemoryAccessEffect::new(
+                    MemoryRegion::Local(*local),
+                    mir::MemoryOperation::Write,
+                    MemoryAccessOrder::Plain,
+                );
+                smallvec![effect]
             }
             mir::Instruction::Call { .. } => self.call_effects(instruction_id, instruction),
             mir::Instruction::ContextCurrent { .. }
@@ -443,10 +483,11 @@ impl<'a> MemoryEffectBuilder<'a> {
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::Poll => Self::single_effect(MemoryAccessEffect::read_write(
+            | mir::Instruction::Poll => smallvec![MemoryAccessEffect::new(
                 MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                false,
-            )),
+                mir::MemoryOperation::ReadWrite,
+                MemoryAccessOrder::Plain
+            )],
             mir::Instruction::Intrinsic {
                 intrinsic,
                 arguments,
@@ -472,14 +513,15 @@ impl<'a> MemoryEffectBuilder<'a> {
             | mir::Terminator::NewUninitTry { .. }
             | mir::Terminator::NewSliceZeroedTry { .. }
             | mir::Terminator::NewSliceUninitTry { .. } => {
-                Self::single_effect(MemoryAccessEffect::read_write(
+                smallvec![MemoryAccessEffect::new(
                     MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                    false,
-                ))
+                    mir::MemoryOperation::ReadWrite,
+                    MemoryAccessOrder::Plain
+                )]
             }
 
             mir::Terminator::Error => {
-                panic!("invalid MIR terminator reached MemorySsaTable");
+                unreachable!("invalid MIR terminator reached memory effect analysis");
             }
 
             mir::Terminator::Return { .. }
@@ -526,8 +568,6 @@ impl<'a> MemoryEffectBuilder<'a> {
                     reference_kind,
                     reference_storage,
                     access.byte_len,
-                    self.target_layout.pointer_bits(),
-                    self.tree,
                 )
             }
             mir::MemoryTarget::Local(local) => MemoryRegion::Local(local),
@@ -536,17 +576,11 @@ impl<'a> MemoryEffectBuilder<'a> {
             ),
         };
 
-        // map the access operation to an effect
-        let is_volatile = access.requires_exact_position();
-        let mut effect = match access.operation {
-            mir::MemoryOperation::Read => MemoryAccessEffect::read(region, is_volatile),
-            mir::MemoryOperation::Write => MemoryAccessEffect::write(region, is_volatile),
-            mir::MemoryOperation::ReadWrite => MemoryAccessEffect::read_write(region, is_volatile),
-        };
-
-        // apply target storage
+        // preserve the access operation, ordering, and target storage
+        let mut effect = MemoryAccessEffect::new(region, access.operation, access.order);
         let spaces = self.entry_storage_set(access);
         effect.region.set_spaces(spaces);
+
         effect
     }
 
@@ -555,41 +589,20 @@ impl<'a> MemoryEffectBuilder<'a> {
         &self,
         address: mir::Value,
         operation: mir::MemoryOperation,
-        is_volatile: bool,
+        order: MemoryAccessOrder,
     ) -> MemoryAccessEffect {
         let value_type = self.address_value_type(address);
         let reference_kind = self.reference_kind(address);
         let reference_storage = self.reference_storage(address);
-        let region = MemoryRegion::from_address(
-            address,
-            value_type,
-            reference_kind,
-            reference_storage,
-            self.target_layout.pointer_bits(),
-            self.tree,
-        );
-        let mut effect = match operation {
-            mir::MemoryOperation::Read => MemoryAccessEffect::read(region, is_volatile),
-            mir::MemoryOperation::Write => MemoryAccessEffect::write(region, is_volatile),
-            mir::MemoryOperation::ReadWrite => MemoryAccessEffect::read_write(region, is_volatile),
-        };
+        let region =
+            MemoryRegion::from_address(address, value_type, reference_kind, reference_storage);
+        let mut effect = MemoryAccessEffect::new(region, operation, order);
 
         // constrain the region to the address storage
         let spaces = self.address_storage_set(address);
         effect.region.set_spaces(spaces);
 
         effect
-    }
-
-    /// Constrain one memory effect to its address storage.
-    fn apply_address_region(&self, effect: &mut MemoryAccessEffect, address: mir::Value) {
-        let spaces = self.address_storage_set(address);
-        effect.region.set_spaces(spaces);
-    }
-
-    /// Apply local region tables to an effect.
-    fn apply_local_region(&self, effect: &mut MemoryAccessEffect) {
-        effect.region.set_spaces(mir::StorageSet::FRAME);
     }
 
     /// Resolve storage from an access target.
@@ -638,10 +651,11 @@ impl<'a> MemoryEffectBuilder<'a> {
 
         // treat missing tables as fully unknown
         let Some(effects) = memory_effects.take() else {
-            return Self::single_effect(MemoryAccessEffect::read_write(
+            return smallvec![MemoryAccessEffect::new(
                 MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                false,
-            ));
+                mir::MemoryOperation::ReadWrite,
+                MemoryAccessOrder::Plain
+            )];
         };
 
         // skip calls with no memory effects
@@ -666,22 +680,26 @@ impl<'a> MemoryEffectBuilder<'a> {
 
         // keep shared read/write spaces precise when possible
         if effects.read == effects.write {
-            accesses.push(MemoryAccessEffect::read_write(
+            accesses.push(MemoryAccessEffect::new(
                 MemoryRegion::any_spaces(effects.read),
-                false,
+                mir::MemoryOperation::ReadWrite,
+                MemoryAccessOrder::Plain,
             ));
         } else {
             if !effects.read.is_empty() {
-                accesses.push(MemoryAccessEffect::read(
+                accesses.push(MemoryAccessEffect::new(
                     MemoryRegion::any_spaces(effects.read),
-                    false,
+                    mir::MemoryOperation::Read,
+                    MemoryAccessOrder::Plain,
                 ));
             }
 
+            // append the spaces the call may write
             if !effects.write.is_empty() {
-                accesses.push(MemoryAccessEffect::write(
+                accesses.push(MemoryAccessEffect::new(
                     MemoryRegion::any_spaces(effects.write),
-                    false,
+                    mir::MemoryOperation::Write,
+                    MemoryAccessOrder::Plain,
                 ));
             }
         }
@@ -747,225 +765,64 @@ impl<'a> MemoryEffectBuilder<'a> {
             // saturating arithmetic
             mir::Intrinsic::SatAdd | mir::Intrinsic::SatSub => SmallVec::new(),
 
-            // memory operations
-            mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
-                // collect the memory operands
-                let mut effects = SmallVec::new();
-                let dst = args.first();
-                let src = args.get(1);
-                let size = args.get(2).and_then(|len| self.constant_u64(*len));
+            // classify byte copies and comparisons using their runtime length operand
+            mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove | mir::Intrinsic::Memcmp => {
+                let [left, right, length] = args else {
+                    unreachable!("bulk memory operation requires three MIR arguments");
+                };
+                let size = self.constant_u64(*length);
+                let left_operation = if intrinsic == mir::Intrinsic::Memcmp {
+                    mir::MemoryOperation::Read
+                } else {
+                    mir::MemoryOperation::Write
+                };
+                let left = self.byte_effect(*left, left_operation, size);
+                let right = self.byte_effect(*right, mir::MemoryOperation::Read, size);
 
-                // emit read and write effects when operands are present
-                match (dst, src) {
-                    (Some(dst), Some(src)) => {
-                        let dst_type = self.address_value_type(*dst);
-                        let src_type = self.address_value_type(*src);
-                        let dst_kind = self.reference_kind(*dst);
-                        let src_kind = self.reference_kind(*src);
-                        let dst_storage = self.reference_storage(*dst);
-                        let src_storage = self.reference_storage(*src);
-                        let mut read_effect = MemoryAccessEffect::read(
-                            MemoryRegion::from_address_with_size(
-                                *src,
-                                src_type,
-                                src_kind,
-                                src_storage,
-                                size,
-                                self.target_layout.pointer_bits(),
-                                self.tree,
-                            ),
-                            false,
-                        );
-                        self.apply_address_region(&mut read_effect, *src);
-                        effects.push(read_effect);
-
-                        let mut write_effect = MemoryAccessEffect::write(
-                            MemoryRegion::from_address_with_size(
-                                *dst,
-                                dst_type,
-                                dst_kind,
-                                dst_storage,
-                                size,
-                                self.target_layout.pointer_bits(),
-                                self.tree,
-                            ),
-                            false,
-                        );
-                        self.apply_address_region(&mut write_effect, *dst);
-                        effects.push(write_effect);
-                    }
-                    _ => effects.push(MemoryAccessEffect::read_write(
-                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                        false,
-                    )),
+                // preserve operand order for comparisons and destination order for copies
+                if intrinsic == mir::Intrinsic::Memcmp {
+                    smallvec![left, right]
+                } else {
+                    smallvec![right, left]
                 }
-
-                // return the effects
-                effects
             }
             mir::Intrinsic::Memset => {
-                // collect the memory operands
-                let mut effects = SmallVec::new();
-                let dst = args.first();
-                let size = args.get(2).and_then(|len| self.constant_u64(*len));
+                let [destination, _, length] = args else {
+                    unreachable!("memory set requires three MIR arguments");
+                };
+                let size = self.constant_u64(*length);
+                let effect = self.byte_effect(*destination, mir::MemoryOperation::Write, size);
 
-                // emit write effects when operands are present
-                match dst {
-                    Some(dst) => {
-                        let dst_type = self.address_value_type(*dst);
-                        let dst_kind = self.reference_kind(*dst);
-                        let dst_storage = self.reference_storage(*dst);
-                        let mut effect = MemoryAccessEffect::write(
-                            MemoryRegion::from_address_with_size(
-                                *dst,
-                                dst_type,
-                                dst_kind,
-                                dst_storage,
-                                size,
-                                self.target_layout.pointer_bits(),
-                                self.tree,
-                            ),
-                            false,
-                        );
-                        self.apply_address_region(&mut effect, *dst);
-                        effects.push(effect);
-                    }
-                    None => effects.push(MemoryAccessEffect::write(
-                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                        false,
-                    )),
-                }
-
-                // return the effects
-                effects
-            }
-            mir::Intrinsic::Memcmp => {
-                // collect the memory operands
-                let mut effects = SmallVec::new();
-                let left = args.first();
-                let right = args.get(1);
-                let size = args.get(2).and_then(|len| self.constant_u64(*len));
-
-                // emit read effects when operands are present
-                match (left, right) {
-                    (Some(left), Some(right)) => {
-                        let left_type = self.address_value_type(*left);
-                        let right_type = self.address_value_type(*right);
-                        let left_kind = self.reference_kind(*left);
-                        let right_kind = self.reference_kind(*right);
-                        let left_storage = self.reference_storage(*left);
-                        let right_storage = self.reference_storage(*right);
-                        let mut left_effect = MemoryAccessEffect::read(
-                            MemoryRegion::from_address_with_size(
-                                *left,
-                                left_type,
-                                left_kind,
-                                left_storage,
-                                size,
-                                self.target_layout.pointer_bits(),
-                                self.tree,
-                            ),
-                            false,
-                        );
-                        self.apply_address_region(&mut left_effect, *left);
-                        effects.push(left_effect);
-
-                        let mut right_effect = MemoryAccessEffect::read(
-                            MemoryRegion::from_address_with_size(
-                                *right,
-                                right_type,
-                                right_kind,
-                                right_storage,
-                                size,
-                                self.target_layout.pointer_bits(),
-                                self.tree,
-                            ),
-                            false,
-                        );
-                        self.apply_address_region(&mut right_effect, *right);
-                        effects.push(right_effect);
-                    }
-                    _ => effects.push(MemoryAccessEffect::read(
-                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                        false,
-                    )),
-                }
-
-                // return the effects
-                effects
+                smallvec![effect]
             }
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => {
-                // collect the memory operands
-                let mut effects = SmallVec::new();
-                let pointer = args.first().copied();
+                let [pointer] = args else {
+                    unreachable!("memory prefetch requires one MIR argument");
+                };
+                let effect = self.address_effect(
+                    *pointer,
+                    mir::MemoryOperation::Read,
+                    MemoryAccessOrder::Plain,
+                );
 
-                // emit read effects when operands are present
-                match pointer {
-                    Some(pointer) => {
-                        let value_type = self.address_value_type(pointer);
-                        let reference_kind = self.reference_kind(pointer);
-                        let reference_storage = self.reference_storage(pointer);
-                        let mut effect = MemoryAccessEffect::read(
-                            MemoryRegion::from_address(
-                                pointer,
-                                value_type,
-                                reference_kind,
-                                reference_storage,
-                                self.target_layout.pointer_bits(),
-                                self.tree,
-                            ),
-                            false,
-                        );
-                        self.apply_address_region(&mut effect, pointer);
-                        effects.push(effect);
-                    }
-                    None => effects.push(MemoryAccessEffect::read(
-                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                        false,
-                    )),
-                }
-
-                // return the effects
-                effects
+                smallvec![effect]
             }
-
-            // preserve volatile pointer position
             mir::Intrinsic::VolatileLoad | mir::Intrinsic::VolatileStore => {
-                let mut effects = SmallVec::new();
-                let pointer = args.first().copied();
-                let is_load = intrinsic == mir::Intrinsic::VolatileLoad;
-
-                // emit a volatile effect on the accessed location
-                match pointer {
-                    Some(pointer) => {
-                        let value_type = self.address_value_type(pointer);
-                        let reference_kind = self.reference_kind(pointer);
-                        let reference_storage = self.reference_storage(pointer);
-                        let region = MemoryRegion::from_address(
-                            pointer,
-                            value_type,
-                            reference_kind,
-                            reference_storage,
-                            self.target_layout.pointer_bits(),
-                            self.tree,
-                        );
-                        let mut effect = match is_load {
-                            true => MemoryAccessEffect::read(region, true),
-                            false => MemoryAccessEffect::write(region, true),
-                        };
-                        self.apply_address_region(&mut effect, pointer);
-                        effects.push(effect);
+                let (pointer, operation) = match (intrinsic, args) {
+                    (mir::Intrinsic::VolatileLoad, [pointer]) => {
+                        (*pointer, mir::MemoryOperation::Read)
                     }
-                    None => effects.push(MemoryAccessEffect::read_write(
-                        MemoryRegion::any_spaces(mir::StorageSet::ANY),
-                        true,
-                    )),
-                }
+                    (mir::Intrinsic::VolatileStore, [pointer, _]) => {
+                        (*pointer, mir::MemoryOperation::Write)
+                    }
+                    _ => unreachable!("volatile memory operation has invalid MIR arguments"),
+                };
+                let effect = self.address_effect(pointer, operation, MemoryAccessOrder::Volatile);
 
-                effects
+                smallvec![effect]
             }
 
-            // representation-only intrinsics
+            // omit representation intrinsics
             mir::Intrinsic::Transmute
             | mir::Intrinsic::SpaceCast
             | mir::Intrinsic::PointerByteOffsetFrom
@@ -1003,35 +860,39 @@ impl<'a> MemoryEffectBuilder<'a> {
             | mir::Intrinsic::RoundTiesEven
             | mir::Intrinsic::RoundTiesAway => SmallVec::new(),
 
-            // compiler hints
+            // omit compiler hints
             mir::Intrinsic::SpinLoop | mir::Intrinsic::Expect | mir::Intrinsic::BlackBox => {
                 SmallVec::new()
             }
         }
     }
 
-    /// Resolve a constant byte size from a value when possible.
-    fn constant_u64(&self, value: mir::Value) -> Option<u64> {
-        let constant = self.constants.constant(value)?;
+    /// Classify an address access with an explicit or runtime byte count.
+    fn byte_effect(
+        &self,
+        address: mir::Value,
+        operation: mir::MemoryOperation,
+        size: Option<u64>,
+    ) -> MemoryAccessEffect {
+        let mut effect = self.address_effect(address, operation, MemoryAccessOrder::Plain);
+        let MemoryRegion::Address { location, .. } = &mut effect.region else {
+            unreachable!("address effect requires an addressed region");
+        };
+        location.size = size.into();
 
-        match constant {
-            mir::Constant::UInt { value, .. } => u64::try_from(*value).ok(),
-            mir::Constant::Int { value, .. } => {
-                if *value >= 0 {
-                    u64::try_from(*value).ok()
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        }
+        effect
     }
 
-    /// Wrap a single access effect in a small vector.
-    fn single_effect(effect: MemoryAccessEffect) -> SmallVec<[MemoryAccessEffect; 2]> {
-        let mut effects = SmallVec::new();
-        effects.push(effect);
-        effects
+    /// Return a constant byte count or retain a runtime length.
+    fn constant_u64(&self, value: mir::Value) -> Option<u64> {
+        let constant = self.constants.constant(value)?;
+        let count = match constant {
+            mir::Constant::UInt { value, .. } => u64::try_from(*value),
+            mir::Constant::Int { value, .. } => u64::try_from(*value),
+            _ => unreachable!("MIR byte length requires an integer constant"),
+        };
+
+        Some(count.unwrap_or_else(|_| unreachable!("MIR byte length exceeds the address range")))
     }
 
     /// Resolve the pointee type for an address-bearing value.
@@ -1047,5 +908,677 @@ impl<'a> MemoryEffectBuilder<'a> {
     /// Return the reference storage carried by an address, when applicable.
     fn reference_storage(&self, address: mir::Value) -> Option<mir::Storage> {
         self.function.reference_storage(address, self.tree)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::MemorySize;
+    use crate::analyses::tests::TestModule;
+
+    /// Match direct and addressed accesses to the same local storage.
+    #[test]
+    fn test_match_direct_and_addressed_local_accesses() {
+        let program = TestModule::new(
+            r#"
+function test(): int32 {
+    local l0: int32
+    local l1: int32
+
+entry:
+    v0: int32 = 7
+    local.set l0, v0
+    local.set l1, v0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v2: int32 = load v1
+    return v2
+}
+"#,
+        );
+        let function_id = program.entry_function_id();
+        let function = program.tree.get(function_id);
+        let mut analyses = program.function_analyses();
+        let alias = analyses
+            .alias(function, program.layouts.clone(), &program.tree)
+            .unwrap();
+        let effects =
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
+        let instructions = program.entry_instructions(function_id);
+        let first = effects.instruction_effects(instructions[1]).next().unwrap();
+        let second = effects.instruction_effects(instructions[2]).next().unwrap();
+        let load = effects.instruction_effects(instructions[4]).next().unwrap();
+
+        assert!(first.may_alias(&alias, load).unwrap());
+        assert!(load.may_alias(&alias, first).unwrap());
+        assert!(!second.may_alias(&alias, load).unwrap());
+        assert!(!load.may_alias(&alias, second).unwrap());
+    }
+
+    /// Retain runtime memory effects when allocating and releasing an owned object.
+    #[test]
+    fn test_record_allocation_and_release_effects() {
+        let program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    release v0
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let effects =
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
+        let instructions = &program.tree.get(function.block(0)).instructions;
+        for &instruction in instructions {
+            let actual = effects
+                .instruction_effects(instruction)
+                .cloned()
+                .collect::<Vec<_>>();
+            let expected = MemoryAccessEffect {
+                reads: true,
+                writes: true,
+                order: MemoryAccessOrder::Plain,
+                is_barrier: false,
+                region: MemoryRegion::Any {
+                    spaces: mir::StorageSet::ANY,
+                },
+            };
+
+            assert_eq!(actual, [expected]);
+        }
+    }
+
+    /// Read the copy source, write its destination, and read both comparison operands.
+    #[test]
+    fn test_read_copy_source_and_write_destination() {
+        let mut program = TestModule::new(
+            r#"
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
+    v2: usize = 12
+    intrinsic.memory.raw.copyBytes(v0, v1, v2)
+    v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
+    return v3
+}
+"#,
+        );
+        let int32 = program.tree.intern_type(mir::Type::INT32);
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let effects =
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
+        let instructions = &program.tree.get(function.block(0)).instructions;
+        for (index, accesses) in [
+            (1, [(1, true, false), (0, false, true)]),
+            (2, [(0, true, false), (1, true, false)]),
+        ] {
+            let expected = accesses.map(|(address, reads, writes)| MemoryAccessEffect {
+                reads,
+                writes,
+                order: MemoryAccessOrder::Plain,
+                is_barrier: false,
+                region: MemoryRegion::Address {
+                    location: MemoryLocation::new(
+                        mir::Value(address),
+                        MemorySize::Bytes(12),
+                        Some(int32),
+                        Some(mir::ReferenceKind::Borrowed),
+                        Some(mir::Storage::Heap(mir::Space::Local)),
+                    ),
+                    spaces: mir::StorageSet::LOCAL,
+                },
+            });
+            let actual = effects
+                .instruction_effects(instructions[index])
+                .cloned()
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, expected, "instruction {index}");
+        }
+    }
+
+    /// Preserve volatile access addresses and leave adjacent plain loads unordered.
+    #[test]
+    fn test_preserve_volatile_accesses() {
+        let mut test = TestModule::new(
+            r#"
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
+    v2: int32 = load v0
+    store v1, v2
+    v3: int32 = load v0
+    return v3
+}
+"#,
+        );
+        let int32 = test.tree.intern_type(mir::Type::INT32);
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+
+        // locate volatile instructions
+        let block = test.tree.get(function.block(0));
+        let volatile_load = block.instructions[0];
+        let volatile_store = block.instructions[1];
+
+        // attach the explicit volatile accesses consumed by this analysis
+        for (instruction, address, operation) in [
+            (volatile_load, 0, mir::MemoryOperation::Read),
+            (volatile_store, 1, mir::MemoryOperation::Write),
+        ] {
+            test.accesses.insert(
+                instruction,
+                vec![mir::MemoryAccess {
+                    operation,
+                    target: mir::MemoryTarget::Address(mir::Value(address)),
+                    byte_len: Some(4),
+                    alignment_bytes: None,
+                    order: MemoryAccessOrder::Volatile,
+                }],
+            );
+        }
+
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let effects = analyses.memory_effect(function, &test.tree, &test.accesses, &test.effects);
+        let plain_load = test.tree.get(function.block(0)).instructions[2];
+        for (instruction, address, reads, writes, order, size) in [
+            (
+                volatile_load,
+                0,
+                true,
+                false,
+                MemoryAccessOrder::Volatile,
+                MemorySize::Bytes(4),
+            ),
+            (
+                volatile_store,
+                1,
+                false,
+                true,
+                MemoryAccessOrder::Volatile,
+                MemorySize::Bytes(4),
+            ),
+            (
+                plain_load,
+                0,
+                true,
+                false,
+                MemoryAccessOrder::Plain,
+                MemorySize::Type(int32),
+            ),
+        ] {
+            let expected = MemoryAccessEffect {
+                reads,
+                writes,
+                order,
+                is_barrier: false,
+                region: MemoryRegion::Address {
+                    location: MemoryLocation::new(
+                        mir::Value(address),
+                        size,
+                        Some(int32),
+                        Some(mir::ReferenceKind::Borrowed),
+                        Some(mir::Storage::Heap(mir::Space::Local)),
+                    ),
+                    spaces: mir::StorageSet::LOCAL,
+                },
+            };
+            let actual = effects
+                .instruction_effects(instruction)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, [expected]);
+        }
+    }
+
+    /// Record each atomic operation's address, extent, access mode, ordering, and scope.
+    #[test]
+    fn test_record_atomic_memory_effects() {
+        let mut program = TestModule::new(
+            r#"
+function test<'a>(v0: ref<atomic<int32>, borrowed, 'a, readonly, frame>, v1: ref<atomic<uint64>, unique, mutable, local>, v2: ref<atomic<int32>, borrowed, 'a, mutable, shared>): void {
+entry(v0: ref<atomic<int32>, borrowed, 'a, readonly, frame>, v1: ref<atomic<uint64>, unique, mutable, local>, v2: ref<atomic<int32>, borrowed, 'a, mutable, shared>):
+    v3: int32 = atomic.load v0, acquire, scope(invocation)
+    v4: uint64 = 23
+    atomic.store v1, v4, release, scope(device)
+    v5: int32 = atomic.rmw.add v2, v3, acquireRelease, scope(workgroup)
+    return
+}
+"#,
+        );
+        let int32 = program.tree.intern_type(mir::Type::INT32);
+        let uint64 = program.tree.intern_type(mir::Type::UINT64);
+        let atomic32 = program.tree.intern_type(mir::Type::Atomic { value: int32 });
+        let atomic64 = program
+            .tree
+            .intern_type(mir::Type::Atomic { value: uint64 });
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let effects =
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
+        let instructions = &program.tree.get(function.block(0)).instructions;
+
+        for (instruction, expected) in [
+            (
+                0,
+                MemoryAccessEffect {
+                    reads: true,
+                    writes: false,
+                    order: MemoryAccessOrder::Atomic(mir::AtomicAccess::new(
+                        mir::MemoryOrdering::Acquire,
+                        mir::ExecutionScope::Invocation,
+                    )),
+                    is_barrier: false,
+                    region: MemoryRegion::Address {
+                        location: MemoryLocation::new(
+                            mir::Value(0),
+                            MemorySize::Type(atomic32),
+                            Some(atomic32),
+                            Some(mir::ReferenceKind::Borrowed),
+                            Some(mir::Storage::Frame),
+                        ),
+                        spaces: mir::StorageSet::FRAME,
+                    },
+                },
+            ),
+            (
+                2,
+                MemoryAccessEffect {
+                    reads: false,
+                    writes: true,
+                    order: MemoryAccessOrder::Atomic(mir::AtomicAccess::new(
+                        mir::MemoryOrdering::Release,
+                        mir::ExecutionScope::Device,
+                    )),
+                    is_barrier: false,
+                    region: MemoryRegion::Address {
+                        location: MemoryLocation::new(
+                            mir::Value(1),
+                            MemorySize::Type(atomic64),
+                            Some(atomic64),
+                            Some(mir::ReferenceKind::Unique),
+                            Some(mir::Storage::Heap(mir::Space::Local)),
+                        ),
+                        spaces: mir::StorageSet::LOCAL,
+                    },
+                },
+            ),
+            (
+                3,
+                MemoryAccessEffect {
+                    reads: true,
+                    writes: true,
+                    order: MemoryAccessOrder::Atomic(mir::AtomicAccess::new(
+                        mir::MemoryOrdering::AcquireRelease,
+                        mir::ExecutionScope::Workgroup,
+                    )),
+                    is_barrier: false,
+                    region: MemoryRegion::Address {
+                        location: MemoryLocation::new(
+                            mir::Value(2),
+                            MemorySize::Type(atomic32),
+                            Some(atomic32),
+                            Some(mir::ReferenceKind::Borrowed),
+                            Some(mir::Storage::Heap(mir::Space::Shared)),
+                        ),
+                        spaces: mir::StorageSet::SHARED,
+                    },
+                },
+            ),
+        ] {
+            let actual = effects
+                .instruction_effects(instructions[instruction])
+                .cloned()
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, [expected], "instruction {instruction}");
+        }
+
+        assert_eq!(
+            effects
+                .instruction_effects(instructions[1])
+                .collect::<Vec<_>>(),
+            Vec::<&MemoryAccessEffect>::new()
+        );
+    }
+
+    /// Record compare-exchange as a conditional write ordered by its success ordering.
+    #[test]
+    fn test_record_compare_exchange_effects() {
+        let mut program = TestModule::new(
+            r#"
+function test<'a>(v0: ref<atomic<uint32>, borrowed, 'a, mutable, shared>, v1: ref<atomic<uint32>, borrowed, 'a, mutable, local>): void {
+entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, shared>, v1: ref<atomic<uint32>, borrowed, 'a, mutable, local>):
+    v2: uint32 = 1
+    v3: uint32 = 2
+    v4: (uint32, boolean) = atomic.cas v0, v2, v3, acquireRelease, failure(acquire), scope(workgroup)
+    v5: (uint32, boolean) = atomic.cas v1, v3, v2, acquire, failure(relaxed), scope(system)
+    return
+}
+"#,
+        );
+        let uint32 = program.tree.intern_type(mir::Type::UINT32);
+        let atomic = program
+            .tree
+            .intern_type(mir::Type::Atomic { value: uint32 });
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let effects =
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
+        let instructions = &program.tree.get(function.block(0)).instructions;
+
+        for (instruction, address, space, ordering, scope) in [
+            (
+                2,
+                0,
+                mir::Space::Shared,
+                mir::MemoryOrdering::AcquireRelease,
+                mir::ExecutionScope::Workgroup,
+            ),
+            (
+                3,
+                1,
+                mir::Space::Local,
+                mir::MemoryOrdering::Acquire,
+                mir::ExecutionScope::System,
+            ),
+        ] {
+            let storage = mir::Storage::Heap(space);
+            let expected = MemoryAccessEffect {
+                reads: true,
+                writes: true,
+                order: MemoryAccessOrder::Atomic(mir::AtomicAccess::new(ordering, scope)),
+                is_barrier: false,
+                region: MemoryRegion::Address {
+                    location: MemoryLocation::new(
+                        mir::Value(address),
+                        MemorySize::Type(atomic),
+                        Some(atomic),
+                        Some(mir::ReferenceKind::Borrowed),
+                        Some(storage),
+                    ),
+                    spaces: storage.storage_set(),
+                },
+            };
+            let actual = effects
+                .instruction_effects(instructions[instruction])
+                .cloned()
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, [expected], "instruction {instruction}");
+        }
+    }
+
+    /// Retain fence ordering and storage without reporting a byte read or write.
+    #[test]
+    fn test_record_fence_order_scope_and_storage() {
+        let program = TestModule::new(
+            r#"
+function test(): int32 {
+entry:
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
+    v0: int32 = 0
+    return v0
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let effects =
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
+        let instructions = &program.tree.get(function.block(0)).instructions;
+        let expected = MemoryAccessEffect {
+            reads: false,
+            writes: false,
+            order: MemoryAccessOrder::Atomic(mir::AtomicAccess::new(
+                mir::MemoryOrdering::SequentiallyConsistent,
+                mir::ExecutionScope::Device,
+            )),
+            is_barrier: true,
+            region: MemoryRegion::Any {
+                spaces: mir::StorageSet::SHARED,
+            },
+        };
+        let actual = effects
+            .instruction_effects(instructions[0])
+            .cloned()
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, [expected]);
+    }
+
+    /// Retain unknown call effects until the callee declares no memory accesses.
+    #[test]
+    fn test_restrict_call_effects_to_declared_memory() {
+        let mut test = TestModule::new(
+            r#"
+external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
+
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
+    call imported(v0): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void
+    v1: int32 = 0
+    return v1
+}
+"#,
+        );
+
+        let function_id = test.entry_function_id();
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
+        let callsite = mir::Point::Instruction(call_inst);
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let effects = analyses.memory_effect(function, &test.tree, &test.accesses, &test.effects);
+        let actual = effects
+            .instruction_effects(call_inst)
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual,
+            [MemoryAccessEffect {
+                reads: true,
+                writes: true,
+                order: MemoryAccessOrder::Plain,
+                is_barrier: false,
+                region: MemoryRegion::Any {
+                    spaces: mir::StorageSet::ANY
+                },
+            }]
+        );
+
+        // apply the callee's explicit declaration of no memory effects
+        test.effects.upsert_call(callsite).memory = Some(mir::MemoryEffect::none());
+        let mut analyses = test.function_analyses();
+        let effects = analyses.memory_effect(function, &test.tree, &test.accesses, &test.effects);
+        let actual = effects.instruction_effects(call_inst).collect::<Vec<_>>();
+
+        assert_eq!(actual, Vec::<&MemoryAccessEffect>::new());
+    }
+
+    /// Memory access entries override default instruction effects.
+    #[test]
+    fn test_apply_explicit_call_accesses() {
+        // build the test program
+        let mut test = TestModule::new(
+            r#"
+external function imported<'a, 'b>(ref<int32, borrowed, 'a, mutable, local>, ref<int32, borrowed, 'b, mutable, local>): void
+
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
+    call imported(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, mutable, local>, ref<int32, borrowed, 'b, mutable, local>) => void
+    v2: int32 = 0
+    return v2
+}
+"#,
+        );
+        let int32 = test.tree.intern_type(mir::Type::INT32);
+
+        // collect parameter values and the call instruction
+        let function_id = test.entry_function_id();
+        let param_values = {
+            let function = test.tree.get(function_id);
+            function
+                .parameters
+                .iter()
+                .map(|param| param.value)
+                .collect::<Vec<_>>()
+        };
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
+
+        // build explicit access entries
+        let read_access = mir::MemoryAccess::plain(
+            mir::MemoryOperation::Read,
+            mir::MemoryTarget::Address(param_values[0]),
+            Some(4),
+            None,
+        );
+        let write_access = mir::MemoryAccess::plain(
+            mir::MemoryOperation::Write,
+            mir::MemoryTarget::Address(param_values[1]),
+            Some(4),
+            None,
+        );
+
+        // attach effects access entries to the call
+        test.accesses
+            .insert(call_inst, vec![read_access, write_access]);
+
+        // build analyses
+        let function = test.tree.get(function_id);
+        let mut analyses = test.function_analyses();
+        let effects = analyses.memory_effect(function, &test.tree, &test.accesses, &test.effects);
+        let effects = effects.as_ref();
+
+        let expected = [(0, true, false), (1, false, true)].map(|(index, reads, writes)| {
+            let address = function.parameters[index].value;
+            MemoryAccessEffect {
+                reads,
+                writes,
+                order: MemoryAccessOrder::Plain,
+                is_barrier: false,
+                region: MemoryRegion::Address {
+                    location: MemoryLocation::new(
+                        address,
+                        MemorySize::Bytes(4),
+                        Some(int32),
+                        Some(mir::ReferenceKind::Borrowed),
+                        Some(mir::Storage::Heap(mir::Space::Local)),
+                    ),
+                    spaces: mir::StorageSet::LOCAL,
+                },
+            }
+        });
+        let actual = effects
+            .instruction_effects(call_inst)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+    }
+
+    /// Dynamic field reads retain their dispatch projections and exact widths.
+    #[test]
+    fn test_retain_dynamic_field_addresses() {
+        let mut test = TestModule::new(
+            r#"
+type Writer {
+    first: int32;
+    second: float64;
+}
+
+function test(v0: dynamic<Writer, managed, readonly, local>): void {
+entry(v0: dynamic<Writer, managed, readonly, local>):
+    v1: int32 = dynamic.read v0, 0
+    v2: float64 = dynamic.read v0, 1
+    return
+}
+"#,
+        );
+        let int32 = test.tree.intern_type(mir::Type::INT32);
+        let float64 = test.tree.intern_type(mir::Type::FLOAT64);
+
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
+        let block = test.tree.get(function.block(0));
+        let mut analyses = test.function_analyses();
+        let effects = analyses.memory_effect(function, &test.tree, &test.accesses, &test.effects);
+
+        for (slot, ty) in [(0, int32), (1, float64)] {
+            let expected = MemoryAccessEffect {
+                reads: true,
+                writes: false,
+                order: MemoryAccessOrder::Plain,
+                is_barrier: false,
+                region: MemoryRegion::Address {
+                    location: MemoryLocation::new(
+                        MemoryAddress::Dynamic {
+                            value: mir::Value(0),
+                            slot: mir::DispatchSlot(slot),
+                        },
+                        MemorySize::Type(ty),
+                        Some(ty),
+                        Some(mir::ReferenceKind::Managed),
+                        Some(mir::Storage::Heap(mir::Space::Local)),
+                    ),
+                    spaces: mir::StorageSet::LOCAL,
+                },
+            };
+            let actual = effects
+                .instruction_effects(block.instructions[slot as usize])
+                .cloned()
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, [expected], "field {slot}");
+        }
+    }
+
+    /// Preserve runtime byte lengths instead of substituting the pointed-to type's size.
+    #[test]
+    fn test_preserve_runtime_copy_extent() {
+        let program = TestModule::new(
+            r#"
+function test(v0: ptr<int32, mutable>, v1: ptr<int32, readonly>, v2: usize): void {
+entry(v0: ptr<int32, mutable>, v1: ptr<int32, readonly>, v2: usize):
+    intrinsic.memory.raw.copyBytes(v0, v1, v2)
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let effects =
+            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
+        let instruction = program.tree.get(function.block(0)).instructions[0];
+        let actual = effects
+            .instruction_effects(instruction)
+            .map(|effect| {
+                let location = effect.region.location().unwrap();
+                (effect.reads, effect.writes, location.address, location.size)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            actual,
+            [
+                (
+                    true,
+                    false,
+                    MemoryAddress::Value(mir::Value(1)),
+                    MemorySize::Dynamic
+                ),
+                (
+                    false,
+                    true,
+                    MemoryAddress::Value(mir::Value(0)),
+                    MemorySize::Dynamic
+                ),
+            ]
+        );
     }
 }

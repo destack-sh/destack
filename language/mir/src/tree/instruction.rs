@@ -714,9 +714,13 @@ impl Node for Instruction {
 }
 
 impl Instruction {
-    // TODO #Incomplete: include traps and memory accesses in instruction effect queries
-    /// Return whether an instruction must remain when its result is unused.
+    /// Return whether an instruction can have observable effects when its result is unused.
     pub fn has_side_effects(&self) -> bool {
+        // preserve operations whose execution can trap
+        if self.may_trap() {
+            return true;
+        }
+
         // classify instructions by side effects
         match self {
             Self::Error => {
@@ -808,7 +812,47 @@ impl Instruction {
         }
     }
 
-    /// Get the destination value defined by this instruction (if any).
+    /// Return whether executing this operation can trap without further operand guarantees.
+    pub fn may_trap(&self) -> bool {
+        match self {
+            Self::Binary {
+                operator: BinaryOperator::Divide | BinaryOperator::Remainder,
+                ..
+            }
+            | Self::Cast {
+                operator: CastOperator::FloatToSignedInt | CastOperator::FloatToUnsignedInt,
+                ..
+            }
+            | Self::Load { .. }
+            | Self::Store { .. }
+            | Self::VariantTagLoad { .. }
+            | Self::DynamicRead { .. }
+            | Self::AtomicLoad { .. }
+            | Self::AtomicStore { .. }
+            | Self::AtomicCompareExchange { .. }
+            | Self::AtomicRmw { .. }
+            | Self::Call { .. }
+            | Self::Drop { .. }
+            | Self::NewZeroed { .. }
+            | Self::NewUninit { .. }
+            | Self::NewSliceZeroed { .. }
+            | Self::NewSliceUninit { .. } => true,
+            Self::Intrinsic { intrinsic, .. } => matches!(
+                intrinsic,
+                Intrinsic::Memcpy
+                    | Intrinsic::Memmove
+                    | Intrinsic::Memset
+                    | Intrinsic::Memcmp
+                    | Intrinsic::VolatileLoad
+                    | Intrinsic::VolatileStore
+                    | Intrinsic::DivideCeil
+                    | Intrinsic::RemainderEuclidean
+                    | Intrinsic::Clamp
+            ),
+            _ => false,
+        }
+    }
+
     /// Return the pointer one storing instruction writes through.
     pub fn store_pointer(&self) -> Option<Value> {
         match self {

@@ -1,721 +1,299 @@
-use std::collections::VecDeque;
+use std::ops::Range;
+use std::sync::Arc;
 
-use crate as mir;
 use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
-    AliasTable, Analysis, ControlTable, DominatorTable, MemoryAccessEffect, MemoryEffectTable,
-    MemoryRegion, Mutation, NodeTable,
+    AliasTable, Analysis, Block, ControlTable, DominatorTable, Function, Instruction, LayoutError,
+    LocalNodeId, MemoryAccessEffect, MemoryAccessOrder, MemoryEffectTable, MemoryRegion, Mutation,
+    NodeTable, Point, Tree,
 };
 
-/// Memory versions for one function.
+/// Maximum number of memory states examined by one clobber query.
+const CLOBBER_LIMIT: usize = 100;
+
+/// Memory definitions, uses, and merges for one function.
 #[derive(Debug)]
 pub struct MemorySsaTable {
-    /// All memory accesses indexed by id.
+    /// Memory nodes indexed by access identity.
     accesses: Vec<MemoryNode>,
-    /// Memory phi nodes indexed by block id.
-    block_phis: NodeTable<mir::Block, Option<MemoryAccessId>>,
-    /// Memory accesses indexed by instruction id.
-    instruction_access: NodeTable<mir::Instruction, Vec<MemoryAccessId>>,
-    /// Memory accesses indexed by terminator block id.
-    terminator_access: NodeTable<mir::Block, Vec<MemoryAccessId>>,
-    /// Memory accesses indexed by block id.
-    block_accesses: NodeTable<mir::Block, Vec<MemoryAccessId>>,
-    /// Live on entry access id.
-    live_on_entry: MemoryAccessId,
+    /// Memory merges indexed by block.
+    phis: NodeTable<Block, Option<MemoryAccessId>>,
+    /// Memory operations indexed by instruction.
+    instructions: NodeTable<Instruction, Option<MemoryAccessId>>,
+    /// Memory operations indexed by block terminator.
+    terminators: NodeTable<Block, Option<MemoryAccessId>>,
+    /// Contiguous operation nodes for each block.
+    blocks: NodeTable<Block, Range<usize>>,
+    /// Individual regions read or written by each operation.
+    effects: Arc<MemoryEffectTable>,
 }
 
-/// Identifier for a memory access in MemorySsaTable.
+/// Identity of one node in a function's memory SSA.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MemoryAccessId(u32);
 
 impl MemoryAccessId {
-    /// Create an access id from an index.
-    fn from_index(index: usize) -> Self {
-        Self(index as u32)
-    }
-
-    /// Return the vector index for this access id.
+    /// Return the dense node index.
     fn index(self) -> usize {
         self.0 as usize
     }
 }
 
-/// Source operation for one MemorySsaTable access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MemoryAccessSource {
-    /// Access produced by a MIR instruction.
-    Instruction(mir::LocalNodeId<mir::Instruction>),
-    /// Access produced by a block terminator.
-    Terminator(mir::LocalNodeId<mir::Block>),
-}
-
-impl MemoryAccessSource {
-    /// Return the instruction source when this access has one.
-    pub fn instruction(self) -> Option<mir::LocalNodeId<mir::Instruction>> {
-        match self {
-            Self::Instruction(instruction) => Some(instruction),
-            Self::Terminator(_) => None,
-        }
-    }
-
-    /// Return the terminator block when this access has one.
-    pub fn terminator(self) -> Option<mir::LocalNodeId<mir::Block>> {
-        match self {
-            Self::Instruction(_) => None,
-            Self::Terminator(block) => Some(block),
-        }
-    }
-}
-
-/// Query information for clobbering access lookups.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct MemoryAccessQuery {
-    /// The memory region being accessed.
-    region: MemoryRegion,
-}
-
-impl MemoryAccessQuery {
-    /// Create a query from a full access effect.
-    fn from_effect(effect: &MemoryAccessEffect) -> Self {
-        Self {
-            region: effect.region.clone(),
-        }
-    }
-
-    /// Create a query from a region with no alias tables.
-    fn from_region(region: &MemoryRegion) -> Self {
-        Self {
-            region: region.clone(),
-        }
-    }
-}
-
-/// MemorySsaTable access node.
+/// One function memory state or its use.
 #[derive(Debug, Clone)]
 pub enum MemoryNode {
-    /// Pseudo access that dominates all memory operations.
+    /// Memory entering the function.
     LiveOnEntry,
-    /// Phi node merging memory states.
+    /// Memory states merged at a block entry.
     Phi(MemoryPhi),
-    /// Memory definition (writes memory).
-    Def(MemoryDef),
-    /// Memory use (reads memory).
-    Use(MemoryUse),
+    /// An operation that writes memory or orders other accesses.
+    Def(MemorySsaAccess),
+    /// An operation that only reads memory.
+    Use(MemorySsaAccess),
 }
 
-impl MemoryNode {
-    /// Return the memory effect payload for this access if available.
-    pub fn effect(&self) -> Option<&MemoryAccessEffect> {
-        match self {
-            Self::Def(def) => Some(&def.effect),
-            Self::Use(use_access) => Some(&use_access.effect),
-            Self::LiveOnEntry | Self::Phi(_) => None,
-        }
-    }
-
-    /// Return the instruction id for this access if available.
-    pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
-        // map instruction sourced accesses
-        self.source().and_then(MemoryAccessSource::instruction)
-    }
-
-    /// Return the source operation for this access if available.
-    pub fn source(&self) -> Option<MemoryAccessSource> {
-        match self {
-            MemoryNode::Def(def) => Some(def.source),
-            MemoryNode::Use(use_access) => Some(use_access.source),
-            _ => None,
-        }
-    }
+/// One instruction or terminator linked to its incoming memory state.
+#[derive(Debug, Clone)]
+pub struct MemorySsaAccess {
+    /// The instruction or terminator.
+    pub source: Point,
+    /// The memory definition immediately before this operation.
+    pub defining_access: MemoryAccessId,
 }
 
-/// Memory phi node.
+/// Memory states entering one control-flow merge.
 #[derive(Debug, Clone)]
 pub struct MemoryPhi {
-    /// Block that owns this phi.
-    pub block: mir::LocalNodeId<mir::Block>,
-    /// Incoming memory keyed by predecessor block; none denotes initial function entry.
-    pub incoming: Vec<(Option<mir::LocalNodeId<mir::Block>>, MemoryAccessId)>,
-}
-
-/// Memory definition access.
-#[derive(Debug, Clone)]
-pub struct MemoryDef {
-    /// Operation that defines memory.
-    pub source: MemoryAccessSource,
-    /// Immediate defining access in MemorySsaTable.
-    pub defining_access: Option<MemoryAccessId>,
-    /// Memory effects for this operation.
-    pub effect: MemoryAccessEffect,
-}
-
-impl MemoryDef {
-    /// Return whether this definition clobbers a query.
-    fn clobbers_query(&self, query: &MemoryAccessQuery, alias: &AliasTable) -> bool {
-        // treat barriers as clobbering all memory
-        if self.effect.is_barrier {
-            return true;
-        }
-
-        // ignore non-writing accesses
-        if !self.effect.writes {
-            return false;
-        }
-
-        // disambiguate by region sets
-        if !self.effect.region.spaces().may_alias(query.region.spaces()) {
-            return false;
-        }
-
-        // check for local memory
-        if let MemoryRegion::Local(local) = &query.region {
-            if let MemoryRegion::Local(def_local) = &self.effect.region {
-                return def_local == local;
-            }
-
-            return false;
-        }
-
-        // handle unknown memory spaces
-        if matches!(query.region, MemoryRegion::Any { .. }) {
-            return self.effect.writes;
-        }
-
-        // resolve addressed queries
-        let Some(location) = query.region.location() else {
-            return self.effect.writes;
-        };
-
-        // ignore local defs for addressed queries
-        if let MemoryRegion::Local(_) = self.effect.region {
-            return false;
-        }
-
-        // compare memory locations when available
-        if let MemoryRegion::Address {
-            location: definition,
-            ..
-        } = &self.effect.region
-        {
-            return alias.alias(definition, location).may_alias();
-        }
-
-        // treat imprecise definitions as clobbering compatible locations
-        matches!(self.effect.region, MemoryRegion::Any { .. })
-    }
-
-    /// Return whether this definition clobbers a memory region.
-    fn clobbers_region(&self, region: &MemoryRegion, alias: &AliasTable) -> bool {
-        // treat barriers as clobbering all memory
-        if self.effect.is_barrier {
-            return true;
-        }
-
-        // ignore non-writing accesses
-        if !self.effect.writes {
-            return false;
-        }
-
-        // disambiguate by region sets
-        if !self.effect.region.spaces().may_alias(region.spaces()) {
-            return false;
-        }
-
-        // check for local memory
-        if let MemoryRegion::Local(local) = region {
-            if let MemoryRegion::Local(def_local) = &self.effect.region {
-                return def_local == local;
-            }
-
-            return false;
-        }
-
-        // handle unknown memory spaces
-        if matches!(region, MemoryRegion::Any { .. }) {
-            return self.effect.writes;
-        }
-
-        // check address-based aliasing
-        let Some(location) = region.location() else {
-            return self.effect.writes;
-        };
-
-        if let MemoryRegion::Local(_) = self.effect.region {
-            return false;
-        }
-
-        // compare memory locations when available
-        if let MemoryRegion::Address {
-            location: definition,
-            ..
-        } = &self.effect.region
-        {
-            return alias.alias(definition, location).may_alias();
-        }
-
-        // treat imprecise definitions as clobbering compatible locations
-        matches!(self.effect.region, MemoryRegion::Any { .. })
-    }
-
-    /// Return the source instruction when this def has one.
-    pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
-        self.source.instruction()
-    }
-}
-
-/// Memory use access.
-#[derive(Debug, Clone)]
-pub struct MemoryUse {
-    /// Operation that reads memory.
-    pub source: MemoryAccessSource,
-    /// Immediate defining access in MemorySsaTable.
-    pub defining_access: Option<MemoryAccessId>,
-    /// Memory effects for this operation.
-    pub effect: MemoryAccessEffect,
-}
-
-impl MemoryUse {
-    /// Return the source instruction when this use has one.
-    pub fn instruction(&self) -> Option<mir::LocalNodeId<mir::Instruction>> {
-        self.source.instruction()
-    }
+    /// The block where memory states merge.
+    pub block: LocalNodeId<Block>,
+    /// The nearest memory state that strictly dominates this merge.
+    pub dominator: MemoryAccessId,
+    /// Incoming memory by predecessor, with none denoting function entry.
+    pub incoming: Vec<(Option<LocalNodeId<Block>>, MemoryAccessId)>,
 }
 
 impl MemorySsaTable {
-    /// Build MemorySsaTable for a function.
+    /// Analyse memory operations using iterated dominance frontiers and SSA renaming.
     pub fn analyse(
-        function: &mir::Function,
-        cfg: &ControlTable,
+        function: &Function,
+        control: &ControlTable,
         dominator: &DominatorTable,
-        effects: &MemoryEffectTable,
-        tree: &mir::Tree,
+        effects: Arc<MemoryEffectTable>,
+        tree: &Tree,
     ) -> Self {
-        // handle imported functions
-        let entry = match function.entry() {
-            Some(entry) => entry,
-            None => {
-                let live_on_entry = MemoryAccessId::from_index(0);
-
-                return Self {
-                    accesses: vec![MemoryNode::LiveOnEntry],
-                    block_phis: NodeTable::new(),
-                    instruction_access: NodeTable::new(),
-                    terminator_access: NodeTable::new(),
-                    block_accesses: NodeTable::new(),
-                    live_on_entry,
-                };
-            }
-        };
-
-        // collect memory accesses and definition blocks
-        let collected = MemoryAccessCollection::collect(function, effects, cfg, tree);
-
-        // compute dominance frontier for memory defs
-        let dominance_frontier = dominator.frontiers();
-
-        // insert memory phis for join points
-        let phi_blocks = Self::phi_blocks(
-            &collected.def_blocks,
-            &dominance_frontier,
-            &collected.reachable,
-        );
-
-        // create memory access table with live on entry
-        let mut accesses = Vec::new();
-        accesses.push(MemoryNode::LiveOnEntry);
-        let live_on_entry = MemoryAccessId::from_index(0);
-
-        // create block phis
-        let mut block_phis = NodeTable::from_nodes(function.blocks(), || None);
-        for block in &phi_blocks {
-            // merge initial memory when a backedge returns to the entry
-            let incoming = if *block == entry {
-                vec![(None, live_on_entry)]
-            } else {
-                Vec::new()
-            };
-
-            // index the new phi by its block
-            let phi_id = MemoryAccessId::from_index(accesses.len());
-            accesses.push(MemoryNode::Phi(MemoryPhi {
-                block: *block,
-                incoming,
-            }));
-            *block_phis.get_mut(*block) = Some(phi_id);
-        }
-
-        // create instruction memory accesses
+        // index all operations, including those in unreachable blocks
         let instructions = function
             .blocks()
             .iter()
             .flat_map(|block| tree.get(*block).instructions.iter().copied())
             .collect::<Vec<_>>();
-        let mut instruction_access = NodeTable::from_nodes(&instructions, Vec::new);
-        let mut terminator_access = NodeTable::from_nodes(function.blocks(), Vec::new);
-        let mut block_accesses = NodeTable::from_nodes(function.blocks(), Vec::new);
-
-        for &block in &collected.reachable_blocks {
-            let access_list = collected.block_accesses.get(block);
-            if access_list.is_empty() {
-                continue;
-            };
-            let mut block_list = Vec::new();
-
-            for access in access_list {
-                let access_id = MemoryAccessId::from_index(accesses.len());
-                match access {
-                    CollectedAccess::Use { source, effect } => {
-                        accesses.push(MemoryNode::Use(MemoryUse {
-                            source: *source,
-                            defining_access: None,
-                            effect: effect.clone(),
-                        }));
-                        match source {
-                            MemoryAccessSource::Instruction(instruction) => {
-                                instruction_access.get_mut(*instruction).push(access_id);
-                            }
-                            MemoryAccessSource::Terminator(block) => {
-                                terminator_access.get_mut(*block).push(access_id);
-                            }
-                        }
-                    }
-                    CollectedAccess::Def { source, effect } => {
-                        accesses.push(MemoryNode::Def(MemoryDef {
-                            source: *source,
-                            defining_access: None,
-                            effect: effect.clone(),
-                        }));
-                        match source {
-                            MemoryAccessSource::Instruction(instruction) => {
-                                instruction_access.get_mut(*instruction).push(access_id);
-                            }
-                            MemoryAccessSource::Terminator(block) => {
-                                terminator_access.get_mut(*block).push(access_id);
-                            }
-                        }
-                    }
-                }
-                block_list.push(access_id);
-            }
-
-            *block_accesses.get_mut(block) = block_list;
-        }
-
-        // assemble the memory table
-        let mut ssa = Self {
-            accesses,
-            block_phis,
-            instruction_access,
-            terminator_access,
-            block_accesses,
-            live_on_entry,
+        let mut result = Self {
+            accesses: vec![MemoryNode::LiveOnEntry],
+            phis: NodeTable::from_nodes(function.blocks(), || None),
+            instructions: NodeTable::from_nodes(&instructions, || None),
+            terminators: NodeTable::from_nodes(function.blocks(), || None),
+            blocks: NodeTable::from_nodes(function.blocks(), || 0..0),
+            effects,
+        };
+        let Some(entry) = function.entry() else {
+            return result;
         };
 
-        // rename memory accesses
-        let mut renamer = MemoryRenamer::new(tree, dominator, entry, &collected.reachable_blocks);
-        renamer.rename(&mut ssa);
+        // record one memory access for each reachable operation
+        let mut definitions = FxIndexSet::default();
+        for block in control.reverse_postorder() {
+            let start = result.accesses.len();
+            for &instruction in &tree.get(block).instructions {
+                let source = Point::Instruction(instruction);
+                *result.instructions.get_mut(instruction) = result.append(source);
+            }
+            let source = Point::Terminator(block);
+            *result.terminators.get_mut(block) = result.append(source);
+            let end = result.accesses.len();
+            *result.blocks.get_mut(block) = start..end;
 
-        // return the memory table
-        ssa
-    }
-
-    /// Compute the blocks that require memory phi nodes.
-    fn phi_blocks(
-        definitions: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
-        frontiers: &FxIndexMap<
-            mir::LocalNodeId<mir::Block>,
-            FxIndexSet<mir::LocalNodeId<mir::Block>>,
-        >,
-        reachable: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
-    ) -> Vec<mir::LocalNodeId<mir::Block>> {
-        let mut worklist: VecDeque<_> = definitions.iter().copied().collect();
-        let mut queued: FxIndexSet<_> = definitions.iter().copied().collect();
-        let mut blocks = FxIndexSet::default();
+            // seed merge placement with blocks that define memory
+            if result.accesses[start..end]
+                .iter()
+                .any(|node| matches!(node, MemoryNode::Def(_)))
+            {
+                definitions.insert(block);
+            }
+        }
 
         // close definition blocks over their iterated dominance frontier
-        while let Some(block) = worklist.pop_front() {
-            queued.swap_remove(&block);
-
-            let Some(frontier) = frontiers.get(&block) else {
-                continue;
-            };
-
-            for &candidate in frontier {
-                if !reachable.contains(&candidate) {
+        let frontiers = dominator.frontiers();
+        let mut pending = definitions.iter().copied().collect::<Vec<_>>();
+        while let Some(block) = pending.pop() {
+            for &merge in &frontiers[&block] {
+                if result.phis.get(merge).is_some() {
                     continue;
                 }
 
-                if blocks.insert(candidate)
-                    && !definitions.contains(&candidate)
-                    && queued.insert(candidate)
-                {
-                    worklist.push_back(candidate);
+                // include incoming function memory when a backedge targets entry
+                let incoming = if merge == entry {
+                    vec![(None, result.live_on_entry())]
+                } else {
+                    Vec::new()
+                };
+                let id = MemoryAccessId(result.accesses.len() as u32);
+                result.accesses.push(MemoryNode::Phi(MemoryPhi {
+                    block: merge,
+                    dominator: result.live_on_entry(),
+                    incoming,
+                }));
+                *result.phis.get_mut(merge) = Some(id);
+
+                // propagate newly introduced definitions through subsequent joins
+                if !definitions.contains(&merge) {
+                    pending.push(merge);
                 }
             }
         }
 
-        let mut blocks = blocks.into_iter().collect::<Vec<_>>();
-        blocks.sort();
+        // rename in dominator order without recursive calls or per-block clones
+        let mut pending = vec![(entry, result.live_on_entry())];
+        while let Some((block, mut current)) = pending.pop() {
+            if let Some(id) = *result.phis.get(block) {
+                let MemoryNode::Phi(phi) = &mut result.accesses[id.index()] else {
+                    unreachable!("memory phi index refers to a non-phi node");
+                };
+                phi.dominator = current;
+                current = id;
+            }
+            for index in result.blocks.get(block).clone() {
+                let id = MemoryAccessId(index as u32);
+                match &mut result.accesses[index] {
+                    MemoryNode::Use(access) => access.defining_access = current,
+                    MemoryNode::Def(access) => {
+                        access.defining_access = current;
+                        current = id;
+                    }
+                    _ => unreachable!("operation range contains a non-operation memory node"),
+                }
+            }
 
-        blocks
+            // connect each successor's phi to this block's outgoing memory
+            for successor in control.successors(block) {
+                if let Some(phi) = *result.phis.get(successor) {
+                    let MemoryNode::Phi(phi) = &mut result.accesses[phi.index()] else {
+                        unreachable!("memory phi index refers to a non-phi node");
+                    };
+                    if !phi
+                        .incoming
+                        .iter()
+                        .any(|(predecessor, _)| *predecessor == Some(block))
+                    {
+                        phi.incoming.push((Some(block), current));
+                    }
+                }
+            }
+
+            // give each dominator child the memory state at its immediate dominator's exit
+            let mut child = dominator.child(block);
+            while let Some(block) = child {
+                pending.push((block, current));
+                child = dominator.sibling(block);
+            }
+        }
+
+        result
     }
 
-    /// Return the live on entry access id.
+    /// Return the memory state entering the function.
     pub fn live_on_entry(&self) -> MemoryAccessId {
-        self.live_on_entry
+        MemoryAccessId(0)
     }
 
-    /// Return the access node for an id.
+    /// Return one memory node.
     pub fn access(&self, id: MemoryAccessId) -> &MemoryNode {
         &self.accesses[id.index()]
     }
 
-    /// Return the first memory access for an instruction if present.
+    /// Return the memory access associated with an instruction.
     pub fn instruction_access(
         &self,
-        instruction: mir::LocalNodeId<mir::Instruction>,
+        instruction: LocalNodeId<Instruction>,
     ) -> Option<MemoryAccessId> {
-        self.instruction_accesses(instruction)
-            .and_then(|accesses| accesses.first().copied())
+        *self.instructions.get(instruction)
     }
 
-    /// Return all memory accesses for an instruction if present.
-    pub fn instruction_accesses(
-        &self,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    ) -> Option<&[MemoryAccessId]> {
-        let accesses = self.instruction_access.get(instruction);
-        (!accesses.is_empty()).then_some(accesses.as_slice())
+    /// Return the memory access associated with a terminator.
+    pub fn terminator_access(&self, block: LocalNodeId<Block>) -> Option<MemoryAccessId> {
+        *self.terminators.get(block)
     }
 
-    /// Iterate memory effects for one instruction.
-    pub fn instruction_effects(
-        &self,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    ) -> impl Iterator<Item = &MemoryAccessEffect> {
-        self.instruction_accesses(instruction)
-            .into_iter()
-            .flatten()
-            .filter_map(|access| self.access(*access).effect())
+    /// Return the memory phi associated with a block.
+    pub fn block_phi(&self, block: LocalNodeId<Block>) -> Option<MemoryAccessId> {
+        *self.phis.get(block)
     }
 
-    /// Return the first memory use access for an instruction.
-    pub fn first_use_access(
-        &self,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    ) -> Option<MemoryAccessId> {
-        let accesses = self.instruction_accesses(instruction)?;
-        accesses
-            .iter()
-            .copied()
-            .find(|access_id| matches!(self.access(*access_id), MemoryNode::Use(_)))
-    }
-
-    /// Return all memory accesses for a block terminator if present.
-    pub fn terminator_accesses(
-        &self,
-        block: mir::LocalNodeId<mir::Block>,
-    ) -> Option<&[MemoryAccessId]> {
-        let accesses = self.terminator_access.get(block);
-        (!accesses.is_empty()).then_some(accesses.as_slice())
-    }
-
-    /// Iterate memory effects for one block terminator.
-    pub fn terminator_effects(
-        &self,
-        block: mir::LocalNodeId<mir::Block>,
-    ) -> impl Iterator<Item = &MemoryAccessEffect> {
-        self.terminator_accesses(block)
-            .into_iter()
-            .flatten()
-            .filter_map(|access| self.access(*access).effect())
-    }
-
-    /// Return the memory phi for a block if present.
-    pub fn block_phi(&self, block: mir::LocalNodeId<mir::Block>) -> Option<MemoryAccessId> {
-        *self.block_phis.get(block)
-    }
-
-    /// Return the immediate defining access for a use or def.
+    /// Return the memory state immediately before an operation.
     pub fn defining_access(&self, id: MemoryAccessId) -> Option<MemoryAccessId> {
-        // read the defining access for uses and defs
         match self.access(id) {
-            MemoryNode::Def(def) => def.defining_access,
-            MemoryNode::Use(use_access) => use_access.defining_access,
-            _ => None,
+            MemoryNode::Def(access) | MemoryNode::Use(access) => Some(access.defining_access),
+            MemoryNode::LiveOnEntry | MemoryNode::Phi(_) => None,
         }
     }
 
-    /// Compute the clobbering access for a memory use.
-    pub fn clobbering_use(&self, use_access: MemoryAccessId, alias: &AliasTable) -> MemoryAccessId {
-        // read the memory use location
-        let MemoryNode::Use(use_access_data) = self.access(use_access) else {
-            panic!("expected memory use access");
+    /// Iterate every region read or written by one source operation.
+    pub fn effects(&self, source: Point) -> impl Iterator<Item = &MemoryAccessEffect> {
+        let (instruction, terminator) = match source {
+            Point::Instruction(instruction) => (Some(instruction), None),
+            Point::Terminator(block) => (None, Some(block)),
         };
 
-        // resolve the defining access
-        let defining_access = use_access_data
-            .defining_access
-            .expect("memory use missing defining access");
-
-        // build the query for this use
-        let query = MemoryAccessQuery::from_effect(&use_access_data.effect);
-
-        // compute the clobbering access
-        let mut cache = FxIndexMap::default();
-        let mut visiting = FxIndexSet::default();
-        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
+        instruction
+            .into_iter()
+            .flat_map(|id| self.effects.instruction_effects(id))
+            .chain(
+                terminator
+                    .into_iter()
+                    .flat_map(|id| self.effects.terminator_effects(id)),
+            )
     }
 
-    /// Compute the clobbering access for a memory def.
-    pub fn clobbering_def(&self, def_access: MemoryAccessId, alias: &AliasTable) -> MemoryAccessId {
-        // read the memory def location
-        let MemoryNode::Def(def_access_data) = self.access(def_access) else {
-            panic!("expected memory def access");
-        };
-
-        // resolve the defining access
-        let defining_access = def_access_data
-            .defining_access
-            .unwrap_or(self.live_on_entry);
-
-        // build the query for this def
-        let query = MemoryAccessQuery::from_effect(&def_access_data.effect);
-
-        // compute the clobbering access
-        let mut cache = FxIndexMap::default();
-        let mut visiting = FxIndexSet::default();
-        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
+    /// Create reusable storage for clobber queries over this immutable analysis.
+    pub fn cursor<'a>(&'a self, alias: &'a AliasTable) -> MemorySsaCursor<'a> {
+        MemorySsaCursor {
+            table: self,
+            alias,
+            cache: FxIndexMap::default(),
+            pending: Vec::new(),
+            visited: FxIndexSet::default(),
+        }
     }
 
-    /// Compute the clobbering access for a read at the given region.
-    pub fn clobbering_read(
-        &self,
-        access_id: MemoryAccessId,
-        region: &MemoryRegion,
-        alias: &AliasTable,
-    ) -> MemoryAccessId {
-        // resolve the defining access for this read
-        let defining_access = self
-            .defining_access(access_id)
-            .unwrap_or(self.live_on_entry);
-
-        // build the query for this read
-        let query = MemoryAccessQuery::from_region(region);
-
-        // compute the clobbering access
-        let mut cache = FxIndexMap::default();
-        let mut visiting = FxIndexSet::default();
-        self.clobbering_access(defining_access, &query, alias, &mut cache, &mut visiting)
-    }
-
-    /// Return whether a definition clobbers one region.
-    pub fn def_clobbers_region(
-        &self,
-        def_access: MemoryAccessId,
-        region: &MemoryRegion,
-        alias: &AliasTable,
-    ) -> bool {
-        // only defs can clobber spaces
-        let MemoryNode::Def(def_access) = self.access(def_access) else {
-            return false;
-        };
-
-        def_access.clobbers_region(region, alias)
-    }
-
-    /// Return whether a definition clobbers another access.
-    pub fn def_clobbers_access(
-        &self,
-        def_access: MemoryAccessId,
-        target_access: MemoryAccessId,
-        alias: &AliasTable,
-    ) -> bool {
-        // only defs can clobber accesses
-        let MemoryNode::Def(def_access) = self.access(def_access) else {
-            return false;
-        };
-
-        // fetch the target access effect
-        let target_effect = match self.access(target_access) {
-            MemoryNode::Use(use_access) => &use_access.effect,
-            MemoryNode::Def(def_access) => &def_access.effect,
-            _ => return false,
-        };
-
-        // build a query for the target effect
-        let query = MemoryAccessQuery::from_effect(target_effect);
-
-        def_access.clobbers_query(&query, alias)
-    }
-
-    /// Compute the clobbering access for a memory location.
-    fn clobbering_access(
-        &self,
-        access_id: MemoryAccessId,
-        query: &MemoryAccessQuery,
-        alias: &AliasTable,
-        cache: &mut FxIndexMap<(MemoryAccessId, MemoryAccessQuery), MemoryAccessId>,
-        visiting: &mut FxIndexSet<MemoryAccessId>,
-    ) -> MemoryAccessId {
-        // consult the cache
-        if let Some(cached) = cache.get(&(access_id, query.clone())) {
-            return *cached;
+    /// Append one node if an operation reads, writes, or orders memory.
+    fn append(&mut self, source: Point) -> Option<MemoryAccessId> {
+        // classify the operation across all of its accessed regions
+        let mut reads = false;
+        let mut defines = false;
+        for effect in self.effects(source) {
+            reads |= effect.reads;
+            defines |= effect.writes
+                || effect.is_barrier
+                || !matches!(effect.order, MemoryAccessOrder::Plain);
+        }
+        if !reads && !defines {
+            return None;
         }
 
-        // break cycles in phi recursion
-        if visiting.contains(&access_id) {
-            return access_id;
-        }
-
-        visiting.insert(access_id);
-
-        // resolve clobber based on access kind
-        let result = match self.access(access_id) {
-            MemoryNode::LiveOnEntry => access_id,
-
-            MemoryNode::Use(use_access) => {
-                let defining_access = use_access
-                    .defining_access
-                    .expect("memory use missing defining access");
-                self.clobbering_access(defining_access, query, alias, cache, visiting)
-            }
-
-            MemoryNode::Def(def_access) => {
-                if def_access.clobbers_query(query, alias) {
-                    access_id
-                } else {
-                    let defining_access = def_access
-                        .defining_access
-                        .expect("memory def missing defining access");
-                    self.clobbering_access(defining_access, query, alias, cache, visiting)
-                }
-            }
-
-            MemoryNode::Phi(phi) => {
-                let mut incoming_clobber: Option<MemoryAccessId> = None;
-
-                for (_, incoming) in &phi.incoming {
-                    let clobber = self.clobbering_access(*incoming, query, alias, cache, visiting);
-                    match incoming_clobber {
-                        Some(existing) if existing != clobber => {
-                            incoming_clobber = Some(access_id);
-                            break;
-                        }
-                        Some(_) => {}
-                        None => incoming_clobber = Some(clobber),
-                    }
-                }
-
-                incoming_clobber.unwrap_or(access_id)
-            }
+        // initialize the operation with incoming function memory before renaming
+        let access = MemorySsaAccess {
+            source,
+            defining_access: self.live_on_entry(),
         };
+        let id = MemoryAccessId(self.accesses.len() as u32);
+        let node = if defines {
+            MemoryNode::Def(access)
+        } else {
+            MemoryNode::Use(access)
+        };
+        self.accesses.push(node);
 
-        // store and return
-        visiting.swap_remove(&access_id);
-        cache.insert((access_id, query.clone()), result);
-        result
+        Some(id)
     }
 }
 
@@ -724,207 +302,126 @@ impl Analysis for MemorySsaTable {
         MemoryEffectTable::INVALIDATED_BY.union(DominatorTable::INVALIDATED_BY);
 }
 
-/// Collected memory access before SSA renaming.
-#[derive(Debug, Clone)]
-enum CollectedAccess {
-    /// Memory use (read).
-    Use {
-        source: MemoryAccessSource,
-        effect: MemoryAccessEffect,
-    },
-    /// Memory def (write).
-    Def {
-        source: MemoryAccessSource,
-        effect: MemoryAccessEffect,
-    },
+/// Cached clobber searches over an immutable memory SSA and alias table.
+#[derive(Debug)]
+pub struct MemorySsaCursor<'a> {
+    /// The function's memory SSA.
+    table: &'a MemorySsaTable,
+    /// Physical alias relationships for this function.
+    alias: &'a AliasTable,
+    /// Completed searches indexed by starting state and accessed region.
+    cache: FxIndexMap<(MemoryAccessId, MemoryRegion), MemoryAccessId>,
+    /// Memory states awaiting inspection.
+    pending: Vec<MemoryAccessId>,
+    /// Memory states already inspected by the current query.
+    visited: FxIndexSet<MemoryAccessId>,
 }
 
-/// Memory access collection results.
-struct MemoryAccessCollection {
-    /// Memory accesses indexed by block id.
-    block_accesses: NodeTable<mir::Block, Vec<CollectedAccess>>,
-    /// Blocks that contain memory definitions.
-    def_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
-    /// Blocks reachable from entry.
-    reachable_blocks: Vec<mir::LocalNodeId<mir::Block>>,
-    /// Reachable block set.
-    reachable: FxIndexSet<mir::LocalNodeId<mir::Block>>,
-}
+impl MemorySsaCursor<'_> {
+    /// Find a clobber at or before the starting memory state for one accessed region.
+    pub fn clobber(
+        &mut self,
+        start: MemoryAccessId,
+        region: &MemoryRegion,
+    ) -> Result<MemoryAccessId, LayoutError> {
+        // reuse completed searches for the same starting state and location
+        let key = (start, region.clone());
+        if let Some(&result) = self.cache.get(&key) {
+            return Ok(result);
+        }
 
-impl MemoryAccessCollection {
-    /// Collect memory accesses for all reachable blocks.
-    fn collect(
-        function: &mir::Function,
-        effects: &MemoryEffectTable,
-        control: &ControlTable,
-        tree: &mir::Tree,
-    ) -> Self {
-        // reuse the cached reachable blocks
-        let reachable_blocks: Vec<_> = control.reachable_blocks().collect();
-        let reachable: FxIndexSet<_> = reachable_blocks.iter().copied().collect();
-
-        // collect memory accesses per block
-        let mut block_accesses = NodeTable::from_nodes(function.blocks(), Vec::new);
-        let mut def_blocks = FxIndexSet::default();
-
-        // scan reachable blocks
-        for &block_id in &reachable_blocks {
-            let block = tree.get(block_id);
-            let mut accesses = Vec::new();
-
-            // scan instructions for memory effects
-            for &instruction_id in &block.instructions {
-                for effect in effects.instruction_effects(instruction_id).cloned() {
-                    if effect.writes || effect.is_barrier {
-                        accesses.push(CollectedAccess::Def {
-                            source: MemoryAccessSource::Instruction(instruction_id),
-                            effect,
-                        });
-                        def_blocks.insert(block_id);
-                    } else if effect.reads {
-                        accesses.push(CollectedAccess::Use {
-                            source: MemoryAccessSource::Instruction(instruction_id),
-                            effect,
-                        });
+        // walk through unrelated definitions and merges to the nearest clobber
+        let mut current = start;
+        let mut remaining = CLOBBER_LIMIT;
+        while remaining > 0 {
+            remaining -= 1;
+            current = match self.table.access(current) {
+                MemoryNode::LiveOnEntry => break,
+                MemoryNode::Use(access) => access.defining_access,
+                MemoryNode::Def(access) => {
+                    if self.is_clobber(access, region)? {
+                        break;
                     }
+
+                    access.defining_access
+                }
+                MemoryNode::Phi(phi) => {
+                    if !self.can_skip_phi(phi, region, &mut remaining)? {
+                        break;
+                    }
+
+                    phi.dominator
+                }
+            };
+        }
+
+        // retain the last dominating state when the query exhausts its budget
+        self.cache.insert(key, current);
+
+        Ok(current)
+    }
+
+    /// Check whether every incoming path preserves a region from the dominating state.
+    fn can_skip_phi(
+        &mut self,
+        phi: &MemoryPhi,
+        region: &MemoryRegion,
+        remaining: &mut usize,
+    ) -> Result<bool, LayoutError> {
+        // preserve merges whose address can change between incoming paths
+        if !self.alias.is_invariant(region, phi.block) {
+            return Ok(false);
+        }
+
+        // stop each incoming path at the common dominating memory state
+        self.pending.clear();
+        self.visited.clear();
+        self.pending.extend(phi.incoming.iter().map(|(_, id)| *id));
+        while let Some(current) = self.pending.pop() {
+            if current == phi.dominator || !self.visited.insert(current) {
+                continue;
+            }
+            if *remaining == 0 {
+                return Ok(false);
+            }
+            *remaining -= 1;
+
+            // reject paths that modify the region or change its address
+            match self.table.access(current) {
+                MemoryNode::LiveOnEntry => return Ok(false),
+                MemoryNode::Phi(phi) => {
+                    if !self.alias.is_invariant(region, phi.block) {
+                        return Ok(false);
+                    }
+                    self.pending.extend(phi.incoming.iter().map(|(_, id)| *id));
+                }
+                MemoryNode::Use(access) => self.pending.push(access.defining_access),
+                MemoryNode::Def(access) => {
+                    if self.is_clobber(access, region)? {
+                        return Ok(false);
+                    }
+                    self.pending.push(access.defining_access);
                 }
             }
-
-            // scan the terminator for call and allocation effects
-            for effect in effects.terminator_effects(block_id).cloned() {
-                if effect.writes || effect.is_barrier {
-                    accesses.push(CollectedAccess::Def {
-                        source: MemoryAccessSource::Terminator(block_id),
-                        effect,
-                    });
-                    def_blocks.insert(block_id);
-                } else if effect.reads {
-                    accesses.push(CollectedAccess::Use {
-                        source: MemoryAccessSource::Terminator(block_id),
-                        effect,
-                    });
-                }
-            }
-
-            // store collected accesses when present
-            *block_accesses.get_mut(block_id) = accesses;
         }
 
-        Self {
-            block_accesses,
-            def_blocks,
-            reachable_blocks,
-            reachable,
-        }
-    }
-}
-
-/// MemorySsaTable renamer for def use chains.
-struct MemoryRenamer<'a> {
-    /// MIR tree.
-    tree: &'a mir::Tree,
-    /// Entry block id.
-    entry: mir::LocalNodeId<mir::Block>,
-    /// Reachable block set.
-    reachable: FxIndexSet<mir::LocalNodeId<mir::Block>>,
-    /// Dominator tree children.
-    children: NodeTable<mir::Block, Vec<mir::LocalNodeId<mir::Block>>>,
-}
-
-impl<'a> MemoryRenamer<'a> {
-    /// Create a new renamer.
-    fn new(
-        tree: &'a mir::Tree,
-        dominator: &'a DominatorTable,
-        entry: mir::LocalNodeId<mir::Block>,
-        reachable_blocks: &[mir::LocalNodeId<mir::Block>],
-    ) -> Self {
-        // build reachable set
-        let reachable: FxIndexSet<_> = reachable_blocks.iter().copied().collect();
-
-        // build dominator tree children map
-        let mut children = NodeTable::from_nodes(reachable_blocks, Vec::new);
-        for &block in reachable_blocks {
-            if let Some(idom) = dominator.immediate_dominator(block) {
-                children.get_mut(idom).push(block);
-            }
-        }
-
-        Self {
-            tree,
-            entry,
-            reachable,
-            children,
-        }
+        Ok(true)
     }
 
-    /// Rename memory accesses to build SSA form.
-    fn rename(&mut self, ssa: &mut MemorySsaTable) {
-        // initialize the stack with live definitions
-        let mut stack = Vec::new();
-        stack.push(ssa.live_on_entry);
-
-        // walk dominator tree
-        self.rename_block(ssa, self.entry, &mut stack);
-    }
-
-    /// Rename a block and its dominator children.
-    fn rename_block(
+    /// Check whether an operation modifies or orders the queried region.
+    fn is_clobber(
         &self,
-        ssa: &mut MemorySsaTable,
-        block: mir::LocalNodeId<mir::Block>,
-        stack: &mut Vec<MemoryAccessId>,
-    ) {
-        // skip unreachable blocks
-        if !self.reachable.contains(&block) {
-            return;
-        }
-
-        // push block phi if present
-        let mut pushed = 0usize;
-        if let Some(phi_id) = *ssa.block_phis.get(block) {
-            stack.push(phi_id);
-            pushed += 1;
-        }
-
-        // process block accesses
-        for access_id in ssa.block_accesses.get(block).clone() {
-            let current = *stack.last().expect("missing memory definition");
-
-            match ssa.accesses.get_mut(access_id.index()) {
-                Some(MemoryNode::Use(use_access)) => {
-                    use_access.defining_access = Some(current);
-                }
-                Some(MemoryNode::Def(def_access)) => {
-                    def_access.defining_access = Some(current);
-                    stack.push(access_id);
-                    pushed += 1;
-                }
-                _ => {}
+        access: &MemorySsaAccess,
+        region: &MemoryRegion,
+    ) -> Result<bool, LayoutError> {
+        // stop when any region written by this operation overlaps the query
+        for effect in self.table.effects(access.source) {
+            if effect.clobbers_region(region, self.alias)? {
+                return Ok(true);
             }
         }
 
-        // wire phi incoming edges for successors
-        let node = self.tree.get(block);
-        let terminator = self.tree.get(node.terminator);
-        for successor in terminator.successors(self.tree) {
-            if let Some(phi_id) = *ssa.block_phis.get(successor)
-                && let Some(MemoryNode::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
-            {
-                let incoming = *stack.last().expect("missing memory definition");
-                phi.incoming.push((Some(block), incoming));
-            }
-        }
-
-        // rename children
-        for &child in self.children.get(block) {
-            self.rename_block(ssa, child, stack);
-        }
-
-        // pop access stack for this block
-        for _ in 0..pushed {
-            stack.pop();
-        }
+        Ok(false)
     }
 }
 
@@ -932,1006 +429,420 @@ impl<'a> MemoryRenamer<'a> {
 mod tests {
     use super::*;
     use crate::analyses::tests::TestModule;
-    use crate::{MemoryAddress, MemoryLocation};
+    use crate::{MemoryLocation, StorageSet, Value};
 
-    /// Extract the effect payload for a memory access.
-    fn access_effect(memory: &MemorySsaTable, access_id: MemoryAccessId) -> MemoryAccessEffect {
-        // unwrap use or def payloads
-        match memory.access(access_id) {
-            MemoryNode::Use(use_access) => use_access.effect.clone(),
-            MemoryNode::Def(def_access) => def_access.effect.clone(),
-            MemoryNode::Phi(_) | MemoryNode::LiveOnEntry => {
-                panic!("expected effectful access")
-            }
-        }
-    }
-
-    /// Extract the address value from a location when available.
-    fn address_from_region(location: &MemoryRegion) -> Option<mir::Value> {
-        // unwrap address-backed regions
-        match location {
-            MemoryRegion::Address { location, .. } => Some(location.address.value()),
-            _ => None,
-        }
-    }
-
-    /// Extract the byte size from a location when available.
-    fn size_from_region(location: &MemoryRegion) -> Option<u64> {
-        // unwrap address-backed regions
-        match location {
-            MemoryRegion::Address { location, .. } => location.size,
-            _ => None,
-        }
-    }
-
-    /// Collect the memory accesses for an instruction.
-    fn instruction_accesses(
-        memory: &MemorySsaTable,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-    ) -> Vec<MemoryAccessId> {
-        // clone the access list when present
-        memory
-            .instruction_accesses(instruction)
-            .map(|accesses| accesses.to_vec())
-            .unwrap_or_default()
-    }
-
-    /// Collect the memory accesses for a terminator.
-    fn terminator_accesses(
-        memory: &MemorySsaTable,
-        block: mir::LocalNodeId<mir::Block>,
-    ) -> Vec<MemoryAccessId> {
-        // clone the access list when present
-        memory
-            .terminator_accesses(block)
-            .map(|accesses| accesses.to_vec())
-            .unwrap_or_default()
-    }
-
-    /// MemorySsaTable links uses to the latest defining access in a straight line.
+    /// Link a load through disjoint stores to the preceding write of its local.
     #[test]
-    fn test_memory_linear_def_use() {
-        let test = TestModule::new(
-            r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
-    v1: int32 = 1
-    store v0, v1
-    v2: int32 = load v0
-    return v2
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // find memory accesses
-        let block = test.tree.get(function.block(0));
-        let store_id = block.instructions[1];
-        let load_id = block.instructions[2];
-
-        let store_access = memory
-            .instruction_access(store_id)
-            .expect("missing store access");
-        let load_access = memory
-            .instruction_access(load_id)
-            .expect("missing load access");
-
-        // load should depend on store
-        assert_eq!(memory.defining_access(load_access), Some(store_access));
-
-        // store should depend on live on entry
-        assert_eq!(
-            memory.defining_access(store_access),
-            Some(memory.live_on_entry())
-        );
-    }
-
-    /// MemorySsaTable inserts phis at join points with multiple incoming defs.
-    #[test]
-    fn test_memory_phi_at_join() {
-        let test = TestModule::new(
-            r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
-    branch v1 => b1 | b2
-
-b1:
-    v2: int32 = 1
-    store v0, v2
-    jump b3
-
-b2:
-    v3: int32 = 2
-    store v0, v3
-    jump b3
-
-b3:
-    v4: int32 = load v0
-    return v4
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // fetch join block phi
-        let join_block = function.block(3);
-        let phi_id = memory
-            .block_phi(join_block)
-            .expect("missing memory phi at join");
-
-        // load should depend on the phi
-        let load_inst = test.tree.get(join_block).instructions[0];
-        let load_access = memory
-            .instruction_access(load_inst)
-            .expect("missing load access");
-        assert_eq!(memory.defining_access(load_access), Some(phi_id));
-
-        // phi should have incoming for both predecessors
-        let MemoryNode::Phi(phi) = memory.access(phi_id) else {
-            panic!("expected memory phi");
-        };
-
-        assert_eq!(phi.incoming.len(), 2);
-    }
-
-    /// MemorySsaTable uses alias analysis to skip non aliasing defs.
-    #[test]
-    fn test_memory_clobber_skips_disjoint_def() {
-        let test = TestModule::new(
+    fn test_find_local_clobber() {
+        let program = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
     local l1: int32
 
 entry:
-    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
-    v2: int32 = 1
-    store v0, v2
-    v3: int32 = 2
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let alias = analyses.alias(function, &test.tree);
-
-        // locate accesses
-        let block = test.tree.get(function.block(0));
-        let store_v0 = block.instructions[3];
-        let load_v0 = block.instructions[6];
-
-        let store_access = memory
-            .instruction_access(store_v0)
-            .expect("missing store access");
-        let load_access = memory
-            .instruction_access(load_v0)
-            .expect("missing load access");
-
-        // clobbering access should be the store to v0
-        let clobber = memory.clobbering_use(load_access, &alias);
-        assert_eq!(clobber, store_access);
-    }
-
-    /// MemorySsaTable prefers explicit access records.
-    #[test]
-    fn test_memory_entries_overrides_instruction() {
-        // input test
-        let mut test = TestModule::new(
-            r#"
-function test(): int32 {
-    local l0: int32
-    local l1: int32
-
-entry:
-    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
-    v2: int32 = 1
-    store v0, v2
-    v3: int32 = 2
-    store v1, v3
-    v4: int32 = load v0
-    return v4
-}
-"#,
-        );
-
-        // locate store and load instructions
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let store_v1 = instructions[5];
-        let load_v0 = instructions[6];
-
-        // attach an access entry that retargets the load to v1
-        test.insert_address_location(
-            load_v0,
-            mir::MemoryOperation::Read,
-            mir::Value::new(1),
-            Some(4),
-        );
-
-        // build analyses
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let alias = analyses.alias(function, &test.tree);
-
-        // locate memory accesses
-        let load_access = memory
-            .instruction_access(load_v0)
-            .expect("missing load access");
-        let store_access = memory
-            .instruction_access(store_v1)
-            .expect("missing store access");
-
-        // clobber should follow the entry's target
-        let clobber = memory.clobbering_use(load_access, &alias);
-        assert_eq!(clobber, store_access);
-    }
-
-    /// Local accesses are tracked independently of address memory.
-    #[test]
-    fn test_memory_local_access() {
-        let test = TestModule::new(
-            r#"
-function test(): int32 {
-    local l0: int32
-
-entry:
     v0: int32 = 7
     local.set l0, v0
-    v1: int32 = local.get l0
-    return v1
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-
-        // locate local access
-        let block = test.tree.get(function.block(0));
-        let store_inst = block.instructions[1];
-        let load_inst = block.instructions[2];
-
-        let store_access = memory
-            .instruction_access(store_inst)
-            .expect("missing local store access");
-        let load_access = memory
-            .instruction_access(load_inst)
-            .expect("missing local load access");
-
-        // local load should see the local set
-        assert_eq!(memory.defining_access(load_access), Some(store_access));
-    }
-
-    /// Local effects touch addresses built from local addresses.
-    #[test]
-    fn test_memory_local_effect_clobbers_local_address() {
-        let test = TestModule::new(
-            r#"
-function test(): int32 {
-    local l0: int32
-
-entry:
-    v0: int32 = 7
-    local.set l0, v0
+    local.set l1, v0
     v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = load v1
     return v2
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let instructions = &program.tree.get(function.block(0)).instructions;
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let alias = analyses
+            .alias(function, program.layouts.clone(), &program.tree)
+            .unwrap();
+        let first = memory.instruction_access(instructions[1]).unwrap();
+        let second = memory.instruction_access(instructions[2]).unwrap();
+        let load = memory.instruction_access(instructions[4]).unwrap();
+        let region = MemoryRegion::Local(function.local(0));
 
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let alias = analyses.alias(function, &test.tree);
-
-        // locate the local write and local-address load
-        let instructions = test.entry_instructions(function_id);
-        let local_set = instructions[1];
-        let location = MemoryLocation::from_address(mir::Value::new(1));
-
-        // local write must clobber the equivalent local-address address
-        let is_clobbered = memory
-            .instruction_effects(local_set)
-            .any(|effect| effect.clobbers_location(&location, &alias));
-        assert!(is_clobbered);
+        assert_eq!(memory.defining_access(first), Some(memory.live_on_entry()));
+        assert_eq!(memory.defining_access(second), Some(first));
+        assert_eq!(memory.defining_access(load), Some(second));
+        assert_eq!(
+            memory.cursor(&alias).clobber(second, &region).unwrap(),
+            first
+        );
     }
 
-    /// Free effects are modeled as read and write effects over any memory.
+    /// Merge both branch stores before a load at their join.
     #[test]
-    fn test_memory_free_effect_any() {
-        let test = TestModule::new(
+    fn test_merge_branch_stores() {
+        let program = TestModule::new(
             r#"
-function test(v0: ref<int32, unique, mutable, local>): int32 {
-entry(v0: ref<int32, unique, mutable, local>):
-    release v0
-    v1: int32 = 0
-    return v1
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
+    branch v1 => left | right
+
+left:
+    v2: int32 = 1
+    store v0, v2
+    jump join
+
+right:
+    v3: int32 = 2
+    store v0, v3
+    jump join
+
+join:
+    v4: int32 = load v0
+    return v4
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let alias = analyses
+            .alias(function, program.layouts.clone(), &program.tree)
+            .unwrap();
+        let left = function.block(1);
+        let right = function.block(2);
+        let join = function.block(3);
+        let first = memory
+            .instruction_access(program.tree.get(left).instructions[1])
+            .unwrap();
+        let second = memory
+            .instruction_access(program.tree.get(right).instructions[1])
+            .unwrap();
+        let load_instruction = program.tree.get(join).instructions[0];
+        let load = memory.instruction_access(load_instruction).unwrap();
+        let phi = memory.block_phi(join).unwrap();
+        let MemoryNode::Phi(merge) = memory.access(phi) else {
+            panic!("expected memory phi")
+        };
+        let incoming = merge.incoming.iter().copied().collect::<FxIndexMap<_, _>>();
+        let region = MemoryRegion::Address {
+            location: MemoryLocation::with_size(Value(0), 4),
+            spaces: StorageSet::LOCAL,
+        };
 
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let free_inst = instructions[0];
-
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        let free_access = memory
-            .instruction_access(free_inst)
-            .expect("missing free access");
-        let effect = access_effect(memory, free_access);
-
-        assert!(effect.reads);
-        assert!(effect.writes);
-        assert!(matches!(effect.region, MemoryRegion::Any { .. }));
+        assert_eq!(
+            incoming,
+            FxIndexMap::from_iter([(Some(left), first), (Some(right), second)])
+        );
+        assert_eq!(memory.defining_access(load), Some(phi));
+        assert_eq!(memory.cursor(&alias).clobber(phi, &region).unwrap(), phi);
     }
 
-    /// Allocation effects are modeled as read and write effects over any memory.
+    /// Recover the earlier clobber merge through branches that write another local.
     #[test]
-    fn test_memory_alloc_effect_any() {
-        let test = TestModule::new(
+    fn test_skip_disjoint_branch_stores() {
+        let program = TestModule::new(
             r#"
-type Point {
-    int32;
-}
+function test(v0: boolean): int32 {
+    local l0: int32
+    local l1: int32
 
-function test(): ref<Point, managed, mutable, local> {
-entry:
-    v0: ref<Point, managed, mutable, local> = new.zeroed Point
-    return v0
+entry(v0: boolean):
+    v1: int32 = 1
+    v2: int32 = 2
+    branch v0 => left | right
+
+left:
+    local.set l0, v1
+    jump join
+
+right:
+    local.set l0, v2
+    jump join
+
+join:
+    v3: int32 = local.get l0
+    branch v0 => next_left | next_right
+
+next_left:
+    local.set l1, v1
+    jump exit
+
+next_right:
+    local.set l1, v2
+    jump exit
+
+exit:
+    v4: int32 = local.get l0
+    return v4
 }
 "#,
         );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let alias = analyses
+            .alias(function, program.layouts.clone(), &program.tree)
+            .unwrap();
+        let join = memory.block_phi(function.block(3)).unwrap();
+        let exit = memory.block_phi(function.block(6)).unwrap();
+        let region = MemoryRegion::Local(function.local(0));
+        let mut cursor = memory.cursor(&alias);
 
-        let function_id = test.first_function_id();
-        let instructions = test.entry_instructions(function_id);
-        let alloc_inst = instructions[0];
-
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        let alloc_access = memory
-            .instruction_access(alloc_inst)
-            .expect("missing alloc access");
-        let effect = access_effect(memory, alloc_access);
-
-        assert!(effect.reads);
-        assert!(effect.writes);
-        assert!(matches!(effect.region, MemoryRegion::Any { .. }));
+        assert_eq!(cursor.clobber(join, &region).unwrap(), join);
+        assert_eq!(cursor.clobber(exit, &region).unwrap(), join);
     }
 
-    /// Memcpy produces a read followed by a write access for its operands.
+    /// Skip a loop's disjoint store while retaining its memory merge.
     #[test]
-    fn test_memory_memcpy_read_write_effects() {
-        let test = TestModule::new(
+    fn test_find_clobber_through_loop() {
+        let program = TestModule::new(
             r#"
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
-    v2: int64 = 4
+function test(v0: boolean): int32 {
+    local l0: int32
+    local l1: int32
+
+entry(v0: boolean):
+    v1: int32 = 7
+    local.set l0, v1
+    jump loop
+
+loop:
+    v2: int32 = local.get l0
+    local.set l1, v2
+    branch v0 => loop | exit
+
+exit:
+    return v2
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let alias = analyses
+            .alias(function, program.layouts.clone(), &program.tree)
+            .unwrap();
+        let entry = function.block(0);
+        let header = function.block(1);
+        let initial = memory
+            .instruction_access(program.tree.get(entry).instructions[1])
+            .unwrap();
+        let load_instruction = program.tree.get(header).instructions[0];
+        let load = memory.instruction_access(load_instruction).unwrap();
+        let store = memory
+            .instruction_access(program.tree.get(header).instructions[1])
+            .unwrap();
+        let phi = memory.block_phi(header).unwrap();
+        let MemoryNode::Phi(merge) = memory.access(phi) else {
+            panic!("expected memory phi")
+        };
+        let incoming = merge.incoming.iter().copied().collect::<FxIndexMap<_, _>>();
+        let region = MemoryRegion::Local(function.local(0));
+
+        assert_eq!(
+            incoming,
+            FxIndexMap::from_iter([(Some(entry), initial), (Some(header), store)])
+        );
+        assert_eq!(memory.defining_access(load), Some(phi));
+        assert_eq!(
+            memory.cursor(&alias).clobber(phi, &region).unwrap(),
+            initial
+        );
+    }
+
+    /// Include incoming function memory when control returns to the entry block.
+    #[test]
+    fn test_merge_entry_backedge() {
+        let program = TestModule::new(
+            r#"
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
+    v2: int32 = load v0
+    store v0, v2
+    branch v1 => entry(v0, v1) | exit
+
+exit:
+    return v2
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let alias = analyses
+            .alias(function, program.layouts.clone(), &program.tree)
+            .unwrap();
+        let entry = function.block(0);
+        let instructions = &program.tree.get(entry).instructions;
+        let load = memory.instruction_access(instructions[0]).unwrap();
+        let store = memory.instruction_access(instructions[1]).unwrap();
+        let phi = memory.block_phi(entry).unwrap();
+        let MemoryNode::Phi(merge) = memory.access(phi) else {
+            panic!("expected memory phi")
+        };
+        let region = MemoryRegion::Address {
+            location: MemoryLocation::with_size(Value(0), 4),
+            spaces: StorageSet::LOCAL,
+        };
+
+        assert_eq!(
+            merge.incoming,
+            [(None, memory.live_on_entry()), (Some(entry), store)]
+        );
+        assert_eq!(memory.defining_access(load), Some(phi));
+        assert_eq!(memory.cursor(&alias).clobber(phi, &region).unwrap(), phi);
+    }
+
+    /// Keep both copy regions on one definition and both comparison regions on one use.
+    #[test]
+    fn test_link_copy_definition_to_comparison_use() {
+        let program = TestModule::new(
+            r#"
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
+    v2: usize = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
-    v3: int32 = load v0
-    return v3
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        let memcpy_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcpy);
-        let accesses = instruction_accesses(memory, memcpy_inst);
-
-        // require one recorded read and one recorded write
-        assert_eq!(accesses.len(), 2);
-
-        // extract effects in order
-        let read_effect = access_effect(memory, accesses[0]);
-        let write_effect = access_effect(memory, accesses[1]);
-
-        assert!(read_effect.reads);
-        assert!(!read_effect.writes);
-        assert!(write_effect.writes);
-        assert!(!write_effect.reads);
-
-        let read_address = address_from_region(&read_effect.region).expect("missing read address");
-        let write_address =
-            address_from_region(&write_effect.region).expect("missing write address");
-
-        assert_eq!(read_address, mir::Value::new(1));
-        assert_eq!(write_address, mir::Value::new(0));
-
-        let read_size = size_from_region(&read_effect.region).expect("missing read size");
-        let write_size = size_from_region(&write_effect.region).expect("missing write size");
-
-        assert_eq!(read_size, 4);
-        assert_eq!(write_size, 4);
-    }
-
-    /// Memcmp produces two read accesses for its operands.
-    #[test]
-    fn test_memory_memcmp_read_effects() {
-        let test = TestModule::new(
-            r#"
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
-    v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
 }
 "#,
         );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        let memcmp_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcmp);
-        let accesses = instruction_accesses(memory, memcmp_inst);
-
-        // require two recorded reads
-        assert_eq!(accesses.len(), 2);
-
-        for access_id in accesses {
-            let effect = access_effect(memory, access_id);
-            assert!(effect.reads);
-            assert!(!effect.writes);
-        }
-    }
-
-    /// Volatile accesses are marked as volatile effects.
-    #[test]
-    fn test_memory_volatile_marks_effects() {
-        let mut test = TestModule::new(
-            r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
-    v1: int32 = load v0
-    store v0, v1
-    return v1
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-
-        // locate volatile instructions
-        let block = test.tree.get(function.block(0));
-        let volatile_load = block.instructions[0];
-        let volatile_store = block.instructions[1];
-
-        // attach volatile memory access entries
-        test.insert_address_location_with_options(
-            volatile_load,
-            mir::MemoryOperation::Read,
-            mir::Value::new(0),
-            Some(4),
-            true,
-            None,
-        );
-        test.insert_address_location_with_options(
-            volatile_store,
-            mir::MemoryOperation::Write,
-            mir::Value::new(0),
-            Some(4),
-            true,
-            None,
-        );
-
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // collect volatile effects
-        let load_access = memory
-            .instruction_access(volatile_load)
-            .expect("missing volatile load access");
-        let store_access = memory
-            .instruction_access(volatile_store)
-            .expect("missing volatile store access");
-
-        let load_effect = access_effect(memory, load_access);
-        let store_effect = access_effect(memory, store_access);
-
-        assert!(load_effect.is_volatile);
-        assert!(store_effect.is_volatile);
-    }
-
-    /// Atomic accesses are treated as volatile effects.
-    #[test]
-    fn test_memory_atomic_marks_effects() {
-        let test = TestModule::new(
-            r#"
-function test<'a>(v0: ref<atomic<int32>, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<atomic<int32>, borrowed, 'a, mutable, local>):
-    v1: int32 = atomic.load v0, acquire, scope(device)
-    atomic.store v0, v1, release, scope(device)
-    return v1
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        let block = test.tree.get(function.block(0));
-        let atomic_load = block.instructions[0];
-        let atomic_store = block.instructions[1];
-
-        let load_access = memory
-            .instruction_access(atomic_load)
-            .expect("missing atomic load access");
-        let store_access = memory
-            .instruction_access(atomic_store)
-            .expect("missing atomic store access");
-
-        let load_effect = access_effect(memory, load_access);
-        let store_effect = access_effect(memory, store_access);
-
-        assert!(load_effect.is_volatile);
-        assert!(store_effect.is_volatile);
-    }
-
-    /// Atomic fence produces a barrier access.
-    #[test]
-    fn test_memory_atomic_fence_barrier() {
-        let test = TestModule::new(
-            r#"
-function test(): int32 {
-entry:
-    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
-    v0: int32 = 0
-    return v0
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // locate fence instruction
-        let block = test.tree.get(function.block(0));
-        let fence_inst = block.instructions[0];
-        let fence_access = memory
-            .instruction_access(fence_inst)
-            .expect("missing fence access");
-
-        let fence_effect = access_effect(memory, fence_access);
-        assert!(fence_effect.is_barrier);
-        assert!(matches!(fence_effect.region, MemoryRegion::Any { .. }));
-    }
-
-    /// Calls without precise tables are modeled as read and write effects over any memory.
-    #[test]
-    fn test_memory_call_is_any_def() {
-        let test = TestModule::new(
-            r#"
-external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
-
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
-    call imported(v0): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void
-    v1: int32 = 0
-    return v1
-}
-"#,
-        );
-
-        // select the defined function
-        let function_id = test
-            .tree
-            .iter_nodes::<mir::Function>()
-            .find(|(_, function)| function.entry().is_some())
-            .expect("missing function")
-            .0;
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // locate call instruction
-        let block = test.tree.get(function.block(0));
-        let call_inst = block.instructions[0];
-        let call_access = memory
-            .instruction_access(call_inst)
-            .expect("missing call access");
-
-        let call_effect = access_effect(memory, call_access);
-        assert!(call_effect.reads);
-        assert!(call_effect.writes);
-        assert!(matches!(call_effect.region, MemoryRegion::Any { .. }));
-    }
-
-    /// Continuation loads see memory effects from invokes.
-    #[test]
-    fn test_memory_invoke_clobbers_continuation() {
-        let test = TestModule::new(
-            r#"
-external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
-
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
-    invoke imported(v0): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void => b1 | b2
-
-b1:
-    v1: int32 = load v0
-    return v1
-
-b2:
-    unwind.resume
-}
-"#,
-        );
-
-        let function_id = test.entry_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // locate the invoke and continuation load
-        let entry = function.block(0);
-        let continuation = function.block(1);
-        let load = test.tree.get(continuation).instructions[0];
-
-        let call_accesses = terminator_accesses(memory, entry);
-        let load_access = memory
-            .instruction_access(load)
-            .expect("missing load access");
-
-        // require the invoke to define the continuation memory state
-        assert_eq!(call_accesses.len(), 1);
-        assert_eq!(memory.defining_access(load_access), Some(call_accesses[0]));
-    }
-
-    /// A call declaring no memory effects suppresses memory accesses.
-    #[test]
-    fn test_memory_skips_no_memory_call() {
-        let mut test = TestModule::new(
-            r#"
-external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
-
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
-    call imported(v0): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void
-    v1: int32 = 0
-    return v1
-}
-"#,
-        );
-
-        let function_id = test.entry_function_id();
-        let (call_inst, _callee) = test.first_call_in_entry(function_id);
-        let callsite = mir::Point::Instruction(call_inst);
-        test.effects.upsert_call(callsite).memory = Some(mir::MemoryEffect::none());
-
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-
-        assert!(
-            memory.instruction_accesses(call_inst).is_none(),
-            "no memory calls should not create memory accesses"
-        );
-    }
-
-    /// Memory access entries override default instruction effects.
-    #[test]
-    fn test_memory_access_entries_override() {
-        // build the test program
-        let mut test = TestModule::new(
-            r#"
-external function imported<'a, 'b>(ref<int32, borrowed, 'a, mutable, local>, ref<int32, borrowed, 'b, mutable, local>): void
-
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
-    call imported(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, mutable, local>, ref<int32, borrowed, 'b, mutable, local>) => void
-    v2: int32 = 0
-    return v2
-}
-"#,
-        );
-
-        // collect parameter values and the call instruction
-        let function_id = test.entry_function_id();
-        let param_values = {
-            let function = test.tree.get(function_id);
-            function
-                .parameters
-                .iter()
-                .map(|param| param.value)
-                .collect::<Vec<_>>()
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let instructions = &program.tree.get(function.block(0)).instructions;
+        let copy = memory.instruction_access(instructions[1]).unwrap();
+        let compare = memory.instruction_access(instructions[2]).unwrap();
+        let MemoryNode::Def(copy_node) = memory.access(copy) else {
+            panic!("expected copy definition")
         };
-        let (call_inst, _callee) = test.first_call_in_entry(function_id);
+        let MemoryNode::Use(compare_node) = memory.access(compare) else {
+            panic!("expected comparison use")
+        };
 
-        // build explicit access entries
-        let read_access = mir::MemoryAccess::plain(
-            mir::MemoryOperation::Read,
-            mir::MemoryTarget::Address(param_values[0]),
-            Some(4),
-            None,
-        );
-        let write_access = mir::MemoryAccess::plain(
-            mir::MemoryOperation::Write,
-            mir::MemoryTarget::Address(param_values[1]),
-            Some(4),
-            None,
-        );
-
-        // attach memory access entries to the call
-        test.insert_accesses(call_inst, vec![read_access, write_access]);
-
-        // build analyses
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // locate access effects for the call
-        let accesses = instruction_accesses(memory, call_inst);
-        assert_eq!(accesses.len(), 2);
-
-        // verify read and write effects
-        let read_effect = access_effect(memory, accesses[0]);
-        let write_effect = access_effect(memory, accesses[1]);
-
-        assert!(read_effect.reads);
-        assert!(!read_effect.writes);
-        assert!(write_effect.writes);
-        assert!(!write_effect.reads);
-
-        // verify addresses and sizes
-        let read_address = address_from_region(&read_effect.region).expect("missing read address");
-        let write_address =
-            address_from_region(&write_effect.region).expect("missing write address");
-        assert_eq!(read_address, function.parameters[0].value);
-        assert_eq!(write_address, function.parameters[1].value);
-
-        let read_size = size_from_region(&read_effect.region).expect("missing read size");
-        let write_size = size_from_region(&write_effect.region).expect("missing write size");
-        assert_eq!(read_size, 4);
-        assert_eq!(write_size, 4);
+        assert_eq!(copy_node.defining_access, memory.live_on_entry());
+        assert_eq!(compare_node.defining_access, copy);
     }
 
-    /// Dynamic field reads retain their dispatch projections and exact widths.
+    /// Stop clobber searches at fences and acquire loads across disjoint storage.
     #[test]
-    fn test_memory_tracks_dynamic_fields() {
-        let test = TestModule::new(
+    fn test_stop_clobber_search_at_fences_and_acquire_loads() {
+        let program = TestModule::new(
             r#"
-type Writer {
-    first: int32;
-    second: int32;
-}
-
-function test(v0: dynamic<Writer, managed, readonly, local>): int32 {
-entry(v0: dynamic<Writer, managed, readonly, local>):
-    v1: int32 = dynamic.read v0, 0
-    v2: int32 = dynamic.read v0, 1
-    v3: int32 = add v1, v2
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<atomic<int32>, borrowed, 'a, readonly, shared>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<atomic<int32>, borrowed, 'a, readonly, shared>):
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
+    v2: int32 = atomic.load v1, acquire, scope(device)
+    v3: int32 = load v0
     return v3
 }
 "#,
         );
-
-        let function_id = test.entry_function_id();
-        let function = test.tree.get(function_id);
-        let block = test.tree.get(function.block(0));
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-
-        // resolve both field reads
-        let first = memory
-            .instruction_access(block.instructions[0])
-            .map(|access| access_effect(&memory, access))
-            .expect("missing first dynamic read");
-        let second = memory
-            .instruction_access(block.instructions[1])
-            .map(|access| access_effect(&memory, access))
-            .expect("missing second dynamic read");
-
-        // retain the payload root while distinguishing the dispatch slots
-        let MemoryRegion::Address {
-            location: first_location,
-            ..
-        } = first.region
-        else {
-            panic!("dynamic read should address its payload");
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let alias = analyses
+            .alias(function, program.layouts.clone(), &program.tree)
+            .unwrap();
+        let instructions = &program.tree.get(function.block(0)).instructions;
+        let fence = memory.instruction_access(instructions[0]).unwrap();
+        let acquire = memory.instruction_access(instructions[1]).unwrap();
+        let load = memory.instruction_access(instructions[2]).unwrap();
+        let region = MemoryRegion::Address {
+            location: MemoryLocation::with_size(Value::new(0), 4),
+            spaces: StorageSet::LOCAL,
         };
-        let MemoryRegion::Address {
-            location: second_location,
-            ..
-        } = second.region
-        else {
-            panic!("dynamic read should address its payload");
-        };
+
+        assert_eq!(memory.defining_access(acquire), Some(fence));
+        assert_eq!(memory.defining_access(load), Some(acquire));
         assert_eq!(
-            first_location.address,
-            MemoryAddress::Dynamic {
-                value: function.parameters[0].value,
-                slot: mir::DispatchSlot(0),
-            }
+            memory.cursor(&alias).clobber(acquire, &region).unwrap(),
+            acquire
         );
         assert_eq!(
-            second_location.address,
-            MemoryAddress::Dynamic {
-                value: function.parameters[0].value,
-                slot: mir::DispatchSlot(1),
-            }
-        );
-        assert_eq!(first_location.size, Some(4));
-        assert_eq!(second_location.size, Some(4));
-    }
-
-    /// Loop headers get memory phis when defs flow around the backedge.
-    #[test]
-    fn test_memory_loop_phi_in_header() {
-        let test = TestModule::new(
-            r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32):
-    v2: int32 = 0
-    store v0, v2
-    jump b1(v2)
-
-b1(v3: int32):
-    v4: boolean = lt v3, v1
-    branch v4 => b2 | b3
-
-b2:
-    v5: int32 = 1
-    store v0, v5
-    v6: int32 = add v3, v5
-    jump b1(v6)
-
-b3:
-    v7: int32 = load v0
-    return v7
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // find phi for loop header
-        let header_block = function.block(1);
-        let phi_id = memory
-            .block_phi(header_block)
-            .expect("missing loop header phi");
-
-        let MemoryNode::Phi(phi) = memory.access(phi_id) else {
-            panic!("expected memory phi");
-        };
-
-        let incoming_blocks: FxIndexSet<_> = phi.incoming.iter().map(|(block, _)| *block).collect();
-        let body_block = function.block(2);
-
-        assert!(incoming_blocks.contains(&Some(function.block(0))));
-        assert!(incoming_blocks.contains(&Some(body_block)));
-    }
-
-    /// Memory analysis skips the accesses unreachable blocks write.
-    #[test]
-    fn test_memory_ignores_unreachable_blocks() {
-        let test = TestModule::new(
-            r#"
-function test(): int32 {
-    local l0: int32
-
-entry:
-    v0: int32 = 0
-    return v0
-
-b1:
-    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
-    v2: int32 = 1
-    store v1, v2
-    return v2
-}
-"#,
-        );
-
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let memory = memory.as_ref();
-
-        // locate store in unreachable block
-        let unreachable_block = function.block(1);
-        let block = test.tree.get(unreachable_block);
-        let store_inst = block.instructions[2];
-
-        assert!(
-            memory.instruction_accesses(store_inst).is_none(),
-            "unreachable store should not be tracked"
+            memory.cursor(&alias).clobber(fence, &region).unwrap(),
+            fence
         );
     }
 
-    /// Merge initial memory with backedge stores when the entry is a loop header.
+    /// Preserve loop memory when an indexed query changes between iterations.
     #[test]
-    fn test_merge_memory_at_entry_backedge() {
-        let test = TestModule::new(
+    fn test_preserve_loop_address_changes() {
+        let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32, v2: boolean): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32, v2: boolean):
-    v3: int32 = load v0
-    store v0, v1
-    branch v2 => entry(v0, v1, v2) | exit
+function test<'a>(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
+entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean):
+    v2: usize = 0
+    v3: usize = 1
+    v4: usize = 8
+    v5: int32 = 7
+    v6: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v3, v4
+    jump loop(v2)
+
+loop(v7: usize):
+    v8: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v7
+    v9: ref<int32, borrowed, 'a, mutable, local> = element.address v6, v7
+    store v8, v5
+    v10: int32 = load v9
+    v11: usize = add v7, v3
+    branch v1 => loop(v11) | exit
 
 exit:
+    return v10
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let alias = analyses
+            .alias(function, program.layouts.clone(), &program.tree)
+            .unwrap();
+        let block = function.block(1);
+        let load = program.tree.get(block).instructions[3];
+        let access = memory.instruction_access(load).unwrap();
+        let start = memory.defining_access(access).unwrap();
+        let region = MemoryRegion::Address {
+            location: MemoryLocation::with_size(Value(9), 4),
+            spaces: StorageSet::LOCAL,
+        };
+        let clobber = memory.cursor(&alias).clobber(start, &region).unwrap();
+
+        assert_eq!(Some(clobber), memory.block_phi(block));
+    }
+
+    /// Link both invoke continuations to the call's memory definition.
+    #[test]
+    fn test_link_invoke_memory() {
+        let program = TestModule::new(
+            r#"
+external function change(): void
+
+function test(v0: ptr<int32, readonly>): int32 {
+entry(v0: ptr<int32, readonly>):
+    invoke change(): () => void => normal | unwind
+
+normal:
+    v1: int32 = load v0
+    return v1
+
+unwind:
+    v2: int32 = load v0
+    return v2
+
+unused:
+    v3: int32 = load v0
     return v3
 }
 "#,
         );
-        let function_id = test.first_function_id();
-        let function = test.tree.get(function_id);
-        let entry = function.block(0);
-        let instructions = &test.tree.get(entry).instructions;
-        let mut analyses = test.function_analyses();
-        let memory = analyses.ssa(function, &test.tree, &test.accesses, &test.effects);
-        let alias = analyses.alias(function, &test.tree);
-        let load = memory
-            .instruction_access(instructions[0])
-            .expect("load access");
-        let store = memory
-            .instruction_access(instructions[1])
-            .expect("store access");
-        let phi = memory.block_phi(entry).expect("entry merge");
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let invoke = memory.terminator_access(function.block(0)).unwrap();
+        let actual = (1..4)
+            .map(|index| {
+                let instruction = program.tree.get(function.block(index)).instructions[0];
+                memory
+                    .instruction_access(instruction)
+                    .and_then(|access| memory.defining_access(access))
+            })
+            .collect::<Vec<_>>();
 
-        // distinguish the first invocation from subsequent loop iterations
-        let MemoryNode::Phi(merge) = memory.access(phi) else {
-            panic!("expected entry phi")
-        };
-        assert_eq!(
-            merge.incoming,
-            vec![(None, memory.live_on_entry()), (Some(entry), store)]
-        );
-        assert_eq!(memory.defining_access(load), Some(phi));
-        assert_eq!(memory.defining_access(store), Some(phi));
-        assert_eq!(memory.clobbering_use(load, &alias), phi);
+        assert_eq!(actual, [Some(invoke), Some(invoke), None]);
     }
 }

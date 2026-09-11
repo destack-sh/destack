@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
-    Analysis, Block, CastOperator, ControlTable, Function, GlobalId, Instruction, Intrinsic,
-    LocalId, LocalNodeId, Mutation, Path, Projection, Tree, Value,
+    Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, Function, GlobalId,
+    Instruction, Intrinsic, LocalId, LocalNodeId, Mutation, Path, Projection, Storage, Tree, Value,
 };
 
 /// Canonical places for one MIR function.
@@ -82,6 +82,110 @@ impl Place {
     pub fn contains(&self, other: &Self) -> bool {
         self.origin == other.origin && self.path.contains(&other.path)
     }
+
+    /// Return the storage containing this place.
+    pub fn storage(&self, function: &Function, tree: &Tree) -> Option<Storage> {
+        match self.origin {
+            PlaceOrigin::Local(local) if self.path.first() == Some(&Projection::Deref) => {
+                let ty = tree.get(local).ty;
+
+                tree.get(tree.represented(ty)).reference_storage()
+            }
+            PlaceOrigin::Local(_) => Some(Storage::Frame),
+            PlaceOrigin::Global(global) => Some(Storage::global(tree.get(global).space)),
+            PlaceOrigin::Value(value) => function.reference_storage(value, tree),
+        }
+    }
+
+    /// Return whether two structural places may overlap.
+    pub fn may_overlap(
+        &self,
+        other: &Self,
+        constants: &ConstantTable,
+        function: &Function,
+        tree: &Tree,
+    ) -> bool {
+        // compare projections within the same storage
+        if self.origin == other.origin {
+            return !self
+                .path
+                .projections
+                .iter()
+                .zip(&other.path.projections)
+                .any(|(left, right)| Self::projections_are_disjoint(left, right, constants));
+        }
+
+        // distinguish structural borrow roots from their possible runtime aliases
+        match (self.origin, other.origin) {
+            (PlaceOrigin::Value(_), PlaceOrigin::Value(_)) => false,
+            (PlaceOrigin::Value(_), _) | (_, PlaceOrigin::Value(_)) => {
+                self.storage(function, tree) == other.storage(function, tree)
+            }
+            _ => false,
+        }
+    }
+
+    /// Return whether two projections are proven disjoint.
+    fn projections_are_disjoint(
+        left: &Projection,
+        right: &Projection,
+        constants: &ConstantTable,
+    ) -> bool {
+        // the payloads of two cases never hold values at once
+        if let (Projection::Variant { case: left }, Projection::Variant { case: right }) =
+            (left, right)
+        {
+            return left != right;
+        }
+
+        // compare the projected index intervals
+        let Some(left) = Self::projection_interval(left, constants) else {
+            return false;
+        };
+        let Some(right) = Self::projection_interval(right, constants) else {
+            return false;
+        };
+
+        left.1 <= right.0 || right.1 <= left.0
+    }
+
+    /// Return the half-open index interval covered by one projection.
+    fn projection_interval(
+        projection: &Projection,
+        constants: &ConstantTable,
+    ) -> Option<(u128, u128)> {
+        match projection {
+            Projection::Field { index } | Projection::Element { index } => {
+                let start = u128::from(*index);
+                let end = start.checked_add(1)?;
+
+                Some((start, end))
+            }
+            Projection::Index { index } => {
+                let start = Self::projection_constant(*index, constants)?;
+                let end = start.checked_add(1)?;
+
+                Some((start, end))
+            }
+            Projection::Variant { .. } | Projection::Deref => None,
+            Projection::Slice { start, length } => {
+                let start = Self::projection_constant(*start, constants)?;
+                let length = Self::projection_constant(*length, constants)?;
+                let end = start.checked_add(length)?;
+
+                Some((start, end))
+            }
+        }
+    }
+
+    /// Return the integer constant defined for one value.
+    fn projection_constant(value: Value, constants: &ConstantTable) -> Option<u128> {
+        match constants.constant(value)? {
+            Constant::Int { value, .. } => u128::try_from(*value).ok(),
+            Constant::UInt { value, .. } => Some(*value),
+            _ => None,
+        }
+    }
 }
 
 impl PlaceTable {
@@ -108,6 +212,7 @@ impl PlaceTable {
         while is_changed {
             is_changed = false;
 
+            // resolve instruction places in each block
             for &block_id in function.blocks() {
                 let block = tree.get(block_id);
 
@@ -232,6 +337,7 @@ impl PlaceTable {
 
                 left.merge(right)
             }
+
             Instruction::NewComplete { value, .. } => Self::copy(*value, resolutions),
 
             // preserve the storage named by a reinterpreted address
@@ -411,11 +517,12 @@ impl Resolution {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Space;
     use crate::analyses::tests::TestModule;
 
     /// Preserve agreeing references through selections and block arguments.
     #[test]
-    fn test_merge_matching_places() {
+    fn test_preserve_common_storage_through_merges() {
         let program = TestModule::new(
             r#"
 function test(v0: boolean, v1: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
@@ -433,19 +540,14 @@ join(v3: ref<int32, unique, mutable, local>):
         let table = analyses.place(function, &program.tree);
 
         assert_eq!(
-            table.values,
-            vec![
-                Place::value(Value(0)),
-                Place::value(Value(1)),
-                Place::value(Value(1)),
-                Place::value(Value(1))
-            ]
+            [Value(2), Value(3)].map(|value| table.get(value)),
+            [&Place::value(Value(1)), &Place::value(Value(1))]
         );
     }
 
-    /// Keep conflicting incoming references opaque while preserving their projections.
+    /// Preserve a distinct origin when incoming references address different storage.
     #[test]
-    fn test_merge_distinct_places() {
+    fn test_retain_value_origins_for_distinct_incoming_storage() {
         let program = TestModule::new(
             r#"
 function test(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
@@ -461,15 +563,7 @@ join(v3: ref<int32, unique, mutable, local>):
         let mut analyses = program.function_analyses();
         let table = analyses.place(function, &program.tree);
 
-        assert_eq!(
-            table.values,
-            vec![
-                Place::value(Value(0)),
-                Place::value(Value(1)),
-                Place::value(Value(2)),
-                Place::value(Value(3))
-            ]
-        );
+        assert_eq!(table.get(Value(3)), &Place::value(Value(3)));
     }
 
     /// Compose field, element, and slice projections from the original storage.
@@ -496,11 +590,8 @@ entry(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64):
         let field = Place::value(Value(0)).with_projection(Projection::Field { index: 0 });
 
         assert_eq!(
-            table.values,
-            vec![
-                Place::value(Value(0)),
-                Place::value(Value(1)),
-                Place::value(Value(2)),
+            [Value(3), Value(4), Value(5)].map(|value| table.get(value).clone()),
+            [
                 field.clone(),
                 field
                     .clone()
@@ -518,22 +609,23 @@ entry(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64):
     fn test_forward_local_references() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): void {
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>): void {
     local l0: ref<int32, borrowed, 'a, readonly, local>
     local l1: ref<int32, borrowed, 'a, readonly, local>
 
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>):
     local.set l0, v0
     local.set l1, v0
-    v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, readonly, frame> = local.address l1
+    v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, mutable, frame> = local.address l1
+    store v2, v1
     jump done
 
 done:
-    v2: ref<int32, borrowed, 'a, readonly, local> = local.get l0
-    v3: ref<int32, borrowed, 'a, readonly, local> = local.get l1
-    v4: usize = cast.bit v2 -> usize
-    v5: ref<int32, borrowed, 'a, readonly, local> = intrinsic.memory.raw.transmute(v4)
-    v6: ref<int32, borrowed, 'a, readonly, local> = intrinsic.space.cast(v5)
+    v3: ref<int32, borrowed, 'a, readonly, local> = local.get l0
+    v4: ref<int32, borrowed, 'a, readonly, local> = local.get l1
+    v5: usize = cast.bit v3 -> usize
+    v6: ref<int32, borrowed, 'a, readonly, local> = intrinsic.memory.raw.transmute(v5)
+    v7: ref<int32, borrowed, 'a, readonly, local> = intrinsic.space.cast(v6)
     return
 }
 "#,
@@ -543,16 +635,85 @@ done:
         let table = analyses.place(function, &program.tree);
 
         assert_eq!(
-            table.values,
-            vec![
+            [Value(3), Value(4), Value(5), Value(6), Value(7)]
+                .map(|value| table.get(value).clone()),
+            [
                 Place::value(Value(0)),
-                Place::local(function.locals()[1]),
-                Place::value(Value(0)),
-                Place::value(Value(3)),
+                Place::value(Value(4)),
                 Place::value(Value(0)),
                 Place::value(Value(0)),
                 Place::value(Value(0)),
             ]
+        );
+    }
+
+    /// Constant propagation distinguishes projected array elements.
+    #[test]
+    fn test_separate_elements_with_distinct_constant_indices() {
+        let program = TestModule::new(
+            r#"
+function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable, local>): void {
+entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
+    v1: uint64 = 0
+    v2: uint64 = 1
+    v3: uint64 = add v1, v2
+    v4: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v1
+    v5: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v3
+    return
+}
+"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let function = program.tree.get(function_id);
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(function, &program.tree);
+        let places = analyses.place(function, &program.tree);
+        // compare projections using direct and propagated constants
+        assert!(!places.get(Value(4)).may_overlap(
+            places.get(Value(5)),
+            &constants,
+            function,
+            &program.tree
+        ));
+    }
+
+    /// Preserve the pointee storage of a reference merged through a local.
+    #[test]
+    fn test_resolve_merged_reference_storage() {
+        let program = TestModule::new(
+            r#"
+function test(v0: boolean, v1: ref<int32, unique, mutable, shared>, v2: ref<int32, unique, mutable, shared>): void {
+    local l0: ref<int32, unique, mutable, shared>
+
+entry(v0: boolean, v1: ref<int32, unique, mutable, shared>, v2: ref<int32, unique, mutable, shared>):
+    branch v0 => left | right
+
+left:
+    local.set l0, v1
+    jump join
+
+right:
+    local.set l0, v2
+    jump join
+
+join:
+    v3: ref<int32, unique, mutable, shared> = local.get l0
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let places = analyses.place(function, &program.tree);
+        let local = Place::local(function.local(0));
+        let reference = places.get(Value(3));
+
+        assert_eq!(reference, &local.clone().with_projection(Projection::Deref));
+        assert_eq!(local.storage(function, &program.tree), Some(Storage::Frame));
+        assert_eq!(
+            reference.storage(function, &program.tree),
+            Some(Storage::Heap(Space::Shared))
         );
     }
 }

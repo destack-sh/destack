@@ -1,15 +1,22 @@
+use std::sync::Arc;
+
 use destack_core::StringPool;
 use destack_source::{DiagnosticSeverity, ModuleId};
 
 use crate as mir;
 use crate::analyses::{FunctionCache, ModuleCache};
 use crate::parse::{ParseOptions, Parser, test_file};
-use crate::{AccessTable, DispatchTable, EffectTable, Function, LocalNodeId, Tree};
+use crate::{
+    AccessTable, DispatchTable, EffectTable, Function, LayoutBuilder, LayoutTable, LocalNodeId,
+    Tree,
+};
 
 /// One parsed MIR module used by analysis tests.
 pub(crate) struct TestModule {
     /// The MIR tree.
     pub(crate) tree: Tree,
+    /// Canonical layouts for the represented fixture types.
+    pub(crate) layouts: Arc<LayoutTable>,
     /// Canonical MIR dispatch table.
     pub(crate) dispatch: DispatchTable,
     /// Explicit MIR memory access table.
@@ -37,8 +44,8 @@ impl TestModule {
         let parsed = Parser::parse(&file, options).expect("MIR parser requires text content");
         let (
             tree,
-            _target_layout,
-            _layouts,
+            target_layout,
+            mut layouts,
             dispatch,
             _drops,
             accesses,
@@ -53,8 +60,14 @@ impl TestModule {
             panic!("failed to parse MIR: {diagnostics:?}");
         }
 
+        // construct the layouts supplied by lowering in compiler consumers
+        LayoutBuilder::new(&tree, &mut layouts, target_layout)
+            .layout_reachable_types()
+            .expect("fixture types require valid layouts");
+
         Self {
             tree,
+            layouts: Arc::new(layouts),
             dispatch,
             accesses,
             effects,
@@ -166,29 +179,6 @@ impl TestModule {
         self.instructions_in_block(self.entry_block_id(function_id))
     }
 
-    /// Return the first intrinsic instruction in the entry block.
-    pub(crate) fn first_intrinsic_in_entry(
-        &self,
-        function_id: LocalNodeId<Function>,
-        intrinsic: mir::Intrinsic,
-    ) -> LocalNodeId<mir::Instruction> {
-        // read the entry block
-        let block_id = self.entry_block_id(function_id);
-        let block = self.tree.get(block_id);
-
-        // scan instructions in order
-        for instruction_id in &block.instructions {
-            if matches!(
-                self.tree.get(*instruction_id),
-                mir::Instruction::Intrinsic { intrinsic: inst, .. } if *inst == intrinsic
-            ) {
-                return *instruction_id;
-            }
-        }
-
-        panic!("missing intrinsic instruction");
-    }
-
     /// Return the first call instruction and callee in a function entry block.
     pub(crate) fn first_call_in_entry(
         &self,
@@ -223,58 +213,5 @@ impl TestModule {
         };
 
         (call_inst, *callee)
-    }
-
-    /// Attach memory access entries to an instruction.
-    pub(crate) fn insert_accesses(
-        &mut self,
-        instruction: LocalNodeId<mir::Instruction>,
-        accesses: Vec<mir::MemoryAccess>,
-    ) {
-        // insert the access entries
-        self.accesses.insert(instruction, accesses);
-    }
-
-    /// Attach addressed memory accesses to an instruction.
-    pub(crate) fn insert_address_location(
-        &mut self,
-        instruction: LocalNodeId<mir::Instruction>,
-        kind: mir::MemoryOperation,
-        address: mir::Value,
-        size: Option<u64>,
-    ) {
-        self.insert_address_location_with_options(instruction, kind, address, size, false, None);
-    }
-
-    /// Attach addressed memory accesses to an instruction with ordering.
-    pub(crate) fn insert_address_location_with_options(
-        &mut self,
-        instruction: LocalNodeId<mir::Instruction>,
-        kind: mir::MemoryOperation,
-        address: mir::Value,
-        size: Option<u64>,
-        is_volatile: bool,
-        ordering: Option<mir::MemoryOrdering>,
-    ) {
-        // choose the access order
-        let order = if is_volatile {
-            mir::MemoryAccessOrder::Volatile
-        } else if let Some(ordering) = ordering {
-            mir::MemoryAccessOrder::Atomic(mir::AtomicAccess::ordered(ordering))
-        } else {
-            mir::MemoryAccessOrder::Plain
-        };
-
-        // build the access
-        let access = mir::MemoryAccess {
-            operation: kind,
-            target: mir::MemoryTarget::Address(address),
-            byte_len: size,
-            alignment_bytes: None,
-            order,
-        };
-
-        // insert the access
-        self.accesses.insert(instruction, vec![access]);
     }
 }

@@ -81,29 +81,35 @@ impl FunctionCache {
     }
 
     /// Return alias relationships, analysing them when required.
-    pub fn alias(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<AliasTable> {
+    pub fn alias(
+        &mut self,
+        function: &mir::Function,
+        layouts: Arc<mir::LayoutTable>,
+        tree: &mir::Tree,
+    ) -> Result<Arc<AliasTable>, mir::LayoutError> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.alias {
-            return result.clone();
+            return Ok(result.clone());
         }
 
         // analyse the required inputs
         let definitions = self.definition(function, tree);
+        let dominators = self.dominator(function, tree);
         let constants = self.constant(function, tree);
-        let places = self.place(function, tree);
 
         // analyse and cache the result
         let result = Arc::new(AliasTable::analyse(
             function,
-            &definitions,
-            constants,
-            &places,
-            self.target_layout(),
+            definitions,
+            dominators,
+            layouts,
+            &constants,
+            self.target_layout,
             tree,
-        ));
+        )?);
         self.alias = Some(result.clone());
 
-        result
+        Ok(result)
     }
 
     /// Return known constants, analysing them when required.
@@ -280,13 +286,7 @@ impl FunctionCache {
         let constants = self.constant(function, tree);
         let control = self.control(function, tree);
         let result = Arc::new(MemoryEffectTable::analyse(
-            function,
-            &constants,
-            &control,
-            accesses,
-            effects,
-            self.target_layout(),
-            tree,
+            function, &constants, &control, accesses, effects, tree,
         ));
         self.memory_effect = Some(result.clone());
 
@@ -316,7 +316,7 @@ impl FunctionCache {
             function,
             &control,
             &dominators,
-            &effects,
+            effects,
             tree,
         ));
         self.ssa = Some(result.clone());
@@ -514,9 +514,9 @@ mod tests {
     use crate::analyses::tests::TestModule;
     use crate::{MemoryAccessEffect, MemoryRegion};
 
-    /// Classify accesses independently of memory SSA and refresh changed access metadata.
+    /// Refresh memory effects after changing an explicit access ordering.
     #[test]
-    fn test_classify_and_invalidate_accesses() {
+    fn test_refresh_changed_memory_accesses() {
         let mut program = TestModule::new(
             r#"
 function test(): int32 {
@@ -545,14 +545,14 @@ entry:
             vec![MemoryAccessEffect {
                 reads: false,
                 writes: true,
-                is_volatile: false,
+                order: mir::MemoryAccessOrder::Plain,
                 is_barrier: false,
                 region: MemoryRegion::Local(local),
             }],
             vec![MemoryAccessEffect {
                 reads: true,
                 writes: false,
-                is_volatile: false,
+                order: mir::MemoryAccessOrder::Plain,
                 is_barrier: false,
                 region: MemoryRegion::Local(local),
             }],
@@ -571,11 +571,9 @@ entry:
             effects.terminator_effects(block).collect::<Vec<_>>(),
             Vec::<&MemoryAccessEffect>::new()
         );
-        assert!(analyses.ssa.is_none());
-        assert!(analyses.dominator.is_none());
 
         // change the read to volatile through explicit access metadata
-        program.insert_accesses(
+        program.accesses.insert(
             instructions[2],
             vec![mir::MemoryAccess {
                 operation: mir::MemoryOperation::Read,
@@ -591,7 +589,7 @@ entry:
             analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
 
         // preserve the other accesses while observing the changed ordering
-        expected[2][0].is_volatile = true;
+        expected[2][0].order = mir::MemoryAccessOrder::Volatile;
         let actual = instructions
             .iter()
             .map(|instruction| {

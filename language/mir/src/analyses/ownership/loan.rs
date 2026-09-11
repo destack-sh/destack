@@ -1,3 +1,4 @@
+use destack_core::BitSet;
 use smallvec::SmallVec;
 
 use crate::{Access, LocalNodeIdAny, Path, Place, Value};
@@ -141,9 +142,19 @@ impl LoanTable {
         mut may_overlap: impl FnMut(&Place, &Place) -> bool,
         mut is_exclusive: impl FnMut(&Loan) -> bool,
     ) -> Option<LoanId> {
+        // authorize reborrows through every ancestor loan, including cyclic loop origins
+        let mut parents = BitSet::new(self.len());
+        let mut pending = loan.parents.clone();
+        while let Some(parent) = pending.pop() {
+            if !parents.contains(parent.index()) {
+                parents.insert(parent.index());
+                pending.extend_from_slice(self.get(parent).parents());
+            }
+        }
+
         active.iter().copied().find(|&current| {
             let current_loan = self.get(current);
-            !loan.parents.contains(&current)
+            !parents.contains(current.index())
                 && current_loan.may_overlap(loan, &mut may_overlap)
                 && (is_exclusive(current_loan) || is_exclusive(loan))
         })
@@ -297,5 +308,166 @@ impl Loan {
             } => may_overlap(borrowed, place),
             LoanTarget::Parameter { .. } => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analyses::tests::TestModule;
+
+    /// Permit ancestral reborrows and reject an independent overlapping exclusive borrow.
+    #[test]
+    fn test_allow_ancestors_and_reject_overlapping_siblings() {
+        let program = TestModule::new(
+            r#"
+type Pair { first: int32; second: int32; }
+type Box { pair: Pair; }
+
+function test(): void {
+    local l0: Box
+
+entry:
+    v0: int32 = 7
+    v1: Pair = aggregate (v0, v0)
+    v2: Box = aggregate (v1)
+    local.set l0, v2
+    v3: ref<Box, borrowed, 'frame, mutable, frame> = local.address l0
+    v4: ref<Pair, borrowed, 'frame, mutable, frame> = field.address v3, 0
+    v5: ref<int32, borrowed, 'frame, mutable, frame> = field.address v4, 0
+    v6: ref<int32, borrowed, 'frame, mutable, frame> = field.address v4, 1
+    v7: ref<int32, borrowed, 'frame, mutable, frame> = field.address v4, 0
+    v8: ref<int32, borrowed, 'frame, readonly, frame> = field.address v4, 0
+    v9: ref<int32, borrowed, 'frame, readonly, frame> = field.address v4, 0
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let origins = analyses.origin(function, &program.tree);
+        let constants = analyses.constant(function, &program.tree);
+        let loans = origins.loans();
+        let [
+            root,
+            parent,
+            first,
+            second,
+            overlapping,
+            reader,
+            other_reader,
+        ] = [3, 4, 5, 6, 7, 8, 9].map(|value| loans.root(Value(value)).unwrap());
+        for (loan, active, expected) in [
+            (first, vec![root, parent], None),
+            (second, vec![first], None),
+            (overlapping, vec![first], Some(first)),
+            (reader, vec![first], Some(first)),
+            (first, vec![reader], Some(reader)),
+            (other_reader, vec![reader], None),
+        ] {
+            let actual = loans.conflict(
+                loans.get(loan),
+                &active,
+                |left, right| left.may_overlap(right, &constants, function, &program.tree),
+                Loan::writes,
+            );
+
+            assert_eq!(
+                actual,
+                expected,
+                "borrow {:?}",
+                loans.get(loan).representation
+            );
+        }
+    }
+
+    /// Permit reborrows from either selected parent and reject an overlapping sibling.
+    #[test]
+    fn test_allow_both_selected_reborrow_parents() {
+        let program = TestModule::new(
+            r#"
+type Pair { first: int32; second: int32; }
+
+function test(v0: boolean): void {
+    local l0: Pair
+    local l1: Pair
+
+entry(v0: boolean):
+    v1: int32 = 7
+    v2: Pair = aggregate (v1, v1)
+    local.set l0, v2
+    local.set l1, v2
+    v3: ref<Pair, borrowed, 'frame, mutable, frame> = local.address l0
+    v4: ref<Pair, borrowed, 'frame, mutable, frame> = local.address l1
+    v5: ref<Pair, borrowed, 'frame, mutable, frame> = select v0, v3, v4
+    v6: ref<int32, borrowed, 'frame, mutable, frame> = field.address v5, 0
+    v7: ref<int32, borrowed, 'frame, mutable, frame> = field.address v5, 0
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let origins = analyses.origin(function, &program.tree);
+        let constants = analyses.constant(function, &program.tree);
+        let loans = origins.loans();
+        let [left, right, first, sibling] =
+            [3, 4, 6, 7].map(|value| loans.root(Value(value)).unwrap());
+
+        assert_eq!(loans.get(first).parents(), &[left, right]);
+        for (active, expected) in [(vec![left, right], None), (vec![first], Some(first))] {
+            let actual = loans.conflict(
+                loans.get(sibling),
+                &active,
+                |left, right| left.may_overlap(right, &constants, function, &program.tree),
+                Loan::writes,
+            );
+
+            assert_eq!(actual, expected);
+        }
+    }
+
+    /// Permit a loop reborrow whose ancestry includes its previous iteration.
+    #[test]
+    fn test_allow_reborrows_through_cyclic_ancestry() {
+        let program = TestModule::new(
+            r#"
+external function identity<'a>(ref<int32, borrowed, 'a, mutable, frame>): ref<int32, borrowed, 'a, mutable, frame>
+
+function test(v0: boolean): void {
+    local l0: int32
+
+entry(v0: boolean):
+    v1: int32 = 7
+    local.set l0, v1
+    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    jump loop(v2)
+
+loop(v3: ref<int32, borrowed, 'frame, mutable, frame>):
+    v4: ref<int32, borrowed, 'frame, mutable, frame> = call identity(v3): <'frame>(ref<int32, borrowed, 'frame, mutable, frame>) => ref<int32, borrowed, 'frame, mutable, frame>
+    branch v0 => loop(v4) | exit
+
+exit:
+    return
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let origins = analyses.origin(function, &program.tree);
+        let constants = analyses.constant(function, &program.tree);
+        let loans = origins.loans();
+        let root = loans.root(Value(2)).unwrap();
+        let reborrow = loans.root(Value(4)).unwrap();
+
+        assert_eq!(loans.get(reborrow).parents(), &[root, reborrow]);
+        let conflict = loans.conflict(
+            loans.get(reborrow),
+            &[root, reborrow],
+            |left, right| left.may_overlap(right, &constants, function, &program.tree),
+            Loan::writes,
+        );
+
+        assert_eq!(conflict, None);
     }
 }

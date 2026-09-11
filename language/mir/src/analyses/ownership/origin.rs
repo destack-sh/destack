@@ -5,8 +5,8 @@ use crate::{
     Access, AddressKind, Analysis, Block, BlockTarget, BorrowedPath, Call, ControlTable,
     DataflowTable, Edge, ForwardTransfer, Function, Instruction, Intrinsic, Lattice, Lifetime,
     LifetimeParameter, LifetimeSlot, LifetimeTerm, Loan, LoanId, LoanTable, LocalId, LocalNodeId,
-    Mutation, Path, Place, PlaceOrigin, PlaceTable, Projection, ReferenceKind, Storage, Successor,
-    Terminator, Tree, Type, TypeId, Value,
+    LocalNodeIdAny, Mutation, Path, Place, PlaceOrigin, PlaceTable, Projection, ReferenceKind,
+    Storage, Successor, Terminator, Tree, Type, TypeId, Value,
 };
 
 /// Borrow origin across one MIR function.
@@ -163,10 +163,9 @@ impl<'a> OriginContext<'a> {
         let predecessor = self.tree.get(edge.source);
         let terminator = self.tree.get(predecessor.terminator);
         let arguments = target.arguments(self.tree);
-        let Some(parameters) = terminator.target_parameters(self.tree, edge.successor, target)
-        else {
-            return;
-        };
+        let parameters = terminator
+            .target_parameters(self.tree, edge.successor, target)
+            .unwrap_or_else(|| unreachable!("MIR edge parameter count mismatch"));
 
         // retain possible call writes on both normal and unwind edges
         if let Terminator::Invoke { call, .. } = terminator {
@@ -188,6 +187,18 @@ impl<'a> OriginContext<'a> {
         if let Some(bindings) = result {
             let parameter = self.tree.get(target.block).parameters[0].value;
             state.insert_bindings(parameter, bindings);
+
+            // retain only the result loans issued by this incoming invoke
+            let mut issued = Origin::none();
+            for loan_id in self.loans.roots_of(parameter) {
+                let loan = self.loans.get(loan_id);
+                if loan.issued_at == predecessor.terminator.into_any()
+                    && let Some(place) = loan.place()
+                {
+                    issued = issued.merge(&state.place(self, place).with_loan(loan_id));
+                }
+            }
+            state.merge_origins_at(parameter, &Path::root(), &issued);
         }
 
         // replace index values simultaneously inside each dynamic path
@@ -217,6 +228,7 @@ impl<'a> OriginContext<'a> {
             return None;
         }
 
+        // resolve the call arguments
         let arguments = self.tree.get_values(call.arguments);
 
         Some(self.call_result(state, call.signature, arguments))
@@ -235,6 +247,7 @@ impl<'a> OriginContext<'a> {
             return;
         }
 
+        // resolve the call arguments
         let arguments = self.tree.get_values(call.arguments);
         let bindings = self.call_result(state, call.signature, arguments);
         state.insert_bindings(destination, bindings);
@@ -341,6 +354,7 @@ impl<'a> OriginContext<'a> {
                 .collect();
         }
 
+        // resolve the lifetime of the returned borrow
         let lifetime = self
             .tree
             .type_lifetime(result)
@@ -380,6 +394,7 @@ impl<'a> OriginContext<'a> {
                     continue;
                 }
 
+                // read the origin at the argument path
                 let argument = state.value_path(*argument, &path);
                 origin = origin.merge(&argument);
             }
@@ -528,7 +543,28 @@ impl OriginBuilder<'_> {
                 if let Some((representation, loan)) = self.issued_loan(instruction_id) {
                     self.loans.insert(representation, Path::root(), loan);
                 }
-                for (representation, loan) in self.call_reborrow_loans(instruction_id) {
+                if let Instruction::Call {
+                    call,
+                    destination: Some(destination),
+                } = self.tree.get(instruction_id)
+                {
+                    for (representation, loan) in
+                        self.call_reborrow_loans(call, *destination, instruction_id.into_any())
+                    {
+                        self.loans.insert(representation, Path::root(), loan);
+                    }
+                }
+            }
+
+            // declare reborrows produced by normal invoke continuations
+            let terminator = self.tree.get(block.terminator);
+            if let Terminator::Invoke { call, target, .. } = terminator
+                && terminator.target_result_count(self.tree, Successor::InvokeNormal) != 0
+            {
+                let destination = self.tree.get(target.block).parameters[0].value;
+                for (representation, loan) in
+                    self.call_reborrow_loans(call, destination, block.terminator.into_any())
+                {
                     self.loans.insert(representation, Path::root(), loan);
                 }
             }
@@ -538,20 +574,17 @@ impl OriginBuilder<'_> {
     }
 
     /// Return one result reborrow for each argument covered by the result's region.
-    fn call_reborrow_loans(&self, instruction_id: LocalNodeId<Instruction>) -> Vec<(Value, Loan)> {
-        let instruction = self.tree.get(instruction_id);
-        let Instruction::Call { call, .. } = instruction else {
-            return Vec::new();
-        };
-        let Some(destination) = instruction.destination() else {
-            return Vec::new();
-        };
-
-        // reborrow through the call signature
+    fn call_reborrow_loans(
+        &self,
+        call: &Call,
+        destination: Value,
+        issued_at: LocalNodeIdAny,
+    ) -> Vec<(Value, Loan)> {
         let arguments = self.tree.get_values(call.arguments);
-        let cx = self.context();
+        let context = self.context();
 
-        cx.call_reborrows(call.signature, arguments)
+        context
+            .call_reborrows(call.signature, arguments)
             .into_iter()
             .map(|(argument, access)| {
                 let loan = Loan::new(
@@ -560,7 +593,7 @@ impl OriginBuilder<'_> {
                     access,
                     destination,
                     [],
-                    instruction_id.into_any(),
+                    issued_at,
                 );
 
                 (destination, loan)
@@ -690,8 +723,23 @@ impl OriginBuilder<'_> {
                 }
                 state.advance(&cx, instruction_id);
             }
+
+            // bind parents at the invoke before assigning its continuation result
+            if let Terminator::Invoke { target, .. } = self.tree.get(block.terminator) {
+                for parameter in &self.tree.get(target.block).parameters {
+                    for loan in cx.loans.roots_of(parameter.value) {
+                        let current = cx.loans.get(loan);
+                        if current.issued_at == block.terminator.into_any()
+                            && let Some(source) = current.source()
+                        {
+                            parents.push((loan, state.value(source).loans().to_vec()));
+                        }
+                    }
+                }
+            }
         }
 
+        // assign the collected reborrow parents
         for (loan, parents) in parents {
             self.loans.set_parents(loan, parents);
         }
@@ -1009,33 +1057,6 @@ impl OriginState {
         }
     }
 
-    /// Release the loans of the storage one assignment overwrites, as rustc's `loan_killed_at`.
-    fn kill(&mut self, cx: &OriginContext<'_>, written: &Place) {
-        let killed = cx
-            .loans
-            .iter()
-            .filter(|(_, loan)| {
-                loan.place()
-                    .is_some_and(|place| place.contains(written) || written.contains(place))
-            })
-            .map(|(id, _)| id)
-            .collect::<Vec<_>>();
-        if killed.is_empty() {
-            return;
-        }
-        for origin in self.origins_mut() {
-            origin.loans.retain(|loan| !killed.contains(loan));
-        }
-    }
-
-    /// Iterate every origin carried by a value or stored in a place.
-    fn origins_mut(&mut self) -> impl Iterator<Item = &mut Origin> {
-        let bindings = self.bindings.iter_mut().map(|binding| &mut binding.origin);
-        let places = self.places.iter_mut().map(|binding| &mut binding.origin);
-
-        bindings.chain(places)
-    }
-
     /// Return active loan identities retained by live values and places.
     pub fn active_loans(
         &self,
@@ -1080,9 +1101,8 @@ impl OriginState {
             return Origin::none();
         }
 
-        let mut origin = Origin::none();
-
         // merge sparse child paths for whole-value checks
+        let mut origin = Origin::none();
         for binding in &self.bindings {
             if binding.value == value {
                 origin = origin.merge(&binding.origin);
@@ -1212,6 +1232,7 @@ impl OriginState {
             issued = issued.merge(&self.place(cx, place).with_loan(loan_id));
         }
 
+        // skip instructions that issue no loans
         if issued.is_empty() {
             return;
         }
@@ -1259,6 +1280,7 @@ impl OriginState {
             return;
         }
 
+        // read the origin of the containing place
         let root = self.place(cx, place);
         self.insert(destination, root);
 
@@ -1277,6 +1299,7 @@ impl OriginState {
             return;
         }
 
+        // read the destination type
         let ty = cx.function.expect_value_type(destination);
         let paths = cx.tree.type_origin_paths(TypeId::from(ty));
         let bindings = if paths.is_empty() {
@@ -1318,6 +1341,7 @@ impl OriginState {
             return;
         }
 
+        // collect origins at their structural paths
         let mut bindings: Vec<(Path, Origin)> = Vec::new();
 
         // merge each structural path across every source
@@ -1403,7 +1427,6 @@ impl OriginState {
             Instruction::LocalSet { local, value } => {
                 let place = Place::local(*local);
                 let bindings = self.value_bindings(cx, *value);
-                self.kill(cx, &place);
                 self.insert_place_bindings(place, bindings);
             }
             Instruction::Store { pointer, value } => {
@@ -1413,7 +1436,6 @@ impl OriginState {
                     self.escape_loans(&bindings);
                 }
                 self.root_handles(cx, &place, &mut bindings, *value);
-                self.kill(cx, &place);
                 self.insert_place_bindings(place, bindings);
             }
             Instruction::Aggregate {
@@ -1569,6 +1591,7 @@ impl OriginState {
                 let origin = Self::destination(cx, *destination);
                 self.insert(*destination, origin);
 
+                // resolve the destination place
                 let place = cx.places.get(*destination).clone();
                 let mut bindings = self.value_bindings(cx, *value);
                 if Self::storage_outlives_reference(cx, &place) {
@@ -1711,6 +1734,7 @@ impl OriginState {
         let ty = cx.function.expect_value_type(destination);
         let ty = cx.tree.get(cx.tree.storage_type(TypeId::from(ty)));
 
+        // handle each reference kind
         match ty.reference_kind() {
             Some(ReferenceKind::Managed) => Origin::from_managed(ty),
             Some(ReferenceKind::Unique) => Origin::one(Region::Frame),
@@ -1729,6 +1753,7 @@ impl OriginState {
             return origin.clone();
         }
 
+        // read the value type
         let ty = cx.function.expect_value_type(value);
         let ty = cx.tree.get(cx.tree.storage_type(TypeId::from(ty)));
         match ty.reference_kind() {
@@ -1890,8 +1915,8 @@ impl Lattice for OriginState {
 
 #[cfg(test)]
 mod tests {
-    use crate::Value;
     use crate::analyses::tests::TestModule;
+    use crate::{Place, Value};
 
     /// A call preserves loan identities when it copies a borrow from addressed storage.
     #[test]
@@ -1900,13 +1925,13 @@ mod tests {
             r#"
 external function save<'a, 'b, 'c>(ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'c, mutable, local>): void
 
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void {
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>, v2: ref<int32, borrowed, 'a, readonly, local>): void {
     local l0: ref<int32, borrowed, 'a, readonly, local>
 
-entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>):
+entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>, v2: ref<int32, borrowed, 'a, readonly, local>):
     local.set l0, v0
-    v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, readonly, frame> = local.address l0
-    call save(v2, v1): <'x, 'y, 'z>(ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'y, readonly, local>, ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'z, mutable, local>) => void
+    v3: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, readonly, frame> = local.address l0
+    call save(v3, v1): <'x, 'y, 'z>(ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'y, readonly, local>, ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'z, mutable, local>) => void
     jump done
 
 done:
@@ -2141,6 +2166,101 @@ done(v3: ref<int32, borrowed, 'a, readonly, local>):
                 vec![Value(1), Value(2)],
                 vec![Value(1), Value(2)]
             ]
+        );
+    }
+
+    /// Keep an addressed borrow live after writing through that borrow.
+    #[test]
+    fn test_retain_borrow_after_store() {
+        let program = TestModule::new(
+            r#"
+type Box {
+    value: int32;
+}
+
+function test(v0: ref<Box, managed, mutable, local>): int32 {
+entry(v0: ref<Box, managed, mutable, local>):
+    v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
+    v2: int32 = 7
+    store v1, v2
+    jump done
+
+done:
+    v3: int32 = load v1
+    return v3
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let origins = analyses.origin(function, &program.tree);
+        let state = origins.entry(function.block(1)).unwrap();
+        let retained = state
+            .value(Value(1))
+            .loans()
+            .iter()
+            .map(|loan| origins.loans().get(*loan).representation)
+            .collect::<Vec<_>>();
+
+        assert_eq!(retained, [Value(1)]);
+    }
+
+    /// Preserve both possible referents of an invoke result on its normal continuation.
+    #[test]
+    fn test_reborrow_invoke_arguments() {
+        let program = TestModule::new(
+            r#"
+external function select<'a>(ref<int32, borrowed, 'a, readonly, local>, ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local>
+
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>): void {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>):
+    invoke select(v0, v1): <'a>(ref<int32, borrowed, 'a, readonly, local>, ref<int32, borrowed, 'a, readonly, local>) => ref<int32, borrowed, 'a, readonly, local> => normal | unwind
+
+normal(v2: ref<int32, borrowed, 'a, readonly, local>):
+    v3: int32 = load v2
+    return
+
+unwind:
+    unwind.resume
+}
+"#,
+        );
+        let function = program.tree.get(program.entry_function_id());
+        let mut analyses = program.function_analyses();
+        let origins = analyses.origin(function, &program.tree);
+        let state = origins.entry(function.block(1)).unwrap();
+        let actual = state
+            .value(Value(2))
+            .loans()
+            .iter()
+            .map(|&id| {
+                let loan = origins.loans().get(id);
+                let parents = loan
+                    .parents()
+                    .iter()
+                    .map(|&parent| origins.loans().get(parent).representation)
+                    .collect::<Vec<_>>();
+
+                (loan.place().cloned(), parents)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            actual,
+            [
+                (None, vec![]),
+                (None, vec![]),
+                (Some(Place::value(Value(0))), vec![Value(0)]),
+                (Some(Place::value(Value(1))), vec![Value(1)]),
+            ]
+        );
+        assert_eq!(
+            origins
+                .entry(function.block(2))
+                .unwrap()
+                .value(Value(2))
+                .loans(),
+            &[]
         );
     }
 }

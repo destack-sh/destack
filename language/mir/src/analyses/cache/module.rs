@@ -199,7 +199,17 @@ impl ModuleCache {
         self.function(function).evolution(body, tree)
     }
 
-    function_analysis_through_module!(alias, AliasTable, "Return function alias analysis.");
+    /// Return physical alias analysis for one function and its canonical layouts.
+    pub fn alias(
+        &mut self,
+        function: mir::FunctionId,
+        layouts: Arc<mir::LayoutTable>,
+        tree: &mir::Tree,
+    ) -> Result<Arc<AliasTable>, mir::LayoutError> {
+        self.function(function)
+            .alias(tree.get(function), layouts, tree)
+    }
+
     function_analysis_through_module!(
         constant,
         ConstantTable,
