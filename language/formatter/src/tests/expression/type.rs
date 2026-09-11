@@ -1441,3 +1441,35 @@ console.log(
         ],
     );
 }
+
+/// Preserve borrow access, exclusion, layers, and receiver forms.
+#[test]
+fn test_format_borrow_qualifiers() {
+    assert_format_program!(
+        r#"type A=&T
+type B=&readonly T
+type C=&exclusive T
+type D=&'a exclusive readonly shared T
+type E=&&exclusive T
+type F=&exclusive &readonly T
+const exclusive=source
+const value=&exclusive readonly source.field
+const &exclusive readonly item=source
+class Buffer{read(&'a exclusive readonly this):void{}}
+"#,
+        r#"type A = &T;
+type B = &readonly T;
+type C = &exclusive T;
+type D = &'a readonly exclusive shared T;
+type E = &&exclusive T;
+type F = &exclusive &readonly T;
+const exclusive = source;
+const value = &readonly exclusive source.field;
+const &readonly exclusive item = source;
+class Buffer {
+    read(&'a readonly exclusive this): void {}
+}
+"#,
+        FileType::Destack
+    );
+}

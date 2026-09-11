@@ -21,7 +21,8 @@ use crate::operator::r#type::{
 use crate::operator::{write_postfix_base_expression, write_range_operator};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Expression, LocalNodeId, Mutability, NodeType, PostfixPosition, RangeEnd, UnaryOperator,
+    Exclusivity, Expression, LocalNodeId, Mutability, NodeType, PostfixPosition, RangeEnd,
+    UnaryOperator,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::{format_with, group, soft_block_indent, space, token};
@@ -313,6 +314,7 @@ pub(crate) fn format_operator_expression<'ast>(
         // reference
         Expression::BorrowOf {
             mutability,
+            exclusivity,
             variance,
             right,
         } => {
@@ -323,6 +325,10 @@ pub(crate) fn format_operator_expression<'ast>(
                     Mutability::Mutable => {}
                 }
             }
+            if *exclusivity == Some(Exclusivity::Exclusive) {
+                write!(f, [token("exclusive"), space()])?;
+            }
+
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
             }

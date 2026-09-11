@@ -151,7 +151,7 @@ match (point) {
 Borrow, move, and dereference prefixes compose without extra spacing.
 
 ```ds
-match(value){&*borrowed=>borrowed;^*moved=>moved;*&readonly read=>read;*^exclusive owned=>owned;_=>fallback}
+match(value){&*borrowed=>borrowed;^*moved=>moved;*&readonly read=>read;*&exclusive unique=>unique;_=>fallback}
 ```
 
 ```ds expected
@@ -159,7 +159,7 @@ match (value) {
     &*borrowed => borrowed
     ^*moved => moved
     *&readonly read => read
-    *^exclusive owned => owned
+    *&exclusive unique => unique
     _ => fallback
 }
 ```

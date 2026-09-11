@@ -11,9 +11,9 @@ use crate::context::CapturedFormat;
 use crate::operator::write_range_operator;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
-    AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression, LocalNodeId,
-    Mutability, Node, NodeType, Parameter, Pattern, PatternField, RangeEnd, Tree, TreeStore,
-    TypeExpression,
+    AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Exclusivity, Expression,
+    LocalNodeId, Mutability, Node, NodeType, Parameter, Pattern, PatternField, RangeEnd, Tree,
+    TreeStore, TypeExpression,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -303,6 +303,7 @@ fn format_prefixed_pattern<'ast>(
     prefix: &'static str,
     right: LocalNodeId<Pattern>,
     mutability: Option<Mutability>,
+    exclusivity: Option<Exclusivity>,
 ) -> FormatResult<()> {
     write!(f, [token(prefix)])?;
 
@@ -313,7 +314,12 @@ fn format_prefixed_pattern<'ast>(
         }
     }
 
-    let operand_has_space = matches!(mutability, Some(Mutability::Immutable));
+    if exclusivity == Some(Exclusivity::Exclusive) {
+        write!(f, [token("exclusive"), space()])?;
+    }
+
+    let operand_has_space = matches!(mutability, Some(Mutability::Immutable))
+        || exclusivity == Some(Exclusivity::Exclusive);
     write_prefix_pattern_operand(f, node_id, right, operand_has_space)?;
 
     Ok(())
@@ -724,12 +730,16 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 });
             }
 
-            Pattern::BorrowOf { right, mutability } => {
-                format_prefixed_pattern(f, node_id, "&", *right, *mutability)?;
+            Pattern::BorrowOf {
+                right,
+                mutability,
+                exclusivity,
+            } => {
+                format_prefixed_pattern(f, node_id, "&", *right, *mutability, *exclusivity)?;
             }
 
             Pattern::MoveOf { right, mutability } => {
-                format_prefixed_pattern(f, node_id, "^", *right, *mutability)?;
+                format_prefixed_pattern(f, node_id, "^", *right, *mutability, None)?;
             }
 
             Pattern::DereferenceOf { right } => {

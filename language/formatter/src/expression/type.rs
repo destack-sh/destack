@@ -26,11 +26,11 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
-    Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
-    FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Keyword, LocalNodeId,
-    MappedTypeModifier, Member, Mutability, Name, Node, NodeType, Parameter, Property, RangeEnd,
-    TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm, TypeExpression, TypeLiteral,
-    TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
+    Comment, ConstructorType, Declaration, Exclusivity, Expression, FunctionForm,
+    FunctionSignature, FunctionTypeExpression, GenericArgument, GenericParameter, InferForm,
+    Keyword, LocalNodeId, MappedTypeModifier, Member, Mutability, Name, Node, NodeType, Parameter,
+    Property, RangeEnd, TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm,
+    TypeExpression, TypeLiteral, TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
 use destack_fir::format::{FormatElement as FirElement, FormatError, FormatLayout, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -2918,6 +2918,7 @@ fn write_type_expression_body_inner<'ast>(
         TypeExpression::BorrowedOf {
             lifetime,
             mutability,
+            exclusivity,
             variance,
             target_type,
         } => {
@@ -2932,6 +2933,10 @@ fn write_type_expression_body_inner<'ast>(
                     Mutability::Immutable => write!(f, [Keyword::Readonly, space()])?,
                     Mutability::Mutable => {}
                 }
+            }
+
+            if *exclusivity == Some(Exclusivity::Exclusive) {
+                write!(f, [token("exclusive"), space()])?;
             }
 
             if let Some(variance) = variance {
