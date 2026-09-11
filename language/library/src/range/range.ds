@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
 import { Iterable } from "destack:iter";
+import { ImmutableOf } from "destack:memory";
 
 import { Bound, RangeBounds } from "./bound.ds";
 import { RangeIterator } from "./iterator.ds";
@@ -27,13 +28,13 @@ export extension<T: Step<T>> of Range<T> implements Iterable<T> {
 
 export extension<T> of Range<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(&readonly this): Bound<&readonly T> {
-        Bound.included(&readonly this.start)
+    startBound(&immutable this): Bound<ImmutableOf<T>> {
+        Bound.included(&immutable this.start)
     }
 
     /// Return the end bound.
-    endBound(&readonly this): Bound<&readonly T> {
-        Bound.excluded(&readonly this.end)
+    endBound(&immutable this): Bound<ImmutableOf<T>> {
+        Bound.excluded(&immutable this.end)
     }
 }
 
@@ -59,13 +60,13 @@ export extension<T: Step<T>> of RangeInclusive<T> implements Iterable<T> {
 
 export extension<T> of RangeInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(&readonly this): Bound<&readonly T> {
-        Bound.included(&readonly this.start)
+    startBound(&immutable this): Bound<ImmutableOf<T>> {
+        Bound.included(&immutable this.start)
     }
 
     /// Return the end bound.
-    endBound(&readonly this): Bound<&readonly T> {
-        Bound.included(&readonly this.end)
+    endBound(&immutable this): Bound<ImmutableOf<T>> {
+        Bound.included(&immutable this.end)
     }
 }
 
@@ -88,12 +89,12 @@ export extension<T: Step<T>> of RangeFrom<T> implements Iterable<T> {
 
 export extension<T> of RangeFrom<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(&readonly this): Bound<&readonly T> {
-        Bound.included(&readonly this.start)
+    startBound(&immutable this): Bound<ImmutableOf<T>> {
+        Bound.included(&immutable this.start)
     }
 
     /// Return the end bound.
-    endBound(&readonly this): Bound<&readonly T> {
+    endBound(&immutable this): Bound<ImmutableOf<T>> {
         Bound.unbounded()
     }
 }
@@ -107,13 +108,13 @@ export struct RangeTo<T> {
 
 export extension<T> of RangeTo<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(&readonly this): Bound<&readonly T> {
+    startBound(&immutable this): Bound<ImmutableOf<T>> {
         Bound.unbounded()
     }
 
     /// Return the end bound.
-    endBound(&readonly this): Bound<&readonly T> {
-        Bound.excluded(&readonly this.end)
+    endBound(&immutable this): Bound<ImmutableOf<T>> {
+        Bound.excluded(&immutable this.end)
     }
 }
 
@@ -126,13 +127,13 @@ export struct RangeToInclusive<T> {
 
 export extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(&readonly this): Bound<&readonly T> {
+    startBound(&immutable this): Bound<ImmutableOf<T>> {
         Bound.unbounded()
     }
 
     /// Return the end bound.
-    endBound(&readonly this): Bound<&readonly T> {
-        Bound.included(&readonly this.end)
+    endBound(&immutable this): Bound<ImmutableOf<T>> {
+        Bound.included(&immutable this.end)
     }
 }
 
@@ -142,12 +143,12 @@ export struct RangeFull {}
 
 export extension<T> of RangeFull implements RangeBounds<T> {
     /// Return the start bound.
-    startBound(&readonly this): Bound<&readonly T> {
+    startBound(&immutable this): Bound<ImmutableOf<T>> {
         Bound.unbounded()
     }
 
     /// Return the end bound.
-    endBound(&readonly this): Bound<&readonly T> {
+    endBound(&immutable this): Bound<ImmutableOf<T>> {
         Bound.unbounded()
     }
 }

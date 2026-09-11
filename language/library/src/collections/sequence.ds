@@ -8,5 +8,5 @@ export newtype interface Sequence {
     get length(&readonly this): isize;
 
     /// Return the elements from `start..end` for a rest pattern.
-    rest(start: isize, end?: isize): this.Rest;
+    rest(this, start: isize, end?: isize): this.Rest;
 }

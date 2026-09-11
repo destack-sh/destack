@@ -1,7 +1,7 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Borrowed, Clone, Copy, Default } from "destack:memory";
+import { Borrowed, Copy, Default, ImmutableOf, ValueOf, WithAccess } from "destack:memory";
 import { Compare } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
@@ -11,95 +11,99 @@ import { SortedMap } from "./sorted-map.ds";
 @languageItem("collections.SortedSet")
 export class SortedSet<T> {
     /// The backing sorted map.
-    private map: SortedMap<T, void> = SortedMap.new();
+    private map: ^SortedMap<T, void> = SortedMap.new();
 }
 
-export extension<T: Compare<T>> of ^SortedSet<T> implements Iterable<T> {
+export extension<T> of ^SortedSet<T> implements Iterable<T> {
     /// Consume this set into owned values.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("SortedSet.iterator")
     }
 
     /// Consume two sets into their union.
-    union(other: ^SortedSet<T>): ^SortedSet<T> {
+    union(this, other: ^SortedSet<T>): ^SortedSet<T> where T: Compare<T> {
         todo("SortedSet.union")
     }
 
     /// Consume two sets into their intersection.
-    intersection(other: ^SortedSet<T>): ^SortedSet<T> {
+    intersection(this, other: ^SortedSet<T>): ^SortedSet<T> where T: Compare<T> {
         todo("SortedSet.intersection")
     }
 
     /// Consume two sets into their difference.
-    difference(other: ^SortedSet<T>): ^SortedSet<T> {
+    difference(this, other: ^SortedSet<T>): ^SortedSet<T> where T: Compare<T> {
         todo("SortedSet.difference")
     }
 
     /// Consume two sets into their symmetric difference.
-    symmetricDifference(other: ^SortedSet<T>): ^SortedSet<T> {
+    symmetricDifference(this, other: ^SortedSet<T>): ^SortedSet<T> where T: Compare<T> {
         todo("SortedSet.symmetricDifference")
     }
 }
 
-export extension<T: Compare<T>> of SortedSet<T> implements Iterable<T> where T: Copy {
+export extension<T> of SortedSet<T> implements Iterable<T> where T: Copy {
     /// Return an iterator over copied values.
     iterator(): Iterator<T> {
         todo("SortedSet.iterator")
     }
 
     /// Return the copied stored value equal to `value`.
-    get<Q: Compare<Q>>(value: &readonly Q): T | undefined where T: Borrow<Q> {
+    get<Q, const A: "readonly" | "immutable">(
+        this: WithAccess<&readonly this, A>,
+        value: ImmutableOf<Q>,
+    ): T | undefined
+        where T: Compare<Q>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("SortedSet.get")
     }
 
     /// Return the copied first value.
-    first(): T | undefined {
+    first(&readonly this): T | undefined {
         todo("SortedSet.first")
     }
 
     /// Return the copied last value.
-    last(): T | undefined {
+    last(&readonly this): T | undefined {
         todo("SortedSet.last")
     }
 
     /// Return copied values in `range`.
-    range<Q: Compare<Q>, R: RangeBounds<Q>>(range: R): Iterator<T> where T: Borrow<Q> {
+    range<Q, R: RangeBounds<Q>>(range: R): Iterator<T> where T: Compare<Q> {
         todo("SortedSet.range")
     }
 }
 
-export extension<T: Compare<T>, 'a> of Borrowed<SortedSet<T>, 'a, "readonly">
-    implements Iterable<Borrowed<T, 'a, "readonly">>
+export extension<T, 'a> of Borrowed<SortedSet<T>, 'a, "immutable">
+    implements Iterable<Borrowed<ValueOf<T>, 'a, "immutable">>
 {
     /// Return an iterator over borrowed values.
-    iterator(): Iterator<Borrowed<T, 'a, "readonly">> {
+    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
         todo("SortedSet.iterator")
     }
 
     /// Borrow the stored value equal to `value`.
-    get<Q: Compare<Q>>(value: &readonly Q): Borrowed<T, 'a, "readonly"> | undefined
-        where T: Borrow<Q> {
+    get<Q>(this, value: ImmutableOf<Q>): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined
+        where T: Compare<Q> {
         todo("SortedSet.get")
     }
 
     /// Return whether `value` is present.
-    has<Q: Compare<Q>>(value: &readonly Q): boolean where T: Borrow<Q> {
+    has<Q>(this, value: ImmutableOf<Q>): boolean where T: Compare<Q> {
         todo("SortedSet.has")
     }
 
     /// Borrow the first value.
-    first(): Borrowed<T, 'a, "readonly"> | undefined {
+    first(this): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined {
         todo("SortedSet.first")
     }
 
     /// Borrow the last value.
-    last(): Borrowed<T, 'a, "readonly"> | undefined {
+    last(this): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined {
         todo("SortedSet.last")
     }
 
     /// Return borrowed values in `range`.
-    range<Q: Compare<Q>, R: RangeBounds<Q>>(range: R): Iterator<Borrowed<T, 'a, "readonly">>
-        where T: Borrow<Q> {
+    range<Q, R: RangeBounds<Q>>(this, range: R): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">>
+        where T: Compare<Q> {
         todo("SortedSet.range")
     }
 }
@@ -121,14 +125,14 @@ export extension<T> of SortedSet<T> implements Default {
     }
 }
 
-export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "mutable"> {
+export extension<T> of SortedSet<T> {
     /// Create a sorted set from values.
-    static from(values: Iterable<T>): ^SortedSet<T> {
+    static from(values: Iterable<T>): ^SortedSet<T> where T: Compare<T> {
         todo("SortedSet.from")
     }
 
     /// Create a sorted set from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^SortedSet<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ^SortedSet<T> where T: Compare<T> {
         todo("SortedSet.fromIterator")
     }
 
@@ -143,22 +147,25 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "mutable"> 
     }
 
     /// Return whether `value` is present.
-    has<Q: Compare<Q>>(value: &readonly Q): boolean where T: Borrow<Q> {
+    has<Q, const A: "readonly" | "immutable">(
+        this: WithAccess<&readonly this, A>,
+        value: ImmutableOf<Q>,
+    ): boolean where T: Compare<Q>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("SortedSet.has")
     }
 
     /// Add `value` when absent.
-    add(&this, value: T): boolean {
+    add<const A: "mutable" | "exclusive">(this: WithAccess<&this, A>, value: T): boolean
+        where T: Compare<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("SortedSet.add")
     }
 
-    /// Add all `values`.
-    extend<I: Iterable<T>>(&this, values: I): void {
-        todo("SortedSet.extend");
-    }
-
     /// Remove `value`.
-    remove<Q: Compare<Q>>(&this, value: &readonly Q): T | undefined where T: Borrow<Q> {
+    remove<Q, const A: "mutable" | "exclusive">(
+        this: WithAccess<&this, A>,
+        value: ImmutableOf<Q>,
+    ): T | undefined
+        where T: Compare<Q>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("SortedSet.remove")
     }
 
@@ -168,7 +175,7 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "mutable"> 
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&this, predicate: (value: &readonly T) => boolean): void {
+    retain(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): void {
         todo("SortedSet.retain");
     }
 
@@ -178,7 +185,7 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "mutable"> 
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(&this, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): Iterator<T> {
         todo("SortedSet.extractIf")
     }
 
@@ -193,38 +200,50 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "mutable"> 
     }
 
     /// Return the union of two sets.
-    union(&readonly this, other: &readonly SortedSet<T>): ^SortedSet<T> where T: Clone {
+    union(&readonly this, other: &readonly SortedSet<T>): ^SortedSet<T>
+        where T: Compare<T>, T: Copy {
         todo("SortedSet.union")
     }
 
     /// Return the intersection with `other`.
-    intersection(&readonly this, other: &readonly SortedSet<T>): ^SortedSet<T> where T: Clone {
+    intersection(&readonly this, other: &readonly SortedSet<T>): ^SortedSet<T>
+        where T: Compare<T>, T: Copy {
         todo("SortedSet.intersection")
     }
 
     /// Return this set without values in `other`.
-    difference(&readonly this, other: &readonly SortedSet<T>): ^SortedSet<T> where T: Clone {
+    difference(&readonly this, other: &readonly SortedSet<T>): ^SortedSet<T>
+        where T: Compare<T>, T: Copy {
         todo("SortedSet.difference")
     }
 
     /// Return values present in exactly one set.
     symmetricDifference(&readonly this, other: &readonly SortedSet<T>): ^SortedSet<T>
-        where T: Clone {
+        where T: Compare<T>, T: Copy {
         todo("SortedSet.symmetricDifference")
     }
 
     /// Return whether this set is a subset of `other`.
-    isSubsetOf(&readonly this, other: &readonly SortedSet<T>): boolean {
+    isSubsetOf<const A: "readonly" | "immutable">(
+        this: WithAccess<&this, A>,
+        other: WithAccess<&SortedSet<T>, A>,
+    ): boolean where T: Compare<T>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("SortedSet.isSubsetOf")
     }
 
     /// Return whether this set is a superset of `other`.
-    isSupersetOf(&readonly this, other: &readonly SortedSet<T>): boolean {
+    isSupersetOf<const A: "readonly" | "immutable">(
+        this: WithAccess<&this, A>,
+        other: WithAccess<&SortedSet<T>, A>,
+    ): boolean where T: Compare<T>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("SortedSet.isSupersetOf")
     }
 
     /// Return whether this set has no overlap with `other`.
-    isDisjointFrom(&readonly this, other: &readonly SortedSet<T>): boolean {
+    isDisjointFrom<const A: "readonly" | "immutable">(
+        this: WithAccess<&this, A>,
+        other: WithAccess<&SortedSet<T>, A>,
+    ): boolean where T: Compare<T>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("SortedSet.isDisjointFrom")
     }
 }
@@ -236,7 +255,7 @@ export extension<T: Compare<T>> of SortedSet<T> implements From<Iterable<T>>, Fr
     }
 
     /// Create a managed sorted set from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): SortedSet<T> {
+    static fromIterator<I: Iterable<T>>(values: I): SortedSet<T> {
         SortedSet.fromIterator(values)
     }
 }
@@ -248,7 +267,17 @@ export extension<T: Compare<T>> of ^SortedSet<T> implements From<Iterable<T>>, F
     }
 
     /// Create an owned sorted set from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^SortedSet<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ^SortedSet<T> {
         SortedSet.fromIterator(values)
+    }
+}
+
+export extension<T, const A: "mutable" | "exclusive"> of SortedSet<T>
+    implements Extend<T, A>
+    where T: Compare<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never)
+{
+    /// Add all `values`.
+    extend<I: Iterable<T>>(this: WithAccess<&this, A>, values: I): void {
+        todo("SortedSet.extend");
     }
 }

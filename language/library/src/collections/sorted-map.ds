@@ -1,7 +1,16 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Borrowed, Copy, Default, MaybeUninit, WithAccess } from "destack:memory";
+import {
+    Borrowed,
+    Copy,
+    Default,
+    ImmutableOf,
+    MaybeUninit,
+    Region,
+    ValueOf,
+    WithAccess,
+} from "destack:memory";
 import { Compare, Index, IndexSet } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
@@ -22,7 +31,7 @@ export struct SortedMapEntry<K, V> {
 /// Mutating access to one sorted map entry.
 export struct SortedMapEntryHandle<'a, K, V> {
     /// The borrowed map.
-    private map: &'a SortedMap<K, V>;
+    private map: &'a exclusive SortedMap<K, V>;
 
     /// The queried key.
     private entryKey: K;
@@ -59,7 +68,7 @@ export class SortedMap<K, V> {
     private root: SortedMapNodeKey | undefined = undefined;
 
     /// The node storage.
-    private nodes: Array<SortedMapNode<K, V>> = [];
+    private nodes: ^Array<SortedMapNode<K, V>> = [];
 
     /// The first free node key.
     private firstFree: SortedMapNodeKey | undefined = undefined;
@@ -68,17 +77,14 @@ export class SortedMap<K, V> {
     private count: usize = 0;
 }
 
-export extension<K: Compare<K>, V> of ^SortedMap<K, V> implements Iterable<(K, V)> {
+export extension<K, V> of ^SortedMap<K, V> implements Iterable<(K, V)> {
     /// Consume this map into owned entries.
-    iterator(): Iterator<(K, V)> {
+    iterator(this): Iterator<(K, V)> {
         todo("SortedMap.iterator")
     }
 }
 
-export extension<K: Compare<K>, V> of SortedMap<K, V>
-    implements Iterable<(K, V)>
-    where K: Copy, V: Copy
-{
+export extension<K, V> of SortedMap<K, V> implements Iterable<(K, V)> where K: Copy, V: Copy {
     /// Return an iterator over copied entries.
     iterator(): Iterator<(K, V)> {
         todo("SortedMap.iterator")
@@ -90,110 +96,132 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 }
 
-export extension<K: Compare<K>, V> of SortedMap<K, V> where K: Copy {
+export extension<K, V> of SortedMap<K, V> where K: Copy {
     /// Return copied keys in key order.
     keys(): Iterator<K> {
         todo("SortedMap.keys")
     }
 }
 
-export extension<K: Compare<K>, V> of SortedMap<K, V> where V: Copy {
+export extension<K, V> of SortedMap<K, V> where V: Copy {
     /// Return copied values in key order.
     values(): Iterator<V> {
         todo("SortedMap.values")
     }
 
     /// Return a copied value by key.
-    get<Q: Compare<Q>>(key: &readonly Q): V | undefined where K: Borrow<Q> {
+    get<Q, const A: "readonly" | "immutable">(
+        this: WithAccess<&readonly this, A>,
+        key: ImmutableOf<Q>,
+    ): V | undefined
+        where K: Compare<Q>, A: "immutable" | ((K,) extends (Copy,) ? "readonly" : never) {
         todo("SortedMap.get")
     }
 }
 
-export extension<K: Compare<K>, V, 'a, const A: Access> of Borrowed<SortedMap<K, V>, 'a, A>
-    implements Iterable<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>>
+export extension<K, V, 'a, const A: "immutable" | "exclusive"> of Borrowed<SortedMap<K, V>, 'a, A>
+    implements
+        Iterable<SortedMapEntry<Borrowed<ValueOf<K>, 'a, "immutable">, Borrowed<ValueOf<V>, 'a, A>>>
 {
     /// Return an iterator over borrowed entries.
-    iterator(): Iterator<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
+    iterator(
+        this,
+    ): Iterator<
+        SortedMapEntry<Borrowed<ValueOf<K>, 'a, "immutable">, Borrowed<ValueOf<V>, 'a, A>>
+    > {
         todo("SortedMap.iterator")
     }
 
     /// Return borrowed keys in key order.
-    keys(): Iterator<Borrowed<K, 'a, "readonly">> {
+    keys(this): Iterator<Borrowed<ValueOf<K>, 'a, "immutable">> {
         todo("SortedMap.keys")
     }
 
     /// Return borrowed values in key order.
-    values(): Iterator<Borrowed<V, 'a, A>> {
+    values(this): Iterator<Borrowed<ValueOf<V>, 'a, A>> {
         todo("SortedMap.values")
     }
 
     /// Borrow a value by key.
-    get<Q: Compare<Q>>(key: &readonly Q): Borrowed<V, 'a, A> | undefined where K: Borrow<Q> {
+    get<Q>(this, key: ImmutableOf<Q>): Borrowed<ValueOf<V>, 'a, A> | undefined where K: Compare<Q> {
         todo("SortedMap.get")
     }
 
     /// Return whether `key` exists.
-    has<Q: Compare<Q>>(key: &readonly Q): boolean where K: Borrow<Q> {
+    has<Q>(this, key: ImmutableOf<Q>): boolean where K: Compare<Q> {
         todo("SortedMap.has")
     }
 
     /// Borrow the first entry.
-    firstEntry(): SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>> | undefined {
+    firstEntry(
+        this,
+    ):
+        | SortedMapEntry<Borrowed<ValueOf<K>, 'a, "immutable">, Borrowed<ValueOf<V>, 'a, A>>
+        | undefined {
         todo("SortedMap.firstEntry")
     }
 
     /// Borrow the last entry.
-    lastEntry(): SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>> | undefined {
+    lastEntry(
+        this,
+    ):
+        | SortedMapEntry<Borrowed<ValueOf<K>, 'a, "immutable">, Borrowed<ValueOf<V>, 'a, A>>
+        | undefined {
         todo("SortedMap.lastEntry")
     }
 
     /// Return borrowed entries in key order.
-    entries(): Iterator<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>> {
+    entries(
+        this,
+    ): Iterator<
+        SortedMapEntry<Borrowed<ValueOf<K>, 'a, "immutable">, Borrowed<ValueOf<V>, 'a, A>>
+    > {
         todo("SortedMap.entries")
     }
 
     /// Return borrowed entries in `range`.
-    range<Q: Compare<Q>, R: RangeBounds<Q>>(
+    range<Q, R: RangeBounds<Q>>(
+        this,
         range: R,
-    ): Iterator<SortedMapEntry<Borrowed<K, 'a, "readonly">, Borrowed<V, 'a, A>>>
-        where K: Borrow<Q> {
+    ): Iterator<SortedMapEntry<Borrowed<ValueOf<K>, 'a, "immutable">, Borrowed<ValueOf<V>, 'a, A>>>
+        where K: Compare<Q> {
         todo("SortedMap.range")
     }
 }
 
 export extension<'a, K: Compare<K>, V> of SortedMapEntryHandle<'a, K, V> {
     /// Borrow the queried key.
-    get key(): &readonly K {
+    get key(&immutable this): ImmutableOf<K> {
         todo("SortedMapEntryHandle.key")
     }
 
     /// Return whether this handle points at an occupied entry.
-    get isOccupied(): boolean {
+    get isOccupied(&readonly this): boolean {
         todo("SortedMapEntryHandle.isOccupied")
     }
 
     /// Borrow the current value.
-    get(&this): &V | undefined {
+    get(&exclusive this): &exclusive ValueOf<V> | undefined {
         todo("SortedMapEntryHandle.get")
     }
 
     /// Insert `value` when this handle is vacant.
-    orInsert(&this, value: V): &V {
+    orInsert(&exclusive this, value: V): &exclusive ValueOf<V> {
         todo("SortedMapEntryHandle.orInsert")
     }
 
     /// Insert a value produced by `makeValue` when this handle is vacant.
-    orInsertWith(&this, makeValue: () => V): &V {
+    orInsertWith(&exclusive this, makeValue: () => V): &exclusive ValueOf<V> {
         todo("SortedMapEntryHandle.orInsertWith")
     }
 
     /// Insert or replace the value.
-    set(&this, value: V): &V {
+    set(&exclusive this, value: V): &exclusive ValueOf<V> {
         todo("SortedMapEntryHandle.set")
     }
 
     /// Remove the entry.
-    remove(&this): V | undefined {
+    remove(&exclusive this): V | undefined {
         todo("SortedMapEntryHandle.remove")
     }
 }
@@ -215,22 +243,14 @@ export extension<K, V> of SortedMap<K, V> implements Default {
     }
 }
 
-export extension<K: Compare<K>, V> of SortedMap<K, V>
-    implements Index<K>, IndexSet<K, V>, Extend<(K, V), "mutable">
-{
-    /// The indexed output type.
-    type Output = V;
-
-    /// The missing index result.
-    type Missing = undefined;
-
+export extension<K, V> of SortedMap<K, V> {
     /// Create a sorted map from entries.
-    static from(entries: Iterable<(K, V)>): ^SortedMap<K, V> {
+    static from(entries: Iterable<(K, V)>): ^SortedMap<K, V> where K: Compare<K> {
         todo("SortedMap.from")
     }
 
     /// Create a sorted map from entries.
-    static fromIterator<I: Iterator<(K, V)>>(entries: I): ^SortedMap<K, V> {
+    static fromIterator<I: Iterable<(K, V)>>(entries: I): ^SortedMap<K, V> where K: Compare<K> {
         todo("SortedMap.fromIterator")
     }
 
@@ -244,46 +264,41 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
         this.count == 0
     }
 
-    /// Borrow a value by key through the index operator.
-    index<const A: Access = "readonly">(
-        this: WithAccess<&SortedMap<K, V>, A>,
-        key: K,
-    ): WithAccess<&V, A> | undefined {
-        todo("SortedMap.index")
-    }
-
-    /// Replace a key-value pair through the index operator.
-    indexSet(&this, key: K, value: V): void {
-        this.set(key, value);
-    }
-
     /// Return whether `key` exists.
-    has<Q: Compare<Q>>(key: &readonly Q): boolean where K: Borrow<Q> {
+    has<Q, const A: "readonly" | "immutable">(
+        this: WithAccess<&readonly this, A>,
+        key: ImmutableOf<Q>,
+    ): boolean where K: Compare<Q>, A: "immutable" | ((K,) extends (Copy,) ? "readonly" : never) {
         todo("SortedMap.has")
     }
 
     /// Return mutating access to the entry for `key`.
-    entry(&this, key: K): SortedMapEntryHandle<K, V> {
+    entry<'a>(&'a exclusive this, key: K): SortedMapEntryHandle<'a, K, V> where K: Compare<K> {
         todo("SortedMap.entry")
     }
 
     /// Insert a key-value pair only when `key` is absent.
-    insert(&this, key: K, value: V): boolean {
+    insert<const A: "mutable" | "exclusive">(this: WithAccess<&this, A>, key: K, value: V): boolean
+        where K: Compare<K>, A: "exclusive" | ((K,) extends (Copy,) ? "mutable" : never) {
         todo("SortedMap.insert")
     }
 
     /// Insert or replace a key-value pair.
-    set(&this, key: K, value: V): this {
-        todo("SortedMap.set")
-    }
-
-    /// Insert or replace all entries.
-    extend<I: Iterable<(K, V)>>(&this, entries: I): void {
-        todo("SortedMap.extend");
+    set<const R: Region, const A: "mutable" | "exclusive">(
+        this: Borrowed<SortedMap<K, V>, R, A>,
+        key: K,
+        value: V,
+    ): Borrowed<SortedMap<K, V>, R, A>
+        where K: Compare<K>, A: "exclusive" | ((K,) extends (Copy,) ? "mutable" : never) {
+        todo("SortedMap.set");
     }
 
     /// Remove a key-value pair.
-    remove<Q: Compare<Q>>(&this, key: &readonly Q): V | undefined where K: Borrow<Q> {
+    remove<Q, const A: "mutable" | "exclusive">(
+        this: WithAccess<&this, A>,
+        key: ImmutableOf<Q>,
+    ): V | undefined
+        where K: Compare<Q>, A: "exclusive" | ((K,) extends (Copy,) ? "mutable" : never) {
         todo("SortedMap.remove")
     }
 
@@ -293,7 +308,10 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(&this, predicate: (key: &readonly K, value: &V) => boolean): void {
+    retain(
+        &exclusive this,
+        predicate: (key: ImmutableOf<K>, value: &exclusive ValueOf<V>) => boolean,
+    ): void {
         todo("SortedMap.retain");
     }
 
@@ -304,8 +322,8 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
 
     /// Remove entries accepted by `predicate` and return them.
     extractIf(
-        &this,
-        predicate: (key: &readonly K, value: &V) => boolean,
+        &exclusive this,
+        predicate: (key: ImmutableOf<K>, value: &exclusive ValueOf<V>) => boolean,
     ): Iterator<(K, V)> {
         todo("SortedMap.extractIf")
     }
@@ -330,7 +348,7 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Create a managed sorted map from `entries`.
-    static fromIterator<I: Iterator<(K, V)>>(entries: I): SortedMap<K, V> {
+    static fromIterator<I: Iterable<(K, V)>>(entries: I): SortedMap<K, V> {
         SortedMap.fromIterator(entries)
     }
 }
@@ -344,7 +362,53 @@ export extension<K: Compare<K>, V> of ^SortedMap<K, V>
     }
 
     /// Create an owned sorted map from entries.
-    static fromIterator<I: Iterator<(K, V)>>(entries: I): ^SortedMap<K, V> {
+    static fromIterator<I: Iterable<(K, V)>>(entries: I): ^SortedMap<K, V> {
         SortedMap.fromIterator(entries)
+    }
+}
+
+export extension<K: Compare<K>, V> of SortedMap<K, V> implements Index<K> where K: Copy, V: Copy {
+    /// The copied indexed value.
+    type Output<const R: Region> = V;
+
+    /// The missing index result.
+    type Missing = undefined;
+
+    /// Copy the indexed value.
+    index<const R: Region>(this: Borrowed<SortedMap<K, V>, R, "readonly">, key: K): V | undefined {
+        todo("SortedMap.index")
+    }
+}
+
+export extension<K: Compare<K>, V, const A: "immutable" | "exclusive"> of SortedMap<K, V>
+    implements Index<K, A>
+{
+    /// The protected element storage.
+    type Output<const R: Region> = Borrowed<ValueOf<V>, R, A>;
+
+    /// The missing index result.
+    type Missing = undefined;
+
+    /// Borrow the indexed storage.
+    index<const R: Region>(
+        this: Borrowed<SortedMap<K, V>, R, A>,
+        key: K,
+    ): Borrowed<ValueOf<V>, R, A> | undefined {
+        todo("SortedMap.index")
+    }
+}
+
+export extension<K, V, const A: "mutable" | "exclusive"> of SortedMap<K, V>
+    implements IndexSet<K, V, A>, Extend<(K, V), A>
+    where K: Compare<K>, A: "exclusive" | ((K,) extends (Copy,) ? "mutable" : never)
+{
+    /// Replace a key-value pair through the index operator.
+    indexSet(this: WithAccess<&this, A>, key: K, value: V): void {
+        todo("SortedMap.indexSet");
+    }
+
+    /// Insert or replace all entries.
+    extend<I: Iterable<(K, V)>>(this: WithAccess<&this, A>, entries: I): void {
+        todo("SortedMap.extend");
     }
 }

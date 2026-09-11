@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Borrowed, Copy, Default, MaybeUninit, WithAccess } from "destack:memory";
+import { Borrowed, Copy, Default, ImmutableOf, MaybeUninit, Region, ValueOf } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 
 import { Sequence } from "./sequence.ds";
@@ -28,12 +28,12 @@ export extension<T> of ^Deque<T> implements Iterable<T>, Sequence {
     type Rest = ^Deque<T>;
 
     /// Move the elements from `start..end` for a rest pattern.
-    rest(start: isize, end?: isize): ^Deque<T> {
+    rest(this, start: isize, end?: isize): ^Deque<T> {
         todo("Deque.rest")
     }
 
     /// Consume this deque into owned values.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("Deque.iterator")
     }
 }
@@ -53,49 +53,44 @@ export extension<T: Copy> of Deque<T> implements Iterable<T>, Sequence {
     }
 
     /// Return the copied front element.
-    front(): T | undefined {
+    front(&readonly this): T | undefined {
         todo("Deque.front")
     }
 
     /// Return the copied back element.
-    back(): T | undefined {
+    back(&readonly this): T | undefined {
         todo("Deque.back")
     }
 }
 
-export extension<T, 'a, const A: Access> of Borrowed<Deque<T>, 'a, A>
-    implements Iterable<Borrowed<T, 'a, A>>, Sequence
+export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Deque<T>, 'a, A>
+    implements Iterable<Borrowed<ValueOf<T>, 'a, A>>, Sequence
 {
     /// The borrowed sequence produced by a rest pattern.
-    type Rest = ^Deque<Borrowed<T, 'a, A>>;
+    type Rest = ^Deque<Borrowed<ValueOf<T>, 'a, A>>;
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(start: isize, end?: isize): ^Deque<Borrowed<T, 'a, A>> {
+    rest(this, start: isize, end?: isize): ^Deque<Borrowed<ValueOf<T>, 'a, A>> {
         todo("Deque.rest")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(): Iterator<Borrowed<T, 'a, A>> {
+    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, A>> {
         todo("Deque.iterator")
     }
 
     /// Borrow the front element.
-    front(): Borrowed<T, 'a, A> | undefined {
+    front(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
         todo("Deque.front")
     }
 
     /// Borrow the back element.
-    back(): Borrowed<T, 'a, A> | undefined {
+    back(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
         todo("Deque.back")
     }
 }
 
-export extension<T> of Deque<T>
-    implements Default, Index<isize>, IndexSet<isize, T>, Extend<T, "mutable">
-{
-    /// The indexed output type.
-    type Output = T;
-
+export extension<T> of Deque<T> implements Default, IndexSet<isize, T>, Extend<T, "mutable"> {
     /// Create an empty deque.
     static new(): ^Deque<T> {
         todo("Deque.new")
@@ -112,7 +107,7 @@ export extension<T> of Deque<T>
     }
 
     /// Create a deque from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^Deque<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ^Deque<T> {
         todo("Deque.fromIterator")
     }
 
@@ -134,14 +129,6 @@ export extension<T> of Deque<T>
     /// Return whether this deque has no elements.
     get isEmpty(&readonly this): boolean {
         this.count == 0
-    }
-
-    /// Borrow the element at `index`.
-    index<const A: Access = "readonly">(
-        this: WithAccess<&Deque<T>, A>,
-        index: isize,
-    ): WithAccess<&T, A> {
-        todo("Deque.index")
     }
 
     /// Replace the element at `index`.
@@ -180,7 +167,7 @@ export extension<T> of Deque<T>
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&this, predicate: (value: &readonly T, index: isize) => boolean): void {
+    retain(&exclusive this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): void {
         todo("Deque.retain");
     }
 
@@ -191,8 +178,8 @@ export extension<T> of Deque<T>
 
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
-        &this,
-        predicate: (value: &readonly T, index: isize) => boolean,
+        &exclusive this,
+        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
     ): Iterator<T> {
         todo("Deque.extractIf")
     }
@@ -215,7 +202,7 @@ export extension<T> of Deque<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create a managed deque from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): Deque<T> {
+    static fromIterator<I: Iterable<T>>(values: I): Deque<T> {
         Deque.fromIterator(values)
     }
 }
@@ -227,7 +214,34 @@ export extension<T> of ^Deque<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create an owned deque from values.
-    static fromIterator<I: Iterator<T>>(values: I): ^Deque<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ^Deque<T> {
         Deque.fromIterator(values)
+    }
+}
+
+export extension<T> of Deque<T> implements Index<isize> where T: Copy {
+    /// The copied indexed value.
+    type Output<const R: Region> = T;
+
+    /// Copy the indexed value.
+    index<const R: Region>(this: Borrowed<Deque<T>, R, "readonly">, key: isize): T {
+        todo("Deque.index")
+    }
+}
+
+export extension<T, const A: "immutable" | "exclusive"> of Deque<T> implements Index<isize, A> {
+    /// The protected element storage.
+    type Output<const R: Region> = Borrowed<ValueOf<T>, R, A>;
+
+    /// Borrow the indexed storage.
+    index<const R: Region>(this: Borrowed<Deque<T>, R, A>, key: isize): Borrowed<ValueOf<T>, R, A> {
+        todo("Deque.index")
+    }
+}
+
+export extension<T, 'a> of &'a readonly Deque<T> implements Iterable<T> where T: Copy {
+    /// Iterate over copied values while retaining this borrow.
+    iterator(this): Iterator<T> {
+        todo("Deque.iterator")
     }
 }

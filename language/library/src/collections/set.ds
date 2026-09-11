@@ -1,53 +1,71 @@
-import { Borrow, From } from "destack:convert";
+import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Borrowed, Clone, Copy, Default } from "destack:memory";
-import { Equal, Hash } from "destack:ops";
+import { Borrowed, Copy, Default, ImmutableOf, Region, ValueOf, WithAccess } from "destack:memory";
+import { Equality, Equate } from "destack:ops";
 
 import { Map } from "./map.ds";
 
 /// A compact hash set.
+///
+/// Use the backing map's key equality and hash.
 @languageItem("collections.Set")
-export class Set<T> {
+export class Set<T, E = Equality<T>> {
     /// The backing map.
-    private map: Map<T, void> = Map.new();
+    private map: ^Map<T, void, E>;
+
+    /// Create a collection from entries using its default comparer.
+    constructor(entries?: Iterable<T> | null) where E: Default, E: Equate<T> {
+        todo("Set.constructor");
+    }
+
+    /// Create a collection from entries using comparer.
+    constructor(entries: Iterable<T> | null | undefined, options: { comparer: E })
+        where E: Equate<T> {
+        todo("Set.constructor");
+    }
 }
 
-export extension<T: Hash> of ^Set<T> implements Iterable<T> where T: Equal<T> {
+export extension<T, E> of ^Set<T, E> implements Iterable<T> {
     /// Consume this set into owned values.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("Set.iterator")
     }
 
     /// Consume two sets into their union.
-    union(other: ^Set<T>): ^Set<T> {
+    union(this, other: ^Set<T, E>): ^Set<T, E> where E: Equate<T> {
         todo("Set.union")
     }
 
     /// Consume two sets into their intersection.
-    intersection(other: ^Set<T>): ^Set<T> {
+    intersection(this, other: ^Set<T, E>): ^Set<T, E> where E: Equate<T> {
         todo("Set.intersection")
     }
 
     /// Consume two sets into their difference.
-    difference(other: ^Set<T>): ^Set<T> {
+    difference(this, other: ^Set<T, E>): ^Set<T, E> where E: Equate<T> {
         todo("Set.difference")
     }
 
     /// Consume two sets into their symmetric difference.
-    symmetricDifference(other: ^Set<T>): ^Set<T> {
+    symmetricDifference(this, other: ^Set<T, E>): ^Set<T, E> where E: Equate<T> {
         todo("Set.symmetricDifference")
     }
 }
 
-export extension<T: Hash> of Set<T> implements Iterable<T> where T: Copy, T: Equal<T> {
+export extension<T, E> of Set<T, E> implements Iterable<T> where T: Copy {
     /// Return an iterator over copied values.
     iterator(): Iterator<T> {
         todo("Set.iterator")
     }
 
     /// Return the copied stored value equal to `value`.
-    get<Q: Hash>(value: &readonly Q): T | undefined where T: Borrow<Q>, Q: Equal<Q> {
+    get<Q>(&readonly this, value: Q): T | undefined where E: Equate<T, Q>, Q: Copy {
+        todo("Set.get")
+    }
+
+    /// Look up a borrowed value using the stored comparer.
+    get<Q>(&readonly this, value: ImmutableOf<Q>): T | undefined where E: Equate<T, Q> {
         todo("Set.get")
     }
 
@@ -67,77 +85,267 @@ export extension<T: Hash> of Set<T> implements Iterable<T> where T: Copy, T: Equ
     }
 
     /// Call `visit` for each copied value and discard its result.
-    forEach<R>(visit: (value: T, set: Set<T>) => R): void {
+    forEach<R>(visit: (value: T, key: T, set: Set<T, E>) => R): void {
         todo("Set.forEach");
     }
 }
 
-export extension<T: Hash, 'a> of Borrowed<Set<T>, 'a, "readonly">
-    implements Iterable<Borrowed<T, 'a, "readonly">>
-    where T: Equal<T>
+export extension<T, 'a, E> of Borrowed<Set<T, E>, 'a, "immutable">
+    implements Iterable<Borrowed<ValueOf<T>, 'a, "immutable">>
 {
     /// Return an iterator over borrowed values.
-    iterator(): Iterator<Borrowed<T, 'a, "readonly">> {
+    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
         todo("Set.iterator")
     }
 
     /// Borrow the stored value equal to `value`.
-    get<Q: Hash>(value: &readonly Q): Borrowed<T, 'a, "readonly"> | undefined
-        where T: Borrow<Q>, Q: Equal<Q> {
+    get<Q>(this, value: Q): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined
+        where E: Equate<T, Q>, Q: Copy {
+        todo("Set.get")
+    }
+
+    /// Look up a borrowed value using the stored comparer.
+    get<Q>(this, value: ImmutableOf<Q>): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined
+        where E: Equate<T, Q> {
         todo("Set.get")
     }
 
     /// Return borrowed values as keys.
-    keys(): Iterator<Borrowed<T, 'a, "readonly">> {
+    keys(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
         todo("Set.keys")
     }
 
     /// Return borrowed values.
-    values(): Iterator<Borrowed<T, 'a, "readonly">> {
+    values(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
         todo("Set.values")
     }
 
     /// Return borrowed value-value entries.
-    entries(): Iterator<(Borrowed<T, 'a, "readonly">, Borrowed<T, 'a, "readonly">)> {
+    entries(
+        this,
+    ): Iterator<(Borrowed<ValueOf<T>, 'a, "immutable">, Borrowed<ValueOf<T>, 'a, "immutable">)> {
         todo("Set.entries")
     }
 
     /// Call `visit` for each borrowed value and discard its result.
     forEach<R>(
-        visit: (value: Borrowed<T, 'a, "readonly">, set: Borrowed<Set<T>, 'a, "readonly">) => R,
+        this,
+        visit: (
+            value: Borrowed<ValueOf<T>, 'a, "immutable">,
+            key: Borrowed<ValueOf<T>, 'a, "immutable">,
+            set: Borrowed<Set<T, E>, 'a, "immutable">,
+        ) => R,
     ): void {
         todo("Set.forEach");
     }
 }
 
-export extension<T> of Set<T> implements Default {
+export extension<T, E> of Set<T, E> {
     /// Create an empty set.
-    static new(): ^Set<T> {
+    static new(comparer: E): ^Set<T, E> {
         todo("Set.new")
     }
 
     /// Create a set with room for at least `capacity` elements.
-    static withCapacity(capacity: usize): ^Set<T> {
+    static withCapacity(capacity: usize, comparer: E): ^Set<T, E> {
         todo("Set.withCapacity")
-    }
-
-    /// Create the default set.
-    static default(): ^Set<T> {
-        Set.new()
     }
 }
 
-export extension<T: Hash> of Set<T> implements Extend<T, "mutable"> where T: Equal<T> {
+export extension<T, E> of Set<T, E> implements Default where E: Default {
+    /// Create an empty collection with its default comparer.
+    static new(): ^Set<T, E> {
+        Set.new(E.default())
+    }
+
+    /// Create a collection with its default comparer and room for capacity entries.
+    static withCapacity(capacity: usize): ^Set<T, E> {
+        Set.withCapacity(capacity, E.default())
+    }
+
+    /// Create the default set.
+    static default(): ^Set<T, E> {
+        Set.new(E.default())
+    }
+}
+
+export extension<T, E> of Set<T, E> {
     /// Create a set from values.
-    static from(values: Iterable<T>): ^Set<T> {
+    static from(values: Iterable<T>, comparer: E): ^Set<T, E> where E: Equate<T> {
         todo("Set.from")
     }
 
     /// Create a set from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^Set<T> {
+    static fromIterator<I: Iterable<T>>(values: I, comparer: E): ^Set<T, E> where E: Equate<T> {
         todo("Set.fromIterator")
     }
 
+    /// Return whether `value` is present.
+    has<Q, const A: "readonly" | "immutable">(
+        this: WithAccess<&readonly this, A>,
+        value: Q,
+    ): boolean
+        where
+            E: Equate<T, Q>,
+            Q: Copy,
+            A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
+        todo("Set.has")
+    }
+
+    /// Look up a borrowed value using the stored comparer.
+    has<Q, const A: "readonly" | "immutable">(
+        this: WithAccess<&readonly this, A>,
+        value: ImmutableOf<Q>,
+    ): boolean where E: Equate<T, Q>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
+        todo("Set.has")
+    }
+
+    /// Add `value` when absent.
+    add(value: T): this where T: Copy, E: Equate<T> {
+        todo("Set.add")
+    }
+
+    /// Add `value` and retain this borrow.
+    add<const R: Region, const A: "mutable" | "exclusive">(
+        this: Borrowed<Set<T, E>, R, A>,
+        value: T,
+    ): Borrowed<Set<T, E>, R, A>
+        where E: Equate<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
+        todo("Set.add")
+    }
+
+    /// Remove `value` and return whether it was present.
+    delete<Q, const A: "mutable" | "exclusive">(this: WithAccess<&this, A>, value: Q): boolean
+        where
+            E: Equate<T, Q>,
+            Q: Copy,
+            A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
+        todo("Set.delete")
+    }
+
+    /// Look up a borrowed value using the stored comparer.
+    delete<Q, const A: "mutable" | "exclusive">(
+        this: WithAccess<&this, A>,
+        value: ImmutableOf<Q>,
+    ): boolean where E: Equate<T, Q>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
+        todo("Set.delete")
+    }
+
+    /// Remove `value`.
+    remove<Q, const A: "mutable" | "exclusive">(this: WithAccess<&this, A>, value: Q): T | undefined
+        where
+            E: Equate<T, Q>,
+            Q: Copy,
+            A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
+        todo("Set.remove")
+    }
+
+    /// Look up a borrowed value using the stored comparer.
+    remove<Q, const A: "mutable" | "exclusive">(
+        this: WithAccess<&this, A>,
+        value: ImmutableOf<Q>,
+    ): T | undefined
+        where E: Equate<T, Q>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
+        todo("Set.remove")
+    }
+
+    /// Retain only values accepted by `predicate`.
+    retain(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): void {
+        todo("Set.retain");
+    }
+
+    /// Remove values accepted by `predicate` and return them.
+    extractIf(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): Iterator<T> {
+        todo("Set.extractIf")
+    }
+
+    /// Return the union of two sets.
+    union(&readonly this, other: &readonly Set<T, E>): ^Set<T, E>
+        where T: Copy, E: Copy, E: Equate<T> {
+        todo("Set.union")
+    }
+
+    /// Return the intersection with `other`.
+    intersection(&readonly this, other: &readonly Set<T, E>): ^Set<T, E>
+        where T: Copy, E: Copy, E: Equate<T> {
+        todo("Set.intersection")
+    }
+
+    /// Return this set without values in `other`.
+    difference(&readonly this, other: &readonly Set<T, E>): ^Set<T, E>
+        where T: Copy, E: Copy, E: Equate<T> {
+        todo("Set.difference")
+    }
+
+    /// Return values present in exactly one set.
+    symmetricDifference(&readonly this, other: &readonly Set<T, E>): ^Set<T, E>
+        where T: Copy, E: Copy, E: Equate<T> {
+        todo("Set.symmetricDifference")
+    }
+
+    /// Return whether this set is a subset of `other`.
+    isSubsetOf<const A: "readonly" | "immutable">(
+        this: WithAccess<&this, A>,
+        other: WithAccess<&Set<T, E>, A>,
+    ): boolean where E: Equate<T>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
+        todo("Set.isSubsetOf")
+    }
+
+    /// Return whether this set is a superset of `other`.
+    isSupersetOf<const A: "readonly" | "immutable">(
+        this: WithAccess<&this, A>,
+        other: WithAccess<&Set<T, E>, A>,
+    ): boolean where E: Equate<T>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
+        todo("Set.isSupersetOf")
+    }
+
+    /// Return whether this set has no overlap with `other`.
+    isDisjointFrom<const A: "readonly" | "immutable">(
+        this: WithAccess<&this, A>,
+        other: WithAccess<&Set<T, E>, A>,
+    ): boolean where E: Equate<T>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
+        todo("Set.isDisjointFrom")
+    }
+}
+
+export extension<T, E> of Set<T, E>
+    implements From<Iterable<T>>, FromIterator<T>
+    where E: Default, E: Equate<T>
+{
+    /// Create a managed set from `values`.
+    static from(values: Iterable<T>): Set<T, E> {
+        Set.from(values, E.default())
+    }
+
+    /// Create a managed set from `values`.
+    static fromIterator<I: Iterable<T>>(values: I): Set<T, E> {
+        Set.fromIterator(values, E.default())
+    }
+}
+
+export extension<T, E> of ^Set<T, E>
+    implements From<Iterable<T>>, FromIterator<T>
+    where E: Default, E: Equate<T>
+{
+    /// Create an owned set from values.
+    static from(values: Iterable<T>): ^Set<T, E> {
+        Set.from(values, E.default())
+    }
+
+    /// Create an owned set from `values`.
+    static fromIterator<I: Iterable<T>>(values: I): ^Set<T, E> {
+        Set.fromIterator(values, E.default())
+    }
+}
+
+export extension<T, 'a, E> of &'a readonly Set<T, E> implements Iterable<T> where T: Copy {
+    /// Iterate over copied values while retaining this borrow.
+    iterator(this): Iterator<T> {
+        todo("Set.iterator")
+    }
+}
+
+export extension<T, E> of Set<T, E> {
     /// Return the number of elements.
     get size(&readonly this): usize {
         this.map.size
@@ -148,45 +356,14 @@ export extension<T: Hash> of Set<T> implements Extend<T, "mutable"> where T: Equ
         this.map.isEmpty
     }
 
-    /// Return whether `value` is present.
-    has<Q: Hash>(&readonly this, value: &readonly Q): boolean where T: Borrow<Q>, Q: Equal<Q> {
-        todo("Set.has")
-    }
-
-    /// Add `value` when absent.
-    add(&this, value: T): boolean {
-        todo("Set.add")
-    }
-
-    /// Add all `values`.
-    extend<I: Iterable<T>>(&this, values: I): void {
-        todo("Set.extend");
-    }
-
-    /// Remove `value`.
-    remove<Q: Hash>(&this, value: &readonly Q): T | undefined
-        where T: Borrow<Q>, Q: Equal<Q> {
-        todo("Set.remove")
-    }
-
     /// Remove all elements.
     clear(&this): void {
         todo("Set.clear");
     }
 
-    /// Retain only values accepted by `predicate`.
-    retain(&this, predicate: (value: &readonly T) => boolean): void {
-        todo("Set.retain");
-    }
-
     /// Remove all values and return them.
     drain(&this): Iterator<T> {
         todo("Set.drain")
-    }
-
-    /// Remove values accepted by `predicate` and return them.
-    extractIf(&this, predicate: (value: &readonly T) => boolean): Iterator<T> {
-        todo("Set.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
@@ -198,69 +375,14 @@ export extension<T: Hash> of Set<T> implements Extend<T, "mutable"> where T: Equ
     shrinkToFit(&this): void {
         todo("Set.shrinkToFit");
     }
-
-    /// Return the union of two sets.
-    union(&readonly this, other: &readonly Set<T>): ^Set<T> where T: Clone {
-        todo("Set.union")
-    }
-
-    /// Return the intersection with `other`.
-    intersection(&readonly this, other: &readonly Set<T>): ^Set<T> where T: Clone {
-        todo("Set.intersection")
-    }
-
-    /// Return this set without values in `other`.
-    difference(&readonly this, other: &readonly Set<T>): ^Set<T> where T: Clone {
-        todo("Set.difference")
-    }
-
-    /// Return values present in exactly one set.
-    symmetricDifference(&readonly this, other: &readonly Set<T>): ^Set<T> where T: Clone {
-        todo("Set.symmetricDifference")
-    }
-
-    /// Return whether this set is a subset of `other`.
-    isSubsetOf(&readonly this, other: &readonly Set<T>): boolean {
-        todo("Set.isSubsetOf")
-    }
-
-    /// Return whether this set is a superset of `other`.
-    isSupersetOf(&readonly this, other: &readonly Set<T>): boolean {
-        todo("Set.isSupersetOf")
-    }
-
-    /// Return whether this set has no overlap with `other`.
-    isDisjointFrom(&readonly this, other: &readonly Set<T>): boolean {
-        todo("Set.isDisjointFrom")
-    }
 }
 
-export extension<T: Hash> of Set<T>
-    implements From<Iterable<T>>, FromIterator<T>
-    where T: Equal<T>
+export extension<T, E, const A: "mutable" | "exclusive"> of Set<T, E>
+    implements Extend<T, A>
+    where E: Equate<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never)
 {
-    /// Create a managed set from `values`.
-    static from(values: Iterable<T>): Set<T> {
-        Set.from(values)
-    }
-
-    /// Create a managed set from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): Set<T> {
-        Set.fromIterator(values)
-    }
-}
-
-export extension<T: Hash> of ^Set<T>
-    implements From<Iterable<T>>, FromIterator<T>
-    where T: Equal<T>
-{
-    /// Create an owned set from values.
-    static from(values: Iterable<T>): ^Set<T> {
-        Set.from(values)
-    }
-
-    /// Create an owned set from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^Set<T> {
-        Set.fromIterator(values)
+    /// Add all `values`.
+    extend<I: Iterable<T>>(this: WithAccess<&this, A>, values: I): void where E: Equate<T> {
+        todo("Set.extend");
     }
 }

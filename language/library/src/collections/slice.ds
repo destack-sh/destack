@@ -7,13 +7,17 @@ import {
     Clone,
     Copy,
     Default,
+    ImmutableOf,
     MaybeUninit,
+    Owned,
     Raw,
-    replace,
+    Region,
+    raw,
+    ValueOf,
     WithAccess,
 } from "destack:memory";
 import { Compare, Index, IndexSet, Ordering } from "destack:ops";
-import { Bound, RangeBounds } from "destack:range";
+import { RangeBounds } from "destack:range";
 
 import { Array } from "./array.ds";
 import { Sequence } from "./sequence.ds";
@@ -50,7 +54,7 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Create a slice from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^[T] {
+    static fromIterator<I: Iterable<T>>(values: I): ^[T] {
         todo("Slice.fromIterator")
     }
 
@@ -61,7 +65,7 @@ export extension<T> of Slice<T> implements Default {
 
     /// Build a raw slice descriptor from raw storage.
     @unsafe
-    static fromRaw(data: *T, length: usize): Raw<[T]> {
+    static fromRaw(data: *ValueOf<T>, length: usize): Raw<[T]> {
         return sliceFromRaw<T>(data, length);
     }
 
@@ -93,28 +97,34 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Borrow a contiguous range as a view.
-    subslice<const A: Access = "readonly">(
-        this: WithAccess<&[T], A>,
+    subslice<const R: Region, const A: Access>(
+        this: Borrowed<[T], R, A>,
         start: usize,
         length: usize,
-    ): WithAccess<&[T], A> {
-        return sliceView<T, A>(this, start, length);
+    ): Borrowed<[T], R, A> {
+        // check the range before constructing its view
+        let size = sliceLength<T>(this);
+        if (start > size || length > size - start) {
+            panic("slice range out of bounds")
+        }
+
+        return sliceView<T, R, A>(this, start, length);
     }
 
     /// Borrow a selected range as a view.
-    slice<const A: Access = "readonly">(
-        this: WithAccess<&[T], A>,
+    slice<const R: Region, const A: Access>(
+        this: Borrowed<[T], R, A>,
         start?: isize,
         end?: isize,
-    ): WithAccess<&[T], A> {
+    ): Borrowed<[T], R, A> {
         todo("Slice.slice")
     }
 
     /// Split this slice into two borrowed views.
-    splitAt<const A: Access = "readonly">(
-        this: WithAccess<&[T], A>,
+    splitAt<const R: Region, const A: Access>(
+        this: Borrowed<[T], R, A>,
         index: isize,
-    ): (WithAccess<&[T], A>, WithAccess<&[T], A>) {
+    ): (Borrowed<[T], R, A>, Borrowed<[T], R, A>) {
         todo("Slice.splitAt")
     }
 
@@ -125,45 +135,61 @@ export extension<T> of Slice<T> implements Default {
 
     /// Copy elements from `source` into this slice.
     copyFrom(&this, source: &readonly [T]): void where T: Copy {
+        // require equal lengths before accessing either slice
         if (source.size != this.size) {
             panic("slice copy length mismatch")
         }
 
-        for (let index: usize = 0; index < sliceLength<T>(this); index += 1) {
-            this.unsafeSet(index, source.unsafeGet(index));
+        // copy overlapping ranges without overwriting unread elements
+        let length = sliceLength<T>(this);
+        if (length != 0) {
+            let destination = raw.fromReference<ValueOf<T>>(sliceIndex(this, 0));
+            let origin = raw.fromReference<ValueOf<T>>(sliceIndex(source, 0));
+
+            raw.copy<ValueOf<T>>(destination, origin, length);
         }
     }
 
     /// Swap two elements.
-    swap(&this, left: usize, right: usize): void {
+    swap<const R: Region, const A: "mutable" | "exclusive">(
+        this: Borrowed<[T], R, A>,
+        left: usize,
+        right: usize,
+    ): void where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("Slice.swap");
     }
 
     /// Reverse this slice in place.
-    reverse(&this): void {
+    reverse<const R: Region, const A: "mutable" | "exclusive">(this: Borrowed<[T], R, A>): void
+        where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("Slice.reverse");
     }
 
     /// Sort this slice by its natural order.
-    sort(&this): void where T: Compare<T> {
+    sort<const A: "mutable" | "exclusive">(this: WithAccess<&this, A>): void
+        where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never), T: Compare<T> {
         todo("Slice.sort");
     }
 
     /// Sort this slice with borrowed values.
-    sort(&this, compare: (left: &readonly T, right: &readonly T) => Ordering): void {
+    sort<const A: "mutable" | "exclusive">(
+        this: WithAccess<&this, A>,
+        compare: (left: ImmutableOf<T>, right: ImmutableOf<T>) => Ordering,
+    ): void where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("Slice.sort");
     }
 
     /// Sort this slice by its natural order without preserving equal-element order.
-    sortUnstable(&this): void where T: Compare<T> {
+    sortUnstable<const A: "mutable" | "exclusive">(this: WithAccess<&this, A>): void
+        where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never), T: Compare<T> {
         todo("Slice.sortUnstable");
     }
 
     /// Sort this slice without preserving equal-element order.
-    sortUnstable(
-        &this,
-        compare: (left: &readonly T, right: &readonly T) => Ordering,
-    ): void {
+    sortUnstable<const A: "mutable" | "exclusive">(
+        this: WithAccess<&this, A>,
+        compare: (left: ImmutableOf<T>, right: ImmutableOf<T>) => Ordering,
+    ): void where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("Slice.sortUnstable");
     }
 }
@@ -173,7 +199,7 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     type Rest = ^Array<T>;
 
     /// Copy the elements from `start..end` for a rest pattern.
-    rest(start: isize, end?: isize): ^Array<T> {
+    rest(this, start: isize, end?: isize): ^Array<T> {
         todo("Slice.rest")
     }
 
@@ -183,7 +209,7 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     }
 
     /// Return the first element by value.
-    first(): T | undefined {
+    first(&readonly this): T | undefined {
         if (this.isEmpty) {
             undefined
         } else {
@@ -192,7 +218,7 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     }
 
     /// Return the last element by value.
-    last(): T | undefined {
+    last(&readonly this): T | undefined {
         let length = this.length;
 
         if (length == 0) {
@@ -210,101 +236,66 @@ export extension<T> of ^Slice<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create a slice from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^[T] {
+    static fromIterator<I: Iterable<T>>(values: I): ^[T] {
         Slice.fromIterator(values)
     }
 }
 
-export extension<T, 'a, const A: Access> of Borrowed<Slice<T>, 'a, A>
-    implements Iterable<Borrowed<T, 'a, A>>, Sequence
+export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Slice<T>, 'a, A>
+    implements Iterable<Borrowed<ValueOf<T>, 'a, A>>, Sequence
 {
     /// The borrowed sequence produced by a rest pattern.
-    type Rest = ^Array<Borrowed<T, 'a, A>>;
+    type Rest = ^Array<Borrowed<ValueOf<T>, 'a, A>>;
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(&readonly this, start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
+    rest(this, start: isize, end?: isize): ^Array<Borrowed<ValueOf<T>, 'a, A>> {
         todo("Slice.rest")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(&readonly this): Iterator<Borrowed<T, 'a, A>> {
+    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, A>> {
         todo("Slice.iterator")
     }
 
     /// Borrow the first element.
-    first(&readonly this): Borrowed<T, 'a, A> | undefined {
+    first(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
         todo("Slice.first")
     }
 
     /// Borrow the last element.
-    last(&readonly this): Borrowed<T, 'a, A> | undefined {
+    last(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
         todo("Slice.last")
     }
 }
 
-export extension<T> of Slice<T> implements Index<isize>, IndexSet<isize, T> {
-    /// The indexed output type.
-    type Output = T;
-
+export extension<T> of Slice<T> implements IndexSet<isize, T> {
     /// Borrow a view over `start..end`.
-    view<const A: Access = "readonly">(
-        this: WithAccess<&[T], A>,
+    view<const R: Region, const A: Access = "readonly">(
+        this: Borrowed<[T], R, A>,
         start: isize,
         end?: isize,
-    ): WithAccess<&[T], A> {
-        this.slice(start, end)
-    }
-
-    /// Borrow the element at `index`.
-    index<const A: Access = "readonly">(
-        this: WithAccess<&[T], A>,
-        index: isize,
-    ): WithAccess<&T, A> {
-        if (index < 0 || index >= this.size) {
-            panic("slice index out of bounds")
-        }
-
-        sliceIndex<T, A>(this, index.truncate<usize>())
+    ): Borrowed<[T], R, A> {
+        todo("Slice.view")
     }
 
     /// Replace the element at `index`.
     indexSet(&this, index: isize, value: T): void {
-        replace(this.index(index), value);
+        // check the index before replacing the stored value
+        if (index < 0 || index >= this.size) {
+            panic("slice index out of bounds")
+        }
+
+        this.unsafeSet(index.truncate<usize>(), value);
     }
 }
 
-export extension<T, R: RangeBounds<isize>, const A: Access = "readonly"> of Slice<T>
-    implements Index<R, A>
-{
-    /// The indexed output type.
-    type Output = [T];
+export extension<T, I: RangeBounds<isize>, const A: Access> of Slice<T> implements Index<I, A> {
+    /// The borrowed range.
+    type Output<const R: Region> = Borrowed<[T], R, A>;
 
-    /// Return the normalized start and length for `range`.
-    rangeSpan(&readonly this, range: &readonly R): (isize, isize) {
-        let start = match (range.startBound()) {
-            { kind: "included", value } => *value
-            { kind: "excluded", value } => *value + 1
-            { kind: "unbounded" } => 0
-        };
-
-        let end = match (range.endBound()) {
-            { kind: "included", value } => *value + 1
-            { kind: "excluded", value } => *value
-            { kind: "unbounded" } => this.size
-        };
-
-        if (start > end || end > this.size) {
-            panic("slice range out of bounds")
-        }
-
-        (start, end - start)
-    }
-
-    /// Borrow the selected range as a view.
-    index(this: WithAccess<&[T], A>, range: R): WithAccess<&[T], A> {
-        let (start, length) = this.rangeSpan(&readonly range);
-
-        this.subslice(start.truncate<usize>(), length.truncate<usize>())
+    /// Borrow the selected range.
+    index<const R: Region>(this: Borrowed<[T], R, A>, range: I): Borrowed<[T], R, A> {
+        todo("Slice.index")
     }
 }
 
@@ -320,12 +311,12 @@ export extension<T, R: RangeBounds<isize>> of Slice<T>
     }
 }
 
-export extension<T> of Slice<T> implements ToOwned where T: Clone {
+export extension<T: Clone> of Slice<T> implements ToOwned {
     /// The owned value type.
     type Owned = ^Array<T>;
 
     /// Copy this slice into owned array storage.
-    toOwned(&readonly this): ^Array<T> {
+    toOwned(&immutable this): ^Array<T> {
         todo("Slice.toOwned")
     }
 }
@@ -333,7 +324,7 @@ export extension<T> of Slice<T> implements ToOwned where T: Clone {
 /// Build a raw slice descriptor from raw parts.
 @unsafe
 @intrinsic("collections.slice.fromRaw")
-export declare function sliceFromRaw<T>(data: *T, length: usize): Raw<[T]>;
+export declare function sliceFromRaw<T>(data: *ValueOf<T>, length: usize): Raw<[T]>;
 
 /// Allocate one owned slice of `length` uninitialized elements.
 @intrinsic("collections.slice.uninit")
@@ -351,10 +342,10 @@ export declare function sliceIntoUninit<T>(values: ^[T]): ^[MaybeUninit<T>];
 /// Borrow one element without bounds checks.
 @unsafe
 @intrinsic("collections.slice.index")
-export declare function sliceIndex<T, const A: Access = "readonly">(
-    slice: WithAccess<&[T], A>,
+export declare function sliceIndex<T, const R: Region, const A: Access>(
+    slice: Borrowed<[T], R, A>,
     index: usize,
-): WithAccess<&T, A>;
+): Borrowed<ValueOf<T>, R, A>;
 
 /// Return the element count of one slice view.
 @intrinsic("collections.slice.length")
@@ -373,8 +364,28 @@ export declare function sliceSet<T>(slice: &[T], index: usize, value: T): void;
 /// Borrow a contiguous range of one slice as a view.
 @unsafe
 @intrinsic("collections.slice.subslice")
-export declare function sliceView<T, const A: Access = "readonly">(
-    slice: WithAccess<&[T], A>,
+export declare function sliceView<T, const R: Region, const A: Access>(
+    slice: Borrowed<[T], R, A>,
     start: usize,
     length: usize,
-): WithAccess<&[T], A>;
+): Borrowed<[T], R, A>;
+
+export extension<T> of Slice<T> implements Index<isize> where T: Copy {
+    /// The copied indexed value.
+    type Output<const R: Region> = T;
+
+    /// Copy the indexed value.
+    index<const R: Region>(this: Borrowed<Slice<T>, R, "readonly">, key: isize): T {
+        todo("Slice.index")
+    }
+}
+
+export extension<T, const A: "immutable" | "exclusive"> of Slice<T> implements Index<isize, A> {
+    /// The protected element storage.
+    type Output<const R: Region> = Borrowed<ValueOf<T>, R, A>;
+
+    /// Borrow the indexed storage.
+    index<const R: Region>(this: Borrowed<Slice<T>, R, A>, key: isize): Borrowed<ValueOf<T>, R, A> {
+        todo("Slice.index")
+    }
+}

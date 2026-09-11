@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
-import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Clone, Default } from "destack:memory";
+import { Extend, FromIterator, Iterable } from "destack:iter";
+import { Copy, Default } from "destack:memory";
 import { Atomic } from "destack:sync";
 
 /// A concurrent multi-producer multi-consumer queue.
@@ -11,7 +11,7 @@ export shared class ConcurrentQueue<in out T> {
     private state: Atomic<uint64> = Atomic.new(0);
 }
 
-export extension<T> of ConcurrentQueue<T> implements Default, Extend<T, "mutable"> {
+export extension<T> of ConcurrentQueue<T> implements Default, Extend<T, "readonly"> {
     /// Create an empty concurrent queue.
     static new(): ^ConcurrentQueue<T> {
         todo("ConcurrentQueue.new")
@@ -23,7 +23,7 @@ export extension<T> of ConcurrentQueue<T> implements Default, Extend<T, "mutable
     }
 
     /// Create a concurrent queue from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^ConcurrentQueue<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ^ConcurrentQueue<T> {
         todo("ConcurrentQueue.fromIterator")
     }
 
@@ -33,27 +33,27 @@ export extension<T> of ConcurrentQueue<T> implements Default, Extend<T, "mutable
     }
 
     /// Return whether this queue is currently empty.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         todo("ConcurrentQueue.isEmpty")
     }
 
     /// Push `value` to the back of the queue.
-    push(&this, value: T): void {
+    push(&readonly this, value: T): void {
         todo("ConcurrentQueue.push");
     }
 
     /// Append all `values` to the back of the queue.
-    extend<I: Iterable<T>>(&this, values: I): void {
+    extend<I: Iterable<T>>(&readonly this, values: I): void {
         todo("ConcurrentQueue.extend");
     }
 
-    /// Clone and return the front value without removing it.
-    peek(&this): T | undefined where T: Clone {
+    /// Copy and return the front value without removing it.
+    peek(&readonly this): T | undefined where T: Copy {
         todo("ConcurrentQueue.peek")
     }
 
     /// Remove and return the front value.
-    pop(&this): T | undefined {
+    pop(&readonly this): T | undefined {
         todo("ConcurrentQueue.pop")
     }
 }
@@ -65,7 +65,7 @@ export extension<T> of ConcurrentQueue<T> implements From<Iterable<T>>, FromIter
     }
 
     /// Create a managed concurrent queue from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ConcurrentQueue<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ConcurrentQueue<T> {
         ConcurrentQueue.fromIterator(values)
     }
 }
@@ -77,7 +77,7 @@ export extension<T> of ^ConcurrentQueue<T> implements From<Iterable<T>>, FromIte
     }
 
     /// Create an owned concurrent queue from values.
-    static fromIterator<I: Iterator<T>>(values: I): ^ConcurrentQueue<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ^ConcurrentQueue<T> {
         ConcurrentQueue.fromIterator(values)
     }
 }

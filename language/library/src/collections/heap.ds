@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Borrowed, Copy, Default } from "destack:memory";
+import { Borrowed, Copy, Default, ImmutableOf, ValueOf, WithAccess } from "destack:memory";
 import { Compare } from "destack:ops";
 
 import { Array } from "./array.ds";
@@ -10,26 +10,26 @@ import { Array } from "./array.ds";
 @languageItem("collections.BinaryHeap")
 export struct BinaryHeap<T> {
     /// The heap storage.
-    private storage: T[];
+    private storage: ^Array<T>;
 }
 
-export extension<T: Compare<T>> of BinaryHeap<T> implements Iterable<T> {
+export extension<T> of BinaryHeap<T> implements Iterable<T> {
     /// Consume this heap into owned values.
     iterator(this): Iterator<T> {
         todo("BinaryHeap.iterator")
     }
 }
 
-export extension<T: Compare<T>, 'a> of Borrowed<BinaryHeap<T>, 'a, "readonly">
-    implements Iterable<Borrowed<T, 'a, "readonly">>
+export extension<T, 'a> of Borrowed<BinaryHeap<T>, 'a, "immutable">
+    implements Iterable<Borrowed<ValueOf<T>, 'a, "immutable">>
 {
     /// Borrow the greatest element.
-    peek(): Borrowed<T, 'a, "readonly"> | undefined {
+    peek(this): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined {
         todo("BinaryHeap.peek")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(): Iterator<Borrowed<T, 'a, "readonly">> {
+    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
         todo("BinaryHeap.iterator")
     }
 }
@@ -51,19 +51,19 @@ export extension<T> of BinaryHeap<T> implements Default {
     }
 }
 
-export extension<T: Compare<T>> of BinaryHeap<T>
-    implements From<Iterable<T>>, FromIterator<T>, Extend<T, "mutable">
-{
+export extension<T: Compare<T>> of BinaryHeap<T> implements From<Iterable<T>>, FromIterator<T> {
     /// Create a binary heap from values.
     static from(values: Iterable<T>): BinaryHeap<T> {
         todo("BinaryHeap.from")
     }
 
     /// Create a binary heap from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): BinaryHeap<T> {
+    static fromIterator<I: Iterable<T>>(values: I): BinaryHeap<T> {
         todo("BinaryHeap.fromIterator")
     }
+}
 
+export extension<T> of BinaryHeap<T> {
     /// Return the number of elements.
     get size(&readonly this): usize {
         this.storage.size.truncate<usize>()
@@ -80,17 +80,14 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     }
 
     /// Push `value`.
-    push(&this, value: T): void {
+    push<const A: "mutable" | "exclusive">(this: WithAccess<&this, A>, value: T): void
+        where T: Compare<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("BinaryHeap.push");
     }
 
-    /// Push all `values`.
-    extend<I: Iterable<T>>(&this, values: I): void {
-        todo("BinaryHeap.extend");
-    }
-
     /// Remove and return the greatest element.
-    pop(&this): T | undefined {
+    pop<const A: "mutable" | "exclusive">(this: WithAccess<&this, A>): T | undefined
+        where T: Compare<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("BinaryHeap.pop")
     }
 
@@ -100,7 +97,8 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&this, predicate: (value: &readonly T) => boolean): void {
+    retain(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): void
+        where T: Compare<T> {
         todo("BinaryHeap.retain");
     }
 
@@ -110,7 +108,8 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(&this, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): Iterator<T>
+        where T: Compare<T> {
         todo("BinaryHeap.extractIf")
     }
 
@@ -125,7 +124,17 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     }
 
     /// Convert this heap into a sorted array.
-    intoSortedArray(this): ^Array<T> {
+    intoSortedArray(this): ^Array<T> where T: Compare<T> {
         todo("BinaryHeap.intoSortedArray")
+    }
+}
+
+export extension<T, const A: "mutable" | "exclusive"> of BinaryHeap<T>
+    implements Extend<T, A>
+    where T: Compare<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never)
+{
+    /// Push all `values`.
+    extend<I: Iterable<T>>(this: WithAccess<&this, A>, values: I): void {
+        todo("BinaryHeap.extend");
     }
 }

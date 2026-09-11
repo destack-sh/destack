@@ -1,4 +1,4 @@
-import { Arithmetic, Integer } from "destack:math";
+import { Integer } from "destack:math";
 import { Compare } from "destack:ops";
 
 /// Protocol for values that can advance through a range.

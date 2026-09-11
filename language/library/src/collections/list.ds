@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Borrowed, Copy, Default, MaybeUninit } from "destack:memory";
+import { Borrowed, Copy, Default, ImmutableOf, MaybeUninit, ValueOf } from "destack:memory";
 
 import { Array } from "./array.ds";
 import { Sequence } from "./sequence.ds";
@@ -37,7 +37,7 @@ export class LinkedList<T> {
     private tail: LinkedListNodeKey | undefined = undefined;
 
     /// The node storage.
-    private nodes: Array<LinkedListNode<T>> = [];
+    private nodes: ^Array<LinkedListNode<T>> = [];
 
     /// The first free node key.
     private firstFree: LinkedListNodeKey | undefined = undefined;
@@ -51,12 +51,12 @@ export extension<T> of ^LinkedList<T> implements Iterable<T>, Sequence {
     type Rest = ^LinkedList<T>;
 
     /// Move the elements from `start..end` for a rest pattern.
-    rest(start: isize, end?: isize): ^LinkedList<T> {
+    rest(this, start: isize, end?: isize): ^LinkedList<T> {
         todo("LinkedList.rest")
     }
 
     /// Consume this list into owned values.
-    iterator(): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("LinkedList.iterator")
     }
 }
@@ -76,39 +76,39 @@ export extension<T: Copy> of LinkedList<T> implements Iterable<T>, Sequence {
     }
 
     /// Return the copied front element.
-    front(): T | undefined {
+    front(&readonly this): T | undefined {
         todo("LinkedList.front")
     }
 
     /// Return the copied back element.
-    back(): T | undefined {
+    back(&readonly this): T | undefined {
         todo("LinkedList.back")
     }
 }
 
-export extension<T, 'a, const A: Access> of Borrowed<LinkedList<T>, 'a, A>
-    implements Iterable<Borrowed<T, 'a, A>>, Sequence
+export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<LinkedList<T>, 'a, A>
+    implements Iterable<Borrowed<ValueOf<T>, 'a, A>>, Sequence
 {
     /// The borrowed sequence produced by a rest pattern.
-    type Rest = ^LinkedList<Borrowed<T, 'a, A>>;
+    type Rest = ^LinkedList<Borrowed<ValueOf<T>, 'a, A>>;
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(start: isize, end?: isize): ^LinkedList<Borrowed<T, 'a, A>> {
+    rest(this, start: isize, end?: isize): ^LinkedList<Borrowed<ValueOf<T>, 'a, A>> {
         todo("LinkedList.rest")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(): Iterator<Borrowed<T, 'a, A>> {
+    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, A>> {
         todo("LinkedList.iterator")
     }
 
     /// Borrow the front element.
-    front(): Borrowed<T, 'a, A> | undefined {
+    front(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
         todo("LinkedList.front")
     }
 
     /// Borrow the back element.
-    back(): Borrowed<T, 'a, A> | undefined {
+    back(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
         todo("LinkedList.back")
     }
 }
@@ -130,7 +130,7 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "mutable"> {
     }
 
     /// Create a linked list from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): ^LinkedList<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ^LinkedList<T> {
         todo("LinkedList.fromIterator")
     }
 
@@ -185,7 +185,7 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "mutable"> {
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&this, predicate: (value: &readonly T, index: isize) => boolean): void {
+    retain(&exclusive this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): void {
         todo("LinkedList.retain");
     }
 
@@ -196,8 +196,8 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "mutable"> {
 
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
-        &this,
-        predicate: (value: &readonly T, index: isize) => boolean,
+        &exclusive this,
+        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
     ): Iterator<T> {
         todo("LinkedList.extractIf")
     }
@@ -220,7 +220,7 @@ export extension<T> of LinkedList<T> implements From<Iterable<T>>, FromIterator<
     }
 
     /// Create a managed linked list from `values`.
-    static fromIterator<I: Iterator<T>>(values: I): LinkedList<T> {
+    static fromIterator<I: Iterable<T>>(values: I): LinkedList<T> {
         LinkedList.fromIterator(values)
     }
 }
@@ -232,7 +232,7 @@ export extension<T> of ^LinkedList<T> implements From<Iterable<T>>, FromIterator
     }
 
     /// Create an owned linked list from values.
-    static fromIterator<I: Iterator<T>>(values: I): ^LinkedList<T> {
+    static fromIterator<I: Iterable<T>>(values: I): ^LinkedList<T> {
         LinkedList.fromIterator(values)
     }
 }
