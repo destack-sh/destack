@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GenericArgument, Tree};
+use crate::{GenericArgument, GenericParameter, Tree, TypeId};
 
 use super::fingerprint::TypeHasher;
 
@@ -43,6 +43,18 @@ impl Symbol {
     /// Derive one generic instance symbol from its concrete arguments.
     pub fn instantiate(self, arguments: &[GenericArgument], tree: &Tree) -> Self {
         TypeHasher::symbol(self, arguments, tree)
+    }
+
+    /// Create a generated function symbol from its signature and selected application.
+    pub fn generated(
+        base: Self,
+        signature: TypeId,
+        parameters: &[GenericParameter],
+        receiver: Option<&GenericArgument>,
+        arguments: &[GenericArgument],
+        tree: &Tree,
+    ) -> Self {
+        TypeHasher::generated(base, signature, parameters, receiver, arguments, tree)
     }
 
     /// Return the module declaring the symbol, none for a declaration of the language.

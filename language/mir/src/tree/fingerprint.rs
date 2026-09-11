@@ -5,9 +5,10 @@ use destack_source::ModuleId;
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
-    FloatType, GenericArgument, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId,
-    Multiplicity, ReferenceKind, SignatureParameter, Space, Static, StaticField, StaticId,
-    StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint, TypeId,
+    FloatType, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
+    LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity, ReferenceKind, SignatureParameter,
+    Space, Static, StaticField, StaticId, StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint,
+    TypeId,
 };
 
 impl Tree {
@@ -38,6 +39,44 @@ pub(super) struct TypeHasher {
 }
 
 impl TypeHasher {
+    /// Hash a generated function's signature, parameter domains, and selected application.
+    pub(super) fn generated(
+        base: Symbol,
+        signature: TypeId,
+        parameters: &[GenericParameter],
+        receiver: Option<&GenericArgument>,
+        arguments: &[GenericArgument],
+        tree: &Tree,
+    ) -> Symbol {
+        // identify the generated declaration independently from generic instantiation
+        let mut hasher = StableHasher::new();
+        hasher.update_len_prefixed(b"destack.mir.generated.v1");
+        hasher.write_u64(base.raw());
+        let mut hasher = Self {
+            hasher,
+            erase_lifetimes: false,
+        };
+
+        // hash the callable declaration without its parameter names
+        hasher.hash_type(signature, tree);
+        hasher.hash_length(parameters.len());
+        for parameter in parameters {
+            hasher.hash_generic_parameter(parameter, tree);
+        }
+
+        // hash the selected receiver and arguments separately
+        hasher.hash_boolean(receiver.is_some());
+        if let Some(receiver) = receiver {
+            hasher.hash_argument(receiver, tree);
+        }
+        hasher.hash_length(arguments.len());
+        for argument in arguments {
+            hasher.hash_argument(argument, tree);
+        }
+
+        Symbol::from_raw(base.module(), hasher.hasher.finish_u64())
+    }
+
     /// Derive one generic instance symbol from its concrete arguments.
     pub(super) fn symbol(base: Symbol, arguments: &[GenericArgument], tree: &Tree) -> Symbol {
         if arguments.is_empty() {
@@ -372,6 +411,29 @@ impl TypeHasher {
             Type::Parameter { index } => {
                 self.hasher.write_u8(32);
                 self.hasher.write_u32(*index);
+            }
+        }
+    }
+
+    /// Hash one generic parameter's domain without its name.
+    fn hash_generic_parameter(&mut self, parameter: &GenericParameter, tree: &Tree) {
+        match &parameter.domain {
+            GenericParameterDomain::Type { bounds } => {
+                self.hasher.write_u8(0);
+                self.hash_types(bounds, tree);
+            }
+            GenericParameterDomain::Region { outlives } => {
+                self.hasher.write_u8(1);
+                self.hash_length(outlives.len());
+                for index in outlives {
+                    self.hasher.write_u32(*index);
+                }
+            }
+            GenericParameterDomain::Space => self.hasher.write_u8(2),
+            GenericParameterDomain::Access => self.hasher.write_u8(3),
+            GenericParameterDomain::Value { ty } => {
+                self.hasher.write_u8(4);
+                self.hash_type(*ty, tree);
             }
         }
     }
