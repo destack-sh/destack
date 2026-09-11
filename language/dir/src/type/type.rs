@@ -801,7 +801,7 @@ impl Access {
 pub enum Exclusivity {
     /// Independent references may access the same storage.
     Aliasable,
-    /// Independent references cannot perform conflicting access.
+    /// Exclude writers under readonly access, and readers and writers under mutable access.
     Exclusive,
 }
 

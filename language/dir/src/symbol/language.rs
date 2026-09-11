@@ -1674,9 +1674,6 @@ define_language_items! {
         arena {
             /// Typed arena.
             Arena => (Struct, "memory/arena/arena", "Arena", "memory.arena.Arena"),
-
-            /// Typed bump arena.
-            Bump => (Struct, "memory/arena/bump", "Bump", "memory.arena.Bump"),
         }
 
         /// `destack:memory/binding`.
@@ -1938,6 +1935,9 @@ define_language_items! {
 
         /// `destack:memory/type`.
         type {
+            /// Make the default value form explicit.
+            ValueOf => (Type, "memory/type", "ValueOf"),
+
             /// Project the access mode of a memory form.
             AccessOf => (Type, "memory/type", "AccessOf"),
 

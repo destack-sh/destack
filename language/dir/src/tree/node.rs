@@ -594,7 +594,7 @@ pub enum Asynchrony {
     Async,
 }
 
-/// A Mutability is a const, mutable, or exclusive access qualifier.
+/// Mutability of a binding or reference.
 #[derive(
     Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
