@@ -828,8 +828,10 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::New { ty, arguments } => {
-                let left_id = self.lower_type_callee(*ty)?;
+            dir::Expression::New {
+                left, arguments, ..
+            } => {
+                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let arguments = arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))
