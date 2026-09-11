@@ -48,7 +48,8 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        let aliases = module.analyses.alias(function_id, tree);
+        // analyse structural overlap and ownership at each clone
+        let constants = module.analyses.constant(function_id, tree);
         let liveness = module.analyses.liveness(function_id, tree);
         let moves = module.analyses.moves(function_id, tree);
         let places = module.analyses.place(function_id, tree);
@@ -78,7 +79,15 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                         if loan.parents().is_empty()
                             && loan.place().is_some_and(|place| {
                                 is_redundant_clone(
-                                    place, *loan_id, &state, &live, &aliases, &moves, &places,
+                                    place,
+                                    *loan_id,
+                                    &state,
+                                    &live,
+                                    |left, right| {
+                                        left.may_overlap(right, &constants, function, tree)
+                                    },
+                                    &moves,
+                                    &places,
                                     loans,
                                 )
                             })
@@ -94,6 +103,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                     }
                 }
 
+                // advance origin and liveness together
                 let instruction = tree.get(instruction_id);
                 let cx = mir::OriginContext::new(function, tree, &places, loans);
                 state.advance(&cx, instruction_id);
@@ -111,7 +121,7 @@ fn is_redundant_clone(
     receiver_loan: mir::LoanId,
     state: &mir::OriginState,
     live: &mir::LivenessCursor<'_>,
-    aliases: &mir::AliasTable,
+    may_overlap: impl FnMut(&mir::Place, &mir::Place) -> bool,
     moves: &mir::MoveTable,
     places: &mir::PlaceTable,
     loans: &mir::LoanTable,
@@ -133,11 +143,7 @@ fn is_redundant_clone(
     );
     active.retain(|loan| *loan != receiver_loan);
 
-    loans
-        .blocking_change(place, &active, |left, right| {
-            aliases.may_overlap(left, right)
-        })
-        .is_none()
+    loans.blocking_change(place, &active, may_overlap).is_none()
 }
 
 #[cfg(test)]
