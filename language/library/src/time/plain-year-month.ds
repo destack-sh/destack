@@ -1,6 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
 import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
-import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
 import { TimeError } from "./error.ds";
@@ -66,67 +65,68 @@ export class PlainYearMonth implements ToLocaleString {
     }
 
     /// Calendar era.
-    get era(): MaybeOwned<string> | undefined {
+    get era(&readonly this): string | undefined {
         todo("PlainYearMonth.era")
     }
 
     /// Calendar era year.
-    get eraYear(): number | undefined {
+    get eraYear(&readonly this): number | undefined {
         todo("PlainYearMonth.eraYear")
     }
 
     /// Calendar year.
-    get year(): number {
+    get year(&readonly this): number {
         todo("PlainYearMonth.year")
     }
 
     /// Calendar month.
-    get month(): number {
+    get month(&readonly this): number {
         todo("PlainYearMonth.month")
     }
 
     /// Calendar month code.
-    get monthCode(): MaybeOwned<string> {
+    get monthCode(&readonly this): string {
         todo("PlainYearMonth.monthCode")
     }
 
     /// Calendar identifier.
-    get calendarId(): MaybeOwned<string> {
+    get calendarId(&readonly this): string {
         todo("PlainYearMonth.calendarId")
     }
 
     /// Days in this month.
-    get daysInMonth(): number {
+    get daysInMonth(&readonly this): number {
         todo("PlainYearMonth.daysInMonth")
     }
 
     /// Days in this year.
-    get daysInYear(): number {
+    get daysInYear(&readonly this): number {
         todo("PlainYearMonth.daysInYear")
     }
 
     /// Months in this year.
-    get monthsInYear(): number {
+    get monthsInYear(&readonly this): number {
         todo("PlainYearMonth.monthsInYear")
     }
 
     /// Whether this year is a leap year.
-    get inLeapYear(): boolean {
+    get inLeapYear(&readonly this): boolean {
         todo("PlainYearMonth.inLeapYear")
     }
 
     /// Return true when this year-month equals `other`.
-    equals(other: PlainYearMonth): boolean {
+    equals(&readonly this, other: PlainYearMonth): boolean {
         todo("PlainYearMonth.equalsPlainYearMonth")
     }
 
     /// Convert `other` and return whether it equals this year-month.
-    equals(other: PlainYearMonthLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: PlainYearMonthLike): Result<boolean, TimeError> {
         todo("PlainYearMonth.equals")
     }
 
     /// Return this year-month with updated fields.
     with(
+        &readonly this,
         yearMonthLike: PlainYearMonthFields,
         options?: OverflowOptions,
     ): Result<PlainYearMonth, TimeError> {
@@ -134,12 +134,17 @@ export class PlainYearMonth implements ToLocaleString {
     }
 
     /// Add a duration.
-    add(durationLike: DurationLike, options?: OverflowOptions): Result<PlainYearMonth, TimeError> {
+    add(
+        &readonly this,
+        durationLike: DurationLike,
+        options?: OverflowOptions,
+    ): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.add")
     }
 
     /// Subtract a duration.
     subtract(
+        &readonly this,
         durationLike: DurationLike,
         options?: OverflowOptions,
     ): Result<PlainYearMonth, TimeError> {
@@ -148,6 +153,7 @@ export class PlainYearMonth implements ToLocaleString {
 
     /// Return the duration until `other`.
     until(
+        &readonly this,
         other: PlainYearMonthLike,
         options?: DifferenceOptions<"year" | "month">,
     ): Result<Duration, TimeError> {
@@ -156,6 +162,7 @@ export class PlainYearMonth implements ToLocaleString {
 
     /// Return the duration since `other`.
     since(
+        &readonly this,
         other: PlainYearMonthLike,
         options?: DifferenceOptions<"year" | "month">,
     ): Result<Duration, TimeError> {
@@ -163,17 +170,17 @@ export class PlainYearMonth implements ToLocaleString {
     }
 
     /// Convert this year-month into a plain date.
-    toPlainDate(day: { day: number }): Result<PlainDate, TimeError> {
+    toPlainDate(&readonly this, day: { day: number }): Result<PlainDate, TimeError> {
         todo("PlainYearMonth.toPlainDate")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("PlainYearMonth.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("PlainYearMonth.toLocaleStringLocales")
     }
 
@@ -182,27 +189,27 @@ export class PlainYearMonth implements ToLocaleString {
         &readonly this,
         locales?: Locales,
         options?: DateTimeFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("PlainYearMonth.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): MaybeOwned<string> {
+    toJSON(&readonly this): string {
         todo("PlainYearMonth.toJSON")
     }
 
     /// Return an ISO string.
-    toString(): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("PlainYearMonth.toString")
     }
 
     /// Return an ISO string with explicit calendar options.
-    toString(options: PlainDateToStringOptions): MaybeOwned<string> {
+    toString(&readonly this, options: PlainDateToStringOptions): string {
         todo("PlainYearMonth.toString")
     }
 
     /// Reject numeric coercion.
-    valueOf(): never {
+    valueOf(&readonly this): never {
         todo("PlainYearMonth.valueOf")
     }
 }

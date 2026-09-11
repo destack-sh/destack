@@ -1,5 +1,5 @@
 import { Slice } from "destack:collections";
-import { Borrow, From } from "destack:convert";
+import { From } from "destack:convert";
 import { Result, todo } from "destack:error";
 import { AllocationError, Default, MaybeUninit } from "destack:memory";
 
@@ -20,17 +20,17 @@ export class StringBuilder {
 
 export extension of StringBuilder implements Default {
     /// Return the number of UTF-16 code units.
-    get length(): isize {
+    get length(&readonly this): isize {
         todo("StringBuilder.length")
     }
 
     /// Return the allocated UTF-16 code-unit count.
-    get capacity(): usize {
+    get capacity(&readonly this): usize {
         todo("StringBuilder.capacity")
     }
 
     /// Return whether the builder is empty.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         todo("StringBuilder.isEmpty")
     }
 

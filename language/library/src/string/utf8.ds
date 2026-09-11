@@ -1,6 +1,5 @@
 import { Bytes } from "destack:bytes";
 import { Error, Result, todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 /// Byte decoding failure.
 @languageItem("string.Utf8DecodeError")
@@ -17,8 +16,8 @@ export struct Utf8DecodeError {
 
 export extension of Utf8DecodeError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
-        MaybeOwned.borrowed(this.message)
+    display(&readonly this): string {
+        this.message
     }
 }
 

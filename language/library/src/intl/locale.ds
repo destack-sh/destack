@@ -1,5 +1,4 @@
 import { Result, todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 import { IntlError } from "./error.ds";
 
@@ -83,112 +82,112 @@ export class Locale {
     }
 
     /// The locale identifier without extensions.
-    get baseName(): MaybeOwned<string> {
+    get baseName(&readonly this): string {
         todo("Locale.baseName")
     }
 
     /// The calendar override.
-    get calendar(): MaybeOwned<string> | undefined {
+    get calendar(&readonly this): string | undefined {
         todo("Locale.calendar")
     }
 
     /// The collation case ordering override.
-    get caseFirst(): CaseFirst | undefined {
+    get caseFirst(&readonly this): CaseFirst | undefined {
         todo("Locale.caseFirst")
     }
 
     /// The collation override.
-    get collation(): MaybeOwned<string> | undefined {
+    get collation(&readonly this): string | undefined {
         todo("Locale.collation")
     }
 
     /// The first-day override.
-    get firstDayOfWeek(): FirstDayIdentifier | undefined {
+    get firstDayOfWeek(&readonly this): FirstDayIdentifier | undefined {
         todo("Locale.firstDayOfWeek")
     }
 
     /// The hour-cycle override.
-    get hourCycle(): HourCycle | undefined {
+    get hourCycle(&readonly this): HourCycle | undefined {
         todo("Locale.hourCycle")
     }
 
     /// The primary language subtag.
-    get language(): MaybeOwned<string> {
+    get language(&readonly this): string {
         todo("Locale.language")
     }
 
     /// The numbering-system override.
-    get numberingSystem(): MaybeOwned<string> | undefined {
+    get numberingSystem(&readonly this): string | undefined {
         todo("Locale.numberingSystem")
     }
 
     /// The numeric-collation override.
-    get numeric(): boolean | undefined {
+    get numeric(&readonly this): boolean | undefined {
         todo("Locale.numeric")
     }
 
     /// The region subtag.
-    get region(): MaybeOwned<string> | undefined {
+    get region(&readonly this): string | undefined {
         todo("Locale.region")
     }
 
     /// The script subtag.
-    get script(): MaybeOwned<string> | undefined {
+    get script(&readonly this): string | undefined {
         todo("Locale.script")
     }
 
     /// The variant subtags separated by hyphens.
-    get variants(): MaybeOwned<string> | undefined {
+    get variants(&readonly this): string | undefined {
         todo("Locale.variants")
     }
 
     /// Add likely language, script, and region subtags.
-    maximize(): Locale {
+    maximize(&readonly this): Locale {
         todo("Locale.maximize")
     }
 
     /// Remove language, script, and region subtags inferred by `maximize`.
-    minimize(): Locale {
+    minimize(&readonly this): Locale {
         todo("Locale.minimize")
     }
 
     /// Return the preferred calendar identifiers.
-    getCalendars(): ^string[] {
+    getCalendars(&readonly this): ^string[] {
         todo("Locale.getCalendars")
     }
 
     /// Return the preferred collation identifiers.
-    getCollations(): ^string[] {
+    getCollations(&readonly this): ^string[] {
         todo("Locale.getCollations")
     }
 
     /// Return the preferred hour cycles.
-    getHourCycles(): ^HourCycle[] {
+    getHourCycles(&readonly this): ^HourCycle[] {
         todo("Locale.getHourCycles")
     }
 
     /// Return the preferred numbering system identifiers.
-    getNumberingSystems(): ^string[] {
+    getNumberingSystems(&readonly this): ^string[] {
         todo("Locale.getNumberingSystems")
     }
 
     /// Return the time zones for the locale region.
-    getTimeZones(): ^string[] | undefined {
+    getTimeZones(&readonly this): ^string[] | undefined {
         todo("Locale.getTimeZones")
     }
 
     /// Return the default text layout information.
-    getTextInfo(): TextInfo {
+    getTextInfo(&readonly this): TextInfo {
         todo("Locale.getTextInfo")
     }
 
     /// Return the calendar week information.
-    getWeekInfo(): WeekInfo {
+    getWeekInfo(&readonly this): WeekInfo {
         todo("Locale.getWeekInfo")
     }
 
     /// Return the canonical locale identifier.
-    toString(): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("Locale.toString")
     }
 }

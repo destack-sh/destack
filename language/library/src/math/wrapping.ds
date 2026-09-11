@@ -1,6 +1,5 @@
 import { Add, Multiply, Negate, Subtract } from "destack:ops";
 
-import { Arithmetic } from "./arithmetic.ds";
 import { Integer } from "./integer.ds";
 
 /// Integer with modular arithmetic operators.
@@ -11,7 +10,7 @@ export extension<T: Integer> of Wrapping<T> implements Add<Wrapping<T>> {
     type Output = Wrapping<T>;
 
     /// Add with modular arithmetic.
-    add(other: Wrapping<T>): this.Output {
+    add(this, other: Wrapping<T>): this.Output {
         Wrapping((this as T).wrappingAdd(other as T))
     }
 }
@@ -20,7 +19,7 @@ export extension<T: Integer> of Wrapping<T> implements Subtract<Wrapping<T>> {
     type Output = Wrapping<T>;
 
     /// Subtract with modular arithmetic.
-    subtract(other: Wrapping<T>): this.Output {
+    subtract(this, other: Wrapping<T>): this.Output {
         Wrapping((this as T).wrappingSubtract(other as T))
     }
 }
@@ -29,7 +28,7 @@ export extension<T: Integer> of Wrapping<T> implements Multiply<Wrapping<T>> {
     type Output = Wrapping<T>;
 
     /// Multiply with modular arithmetic.
-    multiply(other: Wrapping<T>): this.Output {
+    multiply(this, other: Wrapping<T>): this.Output {
         Wrapping((this as T).wrappingMultiply(other as T))
     }
 }
@@ -38,7 +37,7 @@ export extension<T: Integer> of Wrapping<T> implements Negate {
     type Output = Wrapping<T>;
 
     /// Negate with modular arithmetic.
-    negate(): this.Output {
+    negate(this): this.Output {
         Wrapping((this as T).wrappingNegate())
     }
 }

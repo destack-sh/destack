@@ -1,4 +1,4 @@
-import { MaybeOwned } from "destack:memory";
+import { ValueOf } from "destack:memory";
 
 import { Error } from "./error.ds";
 
@@ -504,11 +504,11 @@ export newtype HostError = {
 
 export extension of HostError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
+    display(this: &readonly ValueOf<this>): string {
         if (this.message == undefined) {
-            MaybeOwned.borrowed("host error")
+            "host error"
         } else {
-            MaybeOwned.borrowed(this.message)
+            this.message
         }
     }
 }

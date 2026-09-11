@@ -15,17 +15,17 @@ declare function saturateInt<T: Integer, U: Integer>(value: T): U;
 /// `as` between numeric types is lossless-only; these methods pick the lossy behavior explicitly.
 export extension Cast<T: Integer> of T {
     /// Convert to `U`, keeping the low bits.
-    truncate<U: Integer>(): U {
+    truncate<U: Integer>(this): U {
         truncateInt<T, U>(this)
     }
 
     /// Convert to `U`, clamping into the destination range.
-    saturate<U: Integer>(): U {
+    saturate<U: Integer>(this): U {
         saturateInt<T, U>(this)
     }
 
     /// Convert to `U` when the value is representable, or return `undefined`.
-    tryInto<U: Integer>(): U | undefined {
+    tryInto<U: Integer>(this): U | undefined {
         todo("Integer.tryInto")
     }
 }

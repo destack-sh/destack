@@ -11,4 +11,3 @@ export newtype interface One {
     /// Return the multiplicative identity.
     static one(): this;
 }
-

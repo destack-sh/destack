@@ -1,5 +1,4 @@
 import { HostError, Result, todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 import { TimeError } from "./error.ds";
 import { Instant } from "./instant.ds";
@@ -58,6 +57,6 @@ export function plainTimeISO(timeZone: TimeZoneLike): Result<PlainTime, HostErro
 }
 
 /// Return the current system time-zone identifier.
-export function timeZoneId(): Result<MaybeOwned<string>, HostError> {
+export function timeZoneId(): Result<string, HostError> {
     todo("Temporal.Now.timeZoneId")
 }

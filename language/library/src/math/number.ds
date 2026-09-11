@@ -1,6 +1,5 @@
 import { Result, todo } from "destack:error";
 import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "destack:intl";
-import { MaybeOwned } from "destack:memory";
 
 /// The positive float infinity.
 @languageItem("math.Infinity")
@@ -41,32 +40,32 @@ export class Number implements ToLocaleString {
     static readonly NaN: number = NaN;
 
     /// Return this number as a string.
-    toString(&readonly this, radix?: number): MaybeOwned<string> {
+    toString(&readonly this, radix?: number): string {
         todo("Number.toString")
     }
 
     /// Return this number in fixed-point notation.
-    toFixed(&readonly this, fractionDigits?: number): MaybeOwned<string> {
+    toFixed(&readonly this, fractionDigits?: number): string {
         todo("Number.toFixed")
     }
 
     /// Return this number in exponential notation.
-    toExponential(&readonly this, fractionDigits?: number): MaybeOwned<string> {
+    toExponential(&readonly this, fractionDigits?: number): string {
         todo("Number.toExponential")
     }
 
     /// Return this number with the requested precision.
-    toPrecision(&readonly this, precision?: number): MaybeOwned<string> {
+    toPrecision(&readonly this, precision?: number): string {
         todo("Number.toPrecision")
     }
 
     /// Return this number as a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("Number.toLocaleStringDefault")
     }
 
     /// Return this number as a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("Number.toLocaleStringLocales")
     }
 
@@ -75,7 +74,7 @@ export class Number implements ToLocaleString {
         &readonly this,
         locales?: Locales,
         options?: NumberFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("Number.toLocaleString")
     }
 

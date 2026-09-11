@@ -6,6 +6,7 @@ export type Derive =
     | "Clone"
     | "Debug"
     | "Default"
+    | "DefaultEqual"
     | "Deserialize"
     | "Equal"
     | "Hash"

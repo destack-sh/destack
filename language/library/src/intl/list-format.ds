@@ -1,6 +1,5 @@
 import { Result, todo } from "destack:error";
 import { Iterable } from "destack:iter";
-import { MaybeOwned } from "destack:memory";
 
 import { LocaleIdentifier, LocaleMatcher, Locales, SupportedLocalesOptions } from "./common.ds";
 import { IntlError } from "./error.ds";
@@ -71,17 +70,17 @@ export class ListFormat {
     }
 
     /// Format a list of strings.
-    format(list: Iterable<string>): MaybeOwned<string> {
+    format(&readonly this, list: Iterable<string>): string {
         todo("ListFormat.format")
     }
 
     /// Format a list into separate parts.
-    formatToParts(list: Iterable<string>): ^ListFormatPart[] {
+    formatToParts(&readonly this, list: Iterable<string>): ^ListFormatPart[] {
         todo("ListFormat.formatToParts")
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedListFormatOptions {
+    resolvedOptions(&readonly this): ResolvedListFormatOptions {
         todo("ListFormat.resolvedOptions")
     }
 }

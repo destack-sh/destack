@@ -1,4 +1,5 @@
 import { panic } from "destack:error";
+import { ImmutableOf } from "destack:memory";
 import { Debug, PartialEqual } from "destack:ops";
 
 /// An assertion message or a function that creates one after failure.
@@ -15,8 +16,8 @@ export function assert(condition: boolean, message?: AssertionMessage): void {
 
 /// Require `actual` and `expected` to compare equal.
 export function assertEqual<T, U>(
-    actual: &readonly T,
-    expected: &readonly U,
+    actual: ImmutableOf<T>,
+    expected: ImmutableOf<U>,
     message?: AssertionMessage,
 ): void where T: Debug, T: PartialEqual<U>, U: Debug {
     // return without formatting successful operands
@@ -25,8 +26,8 @@ export function assertEqual<T, U>(
     }
 
     // render both unequal operands
-    const actual = actual.debug().intoOwned();
-    const expected = expected.debug().intoOwned();
+    const actual = actual.debug();
+    const expected = expected.debug();
     const message = evaluateMessage(message, "expected values to be equal");
 
     panic(`${message}\nactual: ${actual}\nexpected: ${expected}`);
@@ -34,8 +35,8 @@ export function assertEqual<T, U>(
 
 /// Require `actual` and `expected` to compare unequal.
 export function assertNotEqual<T, U>(
-    actual: &readonly T,
-    expected: &readonly U,
+    actual: ImmutableOf<T>,
+    expected: ImmutableOf<U>,
     message?: AssertionMessage,
 ): void where T: Debug, T: PartialEqual<U>, U: Debug {
     // return without formatting successful operands
@@ -44,8 +45,8 @@ export function assertNotEqual<T, U>(
     }
 
     // render both unexpectedly equal operands
-    const actual = actual.debug().intoOwned();
-    const expected = expected.debug().intoOwned();
+    const actual = actual.debug();
+    const expected = expected.debug();
     const message = evaluateMessage(message, "expected values to be different");
 
     panic(`${message}\nactual: ${actual}\nexpected: ${expected}`);

@@ -2,8 +2,18 @@ import { Slice } from "destack:collections";
 import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator } from "destack:iter";
-import { Clone, Default, MaybeOwned } from "destack:memory";
-import { Compare, Equal, Hash, Hasher, Ordering, PartialCompare, PartialEqual } from "destack:ops";
+import { Clone, Default, ValueOf, WithAccess } from "destack:memory";
+
+import {
+    Compare,
+    DefaultEqual,
+    Equal,
+    Hash,
+    Hasher,
+    Ordering,
+    PartialCompare,
+    PartialEqual,
+} from "destack:ops";
 
 import { Utf8DecodeError } from "./utf8.ds";
 
@@ -65,14 +75,14 @@ export extension of CStringSlice implements ToOwned, As<[uint8], "readonly">, Ha
 
     /// Borrow bytes through the first zero byte.
     static fromBytesUntilNul(
-        value: &readonly [uint8],
+        value: &immutable [uint8],
     ): Result<&readonly CStringSlice, MissingNulError> {
         todo("CStringSlice.fromBytesUntilNul")
     }
 
     /// Borrow bytes that end with exactly one zero byte.
     static fromBytesWithNul(
-        value: &readonly [uint8],
+        value: &immutable [uint8],
     ): Result<&readonly CStringSlice, CStringError> {
         todo("CStringSlice.fromBytesWithNul")
     }
@@ -105,9 +115,7 @@ export extension of CStringSlice implements ToOwned, As<[uint8], "readonly">, Ha
     }
 }
 
-export extension of CString
-    implements Clone, Default, As<CStringSlice>, Borrow<CStringSlice>, Hash
-{
+export extension of CString implements Clone, Default, Hash {
     /// Create an empty C string.
     static new(): ^CString {
         todo("CString.new")
@@ -173,23 +181,13 @@ export extension of CString
         todo("CString.fromRaw")
     }
 
-    /// Borrow this owned C string as a C string slice.
-    as(&readonly this): &readonly CStringSlice {
-        todo("CString.as")
-    }
-
-    /// Borrow this owned C string as a C string slice.
-    borrow(&readonly this): &readonly CStringSlice {
-        this.as()
-    }
-
     /// Clone this C string.
-    clone(&readonly this): ^CString {
+    clone(this: &readonly ValueOf<this>): ^CString {
         this.as().toOwned()
     }
 
     /// Add this C string to `state` without its final zero byte.
-    hash(&readonly this, state: &Hasher): void {
+    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
         this.as().hash(state);
     }
 
@@ -214,14 +212,28 @@ export extension of CString
     }
 }
 
+export extension<const A: "readonly" | "immutable"> of CString
+    implements As<CStringSlice, A>, Borrow<CStringSlice, A>
+{
+    /// Borrow this owned C string as a C string slice.
+    as(this: WithAccess<&this, A>): WithAccess<&CStringSlice, A> {
+        todo("CString.as")
+    }
+
+    /// Borrow this owned C string as a C string slice.
+    borrow(this: WithAccess<&this, A>): WithAccess<&CStringSlice, A> {
+        this.as()
+    }
+}
+
 export extension<S: Borrow<CStringSlice>> of S {
     /// Return the byte length before the final zero byte.
-    get byteLength(): usize {
+    get byteLength(&readonly this): usize {
         todo("CString.byteLength")
     }
 
     /// Return whether this C string contains no bytes before its final zero byte.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         todo("CString.isEmpty")
     }
 
@@ -260,45 +272,69 @@ export extension<S: Borrow<CStringSlice>, Q: Borrow<CStringSlice>> of S
     implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
 {
     /// Return whether this C string equals `other` byte for byte.
-    equal(&readonly this, other: &readonly Q): boolean {
+    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): boolean {
         todo("CString.equal")
     }
 
     /// Compare this C string with `other` byte for byte.
-    compare(&readonly this, other: &readonly Q): Ordering {
+    compare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering {
         todo("CString.compare")
     }
 
     /// Partially compare this C string with `other` byte for byte.
-    partialCompare(&readonly this, other: &readonly Q): Ordering | null {
+    partialCompare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering | null {
         this.compare(other)
     }
 }
 
 export extension of InteriorNulError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
+    display(&readonly this): string {
         todo("InteriorNulError.display")
     }
 }
 
 export extension of MissingNulError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
+    display(&readonly this): string {
         todo("MissingNulError.display")
     }
 }
 
 export extension of CStringError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
+    display(&readonly this): string {
         todo("CStringError.display")
     }
 }
 
 export extension of CStringIntoStringError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
+    display(&readonly this): string {
         todo("CStringIntoStringError.display")
+    }
+}
+
+export extension<Q: Borrow<CStringSlice>> of CString implements DefaultEqual<Q> {
+    /// Compare string contents with a stored string.
+    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+        todo("CString.equal");
+    }
+
+    /// Hash string contents using the same encoding as the stored string.
+    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+        todo("CString.hash");
+    }
+}
+
+export extension<Q: Borrow<CStringSlice>> of CStringSlice implements DefaultEqual<Q> {
+    /// Compare string contents with a stored string.
+    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+        todo("CStringSlice.equal");
+    }
+
+    /// Hash string contents using the same encoding as the stored string.
+    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+        todo("CStringSlice.hash");
     }
 }

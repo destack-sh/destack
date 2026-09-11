@@ -1,6 +1,6 @@
 import { From } from "destack:convert";
-import { Default } from "destack:memory";
-import { ControlFlow, Equal, FromResidual, PartialEqual, Try } from "destack:ops";
+import { Default, ImmutableOf } from "destack:memory";
+import { ControlFlow, FromResidual, Try } from "destack:ops";
 
 import { panic } from "./panic.ds";
 
@@ -144,10 +144,10 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Run a side effect on success and keep the original result.
-    tap(this, f: (value: &readonly T) => void): Result<T, E> {
+    tap(this, f: (value: ImmutableOf<T>) => void): Result<T, E> {
         match (this) {
             Ok { value } => {
-                f(&readonly value);
+                f(&immutable value);
                 Result.ok(value)
             }
             Err { error } => Result.err(error)
@@ -155,11 +155,11 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Run a side effect on failure and keep the original result.
-    tapErr(this, f: (error: &readonly E) => void): Result<T, E> {
+    tapErr(this, f: (error: ImmutableOf<E>) => void): Result<T, E> {
         match (this) {
             Ok { value } => Result.ok(value)
             Err { error } => {
-                f(&readonly error);
+                f(&immutable error);
                 Result.err(error)
             }
         }
@@ -190,28 +190,6 @@ export extension<T, E> of Result<T, E> implements Try {
         match (this) {
             Ok { value } => ControlFlow.continue(value)
             Err { error } => ControlFlow.break(error)
-        }
-    }
-}
-
-export extension<T: Equal<T>, E: Equal<E>> of Result<T, E>
-    implements PartialEqual<Result<T, E>>, Equal<Result<T, E>>
-{
-    /// Compare two results.
-    equal(&readonly this, other: &readonly Result<T, E>): boolean {
-        match (this) {
-            Ok { value: a } => {
-                match (other) {
-                    Ok { value: b } => a.equal(b)
-                    Err { error: _ } => false
-                }
-            }
-            Err { error: a } => {
-                match (other) {
-                    Err { error: b } => a.equal(b)
-                    Ok { value: _ } => false
-                }
-            }
         }
     }
 }

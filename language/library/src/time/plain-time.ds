@@ -1,6 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
 import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
-import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
 import { TimeError } from "./error.ds";
@@ -64,47 +63,48 @@ export class PlainTime implements ToLocaleString {
     }
 
     /// Hour.
-    get hour(): number {
+    get hour(&readonly this): number {
         todo("PlainTime.hour")
     }
 
     /// Minute.
-    get minute(): number {
+    get minute(&readonly this): number {
         todo("PlainTime.minute")
     }
 
     /// Second.
-    get second(): number {
+    get second(&readonly this): number {
         todo("PlainTime.second")
     }
 
     /// Millisecond.
-    get millisecond(): number {
+    get millisecond(&readonly this): number {
         todo("PlainTime.millisecond")
     }
 
     /// Microsecond.
-    get microsecond(): number {
+    get microsecond(&readonly this): number {
         todo("PlainTime.microsecond")
     }
 
     /// Nanosecond.
-    get nanosecond(): number {
+    get nanosecond(&readonly this): number {
         todo("PlainTime.nanosecond")
     }
 
     /// Return true when this time equals `other`.
-    equals(other: PlainTime): boolean {
+    equals(&readonly this, other: PlainTime): boolean {
         todo("PlainTime.equalsPlainTime")
     }
 
     /// Convert `other` and return whether it equals this time.
-    equals(other: PlainTimeLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: PlainTimeLike): Result<boolean, TimeError> {
         todo("PlainTime.equals")
     }
 
     /// Return this time with updated fields.
     with(
+        &readonly this,
         timeLike: PlainTime | PlainTimeFields,
         options?: OverflowOptions,
     ): Result<PlainTime, TimeError> {
@@ -112,17 +112,18 @@ export class PlainTime implements ToLocaleString {
     }
 
     /// Add a duration.
-    add(durationLike: DurationLike): Result<PlainTime, TimeError> {
+    add(&readonly this, durationLike: DurationLike): Result<PlainTime, TimeError> {
         todo("PlainTime.add")
     }
 
     /// Subtract a duration.
-    subtract(durationLike: DurationLike): Result<PlainTime, TimeError> {
+    subtract(&readonly this, durationLike: DurationLike): Result<PlainTime, TimeError> {
         todo("PlainTime.subtract")
     }
 
     /// Return the duration until `other`.
     until(
+        &readonly this,
         other: PlainTimeLike,
         options?: DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
@@ -133,6 +134,7 @@ export class PlainTime implements ToLocaleString {
 
     /// Return the duration since `other`.
     since(
+        &readonly this,
         other: PlainTimeLike,
         options?: DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
@@ -143,6 +145,7 @@ export class PlainTime implements ToLocaleString {
 
     /// Round this time.
     round(
+        &readonly this,
         roundTo: RoundTo<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
@@ -151,12 +154,12 @@ export class PlainTime implements ToLocaleString {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("PlainTime.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("PlainTime.toLocaleStringLocales")
     }
 
@@ -165,27 +168,27 @@ export class PlainTime implements ToLocaleString {
         &readonly this,
         locales?: Locales,
         options?: DateTimeFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("PlainTime.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): MaybeOwned<string> {
+    toJSON(&readonly this): string {
         todo("PlainTime.toJSON")
     }
 
     /// Return an ISO string.
-    toString(): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("PlainTime.toString")
     }
 
     /// Return an ISO string with explicit precision options.
-    toString(options: TimeToStringOptions): MaybeOwned<string> {
+    toString(&readonly this, options: TimeToStringOptions): string {
         todo("PlainTime.toString")
     }
 
     /// Reject numeric coercion.
-    valueOf(): never {
+    valueOf(&readonly this): never {
         todo("PlainTime.valueOf")
     }
 }

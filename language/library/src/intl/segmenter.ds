@@ -49,7 +49,7 @@ export class Segments {
     }
 
     /// Return the segment containing the UTF-16 code unit at `index`.
-    containing(index?: isize): Segment | undefined {
+    containing(&readonly this, index?: isize): Segment | undefined {
         todo("Segments.containing")
     }
 }
@@ -65,7 +65,7 @@ export class SegmentIterator {
 
 export extension of SegmentIterator implements Iterator<Segment> {
     /// Advance and return the next segment.
-    next(): IteratorResult<Segment> {
+    next(&this): IteratorResult<Segment> {
         todo("SegmentIterator.next")
     }
 }
@@ -107,12 +107,12 @@ export class Segmenter {
     }
 
     /// Segment an input string.
-    segment(input: &readonly string): Segments {
+    segment(&readonly this, input: &readonly string): Segments {
         todo("Segmenter.segment")
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedSegmenterOptions {
+    resolvedOptions(&readonly this): ResolvedSegmenterOptions {
         todo("Segmenter.resolvedOptions")
     }
 }

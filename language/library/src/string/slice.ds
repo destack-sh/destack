@@ -1,6 +1,7 @@
 import { Borrow, ToOwned } from "destack:convert";
 import { todo } from "destack:error";
-import { Equal, Hash, Hasher, PartialEqual } from "destack:ops";
+import { ValueOf } from "destack:memory";
+import { DefaultEqual, Equal, Hash, Hasher, PartialEqual } from "destack:ops";
 
 /// Borrowed sequence of ECMAScript UTF-16 code units.
 @languageItem("string.StringSlice")
@@ -19,12 +20,12 @@ export extension of StringSlice
     type Owned = ^string;
 
     /// Return the number of UTF-16 code units.
-    get length(): isize {
+    get length(&readonly this): isize {
         todo("StringSlice.length")
     }
 
     /// Return whether this slice is empty.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         todo("StringSlice.isEmpty")
     }
 
@@ -54,7 +55,7 @@ export extension of StringSlice
     }
 
     /// Return whether this string slice equals `other`.
-    equal(&readonly this, other: &readonly string): boolean {
+    equal(&readonly this, other: &readonly ValueOf<string>): boolean {
         todo("StringSlice.equalString")
     }
 
@@ -132,5 +133,17 @@ export extension<S: Borrow<StringSlice>> of S {
         suffix: &readonly Q,
     ): &readonly StringSlice | undefined {
         todo("StringSlice.stripSuffix")
+    }
+}
+
+export extension<Q: Borrow<StringSlice>> of StringSlice implements DefaultEqual<Q> {
+    /// Compare string contents with a stored string.
+    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+        todo("StringSlice.equal");
+    }
+
+    /// Hash string contents using the same encoding as the stored string.
+    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+        todo("StringSlice.hash");
     }
 }

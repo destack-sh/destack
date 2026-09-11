@@ -1,5 +1,4 @@
 import { HostError, RangeError, Result, todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 import { Instant } from "../time/instant.ds";
 import { PlainDateTime } from "../time/plain-date-time.ds";
@@ -239,45 +238,50 @@ export class DateTimeFormat {
     }
 
     /// Format a validated Temporal value.
-    format(value: TemporalDateTimeFormatValue): Result<MaybeOwned<string>, IntlError> {
+    format(&readonly this, value: TemporalDateTimeFormatValue): Result<string, IntlError> {
         todo("DateTimeFormat.formatTemporal")
     }
 
     /// Format the current time.
-    format(): Result<MaybeOwned<string>, HostError> {
+    format(&readonly this): Result<string, HostError> {
         todo("DateTimeFormat.formatCurrent")
     }
 
     /// Format an epoch millisecond value.
-    format(value: number): Result<MaybeOwned<string>, RangeError> {
+    format(&readonly this, value: number): Result<string, RangeError> {
         todo("DateTimeFormat.format")
     }
 
     /// Format a validated Temporal value into separate parts.
-    formatToParts(value: TemporalDateTimeFormatValue): Result<^DateTimeFormatPart[], IntlError> {
+    formatToParts(
+        &readonly this,
+        value: TemporalDateTimeFormatValue,
+    ): Result<^DateTimeFormatPart[], IntlError> {
         todo("DateTimeFormat.formatTemporalToParts")
     }
 
     /// Format the current time into separate parts.
-    formatToParts(): Result<^DateTimeFormatPart[], HostError> {
+    formatToParts(&readonly this): Result<^DateTimeFormatPart[], HostError> {
         todo("DateTimeFormat.formatCurrentToParts")
     }
 
     /// Format an epoch millisecond value into separate parts.
-    formatToParts(value: number): Result<^DateTimeFormatPart[], RangeError> {
+    formatToParts(&readonly this, value: number): Result<^DateTimeFormatPart[], RangeError> {
         todo("DateTimeFormat.formatToParts")
     }
 
     /// Format a date-time range.
     formatRange(
+        &readonly this,
         start: DateTimeFormatValue,
         end: DateTimeFormatValue,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("DateTimeFormat.formatRange")
     }
 
     /// Format a date-time range into separate parts.
     formatRangeToParts(
+        &readonly this,
         start: DateTimeFormatValue,
         end: DateTimeFormatValue,
     ): Result<^DateTimeRangeFormatPart[], IntlError> {
@@ -285,7 +289,7 @@ export class DateTimeFormat {
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedDateTimeFormatOptions {
+    resolvedOptions(&readonly this): ResolvedDateTimeFormatOptions {
         todo("DateTimeFormat.resolvedOptions")
     }
 }

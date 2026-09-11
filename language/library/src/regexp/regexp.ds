@@ -1,5 +1,4 @@
 import { todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 /// Named regular expression capture groups.
 export type RegExpGroups = {
@@ -68,52 +67,52 @@ export class RegExp {
     }
 
     /// The source pattern.
-    get source(): MaybeOwned<string> {
+    get source(&readonly this): string {
         todo("RegExp.source")
     }
 
     /// The flags used to compile the pattern.
-    get flags(): MaybeOwned<string> {
+    get flags(&readonly this): string {
         todo("RegExp.flags")
     }
 
     /// Whether the `d` flag is set.
-    get hasIndices(): boolean {
+    get hasIndices(&readonly this): boolean {
         todo("RegExp.hasIndices")
     }
 
     /// Whether the `g` flag is set.
-    get global(): boolean {
+    get global(&readonly this): boolean {
         todo("RegExp.global")
     }
 
     /// Whether the `i` flag is set.
-    get ignoreCase(): boolean {
+    get ignoreCase(&readonly this): boolean {
         todo("RegExp.ignoreCase")
     }
 
     /// Whether the `m` flag is set.
-    get multiline(): boolean {
+    get multiline(&readonly this): boolean {
         todo("RegExp.multiline")
     }
 
     /// Whether the `s` flag is set.
-    get dotAll(): boolean {
+    get dotAll(&readonly this): boolean {
         todo("RegExp.dotAll")
     }
 
     /// Whether the `u` flag is set.
-    get unicode(): boolean {
+    get unicode(&readonly this): boolean {
         todo("RegExp.unicode")
     }
 
     /// Whether the `v` flag is set.
-    get unicodeSets(): boolean {
+    get unicodeSets(&readonly this): boolean {
         todo("RegExp.unicodeSets")
     }
 
     /// Whether the `y` flag is set.
-    get sticky(): boolean {
+    get sticky(&readonly this): boolean {
         todo("RegExp.sticky")
     }
 
@@ -133,7 +132,7 @@ export class RegExp {
     }
 
     /// Return this regular expression as source text.
-    toString(&readonly this): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("RegExp.toString")
     }
 }

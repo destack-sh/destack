@@ -1,5 +1,4 @@
 import { Result, todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 import { LocaleIdentifier, LocaleMatcher, Locales, SupportedLocalesOptions } from "./common.ds";
 import { IntlError } from "./error.ds";
@@ -80,12 +79,12 @@ export class DisplayNames {
     }
 
     /// Return the display name for `code`.
-    of(code: &readonly string): Result<MaybeOwned<string> | undefined, IntlError> {
+    of(&readonly this, code: &readonly string): Result<string | undefined, IntlError> {
         todo("DisplayNames.of")
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedDisplayNamesOptions {
+    resolvedOptions(&readonly this): ResolvedDisplayNamesOptions {
         todo("DisplayNames.resolvedOptions")
     }
 }

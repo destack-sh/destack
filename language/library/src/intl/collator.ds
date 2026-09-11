@@ -86,12 +86,12 @@ export class Collator {
     }
 
     /// Compare two strings using this collation.
-    compare(left: &readonly string, right: &readonly string): Ordering {
+    compare(&readonly this, left: &readonly string, right: &readonly string): Ordering {
         todo("Collator.compare")
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedCollatorOptions {
+    resolvedOptions(&readonly this): ResolvedCollatorOptions {
         todo("Collator.resolvedOptions")
     }
 }

@@ -28,7 +28,7 @@ export type PanicHook = (panic: &readonly Panic) => void;
 /// Stop execution with a language panic.
 @languageItem("error.panic")
 @intrinsic("error.panic")
-export declare function panic(message: &string): never;
+export declare function panic(message: &readonly string): never;
 
 /// Run one callable behind a panic boundary.
 @languageItem("error.catchUnwind")

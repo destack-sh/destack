@@ -1,6 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
 import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
-import { MaybeOwned } from "destack:memory";
 
 import { TimeError } from "./error.ds";
 import { OverflowOptions, PlainDateToStringOptions } from "./option.ds";
@@ -73,32 +72,33 @@ export class PlainMonthDay implements ToLocaleString {
     }
 
     /// Calendar month code.
-    get monthCode(): MaybeOwned<string> {
+    get monthCode(&readonly this): string {
         todo("PlainMonthDay.monthCode")
     }
 
     /// Calendar day.
-    get day(): number {
+    get day(&readonly this): number {
         todo("PlainMonthDay.day")
     }
 
     /// Calendar identifier.
-    get calendarId(): MaybeOwned<string> {
+    get calendarId(&readonly this): string {
         todo("PlainMonthDay.calendarId")
     }
 
     /// Return true when this month-day equals `other`.
-    equals(other: PlainMonthDay): boolean {
+    equals(&readonly this, other: PlainMonthDay): boolean {
         todo("PlainMonthDay.equalsPlainMonthDay")
     }
 
     /// Convert `other` and return whether it equals this month-day.
-    equals(other: PlainMonthDayLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: PlainMonthDayLike): Result<boolean, TimeError> {
         todo("PlainMonthDay.equals")
     }
 
     /// Return this month-day with updated fields.
     with(
+        &readonly this,
         monthDayLike: PlainMonthDayFields,
         options?: OverflowOptions,
     ): Result<PlainMonthDay, TimeError> {
@@ -106,17 +106,20 @@ export class PlainMonthDay implements ToLocaleString {
     }
 
     /// Convert this month-day into a plain date.
-    toPlainDate(options: PlainMonthDayToPlainDateOptions): Result<PlainDate, TimeError> {
+    toPlainDate(
+        &readonly this,
+        options: PlainMonthDayToPlainDateOptions,
+    ): Result<PlainDate, TimeError> {
         todo("PlainMonthDay.toPlainDate")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("PlainMonthDay.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("PlainMonthDay.toLocaleStringLocales")
     }
 
@@ -125,27 +128,27 @@ export class PlainMonthDay implements ToLocaleString {
         &readonly this,
         locales?: Locales,
         options?: DateTimeFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("PlainMonthDay.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): MaybeOwned<string> {
+    toJSON(&readonly this): string {
         todo("PlainMonthDay.toJSON")
     }
 
     /// Return an ISO string.
-    toString(): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("PlainMonthDay.toString")
     }
 
     /// Return an ISO string with explicit calendar options.
-    toString(options: PlainDateToStringOptions): MaybeOwned<string> {
+    toString(&readonly this, options: PlainDateToStringOptions): string {
         todo("PlainMonthDay.toString")
     }
 
     /// Reject numeric coercion.
-    valueOf(): never {
+    valueOf(&readonly this): never {
         todo("PlainMonthDay.valueOf")
     }
 }

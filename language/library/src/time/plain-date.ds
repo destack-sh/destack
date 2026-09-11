@@ -1,6 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
 import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
-import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
 import { TimeError } from "./error.ds";
@@ -78,117 +77,130 @@ export class PlainDate implements ToLocaleString {
     }
 
     /// Calendar era.
-    get era(): MaybeOwned<string> | undefined {
+    get era(&readonly this): string | undefined {
         todo("PlainDate.era")
     }
 
     /// Calendar era year.
-    get eraYear(): number | undefined {
+    get eraYear(&readonly this): number | undefined {
         todo("PlainDate.eraYear")
     }
 
     /// Calendar year.
-    get year(): number {
+    get year(&readonly this): number {
         todo("PlainDate.year")
     }
 
     /// Calendar month.
-    get month(): number {
+    get month(&readonly this): number {
         todo("PlainDate.month")
     }
 
     /// Calendar month code.
-    get monthCode(): MaybeOwned<string> {
+    get monthCode(&readonly this): string {
         todo("PlainDate.monthCode")
     }
 
     /// Calendar day.
-    get day(): number {
+    get day(&readonly this): number {
         todo("PlainDate.day")
     }
 
     /// Calendar identifier.
-    get calendarId(): MaybeOwned<string> {
+    get calendarId(&readonly this): string {
         todo("PlainDate.calendarId")
     }
 
     /// Day of week.
-    get dayOfWeek(): number {
+    get dayOfWeek(&readonly this): number {
         todo("PlainDate.dayOfWeek")
     }
 
     /// Day of year.
-    get dayOfYear(): number {
+    get dayOfYear(&readonly this): number {
         todo("PlainDate.dayOfYear")
     }
 
     /// Week of year.
-    get weekOfYear(): number | undefined {
+    get weekOfYear(&readonly this): number | undefined {
         todo("PlainDate.weekOfYear")
     }
 
     /// Week-based year.
-    get yearOfWeek(): number | undefined {
+    get yearOfWeek(&readonly this): number | undefined {
         todo("PlainDate.yearOfWeek")
     }
 
     /// Days in this week.
-    get daysInWeek(): number {
+    get daysInWeek(&readonly this): number {
         todo("PlainDate.daysInWeek")
     }
 
     /// Days in this year.
-    get daysInYear(): number {
+    get daysInYear(&readonly this): number {
         todo("PlainDate.daysInYear")
     }
 
     /// Days in this month.
-    get daysInMonth(): number {
+    get daysInMonth(&readonly this): number {
         todo("PlainDate.daysInMonth")
     }
 
     /// Months in this year.
-    get monthsInYear(): number {
+    get monthsInYear(&readonly this): number {
         todo("PlainDate.monthsInYear")
     }
 
     /// Whether this year is a leap year.
-    get inLeapYear(): boolean {
+    get inLeapYear(&readonly this): boolean {
         todo("PlainDate.inLeapYear")
     }
 
     /// Return true when this date equals `other`.
-    equals(other: PlainDate): boolean {
+    equals(&readonly this, other: PlainDate): boolean {
         todo("PlainDate.equalsPlainDate")
     }
 
     /// Convert `other` and return whether it equals this date.
-    equals(other: PlainDateLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: PlainDateLike): Result<boolean, TimeError> {
         todo("PlainDate.equals")
     }
 
     /// Return this date with updated fields.
-    with(dateLike: PlainDateFields, options?: OverflowOptions): Result<PlainDate, TimeError> {
+    with(
+        &readonly this,
+        dateLike: PlainDateFields,
+        options?: OverflowOptions,
+    ): Result<PlainDate, TimeError> {
         todo("PlainDate.with")
     }
 
     /// Return this date in another calendar.
-    withCalendar(calendar: CalendarLike): Result<PlainDate, TimeError> {
+    withCalendar(&readonly this, calendar: CalendarLike): Result<PlainDate, TimeError> {
         todo("PlainDate.withCalendar")
     }
 
     /// Add a duration.
-    add(durationLike: DurationLike, options?: OverflowOptions): Result<PlainDate, TimeError> {
+    add(
+        &readonly this,
+        durationLike: DurationLike,
+        options?: OverflowOptions,
+    ): Result<PlainDate, TimeError> {
         todo("PlainDate.add")
     }
 
     /// Subtract a duration.
-    subtract(durationLike: DurationLike, options?: OverflowOptions): Result<PlainDate, TimeError> {
+    subtract(
+        &readonly this,
+        durationLike: DurationLike,
+        options?: OverflowOptions,
+    ): Result<PlainDate, TimeError> {
         todo("PlainDate.subtract")
     }
 
     /// Return the duration until `other`.
     until(
+        &readonly this,
         other: PlainDateLike,
         options?: DifferenceOptions<"year" | "month" | "week" | "day">,
     ): Result<Duration, TimeError> {
@@ -197,6 +209,7 @@ export class PlainDate implements ToLocaleString {
 
     /// Return the duration since `other`.
     since(
+        &readonly this,
         other: PlainDateLike,
         options?: DifferenceOptions<"year" | "month" | "week" | "day">,
     ): Result<Duration, TimeError> {
@@ -204,34 +217,35 @@ export class PlainDate implements ToLocaleString {
     }
 
     /// Combine this date with a time.
-    toPlainDateTime(time?: PlainTimeLike): Result<PlainDateTime, TimeError> {
+    toPlainDateTime(&readonly this, time?: PlainTimeLike): Result<PlainDateTime, TimeError> {
         todo("PlainDate.toPlainDateTime")
     }
 
     /// Convert this date into a zoned date-time.
     toZonedDateTime(
+        &readonly this,
         options: TimeZoneLike | { timeZone: TimeZoneLike; plainTime?: PlainTimeLike },
     ): Result<ZonedDateTime, TimeError> {
         todo("PlainDate.toZonedDateTime")
     }
 
     /// Return the year-month part.
-    toPlainYearMonth(): PlainYearMonth {
+    toPlainYearMonth(&readonly this): PlainYearMonth {
         todo("PlainDate.toPlainYearMonth")
     }
 
     /// Return the month-day part.
-    toPlainMonthDay(): PlainMonthDay {
+    toPlainMonthDay(&readonly this): PlainMonthDay {
         todo("PlainDate.toPlainMonthDay")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("PlainDate.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("PlainDate.toLocaleStringLocales")
     }
 
@@ -240,27 +254,27 @@ export class PlainDate implements ToLocaleString {
         &readonly this,
         locales?: Locales,
         options?: DateTimeFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("PlainDate.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): MaybeOwned<string> {
+    toJSON(&readonly this): string {
         todo("PlainDate.toJSON")
     }
 
     /// Return an ISO string.
-    toString(): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("PlainDate.toString")
     }
 
     /// Return an ISO string with explicit calendar options.
-    toString(options: PlainDateToStringOptions): MaybeOwned<string> {
+    toString(&readonly this, options: PlainDateToStringOptions): string {
         todo("PlainDate.toString")
     }
 
     /// Reject numeric coercion.
-    valueOf(): never {
+    valueOf(&readonly this): never {
         todo("PlainDate.valueOf")
     }
 }

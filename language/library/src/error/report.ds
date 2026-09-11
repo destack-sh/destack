@@ -1,4 +1,4 @@
-import { Dynamic, MaybeOwned } from "destack:memory";
+import { Dynamic } from "destack:memory";
 
 import { Error } from "./error.ds";
 import { todo } from "./panic.ds";
@@ -25,19 +25,19 @@ export extension of Report {
     }
 
     /// Add context to this report.
-    withContext(context: string): Report {
+    withContext(this, context: string): Report {
         todo("Report.withContext")
     }
 }
 
 export extension of Report implements Error {
     /// Format this report for users.
-    display(): MaybeOwned<string> {
+    display(&readonly this): string {
         todo("Report.display")
     }
 
     /// Return the wrapped error.
-    source(): readonly Dynamic<Error> | undefined {
+    source(&readonly this): readonly Dynamic<Error> | undefined {
         this.error
     }
 }

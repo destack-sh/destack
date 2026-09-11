@@ -1,5 +1,4 @@
 import { Result } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 import { Locales } from "./common.ds";
 import { IntlError } from "./error.ds";
@@ -8,8 +7,8 @@ import { IntlError } from "./error.ds";
 @languageItem("intl.ToLocaleString")
 export newtype interface ToLocaleString {
     /// Return a string using the default locale.
-    toLocaleString(&readonly this): MaybeOwned<string>;
+    toLocaleString(&readonly this): string;
 
     /// Return a string using `locales`.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError>;
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError>;
 }

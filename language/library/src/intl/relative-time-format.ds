@@ -1,5 +1,5 @@
 import { Result, todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
+
 import { Exclude } from "destack:types";
 
 import { LocaleIdentifier, LocaleMatcher, Locales, SupportedLocalesOptions } from "./common.ds";
@@ -119,12 +119,13 @@ export class RelativeTimeFormat {
     }
 
     /// Format a relative time.
-    format(value: number, unit: RelativeTimeUnit): Result<MaybeOwned<string>, IntlError> {
+    format(&readonly this, value: number, unit: RelativeTimeUnit): Result<string, IntlError> {
         todo("RelativeTimeFormat.format")
     }
 
     /// Format a relative time into separate parts.
     formatToParts(
+        &readonly this,
         value: number,
         unit: RelativeTimeUnit,
     ): Result<^RelativeTimeFormatPart[], IntlError> {
@@ -132,7 +133,7 @@ export class RelativeTimeFormat {
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedRelativeTimeFormatOptions {
+    resolvedOptions(&readonly this): ResolvedRelativeTimeFormatOptions {
         todo("RelativeTimeFormat.resolvedOptions")
     }
 }

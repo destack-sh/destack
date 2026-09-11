@@ -1,7 +1,7 @@
 import { Slice } from "destack:collections";
 import { Result, todo } from "destack:error";
 import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "destack:intl";
-import { MaybeOwned, MaybeUninit } from "destack:memory";
+import { MaybeUninit, ValueOf } from "destack:memory";
 import {
     Add,
     And,
@@ -90,12 +90,12 @@ export extension of bigint
     type Output = bigint;
 
     /// Return whether this integer is zero.
-    get isZero(): boolean {
+    get isZero(&readonly this): boolean {
         todo("BigInt.isZero")
     }
 
     /// Return whether this integer is negative.
-    get isNegative(): boolean {
+    get isNegative(&readonly this): boolean {
         todo("BigInt.isNegative")
     }
 
@@ -130,17 +130,17 @@ export extension of bigint
     }
 
     /// Return this integer as a string.
-    toString(&readonly this, radix?: number): MaybeOwned<string> {
+    toString(&readonly this, radix?: number): string {
         todo("BigInt.toString")
     }
 
     /// Return this integer as a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("BigInt.toLocaleStringDefault")
     }
 
     /// Return this integer as a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("BigInt.toLocaleStringLocales")
     }
 
@@ -149,27 +149,30 @@ export extension of bigint
         &readonly this,
         locales?: Locales,
         options?: NumberFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("BigInt.toLocaleString")
     }
 
     /// Return whether this integer equals `other`.
-    equal(&readonly this, other: &readonly bigint): boolean {
+    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<bigint>): boolean {
         todo("BigInt.equal")
     }
 
     /// Compare partially with `other`.
-    partialCompare(&readonly this, other: &readonly bigint): Ordering | null {
+    partialCompare(
+        this: &readonly ValueOf<this>,
+        other: &readonly ValueOf<bigint>,
+    ): Ordering | null {
         this.compare(other)
     }
 
     /// Add this integer to `state`.
-    hash(&readonly this, state: &Hasher): void {
+    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
         todo("BigInt.hash");
     }
 
     /// Compare with `other`.
-    compare(&readonly this, other: &readonly bigint): Ordering {
+    compare(this: &readonly ValueOf<this>, other: &readonly ValueOf<bigint>): Ordering {
         todo("BigInt.compare")
     }
 

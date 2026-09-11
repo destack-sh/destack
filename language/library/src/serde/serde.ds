@@ -1,4 +1,5 @@
 import { Result } from "destack:error";
+import { Copy, ImmutableOf, WithAccess } from "destack:memory";
 
 /// Structured value serializer.
 @languageItem("serde.Serializer")
@@ -22,17 +23,18 @@ export newtype interface Serializer {
     serializeString(&this, value: string): Result<void, this.Error>;
 
     /// Serialize an array value.
-    serializeArray<T: Serialize<this>>(
+    serializeArray<T, const A: "readonly" | "immutable">(
         &this,
-        value: readonly T[],
-    ): Result<void, this.Error>;
+        value: WithAccess<&readonly T[], A>,
+    ): Result<void, this.Error>
+        where T: Serialize<this>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never);
 
     /// Serialize an object field.
-    serializeField<T: Serialize<this>>(
+    serializeField<T>(
         &this,
         key: string,
-        value: &readonly T,
-    ): Result<void, this.Error>;
+        value: ImmutableOf<T>,
+    ): Result<void, this.Error> where T: Serialize<this>;
 }
 
 /// Structured value deserializer.
@@ -57,17 +59,14 @@ export newtype interface Deserializer {
     deserializeArray<T: Deserialize<this>>(&this): Result<^T[], this.Error>;
 
     /// Deserialize an object field.
-    deserializeField<T: Deserialize<this>>(
-        &this,
-        key: string,
-    ): Result<T | undefined, this.Error>;
+    deserializeField<T: Deserialize<this>>(&this, key: string): Result<T | undefined, this.Error>;
 }
 
 /// Value that can serialize itself through `S`.
 @languageItem("serde.Serialize")
 export newtype interface Serialize<S: Serializer> {
     /// Serialize this value.
-    serialize(&readonly this, serializer: &S): Result<void, S.Error>;
+    serialize(this: ImmutableOf<this>, serializer: &S): Result<void, S.Error>;
 }
 
 /// Value that can be deserialized through `D`.

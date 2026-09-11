@@ -1,4 +1,3 @@
-import { todo } from "destack:error";
 import { Multiply } from "destack:ops";
 
 import { Float } from "./float.ds";
@@ -131,22 +130,22 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Return the dot product with `other`.
-    dot(other: Quaternion<T>): T {
+    dot(this, other: Quaternion<T>): T {
         this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w
     }
 
     /// Return the squared length.
-    lengthSquared(): T {
+    lengthSquared(this): T {
         this.dot(this)
     }
 
     /// Return the length.
-    length(): T {
+    length(this): T {
         this.lengthSquared().sqrt()
     }
 
     /// Return the normalized quaternion.
-    normalized(): Quaternion<T> {
+    normalized(this): Quaternion<T> {
         let length = this.length();
 
         Quaternion {
@@ -158,7 +157,7 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Return a normalized quaternion, or identity when the length is zero.
-    normalizedOrIdentity(): Quaternion<T> {
+    normalizedOrIdentity(this): Quaternion<T> {
         let length = this.length();
 
         if (length == T.zero()) {
@@ -174,12 +173,12 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Return the conjugate quaternion.
-    conjugate(): Quaternion<T> {
+    conjugate(this): Quaternion<T> {
         Quaternion { x: -this.x, y: -this.y, z: -this.z, w: this.w }
     }
 
     /// Return the inverse rotation.
-    inverse(): Quaternion<T> {
+    inverse(this): Quaternion<T> {
         let scale = T.one() / this.lengthSquared();
 
         Quaternion {
@@ -191,12 +190,12 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Return the rotation axis.
-    axis(): Vector3<T> {
+    axis(this): Vector3<T> {
         Vector3 { x: this.x, y: this.y, z: this.z }.normalizedOrZero()
     }
 
     /// Return the rotation angle in radians.
-    angle(): T {
+    angle(this): T {
         let two = T.one() + T.one();
         let sin = (this.x * this.x + this.y * this.y + this.z * this.z).sqrt();
 
@@ -204,14 +203,14 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Return the angle to `other` in radians.
-    angleTo(other: Quaternion<T>): T {
+    angleTo(this, other: Quaternion<T>): T {
         let two = T.one() + T.one();
 
         this.dot(other).abs().min(T.one()).acos() * two
     }
 
     /// Convert this rotation to Euler angles in radians.
-    toEuler(): Vector3<T> {
+    toEuler(this): Vector3<T> {
         let two = T.one() + T.one();
         let pitchSin = (this.w * this.y - this.x * this.z) * two;
 
@@ -227,12 +226,12 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Convert this rotation to axis-angle representation.
-    toAxisAngle(): (Vector3<T>, T) {
+    toAxisAngle(this): (Vector3<T>, T) {
         (this.axis(), this.angle())
     }
 
     /// Convert this rotation to a matrix.
-    toMatrix(): Matrix3<T> {
+    toMatrix(this): Matrix3<T> {
         let two = T.one() + T.one();
         let xx = this.x * this.x;
         let yy = this.y * this.y;
@@ -258,7 +257,7 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Multiply by `other`.
-    multiply(other: Quaternion<T>): this.Output {
+    multiply(this, other: Quaternion<T>): this.Output {
         Quaternion {
             x: this.w * other.x + this.x * other.w + this.y * other.z - this.z * other.y,
             y: this.w * other.y - this.x * other.z + this.y * other.w + this.z * other.x,
@@ -268,7 +267,7 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Rotate `vector`.
-    rotate(vector: Vector3<T>): Vector3<T> {
+    rotate(this, vector: Vector3<T>): Vector3<T> {
         let two = T.one() + T.one();
         let axis = Vector3 { x: this.x, y: this.y, z: this.z };
         let cross = axis.cross(vector);
@@ -284,9 +283,9 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Linearly interpolate toward `other` and normalize the result.
-    nlerp(other: Quaternion<T>, weight: T): Quaternion<T> {
+    nlerp(this, other: Quaternion<T>, weight: T): Quaternion<T> {
         let scale = this.dot(other) < T.zero() ? -weight : weight;
-        let keep = T.one() - scale;
+        let keep = T.one() - weight;
 
         Quaternion {
             x: this.x * keep + other.x * scale,
@@ -297,12 +296,12 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Spherically interpolate toward `other`.
-    slerp(other: Quaternion<T>, weight: T): Quaternion<T> {
+    slerp(this, other: Quaternion<T>, weight: T): Quaternion<T> {
         this.slerpUnclamped(other, weight.min(T.one()).max(T.zero()))
     }
 
     /// Spherically interpolate toward `other` without clamping `weight`.
-    slerpUnclamped(other: Quaternion<T>, weight: T): Quaternion<T> {
+    slerpUnclamped(this, other: Quaternion<T>, weight: T): Quaternion<T> {
         let dot = this.dot(other);
         let bias = dot < T.zero() ? -T.one() : T.one();
         let angle = (dot * bias).min(T.one()).acos();

@@ -1,6 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
 import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
-import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
 import { TimeError } from "./error.ds";
@@ -45,37 +44,38 @@ export class Instant implements ToLocaleString {
     }
 
     /// Epoch milliseconds.
-    get epochMilliseconds(): number {
+    get epochMilliseconds(&readonly this): number {
         todo("Instant.epochMilliseconds")
     }
 
     /// Epoch nanoseconds.
-    get epochNanoseconds(): bigint {
+    get epochNanoseconds(&readonly this): bigint {
         todo("Instant.epochNanoseconds")
     }
 
     /// Return true when this instant equals `other`.
-    equals(other: Instant): boolean {
+    equals(&readonly this, other: Instant): boolean {
         todo("Instant.equalsInstant")
     }
 
     /// Parse `other` and return whether it equals this instant.
-    equals(other: InstantLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: InstantLike): Result<boolean, TimeError> {
         todo("Instant.equals")
     }
 
     /// Add a time duration.
-    add(durationLike: DurationLike): Result<Instant, TimeError> {
+    add(&readonly this, durationLike: DurationLike): Result<Instant, TimeError> {
         todo("Instant.add")
     }
 
     /// Subtract a time duration.
-    subtract(durationLike: DurationLike): Result<Instant, TimeError> {
+    subtract(&readonly this, durationLike: DurationLike): Result<Instant, TimeError> {
         todo("Instant.subtract")
     }
 
     /// Return the duration until `other`.
     until(
+        &readonly this,
         other: InstantLike,
         options?: DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
@@ -86,6 +86,7 @@ export class Instant implements ToLocaleString {
 
     /// Return the duration since `other`.
     since(
+        &readonly this,
         other: InstantLike,
         options?: DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
@@ -96,6 +97,7 @@ export class Instant implements ToLocaleString {
 
     /// Round this instant.
     round(
+        &readonly this,
         roundTo: RoundTo<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
@@ -104,17 +106,17 @@ export class Instant implements ToLocaleString {
     }
 
     /// Convert this instant into an ISO zoned date-time.
-    toZonedDateTimeISO(timeZone: TimeZoneLike): Result<ZonedDateTime, TimeError> {
+    toZonedDateTimeISO(&readonly this, timeZone: TimeZoneLike): Result<ZonedDateTime, TimeError> {
         todo("Instant.toZonedDateTimeISO")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("Instant.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("Instant.toLocaleStringLocales")
     }
 
@@ -123,27 +125,27 @@ export class Instant implements ToLocaleString {
         &readonly this,
         locales?: Locales,
         options?: DateTimeFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("Instant.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): MaybeOwned<string> {
+    toJSON(&readonly this): string {
         todo("Instant.toJSON")
     }
 
     /// Return an ISO string.
-    toString(): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("Instant.toString")
     }
 
     /// Return an ISO string with explicit rendering options.
-    toString(options: InstantToStringOptions): Result<MaybeOwned<string>, TimeError> {
+    toString(&readonly this, options: InstantToStringOptions): Result<string, TimeError> {
         todo("Instant.toString")
     }
 
     /// Reject numeric coercion.
-    valueOf(): never {
+    valueOf(&readonly this): never {
         todo("Instant.valueOf")
     }
 }

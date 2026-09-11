@@ -1,13 +1,13 @@
-import { Dynamic, MaybeOwned } from "destack:memory";
+import { Dynamic, ImmutableOf, ValueOf } from "destack:memory";
 
 /// Recoverable failure protocol.
 @languageItem("error.Error")
 export newtype interface Error {
     /// Format this error for users.
-    display(): MaybeOwned<string>;
+    display(this: ImmutableOf<this>): string;
 
     /// Return the underlying cause.
-    source(): readonly Dynamic<Error> | undefined {
+    source(&readonly this): readonly Dynamic<Error> | undefined {
         undefined
     }
 }
@@ -24,8 +24,8 @@ export newtype RangeError = {
 
 export extension of RangeError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
-        MaybeOwned.borrowed(this.message)
+    display(this: &readonly ValueOf<this>): string {
+        this.message
     }
 }
 
@@ -41,7 +41,7 @@ export newtype TypeError = {
 
 export extension of TypeError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
-        MaybeOwned.borrowed(this.message)
+    display(this: &readonly ValueOf<this>): string {
+        this.message
     }
 }

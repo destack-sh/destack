@@ -1,5 +1,4 @@
 import { Result, todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 import { LocaleIdentifier, LocaleMatcher, Locales, SupportedLocalesOptions } from "./common.ds";
 import { IntlError } from "./error.ds";
@@ -280,35 +279,37 @@ export class NumberFormat {
     }
 
     /// Format a numeric value.
-    format(value: number | bigint): MaybeOwned<string> {
+    format(&readonly this, value: number | bigint): string {
         todo("NumberFormat.format")
     }
 
     /// Format a numeric string.
-    format(value: string): MaybeOwned<string> {
+    format(&readonly this, value: string): string {
         todo("NumberFormat.formatString")
     }
 
     /// Format a numeric value into separate parts.
-    formatToParts(value: number | bigint): ^NumberFormatPart[] {
+    formatToParts(&readonly this, value: number | bigint): ^NumberFormatPart[] {
         todo("NumberFormat.formatToParts")
     }
 
     /// Format a numeric string into separate parts.
-    formatToParts(value: string): ^NumberFormatPart[] {
+    formatToParts(&readonly this, value: string): ^NumberFormatPart[] {
         todo("NumberFormat.formatStringToParts")
     }
 
     /// Format a numeric range.
     formatRange(
+        &readonly this,
         start: NumberFormatValue,
         end: NumberFormatValue,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("NumberFormat.formatRange")
     }
 
     /// Format a numeric range into separate parts.
     formatRangeToParts(
+        &readonly this,
         start: NumberFormatValue,
         end: NumberFormatValue,
     ): Result<^NumberRangeFormatPart[], IntlError> {
@@ -316,7 +317,7 @@ export class NumberFormat {
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedNumberFormatOptions {
+    resolvedOptions(&readonly this): ResolvedNumberFormatOptions {
         todo("NumberFormat.resolvedOptions")
     }
 }

@@ -1,4 +1,6 @@
 import { Result, todo } from "destack:error";
+import { Copy, ImmutableOf, WithAccess } from "destack:memory";
+
 import { Deserialize, Deserializer, Serialize, Serializer } from "destack:serde";
 
 import { JsonError } from "./error.ds";
@@ -37,19 +39,17 @@ export class JsonSerializer implements Serializer {
     }
 
     /// Serialize an array value.
-    serializeArray<T: Serialize<this>>(
+    serializeArray<T, const A: "readonly" | "immutable">(
         &this,
-        value: readonly T[],
-    ): Result<void, JsonError> {
+        value: WithAccess<&readonly T[], A>,
+    ): Result<void, JsonError>
+        where T: Serialize<this>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("JsonSerializer.serializeArray")
     }
 
     /// Serialize an object field.
-    serializeField<T: Serialize<this>>(
-        &this,
-        key: string,
-        value: &readonly T,
-    ): Result<void, JsonError> {
+    serializeField<T>(&this, key: string, value: ImmutableOf<T>): Result<void, JsonError>
+        where T: Serialize<this> {
         todo("JsonSerializer.serializeField")
     }
 }
@@ -86,10 +86,7 @@ export class JsonDeserializer implements Deserializer {
     }
 
     /// Deserialize an object field.
-    deserializeField<T: Deserialize<this>>(
-        &this,
-        key: string,
-    ): Result<T | undefined, JsonError> {
+    deserializeField<T: Deserialize<this>>(&this, key: string): Result<T | undefined, JsonError> {
         todo("JsonDeserializer.deserializeField")
     }
 }
@@ -106,7 +103,7 @@ export function decode<T: JsonDeserialize>(text: string): Result<T, JsonError> {
 }
 
 /// Encode a typed value as JSON text.
-export function encode<T: JsonSerialize>(value: T): Result<^string, JsonError> {
+export function encode<T>(value: T): Result<^string, JsonError> where T: JsonSerialize {
     todo("json.encode")
 }
 

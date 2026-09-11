@@ -1,4 +1,3 @@
-import { Array } from "destack:collections";
 import { Result } from "destack:error";
 import { HostError } from "destack:error/host";
 import { SourceLocation } from "destack:error/stack";

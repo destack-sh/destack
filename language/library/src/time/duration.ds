@@ -1,6 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
 import { DurationFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
-import { MaybeOwned } from "destack:memory";
 
 import { TimeError } from "./error.ds";
 import {
@@ -82,112 +81,112 @@ export class Duration implements ToLocaleString {
     }
 
     /// The duration sign.
-    get sign(): -1 | 0 | 1 {
+    get sign(&readonly this): -1 | 0 | 1 {
         todo("Duration.sign")
     }
 
     /// Whether every field is zero.
-    get blank(): boolean {
+    get blank(&readonly this): boolean {
         todo("Duration.blank")
     }
 
     /// Year count.
-    get years(): number {
+    get years(&readonly this): number {
         todo("Duration.years")
     }
 
     /// Month count.
-    get months(): number {
+    get months(&readonly this): number {
         todo("Duration.months")
     }
 
     /// Week count.
-    get weeks(): number {
+    get weeks(&readonly this): number {
         todo("Duration.weeks")
     }
 
     /// Day count.
-    get days(): number {
+    get days(&readonly this): number {
         todo("Duration.days")
     }
 
     /// Hour count.
-    get hours(): number {
+    get hours(&readonly this): number {
         todo("Duration.hours")
     }
 
     /// Minute count.
-    get minutes(): number {
+    get minutes(&readonly this): number {
         todo("Duration.minutes")
     }
 
     /// Second count.
-    get seconds(): number {
+    get seconds(&readonly this): number {
         todo("Duration.seconds")
     }
 
     /// Millisecond count.
-    get milliseconds(): number {
+    get milliseconds(&readonly this): number {
         todo("Duration.milliseconds")
     }
 
     /// Microsecond count.
-    get microseconds(): number {
+    get microseconds(&readonly this): number {
         todo("Duration.microseconds")
     }
 
     /// Nanosecond count.
-    get nanoseconds(): number {
+    get nanoseconds(&readonly this): number {
         todo("Duration.nanoseconds")
     }
 
     /// Return the negated duration.
-    negated(): Duration {
+    negated(&readonly this): Duration {
         todo("Duration.negated")
     }
 
     /// Return the absolute duration.
-    abs(): Duration {
+    abs(&readonly this): Duration {
         todo("Duration.abs")
     }
 
     /// Return a duration with updated fields.
-    with(durationLike: Duration | DurationFields): Result<Duration, TimeError> {
+    with(&readonly this, durationLike: Duration | DurationFields): Result<Duration, TimeError> {
         todo("Duration.with")
     }
 
     /// Add another duration.
-    add(other: DurationLike): Result<Duration, TimeError> {
+    add(&readonly this, other: DurationLike): Result<Duration, TimeError> {
         todo("Duration.add")
     }
 
     /// Subtract another duration.
-    subtract(other: DurationLike): Result<Duration, TimeError> {
+    subtract(&readonly this, other: DurationLike): Result<Duration, TimeError> {
         todo("Duration.subtract")
     }
 
     /// Round this duration.
-    round(roundTo: DurationRoundTo): Result<Duration, TimeError> {
+    round(&readonly this, roundTo: DurationRoundTo): Result<Duration, TimeError> {
         todo("Duration.round")
     }
 
     /// Return this duration totalled in one time unit.
-    total(totalOf: SmallestUnit<TimeUnit>): number {
+    total(&readonly this, totalOf: SmallestUnit<TimeUnit>): number {
         todo("Duration.totalTime")
     }
 
     /// Return this duration totalled in one unit, relative to a date when the unit needs one.
-    total(totalOf: DurationTotalOf): Result<number, TimeError> {
+    total(&readonly this, totalOf: DurationTotalOf): Result<number, TimeError> {
         todo("Duration.total")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("Duration.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("Duration.toLocaleStringLocales")
     }
 
@@ -196,27 +195,27 @@ export class Duration implements ToLocaleString {
         &readonly this,
         locales?: Locales,
         options?: DurationFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("Duration.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): MaybeOwned<string> {
+    toJSON(&readonly this): string {
         todo("Duration.toJSON")
     }
 
     /// Return an ISO string.
-    toString(): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("Duration.toString")
     }
 
     /// Return an ISO string with explicit precision options.
-    toString(options: DurationToStringOptions): MaybeOwned<string> {
+    toString(&readonly this, options: DurationToStringOptions): string {
         todo("Duration.toString")
     }
 
     /// Reject numeric coercion.
-    valueOf(): never {
+    valueOf(&readonly this): never {
         todo("Duration.valueOf")
     }
 }

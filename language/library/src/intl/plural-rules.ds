@@ -105,17 +105,17 @@ export class PluralRules {
     }
 
     /// Select the plural category for `value`.
-    select(value: number): PluralCategory {
+    select(&readonly this, value: number): PluralCategory {
         todo("PluralRules.select")
     }
 
     /// Select the plural category for a range.
-    selectRange(start: number, end: number): Result<PluralCategory, IntlError> {
+    selectRange(&readonly this, start: number, end: number): Result<PluralCategory, IntlError> {
         todo("PluralRules.selectRange")
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedPluralRulesOptions {
+    resolvedOptions(&readonly this): ResolvedPluralRulesOptions {
         todo("PluralRules.resolvedOptions")
     }
 }

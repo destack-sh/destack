@@ -28,219 +28,268 @@ export extension<T: Float> of T implements Clone, PartialEqual<T> {
     /// Return the midpoint without avoidable overflow or underflow.
     ///
     /// Returns NaN when either value is NaN or the values are opposite infinities.
-    midpoint(other: T): T {
+    midpoint(this, other: T): T {
         midpoint(this, other)
     }
 
     /// Clamp this value between ordered bounds.
     ///
     /// Traps when the bounds are inverted or either bound is NaN.
-    clamp(minimum: T, maximum: T): T {
+    clamp(this, minimum: T, maximum: T): T {
         clamp(this, minimum, maximum)
     }
 
     /// Return whether this value is finite.
-    isFinite(): boolean {
+    isFinite(this): boolean {
         isFinite(this)
     }
 
     /// Return whether this value is NaN.
-    isNaN(): boolean {
+    isNaN(this): boolean {
         this != this
     }
 
     /// Return whether this value is infinite.
-    isInfinite(): boolean {
+    isInfinite(this): boolean {
         isInfinite(this)
     }
 
     /// Return whether this value is subnormal.
-    isSubnormal(): boolean {
+    isSubnormal(this): boolean {
         todo("Float.isSubnormal")
     }
 
     /// Return whether this value has a negative sign bit.
-    isSignNegative(): boolean {
+    isSignNegative(this): boolean {
         todo("Float.isSignNegative")
     }
 
     /// Return whether this value has a positive sign bit.
-    isSignPositive(): boolean {
+    isSignPositive(this): boolean {
         todo("Float.isSignPositive")
     }
 
     /// Return the square root.
-    sqrt(): T {
+    sqrt(this): T {
         sqrt(this)
     }
 
     /// Return the cube root.
-    cbrt(): T {
+    cbrt(this): T {
         cbrt(this)
     }
 
     /// Return the absolute value.
-    abs(): T {
+    abs(this): T {
         abs(this)
     }
 
     /// Return the sine.
-    sin(): T {
+    sin(this): T {
         sin(this)
     }
 
     /// Return the cosine.
-    cos(): T {
+    cos(this): T {
         cos(this)
     }
 
     /// Return the tangent.
-    tan(): T {
+    tan(this): T {
         tan(this)
     }
 
     /// Return the hyperbolic sine.
-    sinh(): T {
-        (this.exp() - (-this).exp()) / (T.one() + T.one())
+    sinh(this): T {
+        // preserve small inputs and delay overflow until the result overflows
+        let magnitude = this.abs();
+        let two = T.one() + T.one();
+        let result = if (magnitude <= T.one()) {
+            let delta = magnitude.expm1();
+
+            delta * (T.one() + T.one() / (delta + T.one())) / two
+        } else {
+            let half = (magnitude / two).exp();
+
+            half / two * half - T.one() / half / two / half
+        };
+
+        result.copySign(this)
     }
 
     /// Return the hyperbolic cosine.
-    cosh(): T {
-        (this.exp() + (-this).exp()) / (T.one() + T.one())
+    cosh(this): T {
+        // split the exponential so its intermediate value does not overflow early
+        let magnitude = this.abs();
+        let two = T.one() + T.one();
+        let half = (magnitude / two).exp();
+
+        half / two * half + (-magnitude).exp() / two
     }
 
     /// Return the hyperbolic tangent.
-    tanh(): T {
-        this.sinh() / this.cosh()
+    tanh(this): T {
+        // use a bounded exponential and preserve the input sign
+        let two = T.one() + T.one();
+        let delta = (-two * this.abs()).expm1();
+        let magnitude = -delta / (two + delta);
+
+        magnitude.copySign(this)
     }
 
     /// Return the arc sine.
-    asin(): T {
+    asin(this): T {
         asin(this)
     }
 
     /// Return the arc cosine.
-    acos(): T {
+    acos(this): T {
         acos(this)
     }
 
     /// Return the arc tangent.
-    atan(): T {
+    atan(this): T {
         atan(this)
     }
 
     /// Return the inverse hyperbolic sine.
-    asinh(): T {
-        (this + (this * this + T.one()).sqrt()).log()
+    asinh(this): T {
+        // avoid cancellation near zero and squaring large inputs
+        let magnitude = this.abs();
+        let result = if (magnitude <= T.one()) {
+            let square = magnitude * magnitude;
+
+            (magnitude + square / (T.one() + (T.one() + square).sqrt())).log1p()
+        } else {
+            let inverse = T.one() / magnitude;
+
+            magnitude.log() + (T.one() + inverse * inverse).sqrt().log1p()
+        };
+
+        result.copySign(this)
     }
 
     /// Return the inverse hyperbolic cosine.
-    acosh(): T {
-        (this + (this * this - T.one()).sqrt()).log()
+    acosh(this): T {
+        // preserve the distance from one and avoid squaring large inputs
+        if (this <= T.one() + T.one()) {
+            let distance = this - T.one();
+
+            (distance + (distance * (this + T.one())).sqrt()).log1p()
+        } else {
+            let inverse = T.one() / this;
+
+            this.log() + ((T.one() - inverse) * (T.one() + inverse)).sqrt().log1p()
+        }
     }
 
     /// Return the inverse hyperbolic tangent.
-    atanh(): T {
-        ((T.one() + this) / (T.one() - this)).log() / (T.one() + T.one())
+    atanh(this): T {
+        // preserve small inputs without subtracting nearly equal logarithms
+        let magnitude = this.abs();
+        let two = T.one() + T.one();
+        let result = (two * magnitude / (T.one() - magnitude)).log1p() / two;
+
+        result.copySign(this)
     }
 
     /// Return the natural exponential.
-    exp(): T {
+    exp(this): T {
         exp(this)
     }
 
     /// Return the natural exponential minus one.
-    expm1(): T {
+    expm1(this): T {
         expm1(this)
     }
 
     /// Return the base-2 exponential.
-    exp2(): T {
+    exp2(this): T {
         exp2(this)
     }
 
     /// Return the natural logarithm.
-    log(): T {
+    log(this): T {
         log(this)
     }
 
     /// Return the natural logarithm of one plus this value.
-    log1p(): T {
+    log1p(this): T {
         log1p(this)
     }
 
     /// Return the base-2 logarithm.
-    log2(): T {
+    log2(this): T {
         log2(this)
     }
 
     /// Return the base-10 logarithm.
-    log10(): T {
+    log10(this): T {
         log10(this)
     }
 
     /// Round toward negative infinity.
-    floor(): T {
+    floor(this): T {
         floor(this)
     }
 
     /// Round toward positive infinity.
-    ceil(): T {
+    ceil(this): T {
         ceil(this)
     }
 
     /// Round toward zero.
-    trunc(): T {
+    trunc(this): T {
         trunc(this)
     }
 
     /// Round to the nearest integer, breaking ties toward positive infinity.
-    round(): T {
+    round(this): T {
         round(this)
     }
 
     /// Round to the nearest integer, breaking ties toward even integers.
-    roundTiesEven(): T {
+    roundTiesEven(this): T {
         roundTiesEven(this)
     }
 
     /// Round to the nearest integer, breaking ties away from zero.
-    roundTiesAway(): T {
+    roundTiesAway(this): T {
         roundTiesAway(this)
     }
 
     /// Convert to `U`, saturating into the destination range.
-    saturate<U: Integer>(): U {
+    saturate<U: Integer>(this): U {
         saturateFloat<T, U>(this)
     }
 
     /// Return the angle from the positive x-axis to this y-coordinate and `x`.
-    atan2(x: T): T {
+    atan2(this, x: T): T {
         atan2(this, x)
     }
 
     /// Raise this value to `exponent`.
-    pow(exponent: T): T {
+    pow(this, exponent: T): T {
         pow(this, exponent)
     }
 
     /// Copy the sign of `sign` onto this magnitude.
-    copySign(sign: T): T {
+    copySign(this, sign: T): T {
         copySign(this, sign)
     }
 
     /// Return the smaller value, propagating NaN and preferring negative zero.
-    min(other: T): T {
+    min(this, other: T): T {
         min(this, other)
     }
 
     /// Return the larger value, propagating NaN and preferring positive zero.
-    max(other: T): T {
+    max(this, other: T): T {
         max(this, other)
     }
 
     /// Return this value times `multiplier` plus `addend` with one rounding.
-    fma(multiplier: T, addend: T): T {
+    fma(this, multiplier: T, addend: T): T {
         fma(this, multiplier, addend)
     }
 }

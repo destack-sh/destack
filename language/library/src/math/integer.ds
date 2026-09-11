@@ -30,7 +30,7 @@ export extension<T: Integer> of T implements Clone, PartialEqual<T>, Equal<T>, H
     }
 
     /// Add this value to `state`.
-    hash(state: &Hasher): void {
+    hash(&readonly this, state: &Hasher): void {
         state.writeUsize(this.truncate<usize>());
     }
 
@@ -45,28 +45,28 @@ export extension<T: Integer> of T implements Clone, PartialEqual<T>, Equal<T>, H
     }
 
     /// Return the midpoint rounded toward zero without intermediate overflow.
-    midpoint(other: T): T {
+    midpoint(this, other: T): T {
         midpoint(this, other)
     }
 
     /// Clamp this value between ordered bounds.
     ///
     /// Traps when `minimum` exceeds `maximum`.
-    clamp(minimum: T, maximum: T): T {
+    clamp(this, minimum: T, maximum: T): T {
         clamp(this, minimum, maximum)
     }
 
     /// Divide and round the quotient toward positive infinity.
     ///
     /// Traps on division by zero or signed division overflow.
-    divideCeil(other: T): T {
+    divideCeil(this, other: T): T {
         divideCeil(this, other)
     }
 
     /// Return the Euclidean quotient.
     ///
     /// Traps on division by zero or signed division overflow.
-    divideEuclidean(other: T): T {
+    divideEuclidean(this, other: T): T {
         let quotient = this / other;
         let remainder = this % other;
 
@@ -84,89 +84,89 @@ export extension<T: Integer> of T implements Clone, PartialEqual<T>, Equal<T>, H
     /// Return the least nonnegative remainder.
     ///
     /// Traps on division by zero or signed division overflow.
-    remainderEuclidean(other: T): T {
+    remainderEuclidean(this, other: T): T {
         remainderEuclidean(this, other)
     }
 
     /// Return whether this value is a multiple of `other`.
     ///
     /// A zero divisor produces `true` exactly when this value is also zero.
-    isMultipleOf(other: T): boolean {
+    isMultipleOf(this, other: T): boolean {
         isMultipleOf(this, other)
     }
 
     /// Return a value that represents this value's sign.
-    signum(): T {
+    signum(this): T {
         todo("Integer.signum")
     }
 
     /// Return the floor of the logarithm in `base`.
-    integerLog(base: T): uint32 {
+    integerLog(this, base: T): uint32 {
         todo("Integer.integerLog")
     }
 
     /// Return the floor of the base-two logarithm.
-    integerLog2(): uint32 {
+    integerLog2(this): uint32 {
         todo("Integer.integerLog2")
     }
 
     /// Return the floor of the base-ten logarithm.
-    integerLog10(): uint32 {
+    integerLog10(this): uint32 {
         todo("Integer.integerLog10")
     }
 
     /// Return the floor of the logarithm, or `undefined` for an invalid value or base.
-    checkedIntegerLog(base: T): uint32 | undefined {
+    checkedIntegerLog(this, base: T): uint32 | undefined {
         todo("Integer.checkedIntegerLog")
     }
 
     /// Return the floor of the base-two logarithm, or `undefined` for an invalid value.
-    checkedIntegerLog2(): uint32 | undefined {
+    checkedIntegerLog2(this): uint32 | undefined {
         todo("Integer.checkedIntegerLog2")
     }
 
     /// Return the floor of the base-ten logarithm, or `undefined` for an invalid value.
-    checkedIntegerLog10(): uint32 | undefined {
+    checkedIntegerLog10(this): uint32 | undefined {
         todo("Integer.checkedIntegerLog10")
     }
 
     /// Return the absolute difference between this value and `other`.
-    absDiff(other: T): Unsigned<T> {
+    absDiff(this, other: T): Unsigned<T> {
         absDiff(this, other)
     }
 
     /// Count the leading zero bits.
-    countLeadingZeros(): uint32 {
+    countLeadingZeros(this): uint32 {
         countLeadingZeros(this)
     }
 
     /// Count the trailing zero bits.
-    countTrailingZeros(): uint32 {
+    countTrailingZeros(this): uint32 {
         countTrailingZeros(this)
     }
 
     /// Count the leading one bits.
-    countLeadingOnes(): uint32 {
+    countLeadingOnes(this): uint32 {
         (~this).countLeadingZeros()
     }
 
     /// Count the trailing one bits.
-    countTrailingOnes(): uint32 {
+    countTrailingOnes(this): uint32 {
         (~this).countTrailingZeros()
     }
 
     /// Count the one bits.
-    countOnes(): uint32 {
+    countOnes(this): uint32 {
         countOnes(this)
     }
 
     /// Count the zero bits.
-    countZeros(): uint32 {
+    countZeros(this): uint32 {
         (sizeOf<T>() * 8).truncate<uint32>() - this.countOnes()
     }
 
     /// Reverse the byte order.
-    swapBytes(): T {
+    swapBytes(this): T {
         swapBytes(this)
     }
 
@@ -181,44 +181,44 @@ export extension<T: Integer> of T implements Clone, PartialEqual<T>, Equal<T>, H
     }
 
     /// Return this value encoded as big-endian.
-    toBigEndian(): T {
+    toBigEndian(this): T {
         todo("Integer.toBigEndian")
     }
 
     /// Return this value encoded as little-endian.
-    toLittleEndian(): T {
+    toLittleEndian(this): T {
         todo("Integer.toLittleEndian")
     }
 
     /// Reverse every bit.
-    reverseBits(): T {
+    reverseBits(this): T {
         reverseBits(this)
     }
 
     /// Return this value with only its least-significant one bit set.
     ///
     /// Returns zero when this value is zero.
-    isolateLowestOne(): T {
+    isolateLowestOne(this): T {
         isolateLowestOne(this)
     }
 
     /// Rotate bits left.
-    rotateLeft(amount: uint32): T {
+    rotateLeft(this, amount: uint32): T {
         rotateLeft(this, amount)
     }
 
     /// Rotate bits right.
-    rotateRight(amount: uint32): T {
+    rotateRight(this, amount: uint32): T {
         rotateRight(this, amount)
     }
 
     /// Return whether this value is a power of two.
-    isPowerOfTwo(): boolean {
+    isPowerOfTwo(this): boolean {
         this > T.zero() && (this & (this - T.one())) == T.zero()
     }
 
     /// Return the next power of two, or `undefined` on overflow.
-    nextPowerOfTwo(): T | undefined {
+    nextPowerOfTwo(this): T | undefined {
         todo("Integer.nextPowerOfTwo")
     }
 }

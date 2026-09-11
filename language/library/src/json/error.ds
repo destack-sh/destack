@@ -1,5 +1,4 @@
 import { Error } from "destack:error";
-import { MaybeOwned } from "destack:memory";
 
 /// JSON error category.
 @languageItem("json.JsonErrorKind")
@@ -39,7 +38,7 @@ export struct JsonError {
 
 export extension of JsonError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
-        MaybeOwned.borrowed(this.message)
+    display(&readonly this): string {
+        this.message
     }
 }

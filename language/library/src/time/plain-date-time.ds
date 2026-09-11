@@ -1,6 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
 import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
-import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
 import { TimeError } from "./error.ds";
@@ -102,127 +101,128 @@ export class PlainDateTime implements ToLocaleString {
     }
 
     /// Calendar era.
-    get era(): MaybeOwned<string> | undefined {
+    get era(&readonly this): string | undefined {
         todo("PlainDateTime.era")
     }
 
     /// Calendar era year.
-    get eraYear(): number | undefined {
+    get eraYear(&readonly this): number | undefined {
         todo("PlainDateTime.eraYear")
     }
 
     /// Calendar year.
-    get year(): number {
+    get year(&readonly this): number {
         todo("PlainDateTime.year")
     }
 
     /// Calendar month.
-    get month(): number {
+    get month(&readonly this): number {
         todo("PlainDateTime.month")
     }
 
     /// Calendar month code.
-    get monthCode(): MaybeOwned<string> {
+    get monthCode(&readonly this): string {
         todo("PlainDateTime.monthCode")
     }
 
     /// Calendar day.
-    get day(): number {
+    get day(&readonly this): number {
         todo("PlainDateTime.day")
     }
 
     /// Hour.
-    get hour(): number {
+    get hour(&readonly this): number {
         todo("PlainDateTime.hour")
     }
 
     /// Minute.
-    get minute(): number {
+    get minute(&readonly this): number {
         todo("PlainDateTime.minute")
     }
 
     /// Second.
-    get second(): number {
+    get second(&readonly this): number {
         todo("PlainDateTime.second")
     }
 
     /// Millisecond.
-    get millisecond(): number {
+    get millisecond(&readonly this): number {
         todo("PlainDateTime.millisecond")
     }
 
     /// Microsecond.
-    get microsecond(): number {
+    get microsecond(&readonly this): number {
         todo("PlainDateTime.microsecond")
     }
 
     /// Nanosecond.
-    get nanosecond(): number {
+    get nanosecond(&readonly this): number {
         todo("PlainDateTime.nanosecond")
     }
 
     /// Calendar identifier.
-    get calendarId(): MaybeOwned<string> {
+    get calendarId(&readonly this): string {
         todo("PlainDateTime.calendarId")
     }
 
     /// Day of week.
-    get dayOfWeek(): number {
+    get dayOfWeek(&readonly this): number {
         todo("PlainDateTime.dayOfWeek")
     }
 
     /// Day of year.
-    get dayOfYear(): number {
+    get dayOfYear(&readonly this): number {
         todo("PlainDateTime.dayOfYear")
     }
 
     /// Week of year.
-    get weekOfYear(): number | undefined {
+    get weekOfYear(&readonly this): number | undefined {
         todo("PlainDateTime.weekOfYear")
     }
 
     /// Week-based year.
-    get yearOfWeek(): number | undefined {
+    get yearOfWeek(&readonly this): number | undefined {
         todo("PlainDateTime.yearOfWeek")
     }
 
     /// Days in this week.
-    get daysInWeek(): number {
+    get daysInWeek(&readonly this): number {
         todo("PlainDateTime.daysInWeek")
     }
 
     /// Days in this year.
-    get daysInYear(): number {
+    get daysInYear(&readonly this): number {
         todo("PlainDateTime.daysInYear")
     }
 
     /// Days in this month.
-    get daysInMonth(): number {
+    get daysInMonth(&readonly this): number {
         todo("PlainDateTime.daysInMonth")
     }
 
     /// Months in this year.
-    get monthsInYear(): number {
+    get monthsInYear(&readonly this): number {
         todo("PlainDateTime.monthsInYear")
     }
 
     /// Whether this year is a leap year.
-    get inLeapYear(): boolean {
+    get inLeapYear(&readonly this): boolean {
         todo("PlainDateTime.inLeapYear")
     }
 
     /// Return true when this date-time equals `other`.
-    equals(other: PlainDateTime): boolean {
+    equals(&readonly this, other: PlainDateTime): boolean {
         todo("PlainDateTime.equalsPlainDateTime")
     }
 
     /// Convert `other` and return whether it equals this date-time.
-    equals(other: PlainDateTimeLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: PlainDateTimeLike): Result<boolean, TimeError> {
         todo("PlainDateTime.equals")
     }
 
     /// Return this date-time with updated fields.
     with(
+        &readonly this,
         dateTimeLike: PlainDateTimeFields,
         options?: OverflowOptions,
     ): Result<PlainDateTime, TimeError> {
@@ -230,22 +230,27 @@ export class PlainDateTime implements ToLocaleString {
     }
 
     /// Return this date-time with another time.
-    withPlainTime(time?: PlainTimeLike): Result<PlainDateTime, TimeError> {
+    withPlainTime(&readonly this, time?: PlainTimeLike): Result<PlainDateTime, TimeError> {
         todo("PlainDateTime.withPlainTime")
     }
 
     /// Return this date-time in another calendar.
-    withCalendar(calendar: CalendarLike): Result<PlainDateTime, TimeError> {
+    withCalendar(&readonly this, calendar: CalendarLike): Result<PlainDateTime, TimeError> {
         todo("PlainDateTime.withCalendar")
     }
 
     /// Add a duration.
-    add(durationLike: DurationLike, options?: OverflowOptions): Result<PlainDateTime, TimeError> {
+    add(
+        &readonly this,
+        durationLike: DurationLike,
+        options?: OverflowOptions,
+    ): Result<PlainDateTime, TimeError> {
         todo("PlainDateTime.add")
     }
 
     /// Subtract a duration.
     subtract(
+        &readonly this,
         durationLike: DurationLike,
         options?: OverflowOptions,
     ): Result<PlainDateTime, TimeError> {
@@ -254,6 +259,7 @@ export class PlainDateTime implements ToLocaleString {
 
     /// Return the duration until `other`.
     until(
+        &readonly this,
         other: PlainDateTimeLike,
         options?: DifferenceOptions<
             | "year"
@@ -273,6 +279,7 @@ export class PlainDateTime implements ToLocaleString {
 
     /// Return the duration since `other`.
     since(
+        &readonly this,
         other: PlainDateTimeLike,
         options?: DifferenceOptions<
             | "year"
@@ -292,6 +299,7 @@ export class PlainDateTime implements ToLocaleString {
 
     /// Round this date-time.
     round(
+        &readonly this,
         roundTo: RoundTo<
             "day" | "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
@@ -301,6 +309,7 @@ export class PlainDateTime implements ToLocaleString {
 
     /// Convert this date-time into a zoned date-time.
     toZonedDateTime(
+        &readonly this,
         timeZone: TimeZoneLike,
         options?: DisambiguationOptions,
     ): Result<ZonedDateTime, TimeError> {
@@ -308,22 +317,22 @@ export class PlainDateTime implements ToLocaleString {
     }
 
     /// Return the date part.
-    toPlainDate(): PlainDate {
+    toPlainDate(&readonly this): PlainDate {
         todo("PlainDateTime.toPlainDate")
     }
 
     /// Return the time part.
-    toPlainTime(): PlainTime {
+    toPlainTime(&readonly this): PlainTime {
         todo("PlainDateTime.toPlainTime")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): MaybeOwned<string> {
+    toLocaleString(&readonly this): string {
         todo("PlainDateTime.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
         todo("PlainDateTime.toLocaleStringLocales")
     }
 
@@ -332,27 +341,27 @@ export class PlainDateTime implements ToLocaleString {
         &readonly this,
         locales?: Locales,
         options?: DateTimeFormatOptions,
-    ): Result<MaybeOwned<string>, IntlError> {
+    ): Result<string, IntlError> {
         todo("PlainDateTime.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(): MaybeOwned<string> {
+    toJSON(&readonly this): string {
         todo("PlainDateTime.toJSON")
     }
 
     /// Return an ISO string.
-    toString(): MaybeOwned<string> {
+    toString(&readonly this): string {
         todo("PlainDateTime.toString")
     }
 
     /// Return an ISO string with explicit rendering options.
-    toString(options: PlainDateTimeToStringOptions): MaybeOwned<string> {
+    toString(&readonly this, options: PlainDateTimeToStringOptions): string {
         todo("PlainDateTime.toString")
     }
 
     /// Reject numeric coercion.
-    valueOf(): never {
+    valueOf(&readonly this): never {
         todo("PlainDateTime.valueOf")
     }
 }

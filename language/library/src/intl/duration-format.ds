@@ -1,5 +1,5 @@
 import { Result, todo } from "destack:error";
-import { MaybeOwned } from "destack:memory";
+
 import { Exclude } from "destack:types";
 
 import { Duration } from "../time/duration.ds";
@@ -271,29 +271,30 @@ export class DurationFormat {
     }
 
     /// Format a validated Temporal duration.
-    format(duration: &readonly Duration): MaybeOwned<string> {
+    format(&readonly this, duration: &readonly Duration): string {
         todo("DurationFormat.formatDuration")
     }
 
     /// Format duration fields.
-    format(duration: &readonly DurationFormatValue): Result<MaybeOwned<string>, IntlError> {
+    format(&readonly this, duration: &readonly DurationFormatValue): Result<string, IntlError> {
         todo("DurationFormat.format")
     }
 
     /// Format a validated Temporal duration into separate parts.
-    formatToParts(duration: &readonly Duration): ^DurationFormatPart[] {
+    formatToParts(&readonly this, duration: &readonly Duration): ^DurationFormatPart[] {
         todo("DurationFormat.formatDurationToParts")
     }
 
     /// Format duration fields into separate parts.
     formatToParts(
+        &readonly this,
         duration: &readonly DurationFormatValue,
     ): Result<^DurationFormatPart[], IntlError> {
         todo("DurationFormat.formatToParts")
     }
 
     /// Return the resolved options.
-    resolvedOptions(): ResolvedDurationFormatOptions {
+    resolvedOptions(&readonly this): ResolvedDurationFormatOptions {
         todo("DurationFormat.resolvedOptions")
     }
 }

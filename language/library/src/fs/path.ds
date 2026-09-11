@@ -1,7 +1,8 @@
 import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator, IteratorResult } from "destack:iter";
-import { AllocationError, Clone, Default, MaybeOwned } from "destack:memory";
+import { AllocationError, Clone, Default, ValueOf, WithAccess } from "destack:memory";
+
 import { Compare, Equal, Hash, Hasher, Ordering, PartialCompare, PartialEqual } from "destack:ops";
 import { OsString, OsStringBuilder, OsStringDecodeError, OsStringSlice } from "destack:string";
 
@@ -183,7 +184,7 @@ export extension of PathSlice implements ToOwned, As<OsStringSlice>, Hash {
     }
 }
 
-export extension of Path implements Clone, Default, As<PathSlice>, Borrow<PathSlice>, Hash {
+export extension of Path implements Clone, Default, Hash {
     /// Create an empty path.
     static new(): ^Path {
         todo("Path.new")
@@ -209,23 +210,13 @@ export extension of Path implements Clone, Default, As<PathSlice>, Borrow<PathSl
         todo("Path.from")
     }
 
-    /// Borrow this owned path as a path slice.
-    as(&readonly this): &readonly PathSlice {
-        todo("Path.as")
-    }
-
-    /// Borrow this owned path as a path slice.
-    borrow(&readonly this): &readonly PathSlice {
-        this.as()
-    }
-
     /// Clone this path.
-    clone(&readonly this): ^Path {
+    clone(this: &readonly ValueOf<this>): ^Path {
         this.as().toOwned()
     }
 
     /// Add this path's native representation to `state`.
-    hash(&readonly this, state: &Hasher): void {
+    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
         this.as().hash(state);
     }
 
@@ -235,9 +226,23 @@ export extension of Path implements Clone, Default, As<PathSlice>, Borrow<PathSl
     }
 }
 
+export extension<const A: "readonly" | "immutable"> of Path
+    implements As<PathSlice, A>, Borrow<PathSlice, A>
+{
+    /// Borrow this owned path as a path slice.
+    as(this: WithAccess<&this, A>): WithAccess<&PathSlice, A> {
+        todo("Path.as")
+    }
+
+    /// Borrow this owned path as a path slice.
+    borrow(this: WithAccess<&this, A>): WithAccess<&PathSlice, A> {
+        this.as()
+    }
+}
+
 export extension of PathBuilder implements Default, As<PathSlice>, Borrow<PathSlice>, Hash {
     /// Return the allocated opaque encoded byte count.
-    get capacity(): usize {
+    get capacity(&readonly this): usize {
         todo("PathBuilder.capacity")
     }
 
@@ -287,7 +292,7 @@ export extension of PathBuilder implements Default, As<PathSlice>, Borrow<PathSl
     }
 
     /// Add the current path's native representation to `state`.
-    hash(&readonly this, state: &Hasher): void {
+    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
         this.as().hash(state);
     }
 
@@ -359,12 +364,12 @@ export extension of PathBuilder implements Default, As<PathSlice>, Borrow<PathSl
 
 export extension<P: Borrow<PathSlice>> of P {
     /// Return the opaque encoded byte length.
-    get encodedLength(): usize {
+    get encodedLength(&readonly this): usize {
         this.borrow().as().encodedLength
     }
 
     /// Return whether this path is empty.
-    get isEmpty(): boolean {
+    get isEmpty(&readonly this): boolean {
         this.borrow().as().isEmpty
     }
 
@@ -476,24 +481,24 @@ export extension<P: Borrow<PathSlice>, Q: Borrow<PathSlice>> of P
     implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
 {
     /// Return whether this path has the same native representation as `other`.
-    equal(&readonly this, other: &readonly Q): boolean {
+    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): boolean {
         todo("Path.equal")
     }
 
     /// Compare this path's native representation with `other`.
-    compare(&readonly this, other: &readonly Q): Ordering {
+    compare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering {
         todo("Path.compare")
     }
 
     /// Partially compare this path's native representation with `other`.
-    partialCompare(&readonly this, other: &readonly Q): Ordering | null {
+    partialCompare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering | null {
         this.compare(other)
     }
 }
 
 export extension<'a> of WindowsPathPrefix<'a> {
     /// Return whether this prefix disables Windows path normalization.
-    get isVerbatim(): boolean {
+    get isVerbatim(&readonly this): boolean {
         todo("WindowsPathPrefix.isVerbatim")
     }
 }
@@ -507,21 +512,21 @@ export extension<'a> of PathComponent<'a> {
 
 export extension<'a> of PathComponents<'a> implements Iterator<PathComponent<'a>> {
     /// Advance to the next path component.
-    next(): IteratorResult<PathComponent<'a>> {
+    next(&this): IteratorResult<PathComponent<'a>> {
         todo("PathComponents.next")
     }
 }
 
 export extension<'a> of PathAncestors<'a> implements Iterator<&'a readonly PathSlice> {
     /// Advance to the next ancestor.
-    next(): IteratorResult<&'a readonly PathSlice> {
+    next(&this): IteratorResult<&'a readonly PathSlice> {
         todo("PathAncestors.next")
     }
 }
 
 export extension of StripPrefixError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
+    display(&readonly this): string {
         todo("StripPrefixError.display")
     }
 }

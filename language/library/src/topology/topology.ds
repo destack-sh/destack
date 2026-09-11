@@ -46,62 +46,62 @@ export class Topology {
     }
 
     /// Define one entity kind.
-    defineEntityKind(kind: EntityKind, labels?: LabelSet): Result<void, HostError> {
+    defineEntityKind(&readonly this, kind: EntityKind, labels?: LabelSet): Result<void, HostError> {
         topology.get().entity.defineKind(this.world, EntityKindRecord { kind, labels })
     }
 
     /// Undefine one entity kind.
-    undefineEntityKind(kind: EntityKind): Result<void, HostError> {
+    undefineEntityKind(&readonly this, kind: EntityKind): Result<void, HostError> {
         topology.get().entity.undefineKind(this.world, kind)
     }
 
     /// Define one edge kind.
-    defineEdgeKind(kind: EdgeKind, labels?: LabelSet): Result<void, HostError> {
+    defineEdgeKind(&readonly this, kind: EdgeKind, labels?: LabelSet): Result<void, HostError> {
         topology.get().edge.defineKind(this.world, EdgeKindRecord { kind, labels })
     }
 
     /// Undefine one edge kind.
-    undefineEdgeKind(kind: EdgeKind): Result<void, HostError> {
+    undefineEdgeKind(&readonly this, kind: EdgeKind): Result<void, HostError> {
         topology.get().edge.undefineKind(this.world, kind)
     }
 
     /// Upsert one entity record.
-    upsertEntity(entity: EntityRecord): Result<EntityRef, HostError> {
+    upsertEntity(&readonly this, entity: EntityRecord): Result<EntityRef, HostError> {
         topology.get().entity.upsert(this.world, entity).map((id) => EntityRef(id))
     }
 
     /// Upsert one edge record.
-    upsertEdge(edge: EdgeRecord): Result<EdgeRef, HostError> {
+    upsertEdge(&readonly this, edge: EdgeRecord): Result<EdgeRef, HostError> {
         topology.get().edge.upsert(this.world, edge).map((id) => EdgeRef(id))
     }
 
     /// Observe one entity-like value.
-    observe<T: Entity>(value: &readonly T): Result<EntityRef, HostError> {
+    observe<T: Entity>(&readonly this, value: &readonly T): Result<EntityRef, HostError> {
         this.upsertEntity(entityOf(value))
     }
 
     /// Observe one edge-like value.
-    connect<T: Edge>(value: &readonly T): Result<EdgeRef, HostError> {
+    connect<T: Edge>(&readonly this, value: &readonly T): Result<EdgeRef, HostError> {
         this.upsertEdge(edgeOf(value))
     }
 
     /// Remove one entity.
-    removeEntity(id: EntityId): Result<boolean, HostError> {
+    removeEntity(&readonly this, id: EntityId): Result<boolean, HostError> {
         topology.get().entity.remove(this.world, id)
     }
 
     /// Remove one edge.
-    removeEdge(id: EdgeId): Result<boolean, HostError> {
+    removeEdge(&readonly this, id: EdgeId): Result<boolean, HostError> {
         topology.get().edge.remove(this.world, id)
     }
 
     /// Return entities matching `selector`.
-    entities(selector?: EntitySelector): Result<[EntityRecord], HostError> {
+    entities(&readonly this, selector?: EntitySelector): Result<[EntityRecord], HostError> {
         topology.get().entity.list(this.world, selector)
     }
 
     /// Return edges matching `selector`.
-    edges(selector?: EdgeSelector): Result<[EdgeRecord], HostError> {
+    edges(&readonly this, selector?: EdgeSelector): Result<[EdgeRecord], HostError> {
         topology.get().edge.list(this.world, selector)
     }
 }
