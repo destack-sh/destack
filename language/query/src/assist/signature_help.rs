@@ -152,15 +152,16 @@ impl ModuleQueryContext<'_> {
                     &call.arguments,
                     call.return_type,
                 )?,
-                dir::CallableTarget::Expression { generic_arguments } => self
-                    .expression_signature_item(
+                dir::CallableTarget::Expression { .. } | dir::CallableTarget::Constructor(_) => {
+                    self.expression_signature_item(
                         program,
                         callee_id,
                         call.callable_type,
-                        generic_arguments,
+                        call.target.generic_arguments(),
                         &call.arguments,
                         call.return_type,
-                    )?,
+                    )?
+                }
             };
             signatures.push(signature);
         }

@@ -213,8 +213,10 @@ impl ModuleQueryContext<'_> {
                     function: dir::DynamicFunction::Symbol(symbol),
                     ..
                 } => self.symbol_call_parameter_names(program, call, *symbol)?,
-                dir::CallableTarget::Expression { .. } => Formatter::new(self, program)
-                    .callable_parameter_labels(selected.callable_type)?,
+                dir::CallableTarget::Expression { .. } | dir::CallableTarget::Constructor(_) => {
+                    Formatter::new(self, program)
+                        .callable_parameter_labels(selected.callable_type)?
+                }
                 dir::CallableTarget::Dynamic {
                     function:
                         dir::DynamicFunction::CallSignature(node)
