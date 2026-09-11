@@ -6,12 +6,10 @@ use destack_core::{
     StringId,
 };
 use destack_mir::{
-    Access, Discriminant, FloatType, ReferenceKind, Space, Storage, TraceId, VariantEncoding,
+    Access, Discriminant, Exclusivity, FloatType, Reference, TraceId, VariantEncoding,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
-
-use crate::GlobalAddress;
 
 use super::{SignatureId, TypeId, Word};
 
@@ -247,28 +245,13 @@ pub enum WordLayout {
     Float64,
     /// World memory reference, its region classified by address.
     Reference,
-    /// Global storage reference.
-    GlobalReference,
     /// Function pointer.
     FunctionPointer,
-    /// Process-local machine pointer.
+    /// World-relative raw pointer.
     Pointer,
 }
 
 impl WordLayout {
-    /// Return the word layout for one reference.
-    #[inline(always)]
-    pub fn reference(storage: Storage) -> Self {
-        match storage {
-            Storage::Heap(Space::Local | Space::Shared | Space::Slot(_) | Space::Join(_))
-            | Storage::Frame => Self::Reference,
-            Storage::Static(_) => Self::GlobalReference,
-            Storage::Heap(Space::Constant | Space::Parameter(_)) => {
-                unreachable!("program references close every space")
-            }
-        }
-    }
-
     /// Return the memory byte width for this word layout.
     #[inline(always)]
     pub fn byte_len(self, pointer_bytes: usize) -> usize {
@@ -280,7 +263,6 @@ impl WordLayout {
             Self::Float32 => 4,
             Self::Float64 => 8,
             Self::Reference | Self::FunctionPointer | Self::Pointer => pointer_bytes,
-            Self::GlobalReference => GlobalAddress::BYTE_LEN,
         }
     }
 
@@ -295,9 +277,7 @@ impl WordLayout {
             Self::Uint { width } => Word::uint(raw, width),
             Self::Float32 => Word::float32(f32::from_bits(raw as u32)),
             Self::Float64 => Word::float64(f64::from_bits(raw)),
-            Self::Reference | Self::GlobalReference | Self::FunctionPointer | Self::Pointer => {
-                Word::from_bits(raw)
-            }
+            Self::Reference | Self::FunctionPointer | Self::Pointer => Word::from_bits(raw),
         }
     }
 
@@ -313,7 +293,6 @@ impl WordLayout {
             | Self::Float32
             | Self::Float64
             | Self::Reference
-            | Self::GlobalReference
             | Self::FunctionPointer
             | Self::Pointer => value.bits(),
         }
@@ -467,7 +446,7 @@ pub struct SliceLayout {
 pub struct ReferenceLayout {
     /// The referenced value type.
     pub pointee: TypeId,
-    /// Packed ownership, storage, and access.
+    /// Packed ownership, exclusion, and access.
     bits: u16,
     /// Explicit initialized entry padding.
     padding: [u8; 2],
@@ -478,30 +457,28 @@ impl ReferenceLayout {
     const KIND_MASK: u16 = 0x7;
     /// Mask for the packed reference access.
     const ACCESS_MASK: u16 = 0x3;
-    /// Mask for the packed reference storage.
-    const STORAGE_MASK: u16 = 0x7;
     /// Shift for the packed reference access.
     const ACCESS_SHIFT: u8 = 3;
-    /// Shift for the packed reference storage.
-    const STORAGE_SHIFT: u8 = 5;
 
     /// Create one reference layout.
-    pub fn new(pointee: TypeId, kind: ReferenceKind, storage: Storage, access: Access) -> Self {
+    pub fn new(pointee: TypeId, kind: Reference, access: Access) -> Self {
         let kind = match kind {
-            ReferenceKind::Managed => 1,
-            ReferenceKind::Unique => 2,
-            ReferenceKind::Borrowed => 3,
+            Reference::Managed => 1,
+            Reference::Unique => 2,
+            Reference::Borrowed(Exclusivity::Aliasable) => 3,
+            Reference::Borrowed(Exclusivity::Exclusive) => 4,
+            Reference::Borrowed(Exclusivity::Parameter(_)) => {
+                unreachable!("program references close every exclusivity")
+            }
         };
         let access = match access {
             Access::Readonly => 0,
             Access::Mutable => 1,
             Access::Parameter(_) => unreachable!("program references close every access"),
         };
-        let storage = u16::from(Self::storage_bits(storage));
 
         let mut bits = kind & Self::KIND_MASK;
         bits |= access << Self::ACCESS_SHIFT;
-        bits |= storage << Self::STORAGE_SHIFT;
 
         Self {
             pointee,
@@ -511,11 +488,12 @@ impl ReferenceLayout {
     }
 
     /// Return the reference kind.
-    pub fn kind(self) -> Option<ReferenceKind> {
+    pub fn kind(self) -> Option<Reference> {
         match self.bits & Self::KIND_MASK {
-            1 => Some(ReferenceKind::Managed),
-            2 => Some(ReferenceKind::Unique),
-            3 => Some(ReferenceKind::Borrowed),
+            1 => Some(Reference::Managed),
+            2 => Some(Reference::Unique),
+            3 => Some(Reference::Borrowed(Exclusivity::Aliasable)),
+            4 => Some(Reference::Borrowed(Exclusivity::Exclusive)),
             _ => None,
         }
     }
@@ -531,57 +509,9 @@ impl ReferenceLayout {
         }
     }
 
-    /// Return the storage implied by this reference.
-    pub fn storage(self) -> Option<Storage> {
-        Self::storage_from_bits(self.storage_code())
-    }
-
-    /// Return the traced heap space when this reference names heap storage.
-    pub fn heap_space(self) -> Option<Space> {
-        self.kind()?;
-
-        self.storage()?.heap_space()
-    }
-
-    /// Return the word layout for this reference.
+    /// Return the common word layout for a valid reference.
     pub fn word_layout(self) -> Option<WordLayout> {
-        self.kind()?;
-
-        Some(WordLayout::reference(self.storage()?))
-    }
-
-    /// Return the packed storage code.
-    fn storage_code(self) -> u8 {
-        ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8
-    }
-
-    /// Decode reference storage from packed bits.
-    fn storage_from_bits(bits: u8) -> Option<Storage> {
-        match bits {
-            0 => Some(Storage::Heap(Space::Local)),
-            1 => Some(Storage::Heap(Space::Shared)),
-            2 => Some(Storage::Frame),
-            3 => Some(Storage::Static(Space::Constant)),
-            4 => Some(Storage::Static(Space::Local)),
-            5 => Some(Storage::Static(Space::Shared)),
-            _ => None,
-        }
-    }
-
-    /// Encode reference storage as packed bits.
-    fn storage_bits(storage: Storage) -> u8 {
-        match storage {
-            Storage::Heap(Space::Local) => 0,
-            Storage::Heap(Space::Shared) => 1,
-            Storage::Frame => 2,
-            Storage::Static(Space::Constant) => 3,
-            Storage::Static(Space::Local) => 4,
-            Storage::Static(Space::Shared) => 5,
-            Storage::Heap(Space::Constant | Space::Parameter(_) | Space::Slot(_) | Space::Join(_))
-            | Storage::Static(Space::Parameter(_) | Space::Slot(_) | Space::Join(_)) => {
-                unreachable!("program references close every space")
-            }
-        }
+        self.kind().map(|_| WordLayout::Reference)
     }
 }
 
@@ -593,7 +523,7 @@ const _: () = assert!(std::mem::size_of::<ReferenceLayout>() == 8);
 pub struct PointerLayout {
     /// The pointed-to value type.
     pub pointee: TypeId,
-    /// Packed access and nullability.
+    /// Packed access.
     bits: u8,
     /// Explicit initialized entry padding.
     padding: [u8; 3],
@@ -603,7 +533,7 @@ impl PointerLayout {
     /// Mask for the packed pointer access.
     const ACCESS_MASK: u8 = 0x3;
 
-    /// Create one process-local pointer layout.
+    /// Create one world-relative raw pointer layout.
     pub const fn new(pointee: TypeId, access: Access) -> Self {
         let bits = match access {
             Access::Readonly => 0,
@@ -903,47 +833,12 @@ impl VariantLayoutBuilder {
 #[cfg(test)]
 mod tests {
     use destack_core::{SectionBuilder, SectionImage};
-    use destack_mir::{
-        Access, DiscriminantField, ReferenceKind, Space, Storage, TraceId, VariantEncoding,
-    };
+    use destack_mir::{DiscriminantField, TraceId, VariantEncoding};
 
     use crate::{
-        LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable, ReferenceLayout,
-        TypeId, VariantCaseLayout, VariantLayoutBuilder, WordLayout,
+        LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable, TypeId,
+        VariantCaseLayout, VariantLayoutBuilder, WordLayout,
     };
-
-    /// Create one reference layout for reference storage tests.
-    fn reference(kind: ReferenceKind, storage: Storage) -> ReferenceLayout {
-        ReferenceLayout::new(TypeId(1), kind, storage, Access::Readonly)
-    }
-
-    /// Managed local references trace local heap storage.
-    #[test]
-    fn test_reference_layout_traces_local_heap_storage() {
-        let reference = reference(ReferenceKind::Managed, Storage::Heap(Space::Local));
-
-        assert_eq!(reference.heap_space(), Some(Space::Local));
-        assert_eq!(reference.word_layout(), Some(WordLayout::Reference));
-    }
-
-    /// Managed shared references trace shared heap storage.
-    #[test]
-    fn test_reference_layout_traces_shared_heap_storage() {
-        let reference = reference(ReferenceKind::Managed, Storage::Heap(Space::Shared));
-
-        assert_eq!(reference.heap_space(), Some(Space::Shared));
-        assert_eq!(reference.word_layout(), Some(WordLayout::Reference));
-    }
-
-    /// Frame and global references are not heap edges.
-    #[test]
-    fn test_reference_layout_rejects_frame_and_global_heap_tracing() {
-        let frame = reference(ReferenceKind::Borrowed, Storage::Frame);
-        let global = reference(ReferenceKind::Borrowed, Storage::Static(Space::Local));
-
-        assert_eq!(frame.heap_space(), None);
-        assert_eq!(global.heap_space(), None);
-    }
 
     /// Preserve niche variant layouts in directly mapped program sections.
     #[test]

@@ -3,8 +3,6 @@ use destack_mir::FloatType;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::GlobalAddress;
-
 use super::{AllocationSiteId, CallSiteId, CounterId, EdgeSiteId, Program, SamplerId, WordLayout};
 
 const STANDARD_SAMPLE_BUCKET_LIMIT: u32 = 32;
@@ -121,11 +119,9 @@ pub enum SampleValue {
     },
     /// World memory reference value.
     Reference(u64),
-    /// Global storage reference value.
-    GlobalReference(GlobalAddress),
     /// Function pointer value.
     FunctionPointer(u64),
-    /// Process-local machine pointer value.
+    /// World-relative raw pointer value.
     Pointer(u64),
 }
 
@@ -240,9 +236,6 @@ impl SampleKey {
                 format: FloatType::Float64,
             },
             WordLayout::Reference => SampleValue::Reference(self.0),
-            WordLayout::GlobalReference => {
-                SampleValue::GlobalReference(GlobalAddress::from_bits(self.0))
-            }
             WordLayout::FunctionPointer => SampleValue::FunctionPointer(self.0),
             WordLayout::Pointer => SampleValue::Pointer(self.0),
         };
