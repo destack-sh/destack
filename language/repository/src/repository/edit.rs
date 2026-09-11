@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use dashmap::mapref::entry::Entry;
-use destack_artifact::SourceDependency;
+use destack_artifact::{ArtifactDependency, SourceDependency};
 use destack_core::{Blob, TreapRoot};
 use destack_source::FileId;
 
@@ -82,7 +82,7 @@ impl Repository {
     {
         let before_state = self.revision(before)?;
         let before_files = before_state.files();
-        let (after_files, changed_files, mut delta) = self.apply(before, before_files, edits)?;
+        let (after_files, changed_files, mut delta) = self.apply(before_files, edits)?;
 
         // retain the exact revision when every file binding is unchanged
         if after_files == before_files {
@@ -93,89 +93,125 @@ impl Repository {
             });
         }
 
-        // identify discovery observations that need revalidation
-        let mut invalidated = Vec::new();
-        match delta.discovery() {
-            Discovery::None => {}
-            Discovery::Paths => {
-                let before_packages = self.package_ids(before)?;
-                let before_modules = self.module_ids(before)?;
-                let after_packages = self.package_index_for_files(before, after_files)?;
-                let listing = self.file_tree.entries(after_files);
-                let after_modules =
-                    self.module_index_for_files(before, &listing, &after_packages)?;
+        // retain one artifact selection while computing its invalidation
+        let selection = before_state.artifacts.read();
 
-                // invalidate observations of changed module descriptions
-                for module in &before_modules {
-                    let dependency = self.module_dependency(before, *module)?;
-                    let after_dependency = after_modules.dependency(*module);
-                    if dependency != after_dependency {
-                        invalidated.push(dependency);
+        // classify referenced configuration changes using the evaluated package index
+        let packages = match before_state.cache.packages.get() {
+            Some(Ok(packages)) => Some(packages),
+            Some(Err(_)) | None => None,
+        };
+        let discovery = if packages.is_some_and(|packages| {
+            changed_files
+                .iter()
+                .any(|file| packages.is_configuration_file(*file))
+        }) {
+            Discovery::Config
+        } else {
+            delta.discovery()
+        };
+
+        // retain discovery results while their inputs remain unchanged
+        let (mut package_result, mut module_result) = match (discovery, packages) {
+            (Discovery::None, Some(packages)) => (
+                Some(Ok(packages.clone())),
+                before_state.cache.modules.get().cloned(),
+            ),
+            _ => (None, None),
+        };
+
+        // invalidate recorded discovery observations
+        if discovery != Discovery::None || packages.is_none() {
+            let mut observations = selection
+                .dependencies()
+                .filter_map(|dependency| match dependency {
+                    ArtifactDependency::Source(source)
+                        if !matches!(source, SourceDependency::File { .. }) =>
+                    {
+                        Some(*source)
                     }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            observations.sort_unstable();
+            observations.dedup();
+
+            // compare file discovery when the preceding package configuration is available
+            if let (Discovery::Paths, Some(packages)) = (discovery, packages) {
+                let before_packages = packages.package_ids().collect::<Vec<_>>();
+                let after_packages = self
+                    .package_index_for_files(before, after_files)
+                    .map(Arc::new);
+                let listing = self.file_tree.entries(after_files);
+                let after_modules = match &after_packages {
+                    Ok(packages) => self
+                        .module_index_for_files(before, &listing, packages)
+                        .map(Arc::new),
+                    Err(error) => Err(error.clone()),
+                };
+
+                // compare successful discovery results and retain failures for subsequent reads
+                if let (Ok(after_packages), Ok(after_modules)) = (&after_packages, &after_modules) {
+                    let after_package_ids = after_packages.package_ids().collect::<Vec<_>>();
+                    let module_ids = after_modules.module_ids().collect::<Vec<_>>();
+                    let package_set = SourceDependency::packages(&after_package_ids);
+                    let module_set = SourceDependency::modules(&module_ids);
+
+                    // retain only observations affected by the new file listing
+                    observations.retain(|source| match *source {
+                        SourceDependency::File { .. } => false,
+                        SourceDependency::Package { .. } => before_packages != after_package_ids,
+                        SourceDependency::Packages { .. } => *source != package_set,
+                        SourceDependency::Module { module, .. } => {
+                            *source != after_modules.dependency(module)
+                        }
+                        SourceDependency::Modules { .. } => *source != module_set,
+                        SourceDependency::ModulePath { file, .. } => {
+                            changed_files.binary_search(&file).is_ok()
+                        }
+                    });
                 }
 
-                // compare package and module membership separately from module descriptions
-                let mut after_packages = after_packages.package_ids().collect::<Vec<_>>();
-                let mut after_modules = after_modules.module_ids().collect::<Vec<_>>();
-                after_packages.sort_unstable();
-                after_packages.dedup();
-                after_modules.sort_unstable();
-                after_modules.dedup();
+                package_result = Some(after_packages);
+                module_result = Some(after_modules);
+            }
 
-                if before_packages != after_packages {
-                    invalidated.push(SourceDependency::packages(&before_packages));
-                }
-                if before_modules != after_modules {
-                    invalidated.push(SourceDependency::modules(&before_modules));
-                }
-            }
-            Discovery::Config => {
-                let packages = self.package_ids(before)?;
-                let modules = self.module_ids(before)?;
-                invalidated.extend([
-                    SourceDependency::packages(&packages),
-                    SourceDependency::modules(&modules),
-                ]);
-                for module in modules {
-                    invalidated.push(self.module_dependency(before, module)?);
-                }
-            }
-        }
-
-        // revalidate package resolution when discovery changes
-        if !matches!(delta.discovery(), Discovery::None) {
-            for package in self.package_ids(before)? {
-                invalidated.push(self.package_dependency(before, package)?);
-            }
-        }
-        if !invalidated.is_empty() {
-            delta.extend(invalidated);
+            delta.extend(observations);
         }
 
         // fork candidates and mark only observations reached by this edit
-        let artifacts = before_state
-            .artifacts
-            .read()
-            .fork(delta.invalidated(), self.artifact_table());
+        let artifacts = selection.fork(delta.invalidated(), self.artifact_table());
+        drop(selection);
         let after_state = Arc::new(RevisionState::new(
             after_files,
             before_state.environment.clone(),
             artifacts,
         ));
+
         let after = after_state.revision();
 
         // retain existing derived state for identical repository revisions
-        if after != before {
-            match self.revisions.entry(after) {
-                Entry::Occupied(entry) => {
-                    let existing = entry.get().state();
-                    let learned = after_state.artifacts.read();
-                    existing.artifacts.write().adopt(&learned)?;
-                }
-                Entry::Vacant(entry) => {
-                    entry.insert(Arc::new(RevisionEntry::new(after_state)));
-                }
+        let after_state = match self.revisions.entry(after) {
+            Entry::Occupied(entry) => {
+                let existing = entry.get().state();
+                let learned = after_state.artifacts.read();
+                existing.artifacts.write().adopt(&learned)?;
+
+                existing
             }
+            Entry::Vacant(entry) => {
+                entry.insert(Arc::new(RevisionEntry::new(after_state.clone())));
+
+                after_state
+            }
+        };
+
+        // retain discovery results evaluated for the resulting file tree
+        if let Some(result) = package_result {
+            after_state.cache.packages.get_or_init(|| result);
+        }
+        if let Some(result) = module_result {
+            after_state.cache.modules.get_or_init(|| result);
         }
 
         // project canonical changes only from files touched by this edit batch
@@ -200,7 +236,6 @@ impl Repository {
     /// Apply edits to one file tree and collect their incremental consequences.
     fn apply<I>(
         &self,
-        before: Revision,
         mut files: TreapRoot,
         edits: I,
     ) -> Result<(TreapRoot, Vec<FileId>, Delta), RepositoryError>
@@ -229,7 +264,6 @@ impl Repository {
                         Discovery::Paths
                     };
                     discovery = discovery.merge(change);
-                    self.observe_module_path(before, file, &mut invalidated)?;
                     changed_files.push(file);
 
                     let logical_path = self.intern_logical_path(logical_path);
@@ -259,9 +293,6 @@ impl Repository {
                     };
                     discovery = discovery.merge(change);
 
-                    if previous.is_none() {
-                        self.observe_module_path(before, file, &mut invalidated)?;
-                    }
                     if let Some(previous) = previous {
                         invalidated.push(SourceDependency::file(file, previous.blob.id));
                     }
@@ -289,7 +320,6 @@ impl Repository {
                     };
                     discovery = discovery.merge(change);
                     invalidated.push(SourceDependency::file(file, previous.blob.id));
-                    self.observe_module_path(before, file, &mut invalidated)?;
                     changed_files.push(file);
 
                     files = self.file_tree.remove(files, &file);
@@ -320,8 +350,6 @@ impl Repository {
 
                     discovery = discovery.merge(change);
                     invalidated.push(SourceDependency::file(source, source_entry.blob.id));
-                    self.observe_module_path(before, source, &mut invalidated)?;
-                    self.observe_module_path(before, destination, &mut invalidated)?;
                     changed_files.extend([source, destination]);
 
                     files = self.file_tree.remove(files, &source);
@@ -334,22 +362,10 @@ impl Repository {
 
         changed_files.sort_unstable();
         changed_files.dedup();
+
         let delta = Delta::new(invalidated, discovery);
 
         Ok((files, changed_files, delta))
-    }
-
-    /// Record the preceding module resolution of one probed path.
-    fn observe_module_path(
-        &self,
-        revision: Revision,
-        file: FileId,
-        invalidated: &mut Vec<SourceDependency>,
-    ) -> Result<(), RepositoryError> {
-        let module = self.module_id_for_file(revision, file)?;
-        invalidated.push(SourceDependency::module_path(file, module));
-
-        Ok(())
     }
 }
 

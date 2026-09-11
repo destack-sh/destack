@@ -364,16 +364,20 @@ impl Repository {
         let revision_state = self.revision(revision)?;
         let revision_cache = revision_state.cache();
 
+        // return the cached discovery result
         if let Some(modules) = revision_cache.modules.get() {
-            return Ok(modules.clone());
+            return modules.clone();
         }
 
-        let packages = self.package_index(revision)?;
-        let files = self.file_entries(revision)?;
-        let modules = self.module_index_for_files(revision, files.as_ref(), packages.as_ref())?;
-        let modules = revision_cache.modules.get_or_init(|| Arc::new(modules));
+        // cache the complete module discovery result
+        let modules = self.package_index(revision).and_then(|packages| {
+            let files = self.file_entries(revision)?;
 
-        Ok(modules.clone())
+            self.module_index_for_files(revision, files.as_ref(), packages.as_ref())
+                .map(Arc::new)
+        });
+
+        revision_cache.modules.get_or_init(|| modules).clone()
     }
 
     /// Build the module index over one file listing and package index.

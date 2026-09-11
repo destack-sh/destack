@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{PackageId, TargetId, Uri};
+use destack_source::{FileId, PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 
@@ -137,11 +137,30 @@ pub(crate) struct PackageIndex {
     packages: OrdMap<PackageId, Arc<Package>>,
     /// Package roots ordered from most specific to least specific.
     roots: Vec<(PathBuf, PackageId)>,
+    /// Files contributing to workspace and package configuration, ordered by identity.
+    configuration_files: Vec<FileId>,
 }
 
 impl PackageIndex {
     /// Build one package index from resolved packages.
-    pub(crate) fn new(packages: OrdMap<PackageId, Arc<Package>>) -> Self {
+    pub(crate) fn new(
+        packages: OrdMap<PackageId, Arc<Package>>,
+        workspace: Option<&DestackFile>,
+    ) -> Self {
+        // index every referenced workspace and package configuration file
+        let mut configuration_files = workspace
+            .into_iter()
+            .chain(
+                packages
+                    .values()
+                    .filter_map(|package| package.configuration.as_deref()),
+            )
+            .flat_map(|configuration| configuration.file_ids.iter().copied())
+            .collect::<Vec<_>>();
+        configuration_files.sort_unstable();
+        configuration_files.dedup();
+
+        // order package roots from most specific to least specific
         let mut roots = packages
             .values()
             .filter_map(|package| package.path.as_ref().map(|path| (path.clone(), package.id)))
@@ -156,7 +175,16 @@ impl PackageIndex {
                 .then_with(|| left.0.cmp(&right.0))
         });
 
-        Self { packages, roots }
+        Self {
+            packages,
+            roots,
+            configuration_files,
+        }
+    }
+
+    /// Return whether a file contributes to workspace or package configuration.
+    pub(crate) fn is_configuration_file(&self, file: FileId) -> bool {
+        self.configuration_files.binary_search(&file).is_ok()
     }
 
     /// Return one package by id.

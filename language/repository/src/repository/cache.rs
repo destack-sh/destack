@@ -7,7 +7,7 @@ use im::OrdMap;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::repository::FileEntry;
+use crate::repository::{FileEntry, RepositoryError};
 use crate::{ModuleIndex, PackageIndex, Profile, Root};
 
 /// Lazily derived data for one revision identity.
@@ -17,10 +17,10 @@ pub(crate) struct RevisionCache {
     pub(crate) root: OnceLock<Arc<Root>>,
     /// Editable file bindings in key order.
     pub(crate) files: OnceLock<Arc<[(FileId, FileEntry)]>>,
-    /// Package lookup data.
-    pub(crate) packages: OnceLock<Arc<PackageIndex>>,
-    /// Module lookup data.
-    pub(crate) modules: OnceLock<Arc<ModuleIndex>>,
+    /// Package discovery result.
+    pub(crate) packages: OnceLock<Result<Arc<PackageIndex>, RepositoryError>>,
+    /// Module discovery result.
+    pub(crate) modules: OnceLock<Result<Arc<ModuleIndex>, RepositoryError>>,
     /// Profile lookup data.
     pub(crate) profiles: OnceLock<Arc<OrdMap<ProfileId, Arc<Profile>>>>,
     /// Root directory paths.

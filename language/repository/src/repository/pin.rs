@@ -214,7 +214,7 @@ mod tests {
         FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId, TargetId, Uri,
     };
 
-    use crate::repository::{Edit, Repository, Revision};
+    use crate::repository::{Change, Edit, Repository, RepositoryError, Revision};
     use crate::{DestackLayout, DestackLayoutOverride, Environment, Host, Settings};
 
     /// Create one repository for a test root.
@@ -290,6 +290,384 @@ mod tests {
         assert!(repository.revision(base_revision).is_err());
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Apply source edits while package configuration is incomplete.
+    #[test]
+    fn test_edit_source_with_incomplete_configuration() {
+        let root = unique_test_root("repository-incomplete-configuration");
+        fs::create_dir_all(&root).unwrap();
+        let (repository, revision) = test_repository(&root);
+        let configuration = repository.retain_blob(b"{").unwrap();
+        let source = repository.retain_blob(b"const value = 1;\n").unwrap();
+        let revision = apply_edits(
+            &repository,
+            revision,
+            [
+                Edit::add_file("destack.json", configuration),
+                Edit::add_file("src/value.ds", source),
+            ],
+        );
+
+        // retain the source edit while configuration remains incomplete
+        let replacement = repository.retain_blob(b"const value = 2;\n").unwrap();
+        let result = repository.edit(revision, [Edit::set_file("src/value.ds", replacement)]);
+        fs::remove_dir_all(&root).unwrap();
+        let commit = result.unwrap();
+        assert_eq!(
+            commit.changes,
+            vec![Change {
+                file: repository.file_id(Path::new("src/value.ds")),
+                path: "src/value.ds".to_string(),
+                before: Some(source),
+                after: Some(replacement),
+            }],
+        );
+    }
+
+    /// Apply file edits and repair an invalid condition alias.
+    #[test]
+    fn test_repair_condition_alias() {
+        let root = unique_test_root("repository-condition-alias");
+        fs::create_dir_all(&root).unwrap();
+        let (repository, revision) = test_repository(&root);
+        let configuration = repository
+            .retain_blob(
+                br#"{
+  "name": "app"
+}
+"#,
+            )
+            .unwrap();
+        let source = repository.retain_blob(b"const value = 1;\n").unwrap();
+        let revision = apply_edits(
+            &repository,
+            revision,
+            [
+                Edit::add_file("destack.json", configuration),
+                Edit::add_file("main.ds", source),
+            ],
+        );
+        let modules = repository.module_ids(revision).unwrap();
+
+        // report the invalid alias during module discovery
+        let invalid = repository
+            .retain_blob(
+                br#"{
+  "name": "app",
+  "conditions": { "aliases": { "custom": "missing" } }
+}
+"#,
+            )
+            .unwrap();
+        let broken = apply_edits(
+            &repository,
+            revision,
+            [Edit::set_file("destack.json", invalid)],
+        );
+        repository.package_ids(broken).unwrap();
+        let expected = RepositoryError::InvalidConfig {
+            file: repository.file_id(Path::new("destack.json")),
+            message: "unknown condition 'missing'".to_string(),
+        };
+        assert_eq!(repository.module_ids(broken).unwrap_err(), expected);
+
+        // accept path edits while module discovery reports the invalid alias
+        let added = apply_edits(&repository, broken, [Edit::add_file("other.ds", source)]);
+        assert_eq!(repository.module_ids(added).unwrap_err(), expected);
+        let removed = apply_edits(&repository, added, [Edit::remove_file("other.ds")]);
+        let repaired = apply_edits(
+            &repository,
+            removed,
+            [Edit::set_file("destack.json", configuration)],
+        );
+        assert_eq!(repository.module_ids(repaired).unwrap(), modules);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Apply file edits and restore a missing inherited configuration.
+    #[test]
+    fn test_restore_configuration_parent() {
+        let root = unique_test_root("repository-configuration-parent");
+        fs::create_dir_all(&root).unwrap();
+        let (repository, revision) = test_repository(&root);
+        let configuration = repository
+            .retain_blob(
+                br#"{
+  "extends": "./base.json"
+}
+"#,
+            )
+            .unwrap();
+        let parent = repository
+            .retain_blob(
+                br#"{
+  "name": "app"
+}
+"#,
+            )
+            .unwrap();
+        let revision = apply_edits(
+            &repository,
+            revision,
+            [
+                Edit::add_file("destack.json", configuration),
+                Edit::add_file("base.json", parent),
+            ],
+        );
+        let packages = repository.package_ids(revision).unwrap();
+
+        // report the missing parent while accepting further file changes
+        let moved = apply_edits(
+            &repository,
+            revision,
+            [Edit::move_file("base.json", "moved.json")],
+        );
+        let expected = RepositoryError::MissingFile {
+            path: root.join("base.json").display().to_string(),
+        };
+        assert_eq!(repository.package_ids(moved).unwrap_err(), expected);
+        let source = repository.retain_blob(b"const value = 1;\n").unwrap();
+        let edited = apply_edits(&repository, moved, [Edit::add_file("main.ds", source)]);
+        assert_eq!(repository.package_ids(edited).unwrap_err(), expected);
+
+        // resolve packages after restoring the referenced parent
+        let repaired = apply_edits(
+            &repository,
+            edited,
+            [Edit::move_file("moved.json", "base.json")],
+        );
+        assert_eq!(repository.package_ids(repaired).unwrap(), packages);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Preserve package artifacts across module additions and invalidate configuration changes.
+    #[test]
+    fn test_add_module_preserves_package_artifacts() {
+        assert_package_configuration_edits(
+            "destack.json",
+            &[(
+                "destack.json",
+                r#"{
+  "name": "app"
+}
+"#,
+            )],
+        );
+    }
+
+    /// Invalidate package artifacts when an inherited configuration changes.
+    #[test]
+    fn test_edit_inherited_package_configuration() {
+        assert_package_configuration_edits(
+            "base.json",
+            &[
+                (
+                    "destack.json",
+                    r#"{
+  "extends": "./base.json"
+}
+"#,
+                ),
+                (
+                    "base.json",
+                    r#"{
+  "name": "app"
+}
+"#,
+                ),
+            ],
+        );
+    }
+
+    /// Invalidate package artifacts when inherited workspace configuration changes.
+    #[test]
+    fn test_edit_inherited_workspace_configuration() {
+        assert_package_configuration_edits(
+            "workspace.base.json",
+            &[
+                (
+                    "destack.json",
+                    r#"{
+  "extends": "./workspace.base.json"
+}
+"#,
+                ),
+                (
+                    "workspace.base.json",
+                    r#"{
+  "workspace": { "packages": ["packages/*"] }
+}
+"#,
+                ),
+                (
+                    "packages/app/destack.json",
+                    r#"{
+  "name": "app"
+}
+"#,
+                ),
+            ],
+        );
+    }
+
+    /// Assert artifact selection across module additions and configuration edits, moves, and removals.
+    fn assert_package_configuration_edits(configuration_path: &str, files: &[(&str, &str)]) {
+        let root = unique_test_root("repository-package-module");
+        fs::create_dir_all(&root).unwrap();
+        let (repository, revision) = test_repository(&root);
+        let edits = files.iter().map(|(path, source)| {
+            let blob = repository.retain_blob(source.as_bytes()).unwrap();
+
+            Edit::add_file(path, blob)
+        });
+        let revision = apply_edits(&repository, revision, edits);
+        let temporary = repository.retain_blob(b"").unwrap();
+        let revision = apply_edits(
+            &repository,
+            revision,
+            [Edit::add_file("src/temporary.ds", temporary)],
+        );
+        let package = repository
+            .package_by_name(revision, "app")
+            .unwrap()
+            .unwrap();
+        let dependency = repository.package_dependency(revision, package.id).unwrap();
+        let key = ArtifactKey::bundle(package.id, TargetId::new(package.id, "browser"));
+
+        // publish a result that observes package configuration and dependency resolution
+        let dependencies = vec![ArtifactDependency::Source(dependency)];
+        let version = repository.artifact_identity(key, &dependencies);
+        repository
+            .complete_artifact(
+                revision,
+                key,
+                Bundle::new(BundleMode::SingleFile, Vec::new()).into(),
+                dependencies,
+                Vec::new(),
+                None,
+            )
+            .unwrap();
+
+        // return to an earlier file revision after evaluating its package configuration
+        let revision = apply_edits(
+            &repository,
+            revision,
+            [Edit::remove_file("src/temporary.ds")],
+        );
+
+        // preserve the selected result across consecutive module additions
+        let source = repository
+            .retain_blob(b"export const value = 1;\n")
+            .unwrap();
+        let mut revision = revision;
+        for path in ["src/value.ds", "src/other.ds"] {
+            let path = package.path.as_ref().unwrap().join(path);
+            revision = apply_edits(
+                &repository,
+                revision,
+                [Edit::add_file(path.to_str().unwrap(), source)],
+            );
+            let selected = repository
+                .revision(revision)
+                .unwrap()
+                .artifacts
+                .read()
+                .current(key);
+            assert_eq!(selected.map(|entry| entry.version), Some(version));
+        }
+        let source_path = package.path.as_ref().unwrap().join("src/value.ds");
+
+        // invalidate the result when its package configuration changes
+        let config = repository
+            .retain_blob(
+                br#"{
+  "name": "renamed"
+}
+"#,
+            )
+            .unwrap();
+        for edit in [
+            Edit::set_file(configuration_path, config),
+            Edit::move_file(configuration_path, "moved.json"),
+            Edit::remove_file(configuration_path),
+        ] {
+            let after = apply_edits(&repository, revision, [edit]);
+            let selected = repository
+                .revision(after)
+                .unwrap()
+                .artifacts
+                .read()
+                .current(key);
+            assert_eq!(selected.map(|entry| entry.version), None);
+        }
+
+        // report incomplete configuration when resolving an affected artifact
+        let configuration_file = repository.file_id(Path::new(configuration_path));
+        let configuration = repository
+            .file_blob(revision, configuration_file)
+            .unwrap()
+            .unwrap();
+        let incomplete = repository.retain_blob(b"{").unwrap();
+        let broken = apply_edits(
+            &repository,
+            revision,
+            [Edit::set_file(configuration_path, incomplete)],
+        );
+        let error = repository.resolve_artifact(broken, &key).unwrap_err();
+        let expected = RepositoryError::InvalidConfig {
+            file: configuration_file,
+            message: "EOF while parsing an object at line 1 column 1".to_string(),
+        };
+        assert_eq!(error, expected);
+
+        // accept content and path edits while configuration is incomplete
+        let replacement = repository
+            .retain_blob(b"export const value = 2;\n")
+            .unwrap();
+        let source_path = source_path.to_str().unwrap();
+        let edited = apply_edits(
+            &repository,
+            broken,
+            [Edit::set_file(source_path, replacement)],
+        );
+        let moved = apply_edits(
+            &repository,
+            edited,
+            [Edit::move_file(source_path, "moved.ds")],
+        );
+        let removed = apply_edits(&repository, moved, [Edit::remove_file("moved.ds")]);
+        let added = apply_edits(
+            &repository,
+            removed,
+            [Edit::add_file(source_path, replacement)],
+        );
+        assert_eq!(
+            repository.resolve_artifact(added, &key).unwrap_err(),
+            expected
+        );
+
+        // repair configuration and validate the retained artifact against its actual dependencies
+        let repaired = apply_edits(
+            &repository,
+            added,
+            [Edit::set_file(configuration_path, configuration)],
+        );
+        let expected = repository.resolve_artifact(revision, &key).unwrap();
+        assert_eq!(
+            repository.resolve_artifact(repaired, &key).unwrap(),
+            expected
+        );
+        assert_eq!(
+            repository
+                .file_blob(repaired, repository.file_id(Path::new(source_path)))
+                .unwrap(),
+            Some(replacement)
+        );
+
+        fs::remove_dir_all(root).unwrap();
     }
 
     /// Reuse one live artifact result across repositories under the same host.

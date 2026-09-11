@@ -142,7 +142,9 @@ impl Repository {
         revision: Revision,
         file_root: TreapRoot,
     ) -> Result<PackageIndex, RepositoryError> {
-        let package_roots = self.package_roots_for_files(revision, file_root)?;
+        let workspace = self.destack_for_workspace(revision)?;
+        let package_roots =
+            self.package_roots_for_files(revision, file_root, workspace.as_deref())?;
         let mut packages = OrdMap::new();
 
         // build authored packages from config
@@ -165,7 +167,7 @@ impl Repository {
 
         Self::reject_duplicate_package_names(packages.values().map(Arc::as_ref))?;
 
-        Ok(PackageIndex::new(packages))
+        Ok(PackageIndex::new(packages, workspace.as_deref()))
     }
 
     /// Reject duplicate package names used by package specifier imports.
@@ -194,10 +196,9 @@ impl Repository {
         &self,
         revision: Revision,
         file_root: TreapRoot,
+        workspace_config: Option<&DestackFile>,
     ) -> Result<Vec<(PathBuf, PackageKind)>, RepositoryError> {
-        let workspace_config = self.destack_for_workspace(revision)?;
         let workspace = workspace_config
-            .as_ref()
             .and_then(|config| config.workspace.as_ref())
             .filter(|workspace| workspace.packages.is_some());
         let mut package_roots = Vec::new();
@@ -293,14 +294,17 @@ impl Repository {
         let revision_state = self.revision(revision)?;
         let revision_cache = revision_state.cache();
 
+        // return the cached discovery result
         if let Some(packages) = revision_cache.packages.get() {
-            return Ok(packages.clone());
+            return packages.clone();
         }
 
-        let packages = Arc::new(self.package_index_for_files(revision, revision_state.files())?);
-        let packages = revision_cache.packages.get_or_init(|| packages);
+        // cache the complete package discovery result
+        let packages = self
+            .package_index_for_files(revision, revision_state.files())
+            .map(Arc::new);
 
-        Ok(packages.clone())
+        revision_cache.packages.get_or_init(|| packages).clone()
     }
 
     /// Return the nearest package for one workspace path.
