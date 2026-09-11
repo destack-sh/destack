@@ -257,7 +257,7 @@ impl CheckState<'_> {
 
     /// Return the unbound generic parameters of one callable signature.
     pub(in crate::sema) fn signature_generic_parameters(
-        &self,
+        &mut self,
         module: ModuleId,
         signature: &dir::FunctionSignatureType,
     ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
@@ -266,8 +266,15 @@ impl CheckState<'_> {
         };
 
         // omit parameters fixed by an explicit application
-        let arguments = self.signature_arguments(module, signature.arguments)?;
+        let arguments = self
+            .signature_arguments(module, signature.arguments)?
+            .to_vec();
         let mut parameters = self.generic_template_parameters(template_id)?;
+        if signature.is_construct {
+            let mut enclosing = self.owner_template_parameters(template_id)?;
+            enclosing.extend(parameters);
+            parameters = enclosing;
+        }
         parameters.retain(|parameter| {
             !arguments
                 .iter()

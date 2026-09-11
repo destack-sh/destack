@@ -1,5 +1,46 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Type arguments do not turn a struct declaration into a value.
+#[test]
+fn test_reference_specialized_struct_as_value() {
+    let session = TestSession::single(
+        r#"
+struct Box<out T> {}
+
+const value = Box<int32>;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Box<out T> {}
+
+const value = Box<int32>;
+
+=== dir ===
+struct Box<out T> {}
+/// @generic.template symbol=Box parameters=(out T)
+/// @type.symbol symbol=Box source="struct Box<out T> {}" type=Box
+/// @definition.struct symbol=Box source="struct Box<out T> {}" template=(out T)
+/// @type.symbol symbol=Box.T source="out T" type=T
+
+const value = Box<int32>;
+/// @type.symbol symbol=value source=value type=<error>
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Box<int32> target=Box
+"#,
+        r#"
+/// @diagnostic.error id=invalid-value-reference message="'Box' is not a value"
+/// @diagnostic.label line=4 column=15 span="Box<int32>" line_source="const value = Box<int32>;"
+/// @diagnostic.help message="construct structs with 'T { … }'"
+"#,
+    );
+}
+
 /// Select an extension static through a sized type literal receiver.
 #[test]
 fn test_selects_integer_static_on_sized_literal() {

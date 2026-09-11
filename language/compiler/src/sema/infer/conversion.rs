@@ -1265,25 +1265,8 @@ impl CheckState<'_> {
             StoreMode::Erase | StoreMode::Store => {}
         }
 
-        // materialize the constructor selected by the required callable signature
+        // read the required callable signature beneath its storage form
         let required = self.strip_form(origin, target)?;
-        let construction =
-            match self.select_constructor_value(site, cause, source_value, required)? {
-                Ok(construction) => construction,
-                Err(failure) => return Ok(Err(failure)),
-            };
-        if let Some(construction) = construction {
-            let adjustment = dir::CoercionAdjustment::Constructor {
-                target,
-                construction: Box::new(construction),
-            };
-
-            return Ok(Ok(Some(Box::new(dir::Coercion::new(
-                source.ty,
-                vec![adjustment],
-                dir::CastOrigin::Implicit,
-            )))));
-        }
 
         // instantiate a generic callable reference first, then convert the instantiated value
         if let Some(instantiation) = self.instantiate_signature(origin, source_value, required)?

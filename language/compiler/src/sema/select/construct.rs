@@ -3,14 +3,101 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    AssignedPlace, CallableArgument, CauseId, CheckFailure, CheckOutcome, CheckState, Expectation,
-    FlowSite, GenericParameterId, InferMode, NewtypeMatch, NewtypeSignature, Origin, OverloadRule,
-    OverloadSelection, PlaceUse, Relation, SignatureMatch, SignatureRejection, SignatureSelection,
-    TypeSubstitution, Value, ValueCheck, ValueUse,
+    AssignedPlace, CallableArgument, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
+    CheckState, Expectation, FailedCheck, FlowSite, GenericParameterId, NewtypeMatch,
+    NewtypeSignature, Origin, OverloadRule, OverloadSelection, PlaceUse, Relation, SignatureMatch,
+    SignatureRejection, SignatureSelection, TypeSubstitution, Value, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Bind a class constructor to its required or declared function signature.
+    pub(in crate::sema) fn infer_constructor_value(
+        &mut self,
+        site: FlowSite,
+        source: dir::GlobalTypeId,
+        context: Option<Expectation>,
+    ) -> CompilerResult<()> {
+        // require an allocating constructor for a class value
+        if let dir::Type::Reference(reference) = self.ty(source)?
+            && let Some(dir::Definition::Class(class)) =
+                self.definition(reference.symbol)?.as_deref()
+            && class.is_abstract
+        {
+            let instance = self.declaration_instance(reference.symbol)?;
+            let instance = self.intern_type(dir::Type::Application(instance))?;
+            self.report_cannot_construct_abstract_type(site.origin(), instance)?;
+            self.commit_error_node(site.node)?;
+
+            return Ok(());
+        }
+
+        // select a contextual signature before inferring a standalone constructor
+        let selected = match context {
+            Some(context) => {
+                let target = self.strip_form(site.origin(), context.target)?;
+                match self.select_constructor_value(site, context.cause, source, target)? {
+                    Ok(construction) => construction.map(|construction| (target, construction)),
+                    Err(failure) => {
+                        self.push_failure(FailedCheck {
+                            cause: context.cause,
+                            relation: context.relation,
+                            use_: Some(context.use_),
+                            source,
+                            target,
+                            failure,
+                        })?;
+                        self.commit_error_node(site.node)?;
+
+                        return Ok(());
+                    }
+                }
+            }
+            None => None,
+        };
+        let (target, construction) = match selected {
+            Some(selected) => selected,
+            None => {
+                // require one signature when no expected type selects an overload
+                let constructors = self.constructor_signatures(site.origin(), source)?;
+                let [constructor] = constructors.as_slice() else {
+                    let dir::Type::Reference(reference) = self.ty(source)? else {
+                        return Err(CompilerError::Internal {
+                            message: "a constructor value without a class reference".to_string(),
+                        });
+                    };
+                    self.report_ambiguous_overload(site.node, &[reference.symbol])?;
+                    self.commit_error_node(site.node)?;
+
+                    return Ok(());
+                };
+                let target = self.function_type(constructor.ty)?;
+                let cause = self.intern_cause(Cause::root(
+                    site.origin(),
+                    CauseKind::Initializer { annotation: None },
+                ));
+                let construction = self.select_constructor_value(site, cause, source, target)?;
+                let Ok(Some(construction)) = construction else {
+                    return Err(CompilerError::Internal {
+                        message: "a constructor incompatible with its declared signature"
+                            .to_string(),
+                    });
+                };
+
+                (target, construction)
+            }
+        };
+
+        // record the allocating entry as an ordinary callable value
+        let value = dir::FunctionValue {
+            target: dir::CallableTarget::Constructor(Box::new(construction)),
+            callable_type: target,
+        };
+        self.commit_decision(site.node, dir::Decision::Function(value.into()))?;
+
+        self.commit_node_type(site.node, target)
+    }
+
     /// Return the allocating signatures exposed by a class value.
     pub(in crate::sema) fn constructor_signatures(
         &mut self,
@@ -22,7 +109,7 @@ impl CheckState<'_> {
             return Ok(Vec::new());
         };
         match self.definition(reference.symbol)?.as_deref() {
-            Some(dir::Definition::Class(class)) if !class.is_abstract => {}
+            Some(dir::Definition::Class(_)) => {}
             _ => return Ok(Vec::new()),
         }
 
@@ -51,6 +138,7 @@ impl CheckState<'_> {
             )
         };
         let receiver = self.intern_type(dir::Type::Application(instance))?;
+        let template = self.symbol_template(reference.symbol)?;
         let mut constructors =
             self.class_constructors(origin, receiver, &instance, &mut SmallVec::new())?;
         let substitution = substitution.with_receiver(receiver);
@@ -75,7 +163,9 @@ impl CheckState<'_> {
                 }
             }
             let arguments = self.signature_arguments(ty.module_id, head.arguments)?;
-            let mut allocation = TypeSubstitution::default().with_carried(arguments)?;
+            let mut allocation = TypeSubstitution::default()
+                .with_carried(arguments)?
+                .with_carried(&substitution.bindings)?;
             self.ground_ambient_memory_parameters(&induced, &mut allocation)?;
             let ty = self.substitute_type(ty, &allocation)?;
             let arguments = self.intern_generic_arguments(&allocation.bindings)?;
@@ -88,6 +178,8 @@ impl CheckState<'_> {
                 })?;
             constructor.ty = self.intern_signature(dir::FunctionSignatureType {
                 is_construct: true,
+                this_parameter: None,
+                template: head.template.or(template),
                 arguments,
                 ..head
             })?;
@@ -436,7 +528,16 @@ impl CheckState<'_> {
 
             target
         } else {
-            let value = self.infer_node(callee_site, PlaceUse::Read, InferMode::Regular)?;
+            // require a value declaration before selecting its constructor
+            if let Some(resolution) = self.decide_reference(source)?
+                && !self.check_value_reference(source, &resolution)?
+            {
+                self.commit_error_node(source)?;
+
+                return self.commit_rejected_call(node, expectation, None);
+            }
+
+            let (_, value) = self.infer_receiver(callee_site)?;
             let value = self.strip_form(origin, value)?;
             let value = self.normalize(origin, value)?;
             let value = self.static_value_type(value)?;

@@ -31,20 +31,22 @@ impl CheckState<'_> {
             {
                 let operand = self.visit_site(left.into_global_any(site.node.module_id))?;
                 let (_, target) = self.infer_receiver(operand)?;
-                self.infer_instantiation(
+                let target = self.infer_instantiation(
                     site.node.into_typed(),
                     operand,
                     target,
                     &generic_arguments,
                 )?;
-                self.require_node_type(site.node)?
+                self.commit_node_type(site.node, target)?;
+                target
             } else {
                 // distinguish associated member qualifiers from ordinary value expressions
                 let qualifier = match self.decide_reference(site.node)? {
                     Some(resolution) => {
                         let mut is_qualifier = resolution.denoted_type().is_some();
                         for symbol in resolution.symbols() {
-                            is_qualifier |= !self.symbol_kind(*symbol)?.is_value();
+                            let kind = self.symbol_kind(*symbol)?;
+                            is_qualifier |= !kind.is_value() || kind == dir::SymbolKind::Class;
                         }
                         is_qualifier.then_some(resolution)
                     }
@@ -120,7 +122,7 @@ impl CheckState<'_> {
                     }
                 }
 
-                self.infer_name_expression(site, &resolution)
+                self.infer_name_expression(site, &resolution, context)
             }
             dir::Expression::Block(block) => self.infer_block(site, block),
             dir::Expression::Const { body } => self.infer_transparent_expression(site, body),
@@ -236,14 +238,14 @@ impl CheckState<'_> {
                     .is_some();
                 // reuse a committed qualified resolution
                 if let Some(resolution) = resolution {
-                    self.infer_name_expression(site, &resolution)
+                    self.infer_name_expression(site, &resolution, context)
                 }
                 // decide a pre-resolved qualified reference at its first visit
                 else if is_reference && let Some(name) = name {
                     self.decide_qualifier_segments(node.module_id, left)?;
 
                     match self.decide_name_reference(node, name)? {
-                        Some(resolution) => self.infer_name_expression(site, &resolution),
+                        Some(resolution) => self.infer_name_expression(site, &resolution, context),
                         // unresolved references already reported
                         None => Ok(()),
                     }
@@ -413,10 +415,28 @@ impl CheckState<'_> {
                 left,
                 generic_arguments,
             } => {
+                // specialize the selected function or class constructor
                 let operand = self.visit_site(left.into_global_any(node.module_id))?;
-                let target = self.infer_node(operand, PlaceUse::Read, InferMode::Regular)?;
+                let (_, target) = self.infer_receiver(operand)?;
+                let target = self.infer_instantiation(node, operand, target, &generic_arguments)?;
 
-                self.infer_instantiation(node, operand, target, &generic_arguments)
+                // require a value from the specialized declaration
+                if let Some(resolution) = self.decide_reference(node.into_any())?
+                    && !self.check_value_reference(node.into_any(), &resolution)?
+                {
+                    self.commit_error_node(site.node)?;
+
+                    return Ok(());
+                }
+
+                // bind class constructors at the selected signature
+                if let dir::Type::Reference(reference) = self.ty(target)?
+                    && self.symbol_kind(reference.symbol)? == dir::SymbolKind::Class
+                {
+                    self.infer_constructor_value(site, target, context)
+                } else {
+                    self.commit_node_type(site.node, target)
+                }
             }
             dir::Expression::TaggedTemplateExpression { tag, .. } => {
                 self.select_tagged_template(site, tag)
@@ -657,12 +677,22 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
         resolution: &dir::NameResolution,
+        context: Option<Expectation>,
     ) -> CompilerResult<()> {
         // check the selected declaration's use before reading its type
         if !self.check_value_reference(site.node, resolution)? {
             self.commit_error_node(site.node)?;
 
             return Ok(());
+        }
+
+        // bind a class reference to its allocating function
+        if let Some(symbol) = resolution.single_symbol()
+            && self.symbol_kind(symbol)? == dir::SymbolKind::Class
+        {
+            let source = self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
+
+            return self.infer_constructor_value(site, source, context);
         }
 
         self.infer_declaration(site, resolution)
@@ -751,14 +781,7 @@ impl CheckState<'_> {
         let ty = if matches!(self.symbol_kind(*symbol)?, dir::SymbolKind::Function)
             && matches!(self.ty(ty)?, dir::Type::FunctionSignature(_))
         {
-            let place = self.local_place()?;
-            let receiver =
-                self.receiver_literal(dir::ReceiverMode::Borrowed(dir::Access::Readonly))?;
-            self.intern_type(dir::Type::Function(dir::FunctionType {
-                signature: ty,
-                receiver,
-                place,
-            }))?
+            self.function_type(ty)?
         } else {
             ty
         };

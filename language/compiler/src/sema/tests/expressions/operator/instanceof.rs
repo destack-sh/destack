@@ -288,12 +288,10 @@ const ok = value instanceof Named;
 /// @resolution.rejected source="value instanceof Named"
 /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
-/// @type.node source=Named type=<error>
+/// @type.node source=Named type=Named
 /// @resolution.name source=Named target=Named
 "#,
         r#"
-/// @diagnostic.error id=invalid-value-reference message="'Named' is not a value"
-/// @diagnostic.label line=8 column=29 span="Named" line_source="const ok = value instanceof Named;"
 /// @diagnostic.error id=instance-of-target-not-class message="right-hand side of 'instanceof' must be a class"
 /// @diagnostic.label line=8 column=29 span="Named" line_source="const ok = value instanceof Named;"
 "#,

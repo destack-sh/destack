@@ -994,6 +994,21 @@ impl<'a> CheckState<'a> {
         }
     }
 
+    /// Return the ordinary function value type of a signature.
+    pub(in crate::sema) fn function_type(
+        &mut self,
+        signature: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let place = self.local_place()?;
+        let receiver = self.receiver_literal(dir::ReceiverMode::Borrowed(dir::Access::Readonly))?;
+
+        self.intern_type(dir::Type::Function(dir::FunctionType {
+            signature,
+            receiver,
+            place,
+        }))
+    }
+
     /// Intern one function signature into a module's working segment.
     pub(in crate::sema) fn intern_signature(
         &mut self,

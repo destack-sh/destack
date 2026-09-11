@@ -62,17 +62,6 @@ impl CheckState<'_> {
                 .set_symbol_static(symbol, id.into_global(module));
         }
 
-        // expose each class declaration as a type static for its value uses
-        let classes = self
-            .module(module)
-            .iter_definitions()
-            .filter(|(_, definition)| matches!(definition, dir::Definition::Class(_)))
-            .map(|(symbol, _)| symbol)
-            .collect::<Vec<_>>();
-        for symbol in classes {
-            self.class_static_id(symbol)?;
-        }
-
         // evaluate module constants the check phase left undecided
         let constants =
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "write.constants", || {

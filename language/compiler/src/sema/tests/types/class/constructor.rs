@@ -1,5 +1,112 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Abstract classes expose a signature but cannot produce an allocating function.
+#[test]
+fn test_reference_abstract_class_constructor() {
+    let session = TestSession::single(
+        r#"
+abstract class Writer {}
+
+type Constructor = typeof Writer;
+
+const create = Writer;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+abstract class Writer {}
+
+type Constructor = typeof Writer;
+
+const create = Writer;
+
+=== dir ===
+abstract class Writer {}
+/// @type.symbol symbol=Writer source="abstract class Writer {}" type=typeof Writer
+/// @definition.class symbol=Writer source="abstract class Writer {}" abstract=true
+
+type Constructor = typeof Writer;
+/// @type.symbol symbol=Constructor source="type Constructor = typeof Writer" type=Function<(), Writer, "readonly">
+/// @definition.type symbol=Constructor source="type Constructor = typeof Writer" value=typeof Writer
+/// @resolution.name source=Writer target=Writer
+
+const create = Writer;
+/// @type.symbol symbol=create source=create type=<error>
+/// @resolution.pattern source=create kind=binding target=create
+/// @resolution.name source=Writer target=Writer
+"#,
+        r#"
+/// @diagnostic.error id=cannot-construct-abstract-type message="abstract class 'Writer' cannot be constructed"
+/// @diagnostic.label line=6 column=16 span="Writer" line_source="const create = Writer;"
+/// @diagnostic.help message="construct a concrete subclass instead"
+"#,
+    );
+}
+
+/// A stored constructor exposes its function signature without class static members.
+#[test]
+fn test_read_static_member_from_constructor_function() {
+    let session = TestSession::single(
+        r#"
+class Counter {
+    static version: int32 = 1;
+}
+
+const create = Counter;
+
+const version = create.version;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Counter {
+    static version: int32 = 1;
+}
+
+const create: new () => Counter = Counter;
+
+const version = create.version;
+
+=== dir ===
+class Counter {
+/// @type.symbol symbol=Counter type=typeof Counter
+/// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.version source="static version: int32 = 1" key=version static=true type=int32
+
+    static version: int32 = 1;
+    /// @type.symbol symbol=Counter.version source="static version: int32 = 1" type=int32
+
+}
+
+const create = Counter;
+/// @type.symbol symbol=create source=create type=Function<(), Counter, "readonly">
+/// @resolution.pattern source=create kind=binding target=create
+/// @resolution.name source=Counter target=Counter
+/// @resolution.function source=Counter type=Function<(), Counter, "readonly"> target=Counter
+
+const version = create.version;
+/// @type.symbol symbol=version source=version type=<error>
+/// @resolution.pattern source=version kind=binding target=version
+/// @resolution.name source=create target=create
+/// @resolution.place source=create placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=create root=create
+/// @resolution.rejected source=create.version
+"#,
+        r#"
+/// @diagnostic.error id=missing-member message="member 'version' does not exist on type 'Function<(), Counter, \"readonly\">'"
+/// @diagnostic.label line=8 column=24 span="version" line_source="const version = create.version;"
+"#,
+    );
+}
+
 /// A specialized class value satisfies its constructor signature.
 #[test]
 fn test_assign_specialized_constructor() {
@@ -20,7 +127,7 @@ const box = new create();
 === annotated ===
 class Box<out T> {}
 
-const create: new () => Box<int32> = Box<int32> as new () => Box<int32>;
+const create: new () => Box<int32> = Box<int32>;
 
 const box: Box<int32> = new create();
 
@@ -38,8 +145,8 @@ const create: new () => Box<int32> = Box<int32>;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Box<int32> target=Box
+/// @resolution.function source=Box<int32> type=new () => Box<int32> target=Box
 /// @generic.instantiation id=Box<int32> template=Box arguments=(int32)
-/// @coercion.node source=Box<int32> from=typeof Box<int32> adjustments=[{ kind: constructor, target: new () => Box<int32> }] origin=implicit
 
 const box = new create();
 /// @type.symbol symbol=box source=box type=Box<int32>
@@ -75,7 +182,7 @@ const user = new Constructors.user();
 class User {}
 
 declare class Constructors {
-    static user: typeof User;
+    static user: new () => User;
 }
 
 const user: User = new Constructors.user();
@@ -88,10 +195,10 @@ class User {}
 declare class Constructors {
 /// @type.symbol symbol=Constructors type=typeof Constructors
 /// @definition.class symbol=Constructors
-/// @definition.field symbol=Constructors.user source="static user: typeof User" key=user static=true type=typeof User
+/// @definition.field symbol=Constructors.user source="static user: typeof User" key=user static=true type=Function<(), User, "readonly">
 
     static user: typeof User;
-    /// @type.symbol symbol=Constructors.user source="static user: typeof User" type=typeof User
+    /// @type.symbol symbol=Constructors.user source="static user: typeof User" type=Function<(), User, "readonly">
     /// @resolution.name source=User target=User
 
 }
@@ -99,9 +206,10 @@ declare class Constructors {
 const user = new Constructors.user();
 /// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
-/// @resolution.construct source="new Constructors.user()" parameters=() return=User kind=class target=User constructor=default
+/// @resolution.call source="new Constructors.user()" parameters=() return=User kind=expression target=expression
 /// @resolution.name source=Constructors target=Constructors
 /// @resolution.member source=Constructors.user receiver=typeof Constructors type=typeof User kind=field target_receiver=typeof Constructors key=user target=Constructors.user target_type=typeof User
+/// @resolution.place source=Constructors.user placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=Constructors.user root=Constructors keys=[user]
 "#,
     );
@@ -132,7 +240,7 @@ const user = new factory.user();
 class User {}
 
 struct Factory {
-    user: typeof User;
+    user: new () => User;
 }
 
 declare const factory: Factory;
@@ -147,10 +255,10 @@ class User {}
 struct Factory {
 /// @type.symbol symbol=Factory type=Factory
 /// @definition.struct symbol=Factory
-/// @definition.field symbol=Factory.user source="user: typeof User" key=user type=typeof User
+/// @definition.field symbol=Factory.user source="user: typeof User" key=user type=Function<(), User, "readonly">
 
     user: typeof User;
-    /// @type.symbol symbol=Factory.user source="user: typeof User" type=typeof User
+    /// @type.symbol symbol=Factory.user source="user: typeof User" type=Function<(), User, "readonly">
     /// @resolution.name source=User target=User
 
 }
@@ -163,11 +271,12 @@ declare const factory: Factory;
 const user = new factory.user();
 /// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
-/// @resolution.construct source="new factory.user()" parameters=() return=User kind=class target=User constructor=default
+/// @resolution.call source="new factory.user()" parameters=() return=User kind=expression target=expression
 /// @resolution.name source=factory target=factory
 /// @resolution.member source=factory.user receiver=Factory type=typeof User kind=field target_receiver=Factory key=user target=Factory.user target_type=typeof User
 /// @resolution.place source=factory placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=factory root=factory
+/// @resolution.place source=factory.user placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=factory.user root=factory keys=[user]
 "#,
     );
@@ -193,7 +302,7 @@ const user = new constructors[0]();
 === annotated ===
 class User {}
 
-declare const constructors: [typeof User];
+declare const constructors: [new () => User];
 
 const user: User = new constructors[0]();
 
@@ -203,28 +312,29 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare const constructors: [typeof User];
-/// @type.symbol symbol=constructors source=constructors type=Slice<typeof User>
+/// @type.symbol symbol=constructors source=constructors type=Slice<Function<(), User, "readonly">>
 /// @resolution.pattern source=constructors kind=binding target=constructors
 /// @resolution.name source=User target=User
 
 const user = new constructors[0]();
 /// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
-/// @resolution.construct source="new constructors[0]()" parameters=() return=User kind=class target=User constructor=default
+/// @resolution.call source="new constructors[0]()" parameters=() return=User kind=expression target=expression
 /// @resolution.name source=constructors target=constructors
 /// @resolution.place source=constructors placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=constructors root=constructors
+/// @resolution.place source=constructors[0] placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=constructors[0] root=constructors keys=[0]
-/// @resolution.subscript source=constructors[0] type=typeof User kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<typeof User, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#1<typeof User, \"mutable\">" template=index#1 arguments=(typeof User, "mutable")
+/// @resolution.subscript source=constructors[0] type=Function<(), User, "readonly"> kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<Function<(), User, \"readonly\">, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#1<Function<(), User, \"readonly\">, \"mutable\">" template=index#1 arguments=(Function<(), User, "readonly">, "mutable")
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="WithAccess<&'bound0 Slice<typeof User>, \"mutable\">" template=WithAccess arguments=(&'bound0 Slice<typeof User>, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 typeof User, \"mutable\">" template=WithAccess arguments=(&'bound0 typeof User, "mutable")
-/// @generic.instance id="index#1<typeof User, \"mutable\">" template=index#1 arguments=(typeof User, "mutable")
-/// @generic.instance id="size<typeof User>" template=size arguments=(typeof User)
-/// @generic.instance id="sliceIndex<typeof User, \"mutable\">" template=sliceIndex arguments=(typeof User, "mutable")
-/// @generic.instance id="sliceLength<typeof User>" template=sliceLength arguments=(typeof User)
+/// @generic.instance id="WithAccess<&'bound0 Function<(), User, \"readonly\">, \"mutable\">" template=WithAccess arguments=(&'bound0 Function<(), User, "readonly">, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 Slice<Function<(), User, \"readonly\">>, \"mutable\">" template=WithAccess arguments=(&'bound0 Slice<Function<(), User, "readonly">>, "mutable")
+/// @generic.instance id="index#1<Function<(), User, \"readonly\">, \"mutable\">" template=index#1 arguments=(Function<(), User, "readonly">, "mutable")
+/// @generic.instance id="size<Function<(), User, \"readonly\">>" template=size arguments=(Function<(), User, "readonly">)
+/// @generic.instance id="sliceIndex<Function<(), User, \"readonly\">, \"mutable\">" template=sliceIndex arguments=(Function<(), User, "readonly">, "mutable")
+/// @generic.instance id="sliceLength<Function<(), User, \"readonly\">>" template=sliceLength arguments=(Function<(), User, "readonly">)
 /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 "#,
@@ -298,7 +408,7 @@ const box = new create();
 === annotated ===
 class Box<out T, out U = string> {}
 
-const create: typeof Box<int32, string> = Box<int32>;
+const create: new () => Box<int32, string> = Box<int32>;
 
 const box: Box<int32, string> = new create();
 
@@ -311,18 +421,20 @@ class Box<out T, out U = string> {}
 /// @type.symbol symbol=Box.U source="out U = string" type=U
 
 const create = Box<int32>;
-/// @type.symbol symbol=create source=create type=typeof Box<int32, string>
+/// @type.symbol symbol=create source=create type=Function<(), Box<int32, string>, "readonly">
 /// @resolution.pattern source=create kind=binding target=create
+/// @generic.instance id="Box<int32, string>" template=Box arguments=(int32, string)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Box<int32> target=Box
+/// @resolution.function source=Box<int32> type=Function<(), Box<int32, string>, "readonly"> target=Box
+/// @generic.instantiation id="Box<int32, string>" template=Box arguments=(int32, string)
 
 const box = new create();
 /// @type.symbol symbol=box source=box type=Box<int32, string>
 /// @resolution.pattern source=box kind=binding target=box
-/// @generic.instance id="Box<int32, string>" template=Box arguments=(int32, string)
-/// @resolution.construct source="new create()" parameters=() return=Box<int32, string> kind=class target=Box constructor=default instance="Box<int32, string>"
-/// @generic.instantiation id="Box<int32, string>" template=Box arguments=(int32, string)
+/// @resolution.call source="new create()" parameters=() return=Box<int32, string> kind=expression target=expression generic_arguments=(int32, string)
 /// @resolution.name source=create target=create
+/// @resolution.place source=create placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=create root=create
 "#,
     );
@@ -356,13 +468,13 @@ const second = new stringBox();
 === annotated ===
 class Box<out T> {}
 
-const create: typeof Box = Box;
+const create = Box;
 
-const integerBox: typeof Box<int32> = create<int32>;
+const integerBox: new () => Box<int32> = create<int32>;
 
 declare const constructors: [typeof Box];
 
-const stringBox: typeof Box<string> = constructors[0]<string>;
+const stringBox: new () => Box<string> = constructors[0]<string>;
 
 const first: Box<int32> = new integerBox();
 
@@ -376,59 +488,53 @@ class Box<out T> {}
 /// @type.symbol symbol=Box.T source="out T" type=T
 
 const create = Box;
-/// @type.symbol symbol=create source=create type=typeof Box
+/// @type.symbol symbol=create source=create type=Function<(), Box<T>, "readonly">
 /// @resolution.pattern source=create kind=binding target=create
 /// @resolution.name source=Box target=Box
+/// @resolution.function source=Box type=Function<(), Box<T>, "readonly"> target=Box
+/// @generic.instantiation id=Box<T> template=Box arguments=(T)
 
 const integerBox = create<int32>;
-/// @type.symbol symbol=integerBox source=integerBox type=typeof Box<int32>
+/// @type.symbol symbol=integerBox source=integerBox type=Function<(), Box<int32>, "readonly">
 /// @resolution.pattern source=integerBox kind=binding target=integerBox
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
 /// @resolution.name source=create target=create
-/// @resolution.name source=create<int32> target=Box
+/// @resolution.function source=create<int32> type=Function<(), Box<int32>, "readonly">
+/// @resolution.place source=create placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=create root=create
 
 declare const constructors: [typeof Box];
-/// @type.symbol symbol=constructors source=constructors type=Slice<typeof Box>
+/// @type.symbol symbol=constructors source=constructors type=Slice<Function<(), Box<T>, "readonly">>
 /// @resolution.pattern source=constructors kind=binding target=constructors
 /// @resolution.name source=Box target=Box
 
 const stringBox = constructors[0]<string>;
-/// @type.symbol symbol=stringBox source=stringBox type=typeof Box<string>
+/// @type.symbol symbol=stringBox source=stringBox type=Function<(), Box<string>, "readonly">
 /// @resolution.pattern source=stringBox kind=binding target=stringBox
+/// @generic.instance id=Box<string> template=Box arguments=(string)
 /// @resolution.name source=constructors target=constructors
-/// @resolution.name source=constructors[0]<string> target=Box
+/// @resolution.function source=constructors[0]<string> type=Function<(), Box<string>, "readonly">
 /// @resolution.place source=constructors placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=constructors root=constructors
+/// @resolution.place source=constructors[0] placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=constructors[0] root=constructors keys=[0]
-/// @resolution.subscript source=constructors[0] type=typeof Box kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<typeof Box, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
-/// @generic.instantiation id="index#1<typeof Box, \"mutable\">" template=index#1 arguments=(typeof Box, "mutable")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="WithAccess<&'bound0 Slice<typeof Box>, \"mutable\">" template=WithAccess arguments=(&'bound0 Slice<typeof Box>, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 typeof Box, \"mutable\">" template=WithAccess arguments=(&'bound0 typeof Box, "mutable")
-/// @generic.instance id="index#1<typeof Box, \"mutable\">" template=index#1 arguments=(typeof Box, "mutable")
-/// @generic.instance id="size<typeof Box>" template=size arguments=(typeof Box)
-/// @generic.instance id="sliceIndex<typeof Box, \"mutable\">" template=sliceIndex arguments=(typeof Box, "mutable")
-/// @generic.instance id="sliceLength<typeof Box>" template=sliceLength arguments=(typeof Box)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+/// @resolution.subscript source=constructors[0] type=Function<(), Box<T>, "readonly"> kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<Function<(), Box<T>, \"readonly\">, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#1<Function<(), Box<T>, \"readonly\">, \"mutable\">" template=index#1 arguments=(Function<(), Box<T>, "readonly">, "mutable")
 
 const first = new integerBox();
 /// @type.symbol symbol=first source=first type=Box<int32>
 /// @resolution.pattern source=first kind=binding target=first
-/// @generic.instance id=Box<int32> template=Box arguments=(int32)
-/// @resolution.construct source="new integerBox()" parameters=() return=Box<int32> kind=class target=Box constructor=default instance=Box<int32>
-/// @generic.instantiation id=Box<int32> template=Box arguments=(int32)
+/// @resolution.call source="new integerBox()" parameters=() return=Box<int32> kind=expression target=expression generic_arguments=(int32)
 /// @resolution.name source=integerBox target=integerBox
+/// @resolution.place source=integerBox placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=integerBox root=integerBox
 
 const second = new stringBox();
 /// @type.symbol symbol=second source=second type=Box<string>
 /// @resolution.pattern source=second kind=binding target=second
-/// @generic.instance id=Box<string> template=Box arguments=(string)
-/// @resolution.construct source="new stringBox()" parameters=() return=Box<string> kind=class target=Box constructor=default instance=Box<string>
-/// @generic.instantiation id=Box<string> template=Box arguments=(string)
+/// @resolution.call source="new stringBox()" parameters=() return=Box<string> kind=expression target=expression generic_arguments=(string)
 /// @resolution.name source=stringBox target=stringBox
+/// @resolution.place source=stringBox placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=stringBox root=stringBox
 "#,
     );
@@ -452,7 +558,7 @@ const ctor: typeof User = User;
 === annotated ===
 class User {}
 
-const ctor: typeof User = User;
+const ctor: new () => User = User;
 
 === dir ===
 class User {}
@@ -460,10 +566,11 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 const ctor: typeof User = User;
-/// @type.symbol symbol=ctor source=ctor type=typeof User
+/// @type.symbol symbol=ctor source=ctor type=Function<(), User, "readonly">
 /// @resolution.pattern source=ctor kind=binding target=ctor
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
+/// @resolution.function source=User type=Function<(), User, "readonly"> target=User
 "#,
     );
 }
@@ -579,7 +686,7 @@ class User {
     constructor(name: string) {}
 }
 
-const ctor: typeof User = User;
+const ctor: new (name: string) => local User = User;
 
 const user: local User = new ctor("Ada");
 
@@ -598,17 +705,17 @@ class User {
 }
 
 const ctor = User;
-/// @type.symbol symbol=ctor source=ctor type=typeof User
+/// @type.symbol symbol=ctor source=ctor type=Function<(string,), local User, "readonly">
 /// @resolution.pattern source=ctor kind=binding target=ctor
 /// @resolution.name source=User target=User
+/// @resolution.function source=User type=Function<(string,), local User, "readonly"> target=User
 
 const user = new ctor("Ada");
 /// @type.symbol symbol=user source=user type=local User
 /// @resolution.pattern source=user kind=binding target=user
-/// @resolution.construct source="new ctor(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=local User kind=class target=User constructor=User.constructor
-/// @generic.instantiation id="User.constructor<\"local\">" template=User.constructor arguments=("local")
-/// @generic.instantiation id="User<\"local\">" template=User arguments=("local")
+/// @resolution.call source="new ctor(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=local User kind=expression target=expression generic_arguments=("local")
 /// @resolution.name source=ctor target=ctor
+/// @resolution.place source=ctor placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=ctor root=ctor
 "#,
     );
@@ -1508,7 +1615,7 @@ class Counter {
 
 declare function build(value: int32): Counter;
 
-const make: new (value: int32) => Counter = Counter as new (value: int32) => Counter;
+const make: new (value: int32) => Counter = Counter;
 const broken: new (value: int32) => Counter = build;
 
 === dir ===
@@ -1552,6 +1659,7 @@ const make: new (value: int32) => Counter = Counter;
 /// @type.symbol symbol=value#1 source="value: int32" type=int32
 /// @resolution.name source=Counter target=Counter
 /// @resolution.name source=Counter target=Counter
+/// @resolution.function source=Counter type=new (int32) => Counter target=Counter
 
 const broken: new (value: int32) => Counter = build;
 /// @type.symbol symbol=broken source=broken type=new (int32) => Counter

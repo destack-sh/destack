@@ -574,23 +574,6 @@ impl<'a> DirSnapshotBuilder<'a> {
             .join(".")
     }
 
-    /// Render the first source name for one reference node.
-    pub(crate) fn reference_root_label(&self, node: dir::GlobalNodeIdAny) -> String {
-        if node.local_id.ty != dir::NodeType::TypeExpression {
-            return self.reference_source_label(node);
-        }
-
-        let node_id: dir::LocalNodeId<dir::TypeExpression> = node.local_id.into_typed();
-        let dir::TypeExpression::Reference { path, .. } = self.tree.get(node_id) else {
-            return self.reference_source_label(node);
-        };
-        let Some(root) = path.segments.first() else {
-            panic!("reference table type path has no root");
-        };
-
-        self.strings.get(*root).to_string()
-    }
-
     /// Return source path segments for one path-bearing expression.
     fn expression_source_path_segments(
         &self,

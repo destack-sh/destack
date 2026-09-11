@@ -35,7 +35,25 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::Erased(_) => "*".to_string(),
             dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
-            dir::Type::Reference(reference) => self.reference_symbol_label(reference.symbol),
+            dir::Type::Reference(reference) => {
+                let name = self.reference_symbol_label(reference.symbol);
+                let name = if reference.arguments.is_empty() {
+                    name
+                } else {
+                    let arguments =
+                        self.type_id_list_label(types, types.type_ids(reference.arguments), ", ");
+
+                    format!("{name}<{arguments}>")
+                };
+                if matches!(
+                    self.definition(reference.symbol),
+                    Some(dir::Definition::Class(_))
+                ) {
+                    format!("typeof {name}")
+                } else {
+                    name
+                }
+            }
             dir::Type::Application(instance) => self.instance_type_label(types, instance),
             dir::Type::This => "this".to_string(),
             dir::Type::Member(member) => self.member_type_label(types, types.member(*member)),
@@ -474,9 +492,20 @@ impl DirSnapshotBuilder<'_> {
                 format!("{left}[{index}]")
             }
             dir::TypeOperation::TypeOf(query) => {
-                let value = self.reference_source_label(query.value);
+                let value = self.symbol_label(query.symbol);
 
                 format!("typeof {value}")
+            }
+            dir::TypeOperation::Instantiation(application) => {
+                let target = self.type_id_label(types, application.target);
+                let arguments = types
+                    .type_ids(application.arguments)
+                    .iter()
+                    .map(|argument| self.type_id_label(types, *argument))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                format!("{target}<{arguments}>")
             }
             dir::TypeOperation::TemplateLiteral(template) => {
                 self.template_type_label(types, template)
@@ -929,7 +958,8 @@ impl DirSnapshotBuilder<'_> {
         let Some(template) = function.template else {
             return String::new();
         };
-        let parameters = self.function_generic_parameter_list_label(types, template);
+        let arguments = types.generic_arguments(function.arguments);
+        let parameters = self.function_generic_parameter_list_label(types, template, arguments);
         if parameters.is_empty() {
             return String::new();
         }
@@ -1071,6 +1101,7 @@ impl DirSnapshotBuilder<'_> {
         &self,
         types: &dir::TypeTable<'_>,
         template: dir::GlobalGenericTemplateId,
+        arguments: &[dir::GenericArgumentBinding],
     ) -> String {
         let Some(generics) = self.generic_table(template.module_id) else {
             return String::new();
@@ -1081,6 +1112,11 @@ impl DirSnapshotBuilder<'_> {
             .parameters
             .iter()
             .map(|parameter| parameter.into_global(generics.module_id))
+            .filter(|parameter| {
+                !arguments
+                    .iter()
+                    .any(|binding| binding.parameter == *parameter)
+            })
             .map(|parameter| self.function_generic_parameter_label(types, parameter))
             .collect::<Vec<_>>()
             .join(", ")

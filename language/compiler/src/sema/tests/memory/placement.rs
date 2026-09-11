@@ -317,7 +317,7 @@ extension of Buffer {
     clear(&this): void {}
 }
 
-const object: typeof Buffer = Buffer;
+const object: new () => Buffer = Buffer;
 const made: Buffer = new Buffer();
 const buffer: Buffer = Buffer.make();
 
@@ -368,9 +368,10 @@ extension of Buffer {
 }
 
 const object = Buffer;
-/// @type.symbol symbol=object source=object type=typeof Buffer
+/// @type.symbol symbol=object source=object type=Function<(), Buffer, "readonly">
 /// @resolution.pattern source=object kind=binding target=object
 /// @resolution.name source=Buffer target=Buffer
+/// @resolution.function source=Buffer type=Function<(), Buffer, "readonly"> target=Buffer
 
 const made = new Buffer();
 /// @type.symbol symbol=made source=made type=Buffer

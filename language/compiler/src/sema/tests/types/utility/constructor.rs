@@ -46,7 +46,7 @@ class User {
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof User>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<Function<(string, float64), local User, "readonly">>
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User
@@ -103,7 +103,7 @@ const value: Args = ("Ada", 42);
 import { User } from "./user.ds";
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof user.User>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<Function<(string, float64), local user.User, "readonly">>
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof user.User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=user.User
@@ -158,7 +158,7 @@ class User {
 }
 
 type Value = InstanceType<typeof User>;
-/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=InstanceType<typeof User>
+/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=InstanceType<Function<(), User, "readonly">>
 /// @definition.type symbol=Value source="type Value = InstanceType<typeof User>" value=InstanceType<typeof User>
 /// @resolution.name source=InstanceType target=InstanceType
 /// @resolution.name source=User target=User
@@ -225,7 +225,7 @@ class User {
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof User>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<Function<(string, float64), local User, "readonly">>
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User

@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_dir::TypeFold;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -12,7 +13,7 @@ impl CheckState<'_> {
         left: FlowSite,
         target: dir::GlobalTypeId,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         let module = node.module_id;
         let node = node.into_any();
         let site = self.visit_site(node)?;
@@ -33,9 +34,7 @@ impl CheckState<'_> {
                     target,
                     arguments,
                 }))?;
-            self.commit_node_type(node, ty)?;
-
-            return Ok(());
+            return Ok(ty);
         };
 
         // record the selected declaration or callable after applying its arguments
@@ -57,6 +56,14 @@ impl CheckState<'_> {
                     },
                 };
                 let arguments = match &mut target {
+                    dir::CallableTarget::Constructor(construction) => {
+                        construction
+                            .map_types(&mut |ty| self.substitute_type(ty, &substitution))?;
+                        match &mut construction.target {
+                            dir::ConstructTarget::Class { key, .. }
+                            | dir::ConstructTarget::Newtype { key, .. } => &mut key.arguments,
+                        }
+                    }
                     dir::CallableTarget::Symbol { function, .. } => &mut function.key.arguments,
                     dir::CallableTarget::Expression { generic_arguments }
                     | dir::CallableTarget::Dynamic {
@@ -78,8 +85,6 @@ impl CheckState<'_> {
             }
             _ => {}
         }
-        self.commit_node_type(node, ty)?;
-
-        Ok(())
+        Ok(ty)
     }
 }

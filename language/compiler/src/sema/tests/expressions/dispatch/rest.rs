@@ -273,7 +273,7 @@ type Construct<T> = T extends new (...values: infer P) => infer R ? new (...valu
 /// @resolution.name source=R target=Construct.R
 
 type Constructor = Construct<typeof User>;
-/// @type.symbol symbol=Constructor source="type Constructor = Construct<typeof User>" type=Construct<typeof User>
+/// @type.symbol symbol=Constructor source="type Constructor = Construct<typeof User>" type=Construct<Function<(string,), local User, "readonly">>
 /// @definition.type symbol=Constructor source="type Constructor = Construct<typeof User>" value=Construct<typeof User>
 /// @resolution.name source=Construct target=Construct
 /// @resolution.name source=User target=User

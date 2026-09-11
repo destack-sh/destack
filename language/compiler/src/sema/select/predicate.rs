@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
-    CheckState, FlowSite, InferMode, Obligation, Origin, PlaceUse, Relation,
-    RuntimePredicateObligation, Verdict,
+    CheckState, FlowSite, Obligation, Origin, PlaceUse, Relation, RuntimePredicateObligation,
+    Verdict,
 };
 
 impl CheckState<'_> {
@@ -99,9 +99,9 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
-        // read the constructor value through ordinary expression inference
+        // read the class declaration selected by the predicate
         let site = self.visit_site(target)?;
-        let ty = self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
+        let (_, ty) = self.infer_receiver(site)?;
         let ty = self.strip_form(origin, ty)?;
         let ty = self.normalize(origin, ty)?;
         let dir::Type::Reference(reference) = self.ty(ty)? else {

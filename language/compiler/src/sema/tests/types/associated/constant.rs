@@ -31,7 +31,6 @@ interface Interface {
 === dir ===
 class Class {
 /// @type.symbol symbol=Class type=typeof Class
-/// @static.symbol symbol=Class value="typeof Class"
 /// @definition.class symbol=Class
 /// @definition.associated.const symbol=Class.Value source="const Value = 1" key=Value type=1
 
@@ -90,7 +89,6 @@ interface Interface {
 === dir ===
 class Class {
 /// @type.symbol symbol=Class type=typeof Class
-/// @static.symbol symbol=Class value="typeof Class"
 /// @definition.class symbol=Class
 /// @definition.associated.const symbol=Class.Computed source="const Computed = 1 + 2" key=Computed type=3
 /// @definition.associated.const symbol=Class.Value source="const Value" key=Value type=<error>
@@ -154,7 +152,6 @@ declare const lane: [uint8; 8];
 class Segment<in out Row> {
 /// @generic.template symbol=Segment parameters=(in out Row)
 /// @type.symbol symbol=Segment type=typeof Segment
-/// @static.symbol symbol=Segment value="typeof Segment"
 /// @definition.class symbol=Segment template=(in out Row)
 /// @definition.associated.type symbol=Segment.Lane source="type Lane = [uint8; this.Width]" key=Lane value="FixedArray<uint8, this.Width>"
 /// @definition.associated.const symbol=Segment.Width source="const Width: uint = Row extends string ? 8 : 4" key=Width type=uint64

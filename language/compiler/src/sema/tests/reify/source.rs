@@ -639,23 +639,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         let dir::OperationResolution::One(call) = resolution else {
             return Ok(());
         };
-        let mut arguments = match call {
-            dir::Call {
-                target: dir::CallableTarget::Expression { generic_arguments },
-                ..
-            }
-            | dir::Call {
-                target:
-                    dir::CallableTarget::Dynamic {
-                        generic_arguments, ..
-                    },
-                ..
-            } => generic_arguments.clone(),
-            dir::Call {
-                target: dir::CallableTarget::Symbol { function, .. },
-                ..
-            } => function.key.arguments.clone(),
-        };
+        let mut arguments = call.target.generic_arguments().to_vec();
 
         // print only the arguments selected at this invocation
         let callee = left.into_global_any(module_id);

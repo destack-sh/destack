@@ -30,7 +30,8 @@ impl CheckState<'_> {
         }
 
         // infer expressions without a target-directed rule
-        let source = self.infer_node(site, PlaceUse::Read, expectation.mode)?;
+        let source =
+            self.infer_node_in(site, PlaceUse::Read, expectation.mode, Some(expectation))?;
 
         Ok(ValueCheck {
             source,
@@ -324,7 +325,7 @@ impl CheckState<'_> {
         };
 
         // commit the selected declaration and convert its value
-        self.infer_name_expression(site, &dir::NameResolution::new(symbol))?;
+        self.infer_name_expression(site, &dir::NameResolution::new(symbol), Some(expectation))?;
         let source = self.require_node_type(site.node)?;
         let check = self.check_value(site, source, expectation)?;
 

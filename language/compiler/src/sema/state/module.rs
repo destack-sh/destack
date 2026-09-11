@@ -1268,26 +1268,6 @@ impl<'a> CheckState<'a> {
         Ok(has_inferred_value || has_static_id)
     }
 
-    /// Return the class constructor static, creating it on first use.
-    pub(in crate::sema) fn class_static_id(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::GlobalStaticId> {
-        // reuse the class's committed static
-        if let Some(id) = self.symbol_static_id(symbol)? {
-            return Ok(id);
-        }
-
-        // record the class declaration as its constructor value
-        let ty = self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
-        let state = self.module_mut(symbol.module_id);
-        let id = state.statics_tail.push_static(dir::StaticTerm::Type { ty });
-        let id = id.into_global(symbol.module_id);
-        state.statics_tail.set_symbol_static(symbol, id);
-
-        Ok(id)
-    }
-
     /// Return the static id one symbol's evaluated value carries.
     pub(in crate::sema) fn symbol_static_id(
         &self,

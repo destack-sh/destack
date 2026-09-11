@@ -805,6 +805,10 @@ fn add_call_target_fields(
     target: &dir::CallableTarget,
 ) -> SnapshotRow {
     match target {
+        dir::CallableTarget::Constructor(construction) => row.field("kind", "constructor").field(
+            "target",
+            construct_target_label(builder, &construction.target),
+        ),
         dir::CallableTarget::Expression { generic_arguments } => row
             .field("kind", "expression")
             .field("target", "expression")
@@ -1410,6 +1414,9 @@ fn call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::Call) -> String {
 /// Return one call target snapshot label.
 fn call_target_label(builder: &DirSnapshotBuilder<'_>, target: &dir::CallableTarget) -> String {
     match target {
+        dir::CallableTarget::Constructor(construction) => {
+            construct_target_label(builder, &construction.target)
+        }
         dir::CallableTarget::Expression { .. } => "expression".to_string(),
         dir::CallableTarget::Symbol { function, dispatch } => match dispatch {
             dir::FunctionDispatch::Direct => builder.function_target_label(function),
@@ -1527,14 +1534,6 @@ fn add_construct_decision_row(
         dir::ConstructTarget::Newtype { key, backing } => {
             add_newtype_construct_fields(builder, row.field("kind", "newtype"), key, *backing)
         }
-        dir::ConstructTarget::Dynamic { dispatch, function } => row
-            .field("kind", "dynamic")
-            .field("target", dynamic_function_label(builder, function))
-            .type_field(
-                "receiver",
-                builder.global_type_label(dispatch.receiver.source),
-            )
-            .type_field("constraint", builder.global_type_label(dispatch.constraint)),
     };
 
     builder.push(row);
@@ -1599,6 +1598,9 @@ fn tree_call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::CallDecision) -
         return None;
     };
     let target = match &call.target {
+        dir::CallableTarget::Constructor(construction) => {
+            construct_target_label(builder, &construction.target)
+        }
         dir::CallableTarget::Symbol { function, .. } => builder.function_target_label(function),
         dir::CallableTarget::Expression { .. } => "expression".to_string(),
         dir::CallableTarget::Dynamic { .. } => "dynamic".to_string(),
@@ -1616,7 +1618,6 @@ fn construct_target_label(
         dir::ConstructTarget::Class { key, .. } | dir::ConstructTarget::Newtype { key, .. } => {
             builder.symbol_path_label(key.symbol)
         }
-        dir::ConstructTarget::Dynamic { function, .. } => dynamic_function_label(builder, function),
     }
 }
 
@@ -2622,7 +2623,18 @@ fn argument_binding_label(
     builder: &DirSnapshotBuilder<'_>,
     binding: &dir::ArgumentBinding,
 ) -> String {
-    let source = match &binding.source {
+    let source = argument_source_label(builder, &binding.source);
+
+    format!(
+        "{} as {}",
+        source,
+        builder.global_type_label(binding.argument_type)
+    )
+}
+
+/// Render the source selected for one argument.
+fn argument_source_label(builder: &DirSnapshotBuilder<'_>, source: &dir::ArgumentSource) -> String {
+    match source {
         dir::ArgumentSource::Provided(node) => {
             let source = builder
                 .node_source(*node)
@@ -2633,16 +2645,20 @@ fn argument_binding_label(
         dir::ArgumentSource::Static(ty) => {
             format!("static({})", builder.global_type_label(*ty))
         }
-        dir::ArgumentSource::Supplied => "supplied".to_string(),
+        dir::ArgumentSource::Supplied(index) => format!("supplied({index})"),
+        dir::ArgumentSource::Spread(spread) => {
+            let source = argument_binding_label(builder, &spread.value);
+            let iterator = call_label(builder, &spread.iteration.iterator);
+            let next = call_label(builder, &spread.iteration.next);
+
+            format!("spread({source}, iterator={iterator}, next={next})")
+        }
+        dir::ArgumentSource::Error => "error".to_string(),
         dir::ArgumentSource::Omitted => "omitted".to_string(),
         dir::ArgumentSource::Rest { elements, pack } => {
             let sources = elements
                 .iter()
-                .map(|node| {
-                    builder
-                        .node_source(*node)
-                        .unwrap_or_else(|| builder.node_label(*node))
-                })
+                .map(|element| argument_binding_label(builder, element))
                 .collect::<Vec<_>>()
                 .join(", ");
 
@@ -2651,13 +2667,7 @@ fn argument_binding_label(
                 None => format!("rest({sources})"),
             }
         }
-    };
-
-    format!(
-        "{} as {}",
-        source,
-        builder.global_type_label(binding.argument_type)
-    )
+    }
 }
 
 /// Return selected generic argument values in binding order.

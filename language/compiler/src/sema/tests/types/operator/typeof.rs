@@ -78,7 +78,7 @@ const box = new create();
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare const create: typeof Box<int32, string>;
+declare const create: new () => Box<int32, string>;
 
 class Box<out T, out U = string> {}
 
@@ -86,8 +86,9 @@ const box: Box<int32, string> = new create();
 
 === dir ===
 declare const create: typeof Box<int32>;
-/// @type.symbol symbol=create source=create type=typeof Box<int32, string>
+/// @type.symbol symbol=create source=create type=Function<(), Box<int32, string>, "readonly">
 /// @resolution.pattern source=create kind=binding target=create
+/// @generic.instance id="Box<int32, string>" template=Box arguments=(int32, string)
 /// @resolution.name source=Box target=Box
 
 class Box<out T, out U = string> {}
@@ -100,10 +101,9 @@ class Box<out T, out U = string> {}
 const box = new create();
 /// @type.symbol symbol=box source=box type=Box<int32, string>
 /// @resolution.pattern source=box kind=binding target=box
-/// @generic.instance id="Box<int32, string>" template=Box arguments=(int32, string)
-/// @resolution.construct source="new create()" parameters=() return=Box<int32, string> kind=class target=Box constructor=default instance="Box<int32, string>"
-/// @generic.instantiation id="Box<int32, string>" template=Box arguments=(int32, string)
+/// @resolution.call source="new create()" parameters=() return=Box<int32, string> kind=expression target=expression generic_arguments=(int32, string)
 /// @resolution.name source=create target=create
+/// @resolution.place source=create placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=create root=create
 "#,
     );
@@ -394,9 +394,9 @@ let bad: ValueType = "no";
     );
 }
 
-/// A typeof over a class projects its statics and satisfies construct signatures.
+/// Class names provide constructor values and direct static member access.
 #[test]
-fn test_typeof_class_projects_statics_and_satisfies_construct_shapes() {
+fn test_reference_class_constructor_and_static_members() {
     let session = TestSession::single(
         r#"
 class Counter {
@@ -413,7 +413,7 @@ type CounterCtor = typeof Counter;
 declare function takesCounter(ctor: { new (value: int32): Counter }): void;
 
 takesCounter(Counter);
-let version: CounterCtor["version"] = 1;
+let version: int32 = Counter.version;
 "#,
     );
 
@@ -435,8 +435,8 @@ type CounterCtor = typeof Counter;
 
 declare function takesCounter(ctor: new (value: int32) => Counter): void;
 
-takesCounter(Counter as new (value: int32) => Counter);
-let version: int32 = 1;
+takesCounter(Counter);
+let version: int32 = Counter.version;
 
 === dir ===
 class Counter {
@@ -473,7 +473,7 @@ class Counter {
 }
 
 type CounterCtor = typeof Counter;
-/// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=typeof Counter
+/// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=Function<(int32,), local Counter, "readonly">
 /// @definition.type symbol=CounterCtor source="type CounterCtor = typeof Counter" value=typeof Counter
 /// @resolution.name source=Counter target=Counter
 
@@ -487,11 +487,15 @@ takesCounter(Counter);
 /// @resolution.name source=takesCounter target=takesCounter
 /// @resolution.call source=takesCounter(Counter) parameters=(new (int32) => Counter) arguments=(provided(Counter) as new (int32) => Counter) return=void kind=symbol target=takesCounter
 /// @resolution.name source=Counter target=Counter
+/// @resolution.function source=Counter type=Function<(int32,), local Counter, "readonly"> target=Counter
 
-let version: CounterCtor["version"] = 1;
+let version: int32 = Counter.version;
 /// @type.symbol symbol=version source=version type=int32
 /// @resolution.pattern source=version kind=binding target=version
-/// @resolution.name source=CounterCtor target=CounterCtor
+/// @resolution.name source=Counter target=Counter
+/// @resolution.member source=Counter.version receiver=typeof Counter type=int32 kind=field target_receiver=typeof Counter key=version target=Counter.version target_type=int32
+/// @resolution.place source=Counter.version placement="local" lifetime="static" access="mutable"
+/// @resolution.access source=Counter.version root=Counter keys=[version]
 "#,
     );
 }

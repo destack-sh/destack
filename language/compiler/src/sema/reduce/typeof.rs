@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::CheckState;
+use crate::sema::{CheckState, Origin};
 
 impl CheckState<'_> {
     /// Return the type of a value declaration once its declared type is available.
@@ -11,7 +11,17 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // use the same constructor type as an ordinary class reference
         if self.symbol_kind(symbol)? == dir::SymbolKind::Class {
-            let ty = self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
+            if self.is_declaring() {
+                return Ok(None);
+            }
+            let reference =
+                self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
+            let constructors = self.constructor_signatures(Origin::Symbol(symbol), reference)?;
+            let mut signatures = Vec::with_capacity(constructors.len());
+            for constructor in constructors {
+                signatures.push(self.function_type(constructor.ty)?);
+            }
+            let ty = self.normalized_intersection_type(signatures)?;
 
             return Ok(Some(ty));
         }
