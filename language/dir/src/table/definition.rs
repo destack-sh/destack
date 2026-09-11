@@ -487,7 +487,7 @@ pub struct ClassConstructorDefinition {
 }
 
 /// Class construct candidate origin.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ClassConstructor {
     /// Constructor explicitly declared by this class.
     Declared {

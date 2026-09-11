@@ -6,7 +6,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CastOrigin, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId, SegmentView, Type, TypeFold,
+    CastOrigin, ConstructDecision, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId,
+    InstanceKeyVisit, SegmentView, Type, TypeFold,
 };
 
 /// Cumulative checked coercions for one DIR module.
@@ -98,7 +99,9 @@ impl<'a> CoercionTable<'a> {
 }
 
 /// One checked coercion from a source type to a target type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
+)]
 pub struct Coercion {
     /// The source type before coercion.
     pub source: GlobalTypeId,
@@ -109,8 +112,17 @@ pub struct Coercion {
 }
 
 /// One adjustment in a checked coercion path.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
+)]
 pub enum CoercionAdjustment {
+    /// Convert a class declaration value into an allocating constructor function.
+    Constructor {
+        /// The callable type after this adjustment.
+        target: GlobalTypeId,
+        /// The construction performed over the function's supplied parameters.
+        construction: Box<ConstructDecision>,
+    },
     /// Borrow one value with the target lifetime and access.
     Borrow {
         /// The borrowed type.
@@ -173,7 +185,9 @@ pub enum CoercionAdjustment {
 }
 
 /// One selected conversion for a possible union source type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
+)]
 pub struct CoercionCase {
     /// The source type entering this case.
     pub source: GlobalTypeId,
@@ -227,6 +241,7 @@ impl CoercionAdjustment {
     pub const fn target(&self) -> GlobalTypeId {
         match self {
             Self::Borrow { target }
+            | Self::Constructor { target, .. }
             | Self::Read { target }
             | Self::Union { target, .. }
             | Self::Erase { target }
@@ -244,6 +259,7 @@ impl CoercionAdjustment {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Borrow { .. } => "borrow",
+            Self::Constructor { .. } => "constructor",
             Self::Read { .. } => "read",
             Self::Union { .. } => "union",
             Self::Erase { .. } => "erase",

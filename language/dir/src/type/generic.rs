@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit,
-    LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey, TypeFlags, TypeFold, VarianceModifier,
-    WhereRelation,
+    Coercion, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey,
+    InstanceKeyVisit, IterationDecision, LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey,
+    TypeFlags, TypeFold, VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -601,20 +601,18 @@ pub struct ArgumentBinding {
     pub argument_type: GlobalTypeId,
     /// The runtime argument source bound to this parameter.
     pub source: ArgumentSource,
+    /// The checked conversion of a generated value; authored values use the coercion table.
+    pub coercion: Option<Box<Coercion>>,
 }
 
 impl ArgumentBinding {
-    /// Return whether this binding consumes one source argument node.
+    /// Return whether this binding includes the authored argument.
     pub fn contains_argument(&self, argument: GlobalNodeIdAny) -> bool {
-        match &self.source {
-            ArgumentSource::Provided(source) => *source == argument,
-            ArgumentSource::Rest { elements, .. } => elements.contains(&argument),
-            ArgumentSource::Static(_) | ArgumentSource::Supplied | ArgumentSource::Omitted => false,
-        }
+        self.source.contains_argument(argument)
     }
 }
 
-/// Source argument bound to one selected parameter slot.
+/// The source of a bound runtime argument.
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]
@@ -623,15 +621,46 @@ pub enum ArgumentSource {
     Provided(GlobalNodeIdAny),
     /// One static argument was inserted by checking.
     Static(GlobalTypeId),
-    /// The enclosing construct supplies this argument, a place write or a propagated residual.
-    Supplied,
+    /// An argument at this index in the enclosing operation's supplied values.
+    Supplied(u32),
+    /// An iterable argument expanded into its elements.
+    Spread(Box<SpreadArgument>),
+    /// An argument whose checking reported an error.
+    Error,
     /// No source argument was supplied.
     Omitted,
     /// Remaining source arguments were supplied to a rest parameter.
     Rest {
-        /// The packed source arguments in call order.
-        elements: Vec<GlobalNodeIdAny>,
+        /// The checked elements in call order.
+        elements: Vec<ArgumentBinding>,
         /// The selected pack constructor, absent for slice parameters.
         pack: Option<InstanceKey>,
     },
+}
+
+impl ArgumentSource {
+    /// Return whether this source includes the authored argument.
+    pub fn contains_argument(&self, argument: GlobalNodeIdAny) -> bool {
+        match self {
+            Self::Provided(source) => *source == argument,
+            Self::Rest { elements, .. } => elements
+                .iter()
+                .any(|element| element.contains_argument(argument)),
+            Self::Spread(spread) => spread.value.contains_argument(argument),
+            Self::Static(_) | Self::Supplied(_) | Self::Omitted | Self::Error => false,
+        }
+    }
+}
+
+/// The checked iteration supplying a spread argument's elements.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
+)]
+pub struct SpreadArgument {
+    /// The collection evaluated before iteration starts.
+    pub value: ArgumentBinding,
+    /// The selected iterator operations.
+    pub iteration: IterationDecision,
+    /// The type yielded by the iterator.
+    pub element: GlobalTypeId,
 }

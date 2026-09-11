@@ -4,7 +4,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor,
+    AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor, Coercion,
     DynamicDispatch, Expression, GenericArgumentBinding, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit, MemberReceiver, MemberSpace,
     Predicate, Projection, ProjectionResolution, ScalarFamily, ScalarFamilySet, StaticKey,
@@ -1447,14 +1447,16 @@ pub struct FunctionTarget {
     pub key: InstanceKey,
 }
 
-/// Construct expression selected at a usage site.
+/// One checked construction.
 ///
 /// Examples:
 /// ```ds
 /// new User(name)
 /// UserId(raw)
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
+)]
 pub struct ConstructDecision {
     /// The selected construct target.
     pub target: ConstructTarget,
@@ -1464,10 +1466,12 @@ pub struct ConstructDecision {
     pub return_type: GlobalTypeId,
     /// The regions bound for the constructor's region parameters, the class's and its own.
     pub regions: Vec<GenericArgumentBinding>,
+    /// The checked conversion of the constructed result.
+    pub coercion: Option<Box<Coercion>>,
 }
 
 impl ConstructDecision {
-    /// Create a construct resolution.
+    /// Create a construction decision.
     pub fn new(
         target: ConstructTarget,
         arguments: Vec<ArgumentBinding>,
@@ -1479,12 +1483,13 @@ impl ConstructDecision {
             arguments,
             return_type,
             regions,
+            coercion: None,
         }
     }
 }
 
 /// Construct target selected at a usage site.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum ConstructTarget {
     /// Class construction selected at compile time.
     ///

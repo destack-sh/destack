@@ -71,7 +71,9 @@ pub enum Decision {
 /// for (using const item of items) {}
 /// for await (using item of items) {}
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
+)]
 pub struct IterationDecision {
     /// The call opening the source's iterator.
     pub iterator: Call,
@@ -84,7 +86,9 @@ pub struct IterationDecision {
 }
 
 /// The await one async iteration runs on every pass.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
+)]
 pub struct IterationAwait {
     /// The selected Awaitable.park call.
     pub call: Call,
@@ -113,7 +117,9 @@ pub struct TemplateDecision {
 /// using file = open(path);          // Dispose.dispose at scope exit
 /// await using conn = connect(url);  // AsyncDispose.asyncDispose, its completion parked
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
+)]
 pub struct DisposalDecision {
     /// The call disposing the resource at scope exit.
     pub dispose: Call,
@@ -122,7 +128,7 @@ pub struct DisposalDecision {
 }
 
 /// What one implicit await produces for its loop.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AwaitTarget {
     /// The result an async iterator's next returns.
     Result,
