@@ -181,8 +181,7 @@ impl FunctionLowerer<'_, '_, '_> {
         )
     }
 
-    /// Lower one class construction over its evaluated argument values, a declared constructor
-    /// instantiated at the regions the construction bound.
+    /// Lower class construction with evaluated arguments and instantiated constructor regions.
     pub(in crate::lower) fn lower_class_instance(
         &mut self,
         return_type: dir::GlobalTypeId,
@@ -203,8 +202,8 @@ impl FunctionLowerer<'_, '_, '_> {
         );
 
         // allocate zeroed heap storage for managed destinations
-        let (slot, storage) = if is_reference {
-            (None, self.builder.new_zeroed(pointee, representation))
+        let storage = if is_reference {
+            self.builder.new_zeroed(pointee, representation)
         }
         // otherwise construct owned destinations in place inside a local slot
         else {
@@ -220,11 +219,11 @@ impl FunctionLowerer<'_, '_, '_> {
                 .builder
                 .local_addr(slot, address, mir::AddressKind::Borrow);
 
-            (Some(slot), address)
+            address
         };
 
-        // initialize the storage through an exclusive borrow
-        match constructor {
+        // retain the receiver used to initialize the storage
+        let receiver = match constructor {
             // call the constructor the class declares
             dir::ClassConstructor::Declared { symbol } => {
                 // select the declared instance from the substituted class arguments
@@ -240,13 +239,15 @@ impl FunctionLowerer<'_, '_, '_> {
                     regions,
                     Some(lifetime),
                 )?;
-                let receiver = self.constructed_receiver(storage, pointee)?;
 
                 // bind the constructor arguments after the receiver
+                let receiver = self.constructed_receiver(storage, pointee)?;
                 let mut values = Vec::with_capacity(arguments.len() + 1);
                 values.push(receiver);
                 values.extend(arguments);
                 self.call(&function, values);
+
+                Some(receiver)
             }
             // call the synthesized constructor a defaulted class stands in for
             dir::ClassConstructor::Default => {
@@ -283,25 +284,38 @@ impl FunctionLowerer<'_, '_, '_> {
                     )?;
                     let receiver = self.constructed_receiver(storage, pointee)?;
                     self.call(&selected, vec![receiver]);
+
+                    Some(receiver)
+                } else {
+                    None
                 }
             }
             // reject every remaining constructor kind
             other => {
                 return Err(self.internal(format!("a {other:?} constructor")));
             }
-        }
+        };
 
-        // read the initialized slot back out for owned constructions
-        let object = match slot {
-            Some(slot) => self.builder.local_get(slot),
-            None => storage,
+        // assert completion before loading the constructed owned value
+        let object = if is_reference {
+            storage
+        } else {
+            let receiver = match receiver {
+                Some(receiver) => receiver,
+                None => self.constructed_receiver(storage, pointee)?,
+            };
+            let reference = self.value_representation(storage)?;
+            let initialized =
+                self.builder
+                    .intrinsic(mir::Intrinsic::Transmute, reference, vec![receiver]);
+
+            self.builder.load(initialized, pointee)
         };
 
         Ok(object)
     }
 
-    /// Bitcast one constructed storage to the exclusive uninitialized receiver the instantiated
-    /// constructor takes.
+    /// Borrow the constructed storage as the constructor's exclusive uninitialized receiver.
     fn constructed_receiver(
         &mut self,
         storage: mir::Value,

@@ -42,6 +42,9 @@ impl From<(ModuleId, mir::LayoutError)> for CompilerError {
     /// Convert one MIR layout error into a compiler error.
     fn from((module, error): (ModuleId, mir::LayoutError)) -> Self {
         match error {
+            mir::LayoutError::Missing { ty } => Self::Internal {
+                message: format!("missing required MIR layout for {ty:?}"),
+            },
             mir::LayoutError::Unsupported { construct } => LowerError::Unsupported {
                 anchor: module.into(),
                 construct,

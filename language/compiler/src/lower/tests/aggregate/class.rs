@@ -791,12 +791,13 @@ entry(v0: int32):
     v2: ref<test.main.Counter, borrowed, 'frame, mutable, frame> = local.address l1
     v3: ref<uninit<test.main.Counter>, borrowed, 'frame, mutable, frame> = cast.bit v2 -> ref<uninit<test.main.Counter>, borrowed, 'frame, mutable, frame>
     call test.main.Counter.constructor(v3, v1): <'a>(ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>, int32) => void
-    v4: test.main.Counter = local.get l1
-    local.set l2, v4
-    v5: ref<test.main.Counter, borrowed, 'frame, readonly, frame> = local.project l2
-    v6: ref<int32, borrowed, 'frame, readonly, frame> = field.project v5, 0
-    v7: int32 = load v6
-    return v7
+    v4: ref<test.main.Counter, borrowed, 'frame, mutable, frame> = intrinsic.memory.raw.transmute(v3)
+    v5: test.main.Counter = load v4
+    local.set l2, v5
+    v6: ref<test.main.Counter, borrowed, 'frame, readonly, frame> = local.project l2
+    v7: ref<int32, borrowed, 'frame, readonly, frame> = field.project v6, 0
+    v8: int32 = load v7
+    return v8
 }
 
 /// @layout.struct name=test.main.Counter size=4 align=4
@@ -858,8 +859,9 @@ entry:
     v0: ref<test.main.Counter, borrowed, 'frame, mutable, frame> = local.address l0
     v1: ref<uninit<test.main.Counter>, borrowed, 'frame, mutable, frame> = cast.bit v0 -> ref<uninit<test.main.Counter>, borrowed, 'frame, mutable, frame>
     call test.main.Counter.constructor(v1): <'a>(ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>) => void
-    v2: test.main.Counter = local.get l0
-    return v2
+    v2: ref<test.main.Counter, borrowed, 'frame, mutable, frame> = intrinsic.memory.raw.transmute(v1)
+    v3: test.main.Counter = load v2
+    return v3
 }
 
 /// @layout.struct name=test.main.Counter size=4 align=4
@@ -966,8 +968,9 @@ entry:
     v0: ref<test.main.Derived, borrowed, 'frame, mutable, frame> = local.address l0
     v1: ref<uninit<test.main.Derived>, borrowed, 'frame, mutable, frame> = cast.bit v0 -> ref<uninit<test.main.Derived>, borrowed, 'frame, mutable, frame>
     call test.main.Derived.constructor(v1): <'a>(ref<uninit<test.main.Derived>, borrowed, 'a, mutable, local>) => void
-    v2: test.main.Derived = local.get l0
-    return v2
+    v2: ref<test.main.Derived, borrowed, 'frame, mutable, frame> = intrinsic.memory.raw.transmute(v1)
+    v3: test.main.Derived = load v2
+    return v3
 }
 
 /// @layout.struct name=test.main.Derived size=8 align=4

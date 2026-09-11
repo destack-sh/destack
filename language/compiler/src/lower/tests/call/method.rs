@@ -390,11 +390,12 @@ entry:
     v1: ref<test.main.Box, borrowed, 'frame, mutable, frame> = local.address l0
     v2: ref<uninit<test.main.Box>, borrowed, 'frame, mutable, frame> = cast.bit v1 -> ref<uninit<test.main.Box>, borrowed, 'frame, mutable, frame>
     call test.main.Box.constructor(v2, v0): <'a>(ref<uninit<test.main.Box>, borrowed, 'a, mutable, local>, int32) => void
-    v3: test.main.Box = local.get l0
-    local.set l1, v3
-    v4: test.main.Box = local.get l1
-    v5: int32 = call test.main.Box.unwrap(v4): (test.main.Box) => int32
-    return v5
+    v3: ref<test.main.Box, borrowed, 'frame, mutable, frame> = intrinsic.memory.raw.transmute(v2)
+    v4: test.main.Box = load v3
+    local.set l1, v4
+    v5: test.main.Box = local.get l1
+    v6: int32 = call test.main.Box.unwrap(v5): (test.main.Box) => int32
+    return v6
 }
 
 /// @layout.struct name=test.main.Box size=4 align=4
