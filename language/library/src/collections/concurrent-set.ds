@@ -158,10 +158,7 @@ export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(
-        &readonly this,
-        predicate: (value: &immutable shared ValueOf<T>) => boolean,
-    ): void {
+    retain(&readonly this, predicate: (value: &immutable shared ValueOf<T>) => boolean): void {
         todo("ConcurrentSet.retain");
     }
 
