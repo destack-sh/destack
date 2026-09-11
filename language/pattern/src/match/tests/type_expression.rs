@@ -99,3 +99,28 @@ switch (value) {
 "#,
     );
 }
+
+/// Match equivalent borrow qualifier orders and reject different guarantees.
+#[test]
+fn test_match_borrow_type_qualifiers() {
+    TestMatcher::context(
+        "type X = &readonly exclusive $TYPE",
+        dir::NodeType::TypeExpression,
+        r#"
+type A = &readonly exclusive First
+type B = &exclusive readonly Second
+type C = &readonly Third
+type D = &exclusive Fourth
+"#,
+    )
+    .assert(
+        r#"
+type A = &readonly exclusive First
+         ^^^^^^^^^^^^^^^^^^^^^^^^^ match TYPE.node="First"
+type B = &exclusive readonly Second
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^ match TYPE.node="Second"
+type C = &readonly Third
+type D = &exclusive Fourth
+"#,
+    );
+}

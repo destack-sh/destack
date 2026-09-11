@@ -754,16 +754,19 @@ impl Matcher<'_, '_> {
             (
                 dir::Expression::BorrowOf {
                     mutability: pattern_mutability,
+                    exclusivity: pattern_exclusivity,
                     variance: pattern_variance,
                     right: pattern_right,
                 },
                 dir::Expression::BorrowOf {
                     mutability: candidate_mutability,
+                    exclusivity: candidate_exclusivity,
                     variance: candidate_variance,
                     right: candidate_right,
                 },
             ) => {
                 if pattern_mutability != candidate_mutability
+                    || pattern_exclusivity != candidate_exclusivity
                     || pattern_variance != candidate_variance
                 {
                     return Ok(false);

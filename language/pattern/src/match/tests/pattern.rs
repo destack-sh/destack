@@ -26,3 +26,28 @@ match (point) {
 "#,
     );
 }
+
+/// Match borrow patterns by access and exclusivity in either qualifier order.
+#[test]
+fn test_match_borrow_qualifiers() {
+    TestMatcher::context(
+        "const &readonly exclusive value = source;",
+        dir::NodeType::Pattern,
+        r#"
+const &readonly exclusive value = first;
+const &exclusive readonly value = second;
+const &readonly value = third;
+const &exclusive value = fourth;
+"#,
+    )
+    .assert(
+        r#"
+const &readonly exclusive value = first;
+      ^^^^^^^^^^^^^^^^^^^^^^^^^ match
+const &exclusive readonly value = second;
+      ^^^^^^^^^^^^^^^^^^^^^^^^^ match
+const &readonly value = third;
+const &exclusive value = fourth;
+"#,
+    );
+}

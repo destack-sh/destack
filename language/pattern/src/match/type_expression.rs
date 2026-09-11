@@ -307,17 +307,20 @@ impl Matcher<'_, '_> {
                 dir::TypeExpression::BorrowedOf {
                     lifetime: pattern_lifetime,
                     mutability: pattern_mutability,
+                    exclusivity: pattern_exclusivity,
                     variance: pattern_variance,
                     target_type: pattern_target,
                 },
                 dir::TypeExpression::BorrowedOf {
                     lifetime: candidate_lifetime,
                     mutability: candidate_mutability,
+                    exclusivity: candidate_exclusivity,
                     variance: candidate_variance,
                     target_type: candidate_target,
                 },
             ) => {
                 if pattern_mutability != candidate_mutability
+                    || pattern_exclusivity != candidate_exclusivity
                     || pattern_variance != candidate_variance
                     || !self.match_optional_type_expression(
                         nodes,

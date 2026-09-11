@@ -20,3 +20,27 @@ alias.fetch(third)
 "#,
     );
 }
+
+/// Match equivalent borrow qualifier orders and reject different guarantees.
+#[test]
+fn test_match_borrow_qualifiers() {
+    TestMatcher::new(
+        "&readonly exclusive $VALUE",
+        r#"
+&readonly exclusive first;
+&exclusive readonly second;
+&readonly third;
+&exclusive fourth;
+"#,
+    )
+    .assert(
+        r#"
+&readonly exclusive first;
+^^^^^^^^^^^^^^^^^^^^^^^^^ match VALUE.node="first"
+&exclusive readonly second;
+^^^^^^^^^^^^^^^^^^^^^^^^^^ match VALUE.node="second"
+&readonly third;
+&exclusive fourth;
+"#,
+    );
+}

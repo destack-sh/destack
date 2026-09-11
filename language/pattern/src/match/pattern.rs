@@ -52,14 +52,24 @@ impl Matcher<'_, '_> {
             (
                 dir::Pattern::BorrowOf {
                     mutability: pattern_mutability,
+                    exclusivity: pattern_exclusivity,
                     right: pattern_right,
                 },
                 dir::Pattern::BorrowOf {
                     mutability: candidate_mutability,
+                    exclusivity: candidate_exclusivity,
                     right: candidate_right,
                 },
-            )
-            | (
+            ) => {
+                if pattern_mutability != candidate_mutability
+                    || pattern_exclusivity != candidate_exclusivity
+                {
+                    return Ok(false);
+                }
+
+                self.match_pattern_node(nodes, *pattern_right, *candidate_right, bindings)
+            }
+            (
                 dir::Pattern::MoveOf {
                     mutability: pattern_mutability,
                     right: pattern_right,
