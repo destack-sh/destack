@@ -488,23 +488,25 @@ type Borrows<space P, space Q, 'a> {
     );
 }
 
-/// Preserve independent access and exclusivity on references, slices, and generic applications.
+/// Preserve access modes on references, slices, and generic applications.
 #[test]
 fn test_format_borrow_qualifiers() {
     assert_format(
         r#"
-type Borrows<T, 'a, access A, exclusivity X> {
+type Borrows<T, 'a, access A> {
     mutable: ref<T, borrowed, 'a, mutable>;
     readonly: ref<T, borrowed, 'a, readonly>;
-    exclusive: ref<T, borrowed, 'a, mutable, exclusive>;
-    protected: ref<T, borrowed, 'a, readonly, exclusive>;
-    generic: ref<T, borrowed, 'a, A, X>;
-    slice: slice<T, borrowed, 'a, readonly, exclusive>;
-    erased: ref<T, borrowed, '_ & shared, readonly, exclusive>;
+    exclusive: ref<T, borrowed, 'a, exclusive>;
+    immutable: ref<T, borrowed, 'a, immutable>;
+    generic: ref<T, borrowed, 'a, A>;
+    raw: ref<T, raw, mutable, local>;
+    rawSlice: slice<T, raw, readonly, shared>;
+    slice: slice<T, borrowed, 'a, immutable>;
+    erased: ref<T, borrowed, '_ & shared, immutable>;
     @held: ref<T, borrowed, 'a, readonly>;
 }
 
-type Applied = Borrows<int32, 'static & shared, readonly, exclusive>;
+type Applied = Borrows<int32, 'static & shared, immutable>;
 "#,
     );
 }

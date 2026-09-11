@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
     FloatType, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
-    LifetimeParameter, Extent, Exclusivity, LocalNodeId, Multiplicity, Reference, SignatureParameter,
+    LifetimeParameter, Extent, LocalNodeId, Multiplicity, Reference, SignatureParameter,
     Space, Static, StaticField, StaticId, StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint,
     TypeId,
 };
@@ -440,10 +440,6 @@ impl TypeHasher {
                 self.hasher.write_u8(2);
                 self.hash_access(*access);
             }
-            GenericArgument::Exclusivity(exclusivity) => {
-                self.hasher.write_u8(5);
-                self.hash_exclusivity(*exclusivity);
-            }
             GenericArgument::Value(value) => {
                 self.hasher.write_u8(3);
                 self.hash_static(*value, tree);
@@ -608,8 +604,10 @@ impl TypeHasher {
         match access {
             Access::Readonly => self.hasher.write_u8(0),
             Access::Mutable => self.hasher.write_u8(1),
+            Access::Immutable => self.hasher.write_u8(2),
+            Access::Exclusive => self.hasher.write_u8(3),
             Access::Parameter(index) => {
-                self.hasher.write_u8(3);
+                self.hasher.write_u8(4);
                 self.hasher.write_u32(index);
             }
         }
@@ -651,24 +649,10 @@ impl TypeHasher {
         let tag = match kind {
             Reference::Managed => 0,
             Reference::Unique => 1,
-            Reference::Borrowed(_) => 2,
+            Reference::Borrowed => 2,
+            Reference::Raw => 3,
         };
         self.hasher.write_u8(tag);
-        if let Reference::Borrowed(exclusivity) = kind {
-            self.hash_exclusivity(exclusivity);
-        }
-    }
-
-    /// Hash one exclusion guarantee.
-    fn hash_exclusivity(&mut self, exclusivity: Exclusivity) {
-        match exclusivity {
-            Exclusivity::Aliasable => self.hasher.write_u8(0),
-            Exclusivity::Exclusive => self.hasher.write_u8(1),
-            Exclusivity::Parameter(index) => {
-                self.hasher.write_u8(2);
-                self.hasher.write_u32(index);
-            }
-        }
     }
 
     /// Hash one MIR copy property.

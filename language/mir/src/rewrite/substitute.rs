@@ -1,6 +1,6 @@
 use crate::{
-    Access, Exclusivity, Extent, Field, GenericArgument, Lifetime, Reference, RegionBound, Space,
-    Static, StaticId, Storage, Tree, Type, TypeId,
+    Access, Extent, Field, GenericArgument, Lifetime, RegionBound, Space, Static, StaticId,
+    Storage, Tree, Type, TypeId,
 };
 
 /// Substitute generic arguments and bound regions through MIR types.
@@ -65,28 +65,24 @@ impl<'a> Substitution<'a> {
         // substitute reference qualifiers and signature bounds
         match &mut definition {
             Type::Reference {
-                kind,
                 lifetime,
                 storage,
                 access,
                 ..
             }
             | Type::Dynamic {
-                kind,
                 lifetime,
                 storage,
                 access,
                 ..
             }
             | Type::Slice {
-                kind,
                 lifetime,
                 storage,
                 access,
                 ..
             }
             | Type::Function {
-                kind,
                 lifetime,
                 storage,
                 access,
@@ -95,9 +91,6 @@ impl<'a> Substitution<'a> {
                 *lifetime = self.lifetime(lifetime);
                 *storage = self.storage(*storage);
                 *access = self.access(*access);
-                if let Reference::Borrowed(exclusivity) = kind {
-                    *exclusivity = self.exclusivity(*exclusivity);
-                }
             }
             Type::Pointer { access, .. } => *access = self.access(*access),
             Type::FunctionSignature { lifetimes, .. } => {
@@ -141,9 +134,6 @@ impl<'a> Substitution<'a> {
             },
             GenericArgument::Space(space) => GenericArgument::Space(self.space(space)),
             GenericArgument::Access(access) => GenericArgument::Access(self.access(access)),
-            GenericArgument::Exclusivity(exclusivity) => {
-                GenericArgument::Exclusivity(self.exclusivity(exclusivity))
-            }
             GenericArgument::Value(value) => GenericArgument::Value(self.value(value)),
         }
     }
@@ -282,21 +272,6 @@ impl<'a> Substitution<'a> {
         }
 
         access
-    }
-
-    /// Substitute an exclusivity parameter.
-    fn exclusivity(&self, exclusivity: Exclusivity) -> Exclusivity {
-        if let Exclusivity::Parameter(index) = exclusivity
-            && !self.arguments.is_empty()
-        {
-            let GenericArgument::Exclusivity(exclusivity) = self.arguments[index as usize] else {
-                unreachable!("exclusivity parameter bound to a non-exclusivity argument");
-            };
-
-            return exclusivity;
-        }
-
-        exclusivity
     }
 
     /// Substitute static values and the types they contain.

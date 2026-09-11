@@ -253,12 +253,12 @@ impl Tree {
 
         let lifetime = match self.type_definition(ty) {
             Type::Dynamic {
-                kind: Reference::Borrowed(_),
+                kind: Reference::Borrowed,
                 lifetime,
                 ..
             }
             | Type::Function {
-                kind: Reference::Borrowed(_),
+                kind: Reference::Borrowed,
                 lifetime,
                 ..
             } if !lifetime.is_empty() => Some(lifetime.clone()),
@@ -268,7 +268,7 @@ impl Tree {
                 pointee,
                 ..
             } => {
-                let own = (matches!(kind, Reference::Borrowed(_))).then(|| lifetime.clone());
+                let own = (matches!(kind, Reference::Borrowed)).then(|| lifetime.clone());
                 let nested = self.type_lifetime_inner(*pointee, visited);
                 let terms = own
                     .into_iter()
@@ -283,7 +283,7 @@ impl Tree {
                 element,
                 ..
             } => {
-                let own = (matches!(kind, Reference::Borrowed(_))).then(|| lifetime.clone());
+                let own = (matches!(kind, Reference::Borrowed)).then(|| lifetime.clone());
                 let nested = self.type_lifetime_inner(*element, visited);
                 let terms = own
                     .into_iter()
@@ -475,9 +475,9 @@ impl Tree {
                 let lifetime = lifetime.clone();
                 // track managed handles and empty borrows only for origin
                 let is_included = match kind {
-                    Reference::Borrowed(_) => is_tracking || !lifetime.is_empty(),
+                    Reference::Borrowed => is_tracking || !lifetime.is_empty(),
                     Reference::Managed => is_tracking,
-                    Reference::Unique => false,
+                    Reference::Unique | Reference::Raw => false,
                 };
                 if is_included {
                     borrowed_paths.push(BorrowedPath {

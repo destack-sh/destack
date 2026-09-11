@@ -2,8 +2,8 @@ use destack_core::StringId;
 
 use crate::build::FunctionBuilder;
 use crate::{
-    Access, AddressKind, Block, Copy, Exclusivity, Global, Instruction, Lifetime, Local,
-    LocalNodeId, Mutability, Reference, Storage, Type, Value,
+    Access, AddressKind, Block, Copy, Global, Instruction, Lifetime, Local, LocalNodeId,
+    Mutability, Reference, Storage, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -108,7 +108,7 @@ impl<'a> FunctionBuilder<'a> {
         let global_ty = self.tree.get(global).ty;
         let global_space = self.tree.get(global).space;
         let global_pointer = self.tree.intern_type(Type::Reference {
-            kind: Reference::Borrowed(Exclusivity::Aliasable),
+            kind: Reference::Borrowed,
             lifetime: Lifetime::empty(),
             storage: Storage::global(global_space),
             access: Access::Readonly,
@@ -124,7 +124,7 @@ impl<'a> FunctionBuilder<'a> {
         let global_ty = self.tree.get(global).ty;
         let global_space = self.tree.get(global).space;
         let global_pointer = self.tree.intern_type(Type::Reference {
-            kind: Reference::Borrowed(Exclusivity::Aliasable),
+            kind: Reference::Borrowed,
             lifetime: Lifetime::empty(),
             storage: Storage::global(global_space),
             access: Access::Mutable,

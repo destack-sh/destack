@@ -423,7 +423,7 @@ fn test_parse_rejects_invalid_reference_qualifiers() {
     let cases = [
         (
             "type Bad = ref<int32, managed, readonly, exclusive, local>;",
-            "invalid exclusivity on an owning reference",
+            "invalid duplicate reference access",
         ),
         (
             "type Bad = ref<int32, borrowed, '_, mutable, readonly, local>;",

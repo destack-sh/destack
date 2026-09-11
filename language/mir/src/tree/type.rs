@@ -40,14 +40,21 @@ pub enum Access {
     /// Mutable access.
     #[default]
     Mutable,
+    /// Read access that excludes conflicting writes.
+    Immutable,
+    /// Read and write access that excludes conflicting accesses.
+    Exclusive,
     /// The access one template parameter names.
     Parameter(u32),
 }
 
 impl Access {
-    /// Return whether this access can write through the reference.
+    /// Return whether this access may permit writes through the reference.
     pub fn can_write(self) -> bool {
-        matches!(self, Access::Mutable)
+        matches!(
+            self,
+            Access::Mutable | Access::Exclusive | Access::Parameter(_)
+        )
     }
 
     /// Parse a canonical access name.
@@ -55,6 +62,8 @@ impl Access {
         Some(match name {
             "readonly" => Access::Readonly,
             "mutable" => Access::Mutable,
+            "immutable" => Access::Immutable,
+            "exclusive" => Access::Exclusive,
             _ => return None,
         })
     }
@@ -64,39 +73,10 @@ impl Access {
         Some(match self {
             Access::Readonly => "readonly",
             Access::Mutable => "mutable",
+            Access::Immutable => "immutable",
+            Access::Exclusive => "exclusive",
             Access::Parameter(_) => return None,
         })
-    }
-}
-
-/// Exclusion of conflicting access through independent references.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum Exclusivity {
-    /// Independent references may access the same storage.
-    Aliasable,
-    /// Independent references cannot perform conflicting access.
-    Exclusive,
-    /// The guarantee named by one template parameter.
-    Parameter(u32),
-}
-
-impl Exclusivity {
-    /// Parse a canonical exclusion guarantee.
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "aliasable" => Some(Self::Aliasable),
-            "exclusive" => Some(Self::Exclusive),
-            _ => None,
-        }
-    }
-
-    /// Return the canonical MIR text for a closed guarantee.
-    pub const fn label(self) -> Option<&'static str> {
-        match self {
-            Self::Aliasable => Some("aliasable"),
-            Self::Exclusive => Some("exclusive"),
-            Self::Parameter(_) => None,
-        }
     }
 }
 
@@ -387,8 +367,10 @@ pub enum Reference {
     Managed,
     /// Unique typed heap reference.
     Unique,
-    /// Borrowed reference with an exclusion guarantee.
-    Borrowed(Exclusivity),
+    /// Borrowed reference.
+    Borrowed,
+    /// Unchecked reference that does not retain its target.
+    Raw,
 }
 
 impl Reference {
@@ -397,7 +379,8 @@ impl Reference {
         match self {
             Reference::Managed => "managed",
             Reference::Unique => "unique",
-            Reference::Borrowed(_) => "borrowed",
+            Reference::Borrowed => "borrowed",
+            Reference::Raw => "raw",
         }
     }
 }
@@ -885,7 +868,7 @@ impl Type {
 
     /// Return whether this type is a borrowed reference.
     pub fn is_borrowed_reference(&self) -> bool {
-        matches!(self.reference_kind(), Some(Reference::Borrowed(_)))
+        matches!(self.reference_kind(), Some(Reference::Borrowed))
     }
 
     /// Return whether this type is a writable borrowed reference.
@@ -1178,8 +1161,6 @@ pub enum GenericParameterDomain {
     Space,
     /// The reference accesses.
     Access,
-    /// The borrow exclusion guarantees.
-    Exclusivity,
     /// The values of one type.
     Value {
         /// The value type.
@@ -1203,8 +1184,6 @@ pub enum GenericArgument {
     Space(Space),
     /// A reference access.
     Access(Access),
-    /// A borrow exclusion guarantee.
-    Exclusivity(Exclusivity),
     /// A value.
     Value(StaticId),
 }

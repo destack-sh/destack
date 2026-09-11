@@ -2,9 +2,9 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Copy, Exclusivity, Extent, Field, FieldSpan, GenericArgument, GenericParameterDomain,
-    Lifetime, LifetimeParameter, LocalNodeId, Multiplicity, Reference, SignatureParameter, Space,
-    Static, StaticId, Storage, Type, TypeDeclarationSpans, TypeId, VariantCase,
+    Access, Copy, Extent, Field, FieldSpan, GenericArgument, GenericParameterDomain, Lifetime,
+    LifetimeParameter, LocalNodeId, Multiplicity, Reference, SignatureParameter, Space, Static,
+    StaticId, Storage, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -23,8 +23,6 @@ struct ReferenceQualifiers {
     storage: Option<Storage>,
     /// The exposed access mode.
     access: Option<Access>,
-    /// The exclusion guarantee.
-    exclusivity: Option<Exclusivity>,
 }
 
 impl ReferenceQualifiers {
@@ -36,7 +34,6 @@ impl ReferenceQualifiers {
             has_lifetime: false,
             storage: None,
             access: None,
-            exclusivity: None,
         }
     }
 
@@ -49,23 +46,10 @@ impl ReferenceQualifiers {
         let kind = self
             .kind
             .ok_or_else(|| ParseError::invalid(expected, pos))?;
-        let kind = match (kind, self.exclusivity) {
-            (Reference::Borrowed(_), exclusivity) => {
-                Reference::Borrowed(exclusivity.unwrap_or(Exclusivity::Aliasable))
-            }
-            (kind, None) => kind,
-            (_, Some(_)) => {
-                return Err(ParseError::invalid(
-                    "exclusivity on an owning reference",
-                    pos,
-                ));
-            }
-        };
-
         if kind == Reference::Unique && !self.lifetime.is_empty() {
             return Err(ParseError::invalid("reference lifetime", pos));
         }
-        if matches!(kind, Reference::Borrowed(_)) && !self.has_lifetime {
+        if matches!(kind, Reference::Borrowed) && !self.has_lifetime {
             return Err(ParseError::invalid("borrowed reference lifetime", pos));
         }
 
@@ -1004,10 +988,6 @@ impl Parser {
             if qualifiers.access.replace(access).is_some() {
                 return Err(ParseError::invalid("duplicate reference access", pos));
             }
-        } else if let Some(exclusivity) = self.parse_exclusivity_if() {
-            if qualifiers.exclusivity.replace(exclusivity).is_some() {
-                return Err(ParseError::invalid("duplicate reference exclusivity", pos));
-            }
         } else if self.peek_is(TokenType::Lifetime) {
             if qualifiers.has_lifetime {
                 return Err(ParseError::invalid("duplicate reference lifetime", pos));
@@ -1031,27 +1011,6 @@ impl Parser {
         Ok(())
     }
 
-    /// Parse one exclusion guarantee or parameter in scope.
-    fn parse_exclusivity_if(&mut self) -> Option<Exclusivity> {
-        let token = self.peek()?;
-        let text = self.tree.source_text(token.span);
-        let exclusivity = match text {
-            "aliasable" => Exclusivity::Aliasable,
-            "exclusive" => Exclusivity::Exclusive,
-            _ => match self.generic_parameter(text) {
-                Some((index, parameter))
-                    if matches!(parameter.domain, GenericParameterDomain::Exclusivity) =>
-                {
-                    Exclusivity::Parameter(index)
-                }
-                _ => return None,
-            },
-        };
-        self.bump();
-
-        Some(exclusivity)
-    }
-
     /// Parse one reference ownership kind.
     fn parse_reference_kind(&mut self) -> ParseResult<Option<Reference>> {
         let Some(token) = self.peek() else {
@@ -1067,7 +1026,8 @@ impl Parser {
         let kind = match self.tree.source_text(token.span) {
             "managed" => Reference::Managed,
             "unique" => Reference::Unique,
-            "borrowed" => Reference::Borrowed(Exclusivity::Aliasable),
+            "borrowed" => Reference::Borrowed,
+            "raw" => Reference::Raw,
             _ => return Ok(None),
         };
         self.bump();

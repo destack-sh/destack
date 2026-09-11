@@ -6,10 +6,10 @@ use destack_source::{
 
 use crate::source::{Lexer, Token, TokenType};
 use crate::{
-    Access, AccessTable, Block, DispatchTable, DropTable, EffectTable, Exclusivity, Extent,
-    Function, GenericArgument, GenericParameter, GenericParameterDomain, Global, LayoutTable,
-    Lifetime, LifetimeParameter, Local, LocalNodeId, Node, ProfileTable, RegionBound, Space,
-    Static, Storage, TargetLayout, Tree, Type, Value,
+    Access, AccessTable, Block, DispatchTable, DropTable, EffectTable, Extent, Function,
+    GenericArgument, GenericParameter, GenericParameterDomain, Global, LayoutTable, Lifetime,
+    LifetimeParameter, Local, LocalNodeId, Node, ProfileTable, RegionBound, Space, Static, Storage,
+    TargetLayout, Tree, Type, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -325,9 +325,6 @@ impl Parser {
                 },
                 GenericParameterDomain::Space => GenericArgument::Space(Space::Parameter(index)),
                 GenericParameterDomain::Access => GenericArgument::Access(Access::Parameter(index)),
-                GenericParameterDomain::Exclusivity => {
-                    GenericArgument::Exclusivity(Exclusivity::Parameter(index))
-                }
                 GenericParameterDomain::Value { .. } => {
                     GenericArgument::Value(self.tree.intern_static(Static::Parameter(index)))
                 }
@@ -345,15 +342,6 @@ impl Parser {
                 self.bump();
 
                 Ok(GenericArgument::Access(access))
-            }
-            TokenType::Identifier if matches!(text.as_str(), "aliasable" | "exclusive") => {
-                self.bump();
-
-                Ok(GenericArgument::Exclusivity(if text == "exclusive" {
-                    Exclusivity::Exclusive
-                } else {
-                    Exclusivity::Aliasable
-                }))
             }
             TokenType::Readonly => {
                 self.bump();
@@ -546,7 +534,6 @@ impl Parser {
         let domain = match (kind, text.as_str()) {
             (TokenType::Identifier, "space") => Some(GenericParameterDomain::Space),
             (TokenType::Identifier, "access") => Some(GenericParameterDomain::Access),
-            (TokenType::Identifier, "exclusivity") => Some(GenericParameterDomain::Exclusivity),
             (TokenType::Const, _) => None,
             (TokenType::Identifier, _) if self.peek_declares_type_parameter(&text) => {
                 Some(GenericParameterDomain::Type { bounds: Vec::new() })
@@ -607,7 +594,6 @@ impl Parser {
             || self.type_declaration_map.contains_key(text)
             || Space::from_name(text).is_some()
             || Access::from_name(text).is_some()
-            || Exclusivity::from_name(text).is_some()
             || matches!(
                 text,
                 "null" | "undefined" | "NaN" | "Infinity" | "-Infinity"

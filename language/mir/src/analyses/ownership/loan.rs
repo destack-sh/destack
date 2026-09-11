@@ -268,7 +268,7 @@ impl Loan {
         &self.parents
     }
 
-    /// Return whether this loan writes through its reference.
+    /// Return whether this loan may write through its reference.
     pub fn writes(&self) -> bool {
         self.access.can_write()
     }

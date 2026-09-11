@@ -7,11 +7,11 @@ use super::r#static::format_static;
 use super::value::{format_function_id, format_type_id};
 
 use crate::{
-    Access, Attribute, AttributeIdentifier, Copy, Exclusivity, Extent, Field, FieldSpan,
-    FormatNode, Formatter, FunctionId, GenericArgument, GenericParameter, GenericParameterDomain,
-    Lifetime, LifetimeParameter, LocalNodeId, Reference, RegionBound, SignatureParameter, Space,
-    SpaceJoinId, Storage, Type, TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId,
-    Writer, write_comments_before,
+    Access, Attribute, AttributeIdentifier, Copy, Extent, Field, FieldSpan, FormatNode, Formatter,
+    FunctionId, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
+    LifetimeParameter, LocalNodeId, Reference, RegionBound, SignatureParameter, Space, SpaceJoinId,
+    Storage, Type, TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId, Writer,
+    write_comments_before,
 };
 
 impl FormatNode for Type {
@@ -560,25 +560,20 @@ fn format_reference_qualifiers<'a>(
     let kind_token = match kind {
         Reference::Managed => "managed",
         Reference::Unique => "unique",
-        Reference::Borrowed(_) => "borrowed",
+        Reference::Borrowed => "borrowed",
+        Reference::Raw => "raw",
     };
 
     write!(f, [token(","), space(), token(kind_token)])?;
-    if matches!(kind, Reference::Borrowed(_)) {
+    if matches!(kind, Reference::Borrowed) {
         write!(f, [token(","), space()])?;
         format_region_argument(lifetime, storage, f)?;
     } else {
         format_lifetime(lifetime, f)?;
     }
     format_access(access, f)?;
-    if let Reference::Borrowed(exclusivity) = kind
-        && exclusivity != Exclusivity::Aliasable
-    {
-        write!(f, [token(","), space()])?;
-        format_exclusivity(exclusivity, f)?;
-    }
 
-    if matches!(kind, Reference::Borrowed(_)) {
+    if matches!(kind, Reference::Borrowed) {
         return Ok(());
     }
     write!(f, [token(","), space()])?;
@@ -659,7 +654,6 @@ pub(super) fn format_generic_argument<'a>(
         }
         GenericArgument::Space(space) => format_space(*space, f),
         GenericArgument::Access(access) => format_access_name(*access, f),
-        GenericArgument::Exclusivity(exclusivity) => format_exclusivity(*exclusivity, f),
         GenericArgument::Value(value) => format_static(*value, f),
     }
 }
@@ -899,9 +893,6 @@ pub(super) fn format_generic_parameter<'a>(
         }
         GenericParameterDomain::Space => write!(f, [token("space"), space(), copied_text(&name)]),
         GenericParameterDomain::Access => write!(f, [token("access"), space(), copied_text(&name)]),
-        GenericParameterDomain::Exclusivity => {
-            write!(f, [token("exclusivity"), space(), copied_text(&name)])
-        }
         GenericParameterDomain::Value { ty } => {
             write!(
                 f,
@@ -979,14 +970,5 @@ fn format_struct_field<'a>(field: &Field, f: &mut Writer<'a, '_>) -> FormatResul
     } else {
         format_type_id(field.ty, f)?;
         write!(f, [token(";")])
-    }
-}
-
-/// Format one exclusion guarantee or parameter.
-fn format_exclusivity<'a>(exclusivity: Exclusivity, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    match exclusivity {
-        Exclusivity::Aliasable => write!(f, [token("aliasable")]),
-        Exclusivity::Exclusive => write!(f, [token("exclusive")]),
-        Exclusivity::Parameter(index) => format_parameter(index, f),
     }
 }

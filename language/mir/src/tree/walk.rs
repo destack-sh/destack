@@ -410,10 +410,8 @@ fn walk_argument<V: NodeVisitor + ?Sized>(
     match argument {
         GenericArgument::Type(ty) => walk_type_id(visitor, tree, ty),
         GenericArgument::Value(value) => walk_static(visitor, tree, *value),
-        GenericArgument::Region { .. }
-        | GenericArgument::Space(_)
-        | GenericArgument::Access(_)
-        | GenericArgument::Exclusivity(_) => {}
+        GenericArgument::Region { .. } | GenericArgument::Space(_) | GenericArgument::Access(_) => {
+        }
     }
 }
 
