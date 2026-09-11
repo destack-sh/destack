@@ -5,9 +5,7 @@ use destack_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
 };
-use destack_mir::{
-    Access, Discriminant, Exclusivity, FloatType, Reference, TraceId, VariantEncoding,
-};
+use destack_mir::{Access, Discriminant, FloatType, Reference, TraceId, VariantEncoding};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -446,7 +444,7 @@ pub struct SliceLayout {
 pub struct ReferenceLayout {
     /// The referenced value type.
     pub pointee: TypeId,
-    /// Packed ownership, exclusion, and access.
+    /// Packed reference kind and access.
     bits: u16,
     /// Explicit initialized entry padding.
     padding: [u8; 2],
@@ -465,15 +463,14 @@ impl ReferenceLayout {
         let kind = match kind {
             Reference::Managed => 1,
             Reference::Unique => 2,
-            Reference::Borrowed(Exclusivity::Aliasable) => 3,
-            Reference::Borrowed(Exclusivity::Exclusive) => 4,
-            Reference::Borrowed(Exclusivity::Parameter(_)) => {
-                unreachable!("program references close every exclusivity")
-            }
+            Reference::Borrowed => 3,
+            Reference::Raw => 4,
         };
         let access = match access {
             Access::Readonly => 0,
             Access::Mutable => 1,
+            Access::Immutable => 2,
+            Access::Exclusive => 3,
             Access::Parameter(_) => unreachable!("program references close every access"),
         };
 
@@ -492,8 +489,8 @@ impl ReferenceLayout {
         match self.bits & Self::KIND_MASK {
             1 => Some(Reference::Managed),
             2 => Some(Reference::Unique),
-            3 => Some(Reference::Borrowed(Exclusivity::Aliasable)),
-            4 => Some(Reference::Borrowed(Exclusivity::Exclusive)),
+            3 => Some(Reference::Borrowed),
+            4 => Some(Reference::Raw),
             _ => None,
         }
     }
@@ -505,6 +502,8 @@ impl ReferenceLayout {
         match (self.bits >> Self::ACCESS_SHIFT) & Self::ACCESS_MASK {
             0 => Some(Access::Readonly),
             1 => Some(Access::Mutable),
+            2 => Some(Access::Immutable),
+            3 => Some(Access::Exclusive),
             _ => None,
         }
     }
@@ -533,11 +532,13 @@ impl PointerLayout {
     /// Mask for the packed pointer access.
     const ACCESS_MASK: u8 = 0x3;
 
-    /// Create one world-relative raw pointer layout.
+    /// Create one native machine pointer layout.
     pub const fn new(pointee: TypeId, access: Access) -> Self {
         let bits = match access {
             Access::Readonly => 0,
             Access::Mutable => 1,
+            Access::Immutable => 2,
+            Access::Exclusive => 3,
             Access::Parameter(_) => unreachable!(),
         };
 
@@ -553,6 +554,8 @@ impl PointerLayout {
         match self.bits & Self::ACCESS_MASK {
             0 => Some(Access::Readonly),
             1 => Some(Access::Mutable),
+            2 => Some(Access::Immutable),
+            3 => Some(Access::Exclusive),
             _ => None,
         }
     }
@@ -837,7 +840,7 @@ mod tests {
 
     use crate::{
         LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable, TypeId,
-        VariantCaseLayout, VariantLayoutBuilder, WordLayout,
+        VariantCaseLayout, VariantLayoutBuilder,
     };
 
     /// Preserve niche variant layouts in directly mapped program sections.
