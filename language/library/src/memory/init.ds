@@ -30,12 +30,14 @@ export declare function initAsPointer<T, const A: Access = "mutable">(
 ): *T;
 
 /// Borrow one initialized storage at the access of its borrow.
+@unsafe
 @intrinsic("memory.init.assumeInitReference")
 export declare function assumeInitReference<T, const A: Access = "mutable">(
     storage: WithAccess<&MaybeUninit<T>, A>,
 ): WithAccess<&T, A>;
 
 /// Move one initialized storage out as `T`.
+@unsafe
 @intrinsic("memory.init.assumeInit")
 export declare function assumeInit<T>(storage: MaybeUninit<T>): T;
 
