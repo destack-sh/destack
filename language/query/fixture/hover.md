@@ -660,6 +660,36 @@ function read<'a>(value: &'a readonly Managed<User>): void {
 @hover.item index=0 declaration="const copy: &'a readonly Managed<User, \"local\">" location=main.ds#definition range=main.ds#reference
 ```
 
+### Preserve immutable borrows in inferred types
+
+```ds main.ds
+function inspect<'a>(value: &'a immutable int32): void {
+    const copy = value;
+          ^^^^ definition
+    copy;
+    ^^^^ reference
+}
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="const copy: &'a immutable int32" location=main.ds#definition range=main.ds#reference
+```
+
+### Preserve exclusive borrows in inferred types
+
+```ds main.ds
+function update<'a>(value: &'a exclusive int32): void {
+    const copy = value;
+          ^^^^ definition
+    copy;
+    ^^^^ reference
+}
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="const copy: &'a exclusive int32" location=main.ds#definition range=main.ds#reference
+```
+
 ## Imports
 
 ### Hover over an imported function

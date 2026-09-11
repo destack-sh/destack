@@ -280,34 +280,22 @@ impl Formatter<'_, '_, '_> {
                 _ => None,
             })
         })?;
-        let exclusivity = self.read_type(borrow.exclusivity, |ty, _| {
-            Ok(match ty {
-                dir::Type::Literal(dir::Literal::String(text)) => {
-                    dir::Exclusivity::from_text(*text)
-                }
-                _ => None,
-            })
-        })?;
-        let (Some(access), Some(exclusivity)) = (access, exclusivity) else {
+        let Some(access) = access else {
             return self.borrow_application(&borrow, value);
         };
         let access = match access {
             dir::Access::Mutable => "",
             dir::Access::Readonly => "readonly ",
+            dir::Access::Immutable => "immutable ",
+            dir::Access::Exclusive => "exclusive ",
         };
-        let exclusivity = match exclusivity {
-            dir::Exclusivity::Aliasable => "",
-            dir::Exclusivity::Exclusive => "exclusive ",
-        };
-
-        Ok(format!("&{lifetime}{access}{exclusivity}{target}"))
+        Ok(format!("&{lifetime}{access}{target}"))
     }
 
     /// Format one full borrow application.
     fn borrow_application(&self, borrow: &dir::BorrowForm, value: &str) -> QueryResult<String> {
         let region = self.global_type(borrow.region)?;
         let access = self.global_type(borrow.access)?;
-        let exclusivity = self.global_type(borrow.exclusivity)?;
         let symbol = self
             .program
             .environment_bound()?
@@ -316,9 +304,7 @@ impl Formatter<'_, '_, '_> {
             .ok_or(QueryError::missing("Borrowed language item"))?;
         let borrowed = self.symbol(symbol)?;
 
-        Ok(format!(
-            "{borrowed}<{value}, {region}, {access}, {exclusivity}>"
-        ))
+        Ok(format!("{borrowed}<{value}, {region}, {access}>"))
     }
 
     /// Return whether one term is an induced memory parameter.
