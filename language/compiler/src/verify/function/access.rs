@@ -1,7 +1,7 @@
 use destack_mir::{
     Access, Block, Instruction, Lifetime, Loan, LoanId, LocalId, LocalNodeId, LocalNodeIdAny,
-    MemoryAccessEffect, MemoryLocation, MemoryRegion, Place, PlaceOrigin, Projection,
-    ReferenceKind, Storage, Terminator, Type, TypeId, Value,
+    MemoryAccessEffect, MemoryRegion, Place, PlaceOrigin, Projection, ReferenceKind, Storage,
+    StorageSet, Terminator, Type, TypeId, Value,
 };
 
 use destack_core::BitSet;
@@ -96,7 +96,7 @@ impl FunctionChecker<'_, '_> {
                 self.invalidate_projection(*destination, *aggregate, projection, anchor);
             }
             Instruction::LocalAddr { destination, .. } => {
-                self.check_loan(*destination, anchor);
+                self.check_borrow(*destination, anchor);
             }
             Instruction::FieldSet {
                 aggregate,
@@ -130,7 +130,7 @@ impl FunctionChecker<'_, '_> {
                 self.check_write(*payload, ty, anchor);
             }
             Instruction::GlobalAddr { destination, .. } => {
-                self.check_loan(*destination, anchor);
+                self.check_borrow(*destination, anchor);
             }
             Instruction::Call { call, .. } => {
                 let arguments = self.tree.get_values(call.arguments);
@@ -245,7 +245,7 @@ impl FunctionChecker<'_, '_> {
             self.reject_loan(reference);
         }
 
-        self.check_loan(reference, anchor);
+        self.check_borrow(reference, anchor);
     }
 
     /// Check memory touched by one instruction.
@@ -399,7 +399,7 @@ impl FunctionChecker<'_, '_> {
         self.origin
             .loans()
             .blocking_change(place, self.state.escaped_loans(), |left, right| {
-                self.alias.may_overlap(left, right)
+                left.may_overlap(right, &self.constants, self.function, self.tree)
             })
             .is_some()
     }
@@ -407,19 +407,24 @@ impl FunctionChecker<'_, '_> {
     /// Return whether one memory effect may touch an active loan.
     fn effect_may_touch_loan(&self, effect: &MemoryAccessEffect, loan: &Loan) -> bool {
         match &effect.region {
-            MemoryRegion::Local(local) => loan
-                .place()
-                .is_some_and(|place| self.alias.may_overlap(&Place::local(*local), place)),
+            MemoryRegion::Local(local) => loan.place().is_some_and(|place| {
+                Place::local(*local).may_overlap(place, &self.constants, self.function, self.tree)
+            }),
             MemoryRegion::Address { location, .. } => {
                 let place = self.places.get(location.address.value());
 
-                loan.place()
-                    .is_some_and(|loan| self.alias.may_overlap(place, loan))
+                loan.place().is_some_and(|loan| {
+                    place.may_overlap(loan, &self.constants, self.function, self.tree)
+                })
             }
             MemoryRegion::Place(_) | MemoryRegion::Any { .. } => {
-                let location = MemoryLocation::from_address(loan.representation);
+                // compare opaque effects with the reference's permitted memory spaces
+                let spaces = self
+                    .function
+                    .reference_storage(loan.representation, self.tree)
+                    .map_or(StorageSet::ANY, Storage::storage_set);
 
-                effect.may_touch_location(&location, &self.alias)
+                !effect.region.spaces().is_disjoint(spaces)
             }
         }
     }
@@ -439,16 +444,25 @@ impl FunctionChecker<'_, '_> {
             });
     }
 
+    /// Check every loan issued by one borrowed reference.
+    fn check_borrow(&mut self, reference: Value, anchor: LocalNodeIdAny) {
+        let origin = self.origin.clone();
+        for loan in origin.loans().roots_of(reference) {
+            self.check_loan(loan, anchor);
+        }
+    }
+
     /// Check one borrowed reference loan.
-    fn check_loan(&mut self, reference: Value, anchor: LocalNodeIdAny) {
-        let Some(loan_id) = self.origin.loans().root(reference) else {
-            return;
-        };
+    fn check_loan(&mut self, loan_id: LoanId, anchor: LocalNodeIdAny) {
         let loan = self.origin.loans().get(loan_id);
+        let reference = loan.representation;
 
         // derive every rejection before emitting diagnostics
-        let storage = loan.place().and_then(|place| self.alias.storage(place));
+        let storage = loan
+            .place()
+            .and_then(|place| place.storage(self.function, self.tree));
         let is_rejected = self.rejected_loans.contains(loan_id.index());
+
         // hold uninitialized storage exclusively while its constructor fills it
         let is_uninit = match self
             .tree
@@ -469,7 +483,7 @@ impl FunctionChecker<'_, '_> {
             self.origin.loans().conflict(
                 loan,
                 &self.active_loans,
-                |left, right| self.alias.may_overlap(left, right),
+                |left, right| left.may_overlap(right, &self.constants, self.function, self.tree),
                 |loan| self.is_exclusive(loan),
             )
         };
@@ -552,74 +566,86 @@ impl FunctionChecker<'_, '_> {
                 continue;
             }
 
-            // reuse the loan an argument borrow already issued, else synthesize one
-            let issued = self
+            // reuse every loan issued by this argument or create its temporary borrow
+            let mut issued = self
                 .origin
                 .loans()
-                .root(argument)
-                .map(|loan| self.origin.loans().get(loan).clone())
-                .filter(|loan| loan.place().is_some());
-            let is_issued = issued.is_some();
-            let loan = issued.unwrap_or_else(|| {
-                Loan::new(
+                .roots_of(argument)
+                .map(|loan| self.origin.loans().get(loan))
+                .filter(|loan| loan.place().is_some())
+                .cloned()
+                .collect::<Vec<_>>();
+            let is_issued = !issued.is_empty();
+            if !is_issued {
+                issued.push(Loan::new(
                     self.places.get(argument).clone(),
                     None,
                     access,
                     argument,
                     self.state.value(argument).loans().to_vec(),
                     anchor,
-                )
-            });
-
-            // reject mutable access to shared storage
-            let storage = loan.place().and_then(|place| self.alias.storage(place));
-            if !is_issued && loan.writes() && storage.is_some_and(Storage::is_shared) {
-                self.verification
-                    .emit_error(VerifyError::MutableBorrowFromSharedStorage {
-                        anchor: self.verification.anchor(anchor),
-                    });
-
-                continue;
+                ));
             }
 
-            // check loans already active before this call
-            if !is_issued
-                && let Some(conflict) = self
-                    .origin
-                    .loans()
-                    .conflict(
-                        &loan,
-                        &self.active_loans,
-                        |left, right| self.alias.may_overlap(left, right),
-                        |loan| self.is_exclusive(loan),
-                    )
-                    .map(|conflict| self.origin.loans().get(conflict).issued_at)
-            {
-                let active_borrow = self.verification.anchor(conflict);
-                self.verification.emit_error(
-                    VerifyError::BorrowConflict {
-                        anchor: self.verification.anchor(anchor),
-                        active_borrow: active_borrow.clone(),
-                    }
-                    .label(active_borrow, "borrow starts here"),
-                );
-            }
+            // compare each possible referent with earlier arguments
+            let previous_count = loans.len();
+            for loan in issued {
+                // reject mutable access to shared storage
+                let storage = loan
+                    .place()
+                    .and_then(|place| place.storage(self.function, self.tree));
+                if !is_issued && loan.writes() && storage.is_some_and(Storage::is_shared) {
+                    self.verification
+                        .emit_error(VerifyError::MutableBorrowFromSharedStorage {
+                            anchor: self.verification.anchor(anchor),
+                        });
 
-            // check arguments whose temporary loans overlap each other
-            if loans.iter().any(|active: &Loan| {
-                (self.is_exclusive(active) || self.is_exclusive(&loan))
-                    && active
-                        .place()
-                        .zip(loan.place())
-                        .is_some_and(|(left, right)| self.alias.may_overlap(left, right))
-            }) {
-                self.verification
-                    .emit_error(VerifyError::MutableArgumentAlias {
-                        anchor: self.verification.anchor(anchor),
-                    });
-            }
+                    continue;
+                }
 
-            loans.push(loan);
+                // check loans already active before this call
+                if !is_issued
+                    && let Some(conflict) = self
+                        .origin
+                        .loans()
+                        .conflict(
+                            &loan,
+                            &self.active_loans,
+                            |left, right| {
+                                left.may_overlap(right, &self.constants, self.function, self.tree)
+                            },
+                            |loan| self.is_exclusive(loan),
+                        )
+                        .map(|conflict| self.origin.loans().get(conflict).issued_at)
+                {
+                    let active_borrow = self.verification.anchor(conflict);
+                    self.verification.emit_error(
+                        VerifyError::BorrowConflict {
+                            anchor: self.verification.anchor(anchor),
+                            active_borrow: active_borrow.clone(),
+                        }
+                        .label(active_borrow, "borrow starts here"),
+                    );
+                }
+
+                // check arguments whose temporary loans overlap each other
+                if loans[..previous_count].iter().any(|active: &Loan| {
+                    (self.is_exclusive(active) || self.is_exclusive(&loan))
+                        && active
+                            .place()
+                            .zip(loan.place())
+                            .is_some_and(|(left, right)| {
+                                left.may_overlap(right, &self.constants, self.function, self.tree)
+                            })
+                }) {
+                    self.verification
+                        .emit_error(VerifyError::MutableArgumentAlias {
+                            anchor: self.verification.anchor(anchor),
+                        });
+                }
+
+                loans.push(loan);
+            }
         }
 
         // authorize the active loans these argument loans already cover
@@ -633,7 +659,9 @@ impl FunctionChecker<'_, '_> {
                     active
                         .place()
                         .zip(loan.place())
-                        .is_some_and(|(left, right)| self.alias.may_overlap(left, right))
+                        .is_some_and(|(left, right)| {
+                            left.may_overlap(right, &self.constants, self.function, self.tree)
+                        })
                 })
             })
             .collect()
@@ -674,7 +702,7 @@ impl FunctionChecker<'_, '_> {
             self.origin
                 .loans()
                 .blocking_change(place, &self.active_loans, |left, right| {
-                    self.alias.may_overlap(left, right)
+                    left.may_overlap(right, &self.constants, self.function, self.tree)
                 })
         else {
             return;

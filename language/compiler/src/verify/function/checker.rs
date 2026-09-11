@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use destack_mir::{
-    Access, AliasTable, Block, Copy, Function, FunctionCache, InitializationTable, LivenessCursor,
-    LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, MemoryEffectTable, MovePathId,
-    MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable, Projection,
-    ReferenceKind, RetentionTable, Tree, Type, TypeId, Value,
+    Access, Block, ConstantTable, Copy, Function, FunctionCache, InitializationTable,
+    LivenessCursor, LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, MemoryEffectTable,
+    MovePathId, MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable,
+    Projection, ReferenceKind, RetentionTable, Tree, Type, TypeId, Value,
 };
 
 use destack_artifact::DiagnosticAnchor;
@@ -24,8 +24,8 @@ pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     pub(super) initialization: Arc<InitializationTable>,
     /// SSA value liveness.
     liveness: Arc<LivenessTable>,
-    /// Alias relation for physical memory accesses.
-    pub(super) alias: Arc<AliasTable>,
+    /// Constants used to compare structural projections.
+    pub(super) constants: Arc<ConstantTable>,
     /// Memory effects for every operation.
     pub(super) accesses: Arc<MemoryEffectTable>,
     /// Places derived by address values.
@@ -58,7 +58,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         let liveness = analyses.liveness(function, tree);
         let places = analyses.place(function, tree);
         let moves = analyses.moves(function, tree);
-        let alias = analyses.alias(function, tree);
+        let constants = analyses.constant(function, tree);
         let accesses =
             analyses.memory_effect(function, tree, verification.accesses, &verification.effects);
         let origin = analyses.origin(function, tree);
@@ -70,7 +70,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
             verification,
             initialization,
             liveness,
-            alias,
+            constants,
             accesses,
             places,
             moves,

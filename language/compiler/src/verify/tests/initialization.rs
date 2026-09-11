@@ -440,9 +440,9 @@ export function whileCond(): void {
 "#);
 }
 
-/// A callee initializes the storage its uninitialized argument addresses.
+/// Read constructed storage after explicitly asserting initialization.
 #[test]
-fn test_allow_reading_storage_a_callee_initialized() {
+fn test_read_completed_constructor_storage() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
@@ -463,8 +463,9 @@ entry(v0: ref<int32, unique, mutable, local>):
     v1: ref<Box, borrowed, 'frame, mutable, frame> = local.address l0
     v2: ref<uninit<Box>, borrowed, 'frame, mutable, frame> = cast.bit v1 -> ref<uninit<Box>, borrowed, 'frame, mutable, frame>
     call build(v2, v0): <'a>(ref<uninit<Box>, borrowed, 'a, mutable, local>, ref<int32, unique, mutable, local>) => void
-    v3: Box = local.get l0
-    return v3
+    v3: ref<Box, borrowed, 'frame, mutable, frame> = intrinsic.memory.raw.transmute(v2)
+    v4: Box = load v3
+    return v4
 }
 "#,
     );
