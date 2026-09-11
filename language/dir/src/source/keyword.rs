@@ -20,6 +20,8 @@ pub enum Keyword {
     Private,
     /// Readonly modifier (alias).
     Readonly,
+    /// Immutable borrow modifier.
+    Immutable,
     /// Exclusive borrow modifier.
     Exclusive,
     /// Local placement modifier.
@@ -243,6 +245,7 @@ impl Keyword {
             Keyword::Protected => "protected",
             Keyword::Private => "private",
             Keyword::Readonly => "readonly",
+            Keyword::Immutable => "immutable",
             Keyword::Exclusive => "exclusive",
             Keyword::Local => "local",
             Keyword::Shared => "shared",
@@ -342,6 +345,7 @@ impl FromStr for Keyword {
             "protected" => Ok(Keyword::Protected),
             "private" => Ok(Keyword::Private),
             "readonly" => Ok(Keyword::Readonly),
+            "immutable" => Ok(Keyword::Immutable),
             "exclusive" => Ok(Keyword::Exclusive),
             "local" => Ok(Keyword::Local),
             "shared" => Ok(Keyword::Shared),
