@@ -7,7 +7,7 @@ export { Managed } from "./managed.ds";
 export { Owned } from "./owned.ds";
 export { Borrowed, MutableBorrowed, ReadonlyBorrowed } from "./borrow.ds";
 export { Dynamic } from "./dynamic.ds";
-export { AccessOf, Ownership, PlaceOf, WithAccess } from "./type.ds";
+export { AccessOf, ImmutableOf, Ownership, PlaceOf, ValueOf, WithAccess } from "./type.ds";
 export { Box } from "./box.ds";
 export {
     AllocationCapacityOverflow,
@@ -22,7 +22,6 @@ export {
     Default,
     DynamicSafe,
     SharedSafe,
-    SuspendSafe,
     Unpin,
     Zeroable,
 } from "./capability.ds";
@@ -32,7 +31,7 @@ export { replace, take } from "./replace.ds";
 export { swap } from "./swap.ds";
 export { AsyncDispose, Dispose } from "./dispose.ds";
 export { Phantom } from "./phantom.ds";
-export { Cow, CowBorrowed, CowOwned, MaybeOwned } from "./cow/cow.ds";
+export { Cow, CowBorrowed, CowOwned } from "./cow/cow.ds";
 export { Cell, UnsafeCell } from "./cell";
 export { Raw } from "./raw.ds";
 export * from "./init.ds";
@@ -43,3 +42,4 @@ export * as cell from "./cell";
 export * as cow from "./cow";
 export * as raw from "./raw.ds";
 export * as rc from "./rc";
+export { Pointer } from "./pointer.ds";

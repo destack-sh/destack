@@ -1,5 +1,7 @@
 import { todo } from "destack:error";
 
+import { Clone, Copy } from "../capability.ds";
+import { Drop } from "../drop.ds";
 import { Owned } from "../owned.ds";
 import { Arc, ArcInner } from "./arc.ds";
 
@@ -7,10 +9,20 @@ import { Arc, ArcInner } from "./arc.ds";
 @languageItem("memory.arc.Weak")
 export struct Weak<T> {
     /// The reference-counted allocation.
-    inner: *ArcInner<Owned<T>> | undefined;
+    private inner: *ArcInner<Owned<T>> | undefined;
 }
 
-export extension<T> of Weak<T> {
+export extension<T> of Weak<T> implements Clone, !Copy, Drop {
+    /// Clone this weak handle.
+    clone(&readonly this): Weak<T> {
+        todo("Weak.clone")
+    }
+
+    /// Release this weak count and reclaim the block when no handles remain.
+    drop(&exclusive this): void {
+        todo("Weak.drop");
+    }
+
     /// Create an empty weak handle.
     static new(): Weak<T> {
         Weak { inner: undefined }
@@ -23,12 +35,12 @@ export extension<T> of Weak<T> {
     }
 
     /// Try to upgrade this weak handle.
-    upgrade(): Arc<T> | undefined {
+    upgrade(&readonly this): Arc<T> | undefined {
         todo("Weak.upgrade")
     }
 
     /// Return the raw pointer to the referenced value.
-    asPointer(): *T | undefined {
+    asPointer(&readonly this): *T | undefined {
         todo("Weak.asPointer")
     }
 
@@ -38,17 +50,17 @@ export extension<T> of Weak<T> {
     }
 
     /// Return whether this weak handle points to the same allocation as `other`.
-    pointerEquals(other: Weak<T>): boolean {
+    pointerEquals(&readonly this, other: &readonly Weak<T>): boolean {
         todo("Weak.pointerEquals")
     }
 
     /// Return the strong reference count.
-    strongCount(): usize {
+    strongCount(&readonly this): usize {
         todo("Weak.strongCount")
     }
 
     /// Return the weak reference count.
-    weakCount(): usize {
+    weakCount(&readonly this): usize {
         todo("Weak.weakCount")
     }
 }

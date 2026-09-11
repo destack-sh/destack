@@ -1,6 +1,8 @@
 import { HostError } from "destack:error/host";
 import { FileHandle } from "destack:fs/binding";
 
+import { Pointer } from "../pointer.ds";
+
 import { MemoryProtection, VirtualMemoryRange } from "./virtual.ds";
 
 /// File mapping visibility.
@@ -49,6 +51,7 @@ export extension of MappedMemorySyncFlags {
 @languageItem("memory.binding.MemoryMapBinding")
 export interface MemoryMapBinding {
     /// Map a file backed memory range.
+    @unsafe
     @binding("destack.memory.map.file", {
         provider: "host",
         effect: "external",
@@ -62,10 +65,11 @@ export interface MemoryMapBinding {
         protection: MemoryProtection,
         visibility: MappedMemoryVisibility,
         flags: MappedMemoryFlags,
-        addressHint?: uint64,
+        addressHint?: Pointer<uint8>,
     ): Result<VirtualMemoryRange, HostError>;
 
     /// Map an anonymous memory range.
+    @unsafe
     @binding("destack.memory.map.anonymous", {
         provider: "host",
         effect: "external",
@@ -77,10 +81,11 @@ export interface MemoryMapBinding {
         protection: MemoryProtection,
         visibility: MappedMemoryVisibility,
         flags: MappedMemoryFlags,
-        addressHint?: uint64,
+        addressHint?: Pointer<uint8>,
     ): Result<VirtualMemoryRange, HostError>;
 
     /// Unmap a mapped memory range.
+    @unsafe
     @binding("destack.memory.map.unmap", {
         provider: "host",
         effect: "external",

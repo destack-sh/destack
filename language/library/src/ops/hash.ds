@@ -1,22 +1,26 @@
+import { ImmutableOf } from "destack:memory";
+
 /// A stateful hash sink.
 @languageItem("ops.Hasher")
 export newtype interface Hasher {
     /// Add raw bytes to the hash state.
-    write(bytes: &readonly [uint8]): void;
+    write(&this, bytes: &readonly [uint8]): void;
 
     /// Add one unsigned byte to the hash state.
-    writeUint8(value: uint8): void;
+    writeUint8(&this, value: uint8): void;
 
     /// Add one unsigned machine word to the hash state.
-    writeUsize(value: usize): void;
+    writeUsize(&this, value: usize): void;
 
     /// Finish the hash state.
-    finish(): uint64;
+    finish(&readonly this): uint64;
 }
 
 /// A value that can feed itself into a hasher.
+///
+/// Values equal under `Equal` must produce equal hashes from the same initial hasher state.
 @languageItem("ops.Hash")
 export newtype interface Hash {
     /// Add this value to `state`.
-    hash(state: &Hasher): void;
+    hash(this: ImmutableOf<this>, state: &Hasher): void;
 }

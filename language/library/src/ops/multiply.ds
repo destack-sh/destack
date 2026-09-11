@@ -7,5 +7,5 @@ export newtype interface Multiply<T = this> {
     type Output;
 
     /// Multiply this value by `other`.
-    multiply(other: T): this.Output;
+    multiply(this, other: T): this.Output;
 }

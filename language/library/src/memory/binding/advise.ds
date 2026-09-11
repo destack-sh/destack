@@ -21,6 +21,7 @@ export enum MemoryAdvice {
 @languageItem("memory.binding.MemoryAdviseBinding")
 export interface MemoryAdviseBinding {
     /// Apply memory access advice.
+    @unsafe
     @binding("destack.memory.advise", {
         provider: "host",
         effect: "external",
@@ -30,6 +31,7 @@ export interface MemoryAdviseBinding {
     adviseMemory(range: VirtualMemoryRange, advice: MemoryAdvice): Result<void, HostError>;
 
     /// Discard memory contents.
+    @unsafe
     @binding("destack.memory.discard", {
         provider: "host",
         effect: "external",

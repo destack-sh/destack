@@ -7,7 +7,7 @@ export newtype interface Add<T = this> {
     type Output;
 
     /// Add `other` to this value.
-    add(other: T): this.Output;
+    add(this, other: T): this.Output;
 }
 
 /// Interface for unary `+`.
@@ -19,5 +19,5 @@ export newtype interface Plus {
     type Output;
 
     /// Return this value through unary plus.
-    plus(): this.Output;
+    plus(this): this.Output;
 }

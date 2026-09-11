@@ -14,3 +14,4 @@ export { Debug, Display } from "./format.ds";
 export { Index, IndexSet } from "./subscript.ds";
 export { Dereference } from "./dereference.ds";
 export * from "./try.ds";
+export { DefaultEqual, Equality, Equate, ValueEquality } from "./equate.ds";

@@ -1,6 +1,7 @@
+import { ToOwned } from "destack:convert";
 import { todo } from "destack:error";
 
-import { Clone } from "../capability.ds";
+import { ValueOf } from "../type.ds";
 
 /// Borrowed copy-on-write value.
 export struct CowBorrowed<T> {
@@ -22,44 +23,41 @@ export struct CowOwned<T> {
 
 /// Copy-on-write value.
 @languageItem("memory.Cow")
-export newtype Cow<'a, T> = CowBorrowed<&'a readonly T> | CowOwned<^T>;
+export newtype Cow<'a, T: ToOwned> = CowBorrowed<&'a immutable T> | CowOwned<T.Owned>;
 
-/// Readonly borrowed or owned value.
-export type MaybeOwned<'a, T> = Cow<'a, T>;
-
-export extension<'a, T> of Cow<'a, T> {
+export extension<'a, T: ToOwned> of Cow<'a, T> {
     /// Create a borrowed copy-on-write value.
-    static borrowed(value: &'a readonly T): Cow<'a, T> {
+    static borrowed(value: &'a immutable T): Cow<'a, T> {
         todo("Cow.borrowed")
     }
 
     /// Create an owned copy-on-write value.
-    static owned(value: ^T): Cow<'a, T> {
+    static owned(value: T.Owned): Cow<'a, T> {
         todo("Cow.owned")
     }
 
     /// Return whether this value is borrowed.
-    isBorrowed(): boolean {
+    isBorrowed(&readonly this): boolean {
         todo("Cow.isBorrowed")
     }
 
     /// Return whether this value is owned.
-    isOwned(): boolean {
+    isOwned(&readonly this): boolean {
         todo("Cow.isOwned")
     }
 
     /// Borrow the value.
-    borrow(): &readonly T {
+    borrow(&immutable this): &immutable T {
         todo("Cow.borrow")
     }
 
     /// Borrow owned storage, cloning first if needed.
-    toExclusive(&this): &T where T: Clone {
+    toExclusive(&exclusive this): &exclusive ValueOf<T.Owned> {
         todo("Cow.toExclusive")
     }
 
     /// Move or clone this value into owned storage.
-    intoOwned(this): ^T where T: Clone {
+    intoOwned(this): T.Owned {
         todo("Cow.intoOwned")
     }
 }

@@ -6,12 +6,12 @@ import { From, TryFrom } from "./from.ds";
 @languageItem("convert.Into")
 export newtype interface Into<T> {
     /// Convert this value.
-    into(): T;
+    into(this): T;
 }
 
 export extension<T, U> of T implements Into<U> where U: From<T> {
     /// Convert this value through `U.from`.
-    into(): U {
+    into(this): U {
         U.from(this)
     }
 }
@@ -23,7 +23,7 @@ export newtype interface TryInto<T> {
     type Error = Error;
 
     /// Convert this value, or return an error.
-    tryInto(): Result<T, this.Error>;
+    tryInto(this): Result<T, this.Error>;
 }
 
 export extension<T, U> of T implements TryInto<U> where U: TryFrom<T> {
@@ -31,7 +31,7 @@ export extension<T, U> of T implements TryInto<U> where U: TryFrom<T> {
     type Error = U.Error;
 
     /// Convert this value through `U.tryFrom`.
-    tryInto(): Result<U, U.Error> {
+    tryInto(this): Result<U, U.Error> {
         U.tryFrom(this)
     }
 }

@@ -7,5 +7,5 @@ export newtype interface Remainder<T = this> {
     type Output;
 
     /// Return the remainder after dividing this value by `other`.
-    remainder(other: T): this.Output;
+    remainder(this, other: T): this.Output;
 }

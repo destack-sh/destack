@@ -1,7 +1,5 @@
 import { Error } from "destack:error";
 
-import { MaybeOwned } from "./cow/cow.ds";
-
 /// Allocation failed because the runtime could not reserve enough memory.
 export struct AllocationOutOfMemory {
     /// Discriminant for allocation failure matching.
@@ -50,15 +48,11 @@ export newtype AllocationError =
 
 export extension of AllocationError implements Error {
     /// Format this error for users.
-    display(): MaybeOwned<string> {
+    display(&readonly this): string {
         match (this) {
-            AllocationOutOfMemory { message } => MaybeOwned.borrowed(message ?? "out of memory")
-            AllocationCapacityOverflow { message } => MaybeOwned.borrowed(
-                message ?? "allocation capacity overflow",
-            )
-            AllocationUnsupported { message } => MaybeOwned.borrowed(
-                message ?? "allocation unsupported",
-            )
+            AllocationOutOfMemory { message } => message ?? "out of memory"
+            AllocationCapacityOverflow { message } => message ?? "allocation capacity overflow"
+            AllocationUnsupported { message } => message ?? "allocation unsupported"
         }
     }
 }

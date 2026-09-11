@@ -1,3 +1,5 @@
+import { ImmutableOf } from "destack:memory";
+
 import { Equal, PartialEqual } from "./equality.ds";
 
 /// Result of a comparison operation.
@@ -13,7 +15,8 @@ export enum Ordering {
 /// `partialCompare` returns `null` when comparison is undefined.
 @languageItem("ops.PartialCompare")
 export newtype interface PartialCompare<T = this> extends PartialEqual<T> {
-    partialCompare(&readonly this, other: &readonly T): Ordering | null;
+    /// Compare the stored values.
+    partialCompare(this: ImmutableOf<this>, other: ImmutableOf<T>): Ordering | null;
 }
 
 /// Interface for total comparison and ordering.
@@ -24,5 +27,6 @@ export newtype interface PartialCompare<T = this> extends PartialEqual<T> {
 /// `a >= b` becomes `a.compare(b) != Ordering.Less`.
 @languageItem("ops.Compare")
 export newtype interface Compare<T = this> extends Equal<T>, PartialCompare<T> {
-    compare(&readonly this, other: &readonly T): Ordering;
+    /// Compare the stored values.
+    compare(this: ImmutableOf<this>, other: ImmutableOf<T>): Ordering;
 }

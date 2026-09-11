@@ -1,10 +1,10 @@
-import { Copy, Default } from "./capability.ds";
+import { Clone, Copy, Default } from "./capability.ds";
 
 /// Zero-sized marker for ownership, variance, and drop behavior.
 @languageItem("memory.Phantom")
 export newtype Phantom<out T> = intrinsic;
 
-export extension<T> of Phantom<T> implements Copy, Default {
+export extension<T> of Phantom<T> implements Clone, Copy, Default {
     /// Create a phantom marker.
     static new(): Phantom<T> {
         return newPhantom<T>();

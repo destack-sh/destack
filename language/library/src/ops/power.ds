@@ -7,5 +7,5 @@ export newtype interface Power<T = this> {
     type Output;
 
     /// Raise this value to `other`.
-    power(other: T): this.Output;
+    power(this, other: T): this.Output;
 }

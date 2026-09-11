@@ -1,28 +1,23 @@
-import { Access, Borrowed, Region } from "destack:memory";
+import { Access, Borrowed, Region, WithAccess } from "destack:memory";
 
-/// Interface for index access `a[i]`.
-///
-/// `a[i]` projects the place returned by `a.index(i)`.
+/// Interface for indexed values and storage projections.
 @languageItem("ops.Index")
 export newtype interface Index<I, const A: Access = "readonly"> {
-    /// The indexed output type.
-    type Output;
+    /// The result within the receiver's region.
+    type Output<const R: Region>;
 
     /// The result when no indexed value exists.
     type Missing = never;
 
-    /// Borrow the value at `key`.
-    index<const R: Region>(
-        this: Borrowed<this, R, A>,
-        key: I,
-    ): Borrowed<this.Output, R, A> | this.Missing;
+    /// Read or borrow the value at `key`.
+    index<const R: Region>(this: Borrowed<this, R, A>, key: I): this.Output<R> | this.Missing;
 }
 
 /// Interface for index assignment `a[i] = v`.
 ///
 /// `a[i] = v` becomes `a.indexSet(i, v)` through a mutable receiver.
 @languageItem("ops.IndexSet")
-export newtype interface IndexSet<I, V> {
+export newtype interface IndexSet<I, V, const A: "mutable" | "exclusive" = "mutable"> {
     /// Store `value` at `key`.
-    indexSet(&this, key: I, value: V): void;
+    indexSet(this: WithAccess<&this, A>, key: I, value: V): void;
 }

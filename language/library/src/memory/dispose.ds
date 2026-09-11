@@ -4,12 +4,12 @@ import { Promise } from "destack:async";
 @languageItem("memory.Dispose")
 export newtype interface Dispose {
     /// Dispose this value.
-    dispose(): void;
+    dispose(this): void;
 }
 
 /// Deterministic asynchronous cleanup capability, called at the end of an `await using` scope.
 @languageItem("memory.AsyncDispose")
 export newtype interface AsyncDispose {
     /// Dispose this value asynchronously.
-    asyncDispose(): Promise<void>;
+    asyncDispose(this): Promise<void>;
 }

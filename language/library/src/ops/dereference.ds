@@ -1,11 +1,16 @@
-import { Access, WithAccess } from "destack:memory";
+import { Access, Borrowed, Region } from "destack:memory";
 
 /// Interface for dereference projection `*a`.
 @languageItem("ops.Dereference")
 export newtype interface Dereference<const A: Access = "readonly"> {
-    /// The projected result form.
-    type Output;
+    /// The pointee type.
+    type Target;
 
-    /// Borrow the projected place under the requested access form.
-    dereference(this: WithAccess<&this, A>): WithAccess<&this.Output, A>;
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = A;
+
+    /// Borrow the pointee.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, A>,
+    ): Borrowed<this.Target, R, this.OutputAccess>;
 }

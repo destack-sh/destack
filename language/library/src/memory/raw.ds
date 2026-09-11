@@ -1,8 +1,9 @@
 import { Access } from "./access.ds";
 import { Borrowed } from "./borrow.ds";
 import { Copy } from "./capability.ds";
+import { Region } from "./region.ds";
 
-/// Unsafe raw pointer form for exactly `T`.
+/// Unchecked world-relative pointer form for exactly `T`.
 @languageItem("memory.Raw")
 export newtype Raw<T> = intrinsic;
 
@@ -24,14 +25,14 @@ export declare function offset<T>(pointer: *T, count: int): *T;
 @intrinsic("memory.ptr.offsetFrom")
 export declare function offsetFrom<T>(pointer: *T, origin: *T): int;
 
-/// Borrow the pointed-to value at the access asked for.
+/// Borrow initialized storage whose validity and permissions the caller guarantees for `R`.
 @unsafe
 @intrinsic("memory.ptr.asReference")
-export declare function asReference<T, const A: Access = "mutable">(
+export declare function asReference<T, const R: Region, const A: Access = "mutable">(
     pointer: *T,
-): Borrowed<T, 'static, A>;
+): Borrowed<T, R, A>;
 
-/// Return the raw pointer `reference` points to.
+/// Preserve the world-relative address of `reference` as an unchecked pointer.
 @intrinsic("memory.ptr.fromReference")
 export declare function fromReference<T>(reference: &readonly T): *T;
 

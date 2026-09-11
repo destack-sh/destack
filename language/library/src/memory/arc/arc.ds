@@ -1,10 +1,11 @@
 import { As, Borrow } from "destack:convert";
 import { Result, todo } from "destack:error";
-import { WithAccess } from "destack:memory";
+import { Access, Borrowed, Region } from "destack:memory";
 import { Dereference } from "destack:ops";
 import { Atomic } from "destack:sync";
 
-import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
+import { Clone, Copy, Default, Unpin, Zeroable } from "../capability.ds";
+import { Drop } from "../drop.ds";
 import { AllocationError } from "../error.ds";
 import { MaybeUninit } from "../init.ds";
 import { Owned } from "../owned.ds";
@@ -15,13 +16,13 @@ import { Weak } from "./weak.ds";
 @languageItem("memory.arc.ArcInner")
 export shared struct ArcInner<T> {
     /// The strong reference count.
-    strong: Atomic<usize>;
+    private strong: Atomic<usize>;
 
     /// The weak reference count.
-    weak: Atomic<usize>;
+    private weak: Atomic<usize>;
 
     /// The stored value.
-    value: MaybeUninit<T>;
+    private value: MaybeUninit<T>;
 }
 
 @unsafe
@@ -31,12 +32,17 @@ export extension<T> of Arc<T> implements Unpin {}
 @languageItem("memory.arc.Arc")
 export struct Arc<T> {
     /// The reference-counted allocation.
-    inner: *ArcInner<Owned<T>>;
+    private inner: *ArcInner<Owned<T>>;
 }
 
-export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
-    /// The projected result form.
-    type Output = T;
+export extension<T> of Arc<T>
+    implements Clone, Dereference, As<shared T>, Borrow<shared T>, !Copy, Drop
+{
+    /// The pointee type.
+    type Target = shared T;
+
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = "immutable";
 
     /// Allocate a new shared reference-counted value.
     static new(value: ^T): Arc<T> {
@@ -89,33 +95,38 @@ export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Arc.tryPin")
     }
 
+    /// Release this strong count and reclaim the payload when no strong handles remain.
+    drop(&exclusive this): void {
+        todo("Arc.drop");
+    }
+
     /// Clone this strong handle.
     clone(&readonly this): Arc<T> {
         todo("Arc.clone")
     }
 
     /// Create a weak handle to the same block.
-    downgrade(): Weak<T> {
+    downgrade(&readonly this): Weak<T> {
         todo("Arc.downgrade")
     }
 
     /// Return whether this handle is the only strong handle.
-    isUnique(): boolean {
+    isUnique(&readonly this): boolean {
         todo("Arc.isUnique")
     }
 
     /// Return whether this handle points to the same allocation as `other`.
-    pointerEquals(other: Arc<T>): boolean {
+    pointerEquals(&readonly this, other: &readonly Arc<T>): boolean {
         todo("Arc.pointerEquals")
     }
 
-    /// Return the strong reference count.
-    strongCount(): usize {
+    /// Return the count of strong handles, including handles retained by borrows.
+    strongCount(&readonly this): usize {
         todo("Arc.strongCount")
     }
 
-    /// Return the weak reference count.
-    weakCount(): usize {
+    /// Return the count of explicit weak handles, including handles retained by borrows.
+    weakCount(&readonly this): usize {
         todo("Arc.weakCount")
     }
 
@@ -130,12 +141,12 @@ export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move the value out or clone it when shared.
-    unwrapOrClone(this): ^T where T: Clone {
+    unwrapOrClone(this): ^T where ^T: Clone {
         todo("Arc.unwrapOrClone")
     }
 
     /// Return the raw pointer to the referenced value.
-    asPointer(): *T {
+    asPointer(&readonly this): *T {
         todo("Arc.asPointer")
     }
 
@@ -144,28 +155,30 @@ export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Arc.intoRaw")
     }
 
-    /// Borrow the value mutably when this is the only strong handle.
-    getExclusive(&this): &T | undefined {
+    /// Borrow the value exclusively when no other strong or weak handle exists.
+    getExclusive(&exclusive this): &exclusive shared T | undefined {
         todo("Arc.getExclusive")
     }
 
-    /// Borrow the value mutably, cloning first if needed.
-    makeExclusive(&this): &T where T: Clone {
+    /// Borrow the value exclusively, cloning or detaching weak handles when needed.
+    makeExclusive(&exclusive this): &exclusive shared T where ^T: Clone {
         todo("Arc.makeExclusive")
     }
 
     /// Borrow the referenced value.
-    dereference(&readonly this): WithAccess<&this.Output, "readonly"> {
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "readonly">,
+    ): Borrowed<this.Target, R, "immutable"> {
         todo("Arc.dereference")
     }
 
     /// Borrow the referenced value.
-    as(&readonly this): &readonly T {
+    as(&readonly this): &readonly shared T {
         this.dereference()
     }
 
     /// Borrow the referenced value.
-    borrow(&readonly this): &readonly T {
+    borrow(&readonly this): &readonly shared T {
         this.dereference()
     }
 }

@@ -7,7 +7,7 @@ export newtype interface And<T = this> {
     type Output;
 
     /// Apply bitwise or elementwise AND.
-    and(other: T): this.Output;
+    and(this, other: T): this.Output;
 }
 
 /// Interface for the `|` operator.
@@ -19,7 +19,7 @@ export newtype interface Or<T = this> {
     type Output;
 
     /// Apply bitwise or elementwise OR.
-    or(other: T): this.Output;
+    or(this, other: T): this.Output;
 }
 
 /// Interface for the `^` operator.
@@ -31,7 +31,7 @@ export newtype interface Xor<T = this> {
     type Output;
 
     /// Apply bitwise or elementwise XOR.
-    xor(other: T): this.Output;
+    xor(this, other: T): this.Output;
 }
 
 /// Interface for the `~` operator.
@@ -43,5 +43,5 @@ export newtype interface Not {
     type Output;
 
     /// Apply bitwise or elementwise NOT.
-    not(): this.Output;
+    not(this): this.Output;
 }

@@ -7,7 +7,7 @@ export newtype interface ShiftLeft<T = this> {
     type Output;
 
     /// Shift this value left by `other`.
-    shiftLeft(other: T): this.Output;
+    shiftLeft(this, other: T): this.Output;
 }
 
 /// Interface for the `>>` operator.
@@ -19,7 +19,7 @@ export newtype interface ShiftRight<T = this> {
     type Output;
 
     /// Shift this value right by `other`.
-    shiftRight(other: T): this.Output;
+    shiftRight(this, other: T): this.Output;
 }
 
 /// Interface for the `>>>` operator.
@@ -31,5 +31,5 @@ export newtype interface ShiftRightUnsigned<T = this> {
     type Output;
 
     /// Shift this value right by `other`, shifting zeros in from the left.
-    shiftRightUnsigned(other: T): this.Output;
+    shiftRightUnsigned(this, other: T): this.Output;
 }

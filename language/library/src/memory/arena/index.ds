@@ -1,2 +1,1 @@
 export { Arena } from "./arena.ds";
-export { Bump } from "./bump.ds";

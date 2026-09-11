@@ -1,15 +1,15 @@
-import { MaybeOwned } from "destack:memory";
+import { ImmutableOf } from "destack:memory";
 
 /// Interface for user-facing string representation.
 @languageItem("ops.Display")
 export newtype interface Display {
     /// Return a user-facing string representation.
-    display(&readonly this): MaybeOwned<string>;
+    display(this: ImmutableOf<this>): string;
 }
 
 /// Interface for developer-facing string representation.
 @languageItem("ops.Debug")
 export newtype interface Debug {
     /// Return a developer-facing string representation.
-    debug(&readonly this): MaybeOwned<string>;
+    debug(this: ImmutableOf<this>): string;
 }

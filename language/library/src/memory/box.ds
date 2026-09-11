@@ -10,7 +10,8 @@ import { MaybeUninit } from "./init.ds";
 import { Owned } from "./owned.ds";
 import { Pin } from "./pin.ds";
 import { Space } from "./place.ds";
-import { WithAccess } from "./type.ds";
+import { Region } from "./region.ds";
+import { ImmutableOf, WithAccess } from "./type.ds";
 
 /// A uniquely owned heap allocation for an owned `T`.
 @languageItem("memory.Box")
@@ -27,12 +28,7 @@ extension<T> of Unique<Owned<T>> {
     }
 }
 
-export extension<T, const A: Access = "readonly"> of Box<T>
-    implements Dereference<A>, As<T, A>, Borrow<T, A>
-{
-    /// The projected result form.
-    type Output = T;
-
+export extension<T, const A: Access = "readonly"> of Box<T> implements As<T, A>, Borrow<T, A> {
     /// Allocate `value` on the heap.
     static new(value: ^T): Box<T> {
         todo("Box.new")
@@ -84,23 +80,18 @@ export extension<T, const A: Access = "readonly"> of Box<T>
     }
 
     /// Return the raw pointer to the boxed value.
-    asPointer(): *T {
+    asPointer(&this): *T {
         todo("Box.asPointer")
     }
 
     /// Borrow the boxed value with readonly access.
-    asReference(): &readonly T {
+    asReference(&readonly this): &readonly T {
         todo("Box.asReference")
     }
 
     /// Borrow the boxed value with mutable access.
-    asExclusive(&this): &T {
+    asExclusive(&exclusive this): &exclusive T {
         todo("Box.asExclusive")
-    }
-
-    /// Borrow the boxed value.
-    dereference(this: WithAccess<&Box<T>, A>): WithAccess<&this.Output, A> {
-        todo("Box.dereference")
     }
 
     /// Borrow the boxed value.
@@ -114,18 +105,28 @@ export extension<T, const A: Access = "readonly"> of Box<T>
     }
 }
 
+export extension<T, const A: Access> of Box<T> implements Dereference<A> {
+    /// The pointee type.
+    type Target = T;
+
+    /// Borrow the boxed value.
+    dereference<const R: Region>(this: Borrowed<this, R, A>): Borrowed<this.Target, R, A> {
+        todo("Box.dereference")
+    }
+}
+
 @unsafe
 export extension<T> of Box<T> implements Unpin {}
 
-export extension<T> of Box<T> implements Clone where T: Clone {
+export extension<T> of Box<T> implements Clone where ^T: Clone {
     /// Clone the boxed value into a new box.
-    clone(&readonly this): Box<T> {
+    clone(this: ImmutableOf<this>): Box<T> {
         todo("Box.clone")
     }
 
     /// Clone `source` into this allocation.
-    cloneFrom(&this, source: &readonly Box<T>): void {
-        this.asExclusive().cloneFrom(source.asReference());
+    cloneFrom(&exclusive this, source: ImmutableOf<Box<T>>): void {
+        this.asExclusive().cloneFrom(source.dereference());
     }
 }
 

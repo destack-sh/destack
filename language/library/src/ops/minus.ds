@@ -7,5 +7,5 @@ export newtype interface Subtract<T = this> {
     type Output;
 
     /// Subtract `other` from this value.
-    subtract(other: T): this.Output;
+    subtract(this, other: T): this.Output;
 }

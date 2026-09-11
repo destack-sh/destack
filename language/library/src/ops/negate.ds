@@ -7,5 +7,5 @@ export newtype interface Negate {
     type Output;
 
     /// Negate this value.
-    negate(): this.Output;
+    negate(this): this.Output;
 }

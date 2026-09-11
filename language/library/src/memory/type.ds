@@ -4,7 +4,14 @@ import { Access } from "./access.ds";
 @languageItem("memory.Ownership")
 export type Ownership = "managed" | "owned" | "borrowed" | "raw";
 
-/// Reborrow `Q` with access mode `A`.
+/// Make the default value form of `T` explicit, preserving existing qualifications.
+@languageItem("memory.ValueOf")
+export type ValueOf<T> = intrinsic;
+
+/// Immutable borrow of a stored value.
+export type ImmutableOf<T> = &immutable ValueOf<T>;
+
+/// Qualify `Q` with access `A`, preserving its region.
 @languageItem("memory.WithAccess")
 export type WithAccess<Q, const A: Access> = intrinsic;
 

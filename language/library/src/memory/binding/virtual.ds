@@ -1,9 +1,11 @@
 import { HostError } from "destack:error/host";
 
+import { Pointer } from "../pointer.ds";
+
 /// Virtual memory address range.
 export struct VirtualMemoryRange {
     /// Base virtual address.
-    address: uint64;
+    address: Pointer<uint8>;
     /// Range length in bytes.
     length: uint64;
 }
@@ -54,10 +56,11 @@ export interface MemoryVirtualBinding {
     reserveVirtualMemory(
         length: uint64,
         flags: VirtualMemoryReserveFlags,
-        addressHint?: uint64,
+        addressHint?: Pointer<uint8>,
     ): Result<VirtualMemoryRange, HostError>;
 
     /// Commit physical backing for one reserved virtual memory range.
+    @unsafe
     @binding("destack.memory.virtual.commit", {
         provider: "host",
         effect: "external",
@@ -70,6 +73,7 @@ export interface MemoryVirtualBinding {
     ): Result<void, HostError>;
 
     /// Decommit physical backing from one virtual memory range.
+    @unsafe
     @binding("destack.memory.virtual.decommit", {
         provider: "host",
         effect: "external",
@@ -79,6 +83,7 @@ export interface MemoryVirtualBinding {
     decommitVirtualMemory(range: VirtualMemoryRange): Result<void, HostError>;
 
     /// Release one reserved virtual memory range.
+    @unsafe
     @binding("destack.memory.virtual.release", {
         provider: "host",
         effect: "external",
@@ -88,6 +93,7 @@ export interface MemoryVirtualBinding {
     releaseVirtualMemory(range: VirtualMemoryRange): Result<void, HostError>;
 
     /// Change virtual memory protection for one range.
+    @unsafe
     @binding("destack.memory.virtual.protect", {
         provider: "host",
         effect: "external",

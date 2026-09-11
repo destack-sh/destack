@@ -1,8 +1,8 @@
-import { Access, WithAccess } from "destack:memory";
+import { Access, Borrowed, Region } from "destack:memory";
 
 /// Interface for reference conversion.
 @languageItem("convert.As")
 export newtype interface As<T, const A: Access = "readonly"> {
     /// Borrow this value as `T`.
-    as(this: WithAccess<&this, A>): WithAccess<&T, A>;
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<T, R, A>;
 }

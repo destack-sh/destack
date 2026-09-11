@@ -1,10 +1,17 @@
-import { Default } from "./capability.ds";
+import { Copy, Default } from "./capability.ds";
+
+import { ValueOf, WithAccess } from "./type.ds";
 
 /// Replace `destination` and return its previous value.
 @intrinsic("memory.ptr.replace")
-export declare function replace<T>(destination: &T, value: T): T;
+export declare function replace<T, const A: "mutable" | "exclusive">(
+    destination: WithAccess<&ValueOf<T>, A>,
+    value: T,
+): T where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never);
 
 /// Replace `destination` with its default value and return its previous value.
-export function take<T: Default>(destination: &T): T {
+export function take<T: Default, const A: "mutable" | "exclusive">(
+    destination: WithAccess<&ValueOf<T>, A>,
+): T where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
     replace(destination, T.default())
 }

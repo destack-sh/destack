@@ -1,3 +1,5 @@
+import { ImmutableOf } from "destack:memory";
+
 /// Interface for partial equality.
 ///
 /// `a == b` becomes `a.equal(b)`.
@@ -6,7 +8,8 @@
 /// Some values, like floating-point NaN, do not have total equality.
 @languageItem("ops.PartialEqual")
 export newtype interface PartialEqual<T = this> {
-    equal(&readonly this, other: &readonly T): boolean;
+    /// Compare the stored values.
+    equal(this: ImmutableOf<this>, other: ImmutableOf<T>): boolean;
 }
 
 /// Marker interface for total equality.

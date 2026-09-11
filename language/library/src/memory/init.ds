@@ -1,7 +1,7 @@
 import { Access } from "./access.ds";
 import { Default, Zeroable } from "./capability.ds";
 import { dropInPlace } from "./raw.ds";
-import { WithAccess } from "./type.ds";
+import { ValueOf, WithAccess } from "./type.ds";
 
 /// Storage for `T` whose lifetime may not have started.
 @languageItem("memory.MaybeUninit")
@@ -21,27 +21,30 @@ export declare function initZeroed<T: Zeroable>(): MaybeUninit<T>;
 
 /// Initialize one storage with `value`.
 @intrinsic("memory.init.write")
-export declare function initWrite<T>(storage: &MaybeUninit<T>, value: T): &T;
+export declare function initWrite<T>(
+    storage: &exclusive MaybeUninit<T>,
+    value: T,
+): &exclusive ValueOf<T>;
 
 /// Return a raw pointer to one storage borrowed at any access.
 @intrinsic("memory.init.asPointer")
 export declare function initAsPointer<T, const A: Access = "mutable">(
     storage: WithAccess<&MaybeUninit<T>, A>,
-): *T;
+): *ValueOf<T>;
 
-/// Borrow one initialized storage at the access of its borrow.
+/// Borrow initialized storage; the caller must preserve its validity for the returned borrow.
 @unsafe
 @intrinsic("memory.init.assumeInitReference")
 export declare function assumeInitReference<T, const A: Access = "mutable">(
     storage: WithAccess<&MaybeUninit<T>, A>,
-): WithAccess<&T, A>;
+): WithAccess<&ValueOf<T>, A>;
 
-/// Move one initialized storage out as `T`.
+/// Move initialized storage out as `T`; the caller must establish initialization.
 @unsafe
 @intrinsic("memory.init.assumeInit")
 export declare function assumeInit<T>(storage: MaybeUninit<T>): T;
 
-/// Copy one initialized storage out without ending it.
+/// Read initialized storage; the caller must prevent duplicate ownership of non-Copy values.
 @unsafe
 @intrinsic("memory.init.assumeInitRead")
 export declare function assumeInitRead<T>(storage: &MaybeUninit<T>): T;
@@ -49,7 +52,7 @@ export declare function assumeInitRead<T>(storage: &MaybeUninit<T>): T;
 /// Drop one initialized storage in place.
 @unsafe
 export function assumeInitDrop<T>(storage: &MaybeUninit<T>): void {
-    dropInPlace<T>(initAsPointer<T, "mutable">(storage));
+    dropInPlace<ValueOf<T>>(initAsPointer<T, "mutable">(storage));
 }
 
 export extension<T> of MaybeUninit<T> implements Default {
@@ -74,36 +77,31 @@ export extension<T> of MaybeUninit<T> implements Default {
     }
 
     /// Initialize this storage with `value`.
-    write(&this, value: T): &T {
+    write(&exclusive this, value: T): &exclusive ValueOf<T> {
         return initWrite<T>(this, value);
     }
 
     /// Return a raw pointer to the storage.
-    asPointer(&this): *T {
+    asPointer(&this): *ValueOf<T> {
         return initAsPointer<T>(this);
-    }
-
-    /// Return a mutable raw pointer to the storage.
-    asExclusivePointer(&this): *T {
-        return initAsPointer<T, "mutable">(this);
     }
 
     /// Borrow initialized storage.
     @unsafe
-    assumeInitReference(&this): &T {
+    assumeInitReference(&this): &ValueOf<T> {
         return assumeInitReference<T>(this);
     }
 
     /// Borrow initialized storage with readonly access.
     @unsafe
-    assumeInitReadonlyReference(&readonly this): &readonly T {
+    assumeInitReadonlyReference(&readonly this): &readonly ValueOf<T> {
         return assumeInitReference<T, "readonly">(this);
     }
 
     /// Borrow initialized storage with mutable access.
     @unsafe
-    assumeInitExclusiveReference(&this): &T {
-        return assumeInitReference<T, "mutable">(this);
+    assumeInitExclusiveReference(&exclusive this): &exclusive ValueOf<T> {
+        return assumeInitReference<T, "exclusive">(this);
     }
 
     /// Move initialized storage out as `T`.
@@ -112,7 +110,7 @@ export extension<T> of MaybeUninit<T> implements Default {
         return assumeInit<T>(this);
     }
 
-    /// Copy initialized storage out without ending this storage.
+    /// Read initialized storage; the caller must prevent duplicate ownership of non-Copy values.
     @unsafe
     assumeInitRead(&this): T {
         return assumeInitRead<T>(this);

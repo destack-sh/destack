@@ -48,5 +48,5 @@ export newtype interface Try extends FromResidual<this.Residual> {
     static fromOutput(output: this.Output): this;
 
     /// Branch into continuing or breaking control flow.
-    branch(): ControlFlow<this.Residual, this.Output>;
+    branch(this): ControlFlow<this.Residual, this.Output>;
 }

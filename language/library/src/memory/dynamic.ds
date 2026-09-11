@@ -8,13 +8,13 @@ export type Dynamic<T: DynamicSafe> = intrinsic;
 
 export extension<T: DynamicSafe> of Dynamic<T> {
     /// Return the runtime type carried by this erased value.
-    get type(): Type<unknown> {
+    get type(&readonly this): Type<unknown> {
         return dynamicType<T>(this);
     }
 
     /// Return the erased payload pointer.
     @unsafe
-    get payload(): *void {
+    get payload(&readonly this): *void {
         return dynamicPayload<T>(this);
     }
 }

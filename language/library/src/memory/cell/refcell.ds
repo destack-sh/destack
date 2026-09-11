@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { WithAccess } from "destack:memory";
+import { Access, Borrowed, Copy, Region, ValueOf } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Dispose } from "../dispose.ds";
@@ -9,10 +9,10 @@ import { Cell, UnsafeCell } from "./cell.ds";
 @languageItem("memory.cell.RefCell")
 export struct RefCell<T> {
     /// The active borrow state.
-    state: Cell<int32>;
+    private state: Cell<int32>;
 
     /// The stored value storage.
-    storage: UnsafeCell<T>;
+    private storage: UnsafeCell<T>;
 }
 
 export extension<T> of RefCell<T> {
@@ -25,22 +25,22 @@ export extension<T> of RefCell<T> {
     }
 
     /// Borrow the value for shared readonly access.
-    borrow(&readonly this): Ref<T> {
+    borrow<'a>(&'a readonly this): Ref<'a, T> {
         todo("RefCell.borrow")
     }
 
     /// Try to borrow the value for shared readonly access.
-    tryBorrow(&readonly this): Ref<T> | undefined {
+    tryBorrow<'a>(&'a readonly this): Ref<'a, T> | undefined {
         todo("RefCell.tryBorrow")
     }
 
     /// Borrow the value for mutable access.
-    borrowExclusive(&readonly this): ExclusiveRef<T> {
+    borrowExclusive<'a>(&'a readonly this): ExclusiveRef<'a, T> {
         todo("RefCell.borrowExclusive")
     }
 
     /// Try to borrow the value for mutable access.
-    tryBorrowExclusive(&readonly this): ExclusiveRef<T> | undefined {
+    tryBorrowExclusive<'a>(&'a readonly this): ExclusiveRef<'a, T> | undefined {
         todo("RefCell.tryBorrowExclusive")
     }
 
@@ -55,7 +55,7 @@ export extension<T> of RefCell<T> {
     }
 
     /// Borrow the stored value with mutable access.
-    getExclusive(&this): &T {
+    getExclusive(&exclusive this): &exclusive ValueOf<T> {
         todo("RefCell.getExclusive")
     }
 
@@ -66,43 +66,65 @@ export extension<T> of RefCell<T> {
 }
 
 /// Active readonly ref cell borrow.
-export struct Ref<T> {
+export struct Ref<'a, T> {
     /// The borrowed cell.
-    cell: *RefCell<T>;
+    private cell: &'a readonly RefCell<T>;
 }
 
-export extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
-    /// The projected result form.
-    type Output = T;
+export extension<'a, T> of Ref<'a, T> implements Dispose, !Copy, Dereference<"readonly"> {
+    /// The pointee type.
+    type Target = ValueOf<T>;
+
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = "immutable";
 
     /// Release this borrow.
-    dispose(): void {
+    dispose(this): void {
         todo("Ref.dispose");
     }
 
     /// Borrow the protected value.
-    dereference(&readonly this): WithAccess<&this.Output, "readonly"> {
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "readonly">,
+    ): Borrowed<this.Target, R, "immutable"> {
         todo("Ref.dereference")
     }
 }
 
 /// Active exclusive ref cell borrow.
-export struct ExclusiveRef<T> {
+export struct ExclusiveRef<'a, T> {
     /// The borrowed cell.
-    cell: *RefCell<T>;
+    private cell: &'a readonly RefCell<T>;
 }
 
-export extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"mutable"> {
-    /// The projected result form.
-    type Output = T;
+export extension<'a, T> of ExclusiveRef<'a, T> implements Dispose, !Copy, Dereference<"exclusive"> {
+    /// The pointee type.
+    type Target = ValueOf<T>;
 
     /// Release this borrow.
-    dispose(): void {
+    dispose(this): void {
         todo("ExclusiveRef.dispose");
     }
 
     /// Borrow the protected value.
-    dereference(&this): WithAccess<&this.Output, "mutable"> {
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "exclusive">,
+    ): Borrowed<this.Target, R, "exclusive"> {
+        todo("ExclusiveRef.dereference")
+    }
+}
+
+export extension<'a, T> of ExclusiveRef<'a, T> implements Dereference<"readonly"> {
+    /// The pointee type.
+    type Target = ValueOf<T>;
+
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = "immutable";
+
+    /// Borrow the protected value with readonly access.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "readonly">,
+    ): Borrowed<this.Target, R, "immutable"> {
         todo("ExclusiveRef.dereference")
     }
 }

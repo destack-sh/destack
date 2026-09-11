@@ -1,0 +1,5 @@
+/// Unchecked native machine address outside world-relative addressing.
+///
+/// A pointer into world storage remains valid only while its mapping remains valid.
+@languageItem("memory.Pointer")
+export newtype Pointer<T> = intrinsic;

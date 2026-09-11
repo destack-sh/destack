@@ -1,3 +1,14 @@
+import { Copy } from "./capability.ds";
+
+import { ValueOf, WithAccess } from "./type.ds";
+
 /// Exchange the values at `left` and `right`.
 @intrinsic("memory.ptr.swap")
-export declare function swap<T>(left: &T, right: &T): void;
+export declare function swap<
+    T,
+    const Left: "mutable" | "exclusive",
+    const Right: "mutable" | "exclusive",
+>(left: WithAccess<&ValueOf<T>, Left>, right: WithAccess<&ValueOf<T>, Right>): void
+    where
+        Left: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never),
+        Right: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never);

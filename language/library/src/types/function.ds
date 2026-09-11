@@ -1,5 +1,5 @@
 /// The mode a call takes its callable receiver in.
-export type ReceiverMode = "readonly" | "mutable" | "once";
+export type ReceiverMode = "readonly" | "mutable" | "immutable" | "exclusive" | "once";
 
 /// Callable value with a managed, owned, or borrowed environment.
 ///

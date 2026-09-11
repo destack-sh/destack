@@ -8,5 +8,5 @@ export newtype Borrowed<T, const R: Region, const A: Access = "mutable"> = intri
 /// Readonly borrowed access to `T` within region `R`.
 export type ReadonlyBorrowed<T, const R: Region> = Borrowed<T, R, "readonly">;
 
-/// Exclusive borrowed access to `T` within region `R`.
+/// Mutable borrowed access to `T` within region `R`.
 export type MutableBorrowed<T, const R: Region> = Borrowed<T, R, "mutable">;

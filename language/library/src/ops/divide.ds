@@ -7,5 +7,5 @@ export newtype interface Divide<T = this> {
     type Output;
 
     /// Divide this value by `other`.
-    divide(other: T): this.Output;
+    divide(this, other: T): this.Output;
 }
