@@ -3,9 +3,8 @@ use destack_dir::MemberRole;
 
 use crate::sema::{
     ArgumentValue, CallableArgument, Cause, CauseKind, CheckState, DeclaredSource, FlowSite,
-    InferMode, MemberCandidate, MemberLookup, NullishPart, Origin, PlaceUse, Relation, Settle,
-    SignatureMatch, Value, ValueUse, VariableKind, is_optional_member, member_arms, member_kind,
-    selected_candidates,
+    MemberCandidate, MemberLookup, NullishPart, Origin, Relation, Settle, SignatureMatch, Value,
+    ValueUse, VariableKind, is_optional_member, member_arms, member_kind, selected_candidates,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -46,7 +45,7 @@ impl CheckState<'_> {
             && self.symbol_kind(symbol)?.is_type_alias()
         {
             let reference =
-                self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+                self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
             let subject =
                 self.member_subject(origin, receiver, reference, dir::MemberSpace::Static)?;
 
@@ -72,6 +71,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         space: dir::MemberSpace,
     ) -> CompilerResult<dir::MemberSubject> {
+        let target = self.shallow_resolve(target)?;
         let mut subject = target;
         let mut space = space;
 
@@ -97,7 +97,11 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::MemberSpace> {
         // declaration references name their own static space
-        if matches!(self.ty(ty)?, dir::Type::Reference(_)) {
+        if matches!(self.ty(ty)?, dir::Type::Reference(_))
+            || self
+                .name_decision(receiver)
+                .is_some_and(|resolution| resolution.denoted_type().is_some())
+        {
             return Ok(dir::MemberSpace::Static);
         }
 
@@ -506,20 +510,7 @@ impl CheckState<'_> {
             };
 
             // commit the surviving candidate's site constraints
-            if let Some(declared) = candidate.declaration() {
-                for constraint in &declared.bounds {
-                    self.push_relation(*constraint)?;
-                }
-                if let Some(target) = declared.target {
-                    self.constrain_type(
-                        target.origin,
-                        target.cause,
-                        target.relation,
-                        target.source,
-                        target.target,
-                    )?;
-                }
-            }
+            candidate.constrain(self)?;
 
             targets.push(access.target);
             types.push(access.ty);
@@ -543,7 +534,6 @@ impl CheckState<'_> {
         receiver: Value,
         candidate: &MemberCandidate,
         arguments: &[CallableArgument],
-        sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Option<dir::Call>> {
         let Some(declared) = candidate.declaration() else {
             return Ok(None);
@@ -588,7 +578,7 @@ impl CheckState<'_> {
         };
 
         // bind the sources and the receiver the signature selected
-        let bound = self.bind_argument_sources(origin, &signature, sources)?;
+        let bound = signature.bind_arguments(origin, self)?;
         let key_receiver =
             self.interface_member_receiver(declared.owner, signature.callable, None)?;
         let call = signature.member_call(
@@ -609,7 +599,7 @@ impl CheckState<'_> {
         receiver: Value,
         candidate: &MemberCandidate,
     ) -> CompilerResult<Option<dir::Call>> {
-        self.select_member_call(origin, receiver, candidate, &[], &[])
+        self.select_member_call(origin, receiver, candidate, &[])
     }
 
     /// Select one setter invocation from a writable member candidate, passing the written value.
@@ -624,14 +614,14 @@ impl CheckState<'_> {
             .into_global(origin.module());
         let arguments = [CallableArgument {
             source,
+            argument: dir::ArgumentSource::Supplied(0),
             value: ArgumentValue::Typed(candidate.access.store()),
             relation: Relation::Storable,
             use_: ValueUse::Argument,
             is_spread: false,
         }];
-        let sources = [dir::ArgumentSource::Supplied];
 
-        self.select_member_call(origin, receiver, candidate, &arguments, &sources)
+        self.select_member_call(origin, receiver, candidate, &arguments)
     }
 
     /// Select the member meaning of one member access node.
@@ -651,9 +641,7 @@ impl CheckState<'_> {
         // infer the receiver before member lookup
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.visit_site(receiver_node)?;
-        let receiver = self.infer_node(receiver_site, PlaceUse::Read, InferMode::Regular)?;
-        let written_receiver = self.flow_type_at(receiver_site, receiver)?;
-        self.commit_expression_place(receiver_site, written_receiver)?;
+        let (receiver, written_receiver) = self.infer_receiver(receiver_site)?;
 
         let written_receiver = self.resolve_structurally(site, written_receiver)?;
         let written_receiver = self.settle_observed_width(site, written_receiver)?;
@@ -693,6 +681,7 @@ impl CheckState<'_> {
             subject,
             key,
             dir::Access::Readonly,
+            None,
         )?;
 
         // project the answer onto its physical receiver arms

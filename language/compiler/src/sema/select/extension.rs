@@ -7,7 +7,7 @@ use crate::sema::{
     ActiveGoal, Answer, CandidateOutcome, Cause, CauseKind, CheckOutcome, CheckState,
     DeclaredMember, DeclaredSource, ExtensionSource, GenericParameterId, GenericTemplateId, Goal,
     Implementation, MemberCandidate, MemberLookup, Origin, Relation, RelationCheck, Settle,
-    TypeArgumentInference, TypeSubstitution, Value, Verdict,
+    TypeSubstitution, Value, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -817,9 +817,9 @@ impl CheckState<'_> {
 
         // name the winner or the refusal from a remembered choice at an equal ask
         let asked = match self.fresh_interface_arguments(&instance)? {
-            true => self.intern_type(dir::Type::Reference(dir::TypeReference {
-                symbol: instance.symbol,
-            }))?,
+            true => self.intern_type(dir::Type::Reference(dir::TypeReference::new(
+                instance.symbol,
+            )))?,
             false => interface_type,
         };
         let goal = match excluded {
@@ -998,33 +998,15 @@ impl CheckState<'_> {
             }
         }
 
-        // select a sole candidate, constraining its match
-        if let [(winner, template, target_type, interfaces)] = undecided.as_slice() {
-            let matched = self.match_extension_implementation(
+        // confirm the sole selected declaration
+        if let [(winner, ..)] = undecided.as_slice() {
+            return self.confirm_extension_implementation(
                 origin,
                 interface_module,
                 receiver,
-                receiver,
                 interface,
-                *template,
-                *target_type,
-                interfaces,
-                OpenBounds::Decide,
-            )?;
-            if let ExtensionMatch::Matched(substitution, matched_interface) = matched {
-                let target = self.substitute_type(*target_type, &substitution)?;
-                let arguments = self.template_arguments(*template, &substitution)?;
-
-                return Ok(Implementation {
-                    verdict: Verdict::Holds,
-                    winner: Some(ExtensionSource {
-                        extension: *winner,
-                        arguments,
-                    }),
-                    target: Some(target),
-                    interface: Some(matched_interface),
-                });
-            }
+                *winner,
+            );
         }
 
         // fail once every candidate fails, since unproven candidates keep the goal open
@@ -1040,6 +1022,67 @@ impl CheckState<'_> {
             target: None,
             interface: None,
         })
+    }
+
+    /// Bind the selected implementation declaration to one receiver and interface.
+    pub(in crate::sema) fn confirm_extension_implementation(
+        &mut self,
+        origin: Origin,
+        interface_module: ModuleId,
+        receiver: dir::GlobalTypeId,
+        interface: &dir::GenericApplication,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Implementation> {
+        // read the selected declaration's target, interfaces, and parameters
+        let definition = self.definition(symbol)?;
+        let Some(dir::Definition::Extension(extension)) = definition.as_deref() else {
+            return Err(CompilerError::Internal {
+                message: format!("selected implementation {symbol:?} has no extension definition"),
+            });
+        };
+        let target = extension.target.r#type();
+        let interfaces = extension
+            .implements
+            .iter()
+            .map(|entry| entry.interface)
+            .collect::<SmallVec<[_; 2]>>();
+        let template = self.symbol_template(symbol)?;
+
+        // match only the selected declaration
+        let matched = self.match_extension_implementation(
+            origin,
+            interface_module,
+            receiver,
+            receiver,
+            interface,
+            template,
+            target,
+            &interfaces,
+            OpenBounds::Decide,
+        )?;
+        match matched {
+            ExtensionMatch::Matched(substitution, interface) => {
+                let target = self.substitute_type(target, &substitution)?;
+                let arguments = self.template_arguments(template, &substitution)?;
+
+                Ok(Implementation {
+                    verdict: Verdict::Holds,
+                    winner: Some(ExtensionSource {
+                        extension: symbol,
+                        arguments,
+                    }),
+                    target: Some(target),
+                    interface: Some(interface),
+                })
+            }
+            ExtensionMatch::Unmatched => Ok(Implementation::fails()),
+            ExtensionMatch::Unproven => Ok(Implementation {
+                verdict: Verdict::Ambiguous,
+                winner: None,
+                target: None,
+                interface: None,
+            }),
+        }
     }
 
     /// Return the arguments one matched template binds, in declaration order.
@@ -1105,13 +1148,7 @@ impl CheckState<'_> {
         }
 
         // open the parameters the target leaves unbound
-        self.instantiate_parameters(
-            origin,
-            &parameters,
-            &[],
-            substitution,
-            TypeArgumentInference::Exact,
-        )
+        self.instantiate_parameters(origin, &parameters, &[], substitution)
     }
 
     /// Return whether one declaration's conformances can head the asked interface arguments.
@@ -1393,7 +1430,6 @@ impl CheckState<'_> {
                 &parameters,
                 &[],
                 TypeSubstitution::default(),
-                TypeArgumentInference::Exact,
             )?
             else {
                 return Ok(CandidateOutcome::<(), ()>::Rejected(()));
@@ -1580,7 +1616,6 @@ impl CheckState<'_> {
                 parameters,
                 &[],
                 TypeSubstitution::default(),
-                TypeArgumentInference::Exact,
             )?
             else {
                 return Ok(CandidateOutcome::<(), ()>::Rejected(()));
@@ -2195,10 +2230,21 @@ impl CheckState<'_> {
         target_type: dir::GlobalTypeId,
         unbound: UnboundParameters,
     ) -> CompilerResult<Option<TypeSubstitution>> {
-        // written class names match as their canonical declaration instance
+        // match declaration references with their applied instance arguments
         let subject = match self.ty(subject)? {
             dir::Type::Reference(reference) => {
-                let instance = self.declaration_instance(reference.symbol)?;
+                let arguments = self.type_ids(subject.module_id, reference.arguments)?;
+                let instance = if arguments.is_empty() {
+                    self.declaration_instance(reference.symbol)?
+                } else {
+                    let arguments = arguments.to_vec();
+                    let arguments = self.intern_type_ids(&arguments)?;
+
+                    dir::GenericApplication {
+                        symbol: reference.symbol,
+                        arguments,
+                    }
+                };
 
                 self.intern_type(dir::Type::Application(instance))?
             }
@@ -2227,13 +2273,8 @@ impl CheckState<'_> {
             match unbound {
                 // open the parameters the target leaves unbound
                 UnboundParameters::Open => {
-                    let opened = self.instantiate_parameters(
-                        origin,
-                        &parameters,
-                        &[],
-                        substitution,
-                        TypeArgumentInference::Exact,
-                    )?;
+                    let opened =
+                        self.instantiate_parameters(origin, &parameters, &[], substitution)?;
                     let Some(opened) = opened else {
                         return Ok(None);
                     };

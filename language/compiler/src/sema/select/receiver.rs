@@ -1,11 +1,12 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::sema::{
     CandidateOutcome, Cause, CauseKind, CheckState, MemberCandidate, MemberLookup, MemberRole,
-    Origin, ReceiverForm, Relation, Value, ValueUse, Verdict, prepend_adjustment,
+    Origin, Protocol, ReceiverForm, Relation, Value, ValueUse, Verdict, prepend_adjustment,
 };
-use crate::{CompilerError, CompilerResult};
+use crate::{CheckError, CompilerError, CompilerResult};
 
 /// The most dereference steps one receiver lookup walks.
 const DEREFERENCE_LIMIT: usize = 8;
@@ -29,21 +30,34 @@ impl CheckState<'_> {
         subject: dir::MemberSubject,
         key: dir::StaticKey,
         access: dir::Access,
+        protocol: Option<&Protocol>,
     ) -> CompilerResult<MemberLookup> {
         // look statics up on their declaration directly
         if subject.space == dir::MemberSpace::Static {
-            return self.lookup_member(origin, module, subject, key);
+            return match protocol {
+                Some(protocol) => self.lookup_protocol_member(
+                    origin,
+                    module,
+                    subject.target,
+                    subject.space,
+                    key,
+                    protocol,
+                ),
+                None => self.lookup_member(origin, module, subject, key),
+            };
         }
 
         // step down the receiver until one step exposes the key
         let mut step = subject.target;
         for depth in 0..=DEREFERENCE_LIMIT {
             // look the key up at this step, by value and through its borrows
-            let mut lookup = self.lookup_member_at_step(origin, module, subject, key, step)?;
+            let mut lookup =
+                self.lookup_member_at_step(origin, module, subject, key, step, protocol)?;
             if !lookup.is_empty() {
                 // walk to the found depth again, committed, under the access the members require
                 let required = self.required_access(&lookup, access)?;
-                let steps = self.autoderef(origin, receiver, required)?;
+                let dereference = protocol.is_none().then_some(required);
+                let steps = self.dereference_steps(origin, receiver, dereference, depth)?;
                 let Some(found) = steps.get(depth) else {
                     self.report_borrow_access_not_granted(
                         origin,
@@ -66,16 +80,21 @@ impl CheckState<'_> {
                 ty: step,
                 ..receiver
             };
+            let dereference = protocol.is_none().then_some(dir::Access::Readonly);
             let adjustment = self.decide_deduction(|state| {
                 Ok(Some(state.dereference_step(
                     origin,
                     stepped,
-                    Some(dir::Access::Readonly),
+                    dereference,
                 )?))
             })?;
             let Some(Some(adjustment)) = adjustment else {
                 break;
             };
+            if depth == DEREFERENCE_LIMIT {
+                self.report_dereference_depth_exceeded(origin, receiver.ty)?;
+                break;
+            }
             step = adjustment.ty();
         }
 
@@ -90,9 +109,14 @@ impl CheckState<'_> {
         subject: dir::MemberSubject,
         key: dir::StaticKey,
         step: dir::GlobalTypeId,
+        protocol: Option<&Protocol>,
     ) -> CompilerResult<MemberLookup> {
-        // offer the step by value, then through each borrow of it
-        let mut targets = vec![step];
+        // consider the stored value and its borrowed forms in lookup order
+        let mut targets = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(&[step]);
+        let value = self.ownership_payload(origin, step)?;
+        if value != step {
+            targets.push(value);
+        }
         for access in [dir::Access::Readonly, dir::Access::Mutable] {
             if let Some(borrowed) = self.frame_borrow_of(step, access)? {
                 targets.push(borrowed);
@@ -108,7 +132,24 @@ impl CheckState<'_> {
                 key_source: target,
                 ..subject
             };
-            for candidate in self.lookup_member(origin, module, stepped, key)? {
+            let lookup = match protocol {
+                Some(protocol) => self.lookup_protocol_member(
+                    origin,
+                    module,
+                    target,
+                    subject.space,
+                    key,
+                    protocol,
+                )?,
+                None => self.lookup_member(origin, module, stepped, key)?,
+            };
+
+            // select a protocol implementation at the first matching receiver form
+            if protocol.is_some() && !lookup.is_empty() {
+                return Ok(lookup);
+            }
+
+            for candidate in lookup {
                 if !candidates.iter().any(|known| known.reads_same(&candidate)) {
                     candidates.push(candidate);
                 }
@@ -195,23 +236,41 @@ impl CheckState<'_> {
         Ok(tier)
     }
 
-    /// Walk the receiver's dereference steps under the given access.
-    pub(in crate::sema) fn autoderef(
-        &mut self,
-        origin: Origin,
-        receiver: Value,
-        access: dir::Access,
-    ) -> CompilerResult<Vec<ReceiverStep>> {
-        self.dereference_steps(origin, receiver, Some(access))
-    }
-
     /// Walk the receiver's builtin dereference steps only, beneath memory forms and newtypes.
     pub(in crate::sema) fn builtin_steps(
         &mut self,
         origin: Origin,
         receiver: Value,
     ) -> CompilerResult<Vec<ReceiverStep>> {
-        self.dereference_steps(origin, receiver, None)
+        // check one further step to distinguish exhaustion from a complete walk
+        let mut steps = self.dereference_steps(origin, receiver, None, DEREFERENCE_LIMIT + 1)?;
+        if steps.len() > DEREFERENCE_LIMIT + 1 {
+            self.report_dereference_depth_exceeded(origin, receiver.ty)?;
+            steps.truncate(DEREFERENCE_LIMIT + 1);
+        }
+
+        Ok(steps)
+    }
+
+    /// Report a receiver that requires more dereferences than lookup allows.
+    fn report_dereference_depth_exceeded(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let source = self.format_type(receiver);
+        self.report(
+            module,
+            CheckError::DereferenceDepthExceeded {
+                anchor,
+                module,
+                source,
+                limit: DEREFERENCE_LIMIT,
+            },
+        );
+
+        Ok(())
     }
 
     /// Walk the receiver's dereference steps.
@@ -220,6 +279,7 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: Value,
         protocol: Option<dir::Access>,
+        limit: usize,
     ) -> CompilerResult<Vec<ReceiverStep>> {
         // start at the use-site receiver
         let mut steps = vec![ReceiverStep {
@@ -230,7 +290,7 @@ impl CheckState<'_> {
         let mut ty = receiver.ty;
 
         // step down until the receiver stops dereferencing
-        for _ in 0..DEREFERENCE_LIMIT {
+        for _ in 0..limit {
             let stepped = Value { ty, ..receiver };
             let Some(adjustment) = self.dereference_step(origin, stepped, protocol)? else {
                 break;

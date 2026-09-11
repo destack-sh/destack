@@ -361,7 +361,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::PlaceResolution> {
         let module = site.node.module_id;
         let receiver_site = self.visit_site(receiver.into_global_any(module))?;
-        let receiver_type = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+        let (_, receiver_type) = self.infer_receiver(receiver_site)?;
         let receiver_place = match self
             .decisions(module)
             .place_resolution(receiver_site.node)
@@ -524,7 +524,7 @@ impl CheckState<'_> {
                 let initializes = self.initializing_owner(module, left);
                 let receiver_node = left.into_global_any(module);
                 let receiver_site = self.visit_site(receiver_node)?;
-                let mut receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+                let (_, mut receiver) = self.infer_receiver(receiver_site)?;
                 let receiver_value = self.expression_value(receiver_site, receiver)?;
                 let receiver_place = self.value_place(receiver_site.origin(), receiver_value)?;
                 if let Some(split) = self.split_nullish_type(origin, receiver)? {
@@ -554,6 +554,7 @@ impl CheckState<'_> {
                     subject,
                     key,
                     dir::Access::Mutable,
+                    None,
                 )?;
 
                 // project the answer onto its physical receiver arms
@@ -586,7 +587,7 @@ impl CheckState<'_> {
                 let initializes = self.initializing_owner(module, left);
                 let receiver_node = left.into_global_any(module);
                 let receiver_site = self.visit_site(receiver_node)?;
-                let receiver = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+                let (_, receiver) = self.infer_receiver(receiver_site)?;
                 let receiver_value = self.expression_value(receiver_site, receiver)?;
                 let receiver_place = self.value_place(receiver_site.origin(), receiver_value)?;
 

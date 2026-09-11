@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     ApparentInstance, CheckState, ExtensionHead, GenericParameterId, Origin, RelationCheck,
-    TypeArgumentInference, TypeSubstitution, Verdict,
+    TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult, diagnostic_suggestion_distance};
 
@@ -360,6 +360,31 @@ impl MemberCandidate {
         }
 
         Ok(candidate)
+    }
+
+    /// Apply this candidate's declared bounds and receiver requirement.
+    pub(in crate::sema) fn constrain(&self, check: &mut CheckState<'_>) -> CompilerResult<()> {
+        let Some(declared) = self.declaration() else {
+            return Ok(());
+        };
+
+        // schedule the selected declaration's bounds
+        for constraint in &declared.bounds {
+            check.push_relation(*constraint)?;
+        }
+
+        // constrain the receiver against its declared target
+        if let Some(target) = declared.target {
+            check.constrain_type(
+                target.origin,
+                target.cause,
+                target.relation,
+                target.source,
+                target.target,
+            )?;
+        }
+
+        Ok(())
     }
 
     /// Return this candidate's selection precedence.
@@ -752,9 +777,12 @@ impl CheckState<'_> {
         let root = self.shallow_resolve(subject)?;
         if space == dir::MemberSpace::Static {
             let named = match self.ty(root)? {
-                dir::Type::Reference(reference) => {
-                    Some((reference.symbol, SmallVec::<[dir::GlobalTypeId; 4]>::new()))
-                }
+                dir::Type::Reference(reference) => Some((
+                    reference.symbol,
+                    SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
+                        self.type_ids(root.module_id, reference.arguments)?,
+                    ),
+                )),
                 dir::Type::Application(instance) => Some((
                     instance.symbol,
                     SmallVec::from_slice(self.type_ids(root.module_id, instance.arguments)?),
@@ -766,7 +794,7 @@ impl CheckState<'_> {
                     origin,
                     module,
                     receiver,
-                    dir::TypeReference { symbol },
+                    dir::TypeReference::new(symbol),
                     &arguments,
                     space,
                     key,
@@ -842,17 +870,15 @@ impl CheckState<'_> {
             }
 
             // declaration references read static members
-            dir::Type::Reference(reference) => self.lookup_declaration_member(
-                origin,
-                module,
-                receiver,
-                reference,
-                &[],
-                space,
-                key,
-                extensions,
-                active,
-            ),
+            dir::Type::Reference(reference) => {
+                let arguments: SmallVec<[_; 4]> = self
+                    .type_ids(subject.module_id, reference.arguments)?
+                    .into();
+
+                self.lookup_declaration_member(
+                    origin, module, receiver, reference, &arguments, space, key, extensions, active,
+                )
+            }
 
             // precise enum variants expose their owner's apparent members
             dir::Type::Variant(_) => self.lookup_apparent_instance_member(
@@ -1685,13 +1711,8 @@ impl CheckState<'_> {
                 && let Some(template) = self.symbol_template(instance.symbol)?
             {
                 let parameters = self.generic_template_parameters(template)?;
-                let Some(instantiated) = self.instantiate_parameters(
-                    origin,
-                    &parameters,
-                    &[],
-                    substitution,
-                    TypeArgumentInference::Exact,
-                )?
+                let Some(instantiated) =
+                    self.instantiate_parameters(origin, &parameters, &[], substitution)?
                 else {
                     return Err(CompilerError::Internal {
                         message: format!("declaration template {template:?} cannot instantiate"),

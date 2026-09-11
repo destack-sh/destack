@@ -1,5 +1,106 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Recursive automatic dereferencing reports its depth limit at the member access.
+#[test]
+fn test_recursive_member_dereference() {
+    let session = TestSession::single(
+        r#"
+import { Dereference } from "destack:ops";
+
+struct Recursive {}
+
+extension of Recursive implements Dereference {
+    type Output = Recursive;
+
+    dereference(&readonly this): &readonly Recursive {
+        this
+    }
+}
+
+declare const value: Recursive;
+
+const missing = value.missing;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Dereference } from "destack:ops";
+
+struct Recursive {}
+
+extension of Recursive implements Dereference {
+    type Output = Recursive;
+
+    dereference(&readonly this): &'a readonly Recursive {
+        this
+    }
+}
+
+declare const value: Recursive;
+
+const missing = value.missing;
+
+=== dir ===
+import { Dereference } from "destack:ops";
+
+struct Recursive {}
+/// @type.symbol symbol=Recursive source="struct Recursive {}" type=Recursive
+/// @definition.struct symbol=Recursive source="struct Recursive {}"
+
+extension of Recursive implements Dereference {
+/// @definition.extension symbol=<module>#2 form=local target=Recursive
+/// @definition.implements symbol=<module>#2 source=Dereference target=Dereference
+/// @definition.associated.type symbol=Output source="type Output = Recursive" key=Output value=Recursive
+/// @definition.method symbol=dereference slot=dereference type=<dereference.'a>(this: &dereference.'a readonly this) => &dereference.'a readonly Recursive
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Dereference.Output
+/// @definition.conformance symbol=<module>#2 member=dereference requirement=Dereference.dereference
+/// @resolution.name source=Recursive target=Recursive
+/// @resolution.name source=Dereference target=Dereference
+
+    type Output = Recursive;
+    /// @type.symbol symbol=Output source="type Output = Recursive" type=Recursive
+    /// @resolution.name source=Recursive target=Recursive
+
+    dereference(&readonly this): &readonly Recursive {
+    /// @generic.template symbol=dereference parent=template#0 parameters=('a)
+    /// @type.symbol symbol=dereference type=<dereference.'a>(this: &dereference.'a readonly this) => &dereference.'a readonly Recursive
+    /// @type.symbol symbol=dereference.this source="&readonly this" type=&dereference.'a readonly this
+    /// @resolution.name source=Recursive target=Recursive
+
+        this
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&dereference.'a readonly Recursive
+        /// @resolution.place source=this placement=dereference.'a lifetime=dereference.'a access="readonly"
+        /// @resolution.access source=this root=this
+
+    }
+}
+
+declare const value: Recursive;
+/// @type.symbol symbol=value source=value type=Recursive
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=Recursive target=Recursive
+
+const missing = value.missing;
+/// @type.symbol symbol=missing source=missing type=<error>
+/// @resolution.pattern source=missing kind=binding target=missing
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+/// @resolution.rejected source=value.missing
+"#,
+        r#"
+/// @diagnostic.error id=dereference-depth-exceeded message="dereferencing 'Recursive' exceeds the depth limit of 8"
+/// @diagnostic.label line=16 column=23 span="missing" line_source="const missing = value.missing;"
+/// @diagnostic.error id=missing-member message="member 'missing' does not exist on type 'Recursive'"
+/// @diagnostic.label line=16 column=23 span="missing" line_source="const missing = value.missing;"
+"#,
+    );
+}
+
 #[test]
 fn test_struct_member_access_selects_field_symbol() {
     let session = TestSession::single(
@@ -230,7 +331,7 @@ let values: int32[] = [];
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -417,7 +518,18 @@ let values: int32[] = [];
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+/// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
+/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
+/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
+/// @generic.instance id=size<int32> template=size arguments=(int32)
+/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
+/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 
 values.push(1);
 /// @type.node source=values type=int32[]
@@ -425,29 +537,18 @@ values.push(1);
 /// @type.node source=values.push(1) type=isize
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(provided(1) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
 /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instantiation id=push<int32> template=push arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
 /// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=append<int32> template=append arguments=(int32)
-/// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id=assumeInitRead#1<int32> template=assumeInitRead#1 arguments=(int32)
 /// @generic.instance id=assumeInitRead<int32> template=assumeInitRead arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
 /// @generic.instance id=initWrite<int32> template=initWrite arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
 /// @generic.instance id=push<int32> template=push arguments=(int32)
 /// @generic.instance id=reserve<int32> template=reserve arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 /// @generic.instance id=sliceUninit<int32> template=sliceUninit arguments=(int32)
 /// @generic.instance id=uninit<int32> template=uninit arguments=(int32)
 /// @generic.instance id=write<int32> template=write arguments=(int32)
@@ -680,7 +781,7 @@ const log = logger.log;
 
 === dir ===
 class Logger {
-/// @type.symbol symbol=Logger type=Logger
+/// @type.symbol symbol=Logger type=typeof Logger
 /// @definition.class symbol=Logger
 /// @definition.method symbol=Logger.log source="log(message: string): void {}" slot=log type=<Logger.log.P0: Place>(this: Managed<this, Logger.log.P0>, string) => void
 
@@ -746,7 +847,7 @@ const chosen: int32 = store.pick<int32>(3);
 
 === dir ===
 class Store {
-/// @type.symbol symbol=Store type=Store
+/// @type.symbol symbol=Store type=typeof Store
 /// @definition.class symbol=Store
 /// @definition.method symbol=Store.pick slot=pick type=<T, Store.pick.P1: Place>(this: Managed<Store, Store.pick.P1>, T) => T
 

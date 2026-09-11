@@ -69,7 +69,7 @@ class Counter {
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
 /// @definition.method symbol=Counter.borrow slot=borrow type=<Counter.borrow.'a>(this: &Counter.borrow.'a Counter) => int32
@@ -217,7 +217,7 @@ sharedSink.write(sharedMessage) satisfies shared Message;
 
 === dir ===
 class Message {}
-/// @type.symbol symbol=Message source="class Message {}" type=Message
+/// @type.symbol symbol=Message source="class Message {}" type=typeof Message
 /// @definition.class symbol=Message source="class Message {}"
 
 newtype interface Sink {
@@ -315,7 +315,7 @@ sharedBuffer.clear();
 
 === dir ===
 class Buffer {
-/// @type.symbol symbol=Buffer type=Buffer
+/// @type.symbol symbol=Buffer type=typeof Buffer
 /// @definition.class symbol=Buffer
 /// @definition.method symbol=Buffer.clear source="clear(&this): void {}" slot=clear type=<Buffer.clear.'a>(this: &Buffer.clear.'a this) => void
 
@@ -606,7 +606,7 @@ function inspect(counter: ^Counter): int32 {
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.count source="count: int32 = 0" key=count type=int32
 /// @definition.method symbol=Counter.read slot=read type=<Counter.read.P0: Place>(this: Managed<this, Counter.read.P0>) => int32
@@ -823,7 +823,7 @@ function read(counter: readonly Counter): int32 {
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
 /// @definition.method symbol=Counter.current slot=current role=getter type=(this: Readonly<Counter>) => int32

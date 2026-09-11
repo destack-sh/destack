@@ -4,9 +4,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Cause, CauseKind, CheckState, InterfaceMember, LookupReceiver, MemberCandidate, MemberLookup,
-    Origin, Relation, RelationCheck, TypeArgumentInference, TypeSubstitution, Value, VariableKind,
-    Verdict, member_arms,
+    Cause, CauseKind, CheckState, InterfaceMember, MemberCandidate, MemberLookup, Origin, Relation,
+    RelationCheck, TypeSubstitution, Value, VariableKind, Verdict, member_arms,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -135,7 +134,6 @@ impl CheckState<'_> {
     /// Return one complete protocol application backed by a language item.
     pub(in crate::sema) fn language_protocol(
         &mut self,
-        module: ModuleId,
         item: dir::LanguageItem,
         written: Vec<dir::GlobalTypeId>,
     ) -> CompilerResult<Protocol> {
@@ -143,8 +141,12 @@ impl CheckState<'_> {
         let symbol = self.language_symbol(item)?;
         let arguments = match self.symbol_template(symbol)? {
             Some(template) => {
-                let Some(substitution) =
-                    self.bind_explicit_arguments(module, template, &written)?
+                let parameters = self.generic_template_parameters(template)?;
+                let Some(substitution) = self.bind_explicit_arguments(
+                    &parameters,
+                    &written,
+                    TypeSubstitution::default(),
+                )?
                 else {
                     return Err(CompilerError::Internal {
                         message: format!(
@@ -209,7 +211,6 @@ impl CheckState<'_> {
             &parameters,
             written,
             TypeSubstitution::default().with_receiver(receiver),
-            TypeArgumentInference::Exact,
         )?
         else {
             return Err(CompilerError::Internal {
@@ -293,18 +294,26 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         protocol: &Protocol,
     ) -> CompilerResult<Option<ProtocolMember>> {
-        // select the candidates implementing the requirement along the receiver's dereferences
+        // use receiver adjustments for instance members and exact lookup for associated members
         let value = Value {
             ty: lookup_receiver,
             node: None,
             place: None,
             is_fresh: false,
         };
-        let Some(candidates) =
-            self.select_protocol_step_candidates(origin, value, space, key, protocol)?
-        else {
+        let subject = self.member_subject(origin, receiver, lookup_receiver, space)?;
+        let candidates = self.match_member(
+            origin,
+            origin.module(),
+            value,
+            subject,
+            key,
+            dir::Access::Readonly,
+            Some(protocol),
+        )?;
+        if candidates.is_empty() {
             return Ok(None);
-        };
+        }
 
         // read the first candidate per runtime arm, joining several as one union
         let arms = member_arms(&candidates);
@@ -316,6 +325,7 @@ impl CheckState<'_> {
                 return Ok(None);
             };
             let candidate = candidate.instantiate(origin, self)?;
+            candidate.constrain(self)?;
             let access = self.protocol_member_access(receiver, &candidate)?;
             types.push(access.ty);
             accesses.push(access);
@@ -353,11 +363,19 @@ impl CheckState<'_> {
             ty: lookup_receiver,
             ..receiver
         };
-        let Some(candidates) =
-            self.select_protocol_step_candidates(origin, value, space, key, protocol)?
-        else {
+        let subject = self.member_subject(origin, receiver.ty, lookup_receiver, space)?;
+        let candidates = self.match_member(
+            origin,
+            origin.module(),
+            value,
+            subject,
+            key,
+            dir::Access::Readonly,
+            Some(protocol),
+        )?;
+        if candidates.is_empty() {
             return Ok(None);
-        };
+        }
 
         // select the first accepting candidate per runtime arm, joining several as one union
         let arms = member_arms(&candidates);
@@ -422,53 +440,8 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Select the candidates the first dereference step exposing the requirement yields.
-    fn select_protocol_step_candidates(
-        &mut self,
-        origin: Origin,
-        receiver: Value,
-        space: dir::MemberSpace,
-        key: dir::StaticKey,
-        protocol: &Protocol,
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
-        // take the first step whose candidates implement the requirement
-        let module = origin.module();
-        for step in self.builtin_steps(origin, receiver)? {
-            // read a scalar constant's protocols on its apparent primitive
-            let stepped = self.ownership_payload(origin, step.ty)?;
-            let stepped = if self.is_literal_shape(stepped)? {
-                self.widen_type(stepped)?
-            } else {
-                stepped
-            };
-            let Some(mut candidates) =
-                self.select_protocol_candidates(origin, module, stepped, space, key, protocol)?
-            else {
-                continue;
-            };
-            // dispatch erased value receivers through their dynamic payload
-            let constraint = match space {
-                dir::MemberSpace::Instance => self.erased_constraint(stepped)?,
-                _ => None,
-            };
-            for candidate in &mut candidates {
-                candidate.receiver = match constraint {
-                    Some(constraint) => LookupReceiver::Dynamic {
-                        adjustments: step.adjustments.clone(),
-                        constraint,
-                    },
-                    None => LookupReceiver::Direct(step.adjustments.clone()),
-                };
-            }
-
-            return Ok(Some(candidates));
-        }
-
-        Ok(None)
-    }
-
-    /// Select the candidates implementing one protocol requirement on a receiver.
-    fn select_protocol_candidates(
+    /// Look up members implementing one protocol on the exact receiver type.
+    pub(in crate::sema) fn lookup_protocol_member(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -476,84 +449,126 @@ impl CheckState<'_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         protocol: &Protocol,
-    ) -> CompilerResult<Option<MemberLookup>> {
-        // require a requirement under the key
+    ) -> CompilerResult<MemberLookup> {
+        // reduce the receiver and classify the requested protocol
+        let receiver = self.normalize(origin, receiver)?;
+        let receiver = if self.is_literal_shape(receiver)? {
+            self.widen_type(receiver)?
+        } else {
+            receiver
+        };
         let interface = protocol.classified().instance(self)?;
         let interface_type = self.intern_type(dir::Type::Application(interface))?;
         let requirements = self.interface_members(interface_type, receiver, space, key)?;
         if requirements.is_empty() {
-            return Ok(None);
+            return Ok(Vec::new());
         }
 
-        // decide the implementing extension
-        let implementation =
-            self.decide_extension_implementation(origin, module, receiver, &interface, None)?;
+        // probe exact conformance and retain the selected declaration
+        let selected = self.decide_deduction(|state| {
+            let implementation = state.decide_extension_implementation(
+                origin,
+                interface_type.module_id,
+                receiver,
+                &interface,
+                None,
+            )?;
+            let cause = state.intern_cause(Cause::root(origin, CauseKind::Expression));
+            let verdict =
+                state.constrain_type(origin, cause, Relation::Subtype, receiver, interface_type)?;
+            let winner = implementation.winner.map(|winner| winner.extension);
 
-        // read the winner's members under the key, interface defaults included
-        let mut candidates = Vec::new();
-        let mut winner = None;
-        if let (Verdict::Holds, Some(source)) = (implementation.verdict, implementation.winner)
-            && self.is_extension_visible(source.extension, module)?
-        {
-            candidates = self
-                .extension_candidates(origin, receiver, receiver, &source, space, Some(key))?
+            Ok((verdict != Verdict::Fails).then_some(winner))
+        })?;
+        let Some(winner) = selected else {
+            return Ok(Vec::new());
+        };
+
+        // confirm only the selected implementation and collect its members once
+        let mut candidates = if let Some(winner) = winner {
+            let implementation = self.confirm_extension_implementation(
+                origin,
+                interface_type.module_id,
+                receiver,
+                &interface,
+                winner,
+            )?;
+            let Some(source) = implementation.winner else {
+                return Err(CompilerError::Internal {
+                    message: "a selected protocol implementation no longer applies".to_string(),
+                });
+            };
+            self.extension_candidates(origin, receiver, receiver, &source, space, Some(key))?
                 .into_iter()
                 .map(|(_, candidate)| candidate)
-                .collect::<Vec<_>>();
-            winner = Some(source.extension);
+                .collect()
+        } else {
+            Vec::new()
+        };
 
-            // prove the conformance to bind the protocol's arguments
-            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.constrain_type(origin, cause, Relation::Subtype, receiver, interface_type)?;
+        // read requirements implemented by inherited declaration members
+        let is_inherited = candidates.is_empty();
+        if is_inherited {
+            candidates = self.lookup_visible_member(origin, module, receiver, space, key)?;
         }
+        let mut candidates = self.conformance_candidates(
+            receiver,
+            winner,
+            interface.symbol,
+            &requirements,
+            candidates,
+        )?;
 
-        // otherwise keep the inherent members the receiver's conformances select
-        if candidates.is_empty() {
-            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            let verdict =
-                self.constrain_type(origin, cause, Relation::Subtype, receiver, interface_type)?;
-            if verdict == Verdict::Fails {
-                return Ok(None);
-            }
-            candidates = self.conformance_candidates(
+        // retain the selected protocol's constraints on its candidates
+        let instance = protocol.instance(self)?;
+        let instance = self.intern_type(dir::Type::Application(instance))?;
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        for candidate in &mut candidates {
+            let Some(declared) = candidate.declaration_mut() else {
+                return Err(CompilerError::Internal {
+                    message: "a protocol member without a declaration".to_string(),
+                });
+            };
+            declared.bounds.push(RelationCheck::new(
                 origin,
-                module,
+                Relation::Subtype,
                 receiver,
-                winner,
-                interface.symbol,
-                space,
-                key,
-                &requirements,
-            )?;
-            if candidates.is_empty() {
-                return Ok(None);
+                interface_type,
+                cause,
+            ));
+            if is_inherited {
+                declared.bounds.push(RelationCheck::new(
+                    origin,
+                    Relation::Storable,
+                    receiver,
+                    interface_type,
+                    cause,
+                ));
             }
-            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.constrain_type(origin, cause, Relation::Storable, receiver, interface_type)?;
+            if !protocol.classification.is_empty() {
+                declared.bounds.push(RelationCheck::new(
+                    origin,
+                    Relation::Equal,
+                    interface_type,
+                    instance,
+                    cause,
+                ));
+            }
         }
 
-        // bind the site's protocol application to its classified form
-        self.bind_protocol_classification(origin, protocol)?;
-
-        Ok(Some(candidates))
+        Ok(candidates)
     }
 
-    /// Keep the inherent members one receiver's conformances select for an interface requirement.
+    /// Keep the members one receiver's conformances select for an interface requirement.
     fn conformance_candidates(
         &mut self,
-        origin: Origin,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
         extension: Option<dir::GlobalSymbolId>,
         interface: dir::GlobalSymbolId,
-        space: dir::MemberSpace,
-        key: dir::StaticKey,
         requirements: &[InterfaceMember],
+        lookup: MemberLookup,
     ) -> CompilerResult<MemberLookup> {
-        // look the key up on the receiver
-        let lookup = self.lookup_visible_member(origin, module, receiver, space, key)?;
-
-        // collect the members the receiver's, the extension's, and each owner's conformances select
+        // collect the members selected by the receiver and each declaring owner
         let mut conformers = FxIndexSet::default();
         if let Some(instance) = self.apparent_instance(receiver)? {
             self.collect_conformance_members(instance.symbol, interface, &mut conformers)?;
@@ -584,34 +599,6 @@ impl CheckState<'_> {
         }
 
         Ok(kept)
-    }
-
-    /// Bind the site's protocol application to its checked argument types.
-    fn bind_protocol_classification(
-        &mut self,
-        origin: Origin,
-        protocol: &Protocol,
-    ) -> CompilerResult<()> {
-        // keep a protocol the site left unclassified as asked
-        if protocol.classification.is_empty() {
-            return Ok(());
-        }
-
-        // equate the asked application with its classified form
-        let instance = protocol.instance(self)?;
-        let instance = self.intern_type(dir::Type::Application(instance))?;
-        let classified = protocol.classified().instance(self)?;
-        let classified = self.intern_type(dir::Type::Application(classified))?;
-        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        self.push_relation(RelationCheck::new(
-            origin,
-            Relation::Equal,
-            classified,
-            instance,
-            cause,
-        ))?;
-
-        Ok(())
     }
 
     /// Return the durable access one protocol member candidate resolves to.
@@ -671,21 +658,16 @@ impl CheckState<'_> {
         // decide the candidate before constraining it
         let attempt = |state: &mut Self| {
             let candidate = candidate.instantiate(origin, state)?;
+            candidate.constrain(state)?;
             let member = state.protocol_member_access(receiver.ty, &candidate)?;
             let arguments = state.source_callable_arguments(origin, argument_sources)?;
-            let call = state.select_member_call(
-                origin,
-                receiver,
-                &candidate,
-                &arguments,
-                argument_sources,
-            )?;
+            let call = state.select_member_call(origin, receiver, &candidate, &arguments)?;
 
             Ok(call.map(|call| (member, call)))
         };
 
         // run the attempt once the decision admits it
-        match self.decide(attempt)?.0 {
+        match self.decide_deduction(attempt)? {
             Some(_) => attempt(self),
             None => Ok(None),
         }
