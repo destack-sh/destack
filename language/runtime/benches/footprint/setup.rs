@@ -310,10 +310,11 @@ impl VmSetup {
         let (optimized, strings) = self.build_mir();
 
         // emit one relocatable object through the production compiler path
-        let emitter = ObjectEmitter::new(module, &optimized, [])
+        let mut analyses = mir::ModuleCache::with_target_layout(optimized.target);
+        let emitter = ObjectEmitter::new(module, &optimized, [], &mut analyses)
             .expect("footprint MIR should emit object metadata");
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
-            .emit()
+            .emit(&mut analyses)
             .expect("footprint MIR should emit bytecode");
         let object = Arc::new(emitter.bytecode(bytecode).build());
 

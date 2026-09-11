@@ -94,10 +94,11 @@ impl TestProgram {
         let optimized = self.optimized();
 
         // emit one relocatable object from the parsed MIR
-        let emitter = ObjectEmitter::new(module, &optimized, [])
+        let mut analyses = mir::ModuleCache::with_target_layout(optimized.target);
+        let emitter = ObjectEmitter::new(module, &optimized, [], &mut analyses)
             .expect("runtime test MIR should emit object metadata");
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
-            .emit()
+            .emit(&mut analyses)
             .expect("runtime test MIR should emit bytecode");
 
         // emit native code when the test requests it
