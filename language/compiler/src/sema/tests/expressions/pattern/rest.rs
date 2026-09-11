@@ -100,7 +100,7 @@ let [...middle, last] = [1, 2, 3];
 /// @type.symbol symbol=middle source=middle type=<error>
 /// @type.symbol symbol=last source=last type=<error>
 /// @type.node source=[1, 2, 3] type=int64[]
-/// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2, 3] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64, provided(3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -135,7 +135,7 @@ let [head, ...middle, ...tail] = [1, 2, 3];
 /// @type.symbol symbol=middle source=middle type=<error>
 /// @type.symbol symbol=tail source=tail type=<error>
 /// @type.node source=[1, 2, 3] type=int64[]
-/// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2, 3] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64, provided(3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2

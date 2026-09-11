@@ -376,7 +376,7 @@ impl CheckState<'_> {
         let Some(slot) = create
             .arguments
             .iter()
-            .find(|binding| matches!(binding.source, dir::ArgumentSource::Supplied))
+            .find(|binding| matches!(binding.source, dir::ArgumentSource::Supplied(_)))
         else {
             return Err(CompilerError::Internal {
                 message: "a generator creation without its body closure slot".to_string(),
@@ -468,12 +468,13 @@ impl CheckState<'_> {
         let parameters =
             self.signature_parameters(callable_type.module_id, signature.parameters)?;
         let mut arguments = Vec::with_capacity(parameters.len());
-        for parameter in parameters {
+        for (index, parameter) in parameters.iter().enumerate() {
             let ty = self.substitute_type(parameter.ty, &substitution)?;
             arguments.push(dir::ArgumentBinding {
+                coercion: None,
                 parameter_type: ty,
                 argument_type: ty,
-                source: dir::ArgumentSource::Supplied,
+                source: dir::ArgumentSource::Supplied(index as u32),
             });
         }
         let return_type = match signature.return_type {

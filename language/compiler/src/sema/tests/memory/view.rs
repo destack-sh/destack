@@ -45,7 +45,7 @@ function label(name: string): void {}
 /// @type.symbol symbol=label.name source="name: string" type=string
 
 local class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(string) => Managed<Counter, Counter.constructor.P0>
@@ -176,7 +176,7 @@ function inspect(sink: readonly Sink): void {}
 /// @resolution.name source=Sink target=Sink
 
 local class Meter {
-/// @type.symbol symbol=Meter type=Meter
+/// @type.symbol symbol=Meter type=typeof Meter
 /// @definition.class symbol=Meter
 /// @definition.field symbol=Meter.sink source="private sink: Sink" key=sink visibility=private type=Sink
 /// @definition.method symbol=Meter.constructor slot=constructor role=constructor type=<Meter.constructor.P0: Place>(Sink) => Managed<this, Meter.constructor.P0>
@@ -289,7 +289,7 @@ function label(name: string): void {}
 
 === dir ===
 local class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.name source="readonly name: string" key=name type=string
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(string) => Managed<Counter, Counter.constructor.P0>
@@ -389,7 +389,7 @@ struct Profile {
 }
 
 declare class Person {
-/// @type.symbol symbol=Person type=Person
+/// @type.symbol symbol=Person type=typeof Person
 /// @definition.class symbol=Person
 /// @definition.field symbol=Person.profile source="profile: Profile" key=profile type=Profile
 

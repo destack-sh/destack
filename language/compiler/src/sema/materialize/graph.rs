@@ -88,7 +88,7 @@ impl CheckState<'_> {
             | dir::Type::Operation(_)
             | dir::Type::Member(_) => {}
             dir::Type::Application(dir::GenericApplication { symbol, .. })
-            | dir::Type::Reference(dir::TypeReference { symbol }) => {
+            | dir::Type::Reference(dir::TypeReference { symbol, .. }) => {
                 let (body, is_newtype) = match self.definition(*symbol)?.as_deref() {
                     Some(dir::Definition::Newtype(newtype)) => (newtype.backing, true),
                     Some(dir::Definition::TypeAlias(alias)) => (alias.value, false),

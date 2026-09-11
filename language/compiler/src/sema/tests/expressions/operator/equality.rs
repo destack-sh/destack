@@ -129,8 +129,8 @@ function use(onValue?: (value: unknown) => void): void {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-function use(onValue?: (arg0: unknown) => void): void {
-    if (onValue !== (undefined as ((arg0: unknown) => void) | undefined)) {
+function use(onValue?: (value: unknown) => void): void {
+    if (onValue !== (undefined as ((value: unknown) => void) | undefined)) {
         onValue(1 as unknown);
     } else {
     }
@@ -425,7 +425,7 @@ function different<T: StrictEqual<T>>(left: &readonly T, right: &readonly T): bo
 }
 
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const firstNumber: int32;
@@ -775,7 +775,7 @@ const isReady: boolean = value === ("ready" as User | string);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const value: string | User;

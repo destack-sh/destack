@@ -437,9 +437,14 @@ impl WalkState<'_, '_> {
             // _
             dir::Expression::Infer { .. } => {}
             // new Type<T>(argument)
-            dir::Expression::New { ty, arguments } => {
+            dir::Expression::New {
+                left,
+                generic_arguments,
+                arguments,
+            } => {
                 let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_construct_type_expression(*ty)?;
+                self.walk_expression(*left, self.tree.get(*left))?;
+                self.walk_generic_arguments(generic_arguments)?;
                 for argument in &arguments {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }

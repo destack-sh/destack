@@ -2,9 +2,115 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, ObligationCheck, ObligationFailure, Variance};
+use crate::sema::{
+    CheckState, ObligationCheck, ObligationFailure, Origin, RestParameterObligation, Variance,
+};
 
 impl CheckState<'_> {
+    /// Require a rest parameter's solved type to describe an argument sequence.
+    pub(in crate::sema) fn check_rest_parameter(
+        &mut self,
+        origin: Origin,
+        obligation: &RestParameterObligation,
+    ) -> CompilerResult<ObligationCheck> {
+        // wait for contextual parameter inference
+        let stalls = self.collect_open_variables([obligation.ty])?;
+        if !stalls.is_empty() {
+            return Ok(ObligationCheck::Ambiguous(stalls));
+        }
+
+        // validate concrete collections and the bounds of generic packs
+        let mut visiting = FxIndexSet::default();
+        if self.is_rest_parameter_type(origin, obligation.ty, &mut visiting)? {
+            Ok(ObligationCheck::holds())
+        } else {
+            Ok(ObligationCheck::fail(
+                ObligationFailure::InvalidRestParameter {
+                    source: obligation.source,
+                    ty: obligation.ty,
+                },
+            ))
+        }
+    }
+
+    /// Return whether a type or its declared bounds describe an argument sequence.
+    fn is_rest_parameter_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        visiting: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<bool> {
+        // expand each bound at most once along a recursive constraint
+        let ty = self.structurally_normalize(origin, ty)?;
+        let ty = self.strip_form(origin, ty)?;
+        if !visiting.insert(ty) {
+            return Ok(false);
+        }
+
+        // accept sequences directly and inspect generic and compound constraints
+        let subject = self.ty(ty)?;
+        let mut is_valid = match subject {
+            dir::Type::Never => true,
+            dir::Type::Tuple(tuple) => {
+                let elements = self.tuple_elements(ty.module_id, tuple.elements)?.to_vec();
+                let mut is_valid = true;
+                for element in elements {
+                    if element.is_rest {
+                        is_valid &= self.is_rest_parameter_type(origin, element.ty, visiting)?;
+                    }
+                }
+
+                is_valid
+            }
+            dir::Type::Parameter(parameter) => {
+                let parameter = self.require_generic_parameter(parameter)?;
+                let mut is_valid = parameter.is_variadic;
+                if let Some(constraint) = parameter.constraint {
+                    is_valid |= self.is_rest_parameter_type(origin, constraint, visiting)?;
+                }
+
+                is_valid
+            }
+            dir::Type::Operation(_) => match self.operation_head(ty)? {
+                // infer captures the complete rest sequence in a conditional type pattern
+                Some(dir::TypeOperation::Infer(infer)) => match infer.constraint {
+                    Some(constraint) => {
+                        self.is_rest_parameter_type(origin, constraint, visiting)?
+                    }
+                    None => true,
+                },
+                _ => false,
+            },
+            dir::Type::Intersection(intersection) => {
+                let members = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
+                let mut is_valid = false;
+                for member in members {
+                    is_valid |= self.is_rest_parameter_type(origin, member, visiting)?;
+                }
+
+                is_valid
+            }
+            dir::Type::Union(union) => {
+                let members = self.type_ids(ty.module_id, union.elements)?.to_vec();
+                let mut is_valid = true;
+                for member in members {
+                    is_valid &= self.is_rest_parameter_type(origin, member, visiting)?;
+                }
+
+                is_valid
+            }
+            _ => self.rest_element_type(origin, ty)?.is_some(),
+        };
+
+        // apply constraints established by the enclosing conditional or where clause
+        for bound in self.assumed_bounds(origin, |bound| bound == &subject)? {
+            is_valid |= self.is_rest_parameter_type(origin, bound, visiting)?;
+        }
+        visiting.shift_remove(&ty);
+
+        Ok(is_valid)
+    }
+
     /// Check that every declared generic parameter occurs in its definition.
     pub(in crate::sema) fn check_parameter_use(
         &mut self,

@@ -191,7 +191,7 @@ const state: { reactions: int32[] } = { reactions: [] };
 /// @type.symbol symbol=reactions source="reactions: int32[]" type=int32[]
 /// @type.node source={ reactions: [] } type={ reactions: int32[] }
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -603,7 +603,7 @@ const object: { name: string } = { ...user };
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
 /// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
@@ -642,6 +642,7 @@ const user = new User("Ada");
 /// @resolution.construct source="new User(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=local User kind=class target=User constructor=User.constructor
 /// @generic.instantiation id="User.constructor<\"local\">" template=User.constructor arguments=("local")
 /// @generic.instantiation id="User<\"local\">" template=User arguments=("local")
+/// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
 /// @type.node source="\"Ada\"" type="Ada"
 

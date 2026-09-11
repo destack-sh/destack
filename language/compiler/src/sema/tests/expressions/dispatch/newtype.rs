@@ -59,7 +59,7 @@ extension<T: Copy> of Wrapper<T> {
     async take(): Promise<T> {
     /// @type.symbol symbol=take type=async (this: Wrapper<T#2>) => Promise<T#2>
     /// @type.symbol symbol=take.this type=Wrapper<T#2>
-    /// @resolution.call parameters=(^Function<(), T#2, "once">) arguments=(supplied as ^Function<(), T#2, "once">) return=Promise<T#2> kind=symbol target=Promise.create instance=Promise.create<T#2>
+    /// @resolution.call parameters=(^Function<(), T#2, "once">) arguments=(supplied(0) as ^Function<(), T#2, "once">) return=Promise<T#2> kind=symbol target=Promise.create instance=Promise.create<T#2>
     /// @generic.instantiation id=Promise.create<T#2> template=Promise.create arguments=(T#2) owner=take
     /// @generic.instance id="Promise.symbol12<T#2, \"local\">" template=Promise.symbol12 arguments=(T#2, "local")
     /// @generic.instance id="Promise<T#2, \"local\">" template=Promise arguments=(T#2, "local")

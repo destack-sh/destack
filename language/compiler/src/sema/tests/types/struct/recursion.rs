@@ -171,7 +171,7 @@ export class Player {
 import { World } from "./world.ds";
 
 export class Player {
-/// @type.symbol symbol=Player type=Player
+/// @type.symbol symbol=Player type=typeof Player
 /// @definition.class symbol=Player
 /// @definition.field symbol=Player.world source="world: World" key=world type=world.World
 /// @definition.method symbol=Player.constructor slot=constructor role=constructor type=<Player.constructor.P0: Place>(world.World) => Managed<Player, Player.constructor.P0>
@@ -218,7 +218,7 @@ export class World {
 import { Player } from "./player.ds";
 
 export class World {
-/// @type.symbol symbol=World type=World
+/// @type.symbol symbol=World type=typeof World
 /// @definition.class symbol=World
 /// @definition.field symbol=World.player source="player: Player" key=player type=player.Player
 /// @definition.method symbol=World.constructor slot=constructor role=constructor type=<World.constructor.P0: Place>(player.Player) => Managed<World, World.constructor.P0>

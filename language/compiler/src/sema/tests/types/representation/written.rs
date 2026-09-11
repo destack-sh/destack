@@ -536,9 +536,11 @@ const shapes: Array<Shape> = [
 /// @generic.instance id=truncate<Shape> template=truncate arguments=(Shape)
 /// @resolution.name source=Array target=Array
 /// @resolution.name source=Shape target=Shape
-/// @resolution.call parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<Shape>
+/// @resolution.call parameters=(^Slice<Shape>) arguments=(rest(provided(Circle { radius: 1.0 }) as Shape, provided(Rectangle { width: 1.0, height: 1.0 }) as Shape) as Shape) return=Shape[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<Shape>
 /// @generic.instantiation id=arrayFromOwnedSlice<Shape> template=arrayFromOwnedSlice arguments=(Shape)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<Shape> template=arrayFromOwnedSlice arguments=(Shape)
 /// @generic.instance id=fromOwnedSlice<Shape> template=fromOwnedSlice arguments=(Shape)
@@ -564,14 +566,12 @@ const first = shapes[0];
 /// @resolution.access source=shapes[0] root=shapes keys=[0]
 /// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<Shape, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
 /// @generic.instantiation id="index#1<Shape, \"mutable\">" template=index#1 arguments=(Shape, "mutable")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 Shape, \"mutable\">" template=WithAccess arguments=(&'bound0 Shape, "mutable")
 /// @generic.instance id="WithAccess<&'bound0 Shape[], \"mutable\">" template=WithAccess arguments=(&'bound0 Shape[], "mutable")
 /// @generic.instance id="assumeInitReference<Shape, \"mutable\">" template=assumeInitReference arguments=(Shape, "mutable")
 /// @generic.instance id="elementSlot<Shape, \"mutable\">" template=elementSlot arguments=(Shape, "mutable")
 /// @generic.instance id="index#1<Shape, \"mutable\">" template=index#1 arguments=(Shape, "mutable")
 /// @generic.instance id="sliceIndex<MaybeUninit<Shape>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Shape>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=elementPosition<Shape> template=elementPosition arguments=(Shape)
 
 first satisfies Shape;
@@ -718,7 +718,7 @@ struct Segment {
 }
 
 class Marker {
-/// @type.symbol symbol=Marker type=Marker
+/// @type.symbol symbol=Marker type=typeof Marker
 /// @definition.class symbol=Marker
 /// @definition.field symbol=Marker.position source="position: Point = { x: 0, y: 0 }" key=position type=Point
 

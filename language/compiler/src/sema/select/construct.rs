@@ -3,146 +3,260 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    AssignedPlace, CallableArgument, CheckFailure, CheckOutcome, CheckState, Expectation, FlowSite,
-    NewtypeMatch, NewtypeSignature, Origin, OverloadRule, OverloadSelection, PlaceUse,
-    SignatureFamily, SignatureMatch, SignatureRejection, SignatureSelection, TypeArgumentInference,
-    TypeSubstitution, ValueCheck, ValueUse,
+    AssignedPlace, CallableArgument, CauseId, CheckFailure, CheckOutcome, CheckState, Expectation,
+    FlowSite, GenericParameterId, InferMode, NewtypeMatch, NewtypeSignature, Origin, OverloadRule,
+    OverloadSelection, PlaceUse, Relation, SignatureMatch, SignatureRejection, SignatureSelection,
+    TypeSubstitution, Value, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Select the target type named by one construct head.
-    pub(in crate::sema) fn select_construct_target(
+    /// Return the allocating signatures exposed by a class value.
+    pub(in crate::sema) fn constructor_signatures(
         &mut self,
-        site: FlowSite,
-        ty: dir::LocalNodeId<dir::TypeExpression>,
-        expected: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = site.node.module_id;
-        let origin = site.origin();
-        let source = ty.into_global_any(module);
-
-        // walk the construct type at its first typing visit
-        self.walk_body_construct_type(module, ty)?;
-
-        // return the committed construct target
-        if let Some(target) = self.own_node_type(source) {
-            return Ok(target);
+        origin: Origin,
+        source: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
+        // require a concrete class declaration
+        let dir::Type::Reference(reference) = self.ty(source)? else {
+            return Ok(Vec::new());
+        };
+        match self.definition(reference.symbol)?.as_deref() {
+            Some(dir::Definition::Class(class)) if !class.is_abstract => {}
+            _ => return Ok(Vec::new()),
         }
 
-        // let the expected target decide omitted heads
-        if matches!(
-            self.module(module).view().get(ty),
-            dir::TypeExpression::Infer {
-                form: dir::InferForm::Hole,
-                ..
-            }
-        ) {
-            let Some(expected) = self.expected_construct_target(expected)? else {
-                self.report_cannot_infer_node(site.node)?;
-                let error = self.intern_type(dir::Type::Error)?;
-
-                return Ok(error);
+        // substitute the complete constructor application into its instance and signatures
+        let (instance, substitution) = if reference.arguments.is_empty() {
+            (
+                self.declaration_instance(reference.symbol)?,
+                TypeSubstitution::default(),
+            )
+        } else {
+            let instance = dir::GenericApplication {
+                symbol: reference.symbol,
+                arguments: reference.arguments,
             };
-            self.commit_node_type(source, expected)?;
+            let substitution = self.instance_substitution(source.module_id, &instance)?;
+            let arguments: SmallVec<[_; 4]> =
+                self.type_ids(source.module_id, reference.arguments)?.into();
+            let arguments = self.intern_type_ids(&arguments)?;
 
-            return Ok(expected);
+            (
+                dir::GenericApplication {
+                    arguments,
+                    ..instance
+                },
+                substitution,
+            )
+        };
+        let receiver = self.intern_type(dir::Type::Application(instance))?;
+        let mut constructors =
+            self.class_constructors(origin, receiver, &instance, &mut SmallVec::new())?;
+        let substitution = substitution.with_receiver(receiver);
+        for constructor in &mut constructors {
+            let ty = self.substitute_type(constructor.ty, &substitution)?;
+
+            // bind the initializer's induced memory parameters for the allocating constructor
+            let head = self
+                .signature_head(ty)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "a class constructor without its signature".to_string(),
+                })?;
+            let parameters = self.signature_generic_parameters(ty.module_id, &head)?;
+            let mut induced = SmallVec::<[GenericParameterId; 4]>::new();
+            for parameter in parameters {
+                if self
+                    .require_generic_parameter(parameter)?
+                    .induced_memory_parameter()
+                    .is_some()
+                {
+                    induced.push(parameter);
+                }
+            }
+            let arguments = self.signature_arguments(ty.module_id, head.arguments)?;
+            let mut allocation = TypeSubstitution::default().with_carried(arguments)?;
+            self.ground_ambient_memory_parameters(&induced, &mut allocation)?;
+            let ty = self.substitute_type(ty, &allocation)?;
+            let arguments = self.intern_generic_arguments(&allocation.bindings)?;
+
+            // present the declared signature in its construct form
+            let head = self
+                .signature_head(ty)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "a class constructor without its signature".to_string(),
+                })?;
+            constructor.ty = self.intern_signature(dir::FunctionSignatureType {
+                is_construct: true,
+                arguments,
+                ..head
+            })?;
         }
 
-        // supply omitted generic arguments from a uniquely matching contextual arm
-        if let dir::TypeExpression::Reference {
-            generic_arguments, ..
-        } = self.module(module).view().get(ty)
-            && generic_arguments.is_empty()
-            && let Some(expected) = expected
-            && let Some(resolution) = self.resolutions(source.module_id).name_resolution(source)
-            && let [symbol] = resolution.symbols()
-            && let Some(expected) = self.expected_construct_instance(expected, *symbol)?
-        {
-            self.commit_node_type(source, expected)?;
-
-            return Ok(expected);
-        }
-
-        self.construct_head_type(origin, module, ty)
+        Ok(constructors)
     }
 
-    /// Return the nominal head type one construct or pattern writes.
-    pub(in crate::sema) fn construct_head_type(
+    /// Select the construction performed by a required constructor function.
+    pub(in crate::sema) fn select_constructor_value(
+        &mut self,
+        site: FlowSite,
+        cause: CauseId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Result<Option<dir::ConstructDecision>, CheckFailure>> {
+        let origin = site.origin();
+
+        // require a class reference converting to a construct signature
+        let dir::Type::Reference(_) = self.ty(source)? else {
+            return Ok(Ok(None));
+        };
+        let Some(required) = self.signature_head(target)? else {
+            return Ok(Ok(None));
+        };
+        if !required.is_construct {
+            return Ok(Ok(None));
+        }
+
+        // select in the same declaration order as a direct construction
+        let constructors = self.constructor_signatures(origin, source)?;
+        for constructor in constructors {
+            let Some(instantiation) = self.instantiate_signature(origin, constructor.ty, target)?
+            else {
+                continue;
+            };
+            if !self
+                .decide_relation(origin, Relation::Subtype, instantiation.signature, target)?
+                .holds()
+            {
+                continue;
+            }
+
+            // retain the selected class arguments and constructor result
+            let signature = self
+                .signature_head(instantiation.signature)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "an instantiated constructor without its signature".to_string(),
+                })?;
+            let return_type = signature
+                .return_type
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "an instantiated constructor without its result".to_string(),
+                })?;
+            let returned = self.strip_form(origin, return_type)?;
+            let (module, instance) = self.nominal_application(returned)?;
+            let arguments: SmallVec<[_; 4]> = self.type_ids(module, instance.arguments)?.into();
+            let arguments = self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
+            let key = dir::InstanceKey::new(instance.symbol, arguments);
+
+            // supply the generated function's parameters to the selected constructor
+            let parameters = self
+                .signature_parameters(instantiation.signature.module_id, signature.parameters)?
+                .to_vec();
+            let supplied = self
+                .signature_parameters(target.module_id, required.parameters)?
+                .to_vec();
+            let Some(mut arguments) = self.forward_parameters(site, &parameters, &supplied)? else {
+                continue;
+            };
+            let supplied = supplied
+                .iter()
+                .map(|parameter| parameter.ty)
+                .collect::<Vec<_>>();
+            for argument in &mut arguments {
+                if let Err(failure) = self.convert_argument(site, cause, argument, &supplied)? {
+                    return Ok(Err(failure));
+                }
+            }
+            if let Some(symbol) = constructor.constructor.call_symbol() {
+                self.check_symbol_access(origin, symbol, "constructor")?;
+            }
+            let target = dir::ConstructTarget::Class {
+                key,
+                constructor: constructor.constructor,
+            };
+
+            let mut construction =
+                dir::ConstructDecision::new(target, arguments, return_type, instantiation.regions);
+
+            // convert the constructed instance to the required function result
+            if let Some(required) = required.return_type {
+                let value = Value {
+                    ty: return_type,
+                    node: None,
+                    place: None,
+                    is_fresh: false,
+                };
+                construction.coercion = match self.convert_closed_value(
+                    site,
+                    origin,
+                    cause,
+                    value,
+                    required,
+                    ValueUse::Output,
+                )? {
+                    Ok(coercion) => coercion,
+                    Err(failure) => return Ok(Err(failure)),
+                };
+            }
+
+            return Ok(Ok(Some(construction)));
+        }
+
+        Ok(Ok(None))
+    }
+
+    /// Select the complete target of an aggregate expression or nominal pattern.
+    pub(in crate::sema) fn construct_type(
         &mut self,
         origin: Origin,
         module: ModuleId,
         ty: dir::LocalNodeId<dir::TypeExpression>,
+        expected: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // reuse a completed selection
         let source = ty.into_global_any(module);
-
-        // return the committed construct head
         if let Some(target) = self.own_node_type(source) {
-            return Ok(target);
+            return self.normalize(origin, target);
         }
 
-        // keep strict annotation typing for every other head
-        let dir::TypeExpression::Reference {
-            path,
-            generic_arguments,
-            ..
-        } = self.module(module).view().get(ty).clone()
-        else {
-            return self.require_node_type(source);
-        };
+        // resolve written heads and arguments before applying construction context
+        self.walk_body_construct_type(module, ty)?;
+        if let Some(target) = self.own_node_type(source) {
+            return self.normalize(origin, target);
+        }
+        let expression = self.module(module).view().get(ty).clone();
 
-        // read the construct declaration captured during walk
-        let symbol = match self.name_decision(source) {
-            Some(resolution) => match resolution.symbols() {
-                [symbol] => *symbol,
-                _ => {
-                    self.report_ambiguous_reference(module, ty.into_any(), &path)?;
-                    let error = self.intern_type(dir::Type::Error)?;
-
-                    return Ok(error);
-                }
-            },
-            None => match self.decision(source).cloned() {
-                Some(dir::Decision::Rejected | dir::Decision::Poisoned) => {
-                    let error = self.intern_type(dir::Type::Error)?;
-
-                    return Ok(error);
-                }
-                Some(other) => {
-                    return Err(CompilerError::Internal {
-                        message: format!("construct target {source:?} decided as {other:?}"),
-                    });
-                }
-                // accept an undecided head in a module that already reported errors
-                None if !self.module(module).diagnostics.is_empty() => {
-                    let error = self.intern_type(dir::Type::Error)?;
-
-                    return Ok(error);
-                }
-                // reference heads in a clean module decide during the walk
+        // select omitted heads and nominal arguments from the same expected instance
+        let target = match expression {
+            dir::TypeExpression::Infer {
+                form: dir::InferForm::Hole,
+                ..
+            } => match self.expected_construct_target(expected)? {
+                Some(target) => target,
                 None => {
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "construct target {} has no walk decision",
-                            self.node_label(source)
-                        ),
-                    });
+                    self.report_cannot_infer_node(self.origin_source(origin)?)?;
+                    self.intern_type(dir::Type::Error)?
                 }
             },
+            dir::TypeExpression::Reference {
+                generic_arguments, ..
+            } => {
+                let symbol = self
+                    .name_decision(source)
+                    .and_then(|resolution| resolution.single_symbol())
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!("construct type {source:?} has no declaration"),
+                    })?;
+                self.instantiate_construct_target(
+                    origin,
+                    source,
+                    symbol,
+                    &generic_arguments,
+                    expected,
+                )?
+            }
+            _ => return self.require_node_type(source),
         };
-
-        // construct value bindings through their inferred value type
-        if self.symbol_kind(symbol)?.is_binding() {
-            let target = self.symbol_type(symbol)?;
-            let target = self.strip_form(origin, target)?;
-            self.commit_node_type(source, target)?;
-
-            return Ok(target);
-        }
-
-        // instantiate written arguments and open omitted construct parameters
-        let target =
-            self.instantiate_construct_target(origin, source, symbol, &generic_arguments)?;
         self.commit_node_type(source, target)?;
 
         Ok(target)
@@ -153,19 +267,16 @@ impl CheckState<'_> {
         &mut self,
         expected: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(expected) = expected else {
+        let Some(mut target) = expected else {
             return Ok(None);
         };
 
         // peel the owned and managed forms around the constructed instance
-        let target = match self.ty(expected)? {
-            dir::Type::Form(form)
-                if matches!(form.form, dir::Form::Owned | dir::Form::Managed { .. }) =>
-            {
-                form.value
-            }
-            _ => expected,
-        };
+        while let dir::Type::Form(form) = self.ty(target)?
+            && matches!(form.form, dir::Form::Owned | dir::Form::Managed { .. })
+        {
+            target = form.value;
+        }
 
         Ok(Some(target))
     }
@@ -210,42 +321,37 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        expected: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // collect the written generic arguments in order
         let module = source.module_id;
-        let mut written = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        for argument in arguments {
-            let argument = argument.into_global_any(module);
-            let ty = self.require_node_type(argument)?;
-            written.push(ty);
+
+        // infer unwritten arguments from one matching contextual instance
+        if arguments.is_empty()
+            && let Some(expected) = expected
+            && let Some(target) = self.expected_construct_instance(expected, symbol)?
+        {
+            return Ok(target);
         }
 
-        // reject written arguments on nongeneric heads
-        let Some(template) = self.symbol_template(symbol)? else {
-            if !written.is_empty() {
-                let name = self.format_symbol(symbol);
-                self.report_wrong_generic_arity(module, source.local_id, name, 0, written.len());
-                let error = self.intern_type(dir::Type::Error)?;
+        // read the checked arguments at the construct expression
+        let mut written = SmallVec::<[_; 4]>::new();
+        for argument in arguments {
+            written.push(self.require_node_type(argument.into_global_any(module))?);
+        }
 
-                return Ok(error);
-            }
-            let arguments = self.intern_type_ids(&[])?;
-            let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
-                symbol,
-                arguments,
-            }))?;
-
-            return Ok(target);
+        // read the declaration's parameters
+        let template = self.symbol_template(symbol)?;
+        let parameters = match template {
+            Some(template) => self.generic_template_parameters(template)?,
+            None => SmallVec::new(),
         };
 
         // infer omitted construct arguments
-        let parameters = self.generic_template_parameters(template)?;
         let Some(substitution) = self.instantiate_parameters(
             origin,
             &parameters,
             &written,
             TypeSubstitution::default(),
-            TypeArgumentInference::Exact,
         )?
         else {
             let name = self.format_symbol(symbol);
@@ -257,10 +363,12 @@ impl CheckState<'_> {
         };
 
         // push every bound and predicate on the constructed application
-        for constraint in
-            self.substitute_application_constraints(origin, template, &substitution)?
-        {
-            self.push_relation(constraint)?;
+        if let Some(template) = template {
+            for constraint in
+                self.substitute_application_constraints(origin, template, &substitution)?
+            {
+                self.push_relation(constraint)?;
+            }
         }
 
         // apply the instantiated arguments to the nominal head
@@ -278,10 +386,11 @@ impl CheckState<'_> {
     pub(in crate::sema) fn select_construct(
         &mut self,
         site: FlowSite,
-        ty: dir::LocalNodeId<dir::TypeExpression>,
+        left: dir::LocalNodeId<dir::Expression>,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         expectation: Option<Expectation>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+    ) -> CompilerResult<ValueCheck> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
@@ -290,9 +399,6 @@ impl CheckState<'_> {
         // walk the argument decorators, keeping the statically present arguments
         let argument_nodes = self.walk_body_arguments(module, argument_nodes)?;
         let argument_nodes = argument_nodes.as_slice();
-
-        // collect the supplied arguments once for every candidate
-        let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
 
         // separate destination forms from the constructed instance
         let mut forms = SmallVec::<[dir::Form; 2]>::new();
@@ -308,71 +414,144 @@ impl CheckState<'_> {
             expected_value = Some(form.value);
         }
 
-        // select the constructed target
-        let target = self.select_construct_target(site, ty, expected_value)?;
+        // check the complete constructor value and its written type arguments
+        self.walk_body_generic_arguments(module, generic_arguments)?;
+        let source = left.into_global_any(module);
+        let callee_site = self.visit_site(source)?;
+        let is_hole = matches!(
+            self.module(module).view().get(left),
+            dir::Expression::Infer {
+                form: dir::InferForm::Hole,
+                name: None
+            }
+        );
+        let target = if is_hole {
+            let Some(target) = self.expected_construct_target(expected_value)? else {
+                self.report_cannot_infer_node(source)?;
+                self.commit_decision(node, dir::Decision::Rejected)?;
 
-        // construct erased values through their apparent constraint signatures
-        if let Some(constraint) = self.erased_constraint(target)? {
-            return self.select_dynamic_construct(
-                site,
-                node,
-                origin,
-                target,
-                constraint,
-                argument_nodes,
-                &arguments,
-                &forms,
-            );
-        }
+                return self.commit_rejected_call(node, expectation, None);
+            };
+            self.commit_node_type(source, target)?;
+
+            target
+        } else {
+            let value = self.infer_node(callee_site, PlaceUse::Read, InferMode::Regular)?;
+            let value = self.strip_form(origin, value)?;
+            let value = self.normalize(origin, value)?;
+            let value = self.static_value_type(value)?;
+            match self.ty(value)? {
+                // apply the class constructor to its type arguments
+                dir::Type::Reference(reference)
+                    if self.symbol_kind(reference.symbol)? == dir::SymbolKind::Class =>
+                {
+                    // require invocation arguments only on an unapplied constructor
+                    if !reference.arguments.is_empty() && !generic_arguments.is_empty() {
+                        let name = self.format_symbol(reference.symbol);
+                        self.report_wrong_generic_arity(
+                            module,
+                            source.local_id,
+                            name,
+                            0,
+                            generic_arguments.len(),
+                        );
+                        self.commit_decision(node, dir::Decision::Rejected)?;
+
+                        return self.commit_rejected_call(node, expectation, None);
+                    }
+                    // preserve checked arguments on a specialized constructor
+                    if !reference.arguments.is_empty() {
+                        let arguments: SmallVec<[_; 4]> =
+                            self.type_ids(value.module_id, reference.arguments)?.into();
+                        let arguments = self.intern_type_ids(&arguments)?;
+                        self.intern_type(dir::Type::Application(dir::GenericApplication {
+                            symbol: reference.symbol,
+                            arguments,
+                        }))?
+                    }
+                    // infer an unapplied constructor from its context or written arguments
+                    else {
+                        self.instantiate_construct_target(
+                            origin,
+                            source,
+                            reference.symbol,
+                            generic_arguments,
+                            expected_value,
+                        )?
+                    }
+                }
+                // retain an already diagnosed operand failure
+                dir::Type::Error => {
+                    self.commit_decision(node, dir::Decision::Poisoned)?;
+
+                    return self.commit_rejected_call(node, expectation, None);
+                }
+                // invoke construct signatures through the shared callable selection
+                _ => {
+                    let check = self.select_construct_call(
+                        site,
+                        callee_site,
+                        value,
+                        generic_arguments,
+                        argument_nodes,
+                        expectation,
+                    )?;
+
+                    return Ok(check);
+                }
+            }
+        };
+
+        // collect the supplied arguments once for every nominal constructor
+        let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
 
         // read the nominal instance the target names
         let instance = match self.ty(target)? {
             dir::Type::Application(instance) => instance,
-            _ => return self.report_rejected_construct_target(node, origin, target, "'new'", ""),
+            _ => {
+                self.report_not_constructible(origin, target, "'new'", "")?;
+
+                return self.commit_rejected_call(node, expectation, None);
+            }
         };
 
         // require a class to construct through new
         let constructors = match self.definition(instance.symbol)?.as_deref() {
             Some(dir::Definition::Struct(_)) => {
-                return self.report_rejected_construct_target(
-                    node,
+                self.report_not_constructible(
                     origin,
                     target,
                     "'new'",
                     "; construct value types with 'T { … }'",
-                );
+                )?;
+
+                return self.commit_rejected_call(node, expectation, None);
             }
             Some(dir::Definition::Newtype(_)) => {
-                return self.report_rejected_construct_target(
-                    node,
+                self.report_not_constructible(
                     origin,
                     target,
                     "'new'",
                     "; construct newtypes with 'T(…)'",
-                );
+                )?;
+
+                return self.commit_rejected_call(node, expectation, None);
             }
             Some(dir::Definition::Class(definition)) => {
                 if definition.is_abstract {
                     self.report_cannot_construct_abstract_type(origin, target)?;
                     self.commit_decision(node, dir::Decision::Rejected)?;
-                    let error = self.commit_error_node(node)?;
-
-                    return Ok(error);
+                    return self.commit_rejected_call(node, expectation, None);
                 }
 
-                let constructors = definition.constructors.clone();
-                let extends = definition.extends.clone();
                 let mut active = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
-                self.collect_class_construct_candidates(
-                    origin,
-                    target,
-                    &instance,
-                    constructors,
-                    extends,
-                    &mut active,
-                )?
+                self.class_constructors(origin, target, &instance, &mut active)?
             }
-            _ => return self.report_rejected_construct_target(node, origin, target, "'new'", ""),
+            _ => {
+                self.report_not_constructible(origin, target, "'new'", "")?;
+
+                return self.commit_rejected_call(node, expectation, None);
+            }
         };
 
         // require at least one construct candidate
@@ -437,26 +616,33 @@ impl CheckState<'_> {
                     self.check_symbol_access(origin, symbol, "constructor")?;
                 }
 
-                self.commit_construct(
+                let source = self.commit_construct(
                     node,
-                    module,
                     target.module_id,
-                    argument_nodes,
                     &instance,
                     constructor.constructor.clone(),
                     signature,
                     &forms,
-                )
+                )?;
+
+                Ok(ValueCheck {
+                    source,
+                    outcome: CheckOutcome::Holds,
+                    target: expectation.map_or(source, |expected| expected.target),
+                })
             }
             // commit the rejection a sole candidate already reported
             OverloadSelection::Refused => {
                 self.commit_decision(node, dir::Decision::Rejected)?;
 
-                self.commit_error_node(node)
+                self.commit_rejected_call(node, expectation, None)
             }
             // report the arguments every candidate rejected
             OverloadSelection::Rejected(rejections) => {
-                self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
+                let arguments = self.infer_argument_types(site, argument_nodes)?;
+                self.report_no_matching_construct(origin, &arguments, &rejections)?;
+
+                self.commit_rejected_call(node, expectation, None)
             }
             // fail on an ambiguity an ordered rule settles
             OverloadSelection::Ambiguous => Err(CompilerError::Internal {
@@ -467,32 +653,41 @@ impl CheckState<'_> {
     }
 
     /// Return construct candidates for one class instance.
-    pub(in crate::sema) fn collect_class_construct_candidates(
+    pub(in crate::sema) fn class_constructors(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
         instance: &dir::GenericApplication,
-        constructors: Vec<dir::ClassConstructorDefinition>,
-        extends: Option<dir::NominalHeritage>,
         active: &mut SmallVec<[dir::GlobalSymbolId; 4]>,
     ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
+        // read the class declaration at each inheritance step
+        let definition = self.definition(instance.symbol)?;
+        let Some(dir::Definition::Class(class)) = definition.as_deref() else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "constructor target {:?} has no class definition",
+                    instance.symbol
+                ),
+            });
+        };
+
         // keep the constructors the class declares itself
-        if !constructors.is_empty() {
-            return Ok(constructors);
+        if !class.constructors.is_empty() {
+            return Ok(class.constructors.clone());
         }
 
         // require a base class to forward from
-        let Some(extends) = extends else {
+        let Some(extends) = class.extends.clone() else {
             return Err(CompilerError::Internal {
                 message: format!("class {:?} has no construct candidates", instance.symbol),
             });
         };
 
-        self.collect_forwarded_class_construct_candidates(origin, receiver, &extends, active)
+        self.inherited_constructors(origin, receiver, &extends, active)
     }
 
     /// Return constructors forwarded from one base class.
-    fn collect_forwarded_class_construct_candidates(
+    fn inherited_constructors(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
@@ -506,16 +701,6 @@ impl CheckState<'_> {
         }
         active.push(instance.symbol);
 
-        // read the base class definition
-        let base = match self.definition(instance.symbol)?.as_deref() {
-            Some(dir::Definition::Class(base)) => base.clone(),
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: format!("base class {:?} has no checked definition", instance.symbol),
-                });
-            }
-        };
-
         // apply the written heritage arguments to the base instance
         let module = origin.module();
         let arguments: SmallVec<[_; 8]> = self.type_ids(extends_module, instance.arguments)?.into();
@@ -527,14 +712,8 @@ impl CheckState<'_> {
         let base_receiver = self.intern_type(dir::Type::Application(instance))?;
 
         // collect the constructors the base itself offers
-        let base_constructors = self.collect_class_construct_candidates(
-            origin,
-            base_receiver,
-            &instance,
-            base.constructors,
-            base.extends,
-            active,
-        )?;
+        let base_constructors =
+            self.class_constructors(origin, base_receiver, &instance, active)?;
         active.pop();
 
         // forward each base constructor onto the derived receiver
@@ -702,14 +881,7 @@ impl CheckState<'_> {
         };
 
         // commit the selected newtype construction
-        self.commit_newtype_construct(
-            node,
-            origin,
-            argument_nodes,
-            signature,
-            expectation,
-            outcome,
-        )
+        self.commit_newtype_construct(node, origin, signature, expectation, outcome)
     }
 
     /// Commit one selected newtype construction at its call site.
@@ -717,12 +889,10 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
         origin: Origin,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: NewtypeSignature,
         expectation: Option<Expectation>,
         outcome: CheckOutcome,
     ) -> CompilerResult<ValueCheck> {
-        let module = origin.module();
         let NewtypeSignature {
             key,
             backing,
@@ -741,7 +911,7 @@ impl CheckState<'_> {
         let target = dir::ConstructTarget::Newtype { key, backing };
         let resolution = dir::ConstructDecision::new(
             target,
-            self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
+            signature.bind_arguments(Origin::Node(node, None), self)?,
             signature.return_type,
             signature.region_arguments.clone(),
         );
@@ -761,9 +931,7 @@ impl CheckState<'_> {
     fn commit_construct(
         &mut self,
         node: dir::GlobalNodeIdAny,
-        module: ModuleId,
         instance_module: ModuleId,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         instance: &dir::GenericApplication,
         constructor: dir::ClassConstructor,
         signature: SignatureSelection,
@@ -808,7 +976,7 @@ impl CheckState<'_> {
         // commit the construction over the selected class constructor
         let resolution = dir::ConstructDecision::new(
             target,
-            self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
+            signature.bind_arguments(Origin::Node(node, None), self)?,
             produced,
             signature.region_arguments.clone(),
         );
@@ -816,120 +984,6 @@ impl CheckState<'_> {
         self.commit_node_type(node, produced)?;
 
         Ok(produced)
-    }
-
-    /// Select one construction through an erased interface construct signature.
-    fn select_dynamic_construct(
-        &mut self,
-        site: FlowSite,
-        node: dir::GlobalNodeIdAny,
-        origin: Origin,
-        target: dir::GlobalTypeId,
-        constraint: dir::GlobalTypeId,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        arguments: &[CallableArgument],
-        forms: &[dir::Form],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // read the construct signatures the constraint declares
-        let module = node.module_id;
-        let signatures = self.apparent_signatures(constraint, SignatureFamily::Construct)?;
-        let Some((constraint_module, instance)) = self.nominal_application_maybe(constraint)?
-        else {
-            return self.report_rejected_construct_target(node, origin, target, "'new'", "");
-        };
-        if signatures.is_empty() {
-            return self.report_rejected_construct_target(node, origin, target, "'new'", "");
-        }
-
-        // select the first applicable construct signature in declaration order
-        let selection = self.select_callable(
-            origin,
-            &signatures,
-            OverloadRule::Ordered,
-            |signature| signature.ty,
-            |state, signature| {
-                state.match_construct(
-                    origin,
-                    constraint_module,
-                    &instance,
-                    target,
-                    signature.ty,
-                    arguments,
-                    None,
-                    None,
-                )
-            },
-        )?;
-
-        // commit or report the construct signature the match selected
-        match selection {
-            // commit the dynamic construction the signature match selected
-            OverloadSelection::Selected {
-                candidate,
-                signature,
-                ..
-            } => self.commit_dynamic_construct(
-                node,
-                module,
-                target,
-                constraint,
-                candidate.source,
-                argument_nodes,
-                signature,
-                forms,
-            ),
-            // commit the rejection a sole candidate already reported
-            OverloadSelection::Refused => {
-                self.commit_decision(node, dir::Decision::Rejected)?;
-
-                self.commit_error_node(node)
-            }
-            // report the arguments every candidate rejected
-            OverloadSelection::Rejected(rejections) => {
-                self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
-            }
-            // fail on an ambiguity an ordered rule settles
-            OverloadSelection::Ambiguous => Err(CompilerError::Internal {
-                message: "ordered construct selection reported an ambiguous signature".to_string(),
-            }),
-        }
-    }
-
-    /// Commit one selected dynamic construction.
-    fn commit_dynamic_construct(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        module: ModuleId,
-        target: dir::GlobalTypeId,
-        constraint: dir::GlobalTypeId,
-        source: dir::GlobalNodeIdAny,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        signature: SignatureSelection,
-        forms: &[dir::Form],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // commit conversions only after the signature has been selected
-        for (argument, coercion) in &signature.coercions {
-            self.commit_coercion(*argument, coercion.clone())?;
-        }
-
-        // dispatch through the callee value's own construct signature
-        let construct_target = dir::ConstructTarget::Dynamic {
-            dispatch: dir::DynamicDispatch {
-                receiver: dir::AdjustedReceiver::direct(target),
-                constraint,
-            },
-            function: dir::DynamicFunction::ConstructSignature(source),
-        };
-
-        // commit the erased construct decision
-        self.commit_construct_decision(
-            node,
-            module,
-            construct_target,
-            argument_nodes,
-            &signature,
-            forms,
-        )
     }
 
     /// Select the base class constructor initialized by one super call.
@@ -974,24 +1028,9 @@ impl CheckState<'_> {
 
         // read the base class this super call initializes
         let (base_module, instance) = self.nominal_application(super_ty)?;
-        let definition = self.definition(instance.symbol)?;
-        let Some(dir::Definition::Class(base)) = definition.as_deref() else {
-            return Err(CompilerError::Internal {
-                message: format!("super target {:?} has no class definition", instance.symbol),
-            });
-        };
-        let base = base.clone();
-
         // collect base constructors including forwarded defaults
         let mut active = SmallVec::new();
-        let constructors = self.collect_class_construct_candidates(
-            origin,
-            super_ty,
-            &instance,
-            base.constructors,
-            base.extends,
-            &mut active,
-        )?;
+        let constructors = self.class_constructors(origin, super_ty, &instance, &mut active)?;
 
         // select the first applicable base constructor in declaration order
         let selection = self.select_callable(
@@ -1022,11 +1061,9 @@ impl CheckState<'_> {
                 ..
             } => self.commit_super_construct(
                 node,
-                module,
                 base_module,
                 &instance,
                 constructor.constructor.clone(),
-                argument_nodes,
                 signature,
             ),
             // commit the rejection a sole candidate already reported
@@ -1059,11 +1096,9 @@ impl CheckState<'_> {
     fn commit_super_construct(
         &mut self,
         node: dir::GlobalNodeIdAny,
-        module: ModuleId,
         base_module: ModuleId,
         instance: &dir::GenericApplication,
         constructor: dir::ClassConstructor,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: SignatureSelection,
     ) -> CompilerResult<ValueCheck> {
         // commit conversions only after the constructor has been selected
@@ -1089,7 +1124,7 @@ impl CheckState<'_> {
         };
         let resolution = dir::ConstructDecision::new(
             target,
-            self.selected_argument_bindings(node, module, argument_nodes, &signature)?,
+            signature.bind_arguments(Origin::Node(node, None), self)?,
             produced,
             signature.region_arguments.clone(),
         );
@@ -1101,38 +1136,6 @@ impl CheckState<'_> {
             outcome: CheckOutcome::Holds,
             target: produced,
         })
-    }
-
-    /// Commit one selected construct target with its produced instance type.
-    fn commit_construct_decision(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        module: ModuleId,
-        target: dir::ConstructTarget,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        signature: &SignatureSelection,
-        forms: &[dir::Form],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // wrap the produced instance in its destination forms
-        let mut produced = signature.return_type;
-        for form in forms.iter().rev().copied() {
-            produced = self.intern_type(dir::Type::Form(dir::FormType {
-                form,
-                value: produced,
-            }))?;
-        }
-
-        // bind the arguments and commit the selection
-        let resolution = dir::ConstructDecision::new(
-            target,
-            self.selected_argument_bindings(node, module, argument_nodes, signature)?,
-            produced,
-            signature.region_arguments.clone(),
-        );
-        self.commit_decision(node, dir::Decision::Construct(resolution))?;
-        self.commit_node_type(node, produced)?;
-
-        Ok(produced)
     }
 
     /// Report one construction that every candidate constructor rejected.
@@ -1181,7 +1184,7 @@ impl CheckState<'_> {
     }
 
     /// Report one construct target the written form refuses.
-    fn report_rejected_construct_target(
+    pub(in crate::sema) fn report_rejected_construct_target(
         &mut self,
         node: dir::GlobalNodeIdAny,
         origin: Origin,

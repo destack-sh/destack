@@ -250,14 +250,9 @@ impl CheckState<'_> {
 
                     // lowering reads the module's own definitions as written, keyed at their heads
                     if materialization.substitution.is_none() {
-                        let mut written = Vec::new();
-                        dir::TypeFold::map_types(&mut definition.clone(), &mut |ty| {
-                            written.push(ty);
-                            Ok::<_, CompilerError>(ty)
+                        dir::TypeVisit::visit_types(&*definition, &mut |ty| {
+                            self.walk_type_graph(ty, anchor, worklist)
                         })?;
-                        for ty in written {
-                            self.walk_type_graph(ty, anchor, worklist)?;
-                        }
                     }
 
                     self.materialize_payload(materialization, anchor, *definition, worklist)?;

@@ -7,8 +7,8 @@ use destack_source::ModuleId;
 use crate::CompilerResult;
 use crate::sema::{
     Cause, CauseKind, CheckState, GenericTemplateId, InferMode, Obligation, Origin, PlaceUse,
-    Relation, RelationCheck, Settle, TemplatePass, TypeSubstitution, WalkState,
-    WellFormedTypeObligation,
+    Relation, RelationCheck, RestParameterObligation, Settle, TemplatePass, TypeSubstitution,
+    WalkState, WellFormedTypeObligation,
 };
 
 impl CheckState<'_> {
@@ -154,6 +154,23 @@ impl CheckState<'_> {
         // oblige each written type entry once
         let mut obliged = FxIndexSet::default();
         for (source, ty) in written {
+            // oblige declared and inferred rest parameters when checking the module
+            if let Ok(parameter) = source.try_into_typed::<dir::Parameter>() {
+                if matches!(
+                    self.module(source.module_id).view().get(parameter.local_id),
+                    dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
+                ) {
+                    let scope = self.template_at_node(source)?;
+                    self.push_obligation(
+                        Obligation::RestParameter(RestParameterObligation { source, ty }),
+                        scope,
+                    )?;
+                }
+
+                continue;
+            }
+
+            // validate written type expressions through their operations and applications
             if source.try_into_typed::<dir::TypeExpression>().is_err() {
                 continue;
             }

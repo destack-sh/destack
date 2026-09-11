@@ -148,10 +148,12 @@ impl CheckState<'_> {
         // bind the chunks and spans the construct supplies
         let arguments = parameters
             .iter()
-            .map(|parameter| dir::ArgumentBinding {
+            .enumerate()
+            .map(|(index, parameter)| dir::ArgumentBinding {
+                coercion: None,
                 parameter_type: parameter.ty,
                 argument_type: parameter.ty,
-                source: dir::ArgumentSource::Supplied,
+                source: dir::ArgumentSource::Supplied(index as u32),
             })
             .collect();
         let key = dir::InstanceKey::new(symbol, Vec::new());

@@ -599,7 +599,7 @@ function settle(): void {
     const mixed = [1, 2.5];
     /// @type.symbol symbol=settle.mixed source=mixed type=float64[]
     /// @resolution.pattern source=mixed kind=binding target=settle.mixed
-    /// @resolution.call source=[1, 2.5] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
+    /// @resolution.call source=[1, 2.5] parameters=(^Slice<float64>) arguments=(rest(provided(1) as float64, provided(2.5) as float64) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
     /// @generic.instantiation id=arrayFromOwnedSlice<float64> template=arrayFromOwnedSlice arguments=(float64)
 
     let counter = 1;

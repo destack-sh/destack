@@ -92,7 +92,7 @@ const derived: Key = requireHash<Key>(Key { foo: new Foo(), name });
 import { Add, Hash, Hasher } from "destack:ops";
 
 class Foo {}
-/// @type.symbol symbol=Foo source="class Foo {}" type=Foo
+/// @type.symbol symbol=Foo source="class Foo {}" type=typeof Foo
 /// @definition.class symbol=Foo source="class Foo {}"
 
 extension of Foo implements Add<&readonly Foo>, Hash {

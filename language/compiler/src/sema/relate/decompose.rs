@@ -295,11 +295,24 @@ impl CheckState<'_> {
                     SmallVec::from_slice(&[target.left, target.index]),
                 ),
 
-                // type queries compare by referenced source path
+                // type queries compare by declaration
                 (dir::TypeOperation::TypeOf(source), dir::TypeOperation::TypeOf(target))
-                    if source.value == target.value =>
+                    if source.symbol == target.symbol =>
                 {
                     (SmallVec::new(), SmallVec::new())
+                }
+
+                // applications compare their targets and written arguments
+                (
+                    dir::TypeOperation::Instantiation(source),
+                    dir::TypeOperation::Instantiation(target),
+                ) => {
+                    let mut sources = SmallVec::from_slice(&[source.target]);
+                    sources.extend_from_slice(self.type_ids(source_module, source.arguments)?);
+                    let mut targets = SmallVec::from_slice(&[target.target]);
+                    targets.extend_from_slice(self.type_ids(target_module, target.arguments)?);
+
+                    (sources, targets)
                 }
 
                 // template literals decompose spans under equal strings

@@ -45,7 +45,7 @@ const read: int32 = account.balance;
 
 === dir ===
 class Account {
-/// @type.symbol symbol=Account type=Account
+/// @type.symbol symbol=Account type=typeof Account
 /// @definition.class symbol=Account
 /// @definition.field symbol=Account.balance source="private balance: int32 = 0" key=balance visibility=private type=int32
 /// @definition.method symbol=Account.total slot=total type=<Account.total.'a>(this: &Account.total.'a readonly this) => int32
@@ -204,7 +204,7 @@ const read: int32 = shape.area;
 import { Shape } from "./base.ds";
 
 class Circle extends Shape {
-/// @type.symbol symbol=Circle type=Circle
+/// @type.symbol symbol=Circle type=typeof Circle
 /// @definition.class symbol=Circle
 /// @definition.extends symbol=Circle source=Shape target=base.Shape
 /// @definition.method symbol=Circle.measure slot=measure type=<Circle.measure.'a>(this: &Circle.measure.'a readonly this) => int32
@@ -272,7 +272,7 @@ class Account {
 
 === dir ===
 class Account {
-/// @type.symbol symbol=Account type=Account
+/// @type.symbol symbol=Account type=typeof Account
 /// @definition.class symbol=Account
 /// @definition.field symbol=Account.balance source="private balance: int32 = 0" key=balance visibility=private type=int32
 /// @definition.method symbol=Account.deposit slot=deposit type=<Account.deposit.'a>(this: &Account.deposit.'a this, int32) => void
@@ -400,7 +400,7 @@ account.total = 1;
 /// @resolution.place source=account placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=account root=account
 /// @resolution.pattern.assign source=account.total kind=place
-/// @resolution.assignment source=account.total write="receiver=account.Account, target=account.Account.total(parameters=(int32), arguments=(supplied as int32), return=void, regions=(\"managed\" & \"local\")), type=int32" type=int32
+/// @resolution.assignment source=account.total write="receiver=account.Account, target=account.Account.total(parameters=(int32), arguments=(supplied(0) as int32), return=void, regions=(\"managed\" & \"local\")), type=int32" type=int32
 "#, r#"
 /// @diagnostic.error id=inaccessible-member message="member 'total' is private"
 /// @diagnostic.label line=5 column=9 span="total" line_source="account.total = 1;"
@@ -434,7 +434,7 @@ class Session {
 
 === dir ===
 class Session {
-/// @type.symbol symbol=Session type=Session
+/// @type.symbol symbol=Session type=typeof Session
 /// @definition.class symbol=Session
 /// @definition.method symbol=Session.constructor source="private constructor() {}" slot=constructor visibility=private role=constructor type=<Session.constructor.P0: Place>() => Managed<this, Session.constructor.P0>
 /// @definition.method symbol=Session.open slot=open static=true type=() => Session
@@ -620,7 +620,7 @@ function drain(gauge: &Gauge): void {
     /// @resolution.place source=gauge placement=drain.'a lifetime=drain.'a access="mutable"
     /// @resolution.access source=gauge root=drain.gauge
     /// @resolution.pattern.assign source=gauge.level kind=place
-    /// @resolution.assignment source=gauge.level write="receiver=&drain.'a gauge.Gauge, target=gauge.Gauge.level#2(parameters=(int32), arguments=(supplied as int32), return=void, regions=(drain.'a)), type=int32" type=int32
+    /// @resolution.assignment source=gauge.level write="receiver=&drain.'a gauge.Gauge, target=gauge.Gauge.level#2(parameters=(int32), arguments=(supplied(0) as int32), return=void, regions=(drain.'a)), type=int32" type=int32
 
 }
 "#, r#"

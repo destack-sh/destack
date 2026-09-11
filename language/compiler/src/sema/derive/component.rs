@@ -241,12 +241,12 @@ impl CheckState<'_> {
                 dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual => (
                     dir::MemberSpace::Instance,
                     &[component],
-                    &[dir::ArgumentSource::Supplied],
+                    &[dir::ArgumentSource::Supplied(0)],
                 ),
                 dir::AutoInterface::Hash => (
                     dir::MemberSpace::Instance,
                     &[],
-                    &[dir::ArgumentSource::Supplied],
+                    &[dir::ArgumentSource::Supplied(0)],
                 ),
                 dir::AutoInterface::Default => (dir::MemberSpace::Static, &[], &[]),
                 _ => (dir::MemberSpace::Instance, &[], &[]),
@@ -464,10 +464,12 @@ impl CheckState<'_> {
         );
         let arguments = synthesized
             .parameters()
-            .map(|(_, ty)| dir::ArgumentBinding {
+            .enumerate()
+            .map(|(index, (_, ty))| dir::ArgumentBinding {
+                coercion: None,
                 parameter_type: ty,
                 argument_type: ty,
-                source: dir::ArgumentSource::Supplied,
+                source: dir::ArgumentSource::Supplied(index as u32),
             })
             .collect();
         let call = dir::Call {

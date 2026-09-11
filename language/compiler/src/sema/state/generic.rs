@@ -22,6 +22,40 @@ pub(in crate::sema) type GenericParameterId = dir::GlobalGenericParameterId;
 pub(in crate::sema) type GenericTemplateId = dir::GlobalGenericTemplateId;
 
 impl CheckState<'_> {
+    /// Ground one substitution's unbound memory parameters at the ambient election.
+    pub(in crate::sema) fn ground_ambient_memory_parameters(
+        &mut self,
+        parameters: &[GenericParameterId],
+        substitution: &mut TypeSubstitution,
+    ) -> CompilerResult<()> {
+        // fill each unbound memory parameter at its ambient election
+        for parameter in parameters.iter().copied() {
+            if substitution.argument(parameter).is_some() {
+                continue;
+            }
+            let kind = self
+                .generic_parameter(parameter)?
+                .and_then(|binding| binding.memory_parameter());
+            let fill = match kind {
+                Some(dir::MemoryParameter::Region) => {
+                    Some(self.lifetime_literal(dir::Lifetime::Frame)?)
+                }
+                Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space) => {
+                    Some(self.place_literal(dir::Space::Local)?)
+                }
+                Some(dir::MemoryParameter::Access) => {
+                    Some(self.access_literal(dir::Access::Mutable)?)
+                }
+                Some(dir::MemoryParameter::Ownership) | None => None,
+            };
+            if let Some(fill) = fill {
+                substitution.bind(parameter, fill)?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Return one symbol's generic template.
     pub(in crate::sema) fn symbol_template(
         &self,
@@ -221,16 +255,26 @@ impl CheckState<'_> {
         Ok(owners)
     }
 
-    /// Return the generic parameters owned by one callable signature.
+    /// Return the unbound generic parameters of one callable signature.
     pub(in crate::sema) fn signature_generic_parameters(
         &self,
+        module: ModuleId,
         signature: &dir::FunctionSignatureType,
     ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
         let Some(template_id) = signature.template else {
             return Ok(SmallVec::new());
         };
 
-        self.generic_template_parameters(template_id)
+        // omit parameters fixed by an explicit application
+        let arguments = self.signature_arguments(module, signature.arguments)?;
+        let mut parameters = self.generic_template_parameters(template_id)?;
+        parameters.retain(|parameter| {
+            !arguments
+                .iter()
+                .any(|binding| binding.parameter == *parameter)
+        });
+
+        Ok(parameters)
     }
 
     /// Return the generic argument bindings one nominal application carries, empty for other heads.

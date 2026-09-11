@@ -18,9 +18,9 @@ const TAIL_CONDITIONAL_LIMIT: u32 = 1000;
 pub(in crate::sema) struct InferBinder {
     /// The declared binder symbol, absent for anonymous binders.
     pub(in crate::sema) symbol: Option<dir::GlobalSymbolId>,
-    /// The binder's declared constraint.
+    /// The binder's explicit or contextual constraint.
     pub(in crate::sema) constraint: Option<dir::GlobalTypeId>,
-    /// Every infer type that spells this binder inside the pattern.
+    /// Every inference occurrence of this binder in the pattern.
     pub(in crate::sema) occurrences: SmallVec<[dir::GlobalTypeId; 2]>,
 }
 
@@ -385,7 +385,7 @@ impl CheckState<'_> {
 
     /// Collect the infer binders declared by one extends pattern.
     pub(in crate::sema) fn collect_infer_binders(
-        &self,
+        &mut self,
         pattern: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[InferBinder; 2]>> {
         // seed the walk at the pattern root
@@ -402,6 +402,9 @@ impl CheckState<'_> {
                     if let dir::TypeOperation::Infer(infer) =
                         self.type_operation(id.module_id, operation)? =>
                 {
+                    let constraint = infer.constraint;
+
+                    // combine occurrences of the same named capture
                     let known = infer.symbol.and_then(|symbol| {
                         binders
                             .iter_mut()
@@ -410,13 +413,16 @@ impl CheckState<'_> {
                     match known {
                         Some(binder) => {
                             binder.occurrences.push(id);
-                            if binder.constraint.is_none() {
-                                binder.constraint = infer.constraint;
-                            }
+                            binder.constraint = match (binder.constraint, constraint) {
+                                (Some(left), Some(right)) => {
+                                    Some(self.normalized_intersection_type([left, right])?)
+                                }
+                                (left, right) => left.or(right),
+                            };
                         }
                         None => binders.push(InferBinder {
                             symbol: infer.symbol,
-                            constraint: infer.constraint,
+                            constraint,
                             occurrences: SmallVec::from_slice(&[id]),
                         }),
                     }

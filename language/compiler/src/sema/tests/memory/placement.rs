@@ -27,7 +27,7 @@ type BorrowedLocal<'a> = &'a readonly local User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 type LocalReadonly = local readonly User;
@@ -91,7 +91,7 @@ const sharedFromLocal: shared User = localUser;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const localUser: local User;
@@ -166,11 +166,11 @@ choicePlace satisfies "local" | "shared";
 
 === dir ===
 local class User {}
-/// @type.symbol symbol=User source="local class User {}" type=User
+/// @type.symbol symbol=User source="local class User {}" type=typeof User
 /// @definition.class symbol=User source="local class User {}"
 
 shared class Team {}
-/// @type.symbol symbol=Team source="shared class Team {}" type=Team
+/// @type.symbol symbol=Team source="shared class Team {}" type=typeof Team
 /// @definition.class symbol=Team source="shared class Team {}"
 
 type ChoicePlace = PlaceOf<User | Team>;
@@ -230,7 +230,7 @@ sharedPlace satisfies "shared";
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 type LocalPlace = PlaceOf<local User>;
@@ -317,13 +317,13 @@ extension of Buffer {
     clear(&this): void {}
 }
 
-const object: Buffer = Buffer;
+const object: typeof Buffer = Buffer;
 const made: Buffer = new Buffer();
 const buffer: Buffer = Buffer.make();
 
 === dir ===
 class Buffer {}
-/// @type.symbol symbol=Buffer source="class Buffer {}" type=Buffer
+/// @type.symbol symbol=Buffer source="class Buffer {}" type=typeof Buffer
 /// @definition.class symbol=Buffer source="class Buffer {}"
 
 extension of Buffer implements Default {
@@ -368,7 +368,7 @@ extension of Buffer {
 }
 
 const object = Buffer;
-/// @type.symbol symbol=object source=object type=Buffer
+/// @type.symbol symbol=object source=object type=typeof Buffer
 /// @resolution.pattern source=object kind=binding target=object
 /// @resolution.name source=Buffer target=Buffer
 
@@ -382,7 +382,7 @@ const buffer = Buffer.make();
 /// @type.symbol symbol=buffer source=buffer type=Buffer
 /// @resolution.pattern source=buffer kind=binding target=buffer
 /// @resolution.name source=Buffer target=Buffer
-/// @resolution.member source=Buffer.make receiver=Buffer type=() => Buffer kind=symbol target_receiver=Buffer target=make
+/// @resolution.member source=Buffer.make receiver=typeof Buffer type=() => Buffer kind=symbol target_receiver=typeof Buffer target=make
 /// @resolution.call source=Buffer.make() parameters=() return=Buffer kind=symbol target=make
 "#,
         r#"
@@ -434,7 +434,7 @@ const buffer = Buffer.make();
 /// @type.symbol symbol=buffer source=buffer type=buffer.Buffer
 /// @resolution.pattern source=buffer kind=binding target=buffer
 /// @resolution.name source=Buffer target=buffer.Buffer
-/// @resolution.member source=Buffer.make receiver=buffer.Buffer type=() => buffer.Buffer kind=symbol target_receiver=buffer.Buffer target=buffer.make
+/// @resolution.member source=Buffer.make receiver=typeof buffer.Buffer type=() => buffer.Buffer kind=symbol target_receiver=typeof buffer.Buffer target=buffer.make
 /// @resolution.call source=Buffer.make() parameters=() return=buffer.Buffer kind=symbol target=buffer.make
 "#,
         r#"
@@ -492,13 +492,13 @@ extension<T> of Holder<T> {
 === dir ===
 class Item<T> {}
 /// @generic.template symbol=Item parameters=(T#1)
-/// @type.symbol symbol=Item source="class Item<T> {}" type=Item
+/// @type.symbol symbol=Item source="class Item<T> {}" type=typeof Item
 /// @definition.class symbol=Item source="class Item<T> {}" template=(T#1)
 /// @type.symbol symbol=Item.T source=T type=T#1
 
 class Holder<T> {
 /// @generic.template symbol=Holder parameters=(T#2)
-/// @type.symbol symbol=Holder type=Holder
+/// @type.symbol symbol=Holder type=typeof Holder
 /// @definition.class symbol=Holder template=(T#2)
 /// @definition.field symbol=Holder.item source="item: Item<T>" key=item type=Item<T#2>
 /// @type.symbol symbol=Holder.T source=T type=T#2
@@ -619,7 +619,7 @@ import { Item } from "./item.ds";
 
 class Holder<T> {
 /// @generic.template symbol=Holder parameters=(T#1)
-/// @type.symbol symbol=Holder type=Holder
+/// @type.symbol symbol=Holder type=typeof Holder
 /// @definition.class symbol=Holder template=(T#1)
 /// @definition.field symbol=Holder.item source="item: Item<T>" key=item type=item.Item<T#1>
 /// @type.symbol symbol=Holder.T source=T type=T#1
@@ -700,7 +700,7 @@ class Pile<in out T> {
 === dir ===
 class Pile<T> {
 /// @generic.template symbol=Pile parameters=(in out T)
-/// @type.symbol symbol=Pile type=Pile
+/// @type.symbol symbol=Pile type=typeof Pile
 /// @definition.class symbol=Pile template=(in out T)
 /// @definition.field symbol=Pile.items source="items: T[]" key=items type=T[]
 /// @definition.method symbol=Pile.count slot=count type=<Pile.count.'a>(this: &Pile.count.'a readonly this) => isize
@@ -800,7 +800,7 @@ function main(): int32 {
 
     return total(1, 2, 3);
     /// @resolution.name source=total target=total
-    /// @resolution.call source="total(1, 2, 3)" parameters=(^Slice<int32>) arguments=(rest(1, 2, 3) as int32) return=int32 kind=symbol target=total
+    /// @resolution.call source="total(1, 2, 3)" parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32, provided(3) as int32) as int32) return=int32 kind=symbol target=total
 
 }
 "#,
@@ -860,7 +860,7 @@ function main(): int32 {
 
     return total(1, 2, 3);
     /// @resolution.name source=total target=total
-    /// @resolution.call source="total(1, 2, 3)" parameters=(&'frame readonly Slice<int32>) arguments=(rest(1, 2, 3) as int32) return=int32 regions=("frame") kind=symbol target=total
+    /// @resolution.call source="total(1, 2, 3)" parameters=(&'frame readonly Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32, provided(3) as int32) as int32) return=int32 regions=("frame") kind=symbol target=total
 
 }
 "#,
@@ -919,7 +919,7 @@ function main(): int32 {
 
     return total(1, 2, 3);
     /// @resolution.name source=total target=total
-    /// @resolution.call source="total(1, 2, 3)" parameters=(int32[]) arguments=(rest(1, 2, 3) pack=arrayFromOwnedSlice as int32) return=int32 kind=symbol target=total
+    /// @resolution.call source="total(1, 2, 3)" parameters=(int32[]) arguments=(rest(provided(1) as int32, provided(2) as int32, provided(3) as int32) pack=arrayFromOwnedSlice as int32) return=int32 kind=symbol target=total
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 
 }
@@ -1013,7 +1013,7 @@ freePlace satisfies "local";
 
 === dir ===
 class Free {}
-/// @type.symbol symbol=Free source="class Free {}" type=Free
+/// @type.symbol symbol=Free source="class Free {}" type=typeof Free
 /// @definition.class symbol=Free source="class Free {}"
 
 type FreePlace = PlaceOf<Free>;
@@ -1075,11 +1075,11 @@ localTransport satisfies Queue;
 
 === dir ===
 shared class Channel {}
-/// @type.symbol symbol=Channel source="shared class Channel {}" type=Channel
+/// @type.symbol symbol=Channel source="shared class Channel {}" type=typeof Channel
 /// @definition.class symbol=Channel source="shared class Channel {}"
 
 local class Queue {}
-/// @type.symbol symbol=Queue source="local class Queue {}" type=Queue
+/// @type.symbol symbol=Queue source="local class Queue {}" type=typeof Queue
 /// @definition.class symbol=Queue source="local class Queue {}"
 
 type Transport<T> = PlaceOf<T> extends "shared" ? Channel : Queue;
@@ -1148,7 +1148,7 @@ type OwnedShared = ^shared User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const localUser: local ^User;
@@ -1471,7 +1471,7 @@ const b: int32 = tick(remote);
 
 === dir ===
 class Player { score: int32 = 0; }
-/// @type.symbol symbol=Player source="class Player { score: int32 = 0; }" type=Player
+/// @type.symbol symbol=Player source="class Player { score: int32 = 0; }" type=typeof Player
 /// @definition.class symbol=Player source="class Player { score: int32 = 0; }"
 /// @definition.field symbol=Player.score source="score: int32 = 0" key=score type=int32
 /// @type.symbol symbol=Player.score source="score: int32 = 0" type=int32
@@ -1487,6 +1487,7 @@ const near = new Player();
 /// @resolution.pattern source=near kind=binding target=near
 /// @type.node source="new Player()" type=Player
 /// @resolution.construct source="new Player()" parameters=() return=Player kind=class target=Player constructor=default
+/// @type.node source=Player type=typeof Player
 /// @resolution.name source=Player target=Player
 
 function tick(player: Player): int32 { return player.score; }
@@ -1566,7 +1567,7 @@ const b: int32 = tick(&readonly remote);
 
 === dir ===
 class Player { score: int32 = 0; }
-/// @type.symbol symbol=Player source="class Player { score: int32 = 0; }" type=Player
+/// @type.symbol symbol=Player source="class Player { score: int32 = 0; }" type=typeof Player
 /// @definition.class symbol=Player source="class Player { score: int32 = 0; }"
 /// @definition.field symbol=Player.score source="score: int32 = 0" key=score type=int32
 /// @type.symbol symbol=Player.score source="score: int32 = 0" type=int32
@@ -1582,6 +1583,7 @@ const near = new Player();
 /// @resolution.pattern source=near kind=binding target=near
 /// @type.node source="new Player()" type=Player
 /// @resolution.construct source="new Player()" parameters=() return=Player kind=class target=Player constructor=default
+/// @type.node source=Player type=typeof Player
 /// @resolution.name source=Player target=Player
 
 function tick(player: &readonly Player): int32 { return player.score; }

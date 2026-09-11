@@ -107,7 +107,7 @@ function capture<T>(value: T): { reactions: T[] } {
     return { reactions: [] };
     /// @type.node source={ reactions: [] } type={ reactions: T[] }
     /// @type.node source=[] type=T[]
-    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
+    /// @resolution.call source=[] parameters=(^Slice<T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
     /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=capture
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -234,7 +234,7 @@ function pending<T>(): State<T> {
     /// @type.node source={ kind: "pending", reactions: [] } type={ kind: "pending"; reactions: T#4[] }
     /// @type.node source="\"pending\"" type="pending"
     /// @type.node source=[] type=T#4[]
-    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T#4) return=T#4[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#4>
+    /// @resolution.call source=[] parameters=(^Slice<T#4>) arguments=(rest() as T#4) return=T#4[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#4>
     /// @generic.instantiation id=arrayFromOwnedSlice<T#4> template=arrayFromOwnedSlice arguments=(T#4) owner=pending
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -448,7 +448,7 @@ function make<T, E>(value: T): AsyncResult<T, E> {
 === dir ===
 declare class Promise<in out T> {
 /// @generic.template symbol=Promise parameters=(in out T#1)
-/// @type.symbol symbol=Promise type=Promise
+/// @type.symbol symbol=Promise type=typeof Promise
 /// @definition.class symbol=Promise template=(in out T#1)
 /// @definition.method symbol=Promise.resolve#1 source="static resolve<T>(value: Promise<T>): Promise<T>" slot=resolve static=true type=<T#2>(Promise<T#2>) => Promise<T#2>
 /// @definition.method symbol=Promise.resolve#2 source="static resolve<T>(value: T): Promise<T>" slot=resolve static=true type=<T#3>(T#3) => Promise<T#3>
@@ -573,11 +573,11 @@ function make<T, E>(value: T): AsyncResult<T, E> {
     /// @resolution.name source=AsyncResult target=AsyncResult
     /// @resolution.construct source=AsyncResult(Promise.resolve(ok(value))) parameters=(Promise<Result<T#8, E#5>>) arguments=(provided(Promise.resolve(ok(value))) as Promise<Result<T#8, E#5>>) return=AsyncResult<T#8, E#5> kind=newtype target=AsyncResult backing=Promise<Result<T#8, E#5>> instance="AsyncResult<T#8, E#5>"
     /// @generic.instantiation id="AsyncResult<T#8, E#5>" template=AsyncResult arguments=(T#8, E#5) owner=make
-    /// @type.node source=Promise type=Promise
+    /// @type.node source=Promise type=typeof Promise
     /// @type.node source=Promise.resolve type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3>
     /// @type.node source=Promise.resolve(ok(value)) type=Promise<Result<T#8, E#5>>
     /// @resolution.name source=Promise target=Promise
-    /// @resolution.member source=Promise.resolve receiver=Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=overload-set targets=[Promise.resolve#1, Promise.resolve#2]
+    /// @resolution.member source=Promise.resolve receiver=typeof Promise type=<T#2>(Promise<T#2>) => Promise<T#2> & <T#3>(T#3) => Promise<T#3> kind=overload-set targets=[Promise.resolve#1, Promise.resolve#2]
     /// @resolution.call source=Promise.resolve(ok(value)) parameters=(Result<T#8, E#5>) arguments=(provided(ok(value)) as Result<T#8, E#5>) return=Promise<Result<T#8, E#5>> kind=symbol target=Promise.resolve#2 instance="Promise.resolve#2<Result<T#8, E#5>>"
     /// @generic.instantiation id="Promise.resolve#2<Result<T#8, E#5>>" template=Promise.resolve#2 arguments=(Result<T#8, E#5>) owner=make
     /// @generic.instance id="Promise.resolve#2<Result<T#8, E#5>>" template=Promise.resolve#2 arguments=(Result<T#8, E#5>)

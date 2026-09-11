@@ -470,7 +470,7 @@ const counter: Counter = new factory(1);
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
 
@@ -500,8 +500,10 @@ declare const factory: Factory;
 const counter = new factory(1);
 /// @type.symbol symbol=counter source=counter type=Counter
 /// @resolution.pattern source=counter kind=binding target=counter
-/// @resolution.construct source="new factory(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=dynamic target="construct(new (value: int32): Counter)" receiver=Factory constraint=Factory
+/// @resolution.call source="new factory(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=dynamic target="construct(new (value: int32): Counter)" receiver=Factory constraint=Factory
 /// @resolution.name source=factory target=factory
+/// @resolution.place source=factory placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=factory root=factory
 "#,
     );
 }
@@ -653,7 +655,7 @@ function total(values: int32[]): int32 {
 
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-declare function visit(callback: (arg0: int32) => void): void;
+declare function visit(callback: (value: int32) => void): void;
 
 function total(values: int32[]): int32 {
     let sum: int32 = 0;
@@ -726,7 +728,7 @@ function increment(value: int32): int32 {
     return value + 1;
 }
 
-const widened: (arg0: int32) => int32 | undefined = increment;
+const widened: (value: int32) => int32 | undefined = increment;
 
 === dir ===
 function increment(value: int32): int32 {
@@ -780,7 +782,7 @@ function increment(value: int32): int32 {
     return value + 1;
 }
 
-declare function applyOpen<U>(map: (arg0: int32) => U | undefined): U | undefined;
+declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefined;
 
 const out: int32 | undefined = applyOpen<int32>(increment);
 
@@ -839,7 +841,7 @@ const out: int32 | undefined = applyOpen((value: int32) => value + 1);
         DirRows::checked(),
         r#"
 === annotated ===
-declare function applyOpen<U>(map: (arg0: int32) => U | undefined): U | undefined;
+declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefined;
 
 const out: int32 | undefined = applyOpen<int32>(
     (value: int32): int32 | undefined => (value + 1) as int32 | undefined,
@@ -901,11 +903,11 @@ const covariant: () => Animal = makeDog;
 
 === dir ===
 class Animal {}
-/// @type.symbol symbol=Animal source="class Animal {}" type=Animal
+/// @type.symbol symbol=Animal source="class Animal {}" type=typeof Animal
 /// @definition.class symbol=Animal source="class Animal {}"
 
 class Dog extends Animal {}
-/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=Dog
+/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=typeof Dog
 /// @definition.class symbol=Dog source="class Dog extends Animal {}"
 /// @definition.extends symbol=Dog source=Animal target=Animal
 /// @resolution.name source=Animal target=Animal
@@ -950,15 +952,15 @@ class Dog extends Animal {}
 
 declare function eatAnimal(animal: Animal): void;
 
-const contravariant: (arg0: Dog) => void = eatAnimal;
+const contravariant: (dog: Dog) => void = eatAnimal;
 
 === dir ===
 class Animal {}
-/// @type.symbol symbol=Animal source="class Animal {}" type=Animal
+/// @type.symbol symbol=Animal source="class Animal {}" type=typeof Animal
 /// @definition.class symbol=Animal source="class Animal {}"
 
 class Dog extends Animal {}
-/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=Dog
+/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=typeof Dog
 /// @definition.class symbol=Dog source="class Dog extends Animal {}"
 /// @definition.extends symbol=Dog source=Animal target=Animal
 /// @resolution.name source=Animal target=Animal
@@ -1005,15 +1007,15 @@ class Dog extends Animal {}
 
 declare function isDog(animal: Animal): animal; is Dog;
 
-const predicate: (arg0: Animal) => boolean = isDog;
+const predicate: (animal: Animal) => boolean = isDog;
 
 === dir ===
 class Animal {}
-/// @type.symbol symbol=Animal source="class Animal {}" type=Animal
+/// @type.symbol symbol=Animal source="class Animal {}" type=typeof Animal
 /// @definition.class symbol=Animal source="class Animal {}"
 
 class Dog extends Animal {}
-/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=Dog
+/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=typeof Dog
 /// @definition.class symbol=Dog source="class Dog extends Animal {}"
 /// @definition.extends symbol=Dog source=Animal target=Animal
 /// @resolution.name source=Animal target=Animal
@@ -1065,7 +1067,7 @@ const erased: () => unknown = makeDog;
 
 === dir ===
 class Dog {}
-/// @type.symbol symbol=Dog source="class Dog {}" type=Dog
+/// @type.symbol symbol=Dog source="class Dog {}" type=typeof Dog
 /// @definition.class symbol=Dog source="class Dog {}"
 
 declare const makeInt: () => int32;

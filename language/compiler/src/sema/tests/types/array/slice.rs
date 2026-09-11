@@ -142,7 +142,7 @@ function stamp(): void {
     /// @resolution.place source=buffer placement="constant" lifetime="static" access="mutable"
     /// @resolution.access source=buffer root=buffer
     /// @resolution.pattern.assign source=buffer[0..2] kind=place
-    /// @resolution.assignment source=buffer[0..2] write="indexSet#2(parameters=(Range<isize>, &'static readonly constant Slice<uint8>), arguments=(provided(0..2) as Range<isize>, supplied as &'static readonly constant Slice<uint8>), return=void, regions=(\"frame\", \"static\" & \"constant\", \"static\" & \"constant\"))" type=&'static readonly constant Slice<uint8>
+    /// @resolution.assignment source=buffer[0..2] write="indexSet#2(parameters=(Range<isize>, &'static readonly constant Slice<uint8>), arguments=(provided(0..2) as Range<isize>, supplied(0) as &'static readonly constant Slice<uint8>), return=void, regions=(\"frame\", \"static\" & \"constant\", \"static\" & \"constant\"))" type=&'static readonly constant Slice<uint8>
     /// @generic.instantiation id="indexSet#2<uint8, Range<isize>>" template=indexSet#2 arguments=(uint8, Range<isize>)
     /// @generic.instance id="Bound<&'bound0 readonly isize>" template=Bound arguments=(&'bound0 readonly isize)
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
@@ -368,7 +368,7 @@ function set(): void {
     /// @resolution.place source=values placement="constant" lifetime="static" access="mutable"
     /// @resolution.access source=values root=values
     /// @resolution.pattern.assign source=values[0] kind=place
-    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, float64), arguments=(provided(0) as isize, supplied as float64), return=void, regions=(\"static\" & \"constant\"))" type=float64
+    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, float64), arguments=(provided(0) as isize, supplied(0) as float64), return=void, regions=(\"static\" & \"constant\"))" type=float64
     /// @generic.instantiation id=indexSet#1<float64> template=indexSet#1 arguments=(float64)
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -447,7 +447,7 @@ function overwrite(): void {
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=values
     /// @resolution.pattern.assign source=values[0..2] kind=place
-    /// @resolution.assignment source=values[0..2] write="indexSet#2(parameters=(Range<isize>, &'static readonly constant Slice<float64>), arguments=(provided(0..2) as Range<isize>, supplied as &'static readonly constant Slice<float64>), return=void, regions=(\"frame\", \"managed\" & \"local\", \"static\" & \"constant\"))" type=&'static readonly constant Slice<float64>
+    /// @resolution.assignment source=values[0..2] write="indexSet#2(parameters=(Range<isize>, &'static readonly constant Slice<float64>), arguments=(provided(0..2) as Range<isize>, supplied(0) as &'static readonly constant Slice<float64>), return=void, regions=(\"frame\", \"managed\" & \"local\", \"static\" & \"constant\"))" type=&'static readonly constant Slice<float64>
     /// @generic.instantiation id="indexSet#2<float64, Range<isize>>" template=indexSet#2 arguments=(float64, Range<isize>)
     /// @generic.instance id="Bound<&'bound0 readonly isize>" template=Bound arguments=(&'bound0 readonly isize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -532,7 +532,7 @@ function updateNumbers(values: &[int32]): void {
     /// @resolution.place source=values placement=updateNumbers.'a lifetime=updateNumbers.'a access="mutable"
     /// @resolution.access source=values root=updateNumbers.values
     /// @resolution.pattern.assign source=values[0] kind=place
-    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, int32), arguments=(provided(0) as isize, supplied as int32), return=void, regions=(updateNumbers.'a))" type=int32
+    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, int32), arguments=(provided(0) as isize, supplied(0) as int32), return=void, regions=(updateNumbers.'a))" type=int32
     /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
 
 }
@@ -548,7 +548,7 @@ function updateStatuses(values: &[Status]): void {
     /// @resolution.place source=values placement=updateStatuses.'a lifetime=updateStatuses.'a access="mutable"
     /// @resolution.access source=values root=updateStatuses.values
     /// @resolution.pattern.assign source=values[0] kind=place
-    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, Status), arguments=(provided(0) as isize, supplied as Status), return=void, regions=(updateStatuses.'a))" type=Status
+    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, Status), arguments=(provided(0) as isize, supplied(0) as Status), return=void, regions=(updateStatuses.'a))" type=Status
     /// @generic.instantiation id=indexSet#1<Status> template=indexSet#1 arguments=(Status)
     /// @resolution.name source=Status target=Status
     /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy

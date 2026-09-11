@@ -138,14 +138,17 @@ impl CheckState<'_> {
             return match self.ty(base)? {
                 // project the applied interface's selected implementation
                 dir::Type::Application(_) => self.project_selected_member(origin, member, base),
-                // select the implementation for a bare interface qualifier
+                // select the implementation for an interface qualifier
                 dir::Type::Reference(reference)
                     if self.symbol_kind(reference.symbol)?.is_interface() =>
                 {
+                    let arguments: SmallVec<[_; 4]> =
+                        self.type_ids(base.module_id, reference.arguments)?.into();
+                    let arguments = self.intern_type_ids(&arguments)?;
                     let applied =
                         self.intern_type(dir::Type::Application(dir::GenericApplication {
                             symbol: reference.symbol,
-                            arguments: dir::TypeListId::EMPTY,
+                            arguments,
                         }))?;
 
                     self.project_selected_member(origin, member, applied)

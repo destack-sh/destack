@@ -28,8 +28,8 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // resolve the written nominal head like a construction head
-        let head = self.construct_head_type(origin, module, ty)?;
+        // require a named type for the nominal pattern
+        let head = self.construct_type(origin, module, ty, None)?;
         let Some(instance) = self.newtype_payload(origin, head)? else {
             return self.report_rejected_pattern(node, origin, head);
         };
@@ -149,8 +149,8 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // resolve the written nominal head like a construction head
-        let head = self.construct_head_type(origin, module, ty)?;
+        // require a named type for the nominal pattern
+        let head = self.construct_type(origin, module, ty, None)?;
         let instance = match self.ty(head)? {
             dir::Type::Application(instance) => instance,
             _ => return self.report_rejected_pattern(node, origin, head),

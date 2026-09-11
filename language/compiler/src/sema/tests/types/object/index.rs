@@ -511,7 +511,7 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.place source=this.storage placement=indexSet.'a lifetime="managed" access="mutable"
         /// @resolution.access source=this.storage root=this keys=[storage]
         /// @resolution.pattern.assign source=this.storage[key] kind=place
-        /// @resolution.assignment source=this.storage[key] write="indexSet(parameters=(Managed<string, indexSet.'a>, int32), arguments=(provided(key) as Managed<string, indexSet.'a>, supplied as int32), return=void, regions=(indexSet.'a))" type=int32
+        /// @resolution.assignment source=this.storage[key] write="indexSet(parameters=(Managed<string, indexSet.'a>, int32), arguments=(provided(key) as Managed<string, indexSet.'a>, supplied(0) as int32), return=void, regions=(indexSet.'a))" type=int32
         /// @generic.instantiation id="indexSet<string, int32>" template=indexSet arguments=(string, int32)
         /// @generic.instance id="indexSet<string, int32>" template=indexSet arguments=(string, int32)
         /// @generic.instance id="set#2<string, int32>" template=set#2 arguments=(string, int32)
@@ -1094,7 +1094,7 @@ counter["value"] += 1;
 /// @resolution.name source=counter target=counter
 /// @resolution.operator source="counter[\"value\"] += 1" type=int32 operator="+" kind=builtin operands=[counter["value"] as int32 families=(integer), 1 as int32 families=(integer)]
 /// @resolution.pattern.assign source="counter[\"value\"]" kind=place
-/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=&'static readonly int32, regions=(\"static\" & \"local\"))" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, supplied as int32 | float64), return=void, regions=(\"static\" & \"local\"))" type=int32 | float64
+/// @resolution.assignment source="counter[\"value\"]" read="index(parameters=(string), arguments=(provided(\"value\") as string), return=&'static readonly int32, regions=(\"static\" & \"local\"))" write="indexSet(parameters=(string, int32 | float64), arguments=(provided(\"value\") as string, supplied(0) as int32 | float64), return=void, regions=(\"static\" & \"local\"))" type=int32 | float64
 /// @resolution.place source=counter placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=counter root=counter
 "#,
@@ -1150,7 +1150,7 @@ type Factory = { name: string; new (): Counter };
 
 === dir ===
 class Counter {}
-/// @type.symbol symbol=Counter source="class Counter {}" type=Counter
+/// @type.symbol symbol=Counter source="class Counter {}" type=typeof Counter
 /// @definition.class symbol=Counter source="class Counter {}"
 
 type Factory = { name: string; new (): Counter };

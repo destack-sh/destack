@@ -32,7 +32,7 @@ let values = [1, 2];
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -84,7 +84,7 @@ const values = [1, 2];
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -139,8 +139,9 @@ const values = [1, 2] as const;
 /// @generic.instance id="truncate<1 | 2>" template=truncate arguments=(1 | 2)
 /// @type.node source="[1, 2] as const" type=readonly 1 | 2[]
 /// @type.node source=[1, 2] type=readonly 1 | 2[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<1 | 2>"
+/// @resolution.call source=[1, 2] parameters=(^Slice<1 | 2>) arguments=(rest(provided(1) as 1 | 2, provided(2) as 1 | 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<1 | 2>"
 /// @generic.instantiation id="arrayFromOwnedSlice<1 | 2>" template=arrayFromOwnedSlice arguments=(1 | 2)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="arrayFromOwnedSlice<1 | 2>" template=arrayFromOwnedSlice arguments=(1 | 2)
 /// @generic.instance id="fromOwnedSlice<1 | 2>" template=fromOwnedSlice arguments=(1 | 2)
@@ -148,6 +149,7 @@ const values = [1, 2] as const;
 /// @generic.instance id="size<1 | 2>" template=size arguments=(1 | 2)
 /// @generic.instance id="sliceIntoUninit<1 | 2>" template=sliceIntoUninit arguments=(1 | 2)
 /// @generic.instance id="sliceLength<1 | 2>" template=sliceLength arguments=(1 | 2)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -163,7 +165,6 @@ const first = values[0];
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<1 | 2, \"managed\" & \"local\", \"mutable\">, \"readonly\">, regions=(\"managed\" & \"local\"))"
 /// @generic.instantiation id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 1 | 2, \"readonly\">" template=WithAccess arguments=(&'bound0 1 | 2, "readonly")
 /// @generic.instance id="WithAccess<&'bound0 1 | 2[], \"readonly\">" template=WithAccess arguments=(&'bound0 1 | 2[], "readonly")
 /// @generic.instance id="assumeInitReference<1 | 2, \"readonly\">" template=assumeInitReference arguments=(1 | 2, "readonly")
@@ -171,7 +172,6 @@ const first = values[0];
 /// @generic.instance id="elementSlot<1 | 2, \"readonly\">" template=elementSlot arguments=(1 | 2, "readonly")
 /// @generic.instance id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly")
 /// @generic.instance id="sliceIndex<MaybeUninit<1 | 2>, \"readonly\">" template=sliceIndex arguments=(MaybeUninit<1 | 2>, "readonly")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @type.node source=0 type=0
 "#,
     );
@@ -209,7 +209,7 @@ const values = [];
 /// @generic.instance id=sliceUninit<MaybeUninit<never>> template=sliceUninit arguments=(MaybeUninit<never>)
 /// @generic.instance id=truncate<never> template=truncate arguments=(never)
 /// @type.node source=[] type=never[]
-/// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as never) return=never[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<never>
+/// @resolution.call source=[] parameters=(^Slice<never>) arguments=(rest() as never) return=never[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<never>
 /// @generic.instantiation id=arrayFromOwnedSlice<never> template=arrayFromOwnedSlice arguments=(never)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -257,7 +257,7 @@ const values: int32[] = [];
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -299,7 +299,7 @@ let values = [1, "two", true];
 /// @type.symbol symbol=values source=values type=string | int64 | boolean[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, "two", true] type=string | int64 | boolean[]
-/// @resolution.call source=[1, "two", true] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, "two", true) as string | int64 | boolean) return=string | int64 | boolean[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<string | int64 | boolean>"
+/// @resolution.call source=[1, "two", true] parameters=(^Slice<string | int64 | boolean>) arguments=(rest(provided(1) as string | int64 | boolean, provided("two") as string | int64 | boolean, provided(true) as string | int64 | boolean) as string | int64 | boolean) return=string | int64 | boolean[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<string | int64 | boolean>"
 /// @generic.instantiation id="arrayFromOwnedSlice<string | int64 | boolean>" template=arrayFromOwnedSlice arguments=(string | int64 | boolean)
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: string | int64 | boolean, cases: ({ source: 1, target: int64, adjustments: [{ kind: materialize, target: int64 }] }) }] origin=implicit
@@ -346,7 +346,7 @@ const values: number[] = [1, 2, 3];
 /// @generic.instance id=sliceUninit<MaybeUninit<float64>> template=sliceUninit arguments=(MaybeUninit<float64>)
 /// @generic.instance id=truncate<float64> template=truncate arguments=(float64)
 /// @type.node source=[1, 2, 3] type=float64[]
-/// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
+/// @resolution.call source=[1, 2, 3] parameters=(^Slice<float64>) arguments=(rest(provided(1) as float64, provided(2) as float64, provided(3) as float64) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
 /// @generic.instantiation id=arrayFromOwnedSlice<float64> template=arrayFromOwnedSlice arguments=(float64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -401,7 +401,7 @@ const values = [1, 2] satisfies readonly number[];
 /// @generic.instance id=truncate<float64> template=truncate arguments=(float64)
 /// @type.node source=[1, 2] satisfies readonly number[] type=float64[]
 /// @type.node source=[1, 2] type=float64[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<float64>) arguments=(rest(provided(1) as float64, provided(2) as float64) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
 /// @generic.instantiation id=arrayFromOwnedSlice<float64> template=arrayFromOwnedSlice arguments=(float64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -439,7 +439,7 @@ const values: number[] = [1, "two"];
 /// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, "two"] type=float64[]
-/// @resolution.call source=[1, "two"] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, "two") as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
+/// @resolution.call source=[1, "two"] parameters=(^Slice<float64>) arguments=(rest(provided(1) as float64, provided("two") as float64) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
 /// @generic.instantiation id=arrayFromOwnedSlice<float64> template=arrayFromOwnedSlice arguments=(float64)
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
@@ -482,8 +482,9 @@ function values(): (int32 | undefined)[] {
 /// @type.symbol symbol=values type=() => int32 | undefined[]
 
     return [0, ...[1, , 2], 3];
-    /// @resolution.call source=[0, ...[1, , 2], 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(0, 3) as int32 | undefined) return=int32 | undefined[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int32 | undefined>"
-    /// @resolution.call source=[1, , 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int32 | undefined) return=int32 | undefined[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int32 | undefined>"
+    /// @resolution.call source=[0, ...[1, , 2], 3] parameters=(^Slice<int32 | undefined>) arguments=(rest(provided(0) as int32 | undefined, spread(provided(...[1, , 2]) as int32 | undefined[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32 | undefined>), next=dynamic(Iterator<int32 | undefined> as Iterator<int32 | undefined>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32 | undefined, void>)) as int32 | undefined, provided(3) as int32 | undefined) as int32 | undefined) return=int32 | undefined[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int32 | undefined>"
+    /// @generic.instantiation id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
+    /// @resolution.call source=[1, , 2] parameters=(^Slice<int32 | undefined>) arguments=(rest(provided(1) as int32 | undefined, omitted as int32 | undefined, provided(2) as int32 | undefined) as int32 | undefined) return=int32 | undefined[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int32 | undefined>"
     /// @generic.instantiation id="arrayFromOwnedSlice<int32 | undefined>" template=arrayFromOwnedSlice arguments=(int32 | undefined)
 
 }

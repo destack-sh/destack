@@ -37,7 +37,7 @@ function update<'a>(state: &'a State): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct State {
@@ -125,7 +125,7 @@ function update<'a>(state: &'a State): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 shared struct State {
@@ -474,7 +474,7 @@ shared class Cell<in out T> {
 === dir ===
 shared class Cell<T> {
 /// @generic.template symbol=Cell parameters=(in out T)
-/// @type.symbol symbol=Cell type=Cell
+/// @type.symbol symbol=Cell type=typeof Cell
 /// @definition.class symbol=Cell template=(in out T)
 /// @definition.field symbol=Cell.value source="value: T" key=value type=T
 /// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(T) => Managed<Cell<T>, Cell.constructor.P0>
@@ -536,7 +536,7 @@ declare const items: ^Array<int32>;
 items.push(1);
 /// @resolution.name source=items target=items
 /// @resolution.member source=items.push receiver=^int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=^int32[] target=push
-/// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromOwnedSlice as int32) return=isize regions=("frame") kind=symbol target=push receiver=^int32[] instance=Array<int32>.<extension#6>.push
+/// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(provided(1) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("frame") kind=symbol target=push receiver=^int32[] instance=Array<int32>.<extension#6>.push
 /// @resolution.place source=items placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=items root=items
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
@@ -587,7 +587,7 @@ declare const items: Array<int32>;
 items.push(1);
 /// @resolution.name source=items target=items
 /// @resolution.member source=items.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-/// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+/// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(provided(1) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
 /// @resolution.place source=items placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=items root=items
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
@@ -749,15 +749,15 @@ function grow(): int32[] {
     const values = [1, 2, 3];
     /// @type.symbol symbol=grow.values source=values type=int32[]
     /// @resolution.pattern source=values kind=binding target=grow.values
-    /// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @resolution.call source=[1, 2, 3] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32, provided(3) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 
     values.push(4);
     /// @resolution.name source=values target=grow.values
     /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source=values.push(4) parameters=(int32[]) arguments=(rest(4) pack=arrayFromOwnedSlice as int32) return=isize regions=("frame" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame int32[])) instance=Array<int32>.<extension#6>.push
+    /// @resolution.call source=values.push(4) parameters=(int32[]) arguments=(rest(provided(4) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("frame" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame int32[])) instance=Array<int32>.<extension#6>.push
     /// @resolution.place source=values placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=values root=grow.values
-    /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
     /// @generic.instantiation id=push<int32> template=push arguments=(int32)
 
     values.fill(0);
@@ -824,7 +824,7 @@ function bump(cell: Cell): void {
 
 === dir ===
 class Cell {
-/// @type.symbol symbol=Cell type=Cell
+/// @type.symbol symbol=Cell type=typeof Cell
 /// @definition.class symbol=Cell
 /// @definition.field symbol=Cell.value source="value: string | number" key=value type=string | float64
 /// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(string | float64) => Managed<this, Cell.constructor.P0>
@@ -962,7 +962,7 @@ function copy(values: int32[], output: int32[]): void {
         output.push(values[index]);
         /// @resolution.name source=output target=copy.output
         /// @resolution.member source=output.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-        /// @resolution.call source=output.push(values[index]) parameters=(int32[]) arguments=(rest(values[index]) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+        /// @resolution.call source=output.push(values[index]) parameters=(int32[]) arguments=(rest(provided(values[index]) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
         /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=output root=copy.output
         /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
@@ -1126,7 +1126,7 @@ function inspect(user: User): User {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 /// @flow.use symbol=User uses=read
 
@@ -1201,7 +1201,7 @@ function grow(values: int32[]): void {
     values.push(0);
     /// @resolution.name source=values target=grow.values
     /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source=values.push(0) parameters=(int32[]) arguments=(rest(0) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+    /// @resolution.call source=values.push(0) parameters=(int32[]) arguments=(rest(provided(0) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=grow.values
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)

@@ -7,3 +7,4 @@ mod name;
 mod newtype;
 mod overload;
 mod precedence;
+mod rest;

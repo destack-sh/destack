@@ -22,7 +22,7 @@ class Tag<T> {
 === dir ===
 class Tag<T> {
 /// @generic.template symbol=Tag parameters=(T)
-/// @type.symbol symbol=Tag type=Tag
+/// @type.symbol symbol=Tag type=typeof Tag
 /// @definition.class symbol=Tag template=(T)
 /// @definition.field symbol=Tag.name source="name: string" key=name type=string
 /// @type.symbol symbol=Tag.T source=T type=T
@@ -64,7 +64,7 @@ class Tag<in out T> {
 === dir ===
 class Tag<in out T> {
 /// @generic.template symbol=Tag parameters=(in out T)
-/// @type.symbol symbol=Tag type=Tag
+/// @type.symbol symbol=Tag type=typeof Tag
 /// @definition.class symbol=Tag template=(in out T)
 /// @definition.field symbol=Tag.name source="name: string" key=name type=string
 /// @type.symbol symbol=Tag.T source="in out T" type=T

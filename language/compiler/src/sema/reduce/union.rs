@@ -384,12 +384,15 @@ impl CheckState<'_> {
                         depth,
                     )?
             }
-            (dir::Type::Application(instance), dir::Type::Reference(reference))
-            | (dir::Type::Reference(reference), dir::Type::Application(instance)) => {
-                instance.symbol == reference.symbol
-                    && self
-                        .type_ids(left.module_id, instance.arguments)?
-                        .is_empty()
+            (dir::Type::Reference(left_reference), dir::Type::Reference(right_reference)) => {
+                left_reference.symbol == right_reference.symbol
+                    && self.are_same_type_lists(
+                        left.module_id,
+                        left_reference.arguments,
+                        right.module_id,
+                        right_reference.arguments,
+                        depth,
+                    )?
             }
             (dir::Type::Form(left_form), dir::Type::Form(right_form)) => {
                 left_form.form == right_form.form

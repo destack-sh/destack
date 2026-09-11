@@ -188,7 +188,7 @@ export type ZonedLike = PlainLike & {
 };
 
 export class Zoned {
-/// @type.symbol symbol=Zoned type=Zoned
+/// @type.symbol symbol=Zoned type=typeof Zoned
 /// @definition.class symbol=Zoned
 /// @definition.method symbol=Zoned.from slot=from static=true type=(ZonedLike) => Zoned
 
@@ -246,7 +246,7 @@ export declare function pick(value: Narrowed): int32;
 
 === dir ===
 class Zoned {
-/// @type.symbol symbol=Zoned type=Zoned
+/// @type.symbol symbol=Zoned type=typeof Zoned
 /// @definition.class symbol=Zoned
 /// @definition.field symbol=Zoned.offset source="offset: int32 = 0" key=offset type=int32
 
@@ -256,7 +256,7 @@ class Zoned {
 }
 
 class Plain {
-/// @type.symbol symbol=Plain type=Plain
+/// @type.symbol symbol=Plain type=typeof Plain
 /// @definition.class symbol=Plain
 /// @definition.field symbol=Plain.day source="day: int32 = 0" key=day type=int32
 

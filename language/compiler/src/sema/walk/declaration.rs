@@ -63,7 +63,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let ty = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+        let ty = self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
         self.commit_declaration_type(symbol, ty)?;
 
         Ok(())
@@ -891,6 +891,7 @@ impl WalkState<'_, '_> {
             parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template: None,
+            arguments: dir::TypeListId::EMPTY,
             this_parameter: None,
             parameters: dir::TypeListId::EMPTY,
             return_type: Some(receiver),

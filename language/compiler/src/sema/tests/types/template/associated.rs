@@ -28,7 +28,7 @@ channel satisfies `topic:${"orders"}`;
 === dir ===
 class Topic<T: string> {
 /// @generic.template symbol=Topic parameters=(in out T: string)
-/// @type.symbol symbol=Topic type=Topic
+/// @type.symbol symbol=Topic type=typeof Topic
 /// @definition.class symbol=Topic template=(in out T: string)
 /// @definition.associated.type symbol=Topic.Channel source="type Channel = `topic:${T}`" key=Channel value=`topic:${T}`
 /// @type.symbol symbol=Topic.T source="T: string" type=T
@@ -116,7 +116,7 @@ interface EventShape<T> {
 
 class Bus<T> implements EventShape<T> {}
 /// @generic.template symbol=Bus parameters=(in out T#2)
-/// @type.symbol symbol=Bus source="class Bus<T> implements EventShape<T> {}" type=Bus
+/// @type.symbol symbol=Bus source="class Bus<T> implements EventShape<T> {}" type=typeof Bus
 /// @generic.instance id=EventShape<T#2> template=EventShape arguments=(T#2)
 /// @definition.class symbol=Bus source="class Bus<T> implements EventShape<T> {}" template=(in out T#2)
 /// @definition.where symbol=Bus source=EventShape<T> relation=satisfies left=this right=EventShape<T#2>
@@ -182,7 +182,7 @@ kind satisfies "login";
 === dir ===
 class EventName<T: string> {
 /// @generic.template symbol=EventName parameters=(in out T: string)
-/// @type.symbol symbol=EventName type=EventName
+/// @type.symbol symbol=EventName type=typeof EventName
 /// @definition.class symbol=EventName template=(in out T: string)
 /// @definition.associated.type symbol=EventName.Kind source="type Kind = T extends `evt:${infer Name}` ? Name : never" key=Kind value="T extends `evt:${infer Name}` ? EventName.Kind.Name : never"
 /// @type.symbol symbol=EventName.T source="T: string" type=T

@@ -131,7 +131,7 @@ impl SubscriptSelection {
             dir::OperationResolution::Union { arms, .. } => {
                 let mut subscripts = Vec::with_capacity(arms.len());
                 for call in arms {
-                    let write_types = call.argument_types(dir::ArgumentSource::Supplied);
+                    let write_types = call.argument_types(dir::ArgumentSource::Supplied(0));
                     let [arm_type] = write_types.as_slice() else {
                         return Err(CompilerError::Internal {
                             message: "selected union IndexSet call has no unique value binding"
@@ -337,9 +337,7 @@ impl CheckState<'_> {
         // infer the physical receiver and its narrowed lookup type
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.visit_site(receiver_node)?;
-        let receiver = self.infer_node(receiver_site, PlaceUse::Read, InferMode::Regular)?;
-        let written_receiver = self.flow_type_at(receiver_site, receiver)?;
-        self.commit_expression_place(receiver_site, written_receiver)?;
+        let (receiver, written_receiver) = self.infer_receiver(receiver_site)?;
         let receiver_value = self.expression_value(receiver_site, receiver)?;
         let target = self.select_chain_operand(origin, written_receiver, is_optional)?;
 
@@ -707,7 +705,7 @@ impl CheckState<'_> {
                     is_optional: false,
                     is_rest: false,
                 });
-                sources.push(dir::ArgumentSource::Supplied);
+                sources.push(dir::ArgumentSource::Supplied(0));
 
                 dir::DynamicFunction::IndexWrite(signature.source)
             }
@@ -719,6 +717,7 @@ impl CheckState<'_> {
             parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template: None,
+            arguments: dir::TypeListId::EMPTY,
             this_parameter: Some(constraint),
             parameters,
             return_type: Some(return_type),
@@ -734,6 +733,7 @@ impl CheckState<'_> {
             .iter()
             .zip(sources)
             .map(|(parameter, source)| dir::ArgumentBinding {
+                coercion: None,
                 parameter_type: parameter.ty,
                 argument_type: parameter.ty,
                 source,
@@ -1066,8 +1066,10 @@ impl CheckState<'_> {
         let origin = match source {
             dir::ArgumentSource::Provided(node) => self.origin_at(origin, node)?,
             dir::ArgumentSource::Static(_)
-            | dir::ArgumentSource::Supplied
+            | dir::ArgumentSource::Supplied(_)
             | dir::ArgumentSource::Omitted
+            | dir::ArgumentSource::Spread(_)
+            | dir::ArgumentSource::Error
             | dir::ArgumentSource::Rest { .. } => origin,
         };
 
@@ -1253,7 +1255,7 @@ impl CheckState<'_> {
         let key = method.key(self.strings());
         let sources = [
             dir::ArgumentSource::Provided(index_node),
-            dir::ArgumentSource::Supplied,
+            dir::ArgumentSource::Supplied(0),
         ];
         let index = self.shallow_resolve(index)?;
         let Some((_protocol, call)) = self.select_language_protocol_call(
@@ -1274,7 +1276,7 @@ impl CheckState<'_> {
         // read the key and value types the selected calls accept
         let resolution = call.resolution;
         let key_types = resolution.argument_types(dir::ArgumentSource::Provided(index_node));
-        let value_types = resolution.argument_types(dir::ArgumentSource::Supplied);
+        let value_types = resolution.argument_types(dir::ArgumentSource::Supplied(0));
         if key_types.is_empty() {
             return Err(CompilerError::Internal {
                 message: "selected IndexSet call has no key parameter".to_string(),
@@ -1360,7 +1362,7 @@ impl CheckState<'_> {
         let key = method.key(self.strings());
         let sources = [
             dir::ArgumentSource::Static(key_type),
-            dir::ArgumentSource::Supplied,
+            dir::ArgumentSource::Supplied(0),
         ];
         let receiver_value = Value {
             ty: receiver,
@@ -1386,7 +1388,7 @@ impl CheckState<'_> {
         // decide the signature's value against the accepted write type
         let value_types = call
             .resolution
-            .argument_types(dir::ArgumentSource::Supplied);
+            .argument_types(dir::ArgumentSource::Supplied(0));
         let input = match value_types.as_slice() {
             [] => {
                 return Err(CompilerError::Internal {

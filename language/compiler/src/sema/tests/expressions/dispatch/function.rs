@@ -93,7 +93,7 @@ function schedule(callback: (ready: boolean) => void): void {}
 
     session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
-function schedule(callback: (arg0: boolean) => void): void {}
+function schedule(callback: (ready: boolean) => void): void {}
 
 === dir ===
 function schedule(callback: (ready: boolean) => void): void {}
@@ -227,7 +227,7 @@ use(source);
         r#"
 === annotated ===
 function source(value?: unknown): void {}
-declare function use(callback: (arg0: unknown) => void): void;
+declare function use(callback: (value: unknown) => void): void;
 
 use(source);
 
@@ -273,7 +273,7 @@ const value = map(() => 1);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare function map<T>(callback: (arg0: unknown) => T): T;
+declare function map<T>(callback: (value: unknown) => T): T;
 
 const value: int64 = map<int64>((): int64 => 1);
 
@@ -327,11 +327,11 @@ function greet(name: string = "world"): string {
 }
 
 let short: string = greet();
-let long: string = greet("compiler");
+let long: string = greet("compiler" as string | undefined);
 
 === dir ===
 function greet(name: string = "world"): string {
-/// @type.symbol symbol=greet type=(string?) => string
+/// @type.symbol symbol=greet type=(string | undefined?) => string
 /// @type.symbol symbol=greet.name source="name: string = \"world\"" type=string
 /// @type.node source="\"world\"" type="world"
 
@@ -346,18 +346,18 @@ function greet(name: string = "world"): string {
 let short = greet();
 /// @type.symbol symbol=short source=short type=string
 /// @resolution.pattern source=short kind=binding target=short
-/// @type.node source=greet type=(string?) => string
+/// @type.node source=greet type=(string | undefined?) => string
 /// @type.node source=greet() type=string
 /// @resolution.name source=greet target=greet
-/// @resolution.call source=greet() parameters=(string) arguments=(omitted as string) return=string kind=symbol target=greet
+/// @resolution.call source=greet() parameters=(string | undefined) arguments=(omitted as string | undefined) return=string kind=symbol target=greet
 
 let long = greet("compiler");
 /// @type.symbol symbol=long source=long type=string
 /// @resolution.pattern source=long kind=binding target=long
 /// @type.node source="greet(\"compiler\")" type=string
-/// @type.node source=greet type=(string?) => string
+/// @type.node source=greet type=(string | undefined?) => string
 /// @resolution.name source=greet target=greet
-/// @resolution.call source="greet(\"compiler\")" parameters=(string) arguments=(provided("compiler") as string) return=string kind=symbol target=greet
+/// @resolution.call source="greet(\"compiler\")" parameters=(string | undefined) arguments=(provided("compiler") as string | undefined) return=string kind=symbol target=greet
 /// @type.node source="\"compiler\"" type="compiler"
 "#,
     );

@@ -116,7 +116,7 @@ const fn: Fn = (value) => `${value}`;
 /// @resolution.name source=Fn target=Fn
 /// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(string,), string, "readonly">
 /// @type.symbol symbol=symbol6.value source=value type=string
-/// @resolution.template source=`${value}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"managed" & "local", string>, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+/// @resolution.template source=`${value}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"managed" & "local", string>, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
 /// @generic.instantiation id=Display.display<string> template=Display.display arguments=()
 /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
 /// @generic.instance id=Cow<string> template=Cow arguments=(string)

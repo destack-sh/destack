@@ -3,8 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Cause, CauseId, CauseKind, CheckState, GenericParameterId, MemberRole, Origin, Relation,
-    TypeSubstitution, Verdict,
+    Cause, CauseId, CauseKind, CheckState, MemberRole, Origin, Relation, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,8 +14,10 @@ type FunctionAssignabilityPair = (Option<CauseKind>, dir::GlobalTypeId, dir::Glo
 pub(in crate::sema) struct SignatureInstantiation {
     /// The instantiated signature.
     pub(in crate::sema) signature: dir::GlobalTypeId,
-    /// The complete generic arguments selecting the instance, or None while parameters stay open.
+    /// The value arguments selecting the instance, or None while parameters stay open.
     pub(in crate::sema) arguments: Option<Vec<dir::GenericArgumentBinding>>,
+    /// The lifetime arguments selected for the declared signature.
+    pub(in crate::sema) regions: Vec<dir::GenericArgumentBinding>,
 }
 
 impl SignatureInstantiation {
@@ -25,6 +26,7 @@ impl SignatureInstantiation {
         Self {
             signature,
             arguments: Some(Vec::new()),
+            regions: Vec::new(),
         }
     }
 }
@@ -243,7 +245,9 @@ impl CheckState<'_> {
                     return Ok(Some(pairs));
                 }
 
-                let target_element = self.spread_element_type(target.ty)?;
+                let Some(target_element) = self.spread_element_type(target.ty)? else {
+                    return Ok(None);
+                };
                 for source in remaining {
                     let target = if source.is_rest {
                         target.ty
@@ -289,7 +293,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn spread_element_type(
         &mut self,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read the sequence head beneath ownership and access forms
         let mut value = self.shallow_resolve(ty)?;
         while let dir::Type::Form(form) = self.ty(value)? {
@@ -298,12 +302,11 @@ impl CheckState<'_> {
 
         // read the element the container yields
         let element = match self.ty(value)? {
-            dir::Type::Application(_) if let Some(element) = self.array_element(value)? => element,
-            dir::Type::Slice(slice) => slice.element,
-            dir::Type::FixedArray(array) => array.element,
+            // preserve bottom in contravariant rest comparisons
+            dir::Type::Never => Some(value),
             // erased sequences carry their element on the iterable constraint
-            _ if self.is_erased_value(value)? => self.iterable_value_argument(value)?.unwrap_or(ty),
-            _ => ty,
+            _ if self.is_erased_value(value)? => self.iterable_value_argument(value)?,
+            _ => self.sequence_element_type(value)?,
         };
 
         Ok(element)
@@ -687,59 +690,21 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
         // require a declaration reference against the construct target
-        let dir::Type::Reference(reference) = self.ty(source)? else {
+        if !matches!(self.ty(source)?, dir::Type::Reference(_)) {
             return Ok(Verdict::Fails);
-        };
+        }
 
         // satisfy the target from any one declared constructor
         let mut verdict = Verdict::Fails;
-        for candidate in self.reference_construct_signatures(reference)? {
-            verdict = verdict.or(self.constrain_type(origin, cause, relation, candidate, target)?);
+        for candidate in self.constructor_signatures(origin, source)? {
+            verdict =
+                verdict.or(self.constrain_type(origin, cause, relation, candidate.ty, target)?);
             if verdict == Verdict::Holds {
                 return Ok(Verdict::Holds);
             }
         }
 
         Ok(verdict)
-    }
-
-    /// Return constructor signatures exposed by one static declaration reference.
-    pub(in crate::sema) fn reference_construct_signatures(
-        &mut self,
-        source: dir::TypeReference,
-    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
-        // read constructors from a class declaration only
-        let constructors: SmallVec<[dir::GlobalTypeId; 2]> =
-            match self.definition(source.symbol)?.as_deref() {
-                Some(dir::Definition::Class(class)) => class
-                    .constructors
-                    .iter()
-                    .map(|constructor| constructor.ty)
-                    .collect(),
-                _ => SmallVec::new(),
-            };
-
-        // constructors return the declared instance in place of `this`
-        let instance = self.declaration_instance(source.symbol)?;
-        let instance = self.intern_type(dir::Type::Application(instance))?;
-        let substitution = TypeSubstitution::default().with_receiver(instance);
-        let mut signatures = SmallVec::new();
-        for constructor in constructors {
-            let constructor = self.substitute_type(constructor, &substitution)?;
-
-            // present the declared signature in its construct form
-            let Some(head) = self.signature_head(constructor)? else {
-                continue;
-            };
-            signatures.push(self.intern_signature(dir::FunctionSignatureType {
-                parks: head.parks,
-                is_construct: true,
-                return_type: head.return_type.or(Some(instance)),
-                ..head
-            })?);
-        }
-
-        Ok(signatures)
     }
 
     /// Relate one source against a required index signature.
@@ -928,9 +893,17 @@ impl CheckState<'_> {
         let Some(template) = head.template else {
             return Ok(Some(SignatureInstantiation::concrete(signature)));
         };
-        let parameters = self.generic_template_parameters(template)?;
+        let parameters = self.signature_generic_parameters(peeled.module_id, &head)?;
         if parameters.is_empty() {
-            return Ok(Some(SignatureInstantiation::concrete(signature)));
+            let bindings = self
+                .signature_arguments(peeled.module_id, head.arguments)?
+                .to_vec();
+            let regions = self.resolved_region_bindings(&bindings)?;
+
+            return Ok(Some(SignatureInstantiation {
+                regions,
+                ..SignatureInstantiation::concrete(signature)
+            }));
         }
 
         // reject shapes that expose no matchable pairs
@@ -939,7 +912,8 @@ impl CheckState<'_> {
         };
 
         // match the declared pairs and require the declared constraints
-        let mut substitution = TypeSubstitution::default();
+        let fixed = self.signature_arguments(peeled.module_id, head.arguments)?;
+        let mut substitution = TypeSubstitution::default().with_carried(fixed)?;
         if !self.extend_generic_substitution(origin, &parameters, &mut substitution, &pairs)? {
             return Ok(None);
         }
@@ -948,6 +922,7 @@ impl CheckState<'_> {
         }
 
         // extract the complete selection when every value parameter binds
+        let parameters = self.generic_template_parameters(template)?;
         let mut arguments = Some(Vec::with_capacity(parameters.len()));
         for parameter in parameters.iter().copied() {
             // skip lifetimes, which erase from instance identity
@@ -970,13 +945,15 @@ impl CheckState<'_> {
 
         // substitute the bound arguments into the written signature
         let substituted = self.substitute_type(signature, &substitution)?;
+        let regions = self.resolved_region_bindings(&substitution.bindings)?;
         if substituted == signature {
-            return Ok(Some(SignatureInstantiation::concrete(signature)));
+            arguments = Some(Vec::new());
         }
 
         Ok(Some(SignatureInstantiation {
             signature: substituted,
             arguments,
+            regions,
         }))
     }
 
@@ -1029,7 +1006,7 @@ impl CheckState<'_> {
         if let Some(signature) = self.signature_head(source)?
             && let Some(template) = signature.template
         {
-            let parameters = self.generic_template_parameters(template)?;
+            let parameters = self.signature_generic_parameters(source.module_id, &signature)?;
             if !parameters.is_empty() {
                 let Some(written_pairs) = self.signature_match_pairs(source, target)? else {
                     return Ok(Verdict::Fails);
@@ -1044,7 +1021,8 @@ impl CheckState<'_> {
                 }
 
                 // relate under the receiver, binding this-projected bounds
-                let mut substitution = TypeSubstitution::default();
+                let fixed = self.signature_arguments(source.module_id, signature.arguments)?;
+                let mut substitution = TypeSubstitution::default().with_carried(fixed)?;
                 if let Some(receiver) = receiver {
                     substitution = substitution.with_receiver(receiver);
                 }
@@ -1225,40 +1203,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Ground one substitution's unbound memory parameters at the ambient election.
-    fn ground_ambient_memory_parameters(
-        &mut self,
-        parameters: &[GenericParameterId],
-        substitution: &mut TypeSubstitution,
-    ) -> CompilerResult<()> {
-        // fill each unbound memory parameter at its ambient election
-        for parameter in parameters.iter().copied() {
-            if substitution.argument(parameter).is_some() {
-                continue;
-            }
-            let kind = self
-                .generic_parameter(parameter)?
-                .and_then(|binding| binding.memory_parameter());
-            let fill = match kind {
-                Some(dir::MemoryParameter::Region) => {
-                    Some(self.lifetime_literal(dir::Lifetime::Frame)?)
-                }
-                Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space) => {
-                    Some(self.place_literal(dir::Space::Local)?)
-                }
-                Some(dir::MemoryParameter::Access) => {
-                    Some(self.access_literal(dir::Access::Mutable)?)
-                }
-                Some(dir::MemoryParameter::Ownership) | None => None,
-            };
-            if let Some(fill) = fill {
-                substitution.bind(parameter, fill)?;
-            }
-        }
-
-        Ok(())
-    }
-
     /// Return positional signature pairs for generic parameter matching.
     pub(in crate::sema) fn signature_match_pairs(
         &self,
@@ -1372,7 +1316,9 @@ impl CheckState<'_> {
                 }
 
                 // spread the target rest element over every remaining source slot
-                let element = self.spread_element_type(target.ty)?;
+                let Some(element) = self.spread_element_type(target.ty)? else {
+                    return Ok(None);
+                };
                 while let Some(source) = source_parameters.get(source_index) {
                     let target = if source.is_rest { target.ty } else { element };
                     let cause = Some(CauseKind::Parameter {
@@ -1391,7 +1337,9 @@ impl CheckState<'_> {
 
             // spread the source rest element over every remaining target slot
             if source.is_rest {
-                let element = self.spread_element_type(source.ty)?;
+                let Some(element) = self.spread_element_type(source.ty)? else {
+                    return Ok(None);
+                };
                 pairs.push((cause, target.ty, element));
                 continue;
             }

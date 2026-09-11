@@ -90,8 +90,9 @@ const values = id([1, 2]);
 /// @resolution.call source="id([1, 2])" parameters=(readonly 1 | 2[]) arguments=(provided([1, 2]) as readonly 1 | 2[]) return=readonly 1 | 2[] kind=symbol target=id instance="id<readonly 1 | 2[]>"
 /// @generic.instantiation id="id<readonly 1 | 2[]>" template=id arguments=(readonly 1 | 2[])
 /// @generic.instance id="id<readonly 1 | 2[]>" template=id arguments=(readonly 1 | 2[])
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<1 | 2>"
+/// @resolution.call source=[1, 2] parameters=(^Slice<1 | 2>) arguments=(rest(provided(1) as 1 | 2, provided(2) as 1 | 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<1 | 2>"
 /// @generic.instantiation id="arrayFromOwnedSlice<1 | 2>" template=arrayFromOwnedSlice arguments=(1 | 2)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="arrayFromOwnedSlice<1 | 2>" template=arrayFromOwnedSlice arguments=(1 | 2)
 /// @generic.instance id="fromOwnedSlice<1 | 2>" template=fromOwnedSlice arguments=(1 | 2)
@@ -99,6 +100,7 @@ const values = id([1, 2]);
 /// @generic.instance id="size<1 | 2>" template=size arguments=(1 | 2)
 /// @generic.instance id="sliceIntoUninit<1 | 2>" template=sliceIntoUninit arguments=(1 | 2)
 /// @generic.instance id="sliceLength<1 | 2>" template=sliceLength arguments=(1 | 2)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 
 const first = values[0];
@@ -110,7 +112,6 @@ const first = values[0];
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<1 | 2, \"managed\" & \"local\", \"mutable\">, \"readonly\">, regions=(\"managed\" & \"local\"))"
 /// @generic.instantiation id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 1 | 2, \"readonly\">" template=WithAccess arguments=(&'bound0 1 | 2, "readonly")
 /// @generic.instance id="WithAccess<&'bound0 1 | 2[], \"readonly\">" template=WithAccess arguments=(&'bound0 1 | 2[], "readonly")
 /// @generic.instance id="assumeInitReference<1 | 2, \"readonly\">" template=assumeInitReference arguments=(1 | 2, "readonly")
@@ -118,7 +119,6 @@ const first = values[0];
 /// @generic.instance id="elementSlot<1 | 2, \"readonly\">" template=elementSlot arguments=(1 | 2, "readonly")
 /// @generic.instance id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly")
 /// @generic.instance id="sliceIndex<MaybeUninit<1 | 2>, \"readonly\">" template=sliceIndex arguments=(MaybeUninit<1 | 2>, "readonly")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 "#,
     );
 }
@@ -171,9 +171,11 @@ const values = id([1, 2]);
 /// @resolution.call source="id([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64[] kind=symbol target=id instance=id<int64[]>
 /// @generic.instantiation id=id<int64[]> template=id arguments=(int64[])
 /// @generic.instance id=id<int64[]> template=id arguments=(int64[])
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
@@ -191,14 +193,12 @@ const first = values[0];
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=int64 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int64, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
 /// @generic.instantiation id="index#1<int64, \"mutable\">" template=index#1 arguments=(int64, "mutable")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 int64, \"mutable\">" template=WithAccess arguments=(&'bound0 int64, "mutable")
 /// @generic.instance id="WithAccess<&'bound0 int64[], \"mutable\">" template=WithAccess arguments=(&'bound0 int64[], "mutable")
 /// @generic.instance id="assumeInitReference<int64, \"mutable\">" template=assumeInitReference arguments=(int64, "mutable")
 /// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
 /// @generic.instance id="index#1<int64, \"mutable\">" template=index#1 arguments=(int64, "mutable")
 /// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=elementPosition<int64> template=elementPosition arguments=(int64)
 "#,
     );
@@ -280,7 +280,7 @@ declare function take(values: Slice<float64>): void;
 take([1, 2]);
 /// @resolution.name source=take target=take
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<float64>) arguments=(rest(provided(1) as float64, provided(2) as float64) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
 /// @generic.instantiation id=arrayFromOwnedSlice<float64> template=arrayFromOwnedSlice arguments=(float64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -471,8 +471,9 @@ const values = collect([{ kind: "ready" }]);
 /// @resolution.call source="collect([{ kind: \"ready\" }])" parameters=({ readonly kind: "ready" }[]) arguments=(provided([{ kind: "ready" }]) as { readonly kind: "ready" }[]) return={ readonly kind: "ready" }[] kind=symbol target=collect instance="collect<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
 /// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
-/// @resolution.call source=[{ kind: "ready" }] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return={ readonly kind: "ready" }[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<{ readonly kind: \"ready\" }>"
+/// @resolution.call source=[{ kind: "ready" }] parameters=(^Slice<{ readonly kind: "ready" }>) arguments=(rest(provided({ kind: "ready" }) as { readonly kind: "ready" }) as { readonly kind: "ready" }) return={ readonly kind: "ready" }[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="arrayFromOwnedSlice<{ readonly kind: \"ready\" }>" template=arrayFromOwnedSlice arguments=({ readonly kind: "ready" })
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="arrayFromOwnedSlice<{ readonly kind: \"ready\" }>" template=arrayFromOwnedSlice arguments=({ readonly kind: "ready" })
 /// @generic.instance id="fromOwnedSlice<{ readonly kind: \"ready\" }>" template=fromOwnedSlice arguments=({ readonly kind: "ready" })
@@ -480,6 +481,7 @@ const values = collect([{ kind: "ready" }]);
 /// @generic.instance id="size<{ readonly kind: \"ready\" }>" template=size arguments=({ readonly kind: "ready" })
 /// @generic.instance id="sliceIntoUninit<{ readonly kind: \"ready\" }>" template=sliceIntoUninit arguments=({ readonly kind: "ready" })
 /// @generic.instance id="sliceLength<{ readonly kind: \"ready\" }>" template=sliceLength arguments=({ readonly kind: "ready" })
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 
 const kind = values[0].kind;
@@ -494,7 +496,6 @@ const kind = values[0].kind;
 /// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<{ readonly kind: \"ready\" }, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
 /// @generic.instantiation id="index#1<{ readonly kind: \"ready\" }, \"mutable\">" template=index#1 arguments=({ readonly kind: "ready" }, "mutable")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 { readonly kind: \"ready\" }, \"mutable\">" template=WithAccess arguments=(&'bound0 { readonly kind: "ready" }, "mutable")
 /// @generic.instance id="WithAccess<&'bound0 { readonly kind: \"ready\" }[], \"mutable\">" template=WithAccess arguments=(&'bound0 { readonly kind: "ready" }[], "mutable")
 /// @generic.instance id="assumeInitReference<{ readonly kind: \"ready\" }, \"mutable\">" template=assumeInitReference arguments=({ readonly kind: "ready" }, "mutable")
@@ -502,7 +503,6 @@ const kind = values[0].kind;
 /// @generic.instance id="elementSlot<{ readonly kind: \"ready\" }, \"mutable\">" template=elementSlot arguments=({ readonly kind: "ready" }, "mutable")
 /// @generic.instance id="index#1<{ readonly kind: \"ready\" }, \"mutable\">" template=index#1 arguments=({ readonly kind: "ready" }, "mutable")
 /// @generic.instance id="sliceIndex<MaybeUninit<{ readonly kind: \"ready\" }>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<{ readonly kind: "ready" }>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 "#,
     );
 }
@@ -779,7 +779,7 @@ interface Equal<T> {
 
 class Bucket<K: Equal<K>> {
 /// @generic.template symbol=Bucket parameters=(in out K: Equal<K>)
-/// @type.symbol symbol=Bucket type=Bucket
+/// @type.symbol symbol=Bucket type=typeof Bucket
 /// @definition.class symbol=Bucket template=(in out K: Equal<K>)
 /// @definition.field symbol=Bucket.key source="key: K" key=key type=K
 /// @definition.method symbol=Bucket.constructor slot=constructor role=constructor type=<Bucket.constructor.P0: Place>(K) => Managed<this, Bucket.constructor.P0>
@@ -913,7 +913,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 
 class Box<K> {
 /// @generic.template symbol=Box parameters=(in out K#1)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
@@ -1049,7 +1049,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 
 class Box<K> {
 /// @generic.template symbol=Box parameters=(in out K)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out K)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K
 /// @definition.method symbol=Box.check slot=check type=<Box.check.P0: Place>(this: Managed<this, Box.check.P0>) => boolean
@@ -1155,7 +1155,7 @@ declare function probe<T>(value: T): boolean;
 
 class Box<K> {
 /// @generic.template symbol=Box parameters=(in out K#1)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
@@ -1311,7 +1311,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 
 class Box<K> {
 /// @generic.template symbol=Box parameters=(in out K#1)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(K#1) => Managed<this, Box.constructor.P0>
@@ -1947,7 +1947,7 @@ extension<T> of Box<T> {
 === dir ===
 class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T#1)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out T#1)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T#1) => Managed<Box<T#1>, Box.constructor.P0>
@@ -2027,7 +2027,7 @@ extension<T> of Box<T> {
 
         Box.make(value)
         /// @resolution.name source=Box target=Box
-        /// @resolution.member source=Box.make receiver=Box type=(T#2) => Box<T#2> kind=symbol target_receiver=Box target=make
+        /// @resolution.member source=Box.make receiver=typeof Box type=(T#2) => Box<T#2> kind=symbol target_receiver=typeof Box target=make
         /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make instance=Box<T#3>.<extension#1>.make
         /// @generic.instantiation id=make<T#3> template=make arguments=(T#3) owner=wrap
         /// @generic.instance id="Box.constructor<T#3, \"local\">" template=Box.constructor arguments=(T#3, "local")

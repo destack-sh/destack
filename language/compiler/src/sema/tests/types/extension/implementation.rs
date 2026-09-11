@@ -1898,7 +1898,7 @@ export struct Entry<K, V> {
 
 export class Bag<K, V> {
 /// @generic.template symbol=Bag parameters=(in out K#2, in out V#2)
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag template=(in out K#2, in out V#2)
 /// @definition.field symbol=Bag.keys source="keys: K[] = []" key=keys type=K#2[]
 /// @definition.field symbol=Bag.values source="values: V[] = []" key=values type=V#2[]
@@ -1911,7 +1911,7 @@ export class Bag<K, V> {
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<K#2>> template=sliceAssumeInit arguments=(MaybeUninit<K#2>)
     /// @generic.instance id=sliceUninit<MaybeUninit<K#2>> template=sliceUninit arguments=(MaybeUninit<K#2>)
     /// @resolution.name source=K target=Bag.K
-    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as K#2) return=K#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<K#2>
+    /// @resolution.call source=[] parameters=(^Slice<K#2>) arguments=(rest() as K#2) return=K#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<K#2>
     /// @generic.instantiation id=arrayFromOwnedSlice<K#2> template=arrayFromOwnedSlice arguments=(K#2) owner=Bag
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -1930,7 +1930,7 @@ export class Bag<K, V> {
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<V#2>> template=sliceAssumeInit arguments=(MaybeUninit<V#2>)
     /// @generic.instance id=sliceUninit<MaybeUninit<V#2>> template=sliceUninit arguments=(MaybeUninit<V#2>)
     /// @resolution.name source=V target=Bag.V
-    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as V#2) return=V#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<V#2>
+    /// @resolution.call source=[] parameters=(^Slice<V#2>) arguments=(rest() as V#2) return=V#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<V#2>
     /// @generic.instantiation id=arrayFromOwnedSlice<V#2> template=arrayFromOwnedSlice arguments=(V#2) owner=Bag
     /// @generic.instance id=arrayFromOwnedSlice<V#2> template=arrayFromOwnedSlice arguments=(V#2)
     /// @generic.instance id=fromOwnedSlice<V#2> template=fromOwnedSlice arguments=(V#2)
@@ -2093,7 +2093,7 @@ interface Greeter {
 }
 
 class Robot {
-/// @type.symbol symbol=Robot type=Robot
+/// @type.symbol symbol=Robot type=typeof Robot
 /// @definition.class symbol=Robot
 /// @definition.method symbol=Robot.greet slot=greet type=<Robot.greet.P0: Place>(this: Managed<Robot, Robot.greet.P0>) => string
 
@@ -2648,7 +2648,7 @@ newtype interface Sized {
 }
 
 class Box {
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.width source="width: isize = 0" key=width type=isize
 /// @definition.method symbol=Box.size slot=size type=(this: Box) => isize

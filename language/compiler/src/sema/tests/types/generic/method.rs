@@ -253,7 +253,7 @@ function read<T, 'a>(source: &'a readonly Box<T>): &'a readonly T {
 === dir ===
 declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T#1)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(out T#1)
 /// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<Box.get.'a>(this: &Box.get.'a readonly Box<T#1>) => &Box.get.'a readonly T#1
 /// @type.symbol symbol=Box.T source=T type=T#1

@@ -370,7 +370,7 @@ impl WalkState<'_, '_> {
                     return self.commit_node_type(expression, value);
                 }
 
-                let reference = dir::Type::Reference(dir::TypeReference { symbol });
+                let reference = dir::Type::Reference(dir::TypeReference::new(symbol));
                 let ty = self.intern_type(reference)?;
 
                 self.commit_node_type(expression, ty)

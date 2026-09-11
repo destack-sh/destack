@@ -21,11 +21,11 @@ class Document extends Base {}
 
 === dir ===
 class Base {}
-/// @type.symbol symbol=Base source="class Base {}" type=Base
+/// @type.symbol symbol=Base source="class Base {}" type=typeof Base
 /// @definition.class symbol=Base source="class Base {}"
 
 class Document extends Base {}
-/// @type.symbol symbol=Document source="class Document extends Base {}" type=Document
+/// @type.symbol symbol=Document source="class Document extends Base {}" type=typeof Document
 /// @definition.class symbol=Document source="class Document extends Base {}"
 /// @definition.extends symbol=Document source=Base target=Base
 /// @resolution.name source=Base target=Base
@@ -107,7 +107,7 @@ interface Drawable {}
 /// @definition.where symbol=Drawable source="interface Drawable {}" relation=satisfies left=this right=Drawable
 
 class Document extends Drawable {}
-/// @type.symbol symbol=Document source="class Document extends Drawable {}" type=Document
+/// @type.symbol symbol=Document source="class Document extends Drawable {}" type=typeof Document
 /// @definition.class symbol=Document source="class Document extends Drawable {}"
 /// @resolution.name source=Drawable target=Drawable
 "#,
@@ -141,7 +141,7 @@ class Document extends Alias {}
 
 === dir ===
 class Base {}
-/// @type.symbol symbol=Base source="class Base {}" type=Base
+/// @type.symbol symbol=Base source="class Base {}" type=typeof Base
 /// @definition.class symbol=Base source="class Base {}"
 
 type Alias = Base;
@@ -150,7 +150,7 @@ type Alias = Base;
 /// @resolution.name source=Base target=Base
 
 class Document extends Alias {}
-/// @type.symbol symbol=Document source="class Document extends Alias {}" type=Document
+/// @type.symbol symbol=Document source="class Document extends Alias {}" type=typeof Document
 /// @definition.class symbol=Document source="class Document extends Alias {}"
 /// @resolution.name source=Alias target=Alias
 "#,
@@ -184,15 +184,15 @@ class Document extends Base | Other {}
 
 === dir ===
 class Base {}
-/// @type.symbol symbol=Base source="class Base {}" type=Base
+/// @type.symbol symbol=Base source="class Base {}" type=typeof Base
 /// @definition.class symbol=Base source="class Base {}"
 
 class Other {}
-/// @type.symbol symbol=Other source="class Other {}" type=Other
+/// @type.symbol symbol=Other source="class Other {}" type=typeof Other
 /// @definition.class symbol=Other source="class Other {}"
 
 class Document extends Base | Other {}
-/// @type.symbol symbol=Document source="class Document extends Base | Other {}" type=Document
+/// @type.symbol symbol=Document source="class Document extends Base | Other {}" type=typeof Document
 /// @definition.class symbol=Document source="class Document extends Base | Other {}"
 /// @resolution.name source=Base target=Base
 /// @resolution.name source=Other target=Other
@@ -245,7 +245,7 @@ interface Printable {
 }
 
 class Document implements Printable {
-/// @type.symbol symbol=Document type=Document
+/// @type.symbol symbol=Document type=typeof Document
 /// @definition.class symbol=Document
 /// @definition.where symbol=Document source=Printable relation=satisfies left=this right=Printable
 /// @definition.implements symbol=Document source=Printable target=Printable
@@ -304,7 +304,7 @@ interface Named {
 }
 
 class User implements Named {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.where symbol=User source=Named relation=satisfies left=this right=Named
 /// @definition.implements symbol=User source=Named target=Named
@@ -370,7 +370,7 @@ type Alias = Printable;
 /// @resolution.name source=Printable target=Printable
 
 class Document implements Alias {
-/// @type.symbol symbol=Document type=Document
+/// @type.symbol symbol=Document type=typeof Document
 /// @definition.class symbol=Document
 /// @definition.method symbol=Document.print source="print(): void {}" slot=print type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 /// @resolution.name source=Alias target=Alias
@@ -430,7 +430,7 @@ interface Drawable {
 }
 
 class Point implements Drawable {
-/// @type.symbol symbol=Point type=Point
+/// @type.symbol symbol=Point type=typeof Point
 /// @definition.class symbol=Point
 /// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
@@ -512,7 +512,7 @@ interface Drawable extends Named {
 }
 
 class Point implements Drawable {
-/// @type.symbol symbol=Point type=Point
+/// @type.symbol symbol=Point type=typeof Point
 /// @definition.class symbol=Point
 /// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
@@ -552,13 +552,13 @@ class Right extends Left {}
 
 === dir ===
 class Left extends Right {}
-/// @type.symbol symbol=Left source="class Left extends Right {}" type=Left
+/// @type.symbol symbol=Left source="class Left extends Right {}" type=typeof Left
 /// @definition.class symbol=Left source="class Left extends Right {}"
 /// @definition.extends symbol=Left source=Right target=Right
 /// @resolution.name source=Right target=Right
 
 class Right extends Left {}
-/// @type.symbol symbol=Right source="class Right extends Left {}" type=Right
+/// @type.symbol symbol=Right source="class Right extends Left {}" type=typeof Right
 /// @definition.class symbol=Right source="class Right extends Left {}"
 /// @definition.extends symbol=Right source=Left target=Left
 /// @resolution.name source=Left target=Left
@@ -593,7 +593,7 @@ class Document {
 
 === dir ===
 class Document {
-/// @type.symbol symbol=Document type=Document
+/// @type.symbol symbol=Document type=typeof Document
 /// @definition.class symbol=Document
 /// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
 
@@ -640,7 +640,7 @@ class Document extends Base {
 
 === dir ===
 class Base {
-/// @type.symbol symbol=Base type=Base
+/// @type.symbol symbol=Base type=typeof Base
 /// @definition.class symbol=Base
 /// @definition.method symbol=Base.print source="virtual print(): void {}" slot=print abstraction=virtual type=<Base.print.P0: Place>(this: Managed<this, Base.print.P0>) => void
 
@@ -652,7 +652,7 @@ class Base {
 }
 
 class Document extends Base {
-/// @type.symbol symbol=Document type=Document
+/// @type.symbol symbol=Document type=typeof Document
 /// @definition.class symbol=Document
 /// @definition.extends symbol=Document source=Base target=Base
 /// @definition.method symbol=Document.print source="print(): void {}" slot=print type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
@@ -702,7 +702,7 @@ class Document extends Base {
 
 === dir ===
 class Base {
-/// @type.symbol symbol=Base type=Base
+/// @type.symbol symbol=Base type=typeof Base
 /// @definition.class symbol=Base
 /// @definition.method symbol=Base.print source="print(): void {}" slot=print type=<Base.print.P0: Place>(this: Managed<this, Base.print.P0>) => void
 
@@ -714,7 +714,7 @@ class Base {
 }
 
 class Document extends Base {
-/// @type.symbol symbol=Document type=Document
+/// @type.symbol symbol=Document type=typeof Document
 /// @definition.class symbol=Document
 /// @definition.extends symbol=Document source=Base target=Base
 /// @definition.method symbol=Document.print source="override print(): void {}" slot=print override=true type=<Document.print.P0: Place>(this: Managed<this, Document.print.P0>) => void
@@ -756,11 +756,11 @@ class Header extends Packet {}
 
 === dir ===
 final class Packet {}
-/// @type.symbol symbol=Packet source="final class Packet {}" type=Packet
+/// @type.symbol symbol=Packet source="final class Packet {}" type=typeof Packet
 /// @definition.class symbol=Packet source="final class Packet {}" final=true
 
 class Header extends Packet {}
-/// @type.symbol symbol=Header source="class Header extends Packet {}" type=Header
+/// @type.symbol symbol=Header source="class Header extends Packet {}" type=typeof Header
 /// @definition.class symbol=Header source="class Header extends Packet {}"
 /// @definition.extends symbol=Header source=Packet target=Packet
 /// @resolution.name source=Packet target=Packet
@@ -793,7 +793,7 @@ class Writer {
 
 === dir ===
 class Writer {
-/// @type.symbol symbol=Writer type=Writer
+/// @type.symbol symbol=Writer type=typeof Writer
 /// @definition.class symbol=Writer
 /// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=<Writer.write.P0: Place>(this: Managed<this, Writer.write.P0>, string) => void
 
@@ -836,7 +836,7 @@ class FileWriter extends Writer {}
 
 === dir ===
 abstract class Writer {
-/// @type.symbol symbol=Writer type=Writer
+/// @type.symbol symbol=Writer type=typeof Writer
 /// @definition.class symbol=Writer abstract=true
 /// @definition.method symbol=Writer.write source="abstract write(value: string): void" slot=write abstraction=abstract type=<Writer.write.P0: Place>(this: Managed<this, Writer.write.P0>, string) => void
 
@@ -848,7 +848,7 @@ abstract class Writer {
 }
 
 class FileWriter extends Writer {}
-/// @type.symbol symbol=FileWriter source="class FileWriter extends Writer {}" type=FileWriter
+/// @type.symbol symbol=FileWriter source="class FileWriter extends Writer {}" type=typeof FileWriter
 /// @definition.class symbol=FileWriter source="class FileWriter extends Writer {}"
 /// @definition.extends symbol=FileWriter source=Writer target=Writer
 /// @resolution.name source=Writer target=Writer
@@ -922,7 +922,7 @@ new Writer();
 
 === dir ===
 abstract class Writer {}
-/// @type.symbol symbol=Writer source="abstract class Writer {}" type=Writer
+/// @type.symbol symbol=Writer source="abstract class Writer {}" type=typeof Writer
 /// @definition.class symbol=Writer source="abstract class Writer {}" abstract=true
 
 new Writer();
@@ -974,7 +974,7 @@ class Parser extends Base {
 
 === dir ===
 class Base {
-/// @type.symbol symbol=Base type=Base
+/// @type.symbol symbol=Base type=typeof Base
 /// @definition.class symbol=Base
 /// @definition.method symbol=Base.parse slot=parse abstraction=virtual type=<Base.parse.P0: Place>(this: Managed<this, Base.parse.P0>, string) => string
 
@@ -993,7 +993,7 @@ class Base {
 }
 
 class Parser extends Base {
-/// @type.symbol symbol=Parser type=Parser
+/// @type.symbol symbol=Parser type=typeof Parser
 /// @definition.class symbol=Parser
 /// @definition.extends symbol=Parser source=Base target=Base
 /// @definition.method symbol=Parser.parse slot=parse override=true type=<Parser.parse.P0: Place>(this: Managed<this, Parser.parse.P0>, string) => int32
@@ -1111,7 +1111,7 @@ class Dog extends Animal {
 
 === dir ===
 class Animal {
-/// @type.symbol symbol=Animal type=Animal
+/// @type.symbol symbol=Animal type=typeof Animal
 /// @definition.class symbol=Animal
 /// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string
 
@@ -1125,7 +1125,7 @@ class Animal {
 }
 
 class Dog extends Animal {
-/// @type.symbol symbol=Dog type=Dog
+/// @type.symbol symbol=Dog type=typeof Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
 /// @definition.method symbol=Dog.speak slot=speak override=true type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string
@@ -1191,7 +1191,7 @@ class Dog extends Animal {
 
 === dir ===
 class Animal {
-/// @type.symbol symbol=Animal type=Animal
+/// @type.symbol symbol=Animal type=typeof Animal
 /// @definition.class symbol=Animal
 /// @definition.method symbol=Animal.speak slot=speak abstraction=virtual type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string
 
@@ -1206,7 +1206,7 @@ class Animal {
 }
 
 class Dog extends Animal {
-/// @type.symbol symbol=Dog type=Dog
+/// @type.symbol symbol=Dog type=typeof Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
 /// @definition.method symbol=Dog.speak slot=speak override=true type=<Dog.speak.P0: Place>(this: Managed<Dog, Dog.speak.P0>) => string

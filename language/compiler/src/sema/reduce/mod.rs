@@ -1,5 +1,6 @@
 mod awaited;
 mod conditional;
+mod instantiation;
 mod intersection;
 mod intrinsic;
 mod key;

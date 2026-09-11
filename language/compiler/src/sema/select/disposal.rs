@@ -151,7 +151,7 @@ impl CheckState<'_> {
             dir::LanguageItem::Awaitable,
             &[parked],
             &[parked],
-            &[dir::ArgumentSource::Supplied],
+            &[dir::ArgumentSource::Supplied(0)],
         )?;
         let Some((_, park)) = selected else {
             return Ok(None);

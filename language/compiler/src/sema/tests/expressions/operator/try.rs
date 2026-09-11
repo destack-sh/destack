@@ -308,7 +308,7 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
     /// @resolution.name source=value target=passthrough.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=passthrough.value
-    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
+    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied(0) as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
     /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
     /// @generic.instantiation id="fromResidual<int32, string, TryResidual<Result<int32, string>>>" template=fromResidual arguments=(int32, string, TryResidual<Result<int32, string>>)
     /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)

@@ -37,7 +37,7 @@ const cache: Cache = Cache { localUser, sharedUser };
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct Cache {
@@ -116,7 +116,7 @@ const cache: Cache = Cache { user, count: 1 };
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 shared struct Cache {
@@ -190,7 +190,7 @@ const union: local User | undefined = user as local User | undefined;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct BoxedUser {
@@ -265,7 +265,7 @@ shared struct State {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 shared struct State {
@@ -323,11 +323,11 @@ service.user satisfies shared User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 shared class Service {
-/// @type.symbol symbol=Service type=Service
+/// @type.symbol symbol=Service type=typeof Service
 /// @definition.class symbol=Service
 /// @definition.field symbol=Service.user source="user: User = new User()" key=user type=User
 /// @definition.method symbol=Service.accept source="accept(user: local User): void {}" slot=accept type=(this: Service, local User) => void
@@ -400,7 +400,7 @@ const accepted: Box<shared User> = Box<shared User> { value: sharedUser };
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct Box<T> {
@@ -477,7 +477,7 @@ shared struct EscapeHatch {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 shared struct EscapeHatch {
@@ -534,7 +534,7 @@ const borrowedBox: BorrowedBox = BorrowedBox { value: borrowed };
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct OwnedBox { value: local ^User; }
@@ -625,11 +625,11 @@ const box: shared Box = new Box<"shared">(user);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 class Box {
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.user source="user: User" key=user type=User
 /// @definition.method symbol=Box.constructor source="constructor(user: User) { this.user = user; }" slot=constructor role=constructor type=<Box.constructor.P0: Place>(User) => Managed<this, Box.constructor.P0>
@@ -750,11 +750,11 @@ cleanEnvelope satisfies SharedSafe;
 import { SharedSafe } from "destack:memory";
 
 class Message {}
-/// @type.symbol symbol=Message source="class Message {}" type=Message
+/// @type.symbol symbol=Message source="class Message {}" type=typeof Message
 /// @definition.class symbol=Message source="class Message {}"
 
 local class Handle {}
-/// @type.symbol symbol=Handle source="local class Handle {}" type=Handle
+/// @type.symbol symbol=Handle source="local class Handle {}" type=typeof Handle
 /// @definition.class symbol=Handle source="local class Handle {}"
 
 struct CleanEnvelope {
@@ -891,7 +891,7 @@ handle satisfies SharedSafe;
 import { SharedSafe } from "destack:memory";
 
 local class Handle {}
-/// @type.symbol symbol=Handle source="local class Handle {}" type=Handle
+/// @type.symbol symbol=Handle source="local class Handle {}" type=typeof Handle
 /// @definition.class symbol=Handle source="local class Handle {}"
 
 @unsafe

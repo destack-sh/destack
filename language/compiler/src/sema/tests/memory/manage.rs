@@ -29,7 +29,7 @@ function run(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
@@ -85,7 +85,7 @@ function run(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
@@ -167,11 +167,11 @@ function run(holder: Holder): User {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 class Holder {
-/// @type.symbol symbol=Holder type=Holder
+/// @type.symbol symbol=Holder type=typeof Holder
 /// @definition.class symbol=Holder
 /// @definition.field symbol=Holder.user source="user: User" key=user type=User
 /// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=<Holder.constructor.P0: Place>(User) => Managed<this, Holder.constructor.P0>
@@ -275,7 +275,7 @@ function run(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
@@ -289,7 +289,7 @@ function run(): void {
     /// @type.symbol symbol=run.users source=users type=User[]
     /// @resolution.pattern source=users kind=binding target=run.users
     /// @resolution.name source=User target=User
-    /// @resolution.call source=[make()] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(make()) as User) return=User[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<User>
+    /// @resolution.call source=[make()] parameters=(^Slice<User>) arguments=(rest(provided(make()) as User) as User) return=User[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<User>
     /// @generic.instantiation id=arrayFromOwnedSlice<User> template=arrayFromOwnedSlice arguments=(User)
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
@@ -337,7 +337,7 @@ function run(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
@@ -421,7 +421,7 @@ const block: () => User = (): User => {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
@@ -490,7 +490,7 @@ function run(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
@@ -644,7 +644,7 @@ function run(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
@@ -707,7 +707,7 @@ function run(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
@@ -813,7 +813,7 @@ function run(): void {
 import { Owned } from "destack:memory";
 
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 extension<T> of Owned<T> {
@@ -935,7 +935,7 @@ function pass(input: ^User): ^User {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function identity<T>(value: T): T;
@@ -1021,7 +1021,7 @@ function run(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;

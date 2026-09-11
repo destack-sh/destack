@@ -39,6 +39,9 @@ impl EventFormatter<'_, '_> {
             Obligation::RangeElement(obligation) => {
                 event.text("element", self.type_label(obligation.element))
             }
+            Obligation::RestParameter(obligation) => {
+                event.text("type", self.type_label(obligation.ty))
+            }
         }
     }
 
@@ -50,6 +53,7 @@ impl EventFormatter<'_, '_> {
             Obligation::RuntimePredicate(_) => "runtime.predicate",
             Obligation::WellFormedType(_) => "wellformed.type",
             Obligation::RangeElement(_) => "range.element",
+            Obligation::RestParameter(_) => "rest.parameter",
         }
     }
 

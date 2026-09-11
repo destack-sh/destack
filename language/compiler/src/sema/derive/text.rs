@@ -164,7 +164,7 @@ impl CheckState<'_> {
             dir::LanguageItem::Cow,
             &[],
             &[],
-            &[dir::ArgumentSource::Supplied],
+            &[dir::ArgumentSource::Supplied(0)],
         )?
         else {
             return Err(CompilerError::Internal {

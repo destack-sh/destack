@@ -185,7 +185,7 @@ import { Promise } from "destack:async";
 import { AsyncDispose } from "destack:memory";
 
 class Connection implements AsyncDispose {
-/// @type.symbol symbol=Connection type=Connection
+/// @type.symbol symbol=Connection type=typeof Connection
 /// @definition.class symbol=Connection
 /// @definition.where symbol=Connection source=AsyncDispose relation=satisfies left=this right=AsyncDispose
 /// @definition.implements symbol=Connection source=AsyncDispose target=AsyncDispose
@@ -197,7 +197,7 @@ class Connection implements AsyncDispose {
     /// @generic.template symbol=Connection.asyncDispose parent=template#0 parameters=(P0: Place)
     /// @type.symbol symbol=Connection.asyncDispose source="async asyncDispose(): Promise<void> {}" type=async <Connection.asyncDispose.P0: Place>(this: Managed<Connection, Connection.asyncDispose.P0>) => Promise<void>
     /// @type.symbol symbol=Connection.asyncDispose.this type=Managed<Connection, Connection.asyncDispose.P0>
-    /// @resolution.call source="async asyncDispose(): Promise<void> {}" parameters=(^Function<(), void, "once">) arguments=(supplied as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
+    /// @resolution.call source="async asyncDispose(): Promise<void> {}" parameters=(^Function<(), void, "once">) arguments=(supplied(0) as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
     /// @generic.instantiation id=Promise.create<void> template=Promise.create arguments=(void)
     /// @generic.instance id="Function<(), void, \"once\">" template=Function arguments=((), void, "once")
     /// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
@@ -223,12 +223,12 @@ function connect(): Connection {
 
 async function run(): Promise<void> {
 /// @type.symbol symbol=run type=async () => Promise<void>
-/// @resolution.call parameters=(^Function<(), void, "once">) arguments=(supplied as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
+/// @resolution.call parameters=(^Function<(), void, "once">) arguments=(supplied(0) as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
 /// @resolution.name source=Promise target=Promise
 
     await using connection = connect();
     /// @type.symbol symbol=run.connection source=connection type=Connection
-    /// @resolution.disposal source="connection = connect()" dispose="Connection.asyncDispose(parameters=(), arguments=(), return=Promise<void>)" await="Promise.park(parameters=(Promise<void>), arguments=(supplied as Promise<void>), return=void)"
+    /// @resolution.disposal source="connection = connect()" dispose="Connection.asyncDispose(parameters=(), arguments=(), return=Promise<void>)" await="Promise.park(parameters=(Promise<void>), arguments=(supplied(0) as Promise<void>), return=void)"
     /// @resolution.pattern source=connection kind=binding target=run.connection
     /// @generic.instantiation id="Connection.asyncDispose<\"local\">" template=Connection.asyncDispose arguments=("local")
     /// @generic.instantiation id="Promise.park<void, void>" template=Promise.park arguments=(void, void)
@@ -305,7 +305,7 @@ struct File implements Dispose {
 
 async function run(): Promise<void> {
 /// @type.symbol symbol=run type=async () => Promise<void>
-/// @resolution.call parameters=(^Function<(), void, "once">) arguments=(supplied as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
+/// @resolution.call parameters=(^Function<(), void, "once">) arguments=(supplied(0) as ^Function<(), void, "once">) return=Promise<void> kind=symbol target=Promise.create instance=Promise.create<void>
 /// @generic.instantiation id=Promise.create<void> template=Promise.create arguments=(void)
 /// @resolution.name source=Promise target=Promise
 

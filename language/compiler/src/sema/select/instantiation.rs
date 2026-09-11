@@ -1,24 +1,7 @@
-use crate::sema::VariableKind;
 use destack_dir as dir;
-use destack_source::ModuleId;
-use smallvec::SmallVec;
 
-use crate::sema::{CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution};
-use crate::{CompilerError, CompilerResult};
-
-/// Literal inference selected for one generic application.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::sema) enum TypeArgumentInference<'a> {
-    /// Preserve exact type arguments.
-    Exact,
-    /// Infer arguments for one callable signature.
-    Callable {
-        /// The callable parameter types before substitution.
-        parameters: &'a [dir::FunctionParameterType],
-        /// The callable return type before substitution.
-        return_type: Option<dir::GlobalTypeId>,
-    },
-}
+use crate::CompilerResult;
+use crate::sema::{CheckState, GenericParameterId, Origin, TypeSubstitution, VariableKind};
 
 impl CheckState<'_> {
     /// Bind one written argument to one parameter.
@@ -50,56 +33,49 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Bind explicit arguments and declared defaults to one template.
+    /// Bind explicit arguments and declared defaults to the remaining parameters.
     pub(in crate::sema) fn bind_explicit_arguments(
         &mut self,
-        _module: ModuleId,
-        template: GenericTemplateId,
+        parameters: &[GenericParameterId],
         written: &[dir::GlobalTypeId],
+        mut substitution: TypeSubstitution,
     ) -> CompilerResult<Option<TypeSubstitution>> {
-        let parameters = self.generic_template_parameters(template)?;
-        if written.len() > self.writable_parameter_count(&parameters)? {
+        if written.len() > self.writable_parameter_count(parameters)? {
             return Ok(None);
         }
 
         // bind writable parameters and fill omitted defaults
-        let mut substitution = TypeSubstitution::default();
         let mut cursor = 0;
         for parameter in parameters.iter().copied() {
             let binding = self.require_generic_parameter(parameter)?.clone();
-            let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
-            if binding.is_writable()
+            let argument = if binding.is_writable()
                 && cursor < written.len()
                 && self.argument_fills_parameter(&binding, written[cursor])?
             {
-                // interpret a value binding argument by the slot's kind
+                // interpret the written argument by its parameter kind
                 let Some(argument) = self.bind_written_argument(&binding, written[cursor])? else {
                     return Ok(None);
                 };
-                substitution.bind(parameter, argument)?;
                 cursor += 1;
 
-                continue;
-            }
+                Some(argument)
+            } else {
+                // evaluate defaults against the arguments already bound
+                binding
+                    .default
+                    .map(|default| self.substitute_type(default, &substitution))
+                    .transpose()?
+            };
 
-            // evaluate defaults against the application built so far
-            let default = binding
-                .default
-                .map(|default| self.substitute_type(default, &substitution))
-                .transpose()?;
-            if let Some(default) = default {
-                substitution.bind(parameter, default)?;
-
-                continue;
-            }
-
-            // reject an explicit parameter left without an argument
-            if is_explicit {
+            // retain a fixed argument or require an explicit parameter's argument
+            if let Some(argument) = argument {
+                substitution.bind(parameter, argument)?;
+            } else if matches!(binding.origin, dir::GenericParameterOrigin::Explicit) {
                 return Ok(None);
             }
         }
 
-        Ok(Some(substitution))
+        Ok((cursor == written.len()).then_some(substitution))
     }
 
     /// Instantiate one parameter list, opening every omitted parameter.
@@ -109,7 +85,6 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         written: &[dir::GlobalTypeId],
         mut substitution: TypeSubstitution,
-        _inference: TypeArgumentInference<'_>,
     ) -> CompilerResult<Option<TypeSubstitution>> {
         self.counters.instantiations += 1;
 
@@ -191,152 +166,5 @@ impl CheckState<'_> {
         }
 
         Ok(Some(substitution))
-    }
-}
-
-impl CheckState<'_> {
-    /// Select one explicit instantiation once its target name decides.
-    pub(in crate::sema) fn select_instantiation(
-        &mut self,
-        node: dir::GlobalNodeId<dir::Expression>,
-        left: dir::LocalNodeId<dir::Expression>,
-        arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<()> {
-        let module = node.module_id;
-        let source = node.local_id.into_any();
-        let node = node.into_any();
-        let origin = self.visit_site(node)?.origin();
-
-        // decide the target reference at its first visit
-        let left_node = left.into_global_any(module);
-        let symbol = match self.decide_reference(left_node)? {
-            Some(resolution) => match resolution.symbols() {
-                [symbol] => *symbol,
-                _ => {
-                    let Some(path) = self.module(module).view().tree().reference_path(left) else {
-                        return Err(CompilerError::Internal {
-                            message: format!(
-                                "overloaded instantiation target {left_node:?} has no reference path"
-                            ),
-                        });
-                    };
-                    self.report_ambiguous_reference(module, left.into_any(), &path)?;
-                    self.commit_decision(node, dir::Decision::Rejected)?;
-                    self.commit_error_node(node)?;
-
-                    return Ok(());
-                }
-            },
-            None => match self.decision(left_node).cloned() {
-                // reject the instantiation with its rejected target
-                Some(dir::Decision::Rejected | dir::Decision::Poisoned) => {
-                    self.commit_decision(node, dir::Decision::Rejected)?;
-                    self.commit_error_node(node)?;
-
-                    return Ok(());
-                }
-                // fail loudly on any other decision, which names no instantiation target
-                Some(other) => {
-                    return Err(CompilerError::Internal {
-                        message: format!("instantiation target {left_node:?} decided as {other:?}"),
-                    });
-                }
-                // references decide during the walk
-                None => {
-                    return Err(CompilerError::Internal {
-                        message: format!("instantiation target {left_node:?} has no walk decision"),
-                    });
-                }
-            },
-        };
-
-        // type the written arguments at their first visit
-        self.walk_body_generic_arguments(module, arguments)?;
-
-        // collect the written argument types
-        let mut applied = SmallVec::<[dir::GlobalTypeId; 2]>::new();
-        for argument in arguments {
-            let argument = argument.into_global_any(module);
-            let ty = self.require_node_type(argument)?;
-            applied.push(ty);
-        }
-
-        // read the selected declaration template
-        let template = self.symbol_template(symbol)?;
-        if template.is_none() && !applied.is_empty() {
-            let name = self.format_symbol(symbol);
-            self.report_wrong_generic_arity(module, source, name, 0, applied.len());
-            self.commit_decision(node, dir::Decision::Rejected)?;
-            self.commit_error_node(node)?;
-
-            return Ok(());
-        }
-
-        // specialize the selected value type by the applied arguments
-        let declared = self.symbol_type(symbol)?;
-        let specialized = match template {
-            Some(template) => {
-                let parameters = self.generic_template_parameters(template)?;
-                let Some(substitution) =
-                    self.bind_explicit_arguments(module, template, &applied)?
-                else {
-                    let name = self.format_symbol(symbol);
-                    let written_count = self.writable_parameter_count(&parameters)?;
-                    self.report_wrong_generic_arity(
-                        module,
-                        source,
-                        name,
-                        written_count,
-                        applied.len(),
-                    );
-                    self.commit_decision(node, dir::Decision::Rejected)?;
-                    self.commit_error_node(node)?;
-
-                    return Ok(());
-                };
-
-                // push constraints determined by this application
-                for constraint in
-                    self.substitute_application_constraints(origin, template, &substitution)?
-                {
-                    self.push_relation(constraint)?;
-                }
-
-                match self.ty(declared)? {
-                    dir::Type::Reference(reference) if reference.symbol == symbol => {
-                        let arguments = substitution.arguments().collect::<SmallVec<[_; 4]>>();
-                        let arguments = self.intern_type_ids(&arguments)?;
-
-                        self.intern_type(dir::Type::Application(dir::GenericApplication {
-                            symbol,
-                            arguments,
-                        }))?
-                    }
-                    _ => self.substitute_type(declared, &substitution)?,
-                }
-            }
-            None => declared,
-        };
-
-        // build the applied callable value with its selected arguments
-        let arguments = self.symbol_generic_argument_bindings(symbol, &applied)?;
-        let value = dir::FunctionValue {
-            target: dir::CallableTarget::Symbol {
-                function: dir::FunctionTarget {
-                    receiver: None,
-                    generic_scope: None,
-                    key: dir::InstanceKey::new(symbol, arguments),
-                },
-                dispatch: dir::FunctionDispatch::Direct,
-            },
-            callable_type: specialized,
-        };
-        self.commit_decision(
-            node,
-            dir::Decision::Function(dir::OperationResolution::One(value)),
-        )?;
-        self.commit_node_type(node, specialized)?;
-
-        Ok(())
     }
 }

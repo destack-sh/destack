@@ -282,7 +282,7 @@ newtype mark = (string,);
 /// @definition.newtype symbol=mark source="newtype mark = (string,)" backing=(string,) constructors=[(string) => mark]
 
 class Sink {
-/// @type.symbol symbol=Sink type=Sink
+/// @type.symbol symbol=Sink type=typeof Sink
 /// @definition.class symbol=Sink
 /// @definition.method symbol=Sink.constructor source="constructor(value: int32) {}" slot=constructor role=constructor type=<Sink.constructor.P0: Place>(int32) => Managed<Sink, Sink.constructor.P0>
 
@@ -319,6 +319,7 @@ function run(): void {
     /// @resolution.construct source="new Sink(@mark(\"construct\") 2)" parameters=(int32) arguments=(provided(@mark("construct") 2) as int32) return=local Sink kind=class target=Sink constructor=Sink.constructor
     /// @generic.instantiation id="Sink.constructor<\"local\">" template=Sink.constructor arguments=("local")
     /// @generic.instantiation id="Sink<\"local\">" template=Sink arguments=("local")
+    /// @type.node source=Sink type=typeof Sink
     /// @resolution.name source=Sink target=Sink
     /// @decorator.node source="@mark(\"construct\")" owner="@mark(\"construct\") 2" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("construct") as string) newtype=mark backing=(string,) value="mark(\"construct\")"
     /// @type.node source=mark type=mark
@@ -342,7 +343,7 @@ function run(): void {
     /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
     /// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
     /// @type.node source=[@mark("array") 3] type=int64[]
-    /// @resolution.call source=[@mark("array") 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(3) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+    /// @resolution.call source=[@mark("array") 3] parameters=(^Slice<int64>) arguments=(rest(provided(@mark("array") 3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
     /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -416,7 +417,7 @@ function run(): void {
     /// @type.symbol symbol=run.text source=text type=string
     /// @resolution.pattern source=text kind=binding target=run.text
     /// @type.node source="`value ${@mark(\"interpolation\") 6}`" type=string
-    /// @resolution.template source="`value ${@mark(\"interpolation\") 6}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+    /// @resolution.template source="`value ${@mark(\"interpolation\") 6}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
     /// @generic.instantiation id=Display.display<int64> template=Display.display arguments=()
     /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
     /// @generic.instance id=Cow<string> template=Cow arguments=(string)

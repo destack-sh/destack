@@ -1013,21 +1013,12 @@ impl CheckState<'_> {
         Ok(present)
     }
 
-    /// Walk one body type expression at its first typing visit.
+    /// Resolve an aggregate's written type and generic arguments.
     pub(in crate::sema) fn walk_body_construct_type(
         &mut self,
         module: ModuleId,
         ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
-        // reuse a full earlier visit
-        if self.decision(ty.into_global_any(module)).is_some()
-            && self
-                .committed_node_type(ty.into_global_any(module))
-                .is_some()
-        {
-            return Ok(());
-        }
-
         // walk the construct type over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
         let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));

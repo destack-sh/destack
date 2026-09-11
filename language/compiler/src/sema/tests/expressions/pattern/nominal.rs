@@ -1,5 +1,93 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Nominal patterns name types even when instance bindings have those types.
+#[test]
+fn test_match_instance_bindings_as_nominal_patterns() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+}
+
+newtype UserId = int64;
+
+declare const point: Point;
+
+declare const id: UserId;
+
+if (let point {} = point) {}
+
+if (let id(_) = id) {}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+}
+
+newtype UserId = int64;
+
+declare const point: Point;
+
+declare const id: UserId;
+
+if (let point {} = point) {
+}
+
+if (let id(_) = id) {
+}
+
+=== dir ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+
+newtype UserId = int64;
+/// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" backing=int64 constructors=[(int64) => UserId]
+
+declare const point: Point;
+/// @type.symbol symbol=point source=point type=Point
+/// @resolution.pattern source=point kind=binding target=point
+/// @resolution.name source=Point target=Point
+
+declare const id: UserId;
+/// @type.symbol symbol=id source=id type=UserId
+/// @resolution.pattern source=id kind=binding target=id
+/// @resolution.name source=UserId target=UserId
+
+if (let point {} = point) {}
+/// @resolution.name source=point target=point
+/// @resolution.rejected source="point {}"
+/// @resolution.name source=point target=point
+/// @resolution.access source=point root=point
+
+if (let id(_) = id) {}
+/// @resolution.name source=id target=id
+/// @resolution.rejected source=id(_)
+/// @resolution.name source=id target=id
+/// @resolution.access source=id root=id
+"#,
+        r#"
+/// @diagnostic.error id=value-used-as-type message="expected a type, found value 'point'"
+/// @diagnostic.label line=12 column=9 span="point" line_source="if (let point {} = point) {}"
+/// @diagnostic.error id=value-used-as-type message="expected a type, found value 'id'"
+/// @diagnostic.label line=14 column=9 span="id" line_source="if (let id(_) = id) {}"
+"#,
+    );
+}
+
 #[test]
 fn test_newtype_pattern_unwraps_backing_value() {
     let session = TestSession::single(
@@ -180,8 +268,7 @@ declare const point: Point;
 /// @resolution.name source=Point target=Point
 
 match (point) {
-/// @type.node type=int32
-/// @resolution.coverage exhaustive=false disjoint=true
+/// @type.node type=<error>
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
@@ -189,16 +276,16 @@ match (point) {
 
     Point { x, y } => x + y
     /// @resolution.name source=Point target=Point
-    /// @resolution.pattern source="Point { x, y }" kind=nominal_object target=Point fields={ x, y }
-    /// @type.symbol symbol=x source=x type=int32
-    /// @type.symbol symbol=y source=y type=int32
-    /// @type.node source="x + y" type=int32
-    /// @type.node source=x type=int32
+    /// @resolution.rejected source="Point { x, y }"
+    /// @type.symbol symbol=x source=x type=<error>
+    /// @type.symbol symbol=y source=y type=<error>
+    /// @type.node source="x + y" type=<error>
+    /// @type.node source=x type=<error>
     /// @resolution.name source=x target=x
-    /// @resolution.operator source="x + y" type=int32 operator="+" kind=builtin operands=[x as int32 families=(integer), y as int32 families=(integer)]
+    /// @resolution.poisoned source="x + y"
     /// @resolution.place source=x placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=x root=x
-    /// @type.node source=y type=int32
+    /// @type.node source=y type=<error>
     /// @resolution.name source=y target=y
     /// @resolution.place source=y placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=y root=y
@@ -206,9 +293,8 @@ match (point) {
 }
 "#,
         r#"
-/// @diagnostic.error id=non-exhaustive-pattern message="match is not exhaustive: '{ x: int32; y: int32 }' is not covered"
-/// @diagnostic.label line=6 column=1 span="match" line_source="match (point) {"
-/// @diagnostic.help message="cover the remaining values or add a wildcard '_' arm"
+/// @diagnostic.error id=invalid-pattern-tag message="pattern tag '{ x: int32; y: int32 }' is not a nominal type"
+/// @diagnostic.label line=7 column=5 span="Point { x, y }" line_source="Point { x, y } => x + y"
 "#,
     );
 }
@@ -252,7 +338,7 @@ match (user) {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
 /// @definition.method symbol=User.displayName slot=displayName type=<User.displayName.P0: Place>(this: Managed<this, User.displayName.P0>) => string

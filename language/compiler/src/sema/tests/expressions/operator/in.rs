@@ -135,7 +135,7 @@ found satisfies boolean;
 
 === dir ===
 class Bag {
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag
 /// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a, Bag.has.P1: Place>(this: Managed<Bag, Bag.has.P1>, &Bag.has.'a readonly string) => boolean
 
@@ -206,7 +206,7 @@ declare const user: User;
 
 === dir ===
 declare class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
 

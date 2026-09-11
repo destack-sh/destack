@@ -1115,7 +1115,7 @@ interface Source<T> {
 }
 
 declare class Reader implements Source<Borrowed<Buffer, "readonly">> {
-/// @type.symbol symbol=Reader type=Reader
+/// @type.symbol symbol=Reader type=typeof Reader
 /// @definition.class symbol=Reader
 /// @definition.where symbol=Reader source="Source<Borrowed<Buffer, \"readonly\">>" relation=satisfies left=this right=Source<Borrowed<Buffer, <error>, "readonly">>
 /// @definition.implements symbol=Reader source="Source<Borrowed<Buffer, \"readonly\">>" target="Source<Borrowed<Buffer, <error>, \"readonly\">>"

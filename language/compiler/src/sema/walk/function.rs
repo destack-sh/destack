@@ -58,6 +58,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parks,
             asynchrony: signature.asynchrony,
             template,
+            arguments: dir::TypeListId::EMPTY,
             this_parameter,
             parameters,
             return_type,
@@ -257,6 +258,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template,
+            arguments: dir::TypeListId::EMPTY,
             this_parameter,
             parameters,
             return_type,
@@ -315,6 +317,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template,
+            arguments: dir::TypeListId::EMPTY,
             this_parameter: None,
             parameters,
             return_type,
@@ -568,9 +571,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // defaulted parameters may be omitted at the call site
         let is_optional = parameter.is_optional() || parameter.default_value().is_some();
+        let name = parameter.name();
 
         Ok(dir::FunctionParameterType {
-            name: parameter.name(),
+            name,
             ty,
             is_optional,
             is_rest,
@@ -626,8 +630,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameter => parameter.declared_type(),
         };
         let ty = if let Some(declared_type) = declared_type {
-            let is_optional = self.tree.get(id).is_optional();
-            let ty = self.walk_type_expression(declared_type)?;
+            let parameter = self.tree.get(id);
+            let is_optional = parameter.is_optional() || parameter.default_value().is_some();
+            let ty = if matches!(
+                parameter,
+                dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
+            ) {
+                self.walk_rest_type_expression(declared_type)?
+            } else {
+                self.walk_type_expression(declared_type)?
+            };
 
             // optional parameters accept explicit undefined at call sites
             if is_optional {

@@ -1484,7 +1484,7 @@ match (user) {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
 /// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>

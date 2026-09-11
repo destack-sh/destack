@@ -48,10 +48,9 @@ const read = Holder<int32>.zero;
 /// @type.symbol symbol=read source=read type=int32
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=Holder target=Holder
+/// @resolution.name source=Holder<int32> target=Holder
 /// @resolution.member source=Holder<int32>.zero receiver=Holder<int32> type=int32 kind=symbol target_receiver=Holder<int32> target=Holder.zero
-/// @resolution.function source=Holder<int32> type=Holder<int32> target=Holder instance=Holder<int32>
 /// @generic.instantiation id=Holder.zero<int32> template=Holder.zero arguments=(int32)
-/// @generic.instantiation id=Holder<int32> template=Holder arguments=(int32)
 "#, r#""#);
 }
 
@@ -104,9 +103,9 @@ const read = Registry<int32>.fallback;
 /// @type.symbol symbol=read source=read type=int32 | undefined
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=Registry target=Registry
+/// @resolution.name source=Registry<int32> target=Registry
 /// @resolution.member source=Registry<int32>.fallback receiver=Registry<int32> type=int32 | undefined kind=field target_receiver=Registry<int32> key=fallback target=Registry.fallback target_type=int32 | undefined
-/// @resolution.function source=Registry<int32> type=Registry<int32> target=Registry instance=Registry<int32>
-/// @generic.instantiation id=Registry<int32> template=Registry arguments=(int32)
+/// @resolution.access source=Registry<int32>.fallback root=Registry keys=[fallback]
 "#, r#""#);
 }
 
@@ -199,10 +198,9 @@ const read = Wrapper<int32>.fallback;
 /// @type.symbol symbol=read source=read type=int32 | undefined
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=Wrapper target=Wrapper
+/// @resolution.name source=Wrapper<int32> target=Wrapper
 /// @resolution.member source=Wrapper<int32>.fallback receiver=Wrapper<int32> type=int32 | undefined kind=symbol target_receiver=Wrapper<int32> target=Wrapper.fallback
-/// @resolution.function source=Wrapper<int32> type=Wrapper<int32> target=Wrapper instance=Wrapper<int32>
 /// @generic.instantiation id=Wrapper.fallback<int32> template=Wrapper.fallback arguments=(int32)
-/// @generic.instantiation id=Wrapper<int32> template=Wrapper arguments=(int32)
 "#, r#""#);
 }
 

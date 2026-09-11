@@ -681,7 +681,7 @@ function mutate<'a, 'b>(
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.count source="count: int32 = 0" key=count type=int32
 /// @definition.method symbol=Counter.bump slot=bump type=<Counter.bump.'a>(this: &Counter.bump.'a this) => void

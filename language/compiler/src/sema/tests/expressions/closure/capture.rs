@@ -498,7 +498,7 @@ function make(): () => Promise<string> {
 
 === dir ===
 declare class Client {
-/// @type.symbol symbol=Client type=Client
+/// @type.symbol symbol=Client type=typeof Client
 /// @definition.class symbol=Client
 /// @definition.method symbol=Client.read source="read(): Promise<string>" slot=read type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string>
 
@@ -520,6 +520,7 @@ function make(): () => Promise<string> {
     /// @resolution.pattern source=client kind=binding target=make.client
     /// @type.node source="new Client()" type=Client
     /// @resolution.construct source="new Client()" parameters=() return=Client kind=class target=Client constructor=default
+    /// @type.node source=Client type=typeof Client
     /// @resolution.name source=Client target=Client
 
     @capture("copy")
@@ -532,7 +533,7 @@ function make(): () => Promise<string> {
     /// @resolution.pattern source=load kind=binding target=make.load
     /// @type.symbol symbol=make.symbol6 source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
     /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
-    /// @resolution.call source="async () => await client.read()" parameters=(^Function<(), string, "once">) arguments=(supplied as ^Function<(), string, "once">) return=Promise<string> kind=symbol target=Promise.create instance=Promise.create<string>
+    /// @resolution.call source="async () => await client.read()" parameters=(^Function<(), string, "once">) arguments=(supplied(0) as ^Function<(), string, "once">) return=Promise<string> kind=symbol target=Promise.create instance=Promise.create<string>
     /// @generic.instantiation id=Promise.create<string> template=Promise.create arguments=(string)
     /// @generic.instance id="Function<(), string, \"once\">" template=Function arguments=((), string, "once")
     /// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
@@ -605,7 +606,7 @@ class Counter {
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
 /// @definition.method symbol=Counter.make slot=make type=<Counter.make.P0: Place>(this: Managed<Counter, Counter.make.P0>) => Function<(), int32>

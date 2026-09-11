@@ -7,8 +7,8 @@ use smallvec::SmallVec;
 use crate::sema::infer::InferMode;
 use crate::sema::{
     CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome, CheckState,
-    Expectation, Origin, REPORTED_REJECTIONS, Relation, RelationCheck, Settle,
-    TypeArgumentInference, TypeSubstitution, Value, ValueUse, Verdict,
+    Expectation, Origin, REPORTED_REJECTIONS, Relation, RelationCheck, Settle, TypeSubstitution,
+    Value, ValueConversion, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -19,6 +19,8 @@ pub(in crate::sema) struct SignatureSelection {
     pub(in crate::sema) callable: dir::GlobalTypeId,
     /// The selected parameters in declaration order.
     pub(in crate::sema) parameters: SmallVec<[ParameterSelection; 4]>,
+    /// The prepared sources supplied to the selected signature.
+    pub(in crate::sema) sources: Vec<dir::ArgumentSource>,
     /// The return type after substitution.
     pub(in crate::sema) return_type: dir::GlobalTypeId,
     /// The solved generic argument bindings.
@@ -126,10 +128,12 @@ pub(in crate::sema) enum ArgumentValue {
 }
 
 /// Argument matched against one callable signature parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::sema) struct CallableArgument {
     /// Source node used for origins and diagnostics.
     pub(in crate::sema) source: dir::GlobalNodeIdAny,
+    /// The runtime source, including any selected spread iteration.
+    pub(in crate::sema) argument: dir::ArgumentSource,
     /// The value this argument supplies.
     pub(in crate::sema) value: ArgumentValue,
     /// Relation selected from the authored argument expression.
@@ -183,6 +187,25 @@ pub(in crate::sema) enum SignatureRejection {
 }
 
 impl SignatureSelection {
+    /// Bind the prepared arguments to the selected parameters.
+    pub(in crate::sema) fn bind_arguments(
+        &self,
+        origin: Origin,
+        check: &mut CheckState<'_>,
+    ) -> CompilerResult<Vec<dir::ArgumentBinding>> {
+        let parameters = self
+            .parameters
+            .iter()
+            .map(|selected| selected.parameter)
+            .collect::<SmallVec<[_; 4]>>();
+
+        check
+            .bind_arguments(origin, &parameters, &self.sources)?
+            .ok_or_else(|| CompilerError::Internal {
+                message: "a selected signature has an invalid rest parameter".to_string(),
+            })
+    }
+
     /// Return a call resolution for one selected declaration-backed member.
     pub(in crate::sema) fn member_call(
         &self,
@@ -432,7 +455,7 @@ impl CheckState<'_> {
                 name: None,
                 ty: element.ty,
                 is_optional: element.is_optional,
-                is_rest: false,
+                is_rest: element.is_rest,
             });
         }
         expanded.extend(parameters[rest_index + 1..].iter().copied());
@@ -470,6 +493,7 @@ impl CheckState<'_> {
             parks: signature.parks,
             asynchrony: signature.asynchrony,
             template: None,
+            arguments: dir::TypeListId::EMPTY,
             this_parameter,
             parameters,
             return_type: Some(return_type),
@@ -487,7 +511,7 @@ impl CheckState<'_> {
         parameter: dir::FunctionParameterType,
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<ParameterSelection> {
+    ) -> CompilerResult<Option<ParameterSelection>> {
         // substitute the complete declared parameter type
         let parameter_type = self.substitute_type(parameter.ty, substitution)?;
 
@@ -497,8 +521,11 @@ impl CheckState<'_> {
 
         // keep the collection type on a rest parameter and take its element per source
         let argument_type = if parameter.is_rest {
-            self.rest_element_type(origin, parameter_type)?
-                .unwrap_or(parameter_type)
+            let Some(element) = self.rest_element_type(origin, parameter_type)? else {
+                return Ok(None);
+            };
+
+            element
         } else {
             parameter_type
         };
@@ -510,71 +537,10 @@ impl CheckState<'_> {
         };
 
         // carry the selected parameter with its argument type
-        Ok(ParameterSelection {
+        Ok(Some(ParameterSelection {
             parameter,
             argument_type,
-        })
-    }
-
-    /// Bind authored arguments to selected parameters, projecting rest elements.
-    pub(in crate::sema) fn selected_argument_bindings(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        module: ModuleId,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
-        signature: &SignatureSelection,
-    ) -> CompilerResult<Vec<dir::ArgumentBinding>> {
-        let parameters = signature
-            .parameters
-            .iter()
-            .map(|selected| selected.parameter)
-            .collect::<Vec<_>>();
-
-        // bind each written argument to its selected parameter
-        self.argument_bindings(
-            Origin::Node(node, None),
-            module,
-            argument_nodes,
-            &parameters,
-        )
-    }
-
-    /// Bind written argument sources to selected parameters, projecting rest elements.
-    pub(in crate::sema) fn bind_argument_sources(
-        &mut self,
-        origin: Origin,
-        signature: &SignatureSelection,
-        sources: &[dir::ArgumentSource],
-    ) -> CompilerResult<Vec<dir::ArgumentBinding>> {
-        // bind each selected parameter to the source written at its position
-        let mut bindings = Vec::with_capacity(signature.parameters.len());
-        for (index, selected) in signature.parameters.iter().enumerate() {
-            let parameter = selected.parameter;
-
-            // project rest elements through the deep normal form for resolved selections
-            let argument_type = if parameter.is_rest {
-                self.rest_element_type(origin, parameter.ty)?
-                    .unwrap_or(parameter.ty)
-            } else {
-                parameter.ty
-            };
-            let source = match sources.get(index) {
-                Some(source) => source.clone(),
-                None if parameter.is_rest => dir::ArgumentSource::Rest {
-                    elements: Vec::new(),
-                    pack: self.rest_pack_selection(origin, parameter.ty, argument_type)?,
-                },
-                None => dir::ArgumentSource::Omitted,
-            };
-
-            bindings.push(dir::ArgumentBinding {
-                parameter_type: parameter.ty,
-                argument_type,
-                source,
-            });
-        }
-
-        Ok(bindings)
+        }))
     }
 
     /// Select the pack constructor one rest parameter's collection requires.
@@ -640,24 +606,8 @@ impl CheckState<'_> {
             return Ok(Some(element));
         }
 
-        // project the element from the collection the annotation names
         match self.ty(reduced)? {
-            dir::Type::Slice(slice) => Ok(Some(slice.element)),
-            dir::Type::FixedArray(array) => Ok(Some(array.element)),
-            dir::Type::Application(instance) => {
-                let item = self.language_item(instance.symbol)?;
-                let is_array = matches!(
-                    item,
-                    Some(dir::LanguageItem::Array | dir::LanguageItem::ReadonlyArray)
-                );
-                let arguments: SmallVec<[_; 8]> =
-                    self.type_ids(reduced.module_id, instance.arguments)?.into();
-
-                match (is_array, arguments.as_slice()) {
-                    (true, [element, ..]) => Ok(Some(*element)),
-                    _ => Ok(None),
-                }
-            }
+            dir::Type::Slice(_) | dir::Type::Application(_) => self.sequence_element_type(reduced),
             _ => Ok(None),
         }
     }
@@ -823,32 +773,15 @@ impl CheckState<'_> {
         };
 
         // preserve generic bindings already selected by the callee
-        let substitution = substitution.with_carried(carried)?;
+        let fixed = self.signature_arguments(signature_module, function.arguments)?;
+        let substitution = substitution.with_carried(fixed)?.with_carried(carried)?;
 
         // read the parameters the signature declares
-        let parameters = self.signature_generic_parameters(function)?;
-
-        // fix the parameters to exact literals for a const call
-        let is_const_call = arguments
-            .iter()
-            .all(|argument| argument.use_ == ValueUse::Const);
-        let inference = if is_const_call {
-            TypeArgumentInference::Exact
-        } else {
-            TypeArgumentInference::Callable {
-                parameters: signature_parameters,
-                return_type: function_return,
-            }
-        };
+        let parameters = self.signature_generic_parameters(signature_module, function)?;
 
         // open the signature's own parameters
-        let substitution = self.instantiate_parameters(
-            origin,
-            &parameters,
-            type_arguments,
-            substitution,
-            inference,
-        )?;
+        let substitution =
+            self.instantiate_parameters(origin, &parameters, type_arguments, substitution)?;
         let Some(mut substitution) = substitution else {
             return Ok(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
@@ -861,8 +794,7 @@ impl CheckState<'_> {
         {
             let mut parameters = self.generic_template_parameters(template)?;
             parameters.extend(self.owner_template_parameters(template)?);
-            let opened =
-                self.instantiate_parameters(origin, &parameters, &[], substitution, inference)?;
+            let opened = self.instantiate_parameters(origin, &parameters, &[], substitution)?;
             let Some(opened) = opened else {
                 return Ok(SignatureMatch::Inapplicable(
                     SignatureRejection::Inapplicable,
@@ -921,6 +853,7 @@ impl CheckState<'_> {
             &substitution,
             receiver.map(|receiver| receiver.ty),
             receiver_adjustments,
+            arguments,
         )?;
         key.coercions = coercions;
 
@@ -1023,28 +956,35 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // substitute parameter types once for candidate inference
+        // require every parameter to describe a valid argument type
+        let mut selected = SmallVec::<[_; 4]>::new();
+        for parameter in signature_parameters.iter() {
+            let Some(parameter) = self.select_parameter(
+                origin,
+                *parameter,
+                substitution,
+                receiver.map(|receiver| receiver.ty),
+            )?
+            else {
+                return Ok(None);
+            };
+            selected.push(parameter);
+        }
+
+        // match arguments against the selected parameters
         let mut argument_parameters =
-            SmallVec::<[(usize, CallableArgument, dir::GlobalTypeId); 4]>::new();
-        for (index, argument) in arguments.iter().copied().enumerate() {
-            let parameter = signature_parameters
-                .get(index)
-                .or_else(|| signature_parameters.last());
+            SmallVec::<[(usize, &CallableArgument, dir::GlobalTypeId); 4]>::new();
+        for (index, argument) in arguments.iter().enumerate() {
+            let parameter = selected.get(index).or_else(|| selected.last());
             let Some(parameter) = parameter else {
                 return Ok(None);
             };
 
             // reject a spread outside a rest parameter
-            if argument.is_spread && !parameter.is_rest {
+            if argument.is_spread && !parameter.parameter.is_rest {
                 return Ok(None);
             }
 
-            let parameter = self.select_parameter(
-                origin,
-                *parameter,
-                substitution,
-                receiver.map(|receiver| receiver.ty),
-            )?;
             argument_parameters.push((index, argument, parameter.argument_type));
         }
 
@@ -1156,7 +1096,7 @@ impl CheckState<'_> {
     fn constrain_argument(
         &mut self,
         origin: Origin,
-        entry: (usize, CallableArgument, dir::GlobalTypeId),
+        entry: (usize, &CallableArgument, dir::GlobalTypeId),
         const_variables: &[dir::TypeVariableId],
         coercions: &mut SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
     ) -> CompilerResult<Option<SignatureRejection>> {
@@ -1206,6 +1146,7 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
         receiver_adjustments: Option<Vec<dir::ReceiverAdjustment>>,
+        sources: &[CallableArgument],
     ) -> CompilerResult<SignatureSelection> {
         // resolve the substituted return type
         let return_type = match function_return {
@@ -1219,7 +1160,11 @@ impl CheckState<'_> {
         let declared = self.spread_tuple_rest_parameters(origin, declared, substitution)?;
         let mut parameters = SmallVec::<[_; 4]>::new();
         for &parameter in declared.iter() {
-            let parameter = self.select_parameter(origin, parameter, substitution, receiver)?;
+            let parameter = self
+                .select_parameter(origin, parameter, substitution, receiver)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "a selected signature has an invalid rest parameter".to_string(),
+                })?;
             let parameter = ParameterSelection {
                 parameter: dir::FunctionParameterType {
                     ty: self.erase_inference_barriers(parameter.parameter.ty)?,
@@ -1240,6 +1185,10 @@ impl CheckState<'_> {
         Ok(SignatureSelection {
             callable: function_type,
             parameters,
+            sources: sources
+                .iter()
+                .map(|argument| argument.argument.clone())
+                .collect(),
             return_type,
             generic_arguments: arguments.to_vec(),
             region_arguments: regions,
@@ -1253,7 +1202,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         index: usize,
-        argument: CallableArgument,
+        argument: &CallableArgument,
         parameter_type: dir::GlobalTypeId,
     ) -> CompilerResult<Result<Option<dir::Coercion>, SignatureRejection>> {
         // root the argument's cause at its position in the call
@@ -1287,6 +1236,11 @@ impl CheckState<'_> {
 
         // check a composite's values against the parameter, recording its own conversions
         let ArgumentValue::Typed(ty) = argument.value else {
+            let parameter_type = if argument.is_spread {
+                self.array_type(parameter_type)?
+            } else {
+                parameter_type
+            };
             let check = self.check_node(
                 site,
                 Expectation {
@@ -1313,26 +1267,49 @@ impl CheckState<'_> {
             return Ok(Ok(None));
         };
 
-        // take a spread's element as the argument value and convert it into the parameter
-        let value = if argument.is_spread {
-            Value {
-                ty: self.spread_element_type(ty)?,
+        // constrain spread elements before their argument bindings select conversions
+        let conversion = if argument.is_spread {
+            let value = Value {
+                ty,
                 node: None,
                 place: None,
                 is_fresh: false,
+            };
+            let verdict = self.constrain_conversion(
+                site,
+                cause,
+                relation,
+                value,
+                parameter_type,
+                argument.use_,
+            )?;
+            let outcome = match verdict {
+                Verdict::Holds => CheckOutcome::Holds,
+                Verdict::Fails => CheckOutcome::Fails(CheckFailure::Relation),
+                Verdict::Ambiguous => CheckOutcome::Pending,
+            };
+
+            ValueConversion {
+                source: value.ty,
+                target: parameter_type,
+                outcome,
+                coercion: None,
             }
-        } else {
-            self.expression_value(site, ty)?
+        }
+        // select the conversion of an individual argument
+        else {
+            let value = self.expression_value(site, ty)?;
+
+            self.convert_value(
+                site,
+                cause,
+                relation,
+                value,
+                parameter_type,
+                argument.use_,
+                mode,
+            )?
         };
-        let conversion = self.convert_value(
-            site,
-            cause,
-            relation,
-            value,
-            parameter_type,
-            argument.use_,
-            mode,
-        )?;
 
         // record the rejection a failed conversion reports
         if let CheckOutcome::Fails(failure) = conversion.outcome {
@@ -1340,17 +1317,12 @@ impl CheckState<'_> {
                 cause,
                 relation,
                 Some(argument.use_),
-                value.ty,
+                ty,
                 conversion.target,
                 failure,
             )?;
 
             return Ok(Err(rejection));
-        }
-
-        // discard the coercion selected for a spread element
-        if argument.is_spread {
-            return Ok(Ok(None));
         }
 
         let coercion = conversion.coercion.map(|coercion| *coercion);
@@ -1378,6 +1350,7 @@ impl dir::TypeFold for SignatureSelection {
     ) -> Result<(), E> {
         self.callable.map_types(map)?;
         self.parameters.map_types(map)?;
+        self.sources.map_types(map)?;
         self.return_type.map_types(map)?;
         self.generic_arguments.map_types(map)?;
         self.region_arguments.map_types(map)?;

@@ -35,7 +35,6 @@ mod variant;
 pub(in crate::sema) use destack_dir::MemberRole;
 
 pub(in crate::sema) use extension::{ExtensionHead, ExtensionMatch, OpenBounds, UnboundParameters};
-pub(in crate::sema) use instantiation::TypeArgumentInference;
 pub(in crate::sema) use lookup::{
     CandidateSource, DeclaredMember, DeclaredSource, LookupReceiver, MemberCandidate, MemberLookup,
     is_optional_member, member_arms, member_kind, prepend_adjustment, selected_candidates,

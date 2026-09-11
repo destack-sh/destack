@@ -616,7 +616,7 @@ function incrementCount(source: string): Result<int32, string> {
     /// @resolution.pattern source=count kind=binding target=incrementCount.count
     /// @resolution.name source=parseCount target=parseCount
     /// @resolution.call source=parseCount(source) parameters=(string) arguments=(provided(source) as string) return=Result<int32, string> kind=symbol target=parseCount
-    /// @resolution.residual source=parseCount(source)? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
+    /// @resolution.residual source=parseCount(source)? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied(0) as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
     /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
     /// @generic.instantiation id="fromResidual<int32, string, TryResidual<Result<int32, string>>>" template=fromResidual arguments=(int32, string, TryResidual<Result<int32, string>>)
     /// @resolution.name source=source target=incrementCount.source
@@ -799,17 +799,19 @@ function feed(output: Array<int32>, values: [int32]): void {
     output.push(1, ...[2, 3], 4);
     /// @resolution.name source=output target=feed.output
     /// @resolution.member source=output.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(provided(1) as int32, spread(provided(...[2, 3]) as int32[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32, provided(4) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
     /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=output root=feed.output
-    /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
+    /// @generic.instantiation id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
     /// @generic.instantiation id=push<int32> template=push arguments=(int32)
-    /// @resolution.call source=[2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @resolution.call source=[2, 3] parameters=(^Slice<int32>) arguments=(rest(provided(2) as int32, provided(3) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 
     consume([...values]);
     /// @resolution.name source=consume target=consume
     /// @resolution.call source=consume([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=void kind=symbol target=consume
-    /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @resolution.call source=[...values] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...values) as Slice<int32>, iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>, regions=("managed" & "local")), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
     /// @resolution.name source=values target=feed.values
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=feed.values

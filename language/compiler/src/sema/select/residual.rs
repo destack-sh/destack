@@ -63,7 +63,7 @@ impl CheckState<'_> {
             dir::LanguageItem::FromResidual,
             &[residual],
             &[residual],
-            &[dir::ArgumentSource::Supplied],
+            &[dir::ArgumentSource::Supplied(0)],
         )?;
 
         Ok(selected.and_then(|(_, call)| match call.resolution {

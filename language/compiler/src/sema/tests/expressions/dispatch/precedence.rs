@@ -40,7 +40,7 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
 === dir ===
 shared class Pack<out T> {}
 /// @generic.template symbol=Pack parameters=(out T#1)
-/// @type.symbol symbol=Pack source="shared class Pack<out T> {}" type=Pack
+/// @type.symbol symbol=Pack source="shared class Pack<out T> {}" type=typeof Pack
 /// @definition.class symbol=Pack source="shared class Pack<out T> {}" template=(out T#1)
 /// @type.symbol symbol=Pack.T source="out T" type=T#1
 
@@ -90,7 +90,7 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
 
         Pack.from(values)
         /// @resolution.name source=Pack target=Pack
-        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => ^Pack<T#2> kind=symbol target_receiver=Pack target=from#1
+        /// @resolution.member source=Pack.from receiver=typeof Pack type=(Iterable<T#2>) => ^Pack<T#2> kind=symbol target_receiver=typeof Pack target=from#1
         /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=^Pack<T#3> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @resolution.name source=values target=from.values#2
@@ -133,7 +133,7 @@ const channel: Channel = Channel.new();
 
 === dir ===
 shared class Channel {}
-/// @type.symbol symbol=Channel source="shared class Channel {}" type=Channel
+/// @type.symbol symbol=Channel source="shared class Channel {}" type=typeof Channel
 /// @definition.class symbol=Channel source="shared class Channel {}"
 
 export extension of Channel {
@@ -156,7 +156,7 @@ const channel: Channel = Channel.new();
 /// @resolution.pattern source=channel kind=binding target=channel
 /// @resolution.name source=Channel target=Channel
 /// @resolution.name source=Channel target=Channel
-/// @resolution.member source=Channel.new receiver=Channel type=() => this kind=symbol target_receiver=Channel target=new
+/// @resolution.member source=Channel.new receiver=typeof Channel type=() => this kind=symbol target_receiver=typeof Channel target=new
 /// @resolution.call source=Channel.new() parameters=() return=Channel kind=symbol target=new
 "#, "");
 }
@@ -195,7 +195,7 @@ const pack: Pack<int32> = Pack.from<int32>(value);
 === dir ===
 shared class Pack<out T> {}
 /// @generic.template symbol=Pack parameters=(out T#1)
-/// @type.symbol symbol=Pack source="shared class Pack<out T> {}" type=Pack
+/// @type.symbol symbol=Pack source="shared class Pack<out T> {}" type=typeof Pack
 /// @definition.class symbol=Pack source="shared class Pack<out T> {}" template=(out T#1)
 /// @type.symbol symbol=Pack.T source="out T" type=T#1
 
@@ -228,7 +228,7 @@ const pack: Pack<int32> = Pack.from(value);
 /// @resolution.pattern source=pack kind=binding target=pack
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=Pack target=Pack
-/// @resolution.member source=Pack.from receiver=Pack type=(T#2) => this kind=symbol target_receiver=Pack target=from
+/// @resolution.member source=Pack.from receiver=typeof Pack type=(T#2) => this kind=symbol target_receiver=typeof Pack target=from
 /// @resolution.call source=Pack.from(value) parameters=(int32) arguments=(provided(value) as int32) return=Pack<int32> kind=symbol target=from instance=Pack<int32>.<extension#1>.from
 /// @generic.instantiation id=from<int32> template=from arguments=(int32)
 /// @resolution.name source=value target=value
@@ -272,7 +272,7 @@ struct Message {}
 /// @definition.struct symbol=Message source="struct Message {}"
 
 shared class Channel {}
-/// @type.symbol symbol=Channel source="shared class Channel {}" type=Channel
+/// @type.symbol symbol=Channel source="shared class Channel {}" type=typeof Channel
 /// @definition.class symbol=Channel source="shared class Channel {}"
 
 export extension of Channel {
@@ -295,7 +295,7 @@ declare const message: local Message;
 
 Channel.send(message);
 /// @resolution.name source=Channel target=Channel
-/// @resolution.member source=Channel.send receiver=Channel type=<send.'a>(&send.'a readonly shared Message) => void kind=symbol target_receiver=Channel target=send
+/// @resolution.member source=Channel.send receiver=typeof Channel type=<send.'a>(&send.'a readonly shared Message) => void kind=symbol target_receiver=typeof Channel target=send
 /// @resolution.call source=Channel.send(message) parameters=(&'frame readonly shared Message) arguments=(provided(message) as &'frame readonly shared Message) return=void regions=("frame") kind=symbol target=send
 /// @resolution.name source=message target=message
 /// @resolution.place source=message placement="constant" lifetime="static" access="readonly"
@@ -349,7 +349,7 @@ struct Message {}
 /// @definition.struct symbol=Message source="struct Message {}"
 
 shared class Channel {}
-/// @type.symbol symbol=Channel source="shared class Channel {}" type=Channel
+/// @type.symbol symbol=Channel source="shared class Channel {}" type=typeof Channel
 /// @definition.class symbol=Channel source="shared class Channel {}"
 
 export extension of Channel {
@@ -642,7 +642,7 @@ export extension<T, E> of Outcome<T, E> {
         Outcome(Err<E> { error })
     }
 
-    map<U>(f: (arg0: T) => U): Outcome<U, E> {
+    map<U>(f: (value: T) => U): Outcome<U, E> {
         match (this) {
             Ok { value } => Outcome.ok<U, E>(f(value))
             Err { error } => Outcome.err<U, E>(error)

@@ -34,11 +34,11 @@ const shapes: Holder<Shape> = circles;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -112,17 +112,17 @@ const either: Holder<Circle | Square> = circles;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Square extends Shape {}
-/// @type.symbol symbol=Square source="class Square extends Shape {}" type=Square
+/// @type.symbol symbol=Square source="class Square extends Shape {}" type=typeof Square
 /// @definition.class symbol=Square source="class Square extends Shape {}"
 /// @definition.extends symbol=Square source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -259,7 +259,7 @@ const opaque: Holder<unknown> = circles;
 
 === dir ===
 class Circle {}
-/// @type.symbol symbol=Circle source="class Circle {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle {}"
 
 struct Holder<T> {
@@ -337,12 +337,12 @@ const opaque: Holder<unknown> = circles;
 
 === dir ===
 class Circle {}
-/// @type.symbol symbol=Circle source="class Circle {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle {}"
 
 class Holder<T> {
 /// @generic.template symbol=Holder parameters=(in out T)
-/// @type.symbol symbol=Holder type=Holder
+/// @type.symbol symbol=Holder type=typeof Holder
 /// @definition.class symbol=Holder template=(in out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
 /// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=<Holder.constructor.P0: Place>(T) => Managed<this, Holder.constructor.P0>
@@ -436,7 +436,7 @@ interface Draw {}
 /// @definition.where symbol=Draw source="interface Draw {}" relation=satisfies left=this right=Draw
 
 class Circle implements Draw {}
-/// @type.symbol symbol=Circle source="class Circle implements Draw {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle implements Draw {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle implements Draw {}"
 /// @definition.where symbol=Circle source=Draw relation=satisfies left=this right=Draw
 /// @definition.implements symbol=Circle source=Draw target=Draw
@@ -514,11 +514,11 @@ const widened: Holder<() => Shape> = makers;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -592,17 +592,17 @@ const either: Holder<() => Circle | Square> = makers;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Square extends Shape {}
-/// @type.symbol symbol=Square source="class Square extends Shape {}" type=Square
+/// @type.symbol symbol=Square source="class Square extends Shape {}" type=typeof Square
 /// @definition.class symbol=Square source="class Square extends Shape {}"
 /// @definition.extends symbol=Square source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -637,7 +637,7 @@ const either: Holder<() => Circle | Square> = makers;
 /// @resolution.access source=makers root=makers
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Holder<() => Circle>' is not assignable to type 'Holder<() => … | …>'"
+/// @diagnostic.error id=not-assignable message="type 'Holder<() => Circle>' is not assignable to type 'Holder<() => Circle | Square>'"
 /// @diagnostic.label line=11 column=47 span="makers" line_source="const either: Holder<() => Circle | Square> = makers;"
 /// @diagnostic.related line=11 column=15 span="Holder" line_source="const either: Holder<() => Circle | Square> = makers;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected '() => Circle | Square', found '() => Circle'"
@@ -679,18 +679,18 @@ const widened: Box<Shape> = boxed;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 declare class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
@@ -759,18 +759,18 @@ const widened: Label<Shape> = labeled;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 declare class Label<T> {
 /// @generic.template symbol=Label parameters=(out T)
-/// @type.symbol symbol=Label type=Label
+/// @type.symbol symbol=Label type=typeof Label
 /// @definition.class symbol=Label template=(out T)
 /// @definition.field symbol=Label.value source="readonly value: T" key=value type=T
 /// @type.symbol symbol=Label.T source=T type=T
@@ -835,18 +835,18 @@ const widened: ^Box<Shape> = boxed;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 declare class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
@@ -915,18 +915,18 @@ const widened: ^Pipe<Shape> = pipe;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 declare class Pipe<T> {
 /// @generic.template symbol=Pipe parameters=(in out T)
-/// @type.symbol symbol=Pipe type=Pipe
+/// @type.symbol symbol=Pipe type=typeof Pipe
 /// @definition.class symbol=Pipe template=(in out T)
 /// @definition.field symbol=Pipe.store source="store: T" key=store type=T
 /// @definition.method symbol=Pipe.put source="put(this, value: T): void" slot=put type=(this: this, T) => void
@@ -1014,18 +1014,18 @@ const widened: Stack<Shape> = circles;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Stack<T> {
 /// @generic.template symbol=Stack parameters=(in out T#1)
-/// @type.symbol symbol=Stack type=Stack
+/// @type.symbol symbol=Stack type=typeof Stack
 /// @definition.class symbol=Stack template=(in out T#1)
 /// @definition.field symbol=Stack.items source="items: T[] = []" key=items type=T#1[]
 /// @type.symbol symbol=Stack.T source=T type=T#1
@@ -1033,7 +1033,7 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=T#1[]
     /// @resolution.name source=T target=Stack.T
-    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#1>
+    /// @resolution.call source=[] parameters=(^Slice<T#1>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#1>
     /// @generic.instantiation id=arrayFromOwnedSlice<T#1> template=arrayFromOwnedSlice arguments=(T#1) owner=Stack
 
 }
@@ -1059,7 +1059,7 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
-        /// @resolution.call source=[value] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#2>
+        /// @resolution.call source=[value] parameters=(^Slice<T#2>) arguments=(rest(provided(value) as T#2) as T#2) return=T#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#2>
         /// @generic.instantiation id=arrayFromOwnedSlice<T#2> template=arrayFromOwnedSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
@@ -1138,18 +1138,18 @@ const view: readonly Stack<Shape> = circles;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Stack<T> {
 /// @generic.template symbol=Stack parameters=(in out T#1)
-/// @type.symbol symbol=Stack type=Stack
+/// @type.symbol symbol=Stack type=typeof Stack
 /// @definition.class symbol=Stack template=(in out T#1)
 /// @definition.field symbol=Stack.items source="items: T[] = []" key=items type=T#1[]
 /// @type.symbol symbol=Stack.T source=T type=T#1
@@ -1160,7 +1160,7 @@ class Stack<T> {
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<T#1>> template=sliceAssumeInit arguments=(MaybeUninit<T#1>)
     /// @generic.instance id=sliceUninit<MaybeUninit<T#1>> template=sliceUninit arguments=(MaybeUninit<T#1>)
     /// @resolution.name source=T target=Stack.T
-    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#1>
+    /// @resolution.call source=[] parameters=(^Slice<T#1>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#1>
     /// @generic.instantiation id=arrayFromOwnedSlice<T#1> template=arrayFromOwnedSlice arguments=(T#1) owner=Stack
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -1200,7 +1200,7 @@ extension<T> of Stack<T> {
         /// @generic.instance id=Array<T#2> template=Array arguments=(T#2)
         /// @generic.instance id=sliceAssumeInit<MaybeUninit<T#2>> template=sliceAssumeInit arguments=(MaybeUninit<T#2>)
         /// @generic.instance id=sliceUninit<MaybeUninit<T#2>> template=sliceUninit arguments=(MaybeUninit<T#2>)
-        /// @resolution.call source=[value] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#2>
+        /// @resolution.call source=[value] parameters=(^Slice<T#2>) arguments=(rest(provided(value) as T#2) as T#2) return=T#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#2>
         /// @generic.instantiation id=arrayFromOwnedSlice<T#2> template=arrayFromOwnedSlice arguments=(T#2) owner=refill
         /// @generic.instance id=arrayFromOwnedSlice<T#2> template=arrayFromOwnedSlice arguments=(T#2)
         /// @generic.instance id=fromOwnedSlice<T#2> template=fromOwnedSlice arguments=(T#2)
@@ -1309,18 +1309,18 @@ const view: readonly Bag<Shape> = circles;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Bag<T> {
 /// @generic.template symbol=Bag parameters=(in out T)
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag template=(in out T)
 /// @definition.field symbol=Bag.items source="items: T[] = []" key=items type=T[]
 /// @definition.method symbol=Bag.refill slot=refill type=(this: this, T) => void
@@ -1329,7 +1329,7 @@ class Bag<T> {
     items: T[] = [];
     /// @type.symbol symbol=Bag.items source="items: T[] = []" type=T[]
     /// @resolution.name source=T target=Bag.T
-    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
+    /// @resolution.call source=[] parameters=(^Slice<T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
     /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=Bag
 
     refill(this, value: T): void {
@@ -1345,7 +1345,7 @@ class Bag<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Bag<T>, target=field(receiver=Bag<T>, target=Bag.items, type=T[]), type=T[]" type=T[]
-        /// @resolution.call source=[value] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(value) as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
+        /// @resolution.call source=[value] parameters=(^Slice<T>) arguments=(rest(provided(value) as T) as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
         /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=Bag.refill
         /// @resolution.name source=value target=Bag.refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
@@ -1407,11 +1407,11 @@ const widened: Handle<Shape> = handle;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -1474,17 +1474,17 @@ const either: Handle<Circle | Square> = handle;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Square extends Shape {}
-/// @type.symbol symbol=Square source="class Square extends Shape {}" type=Square
+/// @type.symbol symbol=Square source="class Square extends Shape {}" type=typeof Square
 /// @definition.class symbol=Square source="class Square extends Shape {}"
 /// @definition.extends symbol=Square source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -1550,11 +1550,11 @@ const widened: local Handle<Shape> = handle;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -1628,17 +1628,17 @@ const either: &'static readonly Holder<Circle | Square> = &readonly holder;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Square extends Shape {}
-/// @type.symbol symbol=Square source="class Square extends Shape {}" type=Square
+/// @type.symbol symbol=Square source="class Square extends Shape {}" type=typeof Square
 /// @definition.class symbol=Square source="class Square extends Shape {}"
 /// @definition.extends symbol=Square source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape

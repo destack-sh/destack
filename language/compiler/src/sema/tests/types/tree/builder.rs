@@ -54,7 +54,7 @@ newtype interface Maker {
 }
 
 class Panel {}
-/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @type.symbol symbol=Panel source="class Panel {}" type=typeof Panel
 /// @definition.class symbol=Panel source="class Panel {}"
 
 extension of Panel implements Maker {
@@ -137,7 +137,7 @@ newtype interface Tagger {
 }
 
 class Panel {}
-/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @type.symbol symbol=Panel source="class Panel {}" type=typeof Panel
 /// @definition.class symbol=Panel source="class Panel {}"
 
 extension of Panel implements Tagger {
@@ -232,7 +232,7 @@ newtype interface Rowed {
 }
 
 class Panel {}
-/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @type.symbol symbol=Panel source="class Panel {}" type=typeof Panel
 /// @definition.class symbol=Panel source="class Panel {}"
 
 extension of Panel implements Rowed {
@@ -335,7 +335,7 @@ newtype interface Rowed {
 }
 
 class Panel {}
-/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @type.symbol symbol=Panel source="class Panel {}" type=typeof Panel
 /// @definition.class symbol=Panel source="class Panel {}"
 
 extension of Panel implements Rowed {
@@ -440,7 +440,7 @@ newtype interface Grouper {
 }
 
 class Panel {}
-/// @type.symbol symbol=Panel source="class Panel {}" type=Panel
+/// @type.symbol symbol=Panel source="class Panel {}" type=typeof Panel
 /// @definition.class symbol=Panel source="class Panel {}"
 
 extension of Panel implements Grouper {
@@ -535,7 +535,7 @@ extension of Panel implements TreeBuilder {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -707,7 +707,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -880,7 +880,7 @@ function render(): Panel {
 
 === dir ===
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -944,7 +944,7 @@ function render(): Panel {
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
     /// @resolution.name source=Panel target=Panel
-    /// @resolution.member source=Panel.element receiver=Panel type=<const Tag: keyof this.Tags, Children: (...unknown[],)>(Tag, this.Tags[Tag], Children) => Panel kind=symbol target_receiver=Panel target=element
+    /// @resolution.member source=Panel.element receiver=typeof Panel type=<const Tag: keyof this.Tags, Children: (...unknown[],)>(Tag, this.Tags[Tag], Children) => Panel kind=symbol target_receiver=typeof Panel target=element
     /// @resolution.call source="Panel.element(\"div\", { class: \"intro\" }, (new Panel(),))" parameters=("div", { div: { class?: string }; span: {} }["div"], (Panel,)) arguments=(provided("div") as "div", provided({ class: "intro" }) as { div: { class?: string }; span: {} }["div"], provided((new Panel(),)) as (Panel,)) return=Panel kind=symbol target=element instance="Panel.<extension#1>.element<\"div\", (Panel,)>"
     /// @generic.instantiation id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
     /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default

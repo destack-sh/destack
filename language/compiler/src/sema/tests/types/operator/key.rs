@@ -372,7 +372,7 @@ type Keys = keyof User;
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
 /// @definition.method symbol=User.print slot=print type=<User.print.P0: Place>(this: Managed<User, User.print.P0>) => string

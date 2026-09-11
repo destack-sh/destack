@@ -977,7 +977,7 @@ impl CheckState<'_> {
             }
             // a nominal follows the declaration it names
             dir::Type::Application(dir::GenericApplication { symbol, .. })
-            | dir::Type::Reference(dir::TypeReference { symbol }) => {
+            | dir::Type::Reference(dir::TypeReference { symbol, .. }) => {
                 match self.definition(symbol)?.as_deref() {
                     Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
                         Some(dir::Ownership::Managed)

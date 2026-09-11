@@ -51,7 +51,7 @@ impl CheckState<'_> {
                 for interface in interfaces {
                     let symbol = self.language_symbol((*interface).into())?;
                     let ty =
-                        self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+                        self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
                     elements.push(dir::StaticTerm::Type { ty });
                 }
 

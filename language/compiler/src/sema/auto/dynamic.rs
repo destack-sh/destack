@@ -175,7 +175,10 @@ impl CheckState<'_> {
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
         // refuse signatures whose parameters require runtime type arguments
-        if !self.signature_generic_parameters(function)?.is_empty() {
+        if !self
+            .signature_generic_parameters(module, function)?
+            .is_empty()
+        {
             return Ok(Verdict::Fails);
         }
 

@@ -23,7 +23,7 @@ function* count(limit: int32): Generator<int32, void, void> {
 === dir ===
 function* count(limit: int32): Generator<int32, void, void> {
 /// @type.symbol symbol=count type=(int32) => *Generator<int32, void, void>
-/// @resolution.call parameters=(^Function<(GeneratorProducer<int32, void, void>,), void, "once">) arguments=(supplied as ^Function<(GeneratorProducer<int32, void, void>,), void, "once">) return=Generator<int32, void, void> kind=symbol target=Generator.create instance="Generator.create<int32, void, void>"
+/// @resolution.call parameters=(^Function<(GeneratorProducer<int32, void, void>,), void, "once">) arguments=(supplied(0) as ^Function<(GeneratorProducer<int32, void, void>,), void, "once">) return=Generator<int32, void, void> kind=symbol target=Generator.create instance="Generator.create<int32, void, void>"
 /// @generic.instantiation id="Generator.create<int32, void, void>" template=Generator.create arguments=(int32, void, void)
 /// @generic.instance id="Function<(GeneratorProducer<int32, void, void>,), void, \"once\">" template=Function arguments=((GeneratorProducer<int32, void, void>,), void, "once")
 /// @generic.instance id="Generator.create<int32, void, void>" template=Generator.create arguments=(int32, void, void)

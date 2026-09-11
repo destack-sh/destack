@@ -61,40 +61,42 @@ impl CheckState<'_> {
         let mut values = Vec::with_capacity(bindings.len());
 
         for binding in bindings {
-            match &binding.source {
-                dir::ArgumentSource::Provided(argument) => {
-                    let value = match self.evaluate_static_argument(module, anchor, *argument)? {
-                        Ok(value) => value,
-                        Err(error) => return Ok(Err(error)),
-                    };
-                    values.extend(value);
-                }
-                dir::ArgumentSource::Static(ty) => {
-                    let value = self.evaluate_static_type(*ty)?;
-                    values.push(value);
-                }
-                dir::ArgumentSource::Omitted => {
-                    values.push(dir::Literal::Undefined.into());
-                }
-                dir::ArgumentSource::Supplied => {
-                    return Err(CompilerError::Internal {
-                        message: "decorator call contains an implicit write argument".to_string(),
-                    });
-                }
-                dir::ArgumentSource::Rest { elements, .. } => {
-                    for argument in elements {
-                        let value =
-                            match self.evaluate_static_argument(module, anchor, *argument)? {
-                                Ok(value) => value,
-                                Err(error) => return Ok(Err(error)),
-                            };
-                        values.extend(value);
-                    }
-                }
-            }
+            let arguments =
+                match self.evaluate_static_argument_source(module, anchor, &binding.source)? {
+                    Ok(arguments) => arguments,
+                    Err(error) => return Ok(Err(error)),
+                };
+            values.extend(arguments);
         }
 
         Ok(Ok(values))
+    }
+
+    /// Evaluate the values contributed by one argument source.
+    fn evaluate_static_argument_source(
+        &mut self,
+        module: ModuleId,
+        anchor: dir::LocalNodeId<dir::Expression>,
+        source: &dir::ArgumentSource,
+    ) -> CompilerResult<Result<Vec<dir::StaticTerm>, StaticError>> {
+        match source {
+            dir::ArgumentSource::Provided(argument) => {
+                self.evaluate_static_argument(module, anchor, *argument)
+            }
+            dir::ArgumentSource::Spread(spread) => {
+                self.evaluate_static_argument_source(module, anchor, &spread.value.source)
+            }
+            dir::ArgumentSource::Rest { elements, .. } => {
+                self.evaluate_static_arguments(module, anchor, elements)
+            }
+            dir::ArgumentSource::Static(ty) => Ok(Ok(vec![self.evaluate_static_type(*ty)?])),
+            dir::ArgumentSource::Omitted => Ok(Ok(vec![dir::Literal::Undefined.into()])),
+            dir::ArgumentSource::Supplied(_) | dir::ArgumentSource::Error => {
+                Err(CompilerError::Internal {
+                    message: "a runtime argument in a static call".to_string(),
+                })
+            }
+        }
     }
 
     /// Evaluate one source argument.
@@ -436,14 +438,7 @@ impl CheckState<'_> {
                 _ => return Ok(Err(StaticError::NotStatic(expression))),
             }
         }
-        // otherwise read a type declaration as a first-class value
-        else if self.symbol_kind(symbol)?.can_be_used_as_type() {
-            let ty = self.symbol_type(symbol)?;
-            let ty = self.shallow_resolve(ty)?;
-
-            dir::StaticTerm::Type { ty }
-        }
-        // reject runtime bindings, which hold no static value
+        // leave declarations without a static value unevaluated
         else {
             return Ok(Err(StaticError::NotStatic(expression)));
         };

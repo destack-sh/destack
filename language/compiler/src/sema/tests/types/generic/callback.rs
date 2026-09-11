@@ -149,7 +149,7 @@ each([(1,)])("closed", (value: int32) => {});
 === annotated ===
 declare function each<P: (...unknown[],) & Copy>(
     cases: P[],
-): (name: string, run: (...arg0: P) => void) => void;
+): (name: string, run: (...args: P) => void) => void;
 
 each<(int64, int64)>([(1, 2), (3, 4)])("adds", (left: int64, right: int64): void => {
     const sum: int64 = left + right;
@@ -181,7 +181,7 @@ each([(1, 2), (3, 4)])("adds", (left, right) => {
 /// @resolution.call parameters=(string, Function<(...(int64, int64),), void>) arguments=(provided("adds") as string, provided(argument) as Function<(...(int64, int64),), void>) return=void kind=expression target=expression
 /// @resolution.call source="each([(1, 2), (3, 4)])" parameters=((int64, int64)[]) arguments=(provided([(1, 2), (3, 4)]) as (int64, int64)[]) return=Function<(string, Function<(...(int64, int64),), void>), void> kind=symbol target=each instance="each<(int64, int64)>"
 /// @generic.instantiation id="each<(int64, int64)>" template=each arguments=((int64, int64))
-/// @resolution.call source=[(1, 2), (3, 4)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1, 2), (3, 4)) as (int64, int64)) return=(int64, int64)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(int64, int64)>"
+/// @resolution.call source=[(1, 2), (3, 4)] parameters=(^Slice<(int64, int64)>) arguments=(rest(provided((1, 2)) as (int64, int64), provided((3, 4)) as (int64, int64)) as (int64, int64)) return=(int64, int64)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(int64, int64)>"
 /// @generic.instantiation id="arrayFromOwnedSlice<(int64, int64)>" template=arrayFromOwnedSlice arguments=((int64, int64))
 /// @type.symbol symbol=symbol7 type=Function<(int64, int64), void, "readonly">
 /// @type.symbol symbol=symbol7.left source=left type=int64
@@ -205,7 +205,7 @@ each([("a", 1)])("pairs", (text, count) => {
 /// @resolution.call parameters=(string, Function<(...(string, int64),), void>) arguments=(provided("pairs") as string, provided(argument) as Function<(...(string, int64),), void>) return=void kind=expression target=expression
 /// @resolution.call source="each([(\"a\", 1)])" parameters=((string, int64)[]) arguments=(provided([("a", 1)]) as (string, int64)[]) return=Function<(string, Function<(...(string, int64),), void>), void> kind=symbol target=each instance="each<(string, int64)>"
 /// @generic.instantiation id="each<(string, int64)>" template=each arguments=((string, int64))
-/// @resolution.call source=[("a", 1)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(("a", 1)) as (string, int64)) return=(string, int64)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(string, int64)>"
+/// @resolution.call source=[("a", 1)] parameters=(^Slice<(string, int64)>) arguments=(rest(provided(("a", 1)) as (string, int64)) as (string, int64)) return=(string, int64)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(string, int64)>"
 /// @generic.instantiation id="arrayFromOwnedSlice<(string, int64)>" template=arrayFromOwnedSlice arguments=((string, int64))
 /// @type.symbol symbol=symbol11 type=Function<(string, int64), void, "readonly">
 /// @type.symbol symbol=symbol11.text source=text type=string
@@ -228,7 +228,7 @@ each<(int32,)>([(1,)])("one", (value: int32) => {});
 /// @resolution.call source="each<(int32,)>([(1,)])(\"one\", (value: int32) => {})" parameters=(string, Function<(...(int32,),), void>) arguments=(provided("one") as string, provided((value: int32) => {}) as Function<(...(int32,),), void>) return=void kind=expression target=expression
 /// @resolution.call source=each<(int32,)>([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(...(int32,),), void>), void> kind=symbol target=each instance=each<(int32,)>
 /// @generic.instantiation id=each<(int32,)> template=each arguments=((int32,))
-/// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
+/// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @generic.instantiation id=arrayFromOwnedSlice<(int32,)> template=arrayFromOwnedSlice arguments=((int32,))
 /// @type.symbol symbol=symbol15 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol15.value source="value: int32" type=int32
@@ -237,7 +237,7 @@ each([(1,)])("closed", (value: int32) => {});
 /// @resolution.name source=each target=each
 /// @resolution.call source="each([(1,)])(\"closed\", (value: int32) => {})" parameters=(string, Function<(...(int32,),), void>) arguments=(provided("closed") as string, provided((value: int32) => {}) as Function<(...(int32,),), void>) return=void kind=expression target=expression
 /// @resolution.call source=each([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(...(int32,),), void>), void> kind=symbol target=each instance=each<(int32,)>
-/// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
+/// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @type.symbol symbol=symbol17 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol17.value source="value: int32" type=int32
 "#,
@@ -372,7 +372,7 @@ describe.each<(int32,)>([(1,)] as Iterable<(int32,)>)("parameterized suite", ((
     value: int32
 ): void => {}) as Function<(int32,), void, "mutable"> | undefined);
 describe.for<int32>([1] as Iterable<int32>)("table suite", ((value: int32): void => {}) as | ((
-      arg0: int32,
+      value: int32,
   ) => void)
 | undefined);
 test.each<{}, {}, {}, (string, int64)>([("a", 2)] as Iterable<(string, int64)>)("pairs", ((
@@ -395,7 +395,7 @@ test.each([(1,)]).only("parameterized case", (value: int32) => {});
 /// @resolution.access source=test root=test
 /// @resolution.place source=test.each([(1,)]).only placement="local" lifetime="managed" access="mutable"
 /// @generic.instantiation id="Test.each<{}, {}, {}>" template=Test.each arguments=({}, {}, {})
-/// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
+/// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @generic.instantiation id=arrayFromOwnedSlice<(int32,)> template=arrayFromOwnedSlice arguments=((int32,))
 /// @type.symbol symbol=symbol3 source="(value: int32) => {}" type=Function<(int32,), BodyResult, "readonly">
 /// @type.symbol symbol=symbol3.value source="value: int32" type=int32
@@ -410,7 +410,7 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 /// @resolution.access source=test root=test
 /// @resolution.place source=test.for([1]).only placement="local" lifetime="managed" access="mutable"
 /// @generic.instantiation id="Test.for<{}, {}, {}>" template=Test.for arguments=({}, {}, {})
-/// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.template symbol=symbol5 parameters=('a)
 /// @type.symbol symbol=symbol5 source="(value: &readonly int64) => {}" type=Function<(&symbol5.'a readonly int64,), BodyResult, "readonly">
@@ -423,7 +423,7 @@ describe.each([(1,)])("parameterized suite", (value: int32) => {});
 /// @resolution.call source=describe.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedSuite<(int32,)> kind=dynamic target=TestSuite.each receiver=TestSuite constraint=TestSuite generic_arguments=((int32,))
 /// @resolution.place source=describe placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=describe root=describe
-/// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
+/// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @type.symbol symbol=symbol7 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol7.value source="value: int32" type=int32
 
@@ -434,7 +434,7 @@ describe.for([1])("table suite", (value: int32) => {});
 /// @resolution.call source=describe.for([1]) parameters=(Iterable<int32>) arguments=(provided([1]) as Iterable<int32>) return=TableSuite<int32> kind=dynamic target=TestSuite.for receiver=TestSuite constraint=TestSuite generic_arguments=(int32)
 /// @resolution.place source=describe placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=describe root=describe
-/// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @type.symbol symbol=symbol9 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol9.value source="value: int32" type=int32
@@ -446,7 +446,7 @@ test.each([("a", 2)])("pairs", (text, count) => {
 /// @resolution.call source="test.each([(\"a\", 2)])" parameters=(Iterable<(string, int64)>) arguments=(provided([("a", 2)]) as Iterable<(string, int64)>) return=ParameterizedTest<(string, int64)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (string, int64))
 /// @resolution.place source=test placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=test root=test
-/// @resolution.call source=[("a", 2)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(("a", 2)) as (string, int64)) return=(string, int64)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(string, int64)>"
+/// @resolution.call source=[("a", 2)] parameters=(^Slice<(string, int64)>) arguments=(rest(provided(("a", 2)) as (string, int64)) as (string, int64)) return=(string, int64)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(string, int64)>"
 /// @generic.instantiation id="arrayFromOwnedSlice<(string, int64)>" template=arrayFromOwnedSlice arguments=((string, int64))
 /// @type.symbol symbol=symbol11 type=Function<(string, int64), BodyResult, "readonly">
 /// @type.symbol symbol=symbol11.text source=text type=string
@@ -624,16 +624,16 @@ declare function plain<P: (...unknown[],)>(
 ): (name: string, body: Function<P, void, "mutable">) => void;
 declare function table<T>(
     values: T[],
-): <'a>(name: string, body: (arg0: &'a readonly T) => void) => void;
+): <'a>(name: string, body: (value: &'a readonly T) => void) => void;
 declare function optionalTable<T>(
     values: T[],
-): <'a, 'b>(name: string, body?: (arg0: &'a readonly T, arg1: &'b string) => void) => void;
+): <'a, 'b>(name: string, body?: (value: &'a readonly T, context: &'b string) => void) => void;
 declare function iterTable<T>(
     values: Iterable<T>,
-): <'a>(name: string, body: (arg0: &'a readonly T) => void) => void;
+): <'a>(name: string, body: (value: &'a readonly T) => void) => void;
 declare function contextTable<T>(
     values: T[],
-): <'a, 'b>(name: string, body: (arg0: &'a readonly T, arg1: &'b string) => void) => void;
+): <'a, 'b>(name: string, body: (value: &'a readonly T, context: &'b string) => void) => void;
 
 run<(int32,)>([(1,)])("optional", ((value: int32): void => {}) as | Function<
       (int32,),
@@ -644,8 +644,8 @@ run<(int32,)>([(1,)])("optional", ((value: int32): void => {}) as | Function<
 plain<(int32,)>([(1,)])("plain", (value: int32): void => {});
 table<int32>([1])("table", <'a,>(value: &'a readonly int32): void => {});
 optionalTable<int32>([1])("optional table", (<'a,>(value: &'a readonly int32): void => {}) as | ((
-      arg0: &'frame readonly int32,
-      arg1: &'frame string,
+      value: &'frame readonly int32,
+      context: &'frame string,
   ) => void)
 | undefined);
 contextTable<int32>([1])("context table", <'a,>(value: &'a readonly int32): void => {});
@@ -745,7 +745,7 @@ run([(1,)])("optional", (value: int32) => {});
 /// @resolution.call source="run([(1,)])(\"optional\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "mutable"> | undefined) arguments=(provided("optional") as string, provided((value: int32) => {}) as Function<(int32,), void, "mutable"> | undefined) return=void kind=expression target=expression
 /// @resolution.call source=run([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void, "mutable"> | undefined?), void> kind=symbol target=run instance=run<(int32,)>
 /// @generic.instantiation id=run<(int32,)> template=run arguments=((int32,))
-/// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
+/// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @generic.instantiation id=arrayFromOwnedSlice<(int32,)> template=arrayFromOwnedSlice arguments=((int32,))
 /// @type.symbol symbol=symbol43 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol43.value source="value: int32" type=int32
@@ -755,7 +755,7 @@ plain([(1,)])("plain", (value: int32) => {});
 /// @resolution.call source="plain([(1,)])(\"plain\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "mutable">) arguments=(provided("plain") as string, provided((value: int32) => {}) as Function<(int32,), void, "mutable">) return=void kind=expression target=expression
 /// @resolution.call source=plain([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void, "mutable">), void> kind=symbol target=plain instance=plain<(int32,)>
 /// @generic.instantiation id=plain<(int32,)> template=plain arguments=((int32,))
-/// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
+/// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @type.symbol symbol=symbol45 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol45.value source="value: int32" type=int32
 
@@ -764,7 +764,7 @@ table([1])("table", (value: &readonly int32) => {});
 /// @resolution.call source="table([1])(\"table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32,), void>) arguments=(provided("table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32,), void>) return=void regions=("frame") kind=expression target=expression
 /// @resolution.call source=table([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#1 readonly int32,), void>), void> kind=symbol target=table instance=table<int32>
 /// @generic.instantiation id=table<int32> template=table arguments=(int32)
-/// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.template symbol=symbol47 parameters=('a)
 /// @type.symbol symbol=symbol47 source="(value: &readonly int32) => {}" type=Function<(&symbol47.'a readonly int32,), void, "readonly">
@@ -775,7 +775,7 @@ optionalTable([1])("optional table", (value: &readonly int32) => {});
 /// @resolution.call source="optionalTable([1])(\"optional table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32, &'frame string), void> | undefined) arguments=(provided("optional table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32, &'frame string), void> | undefined) return=void regions=("frame", "frame") kind=expression target=expression
 /// @resolution.call source=optionalTable([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#2 readonly int32, &'b#1 string), void> | undefined?), void> kind=symbol target=optionalTable instance=optionalTable<int32>
 /// @generic.instantiation id=optionalTable<int32> template=optionalTable arguments=(int32)
-/// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.template symbol=symbol49 parameters=('a)
 /// @type.symbol symbol=symbol49 source="(value: &readonly int32) => {}" type=Function<(&symbol49.'a readonly int32,), void, "readonly">
 /// @type.symbol symbol=symbol49.value source="value: &readonly int32" type=&symbol49.'a readonly int32
@@ -785,7 +785,7 @@ contextTable([1])("context table", (value: &readonly int32) => {});
 /// @resolution.call source="contextTable([1])(\"context table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32, &'frame string), void>) arguments=(provided("context table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32, &'frame string), void>) return=void regions=("frame", "frame") kind=expression target=expression
 /// @resolution.call source=contextTable([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#4 readonly int32, &'b#2 string), void>), void> kind=symbol target=contextTable instance=contextTable<int32>
 /// @generic.instantiation id=contextTable<int32> template=contextTable arguments=(int32)
-/// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.template symbol=symbol51 parameters=('a)
 /// @type.symbol symbol=symbol51 source="(value: &readonly int32) => {}" type=Function<(&symbol51.'a readonly int32,), void, "readonly">
 /// @type.symbol symbol=symbol51.value source="value: &readonly int32" type=&symbol51.'a readonly int32
@@ -795,7 +795,7 @@ iterTable([1])("iter table", (value: &readonly int32) => {});
 /// @resolution.call source="iterTable([1])(\"iter table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32,), void>) arguments=(provided("iter table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32,), void>) return=void regions=("frame") kind=expression target=expression
 /// @resolution.call source=iterTable([1]) parameters=(Iterable<int32>) arguments=(provided([1]) as Iterable<int32>) return=Function<(string, Function<(&'a#3 readonly int32,), void>), void> kind=symbol target=iterTable instance=iterTable<int32>
 /// @generic.instantiation id=iterTable<int32> template=iterTable arguments=(int32)
-/// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.template symbol=symbol53 parameters=('a)
 /// @type.symbol symbol=symbol53 source="(value: &readonly int32) => {}" type=Function<(&symbol53.'a readonly int32,), void, "readonly">
 /// @type.symbol symbol=symbol53.value source="value: &readonly int32" type=&symbol53.'a readonly int32
@@ -836,7 +836,7 @@ each([(2,)])("typed again", (count: int32) => {});
 === annotated ===
 declare function each<P: (...unknown[],) & Copy>(
     cases: P[],
-): (name: string, run: (...arg0: P) => void) => void;
+): (name: string, run: (...args: P) => void) => void;
 
 each<(int64, string, boolean)>([(1, "a", true)])(
     "triple",
@@ -874,7 +874,7 @@ each([(1, "a", true)])("triple", (count, text, flag) => {
 /// @resolution.call parameters=(string, Function<(...(int64, string, boolean),), void>) arguments=(provided("triple") as string, provided(argument) as Function<(...(int64, string, boolean),), void>) return=void kind=expression target=expression
 /// @resolution.call source="each([(1, \"a\", true)])" parameters=((int64, string, boolean)[]) arguments=(provided([(1, "a", true)]) as (int64, string, boolean)[]) return=Function<(string, Function<(...(int64, string, boolean),), void>), void> kind=symbol target=each instance="each<(int64, string, boolean)>"
 /// @generic.instantiation id="each<(int64, string, boolean)>" template=each arguments=((int64, string, boolean))
-/// @resolution.call source=[(1, "a", true)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1, "a", true)) as (int64, string, boolean)) return=(int64, string, boolean)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(int64, string, boolean)>"
+/// @resolution.call source=[(1, "a", true)] parameters=(^Slice<(int64, string, boolean)>) arguments=(rest(provided((1, "a", true)) as (int64, string, boolean)) as (int64, string, boolean)) return=(int64, string, boolean)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(int64, string, boolean)>"
 /// @generic.instantiation id="arrayFromOwnedSlice<(int64, string, boolean)>" template=arrayFromOwnedSlice arguments=((int64, string, boolean))
 /// @type.symbol symbol=symbol7 type=Function<(int64, string, boolean), void, "readonly">
 /// @type.symbol symbol=symbol7.count source=count type=int64
@@ -901,7 +901,7 @@ each([(1, "a")])("rest", (...args) => {
 /// @resolution.call parameters=(string, Function<(...(int64, string),), void>) arguments=(provided("rest") as string, provided(argument) as Function<(...(int64, string),), void>) return=void kind=expression target=expression
 /// @resolution.call source="each([(1, \"a\")])" parameters=((int64, string)[]) arguments=(provided([(1, "a")]) as (int64, string)[]) return=Function<(string, Function<(...(int64, string),), void>), void> kind=symbol target=each instance="each<(int64, string)>"
 /// @generic.instantiation id="each<(int64, string)>" template=each arguments=((int64, string))
-/// @resolution.call source=[(1, "a")] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1, "a")) as (int64, string)) return=(int64, string)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(int64, string)>"
+/// @resolution.call source=[(1, "a")] parameters=(^Slice<(int64, string)>) arguments=(rest(provided((1, "a")) as (int64, string)) as (int64, string)) return=(int64, string)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(int64, string)>"
 /// @generic.instantiation id="arrayFromOwnedSlice<(int64, string)>" template=arrayFromOwnedSlice arguments=((int64, string))
 /// @type.symbol symbol=symbol12 type=Function<(...(int64, string),), void, "readonly">
 /// @type.symbol symbol=symbol12.args source=...args type=(int64, string)
@@ -918,7 +918,7 @@ each([(1, "a")])("partial", (count, text: string) => {
 /// @resolution.name source=each target=each
 /// @resolution.call parameters=(string, Function<(...(int64, string),), void>) arguments=(provided("partial") as string, provided(argument) as Function<(...(int64, string),), void>) return=void kind=expression target=expression
 /// @resolution.call source="each([(1, \"a\")])" parameters=((int64, string)[]) arguments=(provided([(1, "a")]) as (int64, string)[]) return=Function<(string, Function<(...(int64, string),), void>), void> kind=symbol target=each instance="each<(int64, string)>"
-/// @resolution.call source=[(1, "a")] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1, "a")) as (int64, string)) return=(int64, string)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(int64, string)>"
+/// @resolution.call source=[(1, "a")] parameters=(^Slice<(int64, string)>) arguments=(rest(provided((1, "a")) as (int64, string)) as (int64, string)) return=(int64, string)[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<(int64, string)>"
 /// @type.symbol symbol=symbol15 type=Function<(int64, string), void, "readonly">
 /// @type.symbol symbol=symbol15.count source=count type=int64
 /// @type.symbol symbol=symbol15.text source="text: string" type=string
@@ -940,7 +940,7 @@ each([(1,)])("typed", (count: int32) => {});
 /// @resolution.call source="each([(1,)])(\"typed\", (count: int32) => {})" parameters=(string, Function<(...(int32,),), void>) arguments=(provided("typed") as string, provided((count: int32) => {}) as Function<(...(int32,),), void>) return=void kind=expression target=expression
 /// @resolution.call source=each([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(...(int32,),), void>), void> kind=symbol target=each instance=each<(int32,)>
 /// @generic.instantiation id=each<(int32,)> template=each arguments=((int32,))
-/// @resolution.call source=[(1,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
+/// @resolution.call source=[(1,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((1,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @generic.instantiation id=arrayFromOwnedSlice<(int32,)> template=arrayFromOwnedSlice arguments=((int32,))
 /// @type.symbol symbol=symbol19 source="(count: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol19.count source="count: int32" type=int32
@@ -949,7 +949,7 @@ each([(2,)])("typed again", (count: int32) => {});
 /// @resolution.name source=each target=each
 /// @resolution.call source="each([(2,)])(\"typed again\", (count: int32) => {})" parameters=(string, Function<(...(int32,),), void>) arguments=(provided("typed again") as string, provided((count: int32) => {}) as Function<(...(int32,),), void>) return=void kind=expression target=expression
 /// @resolution.call source=each([(2,)]) parameters=((int32,)[]) arguments=(provided([(2,)]) as (int32,)[]) return=Function<(string, Function<(...(int32,),), void>), void> kind=symbol target=each instance=each<(int32,)>
-/// @resolution.call source=[(2,)] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest((2,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
+/// @resolution.call source=[(2,)] parameters=(^Slice<(int32,)>) arguments=(rest(provided((2,)) as (int32,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<(int32,)>
 /// @type.symbol symbol=symbol21 source="(count: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol21.count source="count: int32" type=int32
 "#,

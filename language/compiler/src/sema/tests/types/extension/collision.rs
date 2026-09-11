@@ -224,11 +224,12 @@ function build(values: [int32]): void {
     /// @resolution.pattern source=owned kind=binding target=build.owned
     /// @resolution.name source=Set target=Set
     /// @resolution.name source=Set target=Set
-    /// @resolution.member source=Set.from receiver=Set type=(Iterable<T#5>) => ^Set<T#5> kind=symbol target_receiver=Set target=from#1
+    /// @resolution.member source=Set.from receiver=typeof Set type=(Iterable<T#5>) => ^Set<T#5> kind=symbol target_receiver=typeof Set target=from#1
     /// @resolution.call source=Set.from([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=^Set<int32> kind=symbol target=from#1 instance=Set<int32>.<extension#5>.from#1
     /// @generic.instantiation id=from#1<int32> template=from#1 arguments=(int32)
-    /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @resolution.call source=[...values] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...values) as Slice<int32>, iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>, regions=("managed" & "local")), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
+    /// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
     /// @resolution.name source=values target=build.values
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=build.values
@@ -238,9 +239,9 @@ function build(values: [int32]): void {
     /// @resolution.pattern source=managed kind=binding target=build.managed
     /// @resolution.name source=Set target=Set
     /// @resolution.name source=Set target=Set
-    /// @resolution.member source=Set.from receiver=Set type=(Iterable<T#5>) => ^Set<T#5> kind=symbol target_receiver=Set target=from#1
+    /// @resolution.member source=Set.from receiver=typeof Set type=(Iterable<T#5>) => ^Set<T#5> kind=symbol target_receiver=typeof Set target=from#1
     /// @resolution.call source=Set.from([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=^Set<int32> kind=symbol target=from#1 instance=Set<int32>.<extension#5>.from#1
-    /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @resolution.call source=[...values] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...values) as Slice<int32>, iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>, regions=("managed" & "local")), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @resolution.name source=values target=build.values
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=build.values
@@ -249,10 +250,10 @@ function build(values: [int32]): void {
     /// @type.symbol symbol=build.mapped source=mapped type=int32[]
     /// @resolution.pattern source=mapped kind=binding target=build.mapped
     /// @resolution.name source=Array target=Array
-    /// @resolution.member source=Array.from receiver=Array type=(Iterable<T#6>) => ^T#6[] & <from.U>(Iterable<from.U>, Function<(from.U, isize), T#6>) => ^T#6[] kind=overload-set targets=[from#1, from#2]
+    /// @resolution.member source=Array.from receiver=typeof Array type=(Iterable<T#6>) => ^T#6[] & <from.U>(Iterable<from.U>, Function<(from.U, isize), T#6>) => ^T#6[] kind=overload-set targets=[from#1, from#2]
     /// @resolution.call source="Array.from([...values], (value) => value)" parameters=(Iterable<int32>, Function<(int32, isize), int32>) arguments=(provided([...values]) as Iterable<int32>, provided((value) => value) as Function<(int32, isize), int32>) return=^int32[] kind=symbol target=from#2 instance=Array<int32>.<extension#6>.from#2<int32>
     /// @generic.instantiation id="from#2<int32, int32>" template=from#2 arguments=(int32, int32)
-    /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @resolution.call source=[...values] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...values) as Slice<int32>, iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>, regions=("managed" & "local")), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @resolution.name source=values target=build.values
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=build.values

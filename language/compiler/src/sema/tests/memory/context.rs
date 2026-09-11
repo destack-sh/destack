@@ -27,7 +27,7 @@ let copy: User = user;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function load(): User;
@@ -78,7 +78,7 @@ user satisfies shared User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function load(): shared User;
@@ -130,7 +130,7 @@ user satisfies shared User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function load(): User;
@@ -349,7 +349,7 @@ state.user satisfies shared User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct State { user: shared User; }
@@ -478,7 +478,7 @@ shared const sharedWorld: ^World = world;
 
 === dir ===
 class World {}
-/// @type.symbol symbol=World source="class World {}" type=World
+/// @type.symbol symbol=World source="class World {}" type=typeof World
 /// @definition.class symbol=World source="class World {}"
 
 declare const world: ^World;
@@ -521,11 +521,11 @@ class User {}
 
 type Transform = (value: User) => User;
 
-const transform: (arg0: User) => User = (value: User): User => value;
+const transform: (value: User) => User = (value: User): User => value;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 type Transform = (value: User) => User;
@@ -578,11 +578,11 @@ Registry.current satisfies local User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 class Registry {
-/// @type.symbol symbol=Registry type=Registry
+/// @type.symbol symbol=Registry type=typeof Registry
 /// @definition.class symbol=Registry
 /// @definition.field symbol=Registry.current source="static current: User = new User()" key=current static=true type=User
 
@@ -596,7 +596,7 @@ class Registry {
 
 Registry.current satisfies local User;
 /// @resolution.name source=Registry target=Registry
-/// @resolution.member source=Registry.current receiver=Registry type=User kind=field target_receiver=Registry key=current target=Registry.current target_type=User
+/// @resolution.member source=Registry.current receiver=typeof Registry type=User kind=field target_receiver=typeof Registry key=current target=Registry.current target_type=User
 /// @resolution.place source=Registry.current placement="local" lifetime="static" access="mutable"
 /// @resolution.access source=Registry.current root=Registry keys=[current]
 /// @resolution.name source=User target=User

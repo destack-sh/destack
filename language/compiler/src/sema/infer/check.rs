@@ -139,9 +139,12 @@ impl CheckState<'_> {
             | dir::Expression::If { .. }
             | dir::Expression::Match { .. } => self.check_composite(site, expectation),
             dir::Expression::StructExpression { ty, properties } => {
+                // select the aggregate type using the expected value
                 let contextual = self.construction_value(origin, target)?;
-                let construct_target = self.select_construct_target(site, ty, contextual)?;
+                let construct_target =
+                    self.construct_type(site.origin(), site.node.module_id, ty, contextual)?;
 
+                // reject operands that cannot name an aggregate type
                 if let Some(error) =
                     self.require_aggregate_construct_target(site.node, origin, construct_target)?
                 {
@@ -152,6 +155,7 @@ impl CheckState<'_> {
                     }));
                 }
 
+                // check fields in the expected representation
                 let representation = match contextual {
                     None => construct_target,
                     Some(_) => self.replace_form_value(origin, target, construct_target)?,
@@ -189,20 +193,20 @@ impl CheckState<'_> {
                     target,
                 }))
             }
-            dir::Expression::New { ty, arguments } => {
-                let source = self.select_construct(
+            dir::Expression::New {
+                left,
+                generic_arguments,
+                arguments,
+            } => {
+                let check = self.select_construct(
                     site,
-                    ty,
+                    left,
+                    &generic_arguments,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(expectation),
                 )?;
-                let check = ValueCheck {
-                    source,
-                    outcome: CheckOutcome::Holds,
-                    target,
-                };
 
-                Ok(CheckAttempt::Checked(check))
+                Ok(CheckAttempt::Checked(ValueCheck { target, ..check }))
             }
 
             // leave every other expression to its own inference

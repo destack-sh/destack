@@ -80,6 +80,34 @@ impl CheckState<'_> {
         }))
     }
 
+    /// Return the element type of a canonical array, slice, or fixed array.
+    pub(in crate::sema) fn sequence_element_type(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        match self.ty(ty)? {
+            dir::Type::Slice(slice) => Ok(Some(slice.element)),
+            dir::Type::FixedArray(array) => Ok(Some(array.element)),
+            dir::Type::Application(instance) => {
+                let item = self.language_item(instance.symbol)?;
+                if !matches!(
+                    item,
+                    Some(dir::LanguageItem::Array | dir::LanguageItem::ReadonlyArray)
+                ) {
+                    return Ok(None);
+                }
+                let [element] = self.type_ids(ty.module_id, instance.arguments)? else {
+                    return Err(CompilerError::Internal {
+                        message: "an array application without one element type".to_string(),
+                    });
+                };
+
+                Ok(Some(*element))
+            }
+            _ => Ok(None),
+        }
+    }
+
     /// Return the element type behind one canonical Array application.
     pub(in crate::sema) fn array_element(
         &self,

@@ -7,6 +7,7 @@ mod control;
 mod conversion;
 mod expression;
 mod function;
+mod instantiation;
 mod literal;
 mod memory;
 mod node;

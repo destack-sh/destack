@@ -77,8 +77,9 @@ const tuple = ["id", 42] as const;
 /// @generic.instance id="sliceIndex<MaybeUninit<\"id\" | 42>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<"id" | 42>, "mutable")
 /// @generic.instance id="sliceUninit<MaybeUninit<\"id\" | 42>>" template=sliceUninit arguments=(MaybeUninit<"id" | 42>)
 /// @generic.instance id="truncate<\"id\" | 42>" template=truncate arguments=("id" | 42)
-/// @resolution.call source=["id", 42] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest("id", 42) as "id" | 42) return="id" | 42[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"id\" | 42>"
+/// @resolution.call source=["id", 42] parameters=(^Slice<"id" | 42>) arguments=(rest(provided("id") as "id" | 42, provided(42) as "id" | 42) as "id" | 42) return="id" | 42[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"id\" | 42>"
 /// @generic.instantiation id="arrayFromOwnedSlice<\"id\" | 42>" template=arrayFromOwnedSlice arguments=("id" | 42)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="arrayFromOwnedSlice<\"id\" | 42>" template=arrayFromOwnedSlice arguments=("id" | 42)
 /// @generic.instance id="fromOwnedSlice<\"id\" | 42>" template=fromOwnedSlice arguments=("id" | 42)
@@ -86,6 +87,7 @@ const tuple = ["id", 42] as const;
 /// @generic.instance id="size<\"id\" | 42>" template=size arguments=("id" | 42)
 /// @generic.instance id="sliceIntoUninit<\"id\" | 42>" template=sliceIntoUninit arguments=("id" | 42)
 /// @generic.instance id="sliceLength<\"id\" | 42>" template=sliceLength arguments=("id" | 42)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 
 const name = tuple[0];
@@ -97,7 +99,6 @@ const name = tuple[0];
 /// @resolution.access source=tuple[0] root=tuple keys=[0]
 /// @resolution.subscript source=tuple[0] type="id" | 42 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<\"id\" | 42, \"managed\" & \"local\", \"mutable\">, \"readonly\">, regions=(\"managed\" & \"local\"))"
 /// @generic.instantiation id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 \"id\" | 42, \"readonly\">" template=WithAccess arguments=(&'bound0 "id" | 42, "readonly")
 /// @generic.instance id="WithAccess<&'bound0 \"id\" | 42[], \"readonly\">" template=WithAccess arguments=(&'bound0 "id" | 42[], "readonly")
 /// @generic.instance id="assumeInitReference<\"id\" | 42, \"readonly\">" template=assumeInitReference arguments=("id" | 42, "readonly")
@@ -105,7 +106,6 @@ const name = tuple[0];
 /// @generic.instance id="elementSlot<\"id\" | 42, \"readonly\">" template=elementSlot arguments=("id" | 42, "readonly")
 /// @generic.instance id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly")
 /// @generic.instance id="sliceIndex<MaybeUninit<\"id\" | 42>, \"readonly\">" template=sliceIndex arguments=(MaybeUninit<"id" | 42>, "readonly")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 
 const count = tuple[1];
 /// @type.symbol symbol=count source=count type="id" | 42

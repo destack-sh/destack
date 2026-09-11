@@ -129,7 +129,7 @@ function run(value: Base): int32 {
 
 === dir ===
 class Base {
-/// @type.symbol symbol=Base type=Base
+/// @type.symbol symbol=Base type=typeof Base
 /// @definition.class symbol=Base
 /// @definition.method symbol=Base.shared slot=shared type=<Base.shared.P0: Place>(this: Managed<this, Base.shared.P0>) => int32
 
@@ -143,7 +143,7 @@ class Base {
 }
 
 class Derived extends Base {
-/// @type.symbol symbol=Derived type=Derived
+/// @type.symbol symbol=Derived type=typeof Derived
 /// @definition.class symbol=Derived
 /// @definition.extends symbol=Derived source=Base target=Base
 /// @definition.method symbol=Derived.extra slot=extra type=<Derived.extra.P0: Place>(this: Managed<this, Derived.extra.P0>) => int32

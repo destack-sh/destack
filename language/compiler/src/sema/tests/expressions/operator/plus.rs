@@ -241,7 +241,7 @@ extension of Score implements Add<Score> {
 declare const left: Score;
 declare const right: Score;
 
-const sum: string = left + right;
+const sum: Score = left + right;
 
 === dir ===
 struct Score {}
@@ -304,12 +304,12 @@ declare const right: Score;
 /// @resolution.name source=Score target=Score
 
 const sum = left + right;
-/// @type.symbol symbol=sum source=sum type=string
+/// @type.symbol symbol=sum source=sum type=Score
 /// @resolution.pattern source=sum kind=binding target=sum
-/// @type.node source="left + right" type=string
+/// @type.node source="left + right" type=Score
 /// @type.node source=left type=Score
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left + right" type=string operator="+" kind=call parameters=(Score) arguments=(provided(right) as Score) return=string regions=("static" & "constant") kind=symbol target=add#1 receiver=Score adjustments=(borrow(&'static readonly constant Score))
+/// @resolution.operator source="left + right" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(right) as Score) return=Score regions=("static" & "constant") kind=symbol target=add#2 receiver=Score adjustments=(borrow(&'static readonly constant Score))
 /// @resolution.place source=left placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=left root=left
 /// @type.node source=right type=Score

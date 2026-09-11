@@ -218,11 +218,11 @@ sharedReadable satisfies shared SharedReadable;
 
 === dir ===
 local class LocalUser {}
-/// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=LocalUser
+/// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=typeof LocalUser
 /// @definition.class symbol=LocalUser source="local class LocalUser {}"
 
 shared class SharedUser {}
-/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=SharedUser
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
 /// @definition.class symbol=SharedUser source="shared class SharedUser {}"
 
 local struct LocalPoint { x: int32; }
@@ -383,11 +383,11 @@ declare const sharedUser: SharedUser;
 
 === dir ===
 local class LocalUser {}
-/// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=LocalUser
+/// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=typeof LocalUser
 /// @definition.class symbol=LocalUser source="local class LocalUser {}"
 
 shared class SharedUser {}
-/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=SharedUser
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
 /// @definition.class symbol=SharedUser source="shared class SharedUser {}"
 
 declare const localUser: local LocalUser;
@@ -431,11 +431,11 @@ declare const wrongShared: local SharedUser;
 
 === dir ===
 local class LocalUser {}
-/// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=LocalUser
+/// @type.symbol symbol=LocalUser source="local class LocalUser {}" type=typeof LocalUser
 /// @definition.class symbol=LocalUser source="local class LocalUser {}"
 
 shared class SharedUser {}
-/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=SharedUser
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
 /// @definition.class symbol=SharedUser source="shared class SharedUser {}"
 
 declare const wrongLocal: shared LocalUser;
@@ -492,7 +492,7 @@ declare const sharedPoint: Point;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct Point { x: int32; }
@@ -563,21 +563,21 @@ sharedDerived satisfies shared SharedDerived;
 
 === dir ===
 local class LocalBase {}
-/// @type.symbol symbol=LocalBase source="local class LocalBase {}" type=LocalBase
+/// @type.symbol symbol=LocalBase source="local class LocalBase {}" type=typeof LocalBase
 /// @definition.class symbol=LocalBase source="local class LocalBase {}"
 
 class LocalDerived extends LocalBase {}
-/// @type.symbol symbol=LocalDerived source="class LocalDerived extends LocalBase {}" type=LocalDerived
+/// @type.symbol symbol=LocalDerived source="class LocalDerived extends LocalBase {}" type=typeof LocalDerived
 /// @definition.class symbol=LocalDerived source="class LocalDerived extends LocalBase {}"
 /// @definition.extends symbol=LocalDerived source=LocalBase target=LocalBase
 /// @resolution.name source=LocalBase target=LocalBase
 
 shared class SharedBase {}
-/// @type.symbol symbol=SharedBase source="shared class SharedBase {}" type=SharedBase
+/// @type.symbol symbol=SharedBase source="shared class SharedBase {}" type=typeof SharedBase
 /// @definition.class symbol=SharedBase source="shared class SharedBase {}"
 
 class SharedDerived extends SharedBase {}
-/// @type.symbol symbol=SharedDerived source="class SharedDerived extends SharedBase {}" type=SharedDerived
+/// @type.symbol symbol=SharedDerived source="class SharedDerived extends SharedBase {}" type=typeof SharedDerived
 /// @definition.class symbol=SharedDerived source="class SharedDerived extends SharedBase {}"
 /// @definition.extends symbol=SharedDerived source=SharedBase target=SharedBase
 /// @resolution.name source=SharedBase target=SharedBase
@@ -653,7 +653,7 @@ local newtype interface LocalService {}
 /// @definition.where symbol=LocalService source="local newtype interface LocalService {}" relation=satisfies left=this right=LocalService
 
 class LocalServiceImpl implements LocalService {}
-/// @type.symbol symbol=LocalServiceImpl source="class LocalServiceImpl implements LocalService {}" type=LocalServiceImpl
+/// @type.symbol symbol=LocalServiceImpl source="class LocalServiceImpl implements LocalService {}" type=typeof LocalServiceImpl
 /// @definition.class symbol=LocalServiceImpl source="class LocalServiceImpl implements LocalService {}"
 /// @definition.where symbol=LocalServiceImpl source=LocalService relation=satisfies left=this right=LocalService
 /// @definition.implements symbol=LocalServiceImpl source=LocalService target=LocalService
@@ -666,7 +666,7 @@ shared newtype interface SharedService {}
 /// @definition.where symbol=SharedService source="shared newtype interface SharedService {}" relation=satisfies left=this right=SharedService
 
 class SharedServiceImpl implements SharedService {}
-/// @type.symbol symbol=SharedServiceImpl source="class SharedServiceImpl implements SharedService {}" type=SharedServiceImpl
+/// @type.symbol symbol=SharedServiceImpl source="class SharedServiceImpl implements SharedService {}" type=typeof SharedServiceImpl
 /// @definition.class symbol=SharedServiceImpl source="class SharedServiceImpl implements SharedService {}"
 /// @definition.where symbol=SharedServiceImpl source=SharedService relation=satisfies left=this right=SharedService
 /// @definition.implements symbol=SharedServiceImpl source=SharedService target=SharedService
@@ -723,7 +723,7 @@ class Invalid extends LocalBase implements SharedService {}
 
 === dir ===
 local class LocalBase {}
-/// @type.symbol symbol=LocalBase source="local class LocalBase {}" type=LocalBase
+/// @type.symbol symbol=LocalBase source="local class LocalBase {}" type=typeof LocalBase
 /// @definition.class symbol=LocalBase source="local class LocalBase {}"
 
 shared newtype interface SharedService {}
@@ -733,7 +733,7 @@ shared newtype interface SharedService {}
 /// @definition.where symbol=SharedService source="shared newtype interface SharedService {}" relation=satisfies left=this right=SharedService
 
 class Invalid extends LocalBase implements SharedService {}
-/// @type.symbol symbol=Invalid source="class Invalid extends LocalBase implements SharedService {}" type=Invalid
+/// @type.symbol symbol=Invalid source="class Invalid extends LocalBase implements SharedService {}" type=typeof Invalid
 /// @definition.class symbol=Invalid source="class Invalid extends LocalBase implements SharedService {}"
 /// @definition.extends symbol=Invalid source=LocalBase target=LocalBase
 /// @definition.where symbol=Invalid source=SharedService relation=satisfies left=this right=SharedService

@@ -54,8 +54,8 @@ struct WideMeta {}
 /// @definition.struct symbol=WideMeta source="struct WideMeta {}"
 
 class Segment {
-/// @type.symbol symbol=Segment type=Segment
-/// @static.symbol symbol=Segment value=Segment
+/// @type.symbol symbol=Segment type=typeof Segment
+/// @static.symbol symbol=Segment value="typeof Segment"
 /// @definition.class symbol=Segment
 /// @definition.field symbol=Segment.narrow source="narrow: NarrowMeta = NarrowMeta {}" key=narrow type=NarrowMeta
 /// @definition.field symbol=Segment.value source="value: int32 = 0" key=value type=int32
@@ -149,8 +149,8 @@ struct WideMeta {}
 /// @definition.struct symbol=WideMeta source="struct WideMeta {}"
 
 class Segment {
-/// @type.symbol symbol=Segment type=Segment
-/// @static.symbol symbol=Segment value=Segment
+/// @type.symbol symbol=Segment type=typeof Segment
+/// @static.symbol symbol=Segment value="typeof Segment"
 /// @definition.class symbol=Segment
 /// @definition.field symbol=Segment.narrow source="narrow: NarrowMeta = NarrowMeta {}" key=narrow type=NarrowMeta
 /// @definition.field symbol=Segment.value source="value: int32 = 0" key=value type=int32
@@ -236,8 +236,8 @@ struct TextMeta {}
 
 class Packet<T> {
 /// @generic.template symbol=Packet parameters=(in out T)
-/// @type.symbol symbol=Packet type=Packet
-/// @static.symbol symbol=Packet value=Packet
+/// @type.symbol symbol=Packet type=typeof Packet
+/// @static.symbol symbol=Packet value="typeof Packet"
 /// @definition.class symbol=Packet template=(in out T)
 /// @definition.field symbol=Packet.value source="value: T" key=value type=T
 /// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=<Packet.constructor.P0: Place>(T) => Managed<this, Packet.constructor.P0>

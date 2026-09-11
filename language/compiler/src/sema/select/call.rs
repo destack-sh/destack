@@ -16,10 +16,10 @@ enum CallableTarget {
     Expression,
     /// Call one declaration-backed function.
     Symbol(dir::GlobalSymbolId),
-    /// Call through one erased interface call signature.
-    CallSignature {
-        /// The signature's source declaration.
-        source: dir::GlobalNodeIdAny,
+    /// Invoke one erased interface signature.
+    Signature {
+        /// The selected call or construct signature.
+        function: dir::DynamicFunction,
         /// The erased receiver value type.
         receiver: dir::GlobalTypeId,
         /// The interface constraint declaring the signature.
@@ -98,6 +98,38 @@ struct CallableArm {
 }
 
 impl CheckState<'_> {
+    /// Invoke a constructor value through its construct signatures.
+    pub(in crate::sema) fn select_construct_call(
+        &mut self,
+        site: FlowSite,
+        callee: FlowSite,
+        ty: dir::GlobalTypeId,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        expectation: Option<Expectation>,
+    ) -> CompilerResult<ValueCheck> {
+        // collect construct overloads from every runtime alternative
+        let origin = site.origin();
+        let receiver = self.expression_value(callee, ty)?;
+        let arms = self.callable_value_arms(origin, receiver, ty, SignatureFamily::Construct)?;
+        if arms.iter().any(|arm| arm.overloads.is_empty()) {
+            self.report_not_constructible(origin, ty, "'new'", "")?;
+
+            return self.commit_rejected_call(site.node, expectation, None);
+        }
+
+        // read the generic arguments already checked by the construct expression
+        let mut type_arguments = SmallVec::<[_; 4]>::new();
+        for argument in generic_arguments {
+            let argument = argument.into_global_any(site.node.module_id);
+            type_arguments.push(self.require_node_type(argument)?);
+        }
+
+        let callee = callee.node.into_typed::<dir::Expression>().local_id;
+
+        self.select_call_arms(site, callee, arguments, &arms, &type_arguments, expectation)
+    }
+
     /// Collect callable candidates in declaration order from one callee node.
     fn callable_candidates(
         &mut self,
@@ -137,7 +169,7 @@ impl CheckState<'_> {
 
         // resolve declaration callees through their recorded name decision
         if let Some(resolution) = self.name_decision(callee_node).cloned() {
-            // dispatch a type literal callee on its Type<T> value
+            // classify a type qualifier through its checked operand
             if resolution.denoted_type().is_some() {
                 return self.value_callable_candidates(origin, callee_site, is_optional);
             }
@@ -179,8 +211,8 @@ impl CheckState<'_> {
                     CallableTarget::Newtype(_) => ty,
                     CallableTarget::Expression
                     | CallableTarget::Symbol(_)
-                    | CallableTarget::CallSignature { .. } => {
-                        let Some(ty) = self.callable_type(ty)? else {
+                    | CallableTarget::Signature { .. } => {
+                        let Some(ty) = self.callable_type(ty, SignatureFamily::Call)? else {
                             continue;
                         };
 
@@ -218,7 +250,7 @@ impl CheckState<'_> {
                     });
                 };
                 let receiver_site = self.visit_site(left.into_global_any(module))?;
-                let receiver_type = self.infer_node_type(receiver_site, PlaceUse::Read)?;
+                let (_, receiver_type) = self.infer_receiver(receiver_site)?;
                 let receiver = self.expression_value(receiver_site, receiver_type)?;
                 let Some(resolution) = self
                     .decisions(callee_node.module_id)
@@ -308,7 +340,7 @@ impl CheckState<'_> {
 
         // stored and computed members call through their selected value
         let member = self.expression_value(callee, access.ty)?;
-        let arms = self.callable_value_arms(origin, member, ty)?;
+        let arms = self.callable_value_arms(origin, member, ty, SignatureFamily::Call)?;
 
         Ok(arms)
     }
@@ -508,16 +540,16 @@ impl CheckState<'_> {
 
     /// Return the invocable form of one type.
     fn callable_type(
-        &mut self,
+        &self,
         ty: dir::GlobalTypeId,
+        family: SignatureFamily,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let callable = matches!(
-            self.ty(ty)?,
-            dir::Type::FunctionSignature(_)
-                | dir::Type::Function(_)
-                | dir::Type::FunctionPointer(_)
-        )
-        .then_some(ty);
+        // select only the signature family the invocation requests
+        let Some(signature) = self.signature_head(ty)? else {
+            return Ok(None);
+        };
+        let is_construct = family == SignatureFamily::Construct;
+        let callable = (signature.is_construct == is_construct).then_some(ty);
 
         Ok(callable)
     }
@@ -539,7 +571,7 @@ impl CheckState<'_> {
         let receiver = self.expression_value(callee, ty)?;
         let ty = self.strip_form(origin, ty)?;
         let ty = self.select_chain_operand(origin, ty, is_optional)?;
-        let arms = self.callable_value_arms(origin, receiver, ty)?;
+        let arms = self.callable_value_arms(origin, receiver, ty, SignatureFamily::Call)?;
 
         Ok(Some(arms))
     }
@@ -550,6 +582,7 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: Value,
         ty: dir::GlobalTypeId,
+        family: SignatureFamily,
     ) -> CompilerResult<SmallVec<[CallableArm; 2]>> {
         // distribute runtime union alternatives into independent arms
         let ty = self.shallow_resolve(ty)?;
@@ -557,7 +590,7 @@ impl CheckState<'_> {
             let elements: SmallVec<[_; 8]> = self.type_ids(ty.module_id, union.elements)?.into();
             let mut arms = SmallVec::with_capacity(elements.len());
             for element in elements {
-                let nested = self.callable_value_arms(origin, receiver, element)?;
+                let nested = self.callable_value_arms(origin, receiver, element, family)?;
                 arms.extend(nested);
             }
 
@@ -565,7 +598,7 @@ impl CheckState<'_> {
         }
 
         // intersections contribute overload alternatives to one runtime value
-        let overloads = self.callable_value_overloads(origin, receiver, ty)?;
+        let overloads = self.callable_value_overloads(origin, receiver, ty, family)?;
         let mut arms = SmallVec::new();
         arms.push(CallableArm { overloads });
 
@@ -578,6 +611,7 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: Value,
         ty: dir::GlobalTypeId,
+        family: SignatureFamily,
     ) -> CompilerResult<SmallVec<[CallableCandidate; 2]>> {
         // read the arm's reduced callable head
         let ty = self.normalize(origin, ty)?;
@@ -588,7 +622,7 @@ impl CheckState<'_> {
                 self.type_ids(ty.module_id, intersection.elements)?.into();
             let mut overloads = SmallVec::with_capacity(elements.len());
             for element in elements {
-                let nested = self.callable_value_overloads(origin, receiver, element)?;
+                let nested = self.callable_value_overloads(origin, receiver, element, family)?;
                 overloads.extend(nested);
             }
 
@@ -597,13 +631,19 @@ impl CheckState<'_> {
 
         // call erased values through their apparent constraint signatures
         if let Some(constraint) = self.erased_constraint(ty)? {
-            let signatures = self.apparent_signatures(constraint, SignatureFamily::Call)?;
+            let signatures = self.apparent_signatures(constraint, family)?;
             let generic_arguments = self.application_generic_argument_bindings(constraint)?;
             let mut overloads = SmallVec::with_capacity(signatures.len());
             for signature in signatures {
+                let function = match family {
+                    SignatureFamily::Call => dir::DynamicFunction::CallSignature(signature.source),
+                    SignatureFamily::Construct => {
+                        dir::DynamicFunction::ConstructSignature(signature.source)
+                    }
+                };
                 overloads.push(CallableCandidate {
-                    target: CallableTarget::CallSignature {
-                        source: signature.source,
+                    target: CallableTarget::Signature {
+                        function,
                         receiver: ty,
                         constraint,
                     },
@@ -620,7 +660,7 @@ impl CheckState<'_> {
 
         // take a fat callable as its own receiver in one invocable candidate
         let mut overloads = SmallVec::new();
-        if let Some(ty) = self.callable_type(ty)? {
+        if let Some(ty) = self.callable_type(ty, family)? {
             let receiver = match self.ty(ty)? {
                 dir::Type::Function(function) => {
                     let mode = self.receiver_mode(function.receiver)?;
@@ -682,7 +722,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         candidate: &CallableCandidate,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[CallableArgument],
     ) -> CompilerResult<Option<dir::Call>> {
         // name the callable the candidate reached for
         let target = match &candidate.target {
@@ -700,6 +740,11 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
+        let sources = arguments
+            .iter()
+            .map(|argument| argument.argument.clone())
+            .collect::<Vec<_>>();
+
         // bind the authored arguments against the declared parameters the candidate reached for
         let signature = self.callable_signature_type(origin, candidate.ty)?;
         let (arguments, return_type) = match signature {
@@ -707,8 +752,9 @@ impl CheckState<'_> {
             Some((signature_type, signature)) => {
                 let parameters =
                     self.signature_parameters(signature_type.module_id, signature.parameters)?;
-                let arguments =
-                    self.argument_bindings(origin, origin.module(), argument_nodes, parameters)?;
+                let Some(arguments) = self.bind_arguments(origin, parameters, &sources)? else {
+                    return Ok(None);
+                };
                 let return_type = match signature.return_type {
                     Some(return_type) => return_type,
                     None => self.intern_type(dir::Type::Error)?,
@@ -734,10 +780,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         asked: &[CallableCandidate],
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        arguments: &[CallableArgument],
     ) -> CompilerResult<Option<dir::Call>> {
         match asked {
-            [single] => self.attempted_call(origin, single, argument_nodes),
+            [single] => self.attempted_call(origin, single, arguments),
             _ => Ok(None),
         }
     }
@@ -864,7 +910,7 @@ impl CheckState<'_> {
             let symbol = *symbol;
             let callee_node = callee.into_global_any(module);
             let reference =
-                self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+                self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
             self.commit_node_type(callee_node, reference)?;
 
             return self.select_newtype_construct(
@@ -1058,7 +1104,7 @@ impl CheckState<'_> {
                 }
                 // keep the refused candidate so downstream passes keep a target
                 OverloadSelection::Refused => {
-                    let attempt = self.sole_attempted_call(origin, asked, argument_nodes)?;
+                    let attempt = self.sole_attempted_call(origin, asked, &arguments)?;
 
                     return self.commit_rejected_call(node, expectation, attempt);
                 }
@@ -1066,7 +1112,7 @@ impl CheckState<'_> {
                 OverloadSelection::Rejected(rejections) => {
                     let types = self.infer_argument_types(site, argument_nodes)?;
                     self.report_no_matching_call(origin, &types, &rejections)?;
-                    let attempt = self.sole_attempted_call(origin, asked, argument_nodes)?;
+                    let attempt = self.sole_attempted_call(origin, asked, &arguments)?;
 
                     return self.commit_rejected_call(node, expectation, attempt);
                 }
@@ -1116,8 +1162,7 @@ impl CheckState<'_> {
         let mut calls = Vec::with_capacity(selected.len());
         let mut returns = SmallVec::<[_; 4]>::new();
         for (candidate, signature) in &selected {
-            let call =
-                self.call_decision(call_origin, module, candidate, argument_nodes, signature)?;
+            let call = self.call_decision(call_origin, candidate, signature)?;
             returns.push(call.return_type);
             calls.push(call);
         }
@@ -1145,17 +1190,10 @@ impl CheckState<'_> {
     fn call_decision(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         candidate: &CallableCandidate,
-        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         signature: &SignatureSelection,
     ) -> CompilerResult<dir::Call> {
-        let parameters = signature
-            .parameters
-            .iter()
-            .map(|selected| selected.parameter)
-            .collect::<Vec<_>>();
-        let arguments = self.argument_bindings(origin, module, argument_nodes, &parameters)?;
+        let arguments = signature.bind_arguments(origin, self)?;
         let return_type = signature.return_type;
         // name the target each candidate calls through
         let target = match &candidate.target {
@@ -1164,8 +1202,8 @@ impl CheckState<'_> {
                 generic_arguments: signature.generic_arguments.clone(),
             },
             // dispatch erased signature calls through the callee's own table
-            CallableTarget::CallSignature {
-                source,
+            CallableTarget::Signature {
+                function,
                 receiver,
                 constraint,
             } => dir::CallableTarget::Dynamic {
@@ -1173,7 +1211,7 @@ impl CheckState<'_> {
                     receiver: dir::AdjustedReceiver::direct(*receiver),
                     constraint: *constraint,
                 },
-                function: dir::DynamicFunction::CallSignature(*source),
+                function: *function,
                 // record the signature's own bindings, dropping the parameters
                 //  the constraint application already carries
                 generic_arguments: signature

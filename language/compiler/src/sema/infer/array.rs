@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::sema::{
     Cause, CauseKind, CheckState, Expectation, FlowSite, InferMode, Origin, PlaceUse, Relation,
-    RelationCheck, ValueUse, Verdict,
+    RelationCheck, TypeSubstitution, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -72,6 +72,7 @@ impl CheckState<'_> {
 
         // store each element into the slot, a spread through its item, a hole as undefined
         let mut has_hole = false;
+        let mut sources = Vec::with_capacity(elements.len());
         for (index, argument) in elements.iter().enumerate() {
             let cause = Cause::child_maybe(
                 Origin::Node(argument.into_global_any(module), site.scope),
@@ -81,7 +82,7 @@ impl CheckState<'_> {
                 declared.map(|(_, expectation)| expectation.cause),
             );
             let cause = self.intern_cause(cause);
-            match self.module(module).view().get(*argument) {
+            let source = match self.module(module).view().get(*argument) {
                 dir::Argument::Positional { value } => {
                     let value_site = self.visit_site(value.into_global_any(module))?;
                     let expectation = match declared {
@@ -100,12 +101,14 @@ impl CheckState<'_> {
                         },
                     };
                     self.check_node(value_site, expectation)?;
+
+                    dir::ArgumentSource::Provided(argument.into_global_any(module))
                 }
                 dir::Argument::Spread { value } => {
                     let value_site = self.visit_site(value.into_global_any(module))?;
 
                     // read the spread source's sequence type
-                    let spread = if self.is_fresh_node(value_site.node)? {
+                    if self.is_composite_node(value_site.node) {
                         let target = self.language_type(dir::LanguageItem::Array, &[element])?;
                         let expectation = Expectation {
                             target,
@@ -115,14 +118,19 @@ impl CheckState<'_> {
                             mode,
                         };
                         self.check_node(value_site, expectation)?;
+                    }
 
-                        target
-                    } else {
-                        self.infer_node_type(value_site, PlaceUse::Read)?
+                    // relate the iterator's element to the destination element
+                    let source = self.argument_source(argument.into_global(module))?;
+                    let item = match &source {
+                        dir::ArgumentSource::Spread(spread) => spread.element,
+                        dir::ArgumentSource::Error => self.intern_type(dir::Type::Error)?,
+                        _ => {
+                            return Err(CompilerError::Internal {
+                                message: "a spread argument without its iteration".to_string(),
+                            });
+                        }
                     };
-
-                    // relate the sequence's item to the element slot
-                    let item = self.spread_element_type(spread)?;
                     self.push_relation(RelationCheck::new(
                         value_site.origin(),
                         Relation::Subtype,
@@ -130,10 +138,22 @@ impl CheckState<'_> {
                         element,
                         cause,
                     ))?;
+
+                    source
                 }
-                dir::Argument::Elision => has_hole = true,
-                dir::Argument::Error => {}
-            }
+                dir::Argument::Elision => {
+                    has_hole = true;
+
+                    dir::ArgumentSource::Omitted
+                }
+                dir::Argument::Error => dir::ArgumentSource::Error,
+            };
+            sources.push(dir::ArgumentBinding {
+                parameter_type: element,
+                argument_type: element,
+                source,
+                coercion: None,
+            });
         }
 
         // holes read as undefined, joining the slot the elements store into
@@ -145,6 +165,9 @@ impl CheckState<'_> {
 
         // build the array over the element slot
         let array = self.array_type(element)?;
+        if self.is_checking() {
+            self.commit_array_construction(site, sources, array, element)?;
+        }
 
         // freeze a const literal, else take the forms the context declares
         match (mode, declared) {
@@ -433,34 +456,15 @@ impl CheckState<'_> {
     }
 
     /// Commit one array literal typed as an array as its pack constructor call.
-    pub(in crate::sema) fn commit_array_construction(
+    fn commit_array_construction(
         &mut self,
-        node: dir::GlobalNodeIdAny,
+        site: FlowSite,
+        elements: Vec<dir::ArgumentBinding>,
+        array: dir::GlobalTypeId,
+        element: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // require an array literal of this module without a decision
-        if node.local_id.ty != dir::NodeType::Expression
-            || !self.is_own_module(node.module_id)
-            || self.decision(node).is_some()
-        {
-            return Ok(());
-        }
-
-        // read the array literal and the element it holds
-        let module = node.module_id;
-        let expression = node.local_id.into_typed::<dir::Expression>();
-        let dir::Expression::ArrayExpression { elements } =
-            self.module(module).view().get(expression).clone()
-        else {
-            return Ok(());
-        };
-        let array = self.require_node_type(node)?;
-        let array = self.shallow_strip_forms(array)?;
-        let Some(element) = self.array_element(array)? else {
-            return Ok(());
-        };
-
         // select the constructor over the element type
-        let origin = self.visit_site(node)?.origin();
+        let origin = site.origin();
         let key = self.array_pack_selection(element)?;
         let symbol = key.symbol;
         let Some(callable) = self.adopt_symbol_type_maybe(symbol)? else {
@@ -468,6 +472,10 @@ impl CheckState<'_> {
                 message: "the array pack constructor declares no type".to_string(),
             });
         };
+
+        // apply the selected element to the constructor's complete signature
+        let substitution = TypeSubstitution::default().with_carried(&key.arguments)?;
+        let callable = self.substitute_type(callable, &substitution)?;
         let Some((signature_type, signature)) = self.callable_signature_type(origin, callable)?
         else {
             return Err(CompilerError::Internal {
@@ -483,17 +491,13 @@ impl CheckState<'_> {
         };
 
         // bind the elements against the constructor's slice parameter
-        let mut sources = Vec::with_capacity(elements.len());
-        for argument in elements {
-            if let dir::Argument::Positional { value } = self.module(module).view().get(argument) {
-                sources.push(value.into_global_any(module));
-            }
-        }
+        self.check_spread_arguments(origin, &elements)?;
         let arguments = vec![dir::ArgumentBinding {
+            coercion: None,
             parameter_type,
             argument_type: element,
             source: dir::ArgumentSource::Rest {
-                elements: sources,
+                elements,
                 pack: None,
             },
         }];
@@ -513,7 +517,7 @@ impl CheckState<'_> {
         };
 
         self.commit_decision(
-            node,
+            site.node,
             dir::Decision::Call(dir::OperationResolution::One(call)),
         )
     }

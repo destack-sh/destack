@@ -23,7 +23,7 @@ const echoed = withLabel("users", (label) => label);
         r#"
 === annotated ===
 declare function id<T>(value: T): T;
-declare function withLabel<T: string, U>(label: T, callback: (arg0: T) => U): U;
+declare function withLabel<T: string, U>(label: T, callback: (label: T) => U): U;
 
 const tag: "users" = "users";
 const again: "users" = id<"users">(tag);
@@ -77,7 +77,7 @@ const fresh = id("users");
 const tags = [tag];
 /// @type.symbol symbol=tags source=tags type="users"[]
 /// @resolution.pattern source=tags kind=binding target=tags
-/// @resolution.call source=[tag] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(tag) as "users") return="users"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"users\">"
+/// @resolution.call source=[tag] parameters=(^Slice<"users">) arguments=(rest(provided(tag) as "users") as "users") return="users"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"users\">"
 /// @generic.instantiation id="arrayFromOwnedSlice<\"users\">" template=arrayFromOwnedSlice arguments=("users")
 /// @resolution.name source=tag target=tag
 /// @resolution.place source=tag placement="local" lifetime="managed" access="mutable"
@@ -86,7 +86,7 @@ const tags = [tag];
 const literals = ["users"];
 /// @type.symbol symbol=literals source=literals type=string[]
 /// @resolution.pattern source=literals kind=binding target=literals
-/// @resolution.call source=["users"] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest("users") as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
+/// @resolution.call source=["users"] parameters=(^Slice<string>) arguments=(rest(provided("users") as string) as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
 /// @generic.instantiation id=arrayFromOwnedSlice<string> template=arrayFromOwnedSlice arguments=(string)
 
 const echoed = withLabel("users", (label) => label);
@@ -195,7 +195,7 @@ const list = id([tag, "users"]);
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([tag, \"users\"])" parameters=(string[]) arguments=(provided([tag, "users"]) as string[]) return=string[] kind=symbol target=id instance=id<string[]>
 /// @generic.instantiation id=id<string[]> template=id arguments=(string[])
-/// @resolution.call source=[tag, "users"] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(tag, "users") as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
+/// @resolution.call source=[tag, "users"] parameters=(^Slice<string>) arguments=(rest(provided(tag) as string, provided("users") as string) as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
 /// @generic.instantiation id=arrayFromOwnedSlice<string> template=arrayFromOwnedSlice arguments=(string)
 /// @resolution.name source=tag target=tag
 /// @resolution.place source=tag placement="local" lifetime="managed" access="mutable"

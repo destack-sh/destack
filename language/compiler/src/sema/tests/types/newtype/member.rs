@@ -43,7 +43,7 @@ extension<T> of Sealed<T> {
 === dir ===
 class Wrapper<T> {
 /// @generic.template symbol=Wrapper parameters=(out T#1)
-/// @type.symbol symbol=Wrapper type=Wrapper
+/// @type.symbol symbol=Wrapper type=typeof Wrapper
 /// @definition.class symbol=Wrapper template=(out T#1)
 /// @definition.method symbol=Wrapper.open slot=open type=<Wrapper.open.P0: Place>(this: Managed<Wrapper<T#1>, Wrapper.open.P0>) => T#1
 /// @type.symbol symbol=Wrapper.T source=T type=T#1

@@ -267,7 +267,6 @@ impl CheckState<'_> {
         type_arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Protocol> {
         // collect the arguments the protocol instance binds
-        let module = origin.module();
         let mut arguments = Vec::with_capacity(type_arguments.len() + protocol.arguments.len());
 
         // start from the written type arguments, each asked as the implemented header binds it
@@ -285,7 +284,7 @@ impl CheckState<'_> {
             }
         }
 
-        self.language_protocol(module, protocol.item, arguments)
+        self.language_protocol(protocol.item, arguments)
     }
 }
 

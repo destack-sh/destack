@@ -1268,16 +1268,18 @@ impl<'a> CheckState<'a> {
         Ok(has_inferred_value || has_static_id)
     }
 
-    /// Return one symbol's committed static id, if declared.
-    /// Return the type static naming one class as a value, pushing it on first use.
+    /// Return the class constructor static, creating it on first use.
     pub(in crate::sema) fn class_static_id(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalStaticId> {
+        // reuse the class's committed static
         if let Some(id) = self.symbol_static_id(symbol)? {
             return Ok(id);
         }
-        let ty = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+
+        // record the class declaration as its constructor value
+        let ty = self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
         let state = self.module_mut(symbol.module_id);
         let id = state.statics_tail.push_static(dir::StaticTerm::Type { ty });
         let id = id.into_global(symbol.module_id);
@@ -1315,56 +1317,21 @@ impl<'a> CheckState<'a> {
             return Ok(Some(value));
         }
 
-        // read own committed terms through the static table stack
-        if let Some(module) = self.module_maybe(symbol.module_id) {
-            let table = module.statics.with_tail(&module.statics_tail);
-            let Some(id) = table.get_symbol_static_id(symbol) else {
-                return Ok(None);
-            };
-            let Some(term) = table.get_static_maybe(id.local_id).cloned() else {
-                return Ok(None);
-            };
-
-            return Ok(self.static_singleton(id, &term));
-        }
-
-        // read foreign committed terms through the external tables
-        let Some(external) = self.external(symbol.module_id)? else {
-            return Ok(None);
-        };
-        let Some(id) = external.statics().get_symbol_static_id(symbol) else {
-            return Ok(None);
-        };
-        let Some(term) = external.statics().get_static_maybe(id.local_id).cloned() else {
+        // read the committed term from the module named by its static id
+        let Some(id) = self.symbol_static_id(symbol)? else {
             return Ok(None);
         };
 
-        Ok(self.static_singleton(id, &term))
-    }
+        // retain type values directly and intern literal or aggregate singletons
+        match self.r#static(id)? {
+            dir::StaticTerm::Type { ty } => Ok(Some(*ty)),
+            dir::StaticTerm::Literal { value } => {
+                let value = *value;
 
-    /// Return the singleton type of one committed static.
-    fn static_singleton(
-        &mut self,
-        id: dir::GlobalStaticId,
-        term: &dir::StaticTerm,
-    ) -> Option<dir::GlobalTypeId> {
-        if let Some(direct) = self.static_term_type(term) {
-            return Some(direct);
-        }
-
-        // struct terms read as the singleton of their committed static
-        match term {
-            dir::StaticTerm::Struct { .. } => self.intern_type(dir::Type::Static(id)).ok(),
-            _ => None,
-        }
-    }
-
-    /// Return the singleton type of one committed static term.
-    fn static_term_type(&mut self, term: &dir::StaticTerm) -> Option<dir::GlobalTypeId> {
-        match term {
-            dir::StaticTerm::Type { ty } => Some(*ty),
-            dir::StaticTerm::Literal { value } => self.intern_type(dir::Type::Literal(*value)).ok(),
-            _ => None,
+                self.intern_type(dir::Type::Literal(value)).map(Some)
+            }
+            dir::StaticTerm::Struct { .. } => self.intern_type(dir::Type::Static(id)).map(Some),
+            _ => Ok(None),
         }
     }
 

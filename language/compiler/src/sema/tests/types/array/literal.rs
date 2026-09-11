@@ -1,5 +1,50 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Infer a union from literal and spread elements, converting both into that union.
+#[test]
+fn test_infer_union_elements_from_spreads() {
+    let session = TestSession::single(
+        r#"
+function extend(values: int32[]): void {
+    const mixed = [true, ...values];
+    mixed satisfies (int32 | boolean)[];
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked().with_coercion(), r#"
+=== annotated ===
+function extend(values: int32[]): void {
+    const mixed: (int32 | boolean)[] = [true as int32 | boolean, ...values];
+    mixed satisfies (int32 | boolean)[];
+}
+
+=== dir ===
+function extend(values: int32[]): void {
+/// @type.symbol symbol=extend type=(int32[]) => void
+/// @type.symbol symbol=extend.values source="values: int32[]" type=int32[]
+
+    const mixed = [true, ...values];
+    /// @type.symbol symbol=extend.mixed source=mixed type=int32 | boolean[]
+    /// @resolution.pattern source=mixed kind=binding target=extend.mixed
+    /// @resolution.call source=[true, ...values] parameters=(^Slice<int32 | boolean>) arguments=(rest(provided(true) as int32 | boolean, spread(provided(...values) as int32[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32 | boolean) as int32 | boolean) return=int32 | boolean[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int32 | boolean>"
+    /// @generic.instantiation id="arrayFromOwnedSlice<int32 | boolean>" template=arrayFromOwnedSlice arguments=(int32 | boolean)
+    /// @generic.instantiation id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
+    /// @coercion.node source=true from=true adjustments=[{ kind: union, target: int32 | boolean, cases: ({ source: true, target: boolean, adjustments: [{ kind: materialize, target: boolean }] }) }] origin=implicit
+    /// @coercion.node source=...values from=int32 adjustments=[{ kind: union, target: int32 | boolean, cases: ({ source: int32, target: int32 }) }] origin=implicit
+    /// @resolution.name source=values target=extend.values
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=values root=extend.values
+
+    mixed satisfies (int32 | boolean)[];
+    /// @resolution.name source=mixed target=extend.mixed
+    /// @resolution.place source=mixed placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=mixed root=extend.mixed
+
+}
+"#, r#""#);
+}
+
 #[test]
 fn test_widen_array_literal_elements_at_the_binding() {
     let session = TestSession::single(
@@ -31,7 +76,7 @@ let values = [1, 2];
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -78,7 +123,7 @@ const values: int32[] = [1, 2];
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -118,7 +163,7 @@ const first = [1].iterator().next();
 /// @generic.instance id=IteratorYield<int64> template=IteratorYield arguments=(int64)
 /// @resolution.member source=[1].iterator receiver=int64[] type=<iterator#2.P0: Place>(this: Managed<int64[], iterator#2.P0>) => Iterator<int64> kind=symbol target_receiver=int64[] target=iterator#2
 /// @resolution.member source=[1].iterator().next receiver=Iterator<int64> type=(this: Iterator<int64>) => IteratorResult<int64, void> kind=symbol target_receiver=Iterator<int64> dispatch=dynamic constraint=Iterator<int64> target=Iterator.next
-/// @resolution.call source=[1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @resolution.call source=[1].iterator() parameters=() return=Iterator<int64> kind=symbol target=iterator#2 receiver=int64[] instance="Array<int64>.<extension#4>.iterator#2<\"local\">"
 /// @resolution.call source=[1].iterator().next() parameters=() return=IteratorResult<int64, void> kind=dynamic target=Iterator.next receiver=Iterator<int64> constraint=Iterator<int64> generic_arguments=(int64)
 /// @generic.instantiation id="iterator#2<int64, \"local\">" template=iterator#2 arguments=(int64, "local")
@@ -190,12 +235,18 @@ function extend(values: int32[]): int32[] {
 /// @type.symbol symbol=extend.values source="values: int32[]" type=int32[]
 
     [...values, 1]
-    /// @resolution.call source=[...values, 1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @resolution.call source=[...values, 1] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...values) as int32[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32, provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @generic.instantiation id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+    /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+    /// @generic.instance id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
     /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+    /// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32)
+    /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+    /// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
     /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
     /// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
     /// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
@@ -242,7 +293,7 @@ let values = [1, , 3];
 /// @generic.instance id="sliceIndex<MaybeUninit<int64 | undefined>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64 | undefined>, "mutable")
 /// @generic.instance id="sliceUninit<MaybeUninit<int64 | undefined>>" template=sliceUninit arguments=(MaybeUninit<int64 | undefined>)
 /// @generic.instance id="truncate<int64 | undefined>" template=truncate arguments=(int64 | undefined)
-/// @resolution.call source=[1, , 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 3) as int64 | undefined) return=int64 | undefined[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int64 | undefined>"
+/// @resolution.call source=[1, , 3] parameters=(^Slice<int64 | undefined>) arguments=(rest(provided(1) as int64 | undefined, omitted as int64 | undefined, provided(3) as int64 | undefined) as int64 | undefined) return=int64 | undefined[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int64 | undefined>"
 /// @generic.instantiation id="arrayFromOwnedSlice<int64 | undefined>" template=arrayFromOwnedSlice arguments=(int64 | undefined)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -507,7 +558,7 @@ const values = [1, 2, 3] as Slice<_>;
 /// @generic.instance id=Slice<int64> template=Slice arguments=(int64)
 /// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<int64>
 /// @type.node source=[1, 2, 3] type=int64[]
-/// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2, 3] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64, provided(3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -563,7 +614,7 @@ const values = [1, 2, 3] as [_];
 /// @resolution.pattern source=values kind=binding target=values
 /// @type.node source=[1, 2, 3] as [_] type=Slice<int64>
 /// @type.node source=[1, 2, 3] type=int64[]
-/// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2, 3] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64, provided(3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -741,7 +792,7 @@ const items: Iterable<int32> = [1, 2];
 /// @resolution.pattern source=items kind=binding target=items
 /// @generic.instance id=Iterable<int32> template=Iterable arguments=(int32)
 /// @resolution.name source=Iterable target=Iterable
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)

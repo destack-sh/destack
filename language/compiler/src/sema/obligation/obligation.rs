@@ -42,6 +42,8 @@ pub(in crate::sema) enum Obligation {
     WellFormedType(WellFormedTypeObligation),
     /// A range's written endpoints share one element type.
     RangeElement(RangeElementObligation),
+    /// A rest parameter must describe an argument sequence.
+    RestParameter(RestParameterObligation),
 }
 
 impl Obligation {
@@ -54,6 +56,7 @@ impl Obligation {
             Self::RuntimePredicate(obligation) => obligation.source,
             Self::WellFormedType(obligation) => obligation.source,
             Self::RangeElement(obligation) => obligation.source,
+            Self::RestParameter(obligation) => obligation.source,
         }
     }
 
@@ -68,6 +71,7 @@ impl Obligation {
             Self::WritableTarget(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::RangeElement(obligation) => SmallVec::from_slice(&[obligation.element]),
+            Self::RestParameter(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::RuntimePredicate(_) => SmallVec::new(),
         }
     }
@@ -116,6 +120,13 @@ impl ObligationCheck {
 /// Reason one completed obligation failed.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::sema) enum ObligationFailure {
+    /// A rest parameter's type cannot describe an argument sequence.
+    InvalidRestParameter {
+        /// The rest parameter declaration.
+        source: dir::GlobalNodeIdAny,
+        /// The declared parameter type.
+        ty: dir::GlobalTypeId,
+    },
     /// A match expression leaves one value uncovered.
     NonExhaustivePattern {
         /// The source holding the patterns.
@@ -562,6 +573,19 @@ pub(in crate::sema) struct RangeElementObligation {
     pub(in crate::sema) element: dir::GlobalTypeId,
 }
 
+/// Require a rest parameter to describe an argument sequence once its type solves.
+///
+/// ```ds
+/// declare function consume(...values: int32[]): void;
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::sema) struct RestParameterObligation {
+    /// The rest parameter declaration.
+    pub(in crate::sema) source: dir::GlobalNodeIdAny,
+    /// The declared parameter type.
+    pub(in crate::sema) ty: dir::GlobalTypeId,
+}
+
 /// Obliges a declaration to satisfy every declared interface.
 ///
 /// ```ds
@@ -674,6 +698,7 @@ impl CheckState<'_> {
                 self.check_well_formed_type(origin, obligation)
             }
             Obligation::RangeElement(obligation) => self.check_range_element(obligation),
+            Obligation::RestParameter(obligation) => self.check_rest_parameter(origin, obligation),
         }
     }
 

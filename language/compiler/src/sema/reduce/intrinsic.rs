@@ -331,6 +331,7 @@ impl CheckState<'_> {
             parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template: None,
+            arguments: dir::TypeListId::EMPTY,
             this_parameter: None,
             parameters,
             return_type: Some(return_type),

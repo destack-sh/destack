@@ -79,7 +79,7 @@ const size: uint32 = Packet.Size;
 
 === dir ===
 class Packet {
-/// @type.symbol symbol=Packet type=Packet
+/// @type.symbol symbol=Packet type=typeof Packet
 /// @definition.class symbol=Packet
 /// @definition.associated.type symbol=Packet.Size source="type Size = uint32" key=Size value=uint32
 
@@ -92,7 +92,7 @@ const size = Packet.Size;
 /// @type.symbol symbol=size source=size type=uint32
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=Packet target=Packet
-/// @resolution.member source=Packet.Size receiver=Packet type=uint32 kind=symbol target_receiver=Packet target=Packet.Size
+/// @resolution.member source=Packet.Size receiver=typeof Packet type=uint32 kind=symbol target_receiver=typeof Packet target=Packet.Size
 "#,
         r#"
 "#,
@@ -233,7 +233,7 @@ interface Producing {
 }
 
 class Factory implements Producing {
-/// @type.symbol symbol=Factory type=Factory
+/// @type.symbol symbol=Factory type=typeof Factory
 /// @definition.class symbol=Factory
 /// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing
@@ -442,7 +442,7 @@ interface Envelope<T: string> {
 
 class Message<T: string> implements Envelope<T> {}
 /// @generic.template symbol=Message parameters=(in out T#2: string)
-/// @type.symbol symbol=Message source="class Message<T: string> implements Envelope<T> {}" type=Message
+/// @type.symbol symbol=Message source="class Message<T: string> implements Envelope<T> {}" type=typeof Message
 /// @generic.instance id=Envelope<T#2> template=Envelope arguments=(T#2)
 /// @definition.class symbol=Message source="class Message<T: string> implements Envelope<T> {}" template=(in out T#2: string)
 /// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=Envelope<T#2>
@@ -501,7 +501,7 @@ import { Envelope } from "./envelope.ds";
 
 class Message<T: string> implements Envelope<T> {}
 /// @generic.template symbol=Message parameters=(in out T: string)
-/// @type.symbol symbol=Message source="class Message<T: string> implements Envelope<T> {}" type=Message
+/// @type.symbol symbol=Message source="class Message<T: string> implements Envelope<T> {}" type=typeof Message
 /// @generic.instance id=envelope.Envelope<T> template=envelope.Envelope arguments=(T)
 /// @definition.class symbol=Message source="class Message<T: string> implements Envelope<T> {}" template=(in out T: string)
 /// @definition.where symbol=Message source=Envelope<T> relation=satisfies left=this right=envelope.Envelope<T>
@@ -590,7 +590,7 @@ interface Producing {
 }
 
 class Factory implements Producing {
-/// @type.symbol symbol=Factory type=Factory
+/// @type.symbol symbol=Factory type=typeof Factory
 /// @definition.class symbol=Factory
 /// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing

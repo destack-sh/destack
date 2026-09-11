@@ -118,11 +118,10 @@ const result = Result<int32, string>.ok(42);
 /// @type.symbol symbol=result source=result type=Result<int32, string>
 /// @resolution.pattern source=result kind=binding target=result
 /// @generic.instance id="Result<int32, string>" template=Result arguments=(int32, string)
+/// @resolution.name source="Result<int32, string>" target=Result
 /// @resolution.name source=Result target=Result
 /// @resolution.member source="Result<int32, string>.ok" receiver=Result<int32, string> type=(int32) => Result<int32, string> kind=symbol target_receiver=Result<int32, string> target=ok
 /// @resolution.call source="Result<int32, string>.ok(42)" parameters=(int32) arguments=(provided(42) as int32) return=Result<int32, string> kind=symbol target=ok instance="Result<int32, string>.<extension#1>.ok"
-/// @resolution.function source="Result<int32, string>" type=Result<int32, string> target=Result instance="Result<int32, string>"
-/// @generic.instantiation id="Result<int32, string>" template=Result arguments=(int32, string)
 /// @generic.instantiation id="ok<int32, string>" template=ok arguments=(int32, string)
 /// @generic.instance id="ok<int32, string>" template=ok arguments=(int32, string)
 "#,
@@ -313,9 +312,9 @@ const row = first([[1, 2]]);
 /// @resolution.name source=first target=first
 /// @resolution.call source="first([[1, 2]])" parameters=(int64[][]) arguments=(provided([[1, 2]]) as int64[][]) return=int64[] kind=symbol target=first instance=first<int64[]>
 /// @generic.instantiation id=first<int64[]> template=first arguments=(int64[])
-/// @resolution.call source=[[1, 2]] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest([1, 2]) as int64[]) return=int64[][] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64[]>
+/// @resolution.call source=[[1, 2]] parameters=(^Slice<int64[]>) arguments=(rest(provided([1, 2]) as int64[]) as int64[]) return=int64[][] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64[]>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64[]> template=arrayFromOwnedSlice arguments=(int64[])
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 
 const boxed = box(1);
@@ -331,9 +330,9 @@ const mixed = first([["a", 1]]);
 /// @resolution.name source=first target=first
 /// @resolution.call source="first([[\"a\", 1]])" parameters=(string | int64[][]) arguments=(provided([["a", 1]]) as string | int64[][]) return=string | int64[] kind=symbol target=first instance="first<string | int64[]>"
 /// @generic.instantiation id="first<string | int64[]>" template=first arguments=(string | int64[])
-/// @resolution.call source=[["a", 1]] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(["a", 1]) as string | int64[]) return=string | int64[][] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<string | int64[]>"
+/// @resolution.call source=[["a", 1]] parameters=(^Slice<string | int64[]>) arguments=(rest(provided(["a", 1]) as string | int64[]) as string | int64[]) return=string | int64[][] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<string | int64[]>"
 /// @generic.instantiation id="arrayFromOwnedSlice<string | int64[]>" template=arrayFromOwnedSlice arguments=(string | int64[])
-/// @resolution.call source=["a", 1] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest("a", 1) as string | int64) return=string | int64[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<string | int64>"
+/// @resolution.call source=["a", 1] parameters=(^Slice<string | int64>) arguments=(rest(provided("a") as string | int64, provided(1) as string | int64) as string | int64) return=string | int64[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<string | int64>"
 /// @generic.instantiation id="arrayFromOwnedSlice<string | int64>" template=arrayFromOwnedSlice arguments=(string | int64)
 "#,
         r#"
@@ -400,7 +399,7 @@ const items: int32[] = id([1, 2]);
 /// @resolution.name source=id target=id
 /// @resolution.call source="id([1, 2])" parameters=(int32[]) arguments=(provided([1, 2]) as int32[]) return=int32[] kind=symbol target=id instance=id<int32[]>
 /// @generic.instantiation id=id<int32[]> template=id arguments=(int32[])
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 
 const plain = id((1,));
@@ -416,7 +415,7 @@ const optional = first([1, 2]);
 /// @resolution.name source=first target=first
 /// @resolution.call source="first([1, 2])" parameters=(int64[] | undefined) arguments=(provided([1, 2]) as int64[] | undefined) return=int64 kind=symbol target=first instance=first<int64>
 /// @generic.instantiation id=first<int64> template=first arguments=(int64)
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 
 const expected: int32 = first([1, 2]);
@@ -425,7 +424,7 @@ const expected: int32 = first([1, 2]);
 /// @resolution.name source=first target=first
 /// @resolution.call source="first([1, 2])" parameters=(int32[] | undefined) arguments=(provided([1, 2]) as int32[] | undefined) return=int32 kind=symbol target=first instance=first<int32>
 /// @generic.instantiation id=first<int32> template=first arguments=(int32)
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 "#,
         r#"
 

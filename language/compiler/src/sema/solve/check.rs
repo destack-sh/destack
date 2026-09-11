@@ -624,7 +624,7 @@ impl CheckState<'_> {
     }
 
     /// Substitute the bounds and predicates one generic application declares.
-    fn substitute_constraint_checks(
+    pub(in crate::sema) fn substitute_constraint_checks(
         &mut self,
         origin: Origin,
         template: GenericTemplateId,

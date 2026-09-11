@@ -26,17 +26,17 @@ class Reader {
 
 === dir ===
 declare function read(count: int32 = 1): void;
-/// @type.symbol symbol=read source="declare function read(count: int32 = 1): void" type=(int32?) => void
+/// @type.symbol symbol=read source="declare function read(count: int32 = 1): void" type=(int32 | undefined?) => void
 /// @type.symbol symbol=read.count source="count: int32 = 1" type=int32
 
 class Reader {
-/// @type.symbol symbol=Reader type=Reader
+/// @type.symbol symbol=Reader type=typeof Reader
 /// @definition.class symbol=Reader
-/// @definition.method symbol=Reader.read source="declare read(count: int32 = 1): void" slot=read type=<Reader.read.P0: Place>(this: Managed<this, Reader.read.P0>, int32?) => void
+/// @definition.method symbol=Reader.read source="declare read(count: int32 = 1): void" slot=read type=<Reader.read.P0: Place>(this: Managed<this, Reader.read.P0>, int32 | undefined?) => void
 
     declare read(count: int32 = 1): void;
     /// @generic.template symbol=Reader.read parameters=(P0: Place)
-    /// @type.symbol symbol=Reader.read source="declare read(count: int32 = 1): void" type=<Reader.read.P0: Place>(this: Managed<this, Reader.read.P0>, int32?) => void
+    /// @type.symbol symbol=Reader.read source="declare read(count: int32 = 1): void" type=<Reader.read.P0: Place>(this: Managed<this, Reader.read.P0>, int32 | undefined?) => void
     /// @type.symbol symbol=Reader.read.count source="count: int32 = 1" type=int32
 
 }

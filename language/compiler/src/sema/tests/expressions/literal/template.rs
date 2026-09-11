@@ -27,7 +27,7 @@ const greeting = `hello ${name}`;
 /// @type.symbol symbol=greeting source=greeting type=string
 /// @resolution.pattern source=greeting kind=binding target=greeting
 /// @type.node source="`hello ${name}`" type=string
-/// @resolution.template source="`hello ${name}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"managed" & "local", string>, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+/// @resolution.template source="`hello ${name}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"managed" & "local", string>, regions=("managed" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
 /// @generic.instantiation id=Display.display<string> template=Display.display arguments=()
 /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
 /// @generic.instance id=Cow<string> template=Cow arguments=(string)
@@ -189,7 +189,7 @@ function label(point: Point): string {
 
     return `point ${point}`;
     /// @type.node source="`point ${point}`" type=string
-    /// @resolution.template source="`point ${point}`" spans=[display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+    /// @resolution.template source="`point ${point}`" spans=[display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
     /// @type.node source=point type=Point
     /// @resolution.name source=point target=label.point
     /// @resolution.place source=point placement="local" lifetime="frame" access="mutable"
@@ -244,7 +244,7 @@ function label(point: Point): string {
 /// @resolution.name source=Point target=Point
 
     return `point ${point}`;
-    /// @resolution.template source="`point ${point}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+    /// @resolution.template source="`point ${point}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
     /// @generic.instantiation id=Display.display<Point> template=Display.display arguments=()
     /// @resolution.name source=point target=label.point
     /// @resolution.place source=point placement="local" lifetime="frame" access="mutable"
@@ -293,7 +293,7 @@ const rendered = `x${count}`;
 /// @type.symbol symbol=rendered source=rendered type=string
 /// @resolution.pattern source=rendered kind=binding target=rendered
 /// @type.node source=`x${count}` type=string
-/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"static" & "constant", string>, regions=("static" & "constant"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"static" & "constant", string>, regions=("static" & "constant"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
 /// @generic.instantiation id=Display.display<float64> template=Display.display arguments=()
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
@@ -336,7 +336,7 @@ const contextual: `x${number}` = `x${count}`;
 /// @type.symbol symbol=contextual source=contextual type=`x${float64}`
 /// @resolution.pattern source=contextual kind=binding target=contextual
 /// @type.node source=`x${count}` type=`x${float64}`
-/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"static" & "constant", string>, regions=("static" & "constant"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"static" & "constant", string>, regions=("static" & "constant"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
 /// @generic.instantiation id=Display.display<float64> template=Display.display arguments=()
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
@@ -348,7 +348,7 @@ const asserted = `x${count}` as const;
 /// @resolution.pattern source=asserted kind=binding target=asserted
 /// @type.node source="`x${count}` as const" type=`x${float64}`
 /// @type.node source=`x${count}` type=`x${float64}`
-/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"static" & "constant", string>, regions=("static" & "constant"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+/// @resolution.template source=`x${count}` spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"static" & "constant", string>, regions=("static" & "constant"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
 /// @type.node source=count type=float64
 /// @resolution.name source=count target=count
 /// @resolution.place source=count placement="constant" lifetime="static" access="readonly"

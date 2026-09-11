@@ -389,6 +389,8 @@ const parser = parse;
         r#"
 /// @diagnostic.error id=ambiguous-overload message="overload 'parse' is ambiguous without a call"
 /// @diagnostic.label line=10 column=16 span="parse" line_source="const parser = parse;"
+/// @diagnostic.related line=2 column=10 span="parse" line_source="function parse(value: int32): int32 {" message="one candidate is declared here"
+/// @diagnostic.related line=6 column=10 span="parse" line_source="function parse(value: string): string {" message="one candidate is declared here"
 "#,
     );
 }
@@ -422,7 +424,7 @@ function render(value: string): string {
     return value;
 }
 
-const text: (arg0: string) => string = render;
+const text: (value: string) => string = render;
 
 === dir ===
 function render(value: int32): int32 {
@@ -486,7 +488,7 @@ function render(value: string): string {
     return value;
 }
 
-const chosen: (arg0: boolean) => boolean = render;
+const chosen: (value: boolean) => boolean = render;
 
 === dir ===
 function render(value: int32): int32 {
@@ -520,6 +522,8 @@ const chosen: (value: boolean) => boolean = render;
         r#"
 /// @diagnostic.error id=ambiguous-overload message="overload 'render' is ambiguous without a call"
 /// @diagnostic.label line=10 column=45 span="render" line_source="const chosen: (value: boolean) => boolean = render;"
+/// @diagnostic.related line=2 column=10 span="render" line_source="function render(value: int32): int32 {" message="one candidate is declared here"
+/// @diagnostic.related line=6 column=10 span="render" line_source="function render(value: string): string {" message="one candidate is declared here"
 "#,
     );
 }
@@ -594,7 +598,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         /// @resolution.name source=result target=sum.symbol5.result
         /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
         /// @resolution.access source=result root=sum.symbol5.result
-        /// @resolution.residual source=result? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
+        /// @resolution.residual source=result? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied(0) as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
         /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
         /// @generic.instantiation id="fromResidual<int32, string, TryResidual<Result<int32, string>>>" template=fromResidual arguments=(int32, string, TryResidual<Result<int32, string>>)
         /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
@@ -690,11 +694,11 @@ newtype interface It<in out T, out R = void> {
         todo("next" as string | undefined)
     }
 
-    reduce(this, reduce: (arg0: T, arg1: T) => T): T {
+    reduce(this, reduce: (accumulator: T, value: T) => T): T {
         todo("reduce" as string | undefined)
     }
 
-    reduce<U>(this, reduce: (arg0: U, arg1: T) => U, initial: U): U {
+    reduce<U>(this, reduce: (accumulator: U, value: T) => U, initial: U): U {
         todo("reduce" as string | undefined)
     }
 }
@@ -921,7 +925,7 @@ function append(values: int32[], more: ^int32[]): int32 {
     /// @type.node source=values.push type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize
     /// @resolution.name source=values target=append.values
     /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="values.push(1, 2)" parameters=(int32[]) arguments=(rest(1, 2) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+    /// @resolution.call source="values.push(1, 2)" parameters=(int32[]) arguments=(rest(provided(1) as int32, provided(2) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=append.values
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
@@ -955,9 +959,15 @@ function append(values: int32[], more: ^int32[]): int32 {
     /// @type.node source=values.push(...more) type=isize
     /// @resolution.name source=values target=append.values
     /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source=values.push(...more) parameters=(int32[]) arguments=(rest(...more) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+    /// @resolution.call source=values.push(...more) parameters=(int32[]) arguments=(rest(spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=append.values
+    /// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
+    /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+    /// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32)
+    /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+    /// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
+    /// @generic.instance id=iterator#1<int32> template=iterator#1 arguments=(int32)
     /// @resolution.name source=more target=append.more
     /// @resolution.place source=more placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=more root=append.more
@@ -967,7 +977,7 @@ function append(values: int32[], more: ^int32[]): int32 {
     /// @type.node source=values.push type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize
     /// @resolution.name source=values target=append.values
     /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="values.push(1, ...more, 3)" parameters=(int32[]) arguments=(rest(1, ...more, 3) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+    /// @resolution.call source="values.push(1, ...more, 3)" parameters=(int32[]) arguments=(rest(provided(1) as int32, spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32, provided(3) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=append.values
     /// @type.node source=1 type=1
@@ -979,7 +989,7 @@ function append(values: int32[], more: ^int32[]): int32 {
     return total(1, ...more, 3);
     /// @type.node source="total(1, ...more, 3)" type=int32
     /// @resolution.name source=total target=total
-    /// @resolution.call source="total(1, ...more, 3)" parameters=(int32[]) arguments=(rest(1, ...more, 3) pack=arrayFromOwnedSlice as int32) return=int32 kind=symbol target=total
+    /// @resolution.call source="total(1, ...more, 3)" parameters=(int32[]) arguments=(rest(provided(1) as int32, spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32, provided(3) as int32) pack=arrayFromOwnedSlice as int32) return=int32 kind=symbol target=total
     /// @type.node source=1 type=1
     /// @resolution.name source=more target=append.more
     /// @resolution.place source=more placement="local" lifetime="frame" access="mutable"
@@ -1036,7 +1046,8 @@ function fails(more: ^int32[]): int32 {
     return pick(...more);
     /// @type.node source=pick(...more) type=<error>
     /// @resolution.name source=pick target=pick
-    /// @resolution.call source=pick(...more) parameters=(int32) arguments=(provided(...more) as int32) return=int32 kind=symbol target=pick
+    /// @resolution.call source=pick(...more) parameters=(int32) arguments=(spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) return=int32 kind=symbol target=pick
+    /// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
     /// @resolution.name source=more target=fails.more
     /// @resolution.place source=more placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=more root=fails.more
@@ -1305,8 +1316,9 @@ function forward(values: int32[][]): void {
 
     take(...values);
     /// @resolution.name source=take target=take
-    /// @resolution.call source=take(...values) parameters=(int32 | readonly int32[][]) arguments=(rest(...values) pack=arrayFromOwnedSlice as int32 | readonly int32[]) return=void kind=symbol target=take
+    /// @resolution.call source=take(...values) parameters=(int32 | readonly int32[][]) arguments=(rest(spread(provided(...values) as int32[][], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32[]>), next=dynamic(Iterator<int32[]> as Iterator<int32[]>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32[], void>)) as int32 | readonly int32[]) pack=arrayFromOwnedSlice as int32 | readonly int32[]) return=void kind=symbol target=take
     /// @generic.instantiation id="arrayFromOwnedSlice<int32 | readonly int32[]>" template=arrayFromOwnedSlice arguments=(int32 | readonly int32[])
+    /// @generic.instantiation id="iterator#2<int32[], \"local\">" template=iterator#2 arguments=(int32[], "local")
     /// @resolution.name source=values target=forward.values
     /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=values root=forward.values

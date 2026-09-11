@@ -94,8 +94,7 @@ impl CheckState<'_> {
         };
 
         // take the expected type as the builder when it implements the protocol
-        let protocol =
-            self.language_protocol(origin.module(), dir::LanguageItem::TreeBuilder, Vec::new())?;
+        let protocol = self.language_protocol(dir::LanguageItem::TreeBuilder, Vec::new())?;
         let interface = protocol.instance(self)?;
         let interface = self.intern_type(dir::Type::Application(interface))?;
         let implements =
@@ -610,6 +609,7 @@ impl CheckState<'_> {
             &[],
             &[CallableArgument {
                 source: node,
+                argument: dir::ArgumentSource::Supplied(0),
                 value: ArgumentValue::Typed(row),
                 relation: Relation::Storable,
                 use_: ValueUse::Argument,
@@ -640,6 +640,7 @@ impl CheckState<'_> {
             target,
             callable_type: selection.callable,
             arguments: vec![dir::ArgumentBinding {
+                coercion: None,
                 parameter_type: row,
                 argument_type: row,
                 source: dir::ArgumentSource::Static(row),
@@ -679,28 +680,13 @@ impl CheckState<'_> {
         let origin = site.origin();
         let module = node.module_id;
         let callee_node = tag.into_global_any(module);
-        let declared = self.definition(symbol)?;
-        let Some(dir::Definition::Class(definition)) = declared.as_deref() else {
-            return Err(CompilerError::Internal {
-                message: "tree class component lost its definition".to_string(),
-            });
-        };
-        let constructors = definition.constructors.clone();
-        let extends = definition.extends.clone();
         let arguments = self.intern_type_ids(&[])?;
         let instance = dir::GenericApplication { symbol, arguments };
         let target = self.intern_type(dir::Type::Application(instance))?;
 
         // first-match constructor selection binds the props parameter
         let mut active = SmallVec::new();
-        let constructors = self.collect_class_construct_candidates(
-            origin,
-            target,
-            &instance,
-            constructors,
-            extends,
-            &mut active,
-        )?;
+        let constructors = self.class_constructors(origin, target, &instance, &mut active)?;
         let Some(constructor) = constructors.first().cloned() else {
             return Err(CompilerError::Internal {
                 message: format!("class {symbol:?} has no construct candidates"),
@@ -733,6 +719,7 @@ impl CheckState<'_> {
             constructor.ty,
             &[CallableArgument {
                 source: node,
+                argument: dir::ArgumentSource::Supplied(0),
                 value: ArgumentValue::Typed(row),
                 relation: Relation::Storable,
                 use_: ValueUse::Argument,
@@ -753,6 +740,7 @@ impl CheckState<'_> {
                 constructor: constructor.constructor,
             },
             vec![dir::ArgumentBinding {
+                coercion: None,
                 parameter_type: row,
                 argument_type: row,
                 source: dir::ArgumentSource::Static(row),

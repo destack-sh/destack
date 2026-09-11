@@ -168,6 +168,7 @@ impl CheckState<'_> {
                             backing: component.ty,
                         },
                         vec![dir::ArgumentBinding {
+                            coercion: None,
                             parameter_type: component.ty,
                             argument_type: component.ty,
                             source: dir::ArgumentSource::Provided(

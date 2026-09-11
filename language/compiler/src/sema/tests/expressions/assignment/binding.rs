@@ -1,5 +1,258 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A binding declared inside a loop body starts each iteration uninitialized.
+#[test]
+fn test_read_unassigned_loop_local() {
+    let session = TestSession::single(
+        r#"
+export function ok(): void {
+    loop {
+        const x = 1;
+    }
+}
+
+export function fail(): void {
+    loop {
+        let x: int32;
+        const y = x + 1;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+export function ok(): void {
+    loop {
+        const x: 1 = 1;
+    }
+}
+
+export function fail(): void {
+    loop {
+        let x: int32;
+        const y: int32 = x + 1;
+    }
+}
+
+=== dir ===
+export function ok(): void {
+/// @type.symbol symbol=ok type=() => void
+
+    loop {
+        const x = 1;
+        /// @type.symbol symbol=ok.x source=x type=1
+        /// @resolution.pattern source=x kind=binding target=ok.x
+
+    }
+}
+
+export function fail(): void {
+/// @type.symbol symbol=fail type=() => void
+
+    loop {
+        let x: int32;
+        /// @type.symbol symbol=fail.x source=x type=int32
+        /// @resolution.pattern source=x kind=binding target=fail.x
+
+        const y = x + 1;
+        /// @type.symbol symbol=fail.y source=y type=int32
+        /// @resolution.pattern source=y kind=binding target=fail.y
+        /// @resolution.name source=x target=fail.x
+        /// @resolution.operator source="x + 1" type=int32 operator="+" kind=builtin operands=[x as int32 families=(integer), 1 as int32 families=(integer)]
+        /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+        /// @resolution.access source=x root=fail.x
+
+    }
+}
+"#, r#"
+/// @diagnostic.error id=use-before-assigned message="'x' is used before being assigned"
+/// @diagnostic.label line=11 column=19 span="x" line_source="const y = x + 1;"
+/// @diagnostic.related line=10 column=13 span="x" line_source="let x: int32;" message="declared here"
+"#);
+}
+
+/// A binding read before every path assigns it is uninitialized.
+#[test]
+fn test_read_partially_assigned_bindings() {
+    let session = TestSession::single(
+        r#"
+function foo(x: int32): void {}
+
+export function uninit(): void {
+    let x: int32;
+    foo(x);
+}
+
+export function ifNoElse(flag: boolean): void {
+    let x: int32;
+    if (flag) {
+        x = 10;
+    }
+    foo(x);
+}
+
+export function ifWithElse(flag: boolean): void {
+    let x: int32;
+    if (flag) {
+        x = 10;
+    } else {
+        x = 20;
+    }
+    foo(x);
+}
+
+export function whileCond(): void {
+    let x: boolean;
+    while (x) {}
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+function foo(x: int32): void {}
+
+export function uninit(): void {
+    let x: int32;
+    foo(x);
+}
+
+export function ifNoElse(flag: boolean): void {
+    let x: int32;
+    if (flag) {
+        x = 10;
+    }
+    foo(x);
+}
+
+export function ifWithElse(flag: boolean): void {
+    let x: int32;
+    if (flag) {
+        x = 10;
+    } else {
+        x = 20;
+    }
+    foo(x);
+}
+
+export function whileCond(): void {
+    let x: boolean;
+    while (x) {}
+}
+
+=== dir ===
+function foo(x: int32): void {}
+/// @type.symbol symbol=foo source="function foo(x: int32): void {}" type=(int32) => void
+/// @type.symbol symbol=foo.x source="x: int32" type=int32
+
+export function uninit(): void {
+/// @type.symbol symbol=uninit type=() => void
+
+    let x: int32;
+    /// @type.symbol symbol=uninit.x source=x type=int32
+    /// @resolution.pattern source=x kind=binding target=uninit.x
+
+    foo(x);
+    /// @resolution.name source=foo target=foo
+    /// @resolution.call source=foo(x) parameters=(int32) arguments=(provided(x) as int32) return=void kind=symbol target=foo
+    /// @resolution.name source=x target=uninit.x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=x root=uninit.x
+
+}
+
+export function ifNoElse(flag: boolean): void {
+/// @type.symbol symbol=ifNoElse type=(boolean) => void
+/// @type.symbol symbol=ifNoElse.flag source="flag: boolean" type=boolean
+
+    let x: int32;
+    /// @type.symbol symbol=ifNoElse.x source=x type=int32
+    /// @resolution.pattern source=x kind=binding target=ifNoElse.x
+
+    if (flag) {
+    /// @resolution.name source=flag target=ifNoElse.flag
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=flag root=ifNoElse.flag
+
+        x = 10;
+        /// @resolution.name source=x target=ifNoElse.x
+        /// @resolution.pattern.assign source=x kind=place
+        /// @resolution.access source=x root=ifNoElse.x
+        /// @resolution.assignment source=x write=binding(ifNoElse.x) type=int32
+
+    }
+    foo(x);
+    /// @resolution.name source=foo target=foo
+    /// @resolution.call source=foo(x) parameters=(int32) arguments=(provided(x) as int32) return=void kind=symbol target=foo
+    /// @resolution.name source=x target=ifNoElse.x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=x root=ifNoElse.x
+
+}
+
+export function ifWithElse(flag: boolean): void {
+/// @type.symbol symbol=ifWithElse type=(boolean) => void
+/// @type.symbol symbol=ifWithElse.flag source="flag: boolean" type=boolean
+
+    let x: int32;
+    /// @type.symbol symbol=ifWithElse.x source=x type=int32
+    /// @resolution.pattern source=x kind=binding target=ifWithElse.x
+
+    if (flag) {
+    /// @resolution.name source=flag target=ifWithElse.flag
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=flag root=ifWithElse.flag
+
+        x = 10;
+        /// @resolution.name source=x target=ifWithElse.x
+        /// @resolution.pattern.assign source=x kind=place
+        /// @resolution.access source=x root=ifWithElse.x
+        /// @resolution.assignment source=x write=binding(ifWithElse.x) type=int32
+
+    } else {
+        x = 20;
+        /// @resolution.name source=x target=ifWithElse.x
+        /// @resolution.pattern.assign source=x kind=place
+        /// @resolution.access source=x root=ifWithElse.x
+        /// @resolution.assignment source=x write=binding(ifWithElse.x) type=int32
+
+    }
+    foo(x);
+    /// @resolution.name source=foo target=foo
+    /// @resolution.call source=foo(x) parameters=(int32) arguments=(provided(x) as int32) return=void kind=symbol target=foo
+    /// @resolution.name source=x target=ifWithElse.x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=x root=ifWithElse.x
+
+}
+
+export function whileCond(): void {
+/// @type.symbol symbol=whileCond type=() => void
+
+    let x: boolean;
+    /// @type.symbol symbol=whileCond.x source=x type=boolean
+    /// @resolution.pattern source=x kind=binding target=whileCond.x
+
+    while (x) {}
+    /// @resolution.name source=x target=whileCond.x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.access source=x root=whileCond.x
+
+}
+"#, r#"
+/// @diagnostic.error id=use-before-assigned message="'x' is used before being assigned"
+/// @diagnostic.label line=6 column=9 span="x" line_source="foo(x);"
+/// @diagnostic.related line=5 column=9 span="x" line_source="let x: int32;" message="declared here"
+/// @diagnostic.error id=use-before-assigned message="'x' is used before being assigned"
+/// @diagnostic.label line=14 column=9 span="x" line_source="foo(x);"
+/// @diagnostic.related line=10 column=9 span="x" line_source="let x: int32;" message="declared here"
+/// @diagnostic.error id=use-before-assigned message="'x' is used before being assigned"
+/// @diagnostic.label line=29 column=12 span="x" line_source="while (x) {}"
+/// @diagnostic.related line=28 column=9 span="x" line_source="let x: boolean;" message="declared here"
+"#);
+}
+
 #[test]
 fn test_initializer_rejects_incompatible_value() {
     let session = TestSession::single(
@@ -292,7 +545,7 @@ values = [1, 2];
 /// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=int32[]
 /// @type.node source=[1, 2] type=int32[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -352,7 +605,7 @@ values = [];
 /// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=int32[]
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)

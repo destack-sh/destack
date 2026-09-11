@@ -457,11 +457,11 @@ const result: Promise<string> = Promise.resolve(input);
 /// @type.symbol symbol=result source=result type=Promise<string>
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=Promise target=Promise
-/// @type.node source=Promise type=Promise
+/// @type.node source=Promise type=typeof Promise
 /// @type.node source=Promise.resolve type=<Promise.resolve.T#1: Copy>(Promise<Promise.resolve.T#1>) => Promise<Promise.resolve.T#1> & <Promise.resolve.T#2: Copy>(Promise.resolve.T#2) => Promise<Promise.resolve.T#2>
 /// @type.node source=Promise.resolve(input) type=Promise<string>
 /// @resolution.name source=Promise target=Promise
-/// @resolution.member source=Promise.resolve receiver=Promise type=<Promise.resolve.T#1: Copy>(Promise<Promise.resolve.T#1>) => Promise<Promise.resolve.T#1> & <Promise.resolve.T#2: Copy>(Promise.resolve.T#2) => Promise<Promise.resolve.T#2> kind=overload-set targets=[Promise.resolve#1, Promise.resolve#2]
+/// @resolution.member source=Promise.resolve receiver=typeof Promise type=<Promise.resolve.T#1: Copy>(Promise<Promise.resolve.T#1>) => Promise<Promise.resolve.T#1> & <Promise.resolve.T#2: Copy>(Promise.resolve.T#2) => Promise<Promise.resolve.T#2> kind=overload-set targets=[Promise.resolve#1, Promise.resolve#2]
 /// @resolution.call source=Promise.resolve(input) parameters=(Promise<string>) arguments=(provided(input) as Promise<string>) return=Promise<string> kind=symbol target=Promise.resolve#1 instance=Promise.resolve#1<string>
 /// @generic.instantiation id=Promise.resolve#1<string> template=Promise.resolve#1 arguments=(string)
 /// @generic.instance id=Promise.resolve#1<string> template=Promise.resolve#1 arguments=(string)
@@ -602,7 +602,7 @@ const values = identity([1, 2]);
 /// @generic.instantiation id=identity<int64[]> template=identity arguments=(int64[])
 /// @generic.instance id=identity<int64[]> template=identity arguments=(int64[])
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -665,12 +665,10 @@ function first<T>(values: T[]): T {
     /// @resolution.access source=values[0] root=first.values keys=[0]
     /// @resolution.subscript source=values[0] type=T kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<T, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
     /// @generic.instantiation id="index#1<T, \"mutable\">" template=index#1 arguments=(T, "mutable") owner=first
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="assumeInitReference<T, \"mutable\">" template=assumeInitReference arguments=(T, "mutable")
     /// @generic.instance id="elementSlot<T, \"mutable\">" template=elementSlot arguments=(T, "mutable")
     /// @generic.instance id="index#1<T, \"mutable\">" template=index#1 arguments=(T, "mutable")
     /// @generic.instance id="sliceIndex<MaybeUninit<T>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<T>, "mutable")
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id=elementPosition<T> template=elementPosition arguments=(T)
     /// @type.node source=0 type=0
 
@@ -701,9 +699,11 @@ const value = first([1, 2]);
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
@@ -915,7 +915,7 @@ function identity<T>(value: T): T {
     return value;
 }
 
-const asInt = identity<int32>;
+const asInt: (value: int32) => int32 = identity<int32>;
 
 === dir ===
 function identity<T>(value: T): T {
@@ -935,11 +935,13 @@ function identity<T>(value: T): T {
 }
 
 const asInt = identity<int32>;
-/// @type.symbol symbol=asInt source=asInt type=<T>(int32) => int32
+/// @type.symbol symbol=asInt source=asInt type=Function<(int32,), int32, "readonly">
 /// @resolution.pattern source=asInt kind=binding target=asInt
-/// @type.node source=identity<int32> type=<T>(int32) => int32
+/// @type.node source=identity type=Function<(T,), T, "readonly">
+/// @type.node source=identity<int32> type=Function<(int32,), int32, "readonly">
 /// @resolution.name source=identity target=identity
-/// @resolution.function source=identity<int32> type=<T>(int32) => int32 target=identity instance=identity<int32>
+/// @resolution.function source=identity type=Function<(T,), T, "readonly"> target=identity
+/// @resolution.function source=identity<int32> type=Function<(int32,), int32, "readonly"> target=identity instance=identity<int32>
 /// @generic.instantiation id=identity<int32> template=identity arguments=(int32)
 /// @generic.instance id=identity<int32> template=identity arguments=(int32)
 "#,
@@ -1019,12 +1021,13 @@ function parse<T>(value: T[]): T {
 const parser = parse<int32>;
 /// @type.symbol symbol=parser source=parser type=<error>
 /// @resolution.pattern source=parser kind=binding target=parser
+/// @type.node source=parse type=<error>
 /// @type.node source=parse<int32> type=<error>
 /// @resolution.name source=parse target=[parse#1, parse#2]
 /// @resolution.rejected source=parse<int32>
 "#,
         r#"
-/// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'parse'"
+/// @diagnostic.error id=ambiguous-overload message="overload 'parse' is ambiguous without a call"
 /// @diagnostic.label line=10 column=16 span="parse" line_source="const parser = parse<int32>;"
 /// @diagnostic.related line=2 column=10 span="parse" line_source="function parse<T>(value: T): T {" message="one candidate is declared here"
 /// @diagnostic.related line=6 column=10 span="parse" line_source="function parse<T>(value: T[]): T {" message="one candidate is declared here"
@@ -1218,8 +1221,8 @@ function accept<T>(value: T): T where T: Marker {
     return value;
 }
 
-const accepted = accept<Good>;
-const rejected = accept<int32>;
+const accepted: (value: Good) => Good = accept<Good>;
+const rejected: (value: int32) => int32 = accept<int32>;
 
 === dir ===
 newtype interface Marker {}
@@ -1257,20 +1260,24 @@ function accept<T>(value: T): T where T: Marker {
 }
 
 const accepted = accept<Good>;
-/// @type.symbol symbol=accepted source=accepted type=<T>(Good) => Good
+/// @type.symbol symbol=accepted source=accepted type=Function<(Good,), Good, "readonly">
 /// @resolution.pattern source=accepted kind=binding target=accepted
-/// @type.node source=accept<Good> type=<T>(Good) => Good
+/// @type.node source=accept type=Function<(T,), T, "readonly">
+/// @type.node source=accept<Good> type=Function<(Good,), Good, "readonly">
 /// @resolution.name source=accept target=accept
-/// @resolution.function source=accept<Good> type=<T>(Good) => Good target=accept instance=accept<Good>
+/// @resolution.function source=accept type=Function<(T,), T, "readonly"> target=accept
+/// @resolution.function source=accept<Good> type=Function<(Good,), Good, "readonly"> target=accept instance=accept<Good>
 /// @generic.instantiation id=accept<Good> template=accept arguments=(Good)
 /// @resolution.name source=Good target=Good
 
 const rejected = accept<int32>;
-/// @type.symbol symbol=rejected source=rejected type=<T>(int32) => int32
+/// @type.symbol symbol=rejected source=rejected type=Function<(int32,), int32, "readonly">
 /// @resolution.pattern source=rejected kind=binding target=rejected
-/// @type.node source=accept<int32> type=<T>(int32) => int32
+/// @type.node source=accept type=Function<(T,), T, "readonly">
+/// @type.node source=accept<int32> type=Function<(int32,), int32, "readonly">
 /// @resolution.name source=accept target=accept
-/// @resolution.function source=accept<int32> type=<T>(int32) => int32 target=accept instance=accept<int32>
+/// @resolution.function source=accept type=Function<(T,), T, "readonly"> target=accept
+/// @resolution.function source=accept<int32> type=Function<(int32,), int32, "readonly"> target=accept instance=accept<int32>
 /// @generic.instantiation id=accept<int32> template=accept arguments=(int32)
 "#,
         r#"
@@ -1698,7 +1705,7 @@ type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
 
 class Values<T> {
 /// @generic.template symbol=Values parameters=(T#2)
-/// @type.symbol symbol=Values type=Values
+/// @type.symbol symbol=Values type=typeof Values
 /// @definition.class symbol=Values template=(T#2)
 /// @definition.method symbol=Values.flat slot=flat type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly this, Depth#2 | undefined?) => Element<T#2, Depth#2>[]
 /// @type.symbol symbol=Values.T source=T type=T#2
@@ -1811,7 +1818,7 @@ type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
 
 declare class Values<out T> {}
 /// @generic.template symbol=Values parameters=(out T#2)
-/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=Values
+/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=typeof Values
 /// @definition.class symbol=Values source="declare class Values<out T> {}" template=(out T#2)
 /// @type.symbol symbol=Values.T source="out T" type=T#2
 
@@ -1890,7 +1897,7 @@ const defined = filterMap(values, (value) => {
         DirRows::checked(),
         r#"
 === annotated ===
-declare function filterMap<T, U>(values: T[], callback: (arg0: T) => U | undefined): U[];
+declare function filterMap<T, U>(values: T[], callback: (value: T) => U | undefined): U[];
 
 declare const values: (int32 | undefined)[];
 
@@ -2008,7 +2015,7 @@ type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
 
 declare class Values<out T> {}
 /// @generic.template symbol=Values parameters=(out T#2)
-/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=Values
+/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=typeof Values
 /// @definition.class symbol=Values source="declare class Values<out T> {}" template=(out T#2)
 /// @type.symbol symbol=Values.T source="out T" type=T#2
 
@@ -2215,7 +2222,7 @@ type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
 
 declare class Values<out T> {}
 /// @generic.template symbol=Values parameters=(out T#2)
-/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=Values
+/// @type.symbol symbol=Values source="declare class Values<out T> {}" type=typeof Values
 /// @definition.class symbol=Values source="declare class Values<out T> {}" template=(out T#2)
 /// @type.symbol symbol=Values.T source="out T" type=T#2
 
@@ -2406,7 +2413,7 @@ const held: Holder<int32> = Holder<int32>.wrap<int32>(42);
 === dir ===
 declare class Holder<out T> {}
 /// @generic.template symbol=Holder parameters=(out T#1)
-/// @type.symbol symbol=Holder source="declare class Holder<out T> {}" type=Holder
+/// @type.symbol symbol=Holder source="declare class Holder<out T> {}" type=typeof Holder
 /// @definition.class symbol=Holder source="declare class Holder<out T> {}" template=(out T#1)
 /// @type.symbol symbol=Holder.T source="out T" type=T#1
 
@@ -2437,10 +2444,9 @@ const held: Holder<int32> = Holder<int32>.wrap(42);
 /// @resolution.pattern source=held kind=binding target=held
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Holder target=Holder
-/// @resolution.member source=Holder<int32>.wrap receiver=Holder<int32> type=(int32) => Holder<int32> kind=symbol target_receiver=Holder<int32> target=wrap
+/// @resolution.name source=Holder<int32> target=Holder
+/// @resolution.member source=Holder<int32>.wrap receiver=typeof Holder<int32> type=(int32) => Holder<int32> kind=symbol target_receiver=typeof Holder<int32> target=wrap
 /// @resolution.call source=Holder<int32>.wrap(42) parameters=(int32) arguments=(provided(42) as int32) return=Holder<int32> kind=symbol target=wrap instance=Holder<int32>.<extension#1>.wrap
-/// @resolution.function source=Holder<int32> type=Holder<int32> target=Holder instance=Holder<int32>
-/// @generic.instantiation id=Holder<int32> template=Holder arguments=(int32)
 /// @generic.instantiation id=wrap<int32> template=wrap arguments=(int32)
 "#,
         r#"
@@ -2515,7 +2521,7 @@ const picked = pick(boxed);
 === dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T#1)
-/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=typeof Box
 /// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T#1)
 /// @type.symbol symbol=Box.T source="in out T" type=T#1
 
@@ -2584,7 +2590,7 @@ const doubled = collect(collect(starts, (start) => {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare function collect<T, U>(values: T[], step: (arg0: T) => U | undefined): U[];
+declare function collect<T, U>(values: T[], step: (value: T) => U | undefined): U[];
 declare const starts: (int32 | undefined)[];
 
 const doubled: int32[] = collect<int32, int32>(
@@ -2737,7 +2743,7 @@ extension<T, E> of AsyncResult<T, E> {
     session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 declare class Promise<out T> {
-    then<U>(onFulfilled: (arg0: T) => U | Promise<U>): Promise<U>;
+    then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>;
 }
 
 struct Ok<out T> {
@@ -2755,7 +2761,7 @@ newtype Result<out T, out E> = Ok<T> | Err<E>;
 declare function result<T, E>(): Result<T, E>;
 
 extension<T, E> of Result<T, E> {
-    andThen<U, F>(f: (arg0: T) => Result<U, F>): Result<U, E | F> {
+    andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
         result<U, E | F>()
     }
 }
@@ -2763,7 +2769,7 @@ extension<T, E> of Result<T, E> {
 newtype AsyncResult<out T, out E> = Promise<Result<T, E>>;
 
 extension<T, E> of AsyncResult<T, E> {
-    andThenSync<U, F>(f: (arg0: T) => Result<U, F>): AsyncResult<U, E | F> {
+    andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
         AsyncResult(
             this.then<Result<T, E>, Result<U, E | F>, P2>(
                 (result: Result<T, E>): Result<U, E | F> | Promise<Result<U, E | F>> =>
@@ -2776,7 +2782,7 @@ extension<T, E> of AsyncResult<T, E> {
 === dir ===
 declare class Promise<T> {
 /// @generic.template symbol=Promise parameters=(out T#1)
-/// @type.symbol symbol=Promise type=Promise
+/// @type.symbol symbol=Promise type=typeof Promise
 /// @definition.class symbol=Promise template=(out T#1)
 /// @definition.method symbol=Promise.then source="then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>" slot=then type=<U#1, Promise.then.P1: Place>(this: Managed<Promise<T#1>, Promise.then.P1>, Function<(T#1,), U#1 | Promise<U#1>>) => Promise<U#1>
 /// @type.symbol symbol=Promise.T source=T type=T#1
@@ -3374,7 +3380,7 @@ const result = fix((value) => [value]);
         DirRows::checked(),
         r#"
 === annotated ===
-declare function fix<T>(step: (arg0: T) => T): T;
+declare function fix<T>(step: (value: T) => T): T;
 
 const result = fix((value) => [value]);
 
@@ -3396,7 +3402,7 @@ const result = fix((value) => [value]);
 /// @resolution.call source="fix((value) => [value])" parameters=(Function<(<error>[],), <error>[]>) arguments=(provided((value) => [value]) as Function<(<error>[],), <error>[]>) return=<error>[] kind=symbol target=fix instance=fix<<error>[]>
 /// @type.symbol symbol=symbol5 source="(value) => [value]" type=Function<(<error>[],), <error>[], "readonly">
 /// @type.symbol symbol=symbol5.value source=value type=<error>[]
-/// @resolution.call source=[value] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(value) as <error>) return=<error>[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<<error>>
+/// @resolution.call source=[value] parameters=(^Slice<<error>>) arguments=(rest(provided(value) as <error>) as <error>) return=<error>[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<<error>>
 /// @resolution.name source=value target=symbol5.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
 /// @resolution.access source=value root=symbol5.value

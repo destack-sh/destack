@@ -1,5 +1,619 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A specialized class value satisfies its constructor signature.
+#[test]
+fn test_assign_specialized_constructor() {
+    let session = TestSession::single(
+        r#"
+class Box<out T> {}
+
+const create: new () => Box<int32> = Box<int32>;
+
+const box = new create();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+class Box<out T> {}
+
+const create: new () => Box<int32> = Box<int32> as new () => Box<int32>;
+
+const box: Box<int32> = new create();
+
+=== dir ===
+class Box<out T> {}
+/// @generic.template symbol=Box parameters=(out T)
+/// @type.symbol symbol=Box source="class Box<out T> {}" type=typeof Box
+/// @definition.class symbol=Box source="class Box<out T> {}" template=(out T)
+/// @type.symbol symbol=Box.T source="out T" type=T
+
+const create: new () => Box<int32> = Box<int32>;
+/// @type.symbol symbol=create source=create type=new () => Box<int32>
+/// @resolution.pattern source=create kind=binding target=create
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Box<int32> target=Box
+/// @generic.instantiation id=Box<int32> template=Box arguments=(int32)
+/// @coercion.node source=Box<int32> from=typeof Box<int32> adjustments=[{ kind: constructor, target: new () => Box<int32> }] origin=implicit
+
+const box = new create();
+/// @type.symbol symbol=box source=box type=Box<int32>
+/// @resolution.pattern source=box kind=binding target=box
+/// @resolution.call source="new create()" parameters=() return=Box<int32> kind=expression target=expression
+/// @resolution.name source=create target=create
+/// @resolution.place source=create placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=create root=create
+"#,
+    );
+}
+
+/// A constructor call reads the selected static field.
+#[test]
+fn test_construct_through_static_class_value() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+declare class Constructors {
+    static user: typeof User;
+}
+
+const user = new Constructors.user();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+class User {}
+
+declare class Constructors {
+    static user: typeof User;
+}
+
+const user: User = new Constructors.user();
+
+=== dir ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=typeof User
+/// @definition.class symbol=User source="class User {}"
+
+declare class Constructors {
+/// @type.symbol symbol=Constructors type=typeof Constructors
+/// @definition.class symbol=Constructors
+/// @definition.field symbol=Constructors.user source="static user: typeof User" key=user static=true type=typeof User
+
+    static user: typeof User;
+    /// @type.symbol symbol=Constructors.user source="static user: typeof User" type=typeof User
+    /// @resolution.name source=User target=User
+
+}
+
+const user = new Constructors.user();
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
+/// @resolution.construct source="new Constructors.user()" parameters=() return=User kind=class target=User constructor=default
+/// @resolution.name source=Constructors target=Constructors
+/// @resolution.member source=Constructors.user receiver=typeof Constructors type=typeof User kind=field target_receiver=typeof Constructors key=user target=Constructors.user target_type=typeof User
+/// @resolution.access source=Constructors.user root=Constructors keys=[user]
+"#,
+    );
+}
+
+/// A constructor call reads the selected instance field.
+#[test]
+fn test_construct_through_instance_class_value() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+struct Factory {
+    user: typeof User;
+}
+
+declare const factory: Factory;
+
+const user = new factory.user();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+class User {}
+
+struct Factory {
+    user: typeof User;
+}
+
+declare const factory: Factory;
+
+const user: User = new factory.user();
+
+=== dir ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=typeof User
+/// @definition.class symbol=User source="class User {}"
+
+struct Factory {
+/// @type.symbol symbol=Factory type=Factory
+/// @definition.struct symbol=Factory
+/// @definition.field symbol=Factory.user source="user: typeof User" key=user type=typeof User
+
+    user: typeof User;
+    /// @type.symbol symbol=Factory.user source="user: typeof User" type=typeof User
+    /// @resolution.name source=User target=User
+
+}
+
+declare const factory: Factory;
+/// @type.symbol symbol=factory source=factory type=Factory
+/// @resolution.pattern source=factory kind=binding target=factory
+/// @resolution.name source=Factory target=Factory
+
+const user = new factory.user();
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
+/// @resolution.construct source="new factory.user()" parameters=() return=User kind=class target=User constructor=default
+/// @resolution.name source=factory target=factory
+/// @resolution.member source=factory.user receiver=Factory type=typeof User kind=field target_receiver=Factory key=user target=Factory.user target_type=typeof User
+/// @resolution.place source=factory placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=factory root=factory
+/// @resolution.access source=factory.user root=factory keys=[user]
+"#,
+    );
+}
+
+/// Indexed constructor values construct the selected class.
+#[test]
+fn test_construct_through_indexed_class_values() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+declare const constructors: [typeof User];
+
+const user = new constructors[0]();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+class User {}
+
+declare const constructors: [typeof User];
+
+const user: User = new constructors[0]();
+
+=== dir ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=typeof User
+/// @definition.class symbol=User source="class User {}"
+
+declare const constructors: [typeof User];
+/// @type.symbol symbol=constructors source=constructors type=Slice<typeof User>
+/// @resolution.pattern source=constructors kind=binding target=constructors
+/// @resolution.name source=User target=User
+
+const user = new constructors[0]();
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
+/// @resolution.construct source="new constructors[0]()" parameters=() return=User kind=class target=User constructor=default
+/// @resolution.name source=constructors target=constructors
+/// @resolution.place source=constructors placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=constructors root=constructors
+/// @resolution.access source=constructors[0] root=constructors keys=[0]
+/// @resolution.subscript source=constructors[0] type=typeof User kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<typeof User, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#1<typeof User, \"mutable\">" template=index#1 arguments=(typeof User, "mutable")
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="WithAccess<&'bound0 Slice<typeof User>, \"mutable\">" template=WithAccess arguments=(&'bound0 Slice<typeof User>, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 typeof User, \"mutable\">" template=WithAccess arguments=(&'bound0 typeof User, "mutable")
+/// @generic.instance id="index#1<typeof User, \"mutable\">" template=index#1 arguments=(typeof User, "mutable")
+/// @generic.instance id="size<typeof User>" template=size arguments=(typeof User)
+/// @generic.instance id="sliceIndex<typeof User, \"mutable\">" template=sliceIndex arguments=(typeof User, "mutable")
+/// @generic.instance id="sliceLength<typeof User>" template=sliceLength arguments=(typeof User)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+"#,
+    );
+}
+
+/// Constructor signatures accept arguments and return the declared instance.
+#[test]
+fn test_construct_through_constructor_signatures() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+declare const create: new (name: string) => User;
+
+const user = new create("Ada");
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+class User {}
+
+declare const create: new (name: string) => User;
+
+const user: User = new create("Ada");
+
+=== dir ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=typeof User
+/// @definition.class symbol=User source="class User {}"
+
+declare const create: new (name: string) => User;
+/// @type.symbol symbol=create source=create type=new (string) => User
+/// @resolution.pattern source=create kind=binding target=create
+/// @type.symbol symbol=name source="name: string" type=string
+/// @resolution.name source=User target=User
+
+const user = new create("Ada");
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
+/// @resolution.call source="new create(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=User kind=expression target=expression
+/// @resolution.name source=create target=create
+/// @resolution.place source=create placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=create root=create
+/// @coercion.node source="\"Ada\"" from="Ada" adjustments=[{ kind: materialize, target: string }] origin=implicit
+"#,
+    );
+}
+
+/// Specialized class constructors retain explicit arguments and declared defaults.
+#[test]
+fn test_construct_through_generic_class_values() {
+    let session = TestSession::single(
+        r#"
+class Box<out T, out U = string> {}
+
+const create = Box<int32>;
+
+const box = new create();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+class Box<out T, out U = string> {}
+
+const create: typeof Box<int32, string> = Box<int32>;
+
+const box: Box<int32, string> = new create();
+
+=== dir ===
+class Box<out T, out U = string> {}
+/// @generic.template symbol=Box parameters=(out T, out U = string)
+/// @type.symbol symbol=Box source="class Box<out T, out U = string> {}" type=typeof Box
+/// @definition.class symbol=Box source="class Box<out T, out U = string> {}" template=(out T, out U = string)
+/// @type.symbol symbol=Box.T source="out T" type=T
+/// @type.symbol symbol=Box.U source="out U = string" type=U
+
+const create = Box<int32>;
+/// @type.symbol symbol=create source=create type=typeof Box<int32, string>
+/// @resolution.pattern source=create kind=binding target=create
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=Box<int32> target=Box
+
+const box = new create();
+/// @type.symbol symbol=box source=box type=Box<int32, string>
+/// @resolution.pattern source=box kind=binding target=box
+/// @generic.instance id="Box<int32, string>" template=Box arguments=(int32, string)
+/// @resolution.construct source="new create()" parameters=() return=Box<int32, string> kind=class target=Box constructor=default instance="Box<int32, string>"
+/// @generic.instantiation id="Box<int32, string>" template=Box arguments=(int32, string)
+/// @resolution.name source=create target=create
+/// @resolution.access source=create root=create
+"#,
+    );
+}
+
+/// Variables and indexed expressions preserve a generic constructor's parameters.
+#[test]
+fn test_specialize_constructor_expressions() {
+    let session = TestSession::single(
+        r#"
+class Box<out T> {}
+
+const create = Box;
+
+const integerBox = create<int32>;
+
+declare const constructors: [typeof Box];
+
+const stringBox = constructors[0]<string>;
+
+const first = new integerBox();
+
+const second = new stringBox();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+class Box<out T> {}
+
+const create: typeof Box = Box;
+
+const integerBox: typeof Box<int32> = create<int32>;
+
+declare const constructors: [typeof Box];
+
+const stringBox: typeof Box<string> = constructors[0]<string>;
+
+const first: Box<int32> = new integerBox();
+
+const second: Box<string> = new stringBox();
+
+=== dir ===
+class Box<out T> {}
+/// @generic.template symbol=Box parameters=(out T)
+/// @type.symbol symbol=Box source="class Box<out T> {}" type=typeof Box
+/// @definition.class symbol=Box source="class Box<out T> {}" template=(out T)
+/// @type.symbol symbol=Box.T source="out T" type=T
+
+const create = Box;
+/// @type.symbol symbol=create source=create type=typeof Box
+/// @resolution.pattern source=create kind=binding target=create
+/// @resolution.name source=Box target=Box
+
+const integerBox = create<int32>;
+/// @type.symbol symbol=integerBox source=integerBox type=typeof Box<int32>
+/// @resolution.pattern source=integerBox kind=binding target=integerBox
+/// @resolution.name source=create target=create
+/// @resolution.name source=create<int32> target=Box
+/// @resolution.access source=create root=create
+
+declare const constructors: [typeof Box];
+/// @type.symbol symbol=constructors source=constructors type=Slice<typeof Box>
+/// @resolution.pattern source=constructors kind=binding target=constructors
+/// @resolution.name source=Box target=Box
+
+const stringBox = constructors[0]<string>;
+/// @type.symbol symbol=stringBox source=stringBox type=typeof Box<string>
+/// @resolution.pattern source=stringBox kind=binding target=stringBox
+/// @resolution.name source=constructors target=constructors
+/// @resolution.name source=constructors[0]<string> target=Box
+/// @resolution.place source=constructors placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=constructors root=constructors
+/// @resolution.access source=constructors[0] root=constructors keys=[0]
+/// @resolution.subscript source=constructors[0] type=typeof Box kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<typeof Box, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="index#1<typeof Box, \"mutable\">" template=index#1 arguments=(typeof Box, "mutable")
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="WithAccess<&'bound0 Slice<typeof Box>, \"mutable\">" template=WithAccess arguments=(&'bound0 Slice<typeof Box>, "mutable")
+/// @generic.instance id="WithAccess<&'bound0 typeof Box, \"mutable\">" template=WithAccess arguments=(&'bound0 typeof Box, "mutable")
+/// @generic.instance id="index#1<typeof Box, \"mutable\">" template=index#1 arguments=(typeof Box, "mutable")
+/// @generic.instance id="size<typeof Box>" template=size arguments=(typeof Box)
+/// @generic.instance id="sliceIndex<typeof Box, \"mutable\">" template=sliceIndex arguments=(typeof Box, "mutable")
+/// @generic.instance id="sliceLength<typeof Box>" template=sliceLength arguments=(typeof Box)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+
+const first = new integerBox();
+/// @type.symbol symbol=first source=first type=Box<int32>
+/// @resolution.pattern source=first kind=binding target=first
+/// @generic.instance id=Box<int32> template=Box arguments=(int32)
+/// @resolution.construct source="new integerBox()" parameters=() return=Box<int32> kind=class target=Box constructor=default instance=Box<int32>
+/// @generic.instantiation id=Box<int32> template=Box arguments=(int32)
+/// @resolution.name source=integerBox target=integerBox
+/// @resolution.access source=integerBox root=integerBox
+
+const second = new stringBox();
+/// @type.symbol symbol=second source=second type=Box<string>
+/// @resolution.pattern source=second kind=binding target=second
+/// @generic.instance id=Box<string> template=Box arguments=(string)
+/// @resolution.construct source="new stringBox()" parameters=() return=Box<string> kind=class target=Box constructor=default instance=Box<string>
+/// @generic.instantiation id=Box<string> template=Box arguments=(string)
+/// @resolution.name source=stringBox target=stringBox
+/// @resolution.access source=stringBox root=stringBox
+"#,
+    );
+}
+
+/// A class constructor has the type selected by typeof on that class.
+#[test]
+fn test_assign_class_constructor_to_typeof() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+const ctor: typeof User = User;
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+class User {}
+
+const ctor: typeof User = User;
+
+=== dir ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=typeof User
+/// @definition.class symbol=User source="class User {}"
+
+const ctor: typeof User = User;
+/// @type.symbol symbol=ctor source=ctor type=typeof User
+/// @resolution.pattern source=ctor kind=binding target=ctor
+/// @resolution.name source=User target=User
+/// @resolution.name source=User target=User
+"#,
+    );
+}
+
+/// Instances supply field values and cannot serve as construction types.
+#[test]
+fn test_construct_from_instance_bindings() {
+    let session = TestSession::single(
+        r#"
+class User {}
+
+struct Position {
+    x: int32;
+}
+
+declare const user: User;
+
+declare const position: Position;
+
+const otherUser = new user();
+
+const otherPosition = position { x: 1 };
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class User {}
+
+struct Position {
+    x: int32;
+}
+
+declare const user: User;
+
+declare const position: Position;
+
+const otherUser = new user();
+
+const otherPosition = position { x: 1 };
+
+=== dir ===
+class User {}
+/// @type.symbol symbol=User source="class User {}" type=typeof User
+/// @definition.class symbol=User source="class User {}"
+
+struct Position {
+/// @type.symbol symbol=Position type=Position
+/// @definition.struct symbol=Position
+/// @definition.field symbol=Position.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Position.x source="x: int32" type=int32
+
+}
+
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.pattern source=user kind=binding target=user
+/// @resolution.name source=User target=User
+
+declare const position: Position;
+/// @type.symbol symbol=position source=position type=Position
+/// @resolution.pattern source=position kind=binding target=position
+/// @resolution.name source=Position target=Position
+
+const otherUser = new user();
+/// @type.symbol symbol=otherUser source=otherUser type=<error>
+/// @resolution.pattern source=otherUser kind=binding target=otherUser
+/// @resolution.rejected source="new user()"
+/// @resolution.name source=user target=user
+/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=user root=user
+
+const otherPosition = position { x: 1 };
+/// @type.symbol symbol=otherPosition source=otherPosition type=<error>
+/// @resolution.pattern source=otherPosition kind=binding target=otherPosition
+/// @resolution.name source=position target=position
+"#,
+        r#"
+/// @diagnostic.error id=not-constructible message="type 'User' cannot be constructed with 'new'"
+/// @diagnostic.label line=12 column=19 span="new user()" line_source="const otherUser = new user();"
+/// @diagnostic.error id=value-used-as-type message="expected a type, found value 'position'"
+/// @diagnostic.label line=14 column=23 span="position" line_source="const otherPosition = position { x: 1 };"
+"#,
+    );
+}
+
+/// A copied class constructor creates instances with its declared arguments.
+#[test]
+fn test_construct_through_a_class_value() {
+    let session = TestSession::single(
+        r#"
+class User {
+    constructor(name: string) {}
+}
+
+const ctor = User;
+
+const user = new ctor("Ada");
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class User {
+    constructor(name: string) {}
+}
+
+const ctor: typeof User = User;
+
+const user: local User = new ctor("Ada");
+
+=== dir ===
+class User {
+/// @type.symbol symbol=User type=typeof User
+/// @definition.class symbol=User
+/// @definition.method symbol=User.constructor source="constructor(name: string) {}" slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
+
+    constructor(name: string) {}
+    /// @generic.template symbol=User.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=User.constructor source="constructor(name: string) {}" type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
+    /// @type.symbol symbol=User.constructor.this type=User
+    /// @type.symbol symbol=User.constructor.name source="name: string" type=string
+
+}
+
+const ctor = User;
+/// @type.symbol symbol=ctor source=ctor type=typeof User
+/// @resolution.pattern source=ctor kind=binding target=ctor
+/// @resolution.name source=User target=User
+
+const user = new ctor("Ada");
+/// @type.symbol symbol=user source=user type=local User
+/// @resolution.pattern source=user kind=binding target=user
+/// @resolution.construct source="new ctor(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=local User kind=class target=User constructor=User.constructor
+/// @generic.instantiation id="User.constructor<\"local\">" template=User.constructor arguments=("local")
+/// @generic.instantiation id="User<\"local\">" template=User arguments=("local")
+/// @resolution.name source=ctor target=ctor
+/// @resolution.access source=ctor root=ctor
+"#,
+    );
+}
+
 #[test]
 fn test_reject_constructor_result_annotation() {
     let session = TestSession::single(
@@ -21,7 +635,7 @@ class User {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.method symbol=User.constructor source="constructor(): this {}" slot=constructor role=constructor type=<User.constructor.P0: Place>() => Managed<this, User.constructor.P0>
 
@@ -64,7 +678,7 @@ class User {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>() => Managed<this, User.constructor.P0>
 
@@ -114,7 +728,7 @@ class User {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>() => Managed<User, User.constructor.P0>
 
@@ -155,7 +769,7 @@ const counter: Counter = new Counter();
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
 
@@ -170,6 +784,7 @@ const counter = new Counter();
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source="new Counter()" type=Counter
 /// @resolution.construct source="new Counter()" parameters=() return=Counter kind=class target=Counter constructor=default
+/// @type.node source=Counter type=typeof Counter
 /// @resolution.name source=Counter target=Counter
 "#,
     );
@@ -212,7 +827,7 @@ const derived: Derived = new Derived(1);
 
 === dir ===
 class Base {
-/// @type.symbol symbol=Base type=Base
+/// @type.symbol symbol=Base type=typeof Base
 /// @definition.class symbol=Base
 /// @definition.field symbol=Base.value source="value: int32" key=value type=int32
 /// @definition.method symbol=Base.constructor slot=constructor role=constructor type=<Base.constructor.P0: Place>(int32) => Managed<Base, Base.constructor.P0>
@@ -245,7 +860,7 @@ class Base {
 }
 
 class Derived extends Base {}
-/// @type.symbol symbol=Derived source="class Derived extends Base {}" type=Derived
+/// @type.symbol symbol=Derived source="class Derived extends Base {}" type=typeof Derived
 /// @definition.class symbol=Derived source="class Derived extends Base {}"
 /// @definition.extends symbol=Derived source=Base target=Base
 /// @resolution.name source=Base target=Base
@@ -257,6 +872,7 @@ const derived = new Derived(1);
 /// @resolution.construct source="new Derived(1)" parameters=(int32) arguments=(provided(1) as int32) return=Derived kind=class target=Derived constructor=forwarded:Base.constructor
 /// @generic.instantiation id="Base.constructor<\"local\">" template=Base.constructor arguments=("local")
 /// @generic.instantiation id="Derived<\"local\">" template=Derived arguments=("local")
+/// @type.node source=Derived type=typeof Derived
 /// @resolution.name source=Derived target=Derived
 /// @type.node source=1 type=1
 "#,
@@ -296,7 +912,7 @@ const counter: local Counter = new Counter(1);
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
@@ -335,6 +951,7 @@ const counter = new Counter(1);
 /// @resolution.construct source="new Counter(1)" parameters=(int32) arguments=(provided(1) as int32) return=local Counter kind=class target=Counter constructor=Counter.constructor
 /// @generic.instantiation id="Counter.constructor<\"local\">" template=Counter.constructor arguments=("local")
 /// @generic.instantiation id="Counter<\"local\">" template=Counter arguments=("local")
+/// @type.node source=Counter type=typeof Counter
 /// @resolution.name source=Counter target=Counter
 /// @type.node source=1 type=1
 "#,
@@ -384,7 +1001,7 @@ const number: local Box = new Box(1);
 
 === dir ===
 class Box {
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=<Box.constructor#1.P0: Place>(string) => Managed<Box, Box.constructor#1.P0>
@@ -447,6 +1064,7 @@ const text = new Box("x");
 /// @resolution.construct source="new Box(\"x\")" parameters=(string) arguments=(provided("x") as string) return=local Box kind=class target=Box constructor=Box.constructor#1
 /// @generic.instantiation id="Box.constructor#1<\"local\">" template=Box.constructor#1 arguments=("local")
 /// @generic.instantiation id="Box<\"local\">" template=Box arguments=("local")
+/// @type.node source=Box type=typeof Box
 /// @resolution.name source=Box target=Box
 /// @type.node source="\"x\"" type="x"
 
@@ -457,6 +1075,7 @@ const number = new Box(1);
 /// @resolution.construct source="new Box(1)" parameters=(int32) arguments=(provided(1) as int32) return=local Box kind=class target=Box constructor=Box.constructor#2
 /// @generic.instantiation id="Box.constructor#2<\"local\">" template=Box.constructor#2 arguments=("local")
 /// @generic.instantiation id="Box<\"local\">" template=Box arguments=("local")
+/// @type.node source=Box type=typeof Box
 /// @resolution.name source=Box target=Box
 /// @type.node source=1 type=1
 "#,
@@ -504,7 +1123,7 @@ new Box(true);
 
 === dir ===
 class Box {
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.method symbol=Box.constructor#1 slot=constructor role=constructor type=<Box.constructor#1.P0: Place>(string) => Managed<this, Box.constructor#1.P0>
@@ -563,6 +1182,7 @@ class Box {
 new Box(true);
 /// @type.node source="new Box(true)" type=<error>
 /// @resolution.rejected source="new Box(true)"
+/// @type.node source=Box type=typeof Box
 /// @resolution.name source=Box target=Box
 /// @type.node source=true type=true
 "#,
@@ -602,7 +1222,7 @@ declare class Box {
 
 === dir ===
 declare class Box {
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: string | int32" key=value type=string | int32
 /// @definition.method symbol=Box.constructor#1 source="constructor(value: string)" slot=constructor role=constructor type=<Box.constructor#1.P0: Place>(string) => Managed<Box, Box.constructor#1.P0>
@@ -647,7 +1267,7 @@ class Box {
 
 === dir ===
 class Box {
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box
 /// @definition.method symbol=Box.constructor source="constructor(value: string)" slot=constructor role=constructor type=<Box.constructor.P0: Place>(string) => Managed<this, Box.constructor.P0>
 
@@ -716,7 +1336,7 @@ const dog: local Dog = new Dog("rex", 3);
 
 === dir ===
 class Animal {
-/// @type.symbol symbol=Animal type=Animal
+/// @type.symbol symbol=Animal type=typeof Animal
 /// @definition.class symbol=Animal
 /// @definition.field symbol=Animal.name source="name: string" key=name type=string
 /// @definition.method symbol=Animal.constructor slot=constructor role=constructor type=<Animal.constructor.P0: Place>(string) => Managed<Animal, Animal.constructor.P0>
@@ -745,7 +1365,7 @@ class Animal {
 }
 
 class Dog extends Animal {
-/// @type.symbol symbol=Dog type=Dog
+/// @type.symbol symbol=Dog type=typeof Dog
 /// @definition.class symbol=Dog
 /// @definition.extends symbol=Dog source=Animal target=Animal
 /// @definition.field symbol=Dog.tricks source="tricks: int32" key=tricks type=int32
@@ -840,7 +1460,7 @@ const dog: Dog = new Dog("rex");
 import { Animal } from "./base.ds";
 
 class Dog extends Animal<string> {}
-/// @type.symbol symbol=Dog source="class Dog extends Animal<string> {}" type=Dog
+/// @type.symbol symbol=Dog source="class Dog extends Animal<string> {}" type=typeof Dog
 /// @generic.instance id=base.Animal<string> template=base.Animal arguments=(string)
 /// @definition.class symbol=Dog source="class Dog extends Animal<string> {}"
 /// @definition.extends symbol=Dog source=Animal<string> target=base.Animal<string>
@@ -888,12 +1508,12 @@ class Counter {
 
 declare function build(value: int32): Counter;
 
-const make: new (arg0: int32) => Counter = Counter;
-const broken: new (arg0: int32) => Counter = build;
+const make: new (value: int32) => Counter = Counter as new (value: int32) => Counter;
+const broken: new (value: int32) => Counter = build;
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(int32) => Managed<this, Counter.constructor.P0>
@@ -994,7 +1614,7 @@ class Holder {
 
 === dir ===
 class State {
-/// @type.symbol symbol=State type=State
+/// @type.symbol symbol=State type=typeof State
 /// @definition.class symbol=State
 /// @definition.field symbol=State.value source="value: unknown | undefined" key=value type=unknown | undefined
 /// @definition.method symbol=State.constructor slot=constructor role=constructor type=<State.constructor.P0: Place>() => Managed<State, State.constructor.P0>
@@ -1023,7 +1643,7 @@ class State {
 }
 
 class Holder {
-/// @type.symbol symbol=Holder type=Holder
+/// @type.symbol symbol=Holder type=typeof Holder
 /// @definition.class symbol=Holder
 /// @definition.field symbol=Holder.state source="state: State" key=state type=State
 /// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=<Holder.constructor.P0: Place>() => Managed<Holder, Holder.constructor.P0>
@@ -1051,6 +1671,7 @@ class Holder {
         /// @resolution.construct source="new State()" parameters=() return=local State kind=class target=State constructor=State.constructor
         /// @generic.instantiation id="State.constructor<\"local\">" template=State.constructor arguments=("local")
         /// @generic.instantiation id="State<\"local\">" template=State arguments=("local")
+        /// @type.node source=State type=typeof State
         /// @resolution.name source=State target=State
 
     }
@@ -1095,7 +1716,7 @@ const box: local Box<int32> = new Box<int32>(value);
 === dir ===
 class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T) => Managed<Box<T>, Box.constructor.P0>
@@ -1145,6 +1766,7 @@ const box = new Box(value);
 /// @generic.instantiation id="Box<int32, \"local\">" template=Box arguments=(int32, "local")
 /// @generic.instance id="Box.constructor<int32, \"local\">" template=Box.constructor arguments=(int32, "local")
 /// @generic.instance id="Box<int32, \"local\">" template=Box arguments=(int32, "local")
+/// @type.node source=Box type=typeof Box
 /// @resolution.name source=Box target=Box
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
@@ -1188,7 +1810,7 @@ const box: local Box<string> = new Box<string>();
 === dir ===
 class Box<T = string> {
 /// @generic.template symbol=Box parameters=(in out T = string)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @generic.instance id=Box<string> template=Box arguments=(string)
 /// @definition.class symbol=Box template=(in out T = string)
 /// @definition.field symbol=Box.value source="value: T | undefined" key=value type=T | undefined
@@ -1228,6 +1850,7 @@ const box = new Box();
 /// @generic.instantiation id="Box<string, \"local\">" template=Box arguments=(string, "local")
 /// @generic.instance id="Box.constructor<string, \"local\">" template=Box.constructor arguments=(string, "local")
 /// @generic.instance id="Box<string, \"local\">" template=Box arguments=(string, "local")
+/// @type.node source=Box type=typeof Box
 /// @resolution.name source=Box target=Box
 "#,
     );
@@ -1264,7 +1887,7 @@ class Point {
 
 === dir ===
 class Point {
-/// @type.symbol symbol=Point type=Point
+/// @type.symbol symbol=Point type=typeof Point
 /// @definition.class symbol=Point
 /// @definition.field symbol=Point.x source="x: float64" key=x type=float64
 /// @definition.field symbol=Point.y source="y: float64" key=y type=float64
@@ -1405,14 +2028,15 @@ function invalid(): void {
 }
 "#,
         r#"
-/// @diagnostic.error id=not-constructible message="type 'Status' cannot be constructed with 'new'"
-/// @diagnostic.label line=10 column=15 span="new Status()" line_source="const a = new Status();"
-/// @diagnostic.error id=not-constructible message="type 'Meters' cannot be constructed with 'new'; construct newtypes with 'T(…)'"
-/// @diagnostic.label line=11 column=15 span="new Meters(1.0)" line_source="const b = new Meters(1.0);"
-/// @diagnostic.error id=not-constructible message="type 'Greet' cannot be constructed with 'new'"
-/// @diagnostic.label line=12 column=15 span="new Greet()" line_source="const c = new Greet();"
-/// @diagnostic.error id=not-constructible message="type 'Pair' cannot be constructed with 'new'"
-/// @diagnostic.label line=13 column=15 span="new Pair()" line_source="const d = new Pair();"
+/// @diagnostic.error id=invalid-value-reference message="'Status' is not a value"
+/// @diagnostic.label line=10 column=19 span="Status" line_source="const a = new Status();"
+/// @diagnostic.error id=invalid-value-reference message="'Meters' is not a value"
+/// @diagnostic.label line=11 column=19 span="Meters" line_source="const b = new Meters(1.0);"
+/// @diagnostic.help message="construct newtypes with 'T(…)'"
+/// @diagnostic.error id=invalid-value-reference message="'Greet' is not a value"
+/// @diagnostic.label line=12 column=19 span="Greet" line_source="const c = new Greet();"
+/// @diagnostic.error id=invalid-value-reference message="'Pair' is not a value"
+/// @diagnostic.label line=13 column=19 span="Pair" line_source="const d = new Pair();"
 "#,
     );
 }
@@ -1469,7 +2093,7 @@ function invalid(): void {
 
 === dir ===
 class Point {
-/// @type.symbol symbol=Point type=Point
+/// @type.symbol symbol=Point type=typeof Point
 /// @definition.class symbol=Point
 /// @definition.field symbol=Point.x source="x: float64" key=x type=float64
 /// @definition.method symbol=Point.constructor slot=constructor role=constructor type=<Point.constructor.P0: Place>(float64) => Managed<this, Point.constructor.P0>
@@ -1676,7 +2300,7 @@ function update(machine: &Machine): void {
     /// @resolution.place source=machine placement=update.'a lifetime=update.'a access="mutable"
     /// @resolution.access source=machine root=update.machine
     /// @resolution.pattern.assign source=machine.state kind=place
-    /// @resolution.assignment source=machine.state write="receiver=&update.'a Machine, target=Machine.state#2(parameters=(Status), arguments=(supplied as Status), return=void, regions=(update.'a)), type=Status" type=Status
+    /// @resolution.assignment source=machine.state write="receiver=&update.'a Machine, target=Machine.state#2(parameters=(Status), arguments=(supplied(0) as Status), return=void, regions=(update.'a)), type=Status" type=Status
     /// @resolution.name source=Status target=Status
     /// @resolution.member source=Status.Busy receiver=Status type=Status.Busy kind=symbol target_receiver=Status target=Status.Busy
 

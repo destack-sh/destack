@@ -31,7 +31,7 @@ function capture<T>(): void {
 type Consume<T> = (value: T) => void;
 
 class Cell<T> {
-    constructor(executor: (arg0: Consume<T>) => void) {
+    constructor(executor: (consume: Consume<T>) => void) {
         executor;
     }
 }
@@ -56,7 +56,7 @@ type Consume<T> = (value: T) => void;
 
 class Cell<T> {
 /// @generic.template symbol=Cell parameters=(T#2)
-/// @type.symbol symbol=Cell type=Cell
+/// @type.symbol symbol=Cell type=typeof Cell
 /// @generic.instance id=Consume<T#2> template=Consume arguments=(T#2)
 /// @definition.class symbol=Cell template=(T#2)
 /// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(Function<(Function<(T#2,), void>,), void>) => Managed<Cell<T#2>, Cell.constructor.P0>
@@ -102,6 +102,7 @@ function capture<T>(): void {
     /// @generic.instantiation id="Cell<T#3, \"local\">" template=Cell arguments=(T#3, "local") owner=capture
     /// @generic.instance id="Cell.constructor<T#3, \"local\">" template=Cell.constructor arguments=(T#3, "local")
     /// @generic.instance id="Cell<T#3, \"local\">" template=Cell arguments=(T#3, "local")
+    /// @type.node source=Cell type=typeof Cell
     /// @resolution.name source=Cell target=Cell
     /// @resolution.name source=T target=capture.T
     /// @type.symbol symbol=capture.symbol13 type=Function<(Function<(T#3,), void>,), void>
@@ -165,7 +166,7 @@ function capture(): void {
         r#"
 === annotated ===
 class Cell<T> {
-    constructor(executor: (arg0: T) => void) {
+    constructor(executor: (value: T) => void) {
         executor;
     }
 }
@@ -182,7 +183,7 @@ function capture(): void {
 === dir ===
 class Cell<T> {
 /// @generic.template symbol=Cell parameters=(T)
-/// @type.symbol symbol=Cell type=Cell
+/// @type.symbol symbol=Cell type=typeof Cell
 /// @definition.class symbol=Cell template=(T)
 /// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(Function<(T,), void>) => Managed<Cell<T>, Cell.constructor.P0>
 /// @type.symbol symbol=Cell.T source=T type=T
@@ -222,6 +223,7 @@ function capture(): void {
     /// @generic.instantiation id="Cell<int32, \"local\">" template=Cell arguments=(int32, "local")
     /// @generic.instance id="Cell.constructor<int32, \"local\">" template=Cell.constructor arguments=(int32, "local")
     /// @generic.instance id="Cell<int32, \"local\">" template=Cell arguments=(int32, "local")
+    /// @type.node source=Cell type=typeof Cell
     /// @resolution.name source=Cell target=Cell
     /// @type.symbol symbol=capture.symbol9 type=Function<(int32,), void>
     /// @type.node type=Function<(int32,), void>
@@ -270,7 +272,7 @@ const callback: (value: int32) => int32 | undefined = (value) => value + 1;
         DirRows::checked(),
         r#"
 === annotated ===
-const callback: (arg0: int32) => int32 | undefined = (value: int32): int32 | undefined =>
+const callback: (value: int32) => int32 | undefined = (value: int32): int32 | undefined =>
     (value + 1) as int32 | undefined;
 
 === dir ===
@@ -308,7 +310,7 @@ const labels = map(counts, (count) => count > 0);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare function map<T, U>(values: T[], callback: (arg0: T) => U): U[];
+declare function map<T, U>(values: T[], callback: (value: T) => U): U[];
 
 declare const counts: int32[];
 
@@ -380,7 +382,7 @@ run((value, extra) => {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare function run(callback: (arg0: int32) => void): void;
+declare function run(callback: (value: int32) => void): void;
 
 run((value, extra): void => {
     value;
@@ -446,7 +448,7 @@ run((value: boolean) => {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare function run(callback: (arg0: int32 | string) => void): void;
+declare function run(callback: (value: int32 | string) => void): void;
 
 run((value: int32 | string): void => {
     value;
@@ -637,7 +639,7 @@ withValue("ready", (value) => {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare function withValue<T>(value: T, callback: (arg0: T) => void): void;
+declare function withValue<T>(value: T, callback: (value: T) => void): void;
 
 withValue<string>("ready", (value: string): void => {
     value;

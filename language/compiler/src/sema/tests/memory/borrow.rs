@@ -35,7 +35,7 @@ sharedView satisfies shared &readonly User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const localUser: local User;
@@ -108,7 +108,7 @@ const coerced: &'static readonly User = user as local &readonly User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const user: local User;
@@ -168,7 +168,7 @@ const readonlyExclusive: &'managed readonly User = &readonlyUser;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const sharedUser: shared User;
@@ -312,7 +312,7 @@ modify(&user);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const user: local User;
@@ -398,7 +398,7 @@ modify(readonlyView);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const readonlyView: local &readonly User;

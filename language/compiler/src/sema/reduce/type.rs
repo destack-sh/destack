@@ -171,7 +171,7 @@ impl CheckState<'_> {
                 name: None,
                 ty: element.ty,
                 is_optional: element.is_optional,
-                is_rest: false,
+                is_rest: element.is_rest,
             });
         }
         rebuilt.extend(parameters[rest_index + 1..].iter().copied());
@@ -422,42 +422,6 @@ impl CheckState<'_> {
         match self.ty(id)? {
             // block the chain on an open variable
             dir::Type::Variable(_) => Ok(id),
-
-            // continue written names as their nominal application
-            dir::Type::Reference(reference) => {
-                // keep value binding references symbolic for their slots to interpret
-                if self.symbol_kind(reference.symbol)?.is_binding() {
-                    return Ok(id);
-                }
-
-                // keep bare names of generic symbols with required parameters symbolic
-                if let Some(template) = self.symbol_template(reference.symbol)? {
-                    let parameters = self.generic_template_parameters(template)?;
-                    for parameter in parameters {
-                        let Some(binding) = self.generic_parameter(parameter)?.cloned() else {
-                            continue;
-                        };
-                        if binding.is_writable()
-                            && binding.default.is_none()
-                            && binding.memory_parameter() != Some(dir::MemoryParameter::Region)
-                        {
-                            return Ok(id);
-                        }
-                    }
-                }
-
-                // apply the name with no arguments and continue the chain
-                let application = dir::GenericApplication {
-                    symbol: reference.symbol,
-                    arguments: self.intern_type_ids(&[])?,
-                };
-                let applied = self.intern_type(dir::Type::Application(application))?;
-                if applied == id {
-                    return Ok(id);
-                }
-
-                self.normalize_chain(origin, applied, expanding)
-            }
 
             // normalize a union's canonical elements in place
             dir::Type::Union(union) => {

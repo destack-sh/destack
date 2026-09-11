@@ -39,8 +39,10 @@ impl<'a> CheckState<'a> {
             }
         }
 
-        // commit what waited on resolved types
-        self.commit_resolved()?;
+        // commit coroutine creations after their captured types settle
+        if self.is_checking() {
+            self.commit_coroutine_creations()?;
+        }
 
         // resolve declaration types and normalize their declared entries
         for index in 0..self.declaration_types.len() {
@@ -114,6 +116,13 @@ impl<'a> CheckState<'a> {
         let mut selections = Vec::new();
         for (node, decision) in self.module.decisions_tail.decision_entries() {
             decision.visit_instance_keys(&mut |selection| {
+                if !selection.arguments.is_empty() || selection.receiver.is_some() {
+                    selections.push((node, selection.clone()));
+                }
+            });
+        }
+        for (node, coercion) in self.module.coercions_tail.coercions() {
+            coercion.visit_instance_keys(&mut |selection| {
                 if !selection.arguments.is_empty() || selection.receiver.is_some() {
                     selections.push((node, selection.clone()));
                 }
@@ -387,18 +396,6 @@ impl<'a> CheckState<'a> {
         }
 
         self.normalize_closed(id)
-    }
-
-    /// Commit the decisions that wait on resolved types while checking: array constructions and coroutine creations.
-    fn commit_resolved(&mut self) -> CompilerResult<()> {
-        if !self.is_checking() {
-            return Ok(());
-        }
-        for node in self.node_types.nodes() {
-            self.commit_array_construction(node)?;
-        }
-
-        self.commit_coroutine_creations()
     }
 
     /// Settle each recorded narrowing on the solved members it keeps, dropping the vacuous ones.

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use destack_artifact::{DirResolved, EnvironmentBound, EnvironmentDeclared};
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
+use destack_dir::TypeFold;
 use destack_repository::{ArtifactAttemptRecorder, ArtifactReader, Environment, ProviderContext};
 use destack_source::{ModuleId, PackageId, ProfileId, StringId};
 use rustc_hash::FxHashMap;
@@ -698,7 +699,7 @@ impl<'a> CheckState<'a> {
         // keep written alias and collection applications intact, normalizing them lazily
         let is_alias = match &ty {
             dir::Type::Application(dir::GenericApplication { symbol, .. })
-            | dir::Type::Reference(dir::TypeReference { symbol }) => matches!(
+            | dir::Type::Reference(dir::TypeReference { symbol, .. }) => matches!(
                 self.definition(*symbol)?.as_deref(),
                 Some(dir::Definition::TypeAlias(_))
             ),
@@ -1074,6 +1075,14 @@ impl<'a> CheckState<'a> {
         Ok(self.module.types_tail.intern_parameters(values))
     }
 
+    /// Intern one generic argument binding list.
+    pub(in crate::sema) fn intern_generic_arguments(
+        &mut self,
+        values: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<dir::TypeListId> {
+        Ok(self.module.types_tail.intern_generic_arguments(values))
+    }
+
     /// Intern one index signature list into a module's working segment.
     pub(in crate::sema) fn intern_index_signatures(
         &mut self,
@@ -1157,6 +1166,20 @@ impl<'a> CheckState<'a> {
             list,
             |table| table.parameters(list),
             |segment| segment.parameters_maybe(list),
+        )
+    }
+
+    /// Return one signature's applied generic arguments.
+    pub(in crate::sema) fn signature_arguments(
+        &self,
+        module: ModuleId,
+        list: dir::TypeListId,
+    ) -> CompilerResult<&'a [dir::GenericArgumentBinding]> {
+        self.type_rows(
+            module,
+            list,
+            |table| table.generic_arguments(list),
+            |segment| segment.generic_arguments_maybe(list),
         )
     }
 
@@ -1431,13 +1454,18 @@ impl<'a> CheckState<'a> {
             | dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::This
-            | dir::Type::Range(_)
-            | dir::Type::Reference(_) => ty,
+            | dir::Type::Range(_) => ty,
+
+            // map explicit arguments of declaration references
+            dir::Type::Reference(mut reference) => {
+                reference.arguments = self.map_type_id_list(source, reference.arguments, map)?;
+
+                dir::Type::Reference(reference)
+            }
 
             // map the region extent and space
             dir::Type::Region(mut region) => {
-                region.extent = map(self, region.extent)?;
-                region.space = map(self, region.space)?;
+                region.map_types(&mut |ty| map(self, ty))?;
 
                 dir::Type::Region(region)
             }
@@ -1450,8 +1478,7 @@ impl<'a> CheckState<'a> {
             }
             dir::Type::Refined(refined) => {
                 let mut refined = self.type_refined(source, refined)?;
-                refined.base = map(self, refined.base)?;
-                refined.value = map(self, refined.value)?;
+                refined.map_types(&mut |ty| map(self, ty))?;
                 let refined = self.module.types_tail.intern_refined(refined);
 
                 dir::Type::Refined(refined)
@@ -1469,7 +1496,7 @@ impl<'a> CheckState<'a> {
                 dir::Type::Member(member)
             }
             dir::Type::Variant(mut member) => {
-                member.owner = map(self, member.owner)?;
+                member.map_types(&mut |ty| map(self, ty))?;
 
                 dir::Type::Variant(member)
             }
@@ -1480,8 +1507,7 @@ impl<'a> CheckState<'a> {
                 match &mut form.form {
                     dir::Form::Borrowed(borrow) => {
                         let mut resolved = self.type_borrow(source, *borrow)?;
-                        resolved.region = map(self, resolved.region)?;
-                        resolved.access = map(self, resolved.access)?;
+                        resolved.map_types(&mut |ty| map(self, ty))?;
                         *borrow = self.module.types_tail.intern_borrow(resolved);
                     }
                     dir::Form::Managed { place } => *place = map(self, *place)?,
@@ -1491,8 +1517,7 @@ impl<'a> CheckState<'a> {
                 dir::Type::Form(form)
             }
             dir::Type::Dynamic(mut dynamic) => {
-                dynamic.constraint = map(self, dynamic.constraint)?;
-                dynamic.place = map(self, dynamic.place)?;
+                dynamic.map_types(&mut |ty| map(self, ty))?;
 
                 dir::Type::Dynamic(dynamic)
             }
@@ -1507,34 +1532,22 @@ impl<'a> CheckState<'a> {
                         }
                     }
                     dir::TypeOperation::Conditional(mut conditional) => {
-                        conditional.left = map(self, conditional.left)?;
-                        conditional.right = map(self, conditional.right)?;
-                        conditional.then_type = map(self, conditional.then_type)?;
-                        conditional.else_type = map(self, conditional.else_type)?;
+                        conditional.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::Conditional(conditional)
                     }
                     dir::TypeOperation::Narrow(mut narrow) => {
-                        narrow.source = map(self, narrow.source)?;
-                        narrow.target = map(self, narrow.target)?;
+                        narrow.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::Narrow(narrow)
                     }
                     dir::TypeOperation::Mapped(mut mapped) => {
-                        mapped.parameter.constraint = map(self, mapped.parameter.constraint)?;
-                        if let Some(key_remap) = &mut mapped.parameter.key_remap {
-                            *key_remap = map(self, *key_remap)?;
-                        }
-                        if let Some(modifiers_type) = &mut mapped.parameter.modifiers_type {
-                            *modifiers_type = map(self, *modifiers_type)?;
-                        }
-                        mapped.value = map(self, mapped.value)?;
+                        mapped.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::Mapped(mapped)
                     }
                     dir::TypeOperation::Index(mut index) => {
-                        index.left = map(self, index.left)?;
-                        index.index = map(self, index.index)?;
+                        index.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::Index(index)
                     }
@@ -1546,25 +1559,30 @@ impl<'a> CheckState<'a> {
                         dir::TypeOperation::TemplateLiteral(template)
                     }
                     dir::TypeOperation::Infer(mut infer) => {
-                        if let Some(constraint) = &mut infer.constraint {
-                            *constraint = map(self, *constraint)?;
-                        }
+                        infer.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::Infer(infer)
                     }
                     dir::TypeOperation::TypeOf(query) => dir::TypeOperation::TypeOf(query),
+                    dir::TypeOperation::Instantiation(mut application) => {
+                        application.target = map(self, application.target)?;
+                        application.arguments =
+                            self.map_type_id_list(source, application.arguments, map)?;
+
+                        dir::TypeOperation::Instantiation(application)
+                    }
                     dir::TypeOperation::KeyOf(mut unary) => {
-                        unary.target = map(self, unary.target)?;
+                        unary.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::KeyOf(unary)
                     }
                     dir::TypeOperation::NoInfer(mut unary) => {
-                        unary.target = map(self, unary.target)?;
+                        unary.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::NoInfer(unary)
                     }
                     dir::TypeOperation::Awaited(mut unary) => {
-                        unary.target = map(self, unary.target)?;
+                        unary.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::Awaited(unary)
                     }
@@ -1575,13 +1593,12 @@ impl<'a> CheckState<'a> {
                         value: map(self, value)?,
                     },
                     dir::TypeOperation::StaticBinary(mut binary) => {
-                        binary.left = map(self, binary.left)?;
-                        binary.right = map(self, binary.right)?;
+                        binary.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::StaticBinary(binary)
                     }
                     dir::TypeOperation::StaticUnary(mut unary) => {
-                        unary.target = map(self, unary.target)?;
+                        unary.map_types(&mut |ty| map(self, ty))?;
 
                         dir::TypeOperation::StaticUnary(unary)
                     }
@@ -1593,14 +1610,12 @@ impl<'a> CheckState<'a> {
 
             // collections
             dir::Type::FixedArray(mut array) => {
-                array.element = map(self, array.element)?;
-                array.count = map(self, array.count)?;
+                array.map_types(&mut |ty| map(self, ty))?;
 
                 dir::Type::FixedArray(array)
             }
             dir::Type::Slice(mut slice) => {
-                slice.element = map(self, slice.element)?;
-                slice.place = map(self, slice.place)?;
+                slice.map_types(&mut |ty| map(self, ty))?;
 
                 dir::Type::Slice(slice)
             }
@@ -1608,9 +1623,7 @@ impl<'a> CheckState<'a> {
                 let mut elements = SmallVec::<[dir::TypeElement; 8]>::from_slice(
                     self.tuple_elements(source, tuple.elements)?,
                 );
-                for element in &mut elements {
-                    element.ty = map(self, element.ty)?;
-                }
+                elements.map_types(&mut |ty| map(self, ty))?;
                 tuple.elements = self.intern_elements(&elements)?;
 
                 dir::Type::Tuple(tuple)
@@ -1624,6 +1637,11 @@ impl<'a> CheckState<'a> {
             }
             dir::Type::FunctionSignature(function) => {
                 let mut function = self.type_signature(source, function)?;
+                let mut arguments: SmallVec<[_; 4]> =
+                    self.signature_arguments(source, function.arguments)?.into();
+                arguments.map_types(&mut |ty| map(self, ty))?;
+                function.arguments = self.intern_generic_arguments(&arguments)?;
+
                 if let Some(this_parameter) = &mut function.this_parameter {
                     *this_parameter = map(self, *this_parameter)?;
                 }
@@ -1631,9 +1649,7 @@ impl<'a> CheckState<'a> {
                 let mut parameters = SmallVec::<[dir::FunctionParameterType; 8]>::from_slice(
                     self.signature_parameters(source, function.parameters)?,
                 );
-                for parameter in &mut parameters {
-                    parameter.ty = map(self, parameter.ty)?;
-                }
+                parameters.map_types(&mut |ty| map(self, ty))?;
                 function.parameters = self.intern_parameters(&parameters)?;
 
                 if let Some(return_type) = &mut function.return_type {
@@ -1644,14 +1660,12 @@ impl<'a> CheckState<'a> {
                 dir::Type::FunctionSignature(function)
             }
             dir::Type::Function(mut function) => {
-                function.signature = map(self, function.signature)?;
-                function.receiver = map(self, function.receiver)?;
-                function.place = map(self, function.place)?;
+                function.map_types(&mut |ty| map(self, ty))?;
 
                 dir::Type::Function(function)
             }
             dir::Type::FunctionPointer(mut function) => {
-                function.signature = map(self, function.signature)?;
+                function.map_types(&mut |ty| map(self, ty))?;
 
                 dir::Type::FunctionPointer(function)
             }
@@ -1684,16 +1698,7 @@ impl<'a> CheckState<'a> {
         let mut properties = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
             self.object_properties(source, shape.properties)?,
         );
-        for property in &mut properties {
-            property.access = match property.access {
-                dir::PropertyAccess::Read(ty) => dir::PropertyAccess::Read(map(self, ty)?),
-                dir::PropertyAccess::Write(ty) => dir::PropertyAccess::Write(map(self, ty)?),
-                dir::PropertyAccess::ReadWrite { read, write } => dir::PropertyAccess::ReadWrite {
-                    read: map(self, read)?,
-                    write: map(self, write)?,
-                },
-            };
-        }
+        properties.map_types(&mut |ty| map(self, ty))?;
 
         // map the signature lists as they stand
         shape.properties = self.intern_properties(&properties)?;
@@ -1705,10 +1710,7 @@ impl<'a> CheckState<'a> {
         let mut signatures = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
             self.object_index_signatures(source, shape.index_signatures)?,
         );
-        for signature in &mut signatures {
-            signature.key_type = map(self, signature.key_type)?;
-            signature.value_type = map(self, signature.value_type)?;
-        }
+        signatures.map_types(&mut |ty| map(self, ty))?;
 
         shape.index_signatures = self.intern_index_signatures(&signatures)?;
 
@@ -1723,9 +1725,7 @@ impl<'a> CheckState<'a> {
         map: &mut impl FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::TypeListId> {
         let mut ids = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(self.type_ids(source, list)?);
-        for id in &mut ids {
-            *id = map(self, *id)?;
-        }
+        ids.map_types(&mut |ty| map(self, ty))?;
 
         self.intern_type_ids(&ids)
     }

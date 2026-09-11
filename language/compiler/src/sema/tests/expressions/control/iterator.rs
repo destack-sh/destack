@@ -1,5 +1,104 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Slice calls, loops, and spreads select the same iterator.
+#[test]
+fn test_iterate_slice_values() {
+    let session = TestSession::single(
+        r#"
+function copy(values: [int32]): int32[] {
+    values.iterator();
+
+    for (const value of values) {
+        value satisfies int32;
+    }
+
+    return [...values];
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+function copy(values: [int32]): int32[] {
+    values.iterator<int32>();
+
+    for (const value of values) {
+        value satisfies int32;
+    }
+
+    return [...values];
+}
+
+=== dir ===
+function copy(values: [int32]): int32[] {
+/// @type.symbol symbol=copy type=(Slice<int32>) => int32[]
+/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
+/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
+/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
+/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
+/// @generic.instance id=clear<int32> template=clear arguments=(int32)
+/// @generic.instance id=drop<int32> template=drop arguments=(int32)
+/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
+/// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
+/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
+/// @type.symbol symbol=copy.values source="values: [int32]" type=Slice<int32>
+
+    values.iterator();
+    /// @resolution.name source=values target=copy.values
+    /// @resolution.member source=values.iterator receiver=Slice<int32> type=<iterator#1.'a>(this: &iterator#1.'a readonly Slice<int32>) => Iterator<int32> & <iterator#2.'a>(this: &iterator#2.'a readonly &'frame readonly Slice<int32>) => Iterator<&'frame readonly int32> kind=overload-set targets=[iterator#1, iterator#2]
+    /// @resolution.call source=values.iterator() parameters=() return=Iterator<int32> regions=("managed" & "local") kind=symbol target=iterator#1 receiver=Slice<int32> adjustments=(borrow(Borrowed<Slice<int32>, "managed" & "local", "readonly">)) instance=Slice<int32>.<extension#2>.iterator#1
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=values root=copy.values
+    /// @generic.instantiation id="iterator#2<int32, \"readonly\">" template=iterator#2 arguments=(int32, "readonly")
+    /// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
+    /// @generic.instance id="Iterator<&'bound0 readonly int32>" template=Iterator arguments=(&'bound0 readonly int32)
+    /// @generic.instance id="iterator#2<int32, \"readonly\">" template=iterator#2 arguments=(int32, "readonly")
+    /// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32)
+    /// @generic.instance id=Slice<int32> template=Slice arguments=(int32)
+    /// @generic.instance id=iterator#1<int32> template=iterator#1 arguments=(int32)
+
+    for (const value of values) {
+    /// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=Iterator<int32>, regions=(\"managed\" & \"local\"))" next="dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)"
+    /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+    /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+    /// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
+    /// @type.symbol symbol=copy.value source=value type=int32
+    /// @resolution.pattern source=value kind=binding target=copy.value
+    /// @resolution.name source=values target=copy.values
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=values root=copy.values
+
+        value satisfies int32;
+        /// @resolution.name source=value target=copy.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+        /// @resolution.access source=value root=copy.value
+
+    }
+
+    return [...values];
+    /// @resolution.call source=[...values] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...values) as Slice<int32>, iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>, regions=("managed" & "local")), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
+    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+    /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
+    /// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
+    /// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
+    /// @generic.instance id=size<int32> template=size arguments=(int32)
+    /// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
+    /// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
+    /// @resolution.name source=values target=copy.values
+    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=values root=copy.values
+
+}
+"#);
+}
+
 #[test]
 fn test_for_of_binds_array_elements() {
     let session = TestSession::single(
@@ -40,7 +139,7 @@ const values: int32[] = [1, 2, 3];
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.node source=[1, 2, 3] type=int32[]
-/// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[1, 2, 3] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32, provided(3) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -117,7 +216,7 @@ for (const value of 1) {
 }
 "#,
         r#"
-/// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
+/// @diagnostic.error id=source-not-iterable message="source must be iterable"
 /// @diagnostic.label line=2 column=21 span="1" line_source="for (const value of 1) {"
 "#,
     );

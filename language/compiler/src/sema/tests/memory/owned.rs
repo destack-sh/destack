@@ -218,7 +218,7 @@ let user: ^User = makeUser();
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function makeUser(): User;
@@ -556,7 +556,7 @@ struct Point {
 }
 
 class Pair {
-/// @type.symbol symbol=Pair type=Pair
+/// @type.symbol symbol=Pair type=typeof Pair
 /// @definition.class symbol=Pair
 /// @definition.field symbol=Pair.left source="left: int32 = 0" key=left type=int32
 /// @definition.field symbol=Pair.right source="right: int32 = 0" key=right type=int32
@@ -570,7 +570,7 @@ class Pair {
 }
 
 class Named {
-/// @type.symbol symbol=Named type=Named
+/// @type.symbol symbol=Named type=typeof Named
 /// @definition.class symbol=Named
 /// @definition.field symbol=Named.label source="label: string = \"\"" key=label type=string
 
@@ -809,7 +809,7 @@ newtype interface Collect<T> {
 
 class Bag<T> {
 /// @generic.template symbol=Bag parameters=(in out T#2)
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag template=(in out T#2)
 /// @definition.field symbol=Bag.last source="last: T | undefined" key=last type=T#2 | undefined
 /// @definition.method symbol=Bag.constructor slot=constructor role=constructor type=<Bag.constructor.P0: Place>() => Managed<Bag<T#2>, Bag.constructor.P0>
@@ -1029,12 +1029,12 @@ const values = Deque.from([1, 2, 3]);
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
 /// @resolution.name source=Deque target=Deque
-/// @resolution.member source=Deque.from receiver=Deque type=(Iterable<T#4>) => ^Deque<T#4> kind=symbol target_receiver=Deque target=from#1
+/// @resolution.member source=Deque.from receiver=typeof Deque type=(Iterable<T#4>) => ^Deque<T#4> kind=symbol target_receiver=typeof Deque target=from#1
 /// @resolution.call source="Deque.from([1, 2, 3])" parameters=(Iterable<int64>) arguments=(provided([1, 2, 3]) as Iterable<int64>) return=^Deque<int64> kind=symbol target=from#1 instance=Deque<int64>.<extension#4>.from#1
 /// @generic.instantiation id=from#1<int64> template=from#1 arguments=(int64)
 /// @generic.instance id=Iterable<int64> template=Iterable arguments=(int64)
 /// @generic.instance id=from#1<int64> template=from#1 arguments=(int64)
-/// @resolution.call source=[1, 2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2, 3] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64, provided(3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)

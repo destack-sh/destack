@@ -528,8 +528,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                     self.reify_inferred_construct_head(module_id, expression_id, expression)?;
                     self.reify_call_arguments(module_id, expression_id, expression)?;
                 }
-                dir::Expression::New { ty, .. } => {
-                    self.reify_construct_arguments(module_id, expression_id, *ty)?;
+                dir::Expression::New { .. } => {
+                    self.reify_construct_arguments(module_id, expression_id)?;
                 }
                 dir::Expression::StructExpression { ty, .. } => {
                     self.reify_struct_expression_target(module_id, expression_id, *ty)?;
@@ -639,7 +639,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         let dir::OperationResolution::One(call) = resolution else {
             return Ok(());
         };
-        let arguments = match call {
+        let mut arguments = match call {
             dir::Call {
                 target: dir::CallableTarget::Expression { generic_arguments },
                 ..
@@ -656,6 +656,21 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 ..
             } => function.key.arguments.clone(),
         };
+
+        // print only the arguments selected at this invocation
+        let callee = left.into_global_any(module_id);
+        let ty = self.types.check.require_node_type(callee)?;
+        if let Some(signature) = self.types.check.signature_head(ty)? {
+            let fixed = self
+                .types
+                .check
+                .signature_arguments(ty.module_id, signature.arguments)?;
+            arguments.retain(|argument| {
+                !fixed
+                    .iter()
+                    .any(|binding| binding.parameter == argument.parameter)
+            });
+        }
         if arguments.is_empty() {
             return Ok(());
         }
@@ -716,8 +731,32 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         &mut self,
         module_id: ModuleId,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
+        let dir::Expression::New {
+            left,
+            generic_arguments,
+            ..
+        } = self.types.tree.get(expression_id)
+        else {
+            unreachable!("construction expressions are selected by the caller");
+        };
+        if !generic_arguments.is_empty() {
+            return Ok(());
+        }
+
+        // retain arguments already bound by the constructor value
+        let callee = left.into_global_any(module_id);
+        let callee_type = self.types.check.require_node_type(callee)?;
+        if let dir::Type::Reference(reference) = self.types.check.ty(callee_type)?
+            && !self
+                .types
+                .check
+                .type_ids(callee_type.module_id, reference.arguments)?
+                .is_empty()
+        {
+            return Ok(());
+        }
+
         let node = expression_id.into_global_any(module_id);
         let Some(resolution) = self.decisions.construct_decision(node) else {
             return Ok(());
@@ -727,14 +766,22 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             dir::ConstructTarget::Class { key, .. } | dir::ConstructTarget::Newtype { key, .. } => {
                 key.arguments.clone()
             }
-            dir::ConstructTarget::Dynamic { .. } => Vec::new(),
         };
         if arguments.is_empty() {
             return Ok(());
         }
 
-        self.anchor(ty.into_any());
-        self.types.fill_type_arguments(ty, &arguments)?;
+        self.anchor(expression_id.into_any());
+        let Some(arguments) = self.types.reify_generic_argument_bindings(&arguments)? else {
+            return Ok(());
+        };
+        let dir::Expression::New {
+            generic_arguments, ..
+        } = self.types.tree.get_mut(expression_id)
+        else {
+            unreachable!("construction expressions keep their kind");
+        };
+        *generic_arguments = arguments;
 
         Ok(())
     }

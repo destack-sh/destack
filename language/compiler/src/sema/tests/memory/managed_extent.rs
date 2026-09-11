@@ -55,7 +55,7 @@ struct Player {
 }
 
 class World {
-/// @type.symbol symbol=World type=World
+/// @type.symbol symbol=World type=typeof World
 /// @definition.class symbol=World
 /// @definition.field symbol=World.player source="player: Player" key=player type=Player
 /// @definition.method symbol=World.constructor slot=constructor role=constructor type=<World.constructor.P0: Place>() => Managed<World, World.constructor.P0>
@@ -171,7 +171,7 @@ struct Player {
 }
 
 class World {
-/// @type.symbol symbol=World type=World
+/// @type.symbol symbol=World type=typeof World
 /// @definition.class symbol=World
 /// @definition.field symbol=World.player source="player: Player" key=player type=Player
 /// @definition.method symbol=World.constructor slot=constructor role=constructor type=<World.constructor.P0: Place>() => Managed<this, World.constructor.P0>

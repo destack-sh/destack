@@ -592,7 +592,7 @@ struct Point {
 }
 
 class PointClass {
-/// @type.symbol symbol=PointClass type=PointClass
+/// @type.symbol symbol=PointClass type=typeof PointClass
 /// @definition.class symbol=PointClass
 /// @definition.field symbol=PointClass.x source="x: int32 = 0" key=x type=int32
 
@@ -668,7 +668,7 @@ struct Point {
 }
 
 class PointClass {
-/// @type.symbol symbol=PointClass type=PointClass
+/// @type.symbol symbol=PointClass type=typeof PointClass
 /// @definition.class symbol=PointClass
 /// @definition.field symbol=PointClass.x source="x: int32 = 0" key=x type=int32
 

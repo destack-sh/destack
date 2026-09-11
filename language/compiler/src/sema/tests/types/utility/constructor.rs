@@ -32,7 +32,7 @@ ok satisfies (string, number);
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=<User.constructor.P0: Place>(string, float64) => Managed<User, User.constructor.P0>
 
@@ -46,7 +46,7 @@ class User {
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<User>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof User>
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User
@@ -103,8 +103,8 @@ const value: Args = ("Ada", 42);
 import { User } from "./user.ds";
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<user.User>
-/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof user.User>
+/// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof user.User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=user.User
 
@@ -148,7 +148,7 @@ ok.name satisfies string;
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
 
@@ -158,7 +158,7 @@ class User {
 }
 
 type Value = InstanceType<typeof User>;
-/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=InstanceType<User>
+/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=InstanceType<typeof User>
 /// @definition.type symbol=Value source="type Value = InstanceType<typeof User>" value=InstanceType<typeof User>
 /// @resolution.name source=InstanceType target=InstanceType
 /// @resolution.name source=User target=User
@@ -211,7 +211,7 @@ const bad: Args = ("Ada", "old");
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=<User.constructor.P0: Place>(string, float64) => Managed<this, User.constructor.P0>
 
@@ -225,7 +225,7 @@ class User {
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<User>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<typeof User>
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User

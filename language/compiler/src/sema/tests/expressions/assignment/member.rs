@@ -97,13 +97,13 @@ counter.current = 2;
 /// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=counter root=counter
 /// @resolution.pattern.assign source=counter.current kind=place
-/// @resolution.assignment source=counter.current write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=counter.current write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32" type=int32
 
 counter.current++;
 /// @resolution.name source=counter target=counter
 /// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=counter root=counter
-/// @resolution.assignment source=counter.current read="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32" write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=counter.current read="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32" write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32" type=int32
 /// @resolution.operator source=counter.current++ type=int32 operator="++" kind=builtin operands=[counter.current as int32 families=(integer)]
 "#,
     );
@@ -164,13 +164,13 @@ declare let counter: Counter;
 counter["current"] = 2;
 /// @resolution.name source=counter target=counter
 /// @resolution.pattern.assign source="counter[\"current\"]" kind=place
-/// @resolution.assignment source="counter[\"current\"]" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32)" type=int32
+/// @resolution.assignment source="counter[\"current\"]" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32)" type=int32
 /// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=counter root=counter
 
 counter["current"]++;
 /// @resolution.name source=counter target=counter
-/// @resolution.assignment source="counter[\"current\"]" read="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32)" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32)" type=int32
+/// @resolution.assignment source="counter[\"current\"]" read="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32)" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32)" type=int32
 /// @resolution.operator source="counter[\"current\"]++" type=int32 operator="++" kind=builtin operands=[counter["current"] as int32 families=(integer)]
 /// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=counter root=counter
@@ -281,7 +281,7 @@ sink.value = 1;
 /// @resolution.place source=sink placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=sink root=sink
 /// @resolution.pattern.assign source=sink.value kind=place
-/// @resolution.assignment source=sink.value write="receiver=Sink, target=dynamic(Sink as Sink, Sink.value)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=sink.value write="receiver=Sink, target=dynamic(Sink as Sink, Sink.value)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32" type=int32
 "#,
     );
 }

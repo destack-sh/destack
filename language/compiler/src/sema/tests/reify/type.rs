@@ -95,45 +95,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         Ok(is_place && self.check.place_space(binding.argument)? == Some(dir::Space::Local))
     }
 
-    /// Fill selected generic arguments on one reified type reference.
-    pub(super) fn fill_type_arguments(
-        &mut self,
-        ty: dir::LocalNodeId<dir::TypeExpression>,
-        bindings: &[dir::GenericArgumentBinding],
-    ) -> CompilerResult<()> {
-        // fill only a reference or member that still carries an empty argument list
-        match self.tree.get(ty) {
-            dir::TypeExpression::Reference {
-                generic_arguments, ..
-            }
-            | dir::TypeExpression::Member {
-                generic_arguments, ..
-            } if generic_arguments.is_empty() => {}
-            _ => return Ok(()),
-        }
-
-        let Some(generic_arguments) = self.reify_generic_argument_bindings(bindings)? else {
-            return Ok(());
-        };
-
-        // write the reified arguments back onto the node
-        match self.tree.get_mut(ty) {
-            dir::TypeExpression::Reference {
-                generic_arguments: target,
-                ..
-            }
-            | dir::TypeExpression::Member {
-                generic_arguments: target,
-                ..
-            } => {
-                *target = generic_arguments;
-            }
-            _ => unreachable!("generic type arguments are filtered above"),
-        }
-
-        Ok(())
-    }
-
     /// Reify one generic parameter binding into a synthesized parameter node.
     pub(super) fn reify_generic_parameter(
         &mut self,
@@ -369,7 +330,27 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     return Ok(None);
                 };
 
-                Self::reference(name)
+                if self.check.symbol_kind(reference.symbol)? == dir::SymbolKind::Class {
+                    let mut value = self.insert(dir::Expression::Identifier { name });
+                    if !reference.arguments.is_empty() {
+                        let arguments = self
+                            .check
+                            .type_ids(id.module_id, reference.arguments)?
+                            .to_vec();
+                        let Some(generic_arguments) = self.reify_arguments(&arguments, next)?
+                        else {
+                            return Ok(None);
+                        };
+                        value = self.insert(dir::Expression::Instantiation {
+                            left: value,
+                            generic_arguments,
+                        });
+                    }
+
+                    dir::TypeExpression::TypeOf { value }
+                } else {
+                    Self::reference(name)
+                }
             }
             // array applications reify in their written rest form
             dir::Type::Application(_) if let Some(element) = self.check.array_element(id)? => {
@@ -899,6 +880,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             dir::TypeOperation::StringMapping { .. }
             | dir::TypeOperation::Narrow(_)
             | dir::TypeOperation::TypeOf(_)
+            | dir::TypeOperation::Instantiation(_)
             | dir::TypeOperation::Mapped(_)
             | dir::TypeOperation::TryOutput { .. }
             | dir::TypeOperation::TryResidual { .. }
@@ -921,7 +903,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             || function.is_generator
             || !self
                 .check
-                .signature_generic_parameters(function)?
+                .signature_generic_parameters(module, function)?
                 .is_empty()
         {
             return Ok(None);
@@ -946,7 +928,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             None => None,
         };
 
-        // reify each value parameter under a positional name
+        // retain declared parameter names and name anonymous parameters by position
         let function_parameters = self
             .check
             .signature_parameters(module, function.parameters)?
@@ -959,7 +941,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 return Ok(None);
             };
 
-            let name = self.strings.intern(&format!("arg{index}"));
+            let name = match parameter.name {
+                Some(name) => name,
+                None => self.strings.intern(&format!("arg{index}")),
+            };
             let parameter = if parameter.is_rest {
                 dir::Parameter::VariadicNamed {
                     name,

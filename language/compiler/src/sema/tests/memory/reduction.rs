@@ -155,7 +155,7 @@ declare const bag: ^Bag;
 
 === dir ===
 class Bag {
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag
 /// @definition.field symbol=Bag.size source="size: int32 = 0" key=size type=int32
 
@@ -270,7 +270,7 @@ declare const boxed: Boxed;
 
 === dir ===
 class Bag {
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag
 /// @definition.field symbol=Bag.size source="size: int32 = 0" key=size type=int32
 
@@ -325,7 +325,7 @@ declare const boxed: local ^Bag;
 import { Managed, Owned } from "destack:memory";
 
 class Bag {
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag
 /// @definition.field symbol=Bag.size source="size: int32 = 0" key=size type=int32
 
@@ -390,7 +390,7 @@ declare const boxed: Slot<Point>;
 import { Managed } from "destack:memory";
 
 class Bag {
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag
 /// @definition.field symbol=Bag.size source="size: int32 = 0" key=size type=int32
 

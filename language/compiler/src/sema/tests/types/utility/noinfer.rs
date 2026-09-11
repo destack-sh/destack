@@ -59,7 +59,7 @@ const ok = choose(["red", "blue"], "red");
 /// @generic.instance id="sliceIndex<MaybeUninit<\"red\" | \"blue\">, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<"red" | "blue">, "mutable")
 /// @generic.instance id="sliceUninit<MaybeUninit<\"red\" | \"blue\">>" template=sliceUninit arguments=(MaybeUninit<"red" | "blue">)
 /// @generic.instance id="truncate<\"red\" | \"blue\">" template=truncate arguments=("red" | "blue")
-/// @resolution.call source=["red", "blue"] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"red\" | \"blue\">"
+/// @resolution.call source=["red", "blue"] parameters=(^Slice<"red" | "blue">) arguments=(rest(provided("red") as "red" | "blue", provided("blue") as "red" | "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="arrayFromOwnedSlice<\"red\" | \"blue\">" template=arrayFromOwnedSlice arguments=("red" | "blue")
 /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -216,7 +216,7 @@ const kept = keep(values, ["green"]);
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
-/// @resolution.call source=["green"] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest("green") as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
+/// @resolution.call source=["green"] parameters=(^Slice<string>) arguments=(rest(provided("green") as string) as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
 /// @generic.instantiation id=arrayFromOwnedSlice<string> template=arrayFromOwnedSlice arguments=(string)
 
 const reds: "red"[] = values;
@@ -299,7 +299,7 @@ const reds: "red"[] = seeds;
         DirRows::checked(),
         r#"
 === annotated ===
-declare function on<T>(seeds: T[], callback: NoInfer<(arg0: T) => void>): void;
+declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
 declare function make<T>(): T[];
 
 const seeds: "red"[] = make<"red">();
@@ -390,7 +390,7 @@ choose(["red", "blue"], "green");
 /// @resolution.name source=choose target=choose
 /// @resolution.call source="choose([\"red\", \"blue\"], \"green\")" parameters=("red" | "blue"[], "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as "red" | "blue"[], provided("green") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
-/// @resolution.call source=["red", "blue"] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"red\" | \"blue\">"
+/// @resolution.call source=["red", "blue"] parameters=(^Slice<"red" | "blue">) arguments=(rest(provided("red") as "red" | "blue", provided("blue") as "red" | "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="arrayFromOwnedSlice<\"red\" | \"blue\">" template=arrayFromOwnedSlice arguments=("red" | "blue")
 "#,
         r#"

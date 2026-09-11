@@ -423,7 +423,7 @@ extension of (value: int32) => int32 {
     }
 }
 
-declare const increment: (arg0: int32) => int32;
+declare const increment: (value: int32) => int32;
 
 const arity: int32 = increment.arity();
 

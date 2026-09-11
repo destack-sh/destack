@@ -540,7 +540,7 @@ const hashed: Session = requireHash<Session>(new Session());
 
 === dir ===
 class Session {
-/// @type.symbol symbol=Session type=Session
+/// @type.symbol symbol=Session type=typeof Session
 /// @definition.class symbol=Session
 /// @definition.field symbol=Session.id source="id: int32 = 0" key=id type=int32
 
@@ -1025,7 +1025,7 @@ struct Point {
 }
 
 class Session {
-/// @type.symbol symbol=Session type=Session
+/// @type.symbol symbol=Session type=typeof Session
 /// @definition.class symbol=Session
 /// @definition.field symbol=Session.id source="id: int32 = 0" key=id type=int32
 

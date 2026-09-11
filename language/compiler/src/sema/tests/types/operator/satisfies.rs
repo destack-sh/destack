@@ -21,7 +21,7 @@ handler.run(1) satisfies number;
 === annotated ===
 type Handler = { run: (value: float64) => number };
 
-const handler: { run: (arg0: float64) => float64 } = {
+const handler: { run: (value: float64) => float64 } = {
     run: (value: float64): float64 => value + 1,
 } satisfies Handler;
 

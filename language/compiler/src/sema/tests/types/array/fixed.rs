@@ -72,7 +72,8 @@ const grown: int32[] = fixed;
 const copied: int32[] = [...fixed];
 /// @type.symbol symbol=copied source=copied type=int32[]
 /// @resolution.pattern source=copied kind=binding target=copied
-/// @resolution.call source=[...fixed] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[...fixed] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...fixed) as FixedArray<int32, 3>, iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @generic.instantiation id="iterator#1<int32, 3>" template=iterator#1 arguments=(int32, 3)
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @resolution.name source=fixed target=fixed
 /// @resolution.place source=fixed placement="constant" lifetime="static" access="readonly"

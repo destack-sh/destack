@@ -26,9 +26,7 @@ impl CheckState<'_> {
 
         // type the target as its resolved newtype declaration
         let target = application.expression.target.into_global_any(module);
-        let reference = dir::Type::Reference(dir::TypeReference {
-            symbol: application.symbol,
-        });
+        let reference = dir::Type::Reference(dir::TypeReference::new(application.symbol));
         let reference = self.intern_type(reference)?;
         self.commit_node_type(target, reference)?;
 
@@ -102,12 +100,7 @@ impl CheckState<'_> {
                 symbol: application.symbol,
             },
         };
-        let arguments = self.selected_argument_bindings(
-            site.node,
-            module,
-            &application.expression.arguments,
-            &signature,
-        )?;
+        let arguments = signature.bind_arguments(Origin::Node(site.node, None), self)?;
         let return_type = signature.return_type;
 
         // commit the selected newtype backing as the decorator's resolution
@@ -194,7 +187,7 @@ impl CheckState<'_> {
                 return Ok(None);
             }
             let reference =
-                self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+                self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
             self.commit_node_type(source, reference)?;
             interfaces.push(interface);
         }

@@ -10,8 +10,15 @@ fn test_repeated_extension_method_calls_derive_a_lookup_per_site() {
         .collect::<Vec<_>>()
         .join("\n");
     let source = format!(
-        "extension of int32 {{\n    double(this): int32 {{\n        this + this\n    }}\n}}\n\n\
-         function heavy(): void {{\n{body}\n}}"
+        r#"extension of int32 {{
+    double(this): int32 {{
+        this + this
+    }}
+}}
+
+function heavy(): void {{
+{body}
+}}"#,
     );
 
     assert_check_counters(
@@ -22,15 +29,15 @@ check.solve.constraints=0
 check.solve.obligations=1000
 check.solve.solutions=0
 check.solve.decisions=3003
-check.relations.decided=7
-check.relations.reused=3001
+check.relations.decided=3
+check.relations.reused=2002
 check.bindings.built=1
 check.bindings.reused=2999
 check.members.derived=3000
 check.members.refused=0
 check.instantiations=1000
-check.interns=27094
-check.reduces=35044
+check.interns=23035
+check.reduces=32037
 "#,
     );
 }

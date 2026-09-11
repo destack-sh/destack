@@ -78,7 +78,7 @@ const store = Store {
 === annotated ===
 struct Store {
     read: () => string;
-    write: (arg0: string) => void;
+    write: (value: string) => void;
 }
 
 const store: Store = Store {
@@ -586,8 +586,9 @@ const point = new Point(1, 2);
 /// @resolution.name source=Point target=Point
 "#,
         r#"
-/// @diagnostic.error id=not-constructible message="type 'Point' cannot be constructed with 'new'; construct value types with 'T { … }'"
-/// @diagnostic.label line=7 column=15 span="new Point(1, 2)" line_source="const point = new Point(1, 2);"
+/// @diagnostic.error id=invalid-value-reference message="'Point' is not a value"
+/// @diagnostic.label line=7 column=19 span="Point" line_source="const point = new Point(1, 2);"
+/// @diagnostic.help message="construct structs with 'T { … }'"
 "#,
     );
 }

@@ -287,7 +287,7 @@ function put<T>(destination: &[T], value: T): void {
     /// @resolution.place source=destination placement=put.'a lifetime=put.'a access="mutable"
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
-    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, supplied as T), return=void, regions=(put.'a))" type=T
+    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, supplied(0) as T), return=void, regions=(put.'a))" type=T
     /// @generic.instantiation id=indexSet#1<T> template=indexSet#1 arguments=(T) owner=put
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
@@ -354,7 +354,7 @@ function put(destination: &[int32], value: int32): void {
     /// @resolution.place source=destination placement=put.'a lifetime=put.'a access="mutable"
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
-    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, supplied as int32), return=void, regions=(put.'a))" type=int32
+    /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, supplied(0) as int32), return=void, regions=(put.'a))" type=int32
     /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)

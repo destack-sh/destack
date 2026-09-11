@@ -23,7 +23,7 @@ const ok: boolean = value instanceof User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const value: unknown;
@@ -40,7 +40,7 @@ const ok = value instanceof User;
 /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
 /// @generic.instance id=Type<unknown> template=Type arguments=(unknown)
-/// @type.node source=User type=User
+/// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
 "#,
     );
@@ -87,7 +87,7 @@ if (value instanceof User) {
 
 === dir ===
 declare class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
 
@@ -97,7 +97,7 @@ declare class User {
 }
 
 declare class Team {
-/// @type.symbol symbol=Team type=Team
+/// @type.symbol symbol=Team type=typeof Team
 /// @definition.class symbol=Team
 /// @definition.field symbol=Team.title source="title: string" key=title type=string
 
@@ -119,7 +119,7 @@ if (value instanceof User) {
 /// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=Narrow<User | Team, User>
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
-/// @type.node source=User type=User
+/// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
 
     value.name satisfies string;
@@ -182,7 +182,7 @@ if (value instanceof User) {
 
 === dir ===
 declare class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
 
@@ -192,7 +192,7 @@ declare class User {
 }
 
 declare class Team {
-/// @type.symbol symbol=Team type=Team
+/// @type.symbol symbol=Team type=typeof Team
 /// @definition.class symbol=Team
 /// @definition.field symbol=Team.title source="title: string" key=title type=string
 
@@ -214,7 +214,7 @@ if (value instanceof User) {
 /// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=Narrow<User | Team, User>
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
-/// @type.node source=User type=User
+/// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
 
 } else {
@@ -288,10 +288,12 @@ const ok = value instanceof Named;
 /// @resolution.rejected source="value instanceof Named"
 /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
-/// @type.node source=Named type=Named
+/// @type.node source=Named type=<error>
 /// @resolution.name source=Named target=Named
 "#,
         r#"
+/// @diagnostic.error id=invalid-value-reference message="'Named' is not a value"
+/// @diagnostic.label line=8 column=29 span="Named" line_source="const ok = value instanceof Named;"
 /// @diagnostic.error id=instance-of-target-not-class message="right-hand side of 'instanceof' must be a class"
 /// @diagnostic.label line=8 column=29 span="Named" line_source="const ok = value instanceof Named;"
 "#,
@@ -321,7 +323,7 @@ const ok: boolean = value instanceof User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const value: string;
@@ -337,7 +339,7 @@ const ok = value instanceof User;
 /// @resolution.guard source="value instanceof User" kind=instanceof value=string target=User target_type=User predicate="string is subtype(User)" narrowed=Narrow<string, User>
 /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value root=value
-/// @type.node source=User type=User
+/// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -369,7 +371,7 @@ function adopt<T>(value: T): void {
         r#"
 === annotated ===
 class Deferred<out T> {
-    then(callback: (arg0: T) => void): void {}
+    then(callback: (value: T) => void): void {}
 }
 
 function adopt<T>(value: T): void {
@@ -381,7 +383,7 @@ function adopt<T>(value: T): void {
 === dir ===
 class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
-/// @type.symbol symbol=Deferred type=Deferred
+/// @type.symbol symbol=Deferred type=typeof Deferred
 /// @definition.class symbol=Deferred template=(out T#1)
 /// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#1>, Deferred.then.P0>, Function<(T#1,), void>) => void
 /// @type.symbol symbol=Deferred.T source=T type=T#1
@@ -410,7 +412,7 @@ function adopt<T>(value: T): void {
     /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 target=Deferred target_type=Deferred<*> predicate="T#2 is subtype(Deferred<*>)" narrowed=Narrow<T#2, Deferred<*>>
     /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=adopt.value
-    /// @type.node source=Deferred type=Deferred
+    /// @type.node source=Deferred type=typeof Deferred
     /// @resolution.name source=Deferred target=Deferred
 
         value.then((value) => {});
@@ -456,7 +458,7 @@ function adopt<T>(value: T | Deferred<T>): void {
         r#"
 === annotated ===
 class Deferred<out T> {
-    then(callback: (arg0: T) => void): void {}
+    then(callback: (value: T) => void): void {}
 }
 
 function adopt<T>(value: T | Deferred<T>): void {
@@ -468,7 +470,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 === dir ===
 class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
-/// @type.symbol symbol=Deferred type=Deferred
+/// @type.symbol symbol=Deferred type=typeof Deferred
 /// @definition.class symbol=Deferred template=(out T#1)
 /// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=<Deferred.then.P0: Place>(this: Managed<this, Deferred.then.P0>, Function<(T#1,), void>) => void
 /// @type.symbol symbol=Deferred.T source=T type=T#1
@@ -499,7 +501,7 @@ function adopt<T>(value: T | Deferred<T>): void {
     /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=Narrow<T#2 | Deferred<T#2>, Deferred<*>>
     /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=adopt.value
-    /// @type.node source=Deferred type=Deferred
+    /// @type.node source=Deferred type=typeof Deferred
     /// @resolution.name source=Deferred target=Deferred
 
         value.then((value) => {});
@@ -548,7 +550,7 @@ function adopt<T>(value: T | Deferred<T>): void {
         r#"
 === annotated ===
 class Deferred<out T> {
-    then(callback: (arg0: T) => void): void {}
+    then(callback: (value: T) => void): void {}
 }
 
 function adopt<T>(value: T | Deferred<T>): void {
@@ -560,7 +562,7 @@ function adopt<T>(value: T | Deferred<T>): void {
 === dir ===
 class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
-/// @type.symbol symbol=Deferred type=Deferred
+/// @type.symbol symbol=Deferred type=typeof Deferred
 /// @definition.class symbol=Deferred template=(out T#1)
 /// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#1>, Deferred.then.P0>, Function<(T#1,), void>) => void
 /// @type.symbol symbol=Deferred.T source=T type=T#1
@@ -592,7 +594,7 @@ function adopt<T>(value: T | Deferred<T>): void {
     /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=Narrow<T#2 | Deferred<T#2>, Deferred<*>>
     /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
     /// @resolution.access source=value root=adopt.value
-    /// @type.node source=Deferred type=Deferred
+    /// @type.node source=Deferred type=typeof Deferred
     /// @resolution.name source=Deferred target=Deferred
 
         value.then(() => {});

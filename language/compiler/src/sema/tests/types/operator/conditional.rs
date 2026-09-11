@@ -820,16 +820,16 @@ declare const empty: Head<()>;
 === dir ===
 type Head<T> = T extends (infer H, ...infer R) ? H : "no";
 /// @generic.template symbol=Head parameters=(T#1)
-/// @type.symbol symbol=Head source="type Head<T> = T extends (infer H, ...infer R) ? H : \"no\"" type=T#1 extends (infer H, ...infer R) ? Head.H : "no"
-/// @definition.type symbol=Head source="type Head<T> = T extends (infer H, ...infer R) ? H : \"no\"" template=(T#1) value=T#1 extends (infer H, ...infer R) ? Head.H : "no"
+/// @type.symbol symbol=Head source="type Head<T> = T extends (infer H, ...infer R) ? H : \"no\"" type=T#1 extends (infer H, ...infer R extends (readonly ...ReadonlyArray<unknown>,)) ? Head.H : "no"
+/// @definition.type symbol=Head source="type Head<T> = T extends (infer H, ...infer R) ? H : \"no\"" template=(T#1) value=T#1 extends (infer H, ...infer R extends (readonly ...ReadonlyArray<unknown>,)) ? Head.H : "no"
 /// @type.symbol symbol=Head.T source=T type=T#1
 /// @resolution.name source=T target=Head.T
 /// @resolution.name source=H target=Head.H
 
 type Rest<T> = T extends (infer H, ...infer R) ? R : "no";
 /// @generic.template symbol=Rest parameters=(T#2)
-/// @type.symbol symbol=Rest source="type Rest<T> = T extends (infer H, ...infer R) ? R : \"no\"" type=T#2 extends (infer H, ...infer R) ? Rest.R : "no"
-/// @definition.type symbol=Rest source="type Rest<T> = T extends (infer H, ...infer R) ? R : \"no\"" template=(T#2) value=T#2 extends (infer H, ...infer R) ? Rest.R : "no"
+/// @type.symbol symbol=Rest source="type Rest<T> = T extends (infer H, ...infer R) ? R : \"no\"" type=T#2 extends (infer H, ...infer R extends (readonly ...ReadonlyArray<unknown>,)) ? Rest.R : "no"
+/// @definition.type symbol=Rest source="type Rest<T> = T extends (infer H, ...infer R) ? R : \"no\"" template=(T#2) value=T#2 extends (infer H, ...infer R extends (readonly ...ReadonlyArray<unknown>,)) ? Rest.R : "no"
 /// @type.symbol symbol=Rest.T source=T type=T#2
 /// @resolution.name source=T target=Rest.T
 /// @resolution.name source=R target=Rest.R
@@ -877,8 +877,8 @@ declare const last: Last<(1, 2, 3)>;
 === dir ===
 type Last<T> = T extends (...infer I, infer L) ? L : "no";
 /// @generic.template symbol=Last parameters=(T)
-/// @type.symbol symbol=Last source="type Last<T> = T extends (...infer I, infer L) ? L : \"no\"" type=T extends (...infer I, infer L) ? Last.L : "no"
-/// @definition.type symbol=Last source="type Last<T> = T extends (...infer I, infer L) ? L : \"no\"" template=(T) value=T extends (...infer I, infer L) ? Last.L : "no"
+/// @type.symbol symbol=Last source="type Last<T> = T extends (...infer I, infer L) ? L : \"no\"" type=T extends (...infer I extends (readonly ...ReadonlyArray<unknown>,), infer L) ? Last.L : "no"
+/// @definition.type symbol=Last source="type Last<T> = T extends (...infer I, infer L) ? L : \"no\"" template=(T) value=T extends (...infer I extends (readonly ...ReadonlyArray<unknown>,), infer L) ? Last.L : "no"
 /// @type.symbol symbol=Last.T source=T type=T
 /// @resolution.name source=T target=Last.T
 /// @resolution.name source=L target=Last.L
@@ -916,8 +916,8 @@ declare const head: Head<readonly (1, 2)>;
 === dir ===
 type Head<T> = T extends readonly (infer H, ...infer R) ? H : "no";
 /// @generic.template symbol=Head parameters=(T)
-/// @type.symbol symbol=Head source="type Head<T> = T extends readonly (infer H, ...infer R) ? H : \"no\"" type=T extends readonly (infer H, ...infer R) ? Head.H : "no"
-/// @definition.type symbol=Head source="type Head<T> = T extends readonly (infer H, ...infer R) ? H : \"no\"" template=(T) value=T extends readonly (infer H, ...infer R) ? Head.H : "no"
+/// @type.symbol symbol=Head source="type Head<T> = T extends readonly (infer H, ...infer R) ? H : \"no\"" type=T extends readonly (infer H, ...infer R extends (readonly ...ReadonlyArray<unknown>,)) ? Head.H : "no"
+/// @definition.type symbol=Head source="type Head<T> = T extends readonly (infer H, ...infer R) ? H : \"no\"" template=(T) value=T extends readonly (infer H, ...infer R extends (readonly ...ReadonlyArray<unknown>,)) ? Head.H : "no"
 /// @type.symbol symbol=Head.T source=T type=T
 /// @resolution.name source=T target=Head.T
 /// @resolution.name source=H target=Head.H
@@ -961,11 +961,11 @@ declare const result: Result<Signature>;
 === dir ===
 type Arguments<F> = F extends (...arguments: infer P) => unknown ? P : never;
 /// @generic.template symbol=Arguments parameters=(F#1)
-/// @type.symbol symbol=Arguments source="type Arguments<F> = F extends (...arguments: infer P) => unknown ? P : never" type=F#1 extends Function<(...infer P,), unknown> ? Arguments.P : never
-/// @definition.type symbol=Arguments source="type Arguments<F> = F extends (...arguments: infer P) => unknown ? P : never" template=(F#1) value=F#1 extends Function<(...infer P,), unknown> ? Arguments.P : never
+/// @type.symbol symbol=Arguments source="type Arguments<F> = F extends (...arguments: infer P) => unknown ? P : never" type=F#1 extends Function<(...infer P extends (readonly ...ReadonlyArray<unknown>,),), unknown> ? Arguments.P : never
+/// @definition.type symbol=Arguments source="type Arguments<F> = F extends (...arguments: infer P) => unknown ? P : never" template=(F#1) value=F#1 extends Function<(...infer P extends (readonly ...ReadonlyArray<unknown>,),), unknown> ? Arguments.P : never
 /// @type.symbol symbol=Arguments.F source=F type=F#1
 /// @resolution.name source=F target=Arguments.F
-/// @type.symbol symbol=Arguments.arguments source="...arguments: infer P" type=infer P
+/// @type.symbol symbol=Arguments.arguments source="...arguments: infer P" type=infer P extends (readonly ...ReadonlyArray<unknown>,)
 /// @resolution.name source=P target=Arguments.P
 
 type Result<F> = F extends (...arguments: unknown[]) => infer R ? R : never;
@@ -1018,7 +1018,7 @@ declare const receiver: Receiver<(this: { id: string }, count: int32) => void>;
 === annotated ===
 type Receiver<F> = F extends (this: infer R, ...arguments: unknown[]) => unknown ? R : never;
 
-declare const receiver: Receiver<(this: { id: string }, arg0: int32) => void>;
+declare const receiver: Receiver<(this: { id: string }, count: int32) => void>;
 
 === dir ===
 type Receiver<F> = F extends (this: infer R, ...arguments: unknown[]) => unknown ? R : never;
@@ -1190,7 +1190,7 @@ declare const value: Both<{ f: (x: string) => void, g: (y: int32) => void }>;
 === annotated ===
 type Both<T> = T extends { f: (x: infer U) => void; g: (y: infer U) => void } ? U : "no";
 
-declare const value: Both<{ f: (arg0: string) => void; g: (arg0: int32) => void }>;
+declare const value: Both<{ f: (x: string) => void; g: (y: int32) => void }>;
 
 === dir ===
 type Both<T> = T extends { f: (x: infer U) => void, g: (y: infer U) => void } ? U : "no";
@@ -1238,8 +1238,8 @@ declare const wide: Mixed<{ a: int32, f: (x: string) => void }>;
 === annotated ===
 type Mixed<T> = T extends { a: infer U; f: (x: infer U) => void } ? U : never;
 
-declare const narrow: Mixed<{ a: "a"; f: (arg0: string) => void }>;
-declare const wide: Mixed<{ a: int32; f: (arg0: string) => void }>;
+declare const narrow: Mixed<{ a: "a"; f: (x: string) => void }>;
+declare const wide: Mixed<{ a: int32; f: (x: string) => void }>;
 
 === dir ===
 type Mixed<T> = T extends { a: infer U, f: (x: infer U) => void } ? U : never;

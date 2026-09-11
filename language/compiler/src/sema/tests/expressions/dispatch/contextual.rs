@@ -22,7 +22,7 @@ class Bag<in out T> {
 === dir ===
 class Bag<T> {
 /// @generic.template symbol=Bag parameters=(in out T)
-/// @type.symbol symbol=Bag type=Bag
+/// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag template=(in out T)
 /// @definition.field symbol=Bag.values source="values: T[] = Array.new()" key=values type=T[]
 /// @type.symbol symbol=Bag.T source=T type=T
@@ -33,11 +33,11 @@ class Bag<T> {
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<T>> template=sliceAssumeInit arguments=(MaybeUninit<T>)
     /// @generic.instance id=sliceUninit<MaybeUninit<T>> template=sliceUninit arguments=(MaybeUninit<T>)
     /// @resolution.name source=T target=Bag.T
-    /// @type.node source=Array type=Array
+    /// @type.node source=Array type=typeof Array
     /// @type.node source=Array.new type=() => ^T#6[]
     /// @type.node source=Array.new() type=^T[]
     /// @resolution.name source=Array target=Array
-    /// @resolution.member source=Array.new receiver=Array type=() => ^T#6[] kind=symbol target_receiver=Array target=new
+    /// @resolution.member source=Array.new receiver=typeof Array type=() => ^T#6[] kind=symbol target_receiver=typeof Array target=new
     /// @resolution.call source=Array.new() parameters=() return=^T[] kind=symbol target=new instance=Array<T>.<extension#6>.new
     /// @generic.instantiation id=new<T> template=new arguments=(T) owner=Bag
     /// @generic.instance id=new<T> template=new arguments=(T)
@@ -89,11 +89,11 @@ function build(): void {
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
     /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
     /// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
-    /// @type.node source=Array type=Array
+    /// @type.node source=Array type=typeof Array
     /// @type.node source=Array.new type=() => ^T#6[]
     /// @type.node source=Array.new() type=^int32[]
     /// @resolution.name source=Array target=Array
-    /// @resolution.member source=Array.new receiver=Array type=() => ^T#6[] kind=symbol target_receiver=Array target=new
+    /// @resolution.member source=Array.new receiver=typeof Array type=() => ^T#6[] kind=symbol target_receiver=typeof Array target=new
     /// @resolution.call source=Array.new() parameters=() return=^int32[] kind=symbol target=new instance=Array<int32>.<extension#6>.new
     /// @generic.instantiation id=new<int32> template=new arguments=(int32)
     /// @generic.instance id=new<int32> template=new arguments=(int32)

@@ -861,7 +861,7 @@ impl CheckState<'_> {
         let iterator_site = self.visit_site(iterator.into_global_any(module))?;
         let iterator_type = self.infer_node(iterator_site, PlaceUse::Read, InferMode::Regular)?;
         let iterator_type = self.flow_type_at(iterator_site, iterator_type)?;
-        let target = self.for_of_value_type(site, asynchrony, iterator, iterator_type)?;
+        let target = self.select_for_of_iteration(site, asynchrony, iterator, iterator_type)?;
 
         // check the binding against the value produced by the iteration source
         let pattern = match binding {
@@ -917,20 +917,42 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Select the iteration protocol calls one for-of source takes, returning its value type.
-    fn for_of_value_type(
+    /// Select and record the iteration of one for-of expression.
+    fn select_for_of_iteration(
         &mut self,
         site: FlowSite,
         asynchrony: dir::Asynchrony,
         iterator: dir::LocalNodeId<dir::Expression>,
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let origin = site.origin();
+        // read the source at its authored place
         let source = iterator.into_global_any(site.node.module_id);
-        let anchored = self.origin_at(origin, source)?;
+        let origin = self.origin_at(site.origin(), source)?;
         let source_site = self.visit_site(source)?;
-        let source_value = self.expression_value(source_site, iterator_type)?;
+        let value = self.expression_value(source_site, iterator_type)?;
 
+        // record the selected iteration or report the refused source
+        match self.select_iteration(origin, value, asynchrony)? {
+            Some((element, iteration)) => {
+                self.commit_decision(site.node, dir::Decision::Iteration(Box::new(iteration)))?;
+
+                Ok(element)
+            }
+            None => {
+                self.report_source_not_iterable(source);
+
+                self.intern_type(dir::Type::Error)
+            }
+        }
+    }
+
+    /// Select the operations and element type of an iteration.
+    pub(in crate::sema) fn select_iteration(
+        &mut self,
+        origin: Origin,
+        source_value: Value,
+        asynchrony: dir::Asynchrony,
+    ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::IterationDecision)>> {
         // open the async protocol first, falling back to the sync one as JS does
         let mut protocols = match asynchrony {
             dir::Asynchrony::Sync => vec![(
@@ -955,9 +977,9 @@ impl CheckState<'_> {
         for (iterable, iterator_key, iterator_item) in protocols.drain(..) {
             let key = dir::StaticKey::Name(self.strings().intern(iterator_key));
             let selected = self.select_language_protocol_call(
-                anchored,
+                origin,
                 source_value,
-                iterator_type,
+                source_value.ty,
                 dir::MemberSpace::Instance,
                 key,
                 iterable,
@@ -973,10 +995,7 @@ impl CheckState<'_> {
 
         // report a source without an iteration protocol implementation
         let Some((protocol, opened, iterable, iterator_item)) = opened else {
-            self.report_for_of_source_not_iterable(source);
-            let error = self.intern_type(dir::Type::Error)?;
-
-            return Ok(error);
+            return Ok(None);
         };
         let Some(element) = protocol.arguments.first().copied() else {
             return Err(CompilerError::Internal {
@@ -993,7 +1012,7 @@ impl CheckState<'_> {
             is_fresh: false,
         };
         let selected = self.select_language_protocol_call(
-            anchored,
+            origin,
             iterator_value,
             opened.return_type,
             dir::MemberSpace::Instance,
@@ -1004,21 +1023,18 @@ impl CheckState<'_> {
             &[],
         )?;
         let Some((_, next)) = selected else {
-            self.report_for_of_source_not_iterable(source);
-            let error = self.intern_type(dir::Type::Error)?;
-
-            return Ok(error);
+            return Ok(None);
         };
 
         // park each result of an async iterator, or each element a sync iterable yields
         let (park, value) = match (asynchrony, iterable) {
             (dir::Asynchrony::Sync, _) => (None, element),
             (dir::Asynchrony::Async, dir::LanguageItem::AsyncIterable) => {
-                let park = self.select_await_park(anchored, next.return_type)?;
+                let park = self.select_await_park(origin, next.return_type)?;
 
                 (park.map(|call| (call, dir::AwaitTarget::Result)), element)
             }
-            (dir::Asynchrony::Async, _) => match self.select_await_park(anchored, element)? {
+            (dir::Asynchrony::Async, _) => match self.select_await_park(origin, element)? {
                 Some(call) => {
                     let awaited = call.return_type;
 
@@ -1042,17 +1058,14 @@ impl CheckState<'_> {
             dir::OperationResolution::One(call) => Some(dir::IterationAwait { call, target }),
             _ => None,
         });
-        self.commit_decision(
-            site.node,
-            dir::Decision::Iteration(Box::new(dir::IterationDecision {
-                iterator: iterator_call,
-                next: next_call,
-                awaits: park,
-                disposal: None,
-            })),
-        )?;
+        let iteration = dir::IterationDecision {
+            iterator: iterator_call,
+            next: next_call,
+            awaits: park,
+            disposal: None,
+        };
 
-        Ok(value)
+        Ok(Some((value, iteration)))
     }
 
     /// Record the disposal protocol calls one using binding runs at scope exit.

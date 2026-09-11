@@ -340,14 +340,12 @@ impl CheckState<'_> {
             // T(value)
             dir::Pattern::NominalTuple { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
-                self.walk_body_construct_type(module, ty)?;
 
                 self.select_newtype_pattern(node, origin, flow, scope, ty, &fields)
             }
             // T { name }
             dir::Pattern::NominalObject { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
-                self.walk_body_construct_type(module, ty)?;
 
                 self.select_nominal_pattern(node, origin, flow, scope, ty, &fields)
             }
@@ -472,7 +470,10 @@ impl CheckState<'_> {
         origin: Origin,
         tag: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        self.report_invalid_pattern_tag(origin, tag)?;
+        // report an invalid tag only when its type has not already failed
+        if !self.has_error_operand(&[tag])? {
+            self.report_invalid_pattern_tag(origin, tag)?;
+        }
 
         self.commit_rejected_pattern(node)
     }

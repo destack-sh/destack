@@ -82,6 +82,20 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// A rest parameter has an unsupported or unconstrained type.
+    #[diagnostic(
+        id = "invalid-rest-parameter",
+        message = "rest parameter type {ty} must be a dynamic array, slice, or tuple"
+    )]
+    InvalidRestParameter {
+        /// Report the rest parameter declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The declared parameter type.
+        ty: String,
+    },
+
     /// Export's type depends on another module and needs an annotation.
     ///
     /// ```ds
@@ -2152,17 +2166,14 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// For-of source is not iterable.
+    /// An iteration source is not iterable.
     ///
     /// ```ds
     /// for (const value of 1) {}
     /// ```
-    #[diagnostic(
-        id = "for-of-source-not-iterable",
-        message = "for-of source must be iterable"
-    )]
-    ForOfSourceNotIterable {
-        /// Report the for-of expression.
+    #[diagnostic(id = "source-not-iterable", message = "source must be iterable")]
+    SourceNotIterable {
+        /// Report the source expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -2209,6 +2220,17 @@ pub enum CheckError {
         module: ModuleId,
         /// The parameter the body reads.
         parameter: String,
+    },
+
+    /// An ordinary value expression names a declaration without a value.
+    #[diagnostic(id = "invalid-value-reference", message = "'{name}' is not a value")]
+    InvalidValueReference {
+        /// Report the referencing expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The referenced declaration.
+        name: String,
     },
 
     /// A reference to an overload group materializes without a selecting call.
@@ -3301,6 +3323,22 @@ pub enum CheckError {
         source: String,
         /// The depth limit.
         limit: u32,
+    },
+
+    /// A receiver requires more automatic dereferences than member lookup allows.
+    #[diagnostic(
+        id = "dereference-depth-exceeded",
+        message = "dereferencing '{source}' exceeds the depth limit of {limit}"
+    )]
+    DereferenceDepthExceeded {
+        /// The access that requires further dereferencing.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The receiver type.
+        source: String,
+        /// The maximum number of dereferences.
+        limit: usize,
     },
 
     /// Extension parameter left unconstrained by the target and its conformances.

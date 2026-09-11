@@ -530,14 +530,14 @@ newtype interface It<in out T, out R = void> {
         todo("find" as string | undefined)
     }
 
-    map<U>(this, transform: (arg0: T) => U): Wrap<this, T, U> {
+    map<U>(this, transform: (value: T) => U): Wrap<this, T, U> {
         todo("map" as string | undefined)
     }
 }
 
 struct Wrap<out I, in T, out U> {
     source: I;
-    transform: (arg0: T) => U;
+    transform: (value: T) => U;
 }
 
 extension<T, U, R, I: It<T, R>> of Wrap<I, T, U> implements It<U> {

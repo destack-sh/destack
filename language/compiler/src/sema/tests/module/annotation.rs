@@ -126,7 +126,7 @@ class Box {
 
 === dir ===
 class Box {
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.value source="value: _ = 1" key=value type=<error>
 

@@ -954,7 +954,7 @@ class Cell<in out T> {
 === dir ===
 class Waiter<T> {
 /// @generic.template symbol=Waiter parameters=(in out T#1)
-/// @type.symbol symbol=Waiter type=Waiter
+/// @type.symbol symbol=Waiter type=typeof Waiter
 /// @definition.class symbol=Waiter template=(in out T#1)
 /// @definition.field symbol=Waiter.next source="next: Waiter<T> | undefined" key=next type=Waiter<T#1> | undefined
 /// @definition.field symbol=Waiter.value source="value: T" key=value type=T#1
@@ -1055,7 +1055,7 @@ type State<T> = Pending<T> | Fulfilled<T>;
 
 class Cell<T> {
 /// @generic.template symbol=Cell parameters=(in out T#5)
-/// @type.symbol symbol=Cell type=Cell
+/// @type.symbol symbol=Cell type=typeof Cell
 /// @generic.instance id=Pending<T#5> template=Pending arguments=(T#5)
 /// @definition.class symbol=Cell template=(in out T#5)
 /// @definition.field symbol=Cell.state source="state: State<T>" key=state type=Pending<T#5> | Fulfilled<T#5>
@@ -1283,7 +1283,7 @@ class Child extends Base {
 
 === dir ===
 class Base {
-/// @type.symbol symbol=Base type=Base
+/// @type.symbol symbol=Base type=typeof Base
 /// @definition.class symbol=Base
 /// @definition.field symbol=Base.label source="label: string | undefined = undefined" key=label type=string | undefined
 
@@ -1293,7 +1293,7 @@ class Base {
 }
 
 class Child extends Base {
-/// @type.symbol symbol=Child type=Child
+/// @type.symbol symbol=Child type=typeof Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
 /// @definition.method symbol=Child.read slot=read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => string | undefined
@@ -1405,7 +1405,7 @@ class Child extends Base {
 
 === dir ===
 class Base {
-/// @type.symbol symbol=Base type=Base
+/// @type.symbol symbol=Base type=typeof Base
 /// @definition.class symbol=Base
 /// @definition.field symbol=Base.label source="label: string | undefined = undefined" key=label type=string | undefined
 
@@ -1415,7 +1415,7 @@ class Base {
 }
 
 class Child extends Base {
-/// @type.symbol symbol=Child type=Child
+/// @type.symbol symbol=Child type=typeof Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
 /// @definition.method symbol=Child.read slot=read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => string | undefined
@@ -1530,7 +1530,7 @@ class Child extends Base {
 
 === dir ===
 class Base {
-/// @type.symbol symbol=Base type=Base
+/// @type.symbol symbol=Base type=typeof Base
 /// @definition.class symbol=Base
 /// @definition.field symbol=Base.label source="label: string | undefined = undefined" key=label type=string | undefined
 
@@ -1540,7 +1540,7 @@ class Base {
 }
 
 class Child extends Base {
-/// @type.symbol symbol=Child type=Child
+/// @type.symbol symbol=Child type=typeof Child
 /// @definition.class symbol=Child
 /// @definition.extends symbol=Child source=Base target=Base
 /// @definition.method symbol=Child.read slot=read type=<Child.read.P0: Place>(this: Managed<Child, Child.read.P0>, string | undefined) => Function<(), string | undefined>
@@ -1645,7 +1645,7 @@ function read(this: Box): string {
 
 === dir ===
 class Box {
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box
 /// @definition.field symbol=Box.label source="label: string | undefined = undefined" key=label type=string | undefined
 

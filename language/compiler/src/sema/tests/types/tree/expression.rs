@@ -83,7 +83,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -285,7 +285,7 @@ function render(title: string): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -485,7 +485,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -663,7 +663,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -842,7 +842,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -1019,7 +1019,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -1202,7 +1202,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -1397,7 +1397,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -1604,7 +1604,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -1807,7 +1807,7 @@ function render(items: Panel[]): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -2003,7 +2003,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -2222,7 +2222,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -2437,7 +2437,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -2531,7 +2531,7 @@ extension of Panel implements TreeBuilder {
 }
 
 class Card {
-/// @type.symbol symbol=Card type=Card
+/// @type.symbol symbol=Card type=typeof Card
 /// @definition.class symbol=Card
 /// @definition.field symbol=Card.heading source="heading: string" key=heading type=string
 /// @definition.method symbol=Card.constructor slot=constructor role=constructor type=<Card.constructor.P0: Place>({ heading: string }) => Managed<Card, Card.constructor.P0>
@@ -2679,7 +2679,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -2893,7 +2893,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 
@@ -3188,7 +3188,7 @@ function render(): Panel {
 import { TreeBuilder } from "destack:tree";
 
 class Panel {
-/// @type.symbol symbol=Panel type=Panel
+/// @type.symbol symbol=Panel type=typeof Panel
 /// @definition.class symbol=Panel
 /// @definition.field symbol=Panel.label source="label: string = \"\"" key=label type=string
 

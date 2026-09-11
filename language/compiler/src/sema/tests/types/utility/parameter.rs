@@ -243,7 +243,7 @@ function parse(value: string): string {
 
 type Parser = typeof parse;
 /// @type.symbol symbol=Parser source="type Parser = typeof parse" type=(int32) => int32 & (string) => string
-/// @definition.type symbol=Parser source="type Parser = typeof parse" value=typeof parse
+/// @definition.type symbol=Parser source="type Parser = typeof parse" value=(int32) => int32 & (string) => string
 /// @resolution.name source=parse target=[parse#1, parse#2]
 
 declare const parser: Parser;

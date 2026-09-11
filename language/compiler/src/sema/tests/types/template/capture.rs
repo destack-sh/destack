@@ -108,7 +108,7 @@ segment satisfies "users";
         DirRows::checked(),
         r#"
 === annotated ===
-declare function withParsed<T: string, U>(value: `id:${T}`, callback: (arg0: T) => U): U;
+declare function withParsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 
 const segment: "users" = withParsed<"users", "users">(
     "id:users",

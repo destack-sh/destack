@@ -9,6 +9,64 @@ use crate::sema::{
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Infer a declaration qualifier or runtime receiver and its flow type.
+    pub(in crate::sema) fn infer_receiver(
+        &mut self,
+        site: FlowSite,
+    ) -> CompilerResult<(dir::GlobalTypeId, dir::GlobalTypeId)> {
+        // reuse a complete receiver type
+        let receiver = if let Some(ty) = self.own_node_type(site.node) {
+            ty
+        } else {
+            // apply explicit arguments to the selected qualifier
+            let expression = self
+                .module(site.node.module_id)
+                .view()
+                .get(site.node.into_typed::<dir::Expression>().local_id)
+                .clone();
+            if let dir::Expression::Instantiation {
+                left,
+                generic_arguments,
+            } = expression
+            {
+                let operand = self.visit_site(left.into_global_any(site.node.module_id))?;
+                let (_, target) = self.infer_receiver(operand)?;
+                self.infer_instantiation(
+                    site.node.into_typed(),
+                    operand,
+                    target,
+                    &generic_arguments,
+                )?;
+                self.require_node_type(site.node)?
+            } else {
+                // distinguish associated member qualifiers from ordinary value expressions
+                let qualifier = match self.decide_reference(site.node)? {
+                    Some(resolution) => {
+                        let mut is_qualifier = resolution.denoted_type().is_some();
+                        for symbol in resolution.symbols() {
+                            is_qualifier |= !self.symbol_kind(*symbol)?.is_value();
+                        }
+                        is_qualifier.then_some(resolution)
+                    }
+                    None => None,
+                };
+                match qualifier {
+                    Some(resolution) => {
+                        self.infer_declaration(site, &resolution)?;
+                        self.require_node_type(site.node)?
+                    }
+                    None => self.infer_node(site, PlaceUse::Read, InferMode::Regular)?,
+                }
+            }
+        };
+
+        // narrow runtime receivers at the member access
+        let narrowed = self.flow_type_at(site, receiver)?;
+        self.commit_expression_place(site, narrowed)?;
+
+        Ok((receiver, narrowed))
+    }
+
     /// Infer one expression node.
     pub(in crate::sema) fn infer_expression(
         &mut self,
@@ -207,7 +265,8 @@ impl CheckState<'_> {
                 Ok(())
             }
             dir::Expression::StructExpression { ty, properties } => {
-                let target = self.select_construct_target(site, ty, None)?;
+                // require an aggregate type
+                let target = self.construct_type(site.origin(), site.node.module_id, ty, None)?;
                 if self
                     .require_aggregate_construct_target(site.node, site.origin(), target)?
                     .is_some()
@@ -215,6 +274,7 @@ impl CheckState<'_> {
                     return Ok(());
                 }
 
+                // infer the aggregate fields
                 let check = self.select_property_merge(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
@@ -328,10 +388,15 @@ impl CheckState<'_> {
             dir::Expression::Unary { operator, right } => {
                 self.select_unary_operator(site, operator, right, use_)
             }
-            dir::Expression::New { ty, arguments } => {
+            dir::Expression::New {
+                left,
+                generic_arguments,
+                arguments,
+            } => {
                 self.select_construct(
                     site,
-                    ty,
+                    left,
+                    &generic_arguments,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                     None,
                 )?;
@@ -347,11 +412,12 @@ impl CheckState<'_> {
             dir::Expression::Instantiation {
                 left,
                 generic_arguments,
-            } => self.select_instantiation(
-                node,
-                left,
-                &generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>(),
-            ),
+            } => {
+                let operand = self.visit_site(left.into_global_any(node.module_id))?;
+                let target = self.infer_node(operand, PlaceUse::Read, InferMode::Regular)?;
+
+                self.infer_instantiation(node, operand, target, &generic_arguments)
+            }
             dir::Expression::TaggedTemplateExpression { tag, .. } => {
                 self.select_tagged_template(site, tag)
             }
@@ -592,32 +658,45 @@ impl CheckState<'_> {
         site: FlowSite,
         resolution: &dir::NameResolution,
     ) -> CompilerResult<()> {
-        // narrow to the selected symbols, reflecting a type literal into Type<T>
+        // check the selected declaration's use before reading its type
+        if !self.check_value_reference(site.node, resolution)? {
+            self.commit_error_node(site.node)?;
+
+            return Ok(());
+        }
+
+        self.infer_declaration(site, resolution)
+    }
+
+    /// Infer the type selected by one declaration reference.
+    pub(in crate::sema) fn infer_declaration(
+        &mut self,
+        site: FlowSite,
+        resolution: &dir::NameResolution,
+    ) -> CompilerResult<()> {
+        // retain the selected type for an associated member qualifier
         let symbols = match resolution {
             dir::NameResolution::Type(denoted) => {
-                let reflected = self.language_type(dir::LanguageItem::Type, &[*denoted])?;
-
-                return self.commit_node_type(site.node, reflected);
+                return self.commit_node_type(site.node, *denoted);
             }
             dir::NameResolution::Symbols(symbols) => symbols.as_slice(),
         };
 
         // reject a plural declaration group referenced without a selecting call
         let [symbol] = symbols else {
-            let Some(symbol) = symbols.first().copied() else {
-                return Err(CompilerError::Internal {
-                    message: format!("name resolution at {:?} selects no symbols", site.node),
-                });
-            };
-            self.report_ambiguous_overload(site.node, symbol)?;
+            self.report_ambiguous_overload(site.node, symbols)?;
             let ty = self.intern_type(dir::Type::Error)?;
             self.commit_node_type(site.node, ty)?;
 
             return Ok(());
         };
 
-        // report foreign value reads while declaring
-        if self.is_declaring() && !self.is_own_module(symbol.module_id) {
+        // require a written type for foreign values whose type needs another declaration
+        if self.is_declaring()
+            && !self.is_own_module(symbol.module_id)
+            && self.symbol_kind(*symbol)?.is_value()
+            && self.symbol_kind(*symbol)? != dir::SymbolKind::Class
+        {
             self.report_export_type_not_derivable(site.node.module_id, site.node.local_id);
 
             // record the runtime access path while checking
@@ -657,13 +736,13 @@ impl CheckState<'_> {
         };
         let ty = match identity {
             Some(value) => value,
-            // type alias and class names as their written declaration reference
+            // retain the declaration that selects static members and constructors
             None if matches!(
                 self.symbol_kind(*symbol)?,
                 dir::SymbolKind::TypeAlias | dir::SymbolKind::Class
             ) =>
             {
-                self.intern_type(dir::Type::Reference(dir::TypeReference { symbol: *symbol }))?
+                self.intern_type(dir::Type::Reference(dir::TypeReference::new(*symbol)))?
             }
             None => self.symbol_type(*symbol)?,
         };
@@ -735,6 +814,39 @@ impl CheckState<'_> {
 }
 
 impl CheckState<'_> {
+    /// Require values from the selected declarations.
+    pub(in crate::sema) fn check_value_reference(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        resolution: &dir::NameResolution,
+    ) -> CompilerResult<bool> {
+        // reject primitive type names used as values
+        if let dir::NameResolution::Type(denoted) = resolution {
+            let name = self.format_type(*denoted);
+            self.report_invalid_value_reference(source, name, None);
+
+            return Ok(false);
+        }
+
+        // report a value read from a declaration without a value
+        for symbol in resolution.symbols() {
+            let kind = self.symbol_kind(*symbol)?;
+            if !kind.is_value() {
+                let name = self.format_symbol(*symbol);
+                let help = match kind {
+                    dir::SymbolKind::Struct => Some("construct structs with 'T { … }'"),
+                    dir::SymbolKind::Newtype => Some("construct newtypes with 'T(…)'"),
+                    _ => None,
+                };
+                self.report_invalid_value_reference(source, name, help);
+
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Decide the bound qualifier segments of one reference chain.
     pub(in crate::sema) fn decide_qualifier_segments(
         &mut self,

@@ -296,13 +296,10 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report a for-of source that has no iterable implementation.
-    pub(in crate::sema) fn report_for_of_source_not_iterable(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-    ) {
+    /// Report a source that has no iterable implementation.
+    pub(in crate::sema) fn report_source_not_iterable(&mut self, source: dir::GlobalNodeIdAny) {
         let (module, anchor) = self.source_anchor(source);
-        let diagnostic = CheckError::ForOfSourceNotIterable { anchor, module };
+        let diagnostic = CheckError::SourceNotIterable { anchor, module };
 
         self.report(module, diagnostic);
     }
@@ -474,20 +471,54 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Report a declaration read as an ordinary value.
+    pub(in crate::sema) fn report_invalid_value_reference(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        name: String,
+        help: Option<&str>,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::InvalidValueReference {
+            anchor,
+            module,
+            name,
+        };
+
+        // explain the construction form supplied by a type declaration
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        if let Some(help) = help {
+            diagnostic = diagnostic.help(help);
+        }
+
+        self.report(module, diagnostic);
+    }
+
     /// Report one overload group referenced without a selecting call.
     pub(in crate::sema) fn report_ambiguous_overload(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
+        symbols: &[dir::GlobalSymbolId],
     ) -> CompilerResult<()> {
         let (module, anchor) = self.source_anchor(source);
+        let Some(symbol) = symbols.first() else {
+            return Err(CompilerError::Internal {
+                message: format!("overload reference at {source:?} has no candidates"),
+            });
+        };
         let error = CheckError::AmbiguousOverload {
             anchor,
             module,
-            name: self.format_symbol(symbol),
+            name: self.format_symbol(*symbol),
         };
 
-        self.report(module, error);
+        // retain the candidate declarations selected by name resolution
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        for symbol in symbols.iter().take(4) {
+            diagnostic = diagnostic.declaration(*symbol, "one candidate is declared here");
+        }
+
+        self.report(module, diagnostic);
 
         Ok(())
     }
@@ -2257,6 +2288,13 @@ impl CheckState<'_> {
         failure: ObligationFailure,
     ) -> CompilerResult<()> {
         match failure {
+            ObligationFailure::InvalidRestParameter { source, ty } => {
+                let (module, anchor) = self.source_anchor(source);
+                let ty = self.format_type(ty);
+                let error = CheckError::InvalidRestParameter { anchor, module, ty };
+
+                self.report(module, error);
+            }
             ObligationFailure::NonExhaustivePattern { source, missing } => {
                 let (module, anchor) = self.source_anchor(source);
                 let missing = self.format_uncovered_value(missing);

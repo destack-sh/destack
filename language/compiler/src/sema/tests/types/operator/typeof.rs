@@ -1,5 +1,309 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Specialized borrowed functions retain their parameter and result references.
+#[test]
+fn test_typeof_specialized_borrowed_function() {
+    let session = TestSession::single(
+        r#"
+declare function identity<T>(value: &readonly T): &readonly T;
+
+declare const queried: typeof identity<int32>;
+
+declare const value: &readonly int32;
+
+const result = queried(value);
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+declare function identity<T, 'a>(value: &'a readonly T): &readonly T;
+
+declare const queried: typeof identity<int32>;
+
+declare const value: &'static readonly int32;
+
+const result: &'static readonly int32 = queried(value);
+
+=== dir ===
+declare function identity<T>(value: &readonly T): &readonly T;
+/// @generic.template symbol=identity parameters=(T, 'a)
+/// @type.symbol symbol=identity source="declare function identity<T>(value: &readonly T): &readonly T" type=<T, identity.'a>(&identity.'a readonly T) => &identity.'a readonly T
+/// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=identity.value source="value: &readonly T" type=&identity.'a readonly T
+/// @resolution.name source=T target=identity.T
+/// @resolution.name source=T target=identity.T
+
+declare const queried: typeof identity<int32>;
+/// @type.symbol symbol=queried source=queried type=<identity.'a>(&identity.'a readonly int32) => &identity.'a readonly int32
+/// @resolution.pattern source=queried kind=binding target=queried
+/// @resolution.name source=identity target=identity
+
+declare const value: &readonly int32;
+/// @type.symbol symbol=value source=value type=&'static readonly constant int32
+/// @resolution.pattern source=value kind=binding target=value
+
+const result = queried(value);
+/// @type.symbol symbol=result source=result type=&'static readonly constant int32
+/// @resolution.pattern source=result kind=binding target=result
+/// @resolution.name source=queried target=queried
+/// @resolution.call source=queried(value) parameters=(&'static readonly constant int32) arguments=(provided(value) as &'static readonly constant int32) return=&'static readonly constant int32 regions=("static" & "constant") kind=expression target=expression generic_arguments=(int32)
+/// @resolution.place source=queried placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=queried root=queried
+/// @resolution.name source=value target=value
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=value root=value
+"#,
+    );
+}
+
+/// A specialized typeof retains arguments and defaults across a forward class reference.
+#[test]
+fn test_typeof_specialized_constructor() {
+    let session = TestSession::single(
+        r#"
+declare const create: typeof Box<int32>;
+
+class Box<out T, out U = string> {}
+
+const box = new create();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+declare const create: typeof Box<int32, string>;
+
+class Box<out T, out U = string> {}
+
+const box: Box<int32, string> = new create();
+
+=== dir ===
+declare const create: typeof Box<int32>;
+/// @type.symbol symbol=create source=create type=typeof Box<int32, string>
+/// @resolution.pattern source=create kind=binding target=create
+/// @resolution.name source=Box target=Box
+
+class Box<out T, out U = string> {}
+/// @generic.template symbol=Box parameters=(out T, out U = string)
+/// @type.symbol symbol=Box source="class Box<out T, out U = string> {}" type=typeof Box
+/// @definition.class symbol=Box source="class Box<out T, out U = string> {}" template=(out T, out U = string)
+/// @type.symbol symbol=Box.T source="out T" type=T
+/// @type.symbol symbol=Box.U source="out U = string" type=U
+
+const box = new create();
+/// @type.symbol symbol=box source=box type=Box<int32, string>
+/// @resolution.pattern source=box kind=binding target=box
+/// @generic.instance id="Box<int32, string>" template=Box arguments=(int32, string)
+/// @resolution.construct source="new create()" parameters=() return=Box<int32, string> kind=class target=Box constructor=default instance="Box<int32, string>"
+/// @generic.instantiation id="Box<int32, string>" template=Box arguments=(int32, string)
+/// @resolution.name source=create target=create
+/// @resolution.access source=create root=create
+"#,
+    );
+}
+
+/// A value application and its typeof query have the same callable parameter and result types.
+#[test]
+fn test_typeof_specialized_function() {
+    let session = TestSession::single(
+        r#"
+declare function identity<T>(value: T): T;
+
+const direct = identity<int32>;
+
+declare const queried: typeof identity<int32>;
+
+const assigned: (value: int32) => int32 = direct;
+
+const first = direct(1);
+
+const second = queried(2);
+
+const third = assigned(3);
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_coercion(),
+        r#"
+=== annotated ===
+declare function identity<T>(value: T): T;
+
+const direct: (value: int32) => int32 = identity<int32>;
+
+declare const queried: (value: int32) => int32;
+
+const assigned: (value: int32) => int32 = direct;
+
+const first: int32 = direct(1);
+
+const second: int32 = queried(2);
+
+const third: int32 = assigned(3);
+
+=== dir ===
+declare function identity<T>(value: T): T;
+/// @generic.template symbol=identity parameters=(T)
+/// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T>(T) => T
+/// @type.symbol symbol=identity.T source=T type=T
+/// @type.symbol symbol=identity.value source="value: T" type=T
+/// @resolution.name source=T target=identity.T
+/// @resolution.name source=T target=identity.T
+
+const direct = identity<int32>;
+/// @type.symbol symbol=direct source=direct type=Function<(int32,), int32, "readonly">
+/// @resolution.pattern source=direct kind=binding target=direct
+/// @resolution.name source=identity target=identity
+/// @resolution.function source=identity type=Function<(T,), T, "readonly"> target=identity
+/// @resolution.function source=identity<int32> type=Function<(int32,), int32, "readonly"> target=identity instance=identity<int32>
+/// @generic.instantiation id=identity<int32> template=identity arguments=(int32)
+/// @generic.instance id=identity<int32> template=identity arguments=(int32)
+
+declare const queried: typeof identity<int32>;
+/// @type.symbol symbol=queried source=queried type=(int32) => int32
+/// @resolution.pattern source=queried kind=binding target=queried
+/// @resolution.name source=identity target=identity
+
+const assigned: (value: int32) => int32 = direct;
+/// @type.symbol symbol=assigned source=assigned type=Function<(int32,), int32>
+/// @resolution.pattern source=assigned kind=binding target=assigned
+/// @type.symbol symbol=value source="value: int32" type=int32
+/// @resolution.name source=direct target=direct
+/// @resolution.place source=direct placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=direct root=direct
+
+const first = direct(1);
+/// @type.symbol symbol=first source=first type=int32
+/// @resolution.pattern source=first kind=binding target=first
+/// @resolution.name source=direct target=direct
+/// @resolution.call source=direct(1) parameters=(int32) arguments=(provided(1) as int32) return=int32 kind=expression target=expression generic_arguments=(int32)
+/// @resolution.place source=direct placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=direct root=direct
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
+
+const second = queried(2);
+/// @type.symbol symbol=second source=second type=int32
+/// @resolution.pattern source=second kind=binding target=second
+/// @resolution.name source=queried target=queried
+/// @resolution.call source=queried(2) parameters=(int32) arguments=(provided(2) as int32) return=int32 kind=expression target=expression generic_arguments=(int32)
+/// @resolution.place source=queried placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=queried root=queried
+/// @coercion.node source=2 from=2 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
+
+const third = assigned(3);
+/// @type.symbol symbol=third source=third type=int32
+/// @resolution.pattern source=third kind=binding target=third
+/// @resolution.name source=assigned target=assigned
+/// @resolution.call source=assigned(3) parameters=(int32) arguments=(provided(3) as int32) return=int32 kind=expression target=expression
+/// @resolution.place source=assigned placement="local" lifetime="managed" access="mutable"
+/// @resolution.access source=assigned root=assigned
+/// @coercion.node source=3 from=3 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
+"#,
+    );
+}
+
+/// Imported fields retain the type selected by a typeof annotation.
+#[test]
+fn test_read_imported_field_with_typeof() {
+    let session = TestSession::builder()
+        .module(
+            "box.ds",
+            r#"
+declare const seed: int32;
+
+export struct Box {
+    value: typeof seed;
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Box } from "./box.ds";
+
+declare const box: Box;
+
+const value = box.value;
+"#,
+        )
+        .build();
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Box } from "./box.ds";
+
+declare const box: Box;
+
+const value: int32 = box.value;
+
+=== dir ===
+import { Box } from "./box.ds";
+
+declare const box: Box;
+/// @type.symbol symbol=box source=box type=box.Box
+/// @resolution.pattern source=box kind=binding target=box
+/// @resolution.name source=Box target=box.Box
+
+const value = box.value;
+/// @type.symbol symbol=value source=value type=int32
+/// @resolution.pattern source=value kind=binding target=value
+/// @resolution.name source=box target=box
+/// @resolution.member source=box.value receiver=box.Box type=int32 kind=field target_receiver=box.Box key=value target=box.Box.value target_type=int32
+/// @resolution.place source=box placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=box root=box
+/// @resolution.access source=box.value root=box keys=[value]
+"#,
+    );
+}
+
+/// A typeof operand must name a value, even when its declaration is a type alias.
+#[test]
+fn test_query_type_alias_with_typeof() {
+    let session = TestSession::single(
+        r#"
+type Count = int32;
+
+type Counter = typeof Count;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Count = int32;
+
+type Counter = typeof Count;
+
+=== dir ===
+type Count = int32;
+/// @type.symbol symbol=Count source="type Count = int32" type=int32
+/// @definition.type symbol=Count source="type Count = int32" value=int32
+
+type Counter = typeof Count;
+/// @type.symbol symbol=Counter source="type Counter = typeof Count" type=<error>
+/// @definition.type symbol=Counter source="type Counter = typeof Count" value=<error>
+/// @resolution.name source=Count target=Count
+"#,
+        r#"
+/// @diagnostic.error id=invalid-value-reference message="'Count' is not a value"
+/// @diagnostic.label line=4 column=23 span="Count" line_source="type Counter = typeof Count;"
+"#,
+    );
+}
+
 /// A typeof lifts the type of a local binding.
 #[test]
 fn test_typeof_lifts_local_value_type() {
@@ -129,14 +433,14 @@ class Counter {
 
 type CounterCtor = typeof Counter;
 
-declare function takesCounter(ctor: new (arg0: int32) => Counter): void;
+declare function takesCounter(ctor: new (value: int32) => Counter): void;
 
-takesCounter(Counter);
+takesCounter(Counter as new (value: int32) => Counter);
 let version: int32 = 1;
 
 === dir ===
 class Counter {
-/// @type.symbol symbol=Counter type=Counter
+/// @type.symbol symbol=Counter type=typeof Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.field symbol=Counter.version source="static version: int32 = 0" key=version static=true type=int32
@@ -169,7 +473,7 @@ class Counter {
 }
 
 type CounterCtor = typeof Counter;
-/// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=Counter
+/// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=typeof Counter
 /// @definition.type symbol=CounterCtor source="type CounterCtor = typeof Counter" value=typeof Counter
 /// @resolution.name source=Counter target=Counter
 

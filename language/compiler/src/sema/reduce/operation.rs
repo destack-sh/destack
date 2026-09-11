@@ -52,7 +52,15 @@ impl CheckState<'_> {
             }
 
             // typeof lifts one stable value-reference type
-            dir::TypeOperation::TypeOf(query) => self.reduce_typeof(origin, query.value),
+            dir::TypeOperation::TypeOf(query) => self.reduce_typeof(query.symbol),
+
+            // apply arguments after a value type becomes available
+            dir::TypeOperation::Instantiation(application) => {
+                let arguments = self.type_ids(id.module_id, application.arguments)?.to_vec();
+                let instantiated = self.instantiate_type(origin, application.target, &arguments)?;
+
+                Ok(instantiated.map(|(ty, _)| ty))
+            }
 
             // keyof projects the key union of one closed type
             dir::TypeOperation::KeyOf(unary) => self.reduce_keyof(origin, id, unary.target),

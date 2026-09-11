@@ -21,7 +21,7 @@ class User {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string = \"Ada\"" key=name type=string
 
@@ -72,7 +72,7 @@ enum EnumState {
 
 === dir ===
 class ClassState {
-/// @type.symbol symbol=ClassState type=ClassState
+/// @type.symbol symbol=ClassState type=typeof ClassState
 /// @definition.class symbol=ClassState
 /// @definition.field symbol=ClassState.value source="static value: int32 = 1" key=value static=true type=int32
 
@@ -148,7 +148,7 @@ enum EnumState {
 
 === dir ===
 class ClassState {
-/// @type.symbol symbol=ClassState type=ClassState
+/// @type.symbol symbol=ClassState type=typeof ClassState
 /// @definition.class symbol=ClassState
 /// @definition.field symbol=ClassState.value source="static value: int32" key=value static=true type=int32
 
@@ -212,7 +212,7 @@ class State {
 
 === dir ===
 class State {
-/// @type.symbol symbol=State type=State
+/// @type.symbol symbol=State type=typeof State
 /// @definition.class symbol=State
 /// @definition.field symbol=State.current source="static current: string | undefined" key=current static=true type=string | undefined
 /// @definition.field symbol=State.optional source="static optional?: string" key=optional static=true type=string
@@ -248,7 +248,7 @@ class User {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.active source="active = true" key=active type=boolean
 
@@ -282,7 +282,7 @@ class User {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
 
@@ -327,7 +327,7 @@ class User {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
 /// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
@@ -394,7 +394,7 @@ class User {
 
 === dir ===
 class User {
-/// @type.symbol symbol=User type=User
+/// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
 /// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(boolean, string) => Managed<this, User.constructor.P0>
@@ -463,7 +463,7 @@ class Foo {
 
 === dir ===
 class Foo {
-/// @type.symbol symbol=Foo type=Foo
+/// @type.symbol symbol=Foo type=typeof Foo
 /// @definition.class symbol=Foo
 /// @definition.field symbol=Foo.like source=like key=like type=<error>
 

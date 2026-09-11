@@ -1,12 +1,11 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::sema::{
     CheckState, FlowSite, InferMode, Obligation, Origin, PlaceUse, Relation,
     RuntimePredicateObligation, Verdict,
 };
-use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Select one `value is T` predicate.
@@ -100,61 +99,24 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
-        let module = origin.module();
-
-        // decide the target reference and read its selected symbol
-        let resolution = self.decide_reference(target)?;
-        // read the symbol the target reference names
-        let named = match resolution {
-            Some(resolution) => match resolution.symbols() {
-                [symbol] => Some((*symbol, None)),
-                _ => None,
-            },
-            None => {
-                if self.decision(target).is_none() {
-                    let site = self.visit_site(target)?;
-                    self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
-                }
-                let decision =
-                    self.decision(target)
-                        .cloned()
-                        .ok_or_else(|| CompilerError::Internal {
-                            message: format!("node {target:?} checked without a decision"),
-                        })?;
-
-                match decision {
-                    dir::Decision::Function(dir::OperationResolution::One(
-                        dir::FunctionValue {
-                            target: dir::CallableTarget::Symbol { function, .. },
-                            ..
-                        },
-                    )) => {
-                        let selection = &function.key;
-                        let arguments =
-                            dir::GenericArgumentBinding::values(&selection.arguments).collect();
-
-                        Some((selection.symbol, Some(arguments)))
-                    }
-                    dir::Decision::Rejected | dir::Decision::Poisoned => return Ok(None),
-                    _ => None,
-                }
-            }
-        };
-        let Some((symbol, arguments)) = named else {
+        // read the constructor value through ordinary expression inference
+        let site = self.visit_site(target)?;
+        let ty = self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
+        let ty = self.strip_form(origin, ty)?;
+        let ty = self.normalize(origin, ty)?;
+        let dir::Type::Reference(reference) = self.ty(ty)? else {
             return Ok(None);
         };
-
-        // guard targets read as their declaration reference
-        let reference = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
-        self.commit_node_type(target, reference)?;
+        let symbol = reference.symbol;
         if self.symbol_kind(symbol)? != dir::SymbolKind::Class {
             return Ok(None);
         }
 
-        // erase the type arguments of a bare generic class target
-        let arguments = match arguments {
-            Some(arguments) => arguments,
-            None => self.instanceof_erased_arguments(module, symbol)?,
+        // preserve an applied constructor or erase the bare class parameters
+        let arguments = if reference.arguments.is_empty() {
+            self.instanceof_erased_arguments(symbol)?
+        } else {
+            self.type_ids(ty.module_id, reference.arguments)?.to_vec()
         };
         let arguments = self.intern_type_ids(&arguments)?;
         let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
@@ -168,7 +130,6 @@ impl CheckState<'_> {
     /// Return erased arguments for one bare `instanceof` class target.
     fn instanceof_erased_arguments(
         &mut self,
-        _module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let Some(template) = self.symbol_template(symbol)? else {
@@ -285,7 +246,7 @@ impl CheckState<'_> {
                 },
             }),
             dir::Type::Application(dir::GenericApplication { symbol, .. })
-            | dir::Type::Reference(dir::TypeReference { symbol }) => {
+            | dir::Type::Reference(dir::TypeReference { symbol, .. }) => {
                 match self.symbol_kind(symbol)? {
                     dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface => {
                         dir::PredicateCondition::Subtype(target)

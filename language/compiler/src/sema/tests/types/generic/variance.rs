@@ -26,11 +26,11 @@ const shapes: Shape[] = circles;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -83,11 +83,11 @@ const shapes: readonly Shape[] = circles;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -162,17 +162,17 @@ const widened: readonly (Circle | Square)[] = circles;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Square extends Shape {}
-/// @type.symbol symbol=Square source="class Square extends Shape {}" type=Square
+/// @type.symbol symbol=Square source="class Square extends Shape {}" type=typeof Square
 /// @definition.class symbol=Square source="class Square extends Shape {}"
 /// @definition.extends symbol=Square source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -229,17 +229,17 @@ const either: () => Circle | Square = make;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
 
 class Square extends Shape {}
-/// @type.symbol symbol=Square source="class Square extends Shape {}" type=Square
+/// @type.symbol symbol=Square source="class Square extends Shape {}" type=typeof Square
 /// @definition.class symbol=Square source="class Square extends Shape {}"
 /// @definition.extends symbol=Square source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -297,7 +297,7 @@ declare class Evil<out T> {
 === dir ===
 declare class Evil<out T> {
 /// @generic.template symbol=Evil parameters=(out T)
-/// @type.symbol symbol=Evil type=Evil
+/// @type.symbol symbol=Evil type=typeof Evil
 /// @definition.class symbol=Evil template=(out T)
 /// @definition.field symbol=Evil.slot source="slot: T" key=slot type=T
 /// @type.symbol symbol=Evil.T source="out T" type=T
@@ -332,7 +332,7 @@ struct Sink<out T> {
         r#"
 === annotated ===
 struct Sink<out T> {
-    readonly accept: (arg0: T) => void;
+    readonly accept: (value: T) => void;
 }
 
 === dir ===
@@ -397,11 +397,11 @@ const widened: local Box<Shape> = aliased;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -482,7 +482,7 @@ declare class Reader<out T> {
 === dir ===
 declare class Reader<out T> {
 /// @generic.template symbol=Reader parameters=(out T)
-/// @type.symbol symbol=Reader type=Reader
+/// @type.symbol symbol=Reader type=typeof Reader
 /// @definition.class symbol=Reader template=(out T)
 /// @definition.field symbol=Reader.value source="readonly value: T" key=value type=T
 /// @type.symbol symbol=Reader.T source="out T" type=T
@@ -570,11 +570,11 @@ const converted: { readonly x: float64 } = scalar;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -644,19 +644,19 @@ const useShape2: (shape: Shape) => void = useCircle2;
 class Shape {}
 class Circle extends Shape {}
 
-declare const useShape: (arg0: Shape) => void;
-const useCircle: (arg0: Circle) => void = useShape;
+declare const useShape: (shape: Shape) => void;
+const useCircle: (circle: Circle) => void = useShape;
 
-declare const useCircle2: (arg0: Circle) => void;
-const useShape2: (arg0: Shape) => void = useCircle2;
+declare const useCircle2: (circle: Circle) => void;
+const useShape2: (shape: Shape) => void = useCircle2;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -837,7 +837,7 @@ extension<T> of Handle<[T]> {
 }
 
 class Holder {
-/// @type.symbol symbol=Holder type=Holder
+/// @type.symbol symbol=Holder type=typeof Holder
 /// @definition.class symbol=Holder
 /// @definition.field symbol=Holder.storage source="storage: Handle<[uint8]> = Handle.empty()" key=storage type=Handle<Slice<uint8>>
 
@@ -879,7 +879,7 @@ take(increment);
         DirRows::checked(),
         r#"
 === annotated ===
-declare function take(callback: (arg0: int32) => int32 | undefined): void;
+declare function take(callback: (value: int32) => int32 | undefined): void;
 
 function increment(value: int32): int32 {
     return value + 1;
@@ -935,7 +935,7 @@ forEach(async (value) => value);
         DirRows::checked(),
         r#"
 === annotated ===
-declare function forEach(visit: (arg0: int32) => void): void;
+declare function forEach(visit: (value: int32) => void): void;
 
 forEach(async (value: int32) => value);
 
@@ -949,7 +949,7 @@ forEach(async (value) => value);
 /// @resolution.name source=forEach target=forEach
 /// @resolution.call source="forEach(async (value) => value)" parameters=(Function<(int32,), void>) arguments=(provided(async (value) => value) as Function<(int32,), void>) return=void kind=symbol target=forEach
 /// @type.symbol symbol=symbol4 source="async (value) => value" type=Function<(int32,), Promise<int32>, "readonly">
-/// @resolution.call source="async (value) => value" parameters=(^Function<(), int32, "once">) arguments=(supplied as ^Function<(), int32, "once">) return=Promise<int32> kind=symbol target=Promise.create instance=Promise.create<int32>
+/// @resolution.call source="async (value) => value" parameters=(^Function<(), int32, "once">) arguments=(supplied(0) as ^Function<(), int32, "once">) return=Promise<int32> kind=symbol target=Promise.create instance=Promise.create<int32>
 /// @generic.instantiation id=Promise.create<int32> template=Promise.create arguments=(int32)
 /// @type.symbol symbol=symbol4.value source=value type=int32
 /// @resolution.name source=value target=symbol4.value
@@ -999,11 +999,11 @@ const widened: Box<Shape> = exact;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -1088,11 +1088,11 @@ const widened: &'static readonly Box<Shape> = &readonly exact;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -1177,11 +1177,11 @@ const widened: &'static Box<Shape> = &exact;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape
@@ -1267,11 +1267,11 @@ const widened: local Box<Shape> = shared;
 
 === dir ===
 class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=Shape
+/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
 /// @definition.class symbol=Shape source="class Shape {}"
 
 class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=Circle
+/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
 /// @definition.class symbol=Circle source="class Circle extends Shape {}"
 /// @definition.extends symbol=Circle source=Shape target=Shape
 /// @resolution.name source=Shape target=Shape

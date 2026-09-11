@@ -43,7 +43,7 @@ selected satisfies "borrowed";
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 function select(value: &readonly User): "borrowed" {
@@ -132,7 +132,7 @@ selected satisfies "readonly";
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 function select(value: &readonly User): "readonly" {
@@ -221,7 +221,7 @@ selected satisfies "readonly";
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 function select(value: &readonly User): "readonly" {
@@ -303,7 +303,7 @@ replace(user as &'managed User);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function inspect(value: &readonly User): void;
@@ -395,7 +395,7 @@ replace(user as &'static User);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function inspect(value: local &readonly User): void;
@@ -475,7 +475,7 @@ inspect(user as &'managed readonly User);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function inspect(value: &readonly User): void;
@@ -531,7 +531,7 @@ replace(user);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function modify(value: local &User): void;
@@ -849,7 +849,7 @@ inspect(state.users[0] as &'managed readonly User);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct Box<T> {
@@ -866,7 +866,7 @@ struct Box<T> {
 }
 
 class State {
-/// @type.symbol symbol=State type=State
+/// @type.symbol symbol=State type=typeof State
 /// @definition.class symbol=State
 /// @definition.field symbol=State.boxed source="boxed: Box<User> = Box { value: new User() }" key=boxed type=Box<User>
 /// @definition.field symbol=State.user source="user: User = new User()" key=user type=User
@@ -900,9 +900,11 @@ class State {
     /// @generic.instance id=sliceUninit<MaybeUninit<User>> template=sliceUninit arguments=(MaybeUninit<User>)
     /// @generic.instance id=truncate<User> template=truncate arguments=(User)
     /// @resolution.name source=User target=User
-    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as User) return=User[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<User>
+    /// @resolution.call source=[] parameters=(^Slice<User>) arguments=(rest() as User) return=User[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<User>
     /// @generic.instantiation id=arrayFromOwnedSlice<User> template=arrayFromOwnedSlice arguments=(User)
+    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
     /// @generic.instance id=arrayFromOwnedSlice<User> template=arrayFromOwnedSlice arguments=(User)
     /// @generic.instance id=fromOwnedSlice<User> template=fromOwnedSlice arguments=(User)
@@ -962,14 +964,12 @@ inspect(state.users[0]);
 /// @resolution.access source=state.users[0] root=state keys=[users, 0]
 /// @resolution.subscript source=state.users[0] type=User kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<User, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
 /// @generic.instantiation id="index#1<User, \"mutable\">" template=index#1 arguments=(User, "mutable")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 User, \"mutable\">" template=WithAccess arguments=(&'bound0 User, "mutable")
 /// @generic.instance id="WithAccess<&'bound0 User[], \"mutable\">" template=WithAccess arguments=(&'bound0 User[], "mutable")
 /// @generic.instance id="assumeInitReference<User, \"mutable\">" template=assumeInitReference arguments=(User, "mutable")
 /// @generic.instance id="elementSlot<User, \"mutable\">" template=elementSlot arguments=(User, "mutable")
 /// @generic.instance id="index#1<User, \"mutable\">" template=index#1 arguments=(User, "mutable")
 /// @generic.instance id="sliceIndex<MaybeUninit<User>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<User>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=elementPosition<User> template=elementPosition arguments=(User)
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: Borrowed<User, "managed" & "local", "readonly"> }] origin=implicit
 "#,
@@ -1011,7 +1011,7 @@ function select(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const condition: boolean;
@@ -1091,7 +1091,7 @@ function select(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const choice: "first" | "second";
@@ -1174,7 +1174,7 @@ function select(): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const first: User;
@@ -1273,7 +1273,7 @@ modify(user as &'managed shared User);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const user: shared User;
@@ -1339,7 +1339,7 @@ replace(user as &'managed shared User);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const user: shared User;
@@ -1401,7 +1401,7 @@ replace(user as &'static shared User);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare shared let user: ^User;
@@ -1678,14 +1678,14 @@ declare const values: shared int32[];
 values.push(1);
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
+/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(provided(1) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
 /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @generic.instantiation id=push<int32> template=push arguments=(int32)
 
 class Message {}
-/// @type.symbol symbol=Message source="class Message {}" type=Message
+/// @type.symbol symbol=Message source="class Message {}" type=typeof Message
 /// @definition.class symbol=Message source="class Message {}"
 
 declare const messages: shared Message[];
@@ -1701,7 +1701,7 @@ declare const message: shared Message;
 messages.push(message);
 /// @resolution.name source=messages target=messages
 /// @resolution.member source=messages.push receiver=Message[] type=<push.'a>(this: &push.'a Message[], ...Message[]) => isize kind=symbol target_receiver=Message[] target=push
-/// @resolution.call source=messages.push(message) parameters=(Message[]) arguments=(rest(message) pack=arrayFromOwnedSlice as Message) return=isize regions=("managed" & "local") kind=symbol target=push receiver=Message[] adjustments=(borrow(Borrowed<Message[], "managed" & "local", "mutable">)) instance=Array<Message>.<extension#6>.push
+/// @resolution.call source=messages.push(message) parameters=(Message[]) arguments=(rest(provided(message) as Message) pack=arrayFromOwnedSlice as Message) return=isize regions=("managed" & "local") kind=symbol target=push receiver=Message[] adjustments=(borrow(Borrowed<Message[], "managed" & "local", "mutable">)) instance=Array<Message>.<extension#6>.push
 /// @resolution.place source=messages placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=messages root=messages
 /// @generic.instantiation id=arrayFromOwnedSlice<Message> template=arrayFromOwnedSlice arguments=(Message)
@@ -1745,7 +1745,7 @@ same satisfies User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const user: User;
@@ -1791,7 +1791,7 @@ let owned: ^User = user;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 let user: User = new User();
@@ -1800,6 +1800,7 @@ let user: User = new User();
 /// @resolution.name source=User target=User
 /// @type.node source="new User()" type=User
 /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
+/// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
 
 let owned: ^User = user;
@@ -1988,7 +1989,7 @@ let owned: ^User = new User();
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 let owned: ^User = new User();
@@ -1997,6 +1998,7 @@ let owned: ^User = new User();
 /// @resolution.name source=User target=User
 /// @type.node source="new User()" type=^User
 /// @resolution.construct source="new User()" parameters=() return=^User kind=class target=User constructor=default
+/// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
 "#,
         r#"

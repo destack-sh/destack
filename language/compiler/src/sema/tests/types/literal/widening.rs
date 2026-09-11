@@ -33,9 +33,11 @@ let values = [1, 2];
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @type.node source=[1, 2] type=int64[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
+/// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
@@ -57,14 +59,12 @@ const first = values[0];
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=int64 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int64, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
 /// @generic.instantiation id="index#1<int64, \"mutable\">" template=index#1 arguments=(int64, "mutable")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 int64, \"mutable\">" template=WithAccess arguments=(&'bound0 int64, "mutable")
 /// @generic.instance id="WithAccess<&'bound0 int64[], \"mutable\">" template=WithAccess arguments=(&'bound0 int64[], "mutable")
 /// @generic.instance id="assumeInitReference<int64, \"mutable\">" template=assumeInitReference arguments=(int64, "mutable")
 /// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
 /// @generic.instance id="index#1<int64, \"mutable\">" template=index#1 arguments=(int64, "mutable")
 /// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=elementPosition<int64> template=elementPosition arguments=(int64)
 /// @type.node source=0 type=0
 "#,
@@ -104,8 +104,9 @@ const values: (1 | 2)[] = [1, 2];
 /// @generic.instance id="sliceUninit<MaybeUninit<1 | 2>>" template=sliceUninit arguments=(MaybeUninit<1 | 2>)
 /// @generic.instance id="truncate<1 | 2>" template=truncate arguments=(1 | 2)
 /// @type.node source=[1, 2] type=1 | 2[]
-/// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<1 | 2>"
+/// @resolution.call source=[1, 2] parameters=(^Slice<1 | 2>) arguments=(rest(provided(1) as 1 | 2, provided(2) as 1 | 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<1 | 2>"
 /// @generic.instantiation id="arrayFromOwnedSlice<1 | 2>" template=arrayFromOwnedSlice arguments=(1 | 2)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="arrayFromOwnedSlice<1 | 2>" template=arrayFromOwnedSlice arguments=(1 | 2)
 /// @generic.instance id="fromOwnedSlice<1 | 2>" template=fromOwnedSlice arguments=(1 | 2)
@@ -113,6 +114,7 @@ const values: (1 | 2)[] = [1, 2];
 /// @generic.instance id="size<1 | 2>" template=size arguments=(1 | 2)
 /// @generic.instance id="sliceIntoUninit<1 | 2>" template=sliceIntoUninit arguments=(1 | 2)
 /// @generic.instance id="sliceLength<1 | 2>" template=sliceLength arguments=(1 | 2)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -128,7 +130,6 @@ const first = values[0];
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<1 | 2, \"managed\" & \"local\", \"mutable\">, \"mutable\">, regions=(\"managed\" & \"local\"))"
 /// @generic.instantiation id="index#1<1 | 2, \"mutable\">" template=index#1 arguments=(1 | 2, "mutable")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
 /// @generic.instance id="WithAccess<&'bound0 1 | 2, \"mutable\">" template=WithAccess arguments=(&'bound0 1 | 2, "mutable")
 /// @generic.instance id="WithAccess<&'bound0 1 | 2[], \"mutable\">" template=WithAccess arguments=(&'bound0 1 | 2[], "mutable")
 /// @generic.instance id="assumeInitReference<1 | 2, \"mutable\">" template=assumeInitReference arguments=(1 | 2, "mutable")
@@ -136,7 +137,6 @@ const first = values[0];
 /// @generic.instance id="elementSlot<1 | 2, \"mutable\">" template=elementSlot arguments=(1 | 2, "mutable")
 /// @generic.instance id="index#1<1 | 2, \"mutable\">" template=index#1 arguments=(1 | 2, "mutable")
 /// @generic.instance id="sliceIndex<MaybeUninit<1 | 2>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<1 | 2>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @type.node source=0 type=0
 "#,
     );

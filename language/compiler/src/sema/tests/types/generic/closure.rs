@@ -24,7 +24,7 @@ const value: void = use<void>((): void | Box<void> => {});
 === dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T#1)
-/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=typeof Box
 /// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T#1)
 /// @type.symbol symbol=Box.T source="in out T" type=T#1
 
@@ -81,7 +81,7 @@ const value: int32 = use((): int32 | Box<int32> => load() as int32 | Box<int32>)
 === dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T)
-/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=typeof Box
 /// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T)
 /// @type.symbol symbol=Box.T source="in out T" type=T
 
@@ -137,7 +137,7 @@ const value = use(() => make());
 === dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T#1)
-/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=typeof Box
 /// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T#1)
 /// @type.symbol symbol=Box.T source="in out T" type=T#1
 
@@ -195,7 +195,7 @@ const value = map(1, (item) => item);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare function map<T, U>(value: T, callback: (arg0: T) => U): U;
+declare function map<T, U>(value: T, callback: (value: T) => U): U;
 
 const value: int64 = map<int64, int64>(1, (item: int64): int64 => item);
 
@@ -253,7 +253,7 @@ const mapped = box.map((value) => value);
         r#"
 === annotated ===
 declare class Box<out T> {
-    map<U>(callback: (arg0: T) => U): Box<U>;
+    map<U>(callback: (value: T) => U): Box<U>;
 }
 
 declare const box: Box<int32>;
@@ -262,7 +262,7 @@ const mapped: Box<int32> = box.map<int32, int32>((value: int32): int32 => value)
 === dir ===
 declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(out T)
 /// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" slot=map type=<U, Box.map.P1: Place>(this: Managed<Box<T>, Box.map.P1>, Function<(T,), U>) => Box<U>
 /// @type.symbol symbol=Box.T source=T type=T
@@ -329,7 +329,7 @@ const value = map(1, (item) => item);
         r#"
 === annotated ===
 declare class Box<in out T> {}
-declare function map<T, U>(value: T, callback: (arg0: T) => U | Box<U>): U;
+declare function map<T, U>(value: T, callback: (value: T) => U | Box<U>): U;
 
 const value: int64 = map<int64, int64>(
     1,
@@ -339,7 +339,7 @@ const value: int64 = map<int64, int64>(
 === dir ===
 declare class Box<in out T> {}
 /// @generic.template symbol=Box parameters=(in out T#1)
-/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=Box
+/// @type.symbol symbol=Box source="declare class Box<in out T> {}" type=typeof Box
 /// @definition.class symbol=Box source="declare class Box<in out T> {}" template=(in out T#1)
 /// @type.symbol symbol=Box.T source="in out T" type=T#1
 
@@ -400,7 +400,7 @@ const value = box.map((item) => item);
         r#"
 === annotated ===
 declare class Box<out T> {
-    map<U>(callback: (arg0: T) => U | Box<U>): U;
+    map<U>(callback: (value: T) => U | Box<U>): U;
 }
 
 declare const box: Box<int32>;
@@ -411,7 +411,7 @@ const value: int32 = box.map<int32, int32>(
 === dir ===
 declare class Box<T> {
 /// @generic.template symbol=Box parameters=(out T)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(out T)
 /// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" slot=map type=<U, Box.map.P1: Place>(this: Managed<Box<T>, Box.map.P1>, Function<(T,), U | Box<U>>) => U
 /// @type.symbol symbol=Box.T source=T type=T

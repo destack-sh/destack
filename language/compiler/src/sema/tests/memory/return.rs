@@ -172,7 +172,7 @@ class Store {
 
 === dir ===
 class Store {
-/// @type.symbol symbol=Store type=Store
+/// @type.symbol symbol=Store type=typeof Store
 /// @definition.class symbol=Store
 /// @definition.field symbol=Store.value source="value: int32 = 0" key=value type=int32
 /// @definition.method symbol=Store.view slot=view type=(this: this) => Borrowed<int32, "managed" & "local", "readonly">
@@ -250,7 +250,7 @@ function escape(): &readonly int32 {
     const values: ^[int32] = [1, 2];
     /// @type.symbol symbol=escape.values source=values type=^Slice<int32>
     /// @resolution.pattern source=values kind=binding target=escape.values
-    /// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 
     return first(&readonly values);
@@ -294,7 +294,7 @@ class Store {
 
 === dir ===
 class Store {
-/// @type.symbol symbol=Store type=Store
+/// @type.symbol symbol=Store type=typeof Store
 /// @definition.class symbol=Store
 /// @definition.field symbol=Store.value source="value: int32 = 0" key=value type=int32
 /// @definition.method symbol=Store.view slot=view type=<Store.view.'a>(this: &Store.view.'a readonly this) => &Store.view.'a readonly int32

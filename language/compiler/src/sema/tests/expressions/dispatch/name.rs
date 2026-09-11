@@ -1,5 +1,88 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Type aliases supply types, including through imports, but no expression value.
+#[test]
+fn test_reference_type_aliases_as_values() {
+    let session = TestSession::builder()
+        .module(
+            "types.ds",
+            r#"
+export type Count = int32;
+"#,
+        )
+        .module(
+            "namespace.ds",
+            r#"
+export { Count } from "./types.ds";
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Count } from "./types.ds";
+import * as types from "./namespace.ds";
+
+type LocalCount = int32;
+
+const local = LocalCount;
+
+const imported = Count;
+
+const qualified = types.Count;
+"#,
+        )
+        .build();
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import * as types from "./namespace.ds";
+import { Count } from "./types.ds";
+
+type LocalCount = int32;
+
+const local = LocalCount;
+
+const imported = Count;
+
+const qualified = types.Count;
+
+=== dir ===
+import { Count } from "./types.ds";
+import * as types from "./namespace.ds";
+
+type LocalCount = int32;
+/// @type.symbol symbol=LocalCount source="type LocalCount = int32" type=int32
+/// @definition.type symbol=LocalCount source="type LocalCount = int32" value=int32
+
+const local = LocalCount;
+/// @type.symbol symbol=local source=local type=<error>
+/// @resolution.pattern source=local kind=binding target=local
+/// @resolution.name source=LocalCount target=LocalCount
+
+const imported = Count;
+/// @type.symbol symbol=imported source=imported type=<error>
+/// @resolution.pattern source=imported kind=binding target=imported
+/// @resolution.name source=Count target=types.Count
+
+const qualified = types.Count;
+/// @type.symbol symbol=qualified source=qualified type=<error>
+/// @resolution.pattern source=qualified kind=binding target=qualified
+/// @resolution.name source=types.Count target=types.Count
+"#,
+        r#"
+/// @diagnostic.error id=invalid-value-reference message="'LocalCount' is not a value"
+/// @diagnostic.label line=7 column=15 span="LocalCount" line_source="const local = LocalCount;"
+/// @diagnostic.error id=invalid-value-reference message="'Count' is not a value"
+/// @diagnostic.label line=9 column=18 span="Count" line_source="const imported = Count;"
+/// @diagnostic.error id=invalid-value-reference message="'Count' is not a value"
+/// @diagnostic.label line=11 column=25 span="Count" line_source="const qualified = types.Count;"
+"#,
+    );
+}
+
 #[test]
 fn test_name_expression_resolves_local_binding() {
     let session = TestSession::single(

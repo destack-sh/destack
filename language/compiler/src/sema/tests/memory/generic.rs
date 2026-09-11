@@ -29,7 +29,7 @@ declare function create(): User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 function identity(value: User): User {
@@ -79,7 +79,7 @@ consume(user);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function consume(user: User): void;
@@ -136,7 +136,7 @@ function replace(user: User): void {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare function consume(value: &User): void;
@@ -199,7 +199,7 @@ identity<"shared">(sharedUser) satisfies shared User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 function identity<const S: Space>(value: Managed<User, S>): Managed<User, S> {
@@ -290,7 +290,7 @@ identity<shared User>(sharedUser) satisfies shared User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 function identity<T>(value: T): T {
@@ -382,7 +382,7 @@ mixedBox.value satisfies shared User;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct Box<T> {
@@ -551,7 +551,7 @@ function inspect<'a>(value: &'a readonly User): &'a readonly User {
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 function inspect(value: &readonly User): &readonly User {
@@ -602,7 +602,7 @@ declare function inspect<'a>(holder: Holder<&'a readonly User>): void;
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 struct Holder<T> {
@@ -685,12 +685,12 @@ const mixedBox: local Box<shared User> = new Box<shared User>(sharedUser);
 
 === dir ===
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 class Box<T> {
 /// @generic.template symbol=Box parameters=(in out T)
-/// @type.symbol symbol=Box type=Box
+/// @type.symbol symbol=Box type=typeof Box
 /// @definition.class symbol=Box template=(in out T)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>(T) => Managed<Box<T>, Box.constructor.P0>
@@ -885,7 +885,7 @@ extension<T> of Box<T> {
 }
 
 class User {}
-/// @type.symbol symbol=User source="class User {}" type=User
+/// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
 declare const localBox: local Box<User>;
