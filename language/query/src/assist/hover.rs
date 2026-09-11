@@ -147,14 +147,16 @@ impl ModuleQueryContext<'_> {
             None => formatter.global_type(type_id)?,
         };
 
-        // omit a type already represented by a declaration, an alias by its own
+        // omit the declaration's name, declared value type, or alias expansion
         let module = program.module(symbol.module_id)?;
         let is_alias = matches!(
             module.definitions()?.definition(*symbol),
             Some(dir::Definition::TypeAlias(_))
         );
-        let declared_text = Formatter::new(&module, program).symbol_type(*symbol)?;
-        if is_alias || declared_text == text {
+        let formatter = Formatter::new(&module, program);
+        let declared_text = formatter.symbol_type(*symbol)?;
+        let name = formatter.symbol(*symbol)?;
+        if is_alias || declared_text == text || name == text {
             return Ok(None);
         }
 

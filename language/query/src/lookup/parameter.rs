@@ -95,14 +95,18 @@ impl ModuleQueryContext<'_> {
         // select the unwritten parameter slot at the cursor
         for (parameter, binding) in bindings.iter().enumerate() {
             match &binding.source {
-                dir::ArgumentSource::Rest { .. } => return Ok(Some(parameter)),
-                dir::ArgumentSource::Provided(_) | dir::ArgumentSource::Omitted => {
+                dir::ArgumentSource::Rest { .. } | dir::ArgumentSource::Spread(_) => {
+                    return Ok(Some(parameter));
+                }
+                dir::ArgumentSource::Provided(_)
+                | dir::ArgumentSource::Omitted
+                | dir::ArgumentSource::Error => {
                     if slot == written {
                         return Ok(Some(parameter));
                     }
                     slot += 1;
                 }
-                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Supplied => {}
+                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Supplied(_) => {}
             }
         }
 

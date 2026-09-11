@@ -69,7 +69,7 @@ impl Formatter<'_, '_, '_> {
     }
 
     /// Format one symbol path.
-    pub(super) fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
+    pub(crate) fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> QueryResult<String> {
         let module = self.program.module(symbol_id.module_id)?;
         let symbols = module.bindings()?;
         let symbol = symbols.get_symbol(symbol_id.into_local());

@@ -322,34 +322,47 @@ impl ModuleQueryContext<'_> {
         hints: &mut Vec<InlayHint>,
     ) -> QueryResult<()> {
         for (parameter, binding) in bindings.iter().enumerate() {
-            let name = names.get(parameter).ok_or(QueryError::missing(format!(
-                "inlay hint parameters: {call:?}"
-            )))?;
+            let name = names
+                .get(parameter)
+                .ok_or_else(|| QueryError::missing(format!("inlay hint parameters: {call:?}")))?;
             let Some(name) = name else {
                 continue;
             };
-            let arguments = match &binding.source {
-                dir::ArgumentSource::Provided(argument) => std::slice::from_ref(argument),
-                dir::ArgumentSource::Rest { elements, .. } => elements.as_slice(),
-                dir::ArgumentSource::Static(_)
-                | dir::ArgumentSource::Supplied
-                | dir::ArgumentSource::Omitted => continue,
-            };
+            self.collect_argument_hint(binding, name.trim_start_matches("..."), range, hints)?;
+        }
 
-            // annotate every source argument bound to this parameter
-            for argument in arguments {
-                let Some((value_id, span)) = self.parameter_hint_source(*argument)? else {
-                    continue;
-                };
-                let name = name.trim_start_matches("...");
-                if !Self::span_overlaps_range(span, range)
-                    || self.argument_repeats_parameter(value_id, name)?
+        Ok(())
+    }
+
+    /// Append parameter hints for one selected argument.
+    fn collect_argument_hint(
+        &self,
+        binding: &dir::ArgumentBinding,
+        name: &str,
+        range: Span,
+        hints: &mut Vec<InlayHint>,
+    ) -> QueryResult<()> {
+        match &binding.source {
+            // annotate a positional argument when its expression does not repeat the name
+            dir::ArgumentSource::Provided(argument) => {
+                let (value, span) = self.parameter_hint_source(*argument)?;
+                if Self::span_overlaps_range(span, range)
+                    && !self.argument_repeats_parameter(value, name)?
                 {
-                    continue;
+                    hints.push(InlayHint::parameter_hint(span.start, name));
                 }
-
-                hints.push(InlayHint::parameter_hint(span.start, name));
             }
+            // annotate each positional argument collected into a rest parameter
+            dir::ArgumentSource::Rest { elements, .. } => {
+                for element in elements {
+                    self.collect_argument_hint(element, name, range, hints)?;
+                }
+            }
+            dir::ArgumentSource::Static(_)
+            | dir::ArgumentSource::Supplied(_)
+            | dir::ArgumentSource::Spread(_)
+            | dir::ArgumentSource::Error
+            | dir::ArgumentSource::Omitted => {}
         }
 
         Ok(())
@@ -359,7 +372,7 @@ impl ModuleQueryContext<'_> {
     fn parameter_hint_source(
         &self,
         argument: dir::GlobalNodeIdAny,
-    ) -> QueryResult<Option<(dir::LocalNodeId<dir::Expression>, Span)>> {
+    ) -> QueryResult<(dir::LocalNodeId<dir::Expression>, Span)> {
         if argument.module_id != self.module_id() || argument.local_id.ty != dir::NodeType::Argument
         {
             return Err(QueryError::invalid(format!(
@@ -370,8 +383,7 @@ impl ModuleQueryContext<'_> {
         let argument_id = dir::LocalNodeId::<dir::Argument>::new(argument.local_id.id);
         let value = match self.view()?.get(argument_id) {
             dir::Argument::Positional { value } => *value,
-            dir::Argument::Spread { .. } => return Ok(None),
-            dir::Argument::Elision | dir::Argument::Error => {
+            dir::Argument::Spread { .. } | dir::Argument::Elision | dir::Argument::Error => {
                 return Err(QueryError::invalid(format!(
                     "inlay hint argument: {argument:?}"
                 )));
@@ -379,7 +391,7 @@ impl ModuleQueryContext<'_> {
         };
         let span = self.node_span(self.view()?, value.into())?;
 
-        Ok(Some((value, span)))
+        Ok((value, span))
     }
 
     /// Return whether an argument already displays its parameter name.
