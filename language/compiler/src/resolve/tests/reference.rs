@@ -1,5 +1,59 @@
 use crate::tests::{DirRows, TestSession};
 
+/// Resolve each namespace and declaration in a qualified type path.
+#[test]
+fn test_resolve_nested_namespace_types() {
+    let session = TestSession::builder()
+        .module(
+            "model.ds",
+            r#"
+export struct Packet {}
+"#,
+        )
+        .module(
+            "library.ds",
+            r#"
+export * as models from "./model";
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import * as library from "./library";
+
+declare const packet: library.models.Packet;
+
+declare const partial: library.models.Missing;
+"#,
+        )
+        .build();
+
+    session.assert_dir_resolved("main.ds", DirRows::imports().with_summaries(), r#"
+import * as library from "./library";
+/// @import.resolved symbol=library declarations=[library.ds] targets=[library.ds]
+/// @reference.target source=<namespace> kind=namespace module=library.ds
+
+declare const packet: library.models.Packet;
+/// @reference.target source=library.models.Packet kind=bound targets=[model.Packet]
+/// @reference.declaration source=library.models.Packet segment=0 kind=bound targets=[library]
+/// @reference.target source=library.models.Packet segment=0 kind=namespace module=library.ds
+/// @reference.declaration source=library.models.Packet segment=1 kind=bound targets=[library.models]
+/// @reference.target source=library.models.Packet segment=1 kind=namespace module=model.ds
+/// @reference.target source=library.models.Packet segment=2 kind=bound targets=[model.Packet]
+
+declare const partial: library.models.Missing;
+/// @reference.target source=library.models.Missing kind=projected base=model.ds from=2
+/// @reference.declaration source=library.models.Missing segment=0 kind=bound targets=[library]
+/// @reference.target source=library.models.Missing segment=0 kind=namespace module=library.ds
+/// @reference.declaration source=library.models.Missing segment=1 kind=bound targets=[library.models]
+/// @reference.target source=library.models.Missing segment=1 kind=namespace module=model.ds
+/// @reference.target source=library.models.Missing segment=2 kind=missing
+
+/// @import.summary symbols=1
+/// @reference.summary references=9 declarations=4
+"#);
+}
+
 #[test]
 fn test_resolve_assignment_pattern_ignores_structural_member_names() {
     let compiler = TestSession::builder()

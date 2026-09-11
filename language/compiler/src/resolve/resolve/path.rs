@@ -83,11 +83,18 @@ impl ResolveState<'_> {
             }
         }
 
-        // record flat references unless the source is an expression member chain
-        if source.local_id.ty != dir::NodeType::Expression {
-            self.record_flat_reference(source, &prefixes, segments.len())?;
-        } else {
+        // record expression paths on their individual nodes
+        if source.local_id.ty == dir::NodeType::Expression {
             self.record_chain_references(source, &prefixes)?;
+        }
+        // record a single type name on its node
+        else if segments.len() == 1 {
+            self.references
+                .insert_resolution(source, root.declaration, root.target);
+        }
+        // record qualified type names on their path segments
+        else {
+            self.record_qualified_reference(source, &prefixes, segments.len())?;
         }
 
         Ok(())
@@ -194,18 +201,35 @@ impl ResolveState<'_> {
         }
     }
 
-    /// Record one flat type path.
-    ///
-    /// Retain a resolved prefix when later segments require member selection.
-    fn record_flat_reference(
+    /// Record the segments and complete target of a qualified type path.
+    fn record_qualified_reference(
         &mut self,
         source: dir::GlobalNodeIdAny,
         prefixes: &[PathSegmentResolution],
         segment_count: usize,
     ) -> CompilerResult<()> {
+        // require a resolved prefix
         let final_prefix = prefixes.last().ok_or_else(|| CompilerError::Internal {
             message: format!("reference {source:?} has no resolved prefix"),
         })?;
+
+        // record qualified names on their path segments
+        for (segment, resolution) in prefixes.iter().enumerate() {
+            let segment = u16::try_from(segment).map_err(|_| CompilerError::Internal {
+                message: format!("reference {source:?} has too many path segments"),
+            })?;
+            let site = dir::ReferenceSite::Path {
+                node: source,
+                segment,
+            };
+            self.references.insert_resolution(
+                site,
+                resolution.declaration.clone(),
+                resolution.target.clone(),
+            );
+        }
+
+        // identify paths whose final target remains type dependent
         let is_complete = prefixes.len() == segment_count
             && !matches!(final_prefix.target, dir::Reference::Missing);
 
@@ -242,11 +266,9 @@ impl ResolveState<'_> {
             None => final_prefix.target.clone(),
         };
 
-        let root = prefixes.first().ok_or_else(|| CompilerError::Internal {
-            message: format!("reference {source:?} has no resolved root"),
-        })?;
+        // record the complete path's target on its node
         self.references
-            .insert_resolution(source, root.declaration.clone(), target);
+            .insert_resolution(source, target.clone(), target);
 
         Ok(())
     }

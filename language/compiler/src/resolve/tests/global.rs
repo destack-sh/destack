@@ -133,11 +133,12 @@ let value = Function;
 
 let projected: Function.Member;
 /// @reference.target source=Function.Member kind=ambiguous targets=[Function, types.Function]
+/// @reference.target source=Function.Member segment=0 kind=ambiguous targets=[Function, types.Function]
 
 /// @import.global key=Function declarations=[Function, types.Function] targets=[Function, types.Function]
 
 /// @import.summary globals=1
-/// @reference.summary references=2
+/// @reference.summary references=3
 "#,
     );
 }
