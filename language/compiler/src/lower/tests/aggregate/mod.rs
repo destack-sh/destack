@@ -3,6 +3,7 @@ mod array;
 mod class;
 mod computed;
 mod construct;
+mod constructor;
 mod r#enum;
 mod field;
 mod import;

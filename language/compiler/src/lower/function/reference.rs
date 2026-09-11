@@ -12,6 +12,18 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         environment: Option<mir::Value>,
     ) -> CompilerResult<Option<mir::Value>> {
+        // emit the allocation recorded for a constructor function reference
+        let node = expression.into_global_any(self.source);
+        if let Some(dir::OperationResolution::One(dir::FunctionValue {
+            target: dir::CallableTarget::Constructor(construction),
+            callable_type,
+        })) = self.source().decisions.function_decision(node).cloned()
+        {
+            return self
+                .lower_constructor_value(callable_type, &construction)
+                .map(Some);
+        }
+
         // bind the selected instance at the callable form its context stores it beneath
         let declared = match self.coercion(expression) {
             Some(coercion)
@@ -124,7 +136,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Emit one function value of one lowered callable type.
-    fn bind_function_value(
+    pub(in crate::lower) fn bind_function_value(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
         instance: Instance,
@@ -191,13 +203,18 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one value expression that resolved to a symbol.
-    pub(in crate::lower) fn lower_resolved_value(
+    pub(in crate::lower) fn read_symbol(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<mir::Value> {
         // read a local binding, else a module or callable declaration
-        match self.values.get(&symbol.local_id).copied() {
+        let binding = if symbol.module_id == self.source {
+            self.values.get(&symbol.local_id).copied()
+        } else {
+            None
+        };
+        match binding {
             Some(binding) => {
                 let value = self.read_binding(binding);
 

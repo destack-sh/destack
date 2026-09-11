@@ -127,7 +127,7 @@ pub(in crate::lower) struct FunctionDefinition {
 }
 
 /// The body one queued definition lowers.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(in crate::lower) enum Body {
     /// The declared expression, lowered as the whole function.
     Plain(dir::LocalNodeId<dir::Expression>),
@@ -142,6 +142,8 @@ pub(in crate::lower) enum Body {
     Coroutine(dir::LocalNodeId<dir::Expression>),
     /// The synthesized default constructor storing a class's field initializers.
     DefaultConstructor,
+    /// The allocating entry of a first-class constructor.
+    Constructor(Box<dir::ConstructDecision>),
 }
 
 impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
@@ -239,61 +241,57 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
             function.this = Some(function.bind_receiver(value)?);
         }
 
-        // store the field initializers a synthesized constructor stands in for
-        if matches!(body, Body::DefaultConstructor) {
-            function.lower_field_initializers(symbol)?;
-            function.return_value(None)?;
-            function.finish()?;
-
-            return Ok(());
-        }
-
-        // receive the closure environment before defaults can read captures
-        let is_entry = matches!(body, Body::CoroutineEntry { .. });
-        function.bind_captures(symbol, is_entry)?;
-
-        // resolve the defaulted parameters before anything reads them
-        function.lower_parameter_defaults(&parameters, &defaults)?;
-
-        // lift every parameter a nested scope captures into its frame
-        for symbol in &parameters {
-            let global = symbol.into_global(source);
-            if let Some(Binding::Local(local)) = function.values.get(symbol).copied()
-                && function.is_lifted(global)
-            {
-                let value = function.builder.local_get(local);
-                function.bind_lifted(global, value)?;
+        // lower the selected body through its declared or generated operations
+        match body {
+            Body::Constructor(construction) => {
+                function.lower_constructor_body(&construction)?;
             }
-        }
-
-        let expression = match body {
+            Body::DefaultConstructor => {
+                function.lower_field_initializers(symbol)?;
+                function.return_value(None)?;
+            }
             Body::Plain(expression)
             | Body::CoroutineEntry { expression, .. }
-            | Body::Coroutine(expression) => expression,
-            Body::DefaultConstructor => unreachable!("a default constructor lowers no body"),
-        };
-        if let Some(class) = constructs {
-            let Some(assigned) = function.source().decisions.constructor_assignments(class) else {
-                return Err(CompilerError::Internal {
-                    message: "a constructor without its recorded field assignments".to_string(),
-                });
-            };
-            function.assigned_fields = assigned.iter().copied().collect();
-        }
+            | Body::Coroutine(expression) => {
+                // bind captures before evaluating parameter defaults
+                let is_entry = matches!(body, Body::CoroutineEntry { .. });
+                function.bind_captures(symbol, is_entry)?;
+                function.lower_parameter_defaults(&parameters, &defaults)?;
 
-        // store the declared field defaults before a base class constructor body
-        if let Some(owner) = constructs
-            && !function.lower.class_extends_base(owner)?
-        {
-            function.lower_field_initializers(owner)?;
-        }
+                // lift the parameters captured by nested functions
+                for symbol in &parameters {
+                    let global = symbol.into_global(source);
+                    if let Some(Binding::Local(local)) = function.values.get(symbol).copied()
+                        && function.is_lifted(global)
+                    {
+                        let value = function.builder.local_get(local);
+                        function.bind_lifted(global, value)?;
+                    }
+                }
 
-        // synthesize the coroutine entry around its extracted body, else lower the body
-        match body {
-            Body::CoroutineEntry { body, .. } => {
-                function.lower_coroutine_entry(symbol, &parameters, body)?;
+                // initialize fields from the assignments recorded for a class constructor
+                if let Some(class) = constructs {
+                    let Some(assigned) = function.source().decisions.constructor_assignments(class)
+                    else {
+                        return Err(CompilerError::Internal {
+                            message: "a constructor without its recorded field assignments"
+                                .to_string(),
+                        });
+                    };
+                    function.assigned_fields = assigned.iter().copied().collect();
+                    if !function.lower.class_extends_base(class)? {
+                        function.lower_field_initializers(class)?;
+                    }
+                }
+
+                // emit the coroutine entry or declared expression
+                match body {
+                    Body::CoroutineEntry { body, .. } => {
+                        function.lower_coroutine_entry(symbol, &parameters, body)?;
+                    }
+                    _ => function.lower_body(expression)?,
+                }
             }
-            _ => function.lower_body(expression)?,
         }
 
         // register the profile sites the body instruments
@@ -609,7 +607,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lower.resolved_symbol(node)?;
 
-                self.lower_resolved_value(expression, symbol)
+                self.read_symbol(expression, symbol)
             }
 
             // materialize a scalar literal
@@ -823,7 +821,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     .lower
                     .resolved_symbol(left.into_global_any(self.source))?;
 
-                self.lower_resolved_value(expression, symbol)
+                self.read_symbol(expression, symbol)
             }
 
             // borrow the operand's place
@@ -849,21 +847,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 expression: value, ..
             } => self.lower_as(expression, value),
 
-            // construct a value
-            dir::Expression::Call { .. }
+            // initialize a nominal value through its selected constructor
+            dir::Expression::Call { .. } | dir::Expression::New { .. }
                 if let Some(resolution) = self.construct_decision(expression) =>
             {
-                self.lower_construct(expression, &resolution)
-            }
-
-            // construct a class instance
-            dir::Expression::New { .. } => {
-                let Some(resolution) = self.construct_decision(expression) else {
-                    return Err(CompilerError::Internal {
-                        message: "a missing construct resolution for one new".to_string(),
-                    });
-                };
-
                 self.lower_construct(expression, &resolution)
             }
 
@@ -900,7 +887,9 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // call and take the value it produces, awaits running their recorded park call
-            dir::Expression::Call { .. } | dir::Expression::Await { .. } => {
+            dir::Expression::Call { .. }
+            | dir::Expression::New { .. }
+            | dir::Expression::Await { .. } => {
                 let value = self.lower_call(expression)?;
 
                 // return the value the call produced

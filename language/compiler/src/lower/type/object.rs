@@ -118,15 +118,4 @@ impl TypeLowerer<'_, '_> {
 
         Ok(self.insert_union_variant(payloads))
     }
-
-    /// Wrap one representation to store its absent values as undefined.
-    pub(in crate::lower) fn insert_optional_representation(
-        &mut self,
-        value: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // grow a variant case beside the value, the layout niching references
-        let undefined = self.tree.intern_type(mir::Type::Void);
-
-        Ok(self.insert_union_variant(vec![value, undefined]))
-    }
 }

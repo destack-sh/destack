@@ -90,6 +90,8 @@ pub(crate) struct ModuleLowerer<'a> {
     // outputs
     /// The declaration outcome for each callable instance key.
     pub(in crate::lower) functions: FxIndexMap<GenericInstanceKey, FunctionDeclaration>,
+    /// The allocating entry for each generated constructor declaration.
+    pub(in crate::lower) constructors: FxIndexMap<mir::Symbol, mir::FunctionId>,
     /// The steps the module initializer runs, in source order.
     pub(in crate::lower) initializers: Vec<ModuleInitializer>,
     /// The dispatch shape registered for each lowered constraint.
@@ -147,6 +149,7 @@ impl<'a> ModuleLowerer<'a> {
             bigint_literals: FxIndexMap::default(),
             // outputs
             functions: FxIndexMap::default(),
+            constructors: FxIndexMap::default(),
             initializers: Vec::new(),
             dynamic_shapes: FxIndexMap::default(),
             implementers: FxIndexMap::default(),

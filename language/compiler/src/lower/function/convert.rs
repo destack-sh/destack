@@ -6,6 +6,22 @@ use crate::lower::function::operand::{Constant, Operand};
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
+    /// Convert an evaluated value through its selected coercion.
+    pub(in crate::lower) fn convert_value(
+        &mut self,
+        value: mir::Value,
+        coercion: Option<&dir::Coercion>,
+    ) -> CompilerResult<mir::Value> {
+        match coercion {
+            Some(coercion) => {
+                let operand = self.convert(Operand::Value(value), coercion, None)?;
+
+                self.as_value(operand, coercion.target())
+            }
+            None => Ok(value),
+        }
+    }
+
     /// Convert one operand along its recorded coercion path.
     pub(in crate::lower) fn convert(
         &mut self,
@@ -328,42 +344,17 @@ impl FunctionLowerer<'_, '_, '_> {
         live: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
-        let leaves = self.union_leaves(live)?;
-        let mut payloads = Vec::with_capacity(leaves.len());
-        for member in &leaves {
+        // lower the canonical members recorded by sema
+        let mut payloads = Vec::with_capacity(live.len());
+        for member in live {
             payloads.push(self.lower_type(*member)?);
         }
-        let narrowed = match leaves.as_slice() {
+        let narrowed = match live {
             [_] => payloads[0],
             _ => self.lower_type(target)?,
         };
 
-        self.narrow_value(value, &payloads, narrowed)
-    }
-
-    /// Return the leaf members some union members stand for, a nested union by its own members.
-    pub(in crate::lower) fn union_leaves(
-        &mut self,
-        members: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let mut leaves = Vec::with_capacity(members.len());
-        for member in members {
-            match self.lower.union_members_maybe(*member)? {
-                Some(nested) => leaves.extend(self.union_leaves(&nested)?),
-                None => leaves.push(*member),
-            }
-        }
-
-        Ok(leaves)
-    }
-
-    /// Narrow one variant value onto the cases holding some payloads, trapping on the others.
-    pub(in crate::lower) fn narrow_value(
-        &mut self,
-        value: mir::Value,
-        payloads: &[mir::LocalNodeId<mir::Type>],
-        narrowed: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::Value> {
+        // retain the value when narrowing preserves its representation
         let representation = self.value_representation(value)?;
         if representation == narrowed {
             return Ok(value);
@@ -382,7 +373,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 mir::Type::Variant { .. }
             )
         {
-            let [payload] = payloads else {
+            let [payload] = payloads.as_slice() else {
                 return Err(self.unsupported("narrowing a referenced union to several members"));
             };
             let case = self.payload_case(pointee, *payload)?;
@@ -407,7 +398,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // read the single live payload as the value
-        if let [payload] = payloads {
+        if let [payload] = payloads.as_slice() {
             let case = self.payload_case(variant, *payload)?;
 
             return Ok(match self.is_singleton_representation(*payload) {
@@ -421,21 +412,33 @@ impl FunctionLowerer<'_, '_, '_> {
         let exit = self.builder.block();
         let trap = self.builder.block();
         let mut targets = Vec::with_capacity(payloads.len());
-        for payload in payloads {
+        for payload in &payloads {
             targets.push((self.payload_case(variant, *payload)?, self.builder.block()));
         }
         self.builder
             .variant_switch(value, Some(trap), targets.clone());
         self.builder.switch_to_block(trap);
         self.builder.panic(None);
-        for (payload, (case, block)) in payloads.iter().zip(targets) {
+        for ((member, payload), (case, block)) in live.iter().zip(&payloads).zip(targets) {
             self.builder.switch_to_block(block);
-            let projected = match self.is_singleton_representation(*payload) {
-                true => None,
-                false => Some(self.builder.variant_payload(value, case)),
+
+            // emit the member at the target union's variant or scalar representation
+            let projected = match self.builder.tree().get(narrowed) {
+                mir::Type::Variant { .. } => {
+                    let projected = match self.is_singleton_representation(*payload) {
+                        true => None,
+                        false => Some(self.builder.variant_payload(value, case)),
+                    };
+                    let narrowed_case = self.payload_case(narrowed, *payload)?;
+
+                    self.builder.variant_new(narrowed, narrowed_case, projected)
+                }
+                _ => {
+                    let literal = self.singleton_literal(*member)?;
+
+                    self.lower_constant(literal, narrowed)?
+                }
             };
-            let narrowed_case = self.payload_case(narrowed, *payload)?;
-            let projected = self.builder.variant_new(narrowed, narrowed_case, projected);
             self.builder.local_set(destination, projected);
             self.builder.jump(exit);
         }

@@ -34,8 +34,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // narrow a nullish operand to the case it asserts
         let narrowed = self.node_type_id(expression)?;
+        let members = self
+            .lower
+            .union_members_maybe(narrowed)?
+            .unwrap_or_else(|| vec![narrowed]);
 
-        self.narrow(value, &[narrowed], narrowed)
+        self.narrow(value, &members, narrowed)
     }
 
     /// Lower one propagating try projection, continuing with the output its operand holds.
@@ -64,8 +68,12 @@ impl FunctionLowerer<'_, '_, '_> {
             self.transfer_residual(value, declared, &decision)?;
             self.builder.switch_to_block(present);
             let narrowed = self.node_type_id(expression)?;
+            let members = self
+                .lower
+                .union_members_maybe(narrowed)?
+                .unwrap_or_else(|| vec![narrowed]);
 
-            return self.narrow(value, &[narrowed], narrowed);
+            return self.narrow(value, &members, narrowed);
         }
 
         // split a try implementor through its recorded branch, transferring the residual

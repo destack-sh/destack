@@ -199,7 +199,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         // lower the arguments without declared parameter representations
-        let values = self.lower_call_arguments(&resolution.arguments, &[], None)?;
+        let values = self.lower_call_arguments(&resolution.arguments, &[], &[])?;
 
         // emit a void operation and hand back no value
         if !operation.has_result() {
@@ -389,13 +389,13 @@ impl FunctionLowerer<'_, '_, '_> {
         // emit the terminator the name denotes
         match terminator {
             IntrinsicTerminator::Abort => {
-                let values = self.lower_call_arguments(&resolution.arguments, &[], None)?;
+                let values = self.lower_call_arguments(&resolution.arguments, &[], &[])?;
 
                 self.builder.abort(values.into_iter().next());
             }
             IntrinsicTerminator::Unreachable => self.builder.unreachable(),
             IntrinsicTerminator::Panic => {
-                let values = self.lower_call_arguments(&resolution.arguments, &[], None)?;
+                let values = self.lower_call_arguments(&resolution.arguments, &[], &[])?;
 
                 self.builder.panic(values.into_iter().next());
             }
@@ -409,8 +409,6 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one atomic fence from its const ordering configuration.
-    ///
-    /// The fence orders every storage region, whatever the call narrows it to.
     fn lower_atomic_fence(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
         let access = self.atomic_access(resolution, 0)?;
         self.builder.atomic_fence(mir::FenceAccess {

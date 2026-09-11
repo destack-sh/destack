@@ -72,16 +72,18 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // fall back to the default value when the selected value is undefined
             dir::PatternDecision::Default(resolution) => {
+                let source = self.node_type_id(pattern)?;
                 let nested = self.pattern_node(resolution.pattern)?;
-                let value = self.lower_defaulted_input(nested, place, resolution.value)?;
+                let value = self.lower_defaulted_input(nested, place, source, resolution.value)?;
 
                 self.lower_pattern_bindings(nested, &value)
             }
 
             // unwrap the required value, trapping when it is absent
             dir::PatternDecision::Must(resolution) => {
+                let source = self.node_type_id(pattern)?;
                 let nested = self.pattern_node(resolution.pattern)?;
-                let value = self.lower_required_input(nested, place)?;
+                let value = self.lower_required_input(nested, place, source)?;
 
                 self.lower_pattern_bindings(nested, &value)
             }
@@ -300,17 +302,19 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         nested: dir::LocalNodeId<dir::Pattern>,
         place: &Place,
+        source: dir::GlobalTypeId,
         default: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Place> {
         // read the representation the nested pattern was checked at and the default expression
-        let exact = self.pattern_representation(nested)?;
+        let target = self.node_type_id(nested)?;
         let default = default
             .local_id
             .try_into_typed::<dir::Expression>()
             .map_err(|message| CompilerError::Internal { message })?;
         let value = self.read_place(place)?;
-        let value =
-            self.lower_absent_fallback(value, exact, |lower| lower.lower_value(default).map(Some))?;
+        let value = self.lower_absent_fallback(value, source, target, |lower| {
+            lower.lower_value(default).map(Some)
+        })?;
 
         Ok(Place::local(self.home(value)))
     }
@@ -320,10 +324,11 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         nested: dir::LocalNodeId<dir::Pattern>,
         place: &Place,
+        source: dir::GlobalTypeId,
     ) -> CompilerResult<Place> {
-        let exact = self.pattern_representation(nested)?;
+        let target = self.node_type_id(nested)?;
         let value = self.read_place(place)?;
-        let value = self.lower_absent_fallback(value, exact, |lower| {
+        let value = self.lower_absent_fallback(value, source, target, |lower| {
             lower.builder.unreachable();
 
             Ok(None)
@@ -336,17 +341,21 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_absent_fallback(
         &mut self,
         value: mir::Value,
-        exact: mir::LocalNodeId<mir::Type>,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
         fallback: impl FnOnce(&mut Self) -> CompilerResult<Option<mir::Value>>,
     ) -> CompilerResult<mir::Value> {
-        // hand an input already at the exact representation through unchanged
+        // retain an exact input that cannot be absent
+        let exact = self.lower_type(target)?;
         let representation = self.value_representation(value)?;
-        if representation == exact {
+        let absent = self.absent_case(representation);
+        let is_void = matches!(self.builder.tree().get(representation), mir::Type::Void);
+        if representation == exact && absent.is_none() && !is_void {
             return Ok(value);
         }
 
         // take the fallback for a statically absent input
-        if matches!(self.builder.tree().get(representation), mir::Type::Void) {
+        if is_void {
             return match fallback(self)? {
                 Some(value) => Ok(value),
                 None => Err(CompilerError::Internal {
@@ -363,8 +372,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
         match self.builder.tree().get(representation).clone() {
             // split an optional variant on its undefined case
-            mir::Type::Variant { cases, .. } => {
-                let Some(absent) = self.absent_case(representation) else {
+            mir::Type::Variant { .. } => {
+                let Some(absent) = absent else {
                     return Err(CompilerError::Internal {
                         message: "an optional pattern input without its undefined case".to_string(),
                     });
@@ -377,53 +386,22 @@ impl FunctionLowerer<'_, '_, '_> {
                     vec![(absent, absent_block)],
                 );
 
-                // collect the cases that carry a payload
+                // project the checked source members that remain when undefined is absent
                 self.builder.switch_to_block(present_block);
-                let present: Vec<_> = cases
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, case)| {
-                        !matches!(self.builder.tree().get(case.ty), mir::Type::Void)
-                    })
-                    .map(|(index, _)| index)
-                    .collect();
-
-                match present.as_slice() {
-                    // extract the sole payload
-                    [sole] => {
-                        let payload = self.builder.variant_payload(value, *sole as u32);
-                        self.builder.local_set(slot, payload);
-                        self.builder.jump(join);
-                    }
-                    // rebuild the narrowed union case by case
-                    _ => {
-                        // open one arm block per surviving case
-                        let mut arms = Vec::with_capacity(present.len());
-                        for _ in &present {
-                            arms.push(self.builder.block());
-                        }
-
-                        // switch each surviving case into its arm
-                        let targets = present
-                            .iter()
-                            .copied()
-                            .zip(arms.iter().copied())
-                            .map(|(case, block)| (case as u32, block))
-                            .collect();
-                        self.builder.variant_switch(value, None, targets);
-
-                        // rebuild each payload at its case in the narrowed variant
-                        for (case, block) in present.iter().copied().zip(arms) {
-                            self.builder.switch_to_block(block);
-                            let payload = self.builder.variant_payload(value, case as u32);
-                            let payload_type = cases[case].payload(self.builder.tree());
-                            let narrowed = self.payload_case(exact, payload_type)?;
-                            let rebuilt = self.builder.variant_new(exact, narrowed, Some(payload));
-                            self.builder.local_set(slot, rebuilt);
-                            self.builder.jump(join);
+                let value = if representation == exact {
+                    value
+                } else {
+                    let mut present = Vec::new();
+                    for member in self.lower.union_members(source)? {
+                        if !matches!(self.lower.ty(member)?, dir::Type::Undefined) {
+                            present.push(member);
                         }
                     }
-                }
+
+                    self.narrow(value, &present, target)?
+                };
+                self.builder.local_set(slot, value);
+                self.builder.jump(join);
             }
             // reject every other input shape
             _ => {
@@ -444,23 +422,6 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(join);
 
         Ok(self.builder.local_get(slot))
-    }
-
-    /// Return the lowered representation one pattern node was checked at.
-    fn pattern_representation(
-        &mut self,
-        pattern: dir::LocalNodeId<dir::Pattern>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let node = pattern.into_global_any(self.source);
-        let ty =
-            self.source()
-                .types
-                .get_node_type_id(node)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("a missing type for pattern node {}", node.local_id.id),
-                })?;
-
-        self.lower_type(ty)
     }
 
     /// Return one nested pattern node inside this body's tree.

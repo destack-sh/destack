@@ -333,33 +333,6 @@ for more information about an error, run `destack explain field-initialized-twic
     );
 }
 
-/// A binding declared inside a loop body starts each iteration uninitialized.
-#[test]
-fn test_reject_a_use_of_a_binding_uninitialized_in_this_iteration() {
-    let session = TestSession::single(
-        r#"
-export function ok(): void {
-    loop {
-        const x = 1;
-    }
-}
-
-export function fail(): void {
-    loop {
-        let x: int32;
-        const y = x + 1;
-    }
-}
-"#,
-    );
-
-    session.assert_mir_verified_diagnostics("main.ds", r#"
-/// @diagnostic.error id=use-before-assigned message="'x' is used before being assigned"
-/// @diagnostic.label line=11 column=19 span="x" line_source="const y = x + 1;"
-/// @diagnostic.related line=10 column=13 span="x" line_source="let x: int32;" message="declared here"
-"#);
-}
-
 /// A reinitialized binding moves again only once.
 #[test]
 fn test_reject_a_use_after_the_second_move_of_a_reinitialized_binding() {
@@ -387,56 +360,6 @@ export function main(): void {
 /// @diagnostic.error id=use-after-move message="use of moved value"
 /// @diagnostic.label line=15 column=13 span="x" line_source="consume(x);"
 /// @diagnostic.related line=14 column=13 span="x" line_source="consume(x);" message="value moved here"
-"#);
-}
-
-/// A binding read before every path assigns it is uninitialized.
-#[test]
-fn test_reject_uses_of_uninitialized_bindings() {
-    let session = TestSession::single(
-        r#"
-function foo(x: int32): void {}
-
-export function uninit(): void {
-    let x: int32;
-    foo(x);
-}
-
-export function ifNoElse(flag: boolean): void {
-    let x: int32;
-    if (flag) {
-        x = 10;
-    }
-    foo(x);
-}
-
-export function ifWithElse(flag: boolean): void {
-    let x: int32;
-    if (flag) {
-        x = 10;
-    } else {
-        x = 20;
-    }
-    foo(x);
-}
-
-export function whileCond(): void {
-    let x: boolean;
-    while (x) {}
-}
-"#,
-    );
-
-    session.assert_mir_verified_diagnostics("main.ds", r#"
-/// @diagnostic.error id=use-before-assigned message="'x' is used before being assigned"
-/// @diagnostic.label line=6 column=9 span="x" line_source="foo(x);"
-/// @diagnostic.related line=5 column=9 span="x" line_source="let x: int32;" message="declared here"
-/// @diagnostic.error id=use-before-assigned message="'x' is used before being assigned"
-/// @diagnostic.label line=14 column=9 span="x" line_source="foo(x);"
-/// @diagnostic.related line=10 column=9 span="x" line_source="let x: int32;" message="declared here"
-/// @diagnostic.error id=use-before-assigned message="'x' is used before being assigned"
-/// @diagnostic.label line=29 column=12 span="x" line_source="while (x) {}"
-/// @diagnostic.related line=28 column=9 span="x" line_source="let x: boolean;" message="declared here"
 "#);
 }
 

@@ -192,7 +192,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
                 Ok(nominal.value)
             }
-            // lower bare references as their nominal applications
+            // lower bare nominal types used in declaration applications
             dir::Type::Reference(reference) => {
                 if let Some(lowered) = self.lower_named_symbol(reference.symbol)? {
                     return Ok(lowered);

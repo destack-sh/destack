@@ -37,7 +37,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .and_then(|resolution| resolution.single_symbol())
         });
         if let Some(symbol) = named {
-            return self.lower_resolved_value(expression, symbol);
+            return self.read_symbol(expression, symbol);
         }
 
         // read the single access selected for this member
@@ -100,7 +100,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     return self.lower_associated_const_read(expression, candidate);
                 }
 
-                self.lower_resolved_value(expression, symbol)
+                self.read_symbol(expression, symbol)
             }
             // reject every other member read
             other => Err(self.unsupported(format!("a '{}' member read", other.name()))),
@@ -121,7 +121,7 @@ impl FunctionLowerer<'_, '_, '_> {
             Some(dir::Definition::Interface(_))
         );
         if !is_requirement {
-            return self.lower_resolved_value(expression, symbol);
+            return self.read_symbol(expression, symbol);
         }
 
         // read a requirement through the witness of the type it was read on

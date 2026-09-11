@@ -19,7 +19,7 @@ pub(in crate::lower) enum Operand {
 pub(in crate::lower) enum Constant {
     /// A scalar literal.
     Literal(dir::Literal),
-    /// A callable declaration referenced at one expression.
+    /// A declared function or class constructor.
     Callable {
         /// The referencing expression.
         expression: dir::LocalNodeId<dir::Expression>,
@@ -135,11 +135,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 self.lower_constant(literal, representation)
             }
-            Operand::Constant(Constant::Callable { expression, symbol }) => self
-                .lower_function_value(expression, symbol, None)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: "a callable reference outside a callable type".to_string(),
-                }),
+            Operand::Constant(Constant::Callable { expression, symbol }) => {
+                self.read_symbol(expression, symbol)
+            }
             Operand::Place(place) => self.read_place(&place),
         }
     }
@@ -339,7 +337,7 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => {}
         }
 
-        // a reference to a callable declaration lives in its type
+        // retain callable declarations until their values are read
         if let Some(symbol) = self.referenced_callable(expression)? {
             return Ok(Operand::Constant(Constant::Callable { expression, symbol }));
         }
@@ -358,25 +356,38 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(Operand::Value(self.lower_expression_value(expression)?))
     }
 
-    /// Return the callable declaration one expression references.
+    /// Return the function or class constructor selected for an expression.
     fn referenced_callable(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let named = match *self.source().tree().get(expression) {
-            dir::Expression::Identifier { .. } => expression.into_global_any(self.source),
-            dir::Expression::Instantiation { left, .. } => left.into_global_any(self.source),
-            _ => return Ok(None),
+        // read the declaration selected for this complete expression
+        let named = expression.into_global_any(self.source);
+        let symbol = self.source().decisions.function_symbol(named).or_else(|| {
+            self.source()
+                .resolutions
+                .name_resolution(named)
+                .and_then(|resolution| resolution.single_symbol())
+        });
+        let Some(symbol) = symbol else {
+            return Ok(None);
         };
-        let symbol = self.lower.resolved_symbol(named)?;
-        if self.values.contains_key(&symbol.local_id) || self.constant_global(symbol)?.is_some() {
+
+        // keep stored values in their existing bindings
+        if (symbol.module_id == self.source && self.values.contains_key(&symbol.local_id))
+            || self.constant_global(symbol)?.is_some()
+        {
             return Ok(None);
         }
-        let declared = self.lower.symbol_type(symbol)?;
-        let is_callable = matches!(
-            self.lower.ty(declared)?,
-            dir::Type::Function(_) | dir::Type::FunctionSignature(_)
-        );
+
+        // select function and class constructor declarations
+        let kind = self
+            .lower
+            .state(symbol.module_id)?
+            .bindings
+            .get_symbol(symbol.local_id)
+            .kind;
+        let is_callable = matches!(kind, dir::SymbolKind::Class | dir::SymbolKind::Function);
 
         Ok(is_callable.then_some(symbol))
     }

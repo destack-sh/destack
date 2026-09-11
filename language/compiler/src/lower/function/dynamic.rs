@@ -59,7 +59,8 @@ impl FunctionLowerer<'_, '_, '_> {
         dispatch: &dir::DynamicDispatch,
     ) -> CompilerResult<Option<mir::Value>> {
         // read the receiver and member name from the callee
-        let dir::Expression::Call { left: callee, .. } = *self.source().tree().get(expression)
+        let (dir::Expression::Call { left: callee, .. }
+        | dir::Expression::New { left: callee, .. }) = *self.source().tree().get(expression)
         else {
             return Err(CompilerError::Internal {
                 message: "a dispatched call outside a call expression".to_string(),
@@ -125,7 +126,7 @@ impl FunctionLowerer<'_, '_, '_> {
             false => substitute_type(self.builder.tree_mut(), signature, &applied),
         };
         let parameters = self.signature_parameters(mir::TypeId::from(signature))?;
-        let values = self.lower_call_arguments(arguments, &parameters, None)?;
+        let values = self.lower_call_arguments(arguments, &parameters, &[])?;
         let result = self.builder.signature_result(mir::TypeId::from(signature));
 
         Ok(self.builder.call(

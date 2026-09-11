@@ -2,7 +2,17 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
+use crate::lower::function::slice::SliceBuilder;
 use crate::{CompilerError, CompilerResult};
+
+/// One argument supplied by the enclosing operation.
+#[derive(Clone, Copy)]
+pub(in crate::lower) enum Argument {
+    /// An expression evaluated at its argument position.
+    Expression(dir::LocalNodeId<dir::Expression>),
+    /// A value the enclosing operation has already evaluated.
+    Value(mir::Value),
+}
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one argument list against its declared parameter representations.
@@ -10,63 +20,80 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         arguments: &[dir::ArgumentBinding],
         parameters: &[mir::TypeId],
-        write: Option<dir::LocalNodeId<dir::Expression>>,
+        supplied: &[Argument],
     ) -> CompilerResult<Vec<mir::Value>> {
         // lower each argument at its parameter representation
         let mut values = Vec::with_capacity(arguments.len());
         for (index, binding) in arguments.iter().enumerate() {
             let parameter = parameters.get(index).copied();
-            let value = match binding.source {
-                // lower a written argument
-                dir::ArgumentSource::Provided(source) => {
-                    self.lower_argument_at(source, binding.parameter_type)?
-                }
-                // store omission at the parameter representation
-                dir::ArgumentSource::Omitted => {
-                    values.push(self.lower_omitted_argument(binding.parameter_type, parameter)?);
-
-                    continue;
-                }
-                // fill the write argument with the assigned value for setter calls
-                dir::ArgumentSource::Supplied => {
-                    let Some(expression) = write else {
-                        return Err(CompilerError::Internal {
-                            message: "an implicit write argument outside a setter call".to_string(),
-                        });
-                    };
-
-                    self.lower_value(expression)?
-                }
-                // materialize a static argument as its literal constant
-                dir::ArgumentSource::Static(argument) => {
-                    let dir::Type::Literal(literal) = self.lower.ty(argument)? else {
-                        return Err(self.internal("a non-literal static argument"));
-                    };
-                    let representation = match parameter {
-                        Some(parameter) => parameter,
-                        None => self.lower_type(argument)?,
-                    };
-
-                    self.lower_constant(literal, representation)?
-                }
-                // pack the trailing arguments into the rest collection
-                dir::ArgumentSource::Rest {
-                    ref elements,
-                    ref pack,
-                } => {
-                    let elements = elements.clone();
-                    let pack = pack.clone();
-                    let owned =
-                        self.lower.ownership(binding.parameter_type)? == dir::Ownership::Owned;
-
-                    self.lower_rest_pack(&elements, binding.argument_type, pack.as_ref(), owned)?
-                }
-            };
-
-            values.push(value);
+            values.push(self.lower_call_argument(binding, parameter, supplied)?);
         }
 
         Ok(values)
+    }
+
+    /// Lower one selected argument and its conversion.
+    fn lower_call_argument(
+        &mut self,
+        binding: &dir::ArgumentBinding,
+        parameter: Option<mir::TypeId>,
+        supplied: &[Argument],
+    ) -> CompilerResult<mir::Value> {
+        let value = match binding.source {
+            // lower a written argument
+            dir::ArgumentSource::Provided(source) => {
+                self.lower_argument_at(source, binding.parameter_type)?
+            }
+            // store omission at the parameter representation
+            dir::ArgumentSource::Omitted => {
+                self.lower_omitted_argument(binding.parameter_type, parameter)?
+            }
+            // read the argument supplied by the enclosing operation
+            dir::ArgumentSource::Supplied(index) => {
+                let Some(argument) = supplied.get(index as usize) else {
+                    return Err(CompilerError::Internal {
+                        message: "a call without its supplied argument".to_string(),
+                    });
+                };
+
+                match *argument {
+                    Argument::Expression(expression) => self.lower_value(expression)?,
+                    Argument::Value(value) => value,
+                }
+            }
+            // materialize a static argument as its literal constant
+            dir::ArgumentSource::Static(argument) => {
+                let dir::Type::Literal(literal) = self.lower.ty(argument)? else {
+                    return Err(self.internal("a non-literal static argument"));
+                };
+                let representation = match parameter {
+                    Some(parameter) => parameter,
+                    None => self.lower_type(argument)?,
+                };
+
+                self.lower_constant(literal, representation)?
+            }
+            // pack the trailing arguments into the rest collection
+            dir::ArgumentSource::Rest {
+                ref elements,
+                ref pack,
+            } => self.lower_rest_pack(
+                elements,
+                binding.argument_type,
+                pack.as_ref(),
+                binding.parameter_type,
+                supplied,
+            )?,
+            dir::ArgumentSource::Spread(_) => {
+                return Err(self.internal("an unexpanded spread argument"));
+            }
+            dir::ArgumentSource::Error => {
+                return Err(self.internal("a rejected argument reached lowering"));
+            }
+        };
+
+        // execute the conversion selected for this argument
+        self.convert_value(value, binding.coercion.as_deref())
     }
 
     /// Lower one provided argument as the value expression it carries.
@@ -98,9 +125,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // unwrap the provided value from argument nodes
         if let Ok(argument) = source.local_id.try_into_typed::<dir::Argument>() {
             return match self.source().tree().get(argument) {
-                dir::Argument::Positional { value } => Ok(*value),
-                // reject a spread argument
-                dir::Argument::Spread { .. } => Err(self.unsupported("a spread argument")),
+                dir::Argument::Positional { value } | dir::Argument::Spread { value } => Ok(*value),
                 // reject an empty argument slot
                 dir::Argument::Elision | dir::Argument::Error => Err(CompilerError::Internal {
                     message: "an empty argument".to_string(),
@@ -120,36 +145,102 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Pack the rest elements into their parameter's collection, an owned slice in fresh storage.
     pub(in crate::lower) fn lower_rest_pack(
         &mut self,
-        elements: &[dir::GlobalNodeIdAny],
+        elements: &[dir::ArgumentBinding],
         element_type: dir::GlobalTypeId,
         pack: Option<&dir::InstanceKey>,
-        owned: bool,
+        target: dir::GlobalTypeId,
+        supplied: &[Argument],
     ) -> CompilerResult<mir::Value> {
-        // forward a sole spread argument whole
-        if let [source] = elements
-            && let Ok(argument) = source.local_id.try_into_typed::<dir::Argument>()
-            && let dir::Argument::Spread { value, .. } = self.source().tree().get(argument)
-        {
-            let value = *value;
-            return self.lower_value(value);
-        }
-
+        // evaluate the fixed prefix before opening any spread iterator
         let element = self.lower_type(element_type)?;
-        // lower each element in order
-        let mut values = Vec::with_capacity(elements.len());
-        for source in elements {
-            values.push(self.lower_argument(*source)?);
+        let is_owned = self.lower.ownership(target)? == dir::Ownership::Owned;
+        let prefix = elements
+            .iter()
+            .position(|binding| matches!(binding.source, dir::ArgumentSource::Spread(_)))
+            .unwrap_or(elements.len());
+        let (prefix, elements) = elements.split_at(prefix);
+        let mut values = Vec::with_capacity(prefix.len());
+        for binding in prefix {
+            values.push(self.lower_call_argument(binding, Some(element), supplied)?);
         }
 
-        // hand a collection its elements in owned storage
+        // append the remaining elements in source order
+        let completed = if !elements.is_empty() {
+            let builder = SliceBuilder::new(element, values, self);
+            for binding in elements {
+                match &binding.source {
+                    // consume each iterator before evaluating the next argument
+                    dir::ArgumentSource::Spread(spread) => {
+                        let coercion = match spread.value.source {
+                            dir::ArgumentSource::Provided(source) => self.coercion(source.local_id),
+                            _ => binding.coercion.as_deref().cloned(),
+                        };
+                        let receiver = self.lower_call_argument(&spread.value, None, supplied)?;
+                        let opened =
+                            self.lower_value_target_call(receiver, &spread.iteration.iterator)?;
+                        let Some(opened) = opened else {
+                            return Err(self.internal("a spread iterator call without a result"));
+                        };
+                        self.lower_iteration(&spread.iteration, opened, |lower, value, _, _| {
+                            let value = lower.convert_value(value, coercion.as_ref())?;
+                            builder.push(value, lower);
+
+                            Ok(false)
+                        })?;
+                    }
+                    // append individual arguments at the same element representation
+                    _ => {
+                        let value = self.lower_call_argument(binding, Some(element), supplied)?;
+                        builder.push(value, self);
+                    }
+                }
+            }
+            builder.finish(self)
+        } else {
+            // allocate fixed storage when every argument contributes one element
+            if pack.is_none() && !is_owned {
+                return self.frame_slice(element, values);
+            }
+
+            self.owned_slice(element, values)?
+        };
+
+        // construct the selected collection from completed storage
         if let Some(pack) = pack {
-            return self.lower_owned_pack(element, values, pack);
+            let function = self.resolve_callee(pack)?;
+            let parameters = self.signature_parameters(function.signature)?;
+            let Some(parameter) = parameters.first().copied() else {
+                return Err(self.internal("a pack constructor without its slice parameter"));
+            };
+            let completed = self.adopt(completed, parameter)?;
+
+            let value = self
+                .call(&function, vec![completed])
+                .ok_or_else(|| self.internal("a pack constructor call without a value"))?;
+            let target = self.lower_type(target)?;
+
+            return self.adopt(value, target);
         }
-        if owned {
-            return self.owned_slice(element, values);
+        if is_owned {
+            return Ok(completed);
         }
 
-        self.frame_slice(element, values)
+        // retain the allocation while the borrowed rest argument is in use
+        let storage = self.value_representation(completed)?;
+        let local = self.builder.local(storage, mir::Mutability::Immutable);
+        self.builder.local_set(local, completed);
+        let storage = self.builder.local_get(local);
+        let slice = self.builder.tree_mut().intern_type(mir::Type::Slice {
+            kind: mir::ReferenceKind::Borrowed,
+            lifetime: mir::Lifetime::frame(),
+            element,
+            storage: mir::Storage::Heap(mir::Space::Local),
+            access: mir::Access::Readonly,
+        });
+        let start = self.builder.usize_const(0);
+        let length = self.builder.slice_length(storage);
+
+        Ok(self.builder.slice_view(storage, start, length, slice))
     }
 
     /// Store one value sequence in a frame slot, viewed as a borrowed slice.
@@ -196,33 +287,6 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.slice_view(address, start, length, slice))
     }
 
-    /// Lower one collection over its elements moved into owned slice storage.
-    fn lower_owned_pack(
-        &mut self,
-        element: mir::LocalNodeId<mir::Type>,
-        values: Vec<mir::Value>,
-        pack: &dir::InstanceKey,
-    ) -> CompilerResult<mir::Value> {
-        // read the owned slice the pack constructor takes
-        let function = self.resolve_callee(pack)?;
-        let parameters = self.signature_parameters(function.signature)?;
-        let Some(storage) = parameters.first().copied() else {
-            return Err(CompilerError::Internal {
-                message: "a pack constructor without a declared slice slot".to_string(),
-            });
-        };
-
-        // call the constructor over the packed elements
-        let completed = self.owned_slice_at(element, values, storage);
-        let Some(packed) = self.call(&function, vec![completed]) else {
-            return Err(CompilerError::Internal {
-                message: "a pack constructor call without a value".to_string(),
-            });
-        };
-
-        Ok(packed)
-    }
-
     /// Move one value sequence into a fresh unique slice.
     fn owned_slice(
         &mut self,
@@ -237,16 +301,6 @@ impl FunctionLowerer<'_, '_, '_> {
             access: mir::Access::Mutable,
         });
 
-        Ok(self.owned_slice_at(element, values, mir::TypeId::from(storage)))
-    }
-
-    /// Move one value sequence into fresh storage completed at one unique slice type.
-    fn owned_slice_at(
-        &mut self,
-        element: mir::LocalNodeId<mir::Type>,
-        values: Vec<mir::Value>,
-        storage: mir::TypeId,
-    ) -> mir::Value {
         // allocate the elements' storage uninitialized
         let uninit = self.builder.tree_mut().intern_type(mir::Type::Uninit {
             value: mir::TypeId::from(element),
@@ -278,7 +332,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // complete the storage
-        self.builder.new_complete(allocated, storage)
+        Ok(self.builder.new_complete(allocated, storage))
     }
 
     /// Lower one omitted argument at its parameter representation.

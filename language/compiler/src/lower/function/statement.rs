@@ -224,7 +224,12 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // unwrap the present value or evaluate the default
-            let resolved = self.lower_absent_fallback(incoming, exact, |lower| {
+            let declaration = self
+                .lower
+                .declaration_node(symbol.into_global(self.source))?
+                .ok_or_else(|| self.internal("a defaulted parameter without its declaration"))?;
+            let source = self.node_type_id(declaration.local_id)?;
+            let resolved = self.lower_absent_fallback(incoming, source, ty, |lower| {
                 lower.lower_value(default).map(Some)
             })?;
             let local = self.home(resolved);

@@ -2,6 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_mir::substitute_type;
 
+use crate::lower::function::argument::Argument;
 use crate::lower::function::operand::Operand;
 use crate::lower::{
     Binding, CallableImplementation, FunctionDeclaration, FunctionLowerer, GenericInstanceKey,
@@ -97,7 +98,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
             }
             // call through a function-typed value
-            dir::CallableTarget::Expression { .. } => self.lower_indirect_call(expression, call),
+            dir::CallableTarget::Expression { .. } | dir::CallableTarget::Constructor(_) => {
+                self.lower_indirect_call(expression, call)
+            }
             // dispatch through the erased receiver's constraint entries
             dir::CallableTarget::Dynamic { dispatch, .. } => {
                 self.lower_dynamic_call(expression, call, dispatch)
@@ -154,7 +157,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Instantiate one signature's late-bound regions .
+    /// Instantiate one signature's late-bound regions.
     pub(in crate::lower) fn instantiate_signature(
         &mut self,
         parameters: &mut [mir::TypeId],
@@ -324,7 +327,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             None => parameters.as_slice(),
         };
-        values.extend(self.lower_call_arguments(&call.arguments, parameters, None)?);
+        values.extend(self.lower_call_arguments(&call.arguments, parameters, &[])?);
         let result = self.call(&callee, values);
         self.mark_park(call)?;
 
@@ -396,7 +399,9 @@ impl FunctionLowerer<'_, '_, '_> {
         // evaluate the receiver, then the arguments, then borrow the receiver at the call
         let (source, borrow, rest) =
             self.receiver_source(receiver, adjusted, is_optional, ReceiverUse::Value)?;
-        let arguments = self.lower_call_arguments(&resolution.arguments, parameters, write)?;
+        let supplied = write.map(Argument::Expression);
+        let arguments =
+            self.lower_call_arguments(&resolution.arguments, parameters, supplied.as_slice())?;
         let receiver = self.finish_receiver(source, borrow, rest)?;
         let mut values = vec![receiver];
         values.extend(arguments);
@@ -777,7 +782,9 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         // read the callee expression out of the call
-        let dir::Expression::Call { left, .. } = *self.source().tree().get(expression) else {
+        let (dir::Expression::Call { left, .. } | dir::Expression::New { left, .. }) =
+            *self.source().tree().get(expression)
+        else {
             return Err(CompilerError::Internal {
                 message: "a non-call expression in an indirect call".to_string(),
             });
@@ -826,7 +833,7 @@ impl FunctionLowerer<'_, '_, '_> {
             &resolution.regions,
             None,
         )?;
-        let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
+        let values = self.lower_call_arguments(&resolution.arguments, &parameters, &[])?;
 
         // borrow the callable after its arguments, for the call alone
         let callee = match (callee, borrowed) {

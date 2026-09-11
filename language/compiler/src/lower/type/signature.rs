@@ -10,7 +10,6 @@ impl TypeLowerer<'_, '_> {
     fn signature_types(
         &mut self,
         declared: dir::GlobalTypeId,
-        widens_optional: bool,
     ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
         let (signature, owner) = self.lower.signature(declared)?;
         let signature = *self.lower.types(owner)?.signature(signature);
@@ -19,20 +18,14 @@ impl TypeLowerer<'_, '_> {
             .types(owner)?
             .parameters(signature.parameters)
             .iter()
-            .map(|parameter| (parameter.ty, parameter.is_optional))
+            .map(|parameter| parameter.ty)
             .collect::<Vec<_>>();
         let return_type = signature.return_type;
 
         // lower parameters in their declared order
         let mut parameters = Vec::with_capacity(parameter_types.len());
-        for (ty, is_optional) in parameter_types {
-            let mut parameter = self.lower(ty)?;
-
-            // widen defaulted parameters into their undefined representation
-            if widens_optional && self.widens_optional_parameter(ty, is_optional)? {
-                parameter = self.insert_optional_representation(parameter)?;
-            }
-            parameters.push(parameter);
+        for ty in parameter_types {
+            parameters.push(self.lower(ty)?);
         }
 
         // lower the result, using void for an omitted return annotation
@@ -42,19 +35,6 @@ impl TypeLowerer<'_, '_> {
         };
 
         Ok((parameters, result))
-    }
-
-    /// Return whether one defaulted parameter widens into its undefined representation.
-    fn widens_optional_parameter(
-        &mut self,
-        ty: dir::GlobalTypeId,
-        is_optional: bool,
-    ) -> CompilerResult<bool> {
-        if !is_optional {
-            return Ok(false);
-        }
-
-        Ok(!self.lower.contains_undefined(ty)?)
     }
 
     /// Lower one checked callable signature into a MIR signature type.
@@ -69,23 +49,6 @@ impl TypeLowerer<'_, '_> {
 }
 
 impl ModuleLowerer<'_> {
-    /// Return whether one type carries an undefined member.
-    fn contains_undefined(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        match self.ty(ty)? {
-            dir::Type::Undefined => Ok(true),
-            dir::Type::Union(union) => {
-                for member in self.types(ty.module_id)?.type_ids(union.elements).to_vec() {
-                    if matches!(self.ty(member)?, dir::Type::Undefined) {
-                        return Ok(true);
-                    }
-                }
-
-                Ok(false)
-            }
-            _ => Ok(false),
-        }
-    }
-
     /// Lower one callable signature to its parameter and result types.
     pub(in crate::lower) fn lower_signature(
         &mut self,
@@ -95,19 +58,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
         let mut lower = self.type_lowerer(tree, scope);
 
-        lower.signature_types(declared, true)
-    }
-
-    /// Lower one binding signature at the host's exact calling convention.
-    pub(in crate::lower) fn lower_host_signature(
-        &mut self,
-        tree: &mut mir::Tree,
-        declared: dir::GlobalTypeId,
-        scope: &GenericScope,
-    ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
-        let mut lower = self.type_lowerer(tree, scope);
-
-        lower.signature_types(declared, false)
+        lower.signature_types(declared)
     }
 }
 
@@ -161,13 +112,7 @@ impl TypeLowerer<'_, '_> {
         types.this_type = self.this_type;
         let mut parameters = Vec::with_capacity(declared.len());
         for parameter in declared {
-            let widen = types.widens_optional_parameter(parameter.ty, parameter.is_optional)?;
-            let mut ty = types.lower(parameter.ty)?;
-
-            // widen defaulted parameters into their undefined representation
-            if widen {
-                ty = types.insert_optional_representation(ty)?;
-            }
+            let ty = types.lower(parameter.ty)?;
             parameters.push(mir::SignatureParameter::new(ty));
         }
 

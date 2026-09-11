@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
+use crate::lower::function::argument::Argument;
 use crate::lower::{
     FunctionLowerer, NominalField, constructor_receiver_type, nominal_receiver_storage,
 };
@@ -28,19 +29,30 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_super_construct(resolution);
         }
 
-        // lower by the construct target the resolution names
-        match &resolution.target {
+        // evaluate a constructor operand before its arguments
+        if let dir::Expression::New { left, .. } = *self.source().tree().get(expression) {
+            self.lower_operand(left)?;
+        }
+
+        self.lower_construction(resolution, &[])
+    }
+
+    /// Execute one checked construction over its authored and supplied arguments.
+    pub(in crate::lower) fn lower_construction(
+        &mut self,
+        resolution: &dir::ConstructDecision,
+        supplied: &[Argument],
+    ) -> CompilerResult<mir::Value> {
+        // allocate and initialize the selected construction
+        let value = match &resolution.target {
             // wrap a raw value in its newtype
             dir::ConstructTarget::Newtype { .. } => self.lower_newtype_construct(resolution),
             // construct a declared class
-            dir::ConstructTarget::Class { key, constructor } => {
-                self.lower_class_construct(resolution, key, constructor)
-            }
-            // reject construction through a class value
-            dir::ConstructTarget::Dynamic { .. } => {
-                Err(self.unsupported("a dynamically dispatched construction"))
-            }
-        }
+            dir::ConstructTarget::Class { .. } => self.lower_class_construct(resolution, supplied),
+        }?;
+
+        // execute the result conversion recorded by checking
+        self.convert_value(value, resolution.coercion.as_deref())
     }
 
     /// Lower one super call initializing the current receiver.
@@ -128,7 +140,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .builder
                 .cast(mir::CastOperator::Bitcast, this, *receiver);
             let mut values = vec![receiver];
-            values.extend(self.lower_call_arguments(&resolution.arguments, parameters, None)?);
+            values.extend(self.lower_call_arguments(&resolution.arguments, parameters, &[])?);
             self.call(&function, values);
         }
 
@@ -147,9 +159,17 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_class_construct(
         &mut self,
         resolution: &dir::ConstructDecision,
-        selection: &dir::InstanceKey,
-        constructor: &dir::ClassConstructor,
+        supplied: &[Argument],
     ) -> CompilerResult<mir::Value> {
+        // read the selected class and its initializer
+        let dir::ConstructTarget::Class {
+            key: selection,
+            constructor,
+        } = &resolution.target
+        else {
+            return Err(self.internal("a class construction without its selected class"));
+        };
+
         // adapt the arguments against the declared constructor header
         let values = match constructor {
             // bind the written arguments to the declared parameters after the receiver
@@ -162,7 +182,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 };
 
-                self.lower_call_arguments(&resolution.arguments, parameters, None)?
+                self.lower_call_arguments(&resolution.arguments, parameters, supplied)?
             }
             // pass nothing to a defaulted constructor
             dir::ClassConstructor::Default => Vec::new(),
@@ -215,11 +235,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 mir::Storage::Frame,
                 pointee,
             );
-            let address = self
-                .builder
-                .local_addr(slot, address, mir::AddressKind::Borrow);
 
-            address
+            self.builder
+                .local_addr(slot, address, mir::AddressKind::Borrow)
         };
 
         // retain the receiver used to initialize the storage
@@ -756,17 +774,29 @@ impl FunctionLowerer<'_, '_, '_> {
                     else {
                         return Err(self.unsupported("a spread slice element"));
                     };
-                    values.push(value.into_global_any(self.lower.module));
+                    values.push(dir::ArgumentBinding {
+                        parameter_type: slice.element,
+                        argument_type: slice.element,
+                        source: dir::ArgumentSource::Provided(
+                            value.into_global_any(self.lower.module),
+                        ),
+                        coercion: None,
+                    });
                 }
 
-                self.lower_rest_pack(&values, slice.element, None, false)
+                self.lower_rest_pack(&values, slice.element, None, ty, &[])
             }
-            // build every other array through its pack constructor
-            _ => self
-                .lower_call(expression)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: "an array construction without a value".to_string(),
-                }),
+            // construct the array in its selected storage form
+            _ => {
+                let value =
+                    self.lower_call(expression)?
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: "an array construction without a value".to_string(),
+                        })?;
+                let target = self.lower_type(ty)?;
+
+                self.adopt(value, target)
+            }
         }
     }
 

@@ -12,13 +12,13 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower.ty(self.node_type_id(expression)?)
     }
 
-    /// Return the type id behind one expression node.
+    /// Return the checked type of one node in this function's module.
     pub(in crate::lower) fn node_type_id(
         &self,
-        expression: dir::LocalNodeId<dir::Expression>,
+        node: impl Into<dir::LocalNodeIdAny>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // read the node's committed type through the enclosing instance
-        let node = expression.into_global_any(self.source);
+        let node = node.into().into_global(self.source);
         let ty =
             self.source()
                 .types
@@ -200,14 +200,14 @@ impl FunctionLowerer<'_, '_, '_> {
         self.node_type_id(expression)
     }
 
-    /// Return the coercion of one expression.
+    /// Return the coercion of one authored value.
     pub(in crate::lower) fn coercion(
         &self,
-        expression: dir::LocalNodeId<dir::Expression>,
+        node: impl Into<dir::LocalNodeIdAny>,
     ) -> Option<dir::Coercion> {
         self.source()
             .coercions
-            .coercion(expression.into_global_any(self.source))
+            .coercion(node.into().into_global(self.source))
             .cloned()
     }
 }

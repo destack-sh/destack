@@ -58,7 +58,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // borrow the producer at the receiver representation the yield method declares
-        let arguments = self.lower_call_arguments(&call.arguments, parameters, None)?;
+        let arguments = self.lower_call_arguments(&call.arguments, parameters, &[])?;
         let receiver = match producer {
             Binding::Local(local) => {
                 self.builder
@@ -119,7 +119,11 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(next_block);
         let sent = self.request_value(request, next, next_member)?;
         if let Some(slot) = slot {
-            let sent = self.narrow_value(sent, &[resumed_type], resumed_type)?;
+            let members = self
+                .lower
+                .union_members_maybe(resumed)?
+                .unwrap_or_else(|| vec![resumed]);
+            let sent = self.narrow(sent, &members, resumed)?;
             self.builder.local_set(slot, sent);
         }
         self.builder.jump(exit);

@@ -7,3 +7,4 @@ mod indirect;
 mod intrinsic;
 mod method;
 mod operator;
+mod rest;

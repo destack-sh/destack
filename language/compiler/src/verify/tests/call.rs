@@ -1,5 +1,23 @@
 use crate::tests::{TestProgram, TestSession};
 
+/// Rest arguments initialize fresh storage across multiple spreads.
+#[test]
+fn test_pack_spread_arguments() {
+    let session = TestSession::single(
+        r#"
+declare function take(...values: ^[int32]): void;
+
+declare function change(values: int32[]): int32;
+
+function forward(values: int32[]): void {
+    take(0, ...values, change(values), ...[4, 5]);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+}
+
 #[test]
 fn test_propagate_call_result_aggregate_path_origin() {
     let mut program = TestProgram::mir(

@@ -1,5 +1,51 @@
 use crate::tests::TestSession;
 
+/// Coalescing evaluates the fallback when both operands permit undefined.
+#[test]
+fn test_coalesce_optional_values() {
+    let session = TestSession::single(
+        r#"
+declare function fallback(): int32 | undefined;
+
+function choose(value: int32 | undefined): int32 | undefined {
+    return value ?? fallback();
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+function test.main.choose(v0: variant<uint1> { 0uint1 = void; 1uint1 = int32; }): variant<uint1> { 0uint1 = void; 1uint1 = int32; } {
+    local l0: variant<uint1> { 0uint1 = void; 1uint1 = int32; }
+    local l1: variant<uint1> { 0uint1 = void; 1uint1 = int32; }, readonly
+
+entry(v0: variant<uint1> { 0uint1 = void; 1uint1 = int32; }):
+    local.set l0, v0
+    v1: variant<uint1> { 0uint1 = void; 1uint1 = int32; } = local.get l0
+    variant.switch v1, 0 => b2, else b1
+
+b1:
+    local.set l1, v1
+    jump b3
+
+b2:
+    v2: variant<uint1> { 0uint1 = void; 1uint1 = int32; } = call test.main.fallback(): () => variant<uint1> { 0uint1 = void; 1uint1 = int32; }
+    local.set l1, v2
+    jump b3
+
+b3:
+    v3: variant<uint1> { 0uint1 = void; 1uint1 = int32; } = local.get l1
+    return v3
+}
+
+external function test.main.fallback(): variant<uint1> { 0uint1 = void; 1uint1 = int32; }
+
+/// @layout.variant name=type@3 size=8 align=4
+/// @layout.discriminant owner=type@3 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=4
+"#);
+}
+
 #[test]
 fn test_lower_three_union_arms_with_two_discriminant_bits() {
     let session = TestSession::single(

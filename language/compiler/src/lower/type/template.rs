@@ -1,4 +1,4 @@
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_mir as mir;
 
@@ -38,8 +38,83 @@ pub(in crate::lower) struct GenericScope {
 }
 
 impl GenericScope {
-    /// Append the slot a constructor borrows its constructed storage at, named by the first tick
-    /// letter free among the declared slots.
+    /// Capture the enclosing type and lifetime parameters used by generated code.
+    pub(in crate::lower) fn capture(
+        &mut self,
+        types: impl IntoIterator<Item = dir::GlobalTypeId>,
+        enclosing: &Self,
+        lower: &mut ModuleLowerer<'_>,
+    ) -> CompilerResult<()> {
+        // visit each checked type once, in the order supplied
+        let mut pending: FxIndexSet<_> = types.into_iter().collect();
+        let mut slots = vec![None; enclosing.names.len()];
+        let mut position = 0;
+        while position < pending.len() {
+            let id = pending[position];
+            position += 1;
+
+            // retain dependent types as the parameters already selected by sema
+            if enclosing.dependents.contains_key(&id) {
+                let index = self.count();
+                self.dependents.entry(id).or_insert(index);
+
+                continue;
+            }
+
+            // collect explicit parameters and the types their declarations require
+            let ty = lower.ty(id)?;
+            if let dir::Type::Parameter(parameter) = ty {
+                if enclosing.parameters.contains_key(&parameter) {
+                    let index = self.count();
+                    self.parameters.entry(parameter).or_insert(index);
+                    if enclosing.parameter_index(parameter) == enclosing.receiver {
+                        self.receiver = self.parameter_index(parameter);
+                    }
+                } else if let Some(slot) = enclosing.slots.get(&parameter)
+                    && !self.slots.contains_key(&parameter)
+                {
+                    let index = mir::LifetimeSlot(self.names.len() as u32);
+                    self.slots.insert(parameter, index);
+                    self.names.push(enclosing.names[slot.0 as usize].clone());
+                }
+                if let Some(slot) = enclosing.slots.get(&parameter) {
+                    slots[slot.0 as usize] = self.slots.get(&parameter).copied();
+                }
+
+                // include the types and lifetimes required by each parameter's bounds
+                let state = lower.state(parameter.module_id)?;
+                let binding = state.generics.get_parameter(parameter.local_id);
+                pending.extend(binding.constraint);
+                if let Some(bounds) = state.generics.parameter_bounds(parameter.local_id) {
+                    pending.extend(state.types.type_ids(bounds));
+                }
+                for predicate in &state.generics.get_template(binding.template).predicates {
+                    if predicate.relation == dir::WhereRelation::Satisfies
+                        && predicate.left == binding.ty
+                    {
+                        pending.insert(predicate.right);
+                    }
+                }
+            } else {
+                lower.types(id.module_id)?.for_each_child(&ty, |child| {
+                    pending.insert(child);
+                });
+            }
+        }
+
+        // translate the retained lifetime relations into this function's indices
+        for (left, right) in &enclosing.outlives {
+            if let (Some(left), Some(right)) = (slots[left.0 as usize], slots[right.0 as usize])
+                && !self.outlives.contains(&(left, right))
+            {
+                self.outlives.push((left, right));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Append the slot a constructor borrows its constructed storage at.
     pub(in crate::lower) fn push_receiver_slot(&mut self) -> mir::LifetimeSlot {
         let name = dir::free_region_name(self.names.iter().map(String::as_str));
         let slot = mir::LifetimeSlot(self.names.len() as u32);
@@ -49,8 +124,7 @@ impl GenericScope {
         slot
     }
 
-    /// Return this scope with every region erased, the shape witness keys, instance keys, and
-    /// dispatch implementers lower under.
+    /// Return this scope with every region erased.
     pub(in crate::lower) fn erased(&self) -> Self {
         Self {
             erases_regions: true,
@@ -58,8 +132,7 @@ impl GenericScope {
         }
     }
 
-    /// Collect the parameters one signature closes over: its own template's and the dependents
-    /// sema records for the declaration by symbol.
+    /// Collect the parameters one signature closes over.
     pub(in crate::lower) fn for_signature(
         lower: &mut ModuleLowerer<'_>,
         template: Option<dir::GlobalGenericTemplateId>,
@@ -73,8 +146,7 @@ impl GenericScope {
         Ok(parameters)
     }
 
-    /// Collect the parameters one type declaration's representation is generic over, its
-    /// regions among them.
+    /// Collect the parameters one type declaration's representation is generic over.
     pub(in crate::lower) fn for_declaration(
         lower: &mut ModuleLowerer<'_>,
         template: dir::GlobalGenericTemplateId,
@@ -491,7 +563,7 @@ impl ModuleLowerer<'_> {
         let mut generics: Vec<Option<mir::GenericParameter>> = vec![None; scope.count() as usize];
 
         // lower each collected parameter at its index
-        for (parameter, index) in scope.parameters.clone() {
+        for (&parameter, &index) in &scope.parameters {
             // name the parameter as declared, an anonymous one by its kind and scope index
             let binding = self
                 .state(parameter.module_id)?

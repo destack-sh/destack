@@ -272,7 +272,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(false);
         };
 
-        Ok(self.union_leaves(&narrowing.arms)?.len() > 1)
+        Ok(narrowing.arms.len() > 1)
     }
 
     /// Project one place onto the one case a read's narrowing proves, else keep it whole.
@@ -285,7 +285,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(narrowing) = self.source().decisions.narrowing(node).cloned() else {
             return Ok(place);
         };
-        match self.union_leaves(&narrowing.arms)?.as_slice() {
+        match narrowing.arms.as_slice() {
             [member] => self.downcast_place(place, *member),
             _ => Ok(place),
         }

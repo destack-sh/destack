@@ -59,7 +59,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(binding) = create
             .arguments
             .iter()
-            .find(|binding| matches!(binding.source, dir::ArgumentSource::Supplied))
+            .find(|binding| matches!(binding.source, dir::ArgumentSource::Supplied(_)))
         else {
             return Err(CompilerError::Internal {
                 message: "a creation call without its body closure slot".to_string(),

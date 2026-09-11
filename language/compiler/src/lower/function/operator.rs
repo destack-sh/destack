@@ -201,7 +201,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 return self.adopt(value, result);
             }
 
-            return self.lower_absent_fallback(value, result, |lower| {
+            return self.lower_absent_fallback(value, source, result_ty, |lower| {
                 lower.lower_coalesce_fallback(right, result_ty)
             });
         }

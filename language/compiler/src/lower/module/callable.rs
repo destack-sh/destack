@@ -231,10 +231,7 @@ impl ModuleLowerer<'_> {
 
             return Ok(None);
         }
-        let (mut parameters, mut result) = match binding {
-            Some(_) => self.lower_host_signature(tree, declared, scope)?,
-            None => self.lower_signature(tree, declared, scope)?,
-        };
+        let (mut parameters, mut result) = self.lower_signature(tree, declared, scope)?;
         if parameters.len() != header.parameters.len() {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -418,7 +415,7 @@ impl ModuleLowerer<'_> {
         let Some(binding) = create
             .arguments
             .iter()
-            .find(|binding| matches!(binding.source, dir::ArgumentSource::Supplied))
+            .find(|binding| matches!(binding.source, dir::ArgumentSource::Supplied(_)))
         else {
             return Err(CompilerError::Internal {
                 message: "a creation call without its body closure slot".to_string(),
@@ -497,9 +494,14 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<Vec<dir::GlobalGenericParameterId>> {
         // peel the callable down to its signature template
         let (signature, owner) = self.signature(ty)?;
-        let Some(template) = self.types(owner)?.signature(signature).template else {
+        let signature = *self.types(owner)?.signature(signature);
+        let Some(template) = signature.template else {
             return Ok(Vec::new());
         };
+        let arguments = self
+            .types(owner)?
+            .generic_arguments(signature.arguments)
+            .to_vec();
 
         // keep the parameters an instance key selects
         let template_module = template.module_id;
@@ -508,10 +510,15 @@ impl ModuleLowerer<'_> {
         let mut parameters = Vec::new();
         for parameter in &template.parameters {
             let binding = generics.get_parameter(*parameter);
-            if binding.memory_parameter() == Some(dir::MemoryParameter::Region) {
+            let parameter = parameter.into_global(template_module);
+            if binding.memory_parameter() == Some(dir::MemoryParameter::Region)
+                || arguments
+                    .iter()
+                    .any(|binding| binding.parameter == parameter)
+            {
                 continue;
             }
-            parameters.push(parameter.into_global(template_module));
+            parameters.push(parameter);
         }
 
         Ok(parameters)

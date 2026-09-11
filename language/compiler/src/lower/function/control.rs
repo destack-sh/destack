@@ -259,6 +259,55 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "an iterator call producing no iterator".to_string(),
             });
         };
+        self.lower_iteration(&decision, opened, |lower, value, header, exit| {
+            let pattern = match binding {
+                dir::ForEachBinding::Pattern {
+                    pattern,
+                    keyword: Some(_),
+                }
+                | dir::ForEachBinding::Using { pattern, .. } => pattern,
+                dir::ForEachBinding::Pattern { keyword: None, .. } => {
+                    return Err(lower.unsupported("a for-of assignment binding"));
+                }
+            };
+            let place = Place::local(lower.home(value));
+            lower.lower_pattern_bindings(pattern, &place)?;
+
+            // queue the disposal a using binding runs after every pass
+            let resource = match (binding, decision.disposal.clone()) {
+                (dir::ForEachBinding::Using { pattern, .. }, Some(disposal)) => {
+                    let node = pattern.into_global_any(lower.source);
+                    let Some(symbol) = lower.lower.symbol_declared_at(node)? else {
+                        return Err(CompilerError::Internal {
+                            message: "a missing symbol for one for-of using binding".to_string(),
+                        });
+                    };
+                    let Some(home) = lower.values.get(&symbol.local_id).copied() else {
+                        return Err(CompilerError::Internal {
+                            message: "a for-of using binding without a home".to_string(),
+                        });
+                    };
+
+                    Some((home, disposal))
+                }
+                _ => None,
+            };
+            lower.lower_loop_body(label, header, exit, body, resource, None)
+        })
+    }
+
+    /// Consume a selected iterator and emit the body for each element.
+    pub(in crate::lower) fn lower_iteration(
+        &mut self,
+        decision: &dir::IterationDecision,
+        opened: mir::Value,
+        body: impl FnOnce(
+            &mut Self,
+            mir::Value,
+            mir::LocalNodeId<mir::Block>,
+            mir::LocalNodeId<mir::Block>,
+        ) -> CompilerResult<bool>,
+    ) -> CompilerResult<bool> {
         let home = self.bind_receiver(opened)?;
         let awaited = match &decision.awaits {
             Some(awaited) => {
@@ -368,39 +417,7 @@ impl FunctionLowerer<'_, '_, '_> {
             };
             value = parked;
         }
-        let pattern = match binding {
-            dir::ForEachBinding::Pattern {
-                pattern,
-                keyword: Some(_),
-            }
-            | dir::ForEachBinding::Using { pattern, .. } => pattern,
-            dir::ForEachBinding::Pattern { keyword: None, .. } => {
-                return Err(self.unsupported("a for-of assignment binding"));
-            }
-        };
-        let place = Place::local(self.home(value));
-        self.lower_pattern_bindings(pattern, &place)?;
-
-        // queue the disposal a using binding runs after every pass
-        let resource = match (binding, decision.disposal.clone()) {
-            (dir::ForEachBinding::Using { pattern, .. }, Some(disposal)) => {
-                let node = pattern.into_global_any(self.source);
-                let Some(symbol) = self.lower.symbol_declared_at(node)? else {
-                    return Err(CompilerError::Internal {
-                        message: "a missing symbol for one for-of using binding".to_string(),
-                    });
-                };
-                let Some(home) = self.values.get(&symbol.local_id).copied() else {
-                    return Err(CompilerError::Internal {
-                        message: "a for-of using binding without a home".to_string(),
-                    });
-                };
-
-                Some((home, disposal))
-            }
-            _ => None,
-        };
-        let terminated = self.lower_loop_body(label, header, exit, body, resource, None)?;
+        let terminated = body(self, value, header, exit)?;
         if !terminated {
             self.builder.jump(header);
         }
