@@ -4,11 +4,10 @@ use destack_core::{StableHasher, StringId};
 use destack_source::ModuleId;
 
 use crate::{
-    Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
-    FloatType, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
-    LifetimeParameter, Extent, LocalNodeId, Multiplicity, Reference, SignatureParameter,
-    Space, Static, StaticField, StaticId, StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint,
-    TypeId,
+    Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Extent,
+    Field, FloatType, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
+    LifetimeParameter, LocalNodeId, Multiplicity, Reference, SignatureParameter, Space, Static,
+    StaticField, StaticId, StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint, TypeId,
 };
 
 impl Tree {
@@ -41,10 +40,7 @@ impl TypeHasher {
         let mut hasher = StableHasher::new();
         hasher.update_len_prefixed(b"destack.mir.generated.v1");
         hasher.write_u64(base.raw());
-        let mut hasher = Self {
-            hasher,
-            erase_lifetimes: false,
-        };
+        let mut hasher = Self { hasher };
 
         // hash the callable declaration without its parameter names
         hasher.hash_type(signature, tree);

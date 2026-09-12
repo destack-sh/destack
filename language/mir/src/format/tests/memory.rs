@@ -52,7 +52,7 @@ fn test_format_slice_view() {
         r#"
 function subslice<'a>(v0: slice<int32, borrowed, 'a & local, mutable>, v1: int64, v2: int64): slice<int32, borrowed, 'a & local, mutable> {
 entry(v0: slice<int32, borrowed, 'a & local, mutable>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, 'a & local, mutable> = slice.view v0, v1, v2
+    v3: slice<int32, borrowed, 'a & local, mutable> = address (*v0)[v1; v2]
     return v3
 }
 "#,
@@ -70,18 +70,52 @@ function memory<'a>(v0: ref<int32, borrowed, 'a & local, mutable>): int32 {
     local l0: int32
 
 entry(v0: ref<int32, borrowed, 'a & local, mutable>):
-    v1: ref<int32, borrowed, 'static & local, mutable> = global.address counter
-    v2: ref<int32, borrowed, 'frame & frame, mutable> = local.address l0
-    v3: int32 = load.copy v0
+    v1: ref<int32, borrowed, 'static & local, mutable> = address @counter
+    v2: ref<int32, borrowed, 'frame & frame, mutable> = address l0
+    v3: int32 = load.copy (*v0)
     v4: int32 = copy v3
-    store v0, v3
-    local.set l0, v4
-    v5: int32 = local.get.copy l0
-    v6: int32 = local.get l0
-    v7: int32 = load.copy v1
-    store v2, v7
-    v8: int32 = load v2
+    store (*v0), v3
+    store l0, v4
+    v5: int32 = load.copy l0
+    v6: int32 = load l0
+    v7: int32 = load.copy (*v1)
+    store (*v2), v7
+    v8: int32 = load (*v2)
     return v8
+}
+"#,
+    );
+}
+
+/// Preserve borrowed views of stored references and slice descriptors.
+#[test]
+fn test_format_nested_reference_places() {
+    assert_format(
+        r#"
+function view<'a>(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive>, v1: ref<slice<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive>): void {
+entry(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive>, v1: ref<slice<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive>):
+    v2: ref<int32, borrowed, 'a & local, immutable> = address (*(*v0))
+    v3: slice<int32, borrowed, 'a & local, mutable> = address (*(*v1))
+    return
+}
+"#,
+    );
+}
+
+/// Preserve case, field, element, and slice projections in memory operands.
+#[test]
+fn test_format_projected_places() {
+    assert_format(
+        r#"
+type Packet = variant<uint1> { 0uint1 = void; 1uint1 = (int32, [int32; 4]); };
+
+function project<'a>(v0: ref<Packet, borrowed, 'a & local, immutable>, v1: usize, v2: usize): int32 {
+entry(v0: ref<Packet, borrowed, 'a & local, immutable>, v1: usize, v2: usize):
+    v3: int32 = load.copy ((*v0) as 1).0
+    v4: int32 = load.copy ((*v0) as 1).1[0]
+    v5: int32 = load.copy ((*v0) as 1).1[v1]
+    v6: slice<int32, borrowed, 'a & local, immutable> = address ((*v0) as 1).1[v1; v2]
+    return v3
 }
 "#,
     );
@@ -94,8 +128,8 @@ fn test_format_atomic_load_store_and_fence_family() {
         r#"
 function atomics<'a>(v0: ref<int32, borrowed, 'a & frame, mutable>): int32 {
 entry(v0: ref<int32, borrowed, 'a & frame, mutable>):
-    v1: int32 = atomic.load v0, acquire, scope(device)
-    atomic.store v0, v1, release, scope(device)
+    v1: int32 = atomic.load (*v0), acquire, scope(device)
+    atomic.store (*v0), v1, release, scope(device)
     atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     return v1
 }
@@ -112,8 +146,8 @@ function atomics<'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): uint32 {
 entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
     v1: uint32 = 1
     v2: uint32 = 2
-    v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
-    v4: uint32 = atomic.rmw.min v0, v2, relaxed
+    v3: (uint32, boolean) = atomic.cas (*v0), v1, v2, acquireRelease, failure(acquire)
+    v4: uint32 = atomic.rmw.min (*v0), v2, relaxed
     return v4
 }
 "#,
@@ -128,9 +162,9 @@ function atomics<const Order: uint32, const Failure: uint32, 'a>(v0: ref<uint32,
 entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
     v1: uint32 = 1
     v2: uint32 = 2
-    v3: (uint32, boolean) = atomic.cas v0, v1, v2, Order
-    v4: (uint32, boolean) = atomic.cas v0, v1, v2, Order, failure(Failure)
-    v5: (uint32, boolean) = atomic.cas v0, v1, v2, Order, failure(relaxed)
+    v3: (uint32, boolean) = atomic.cas (*v0), v1, v2, Order
+    v4: (uint32, boolean) = atomic.cas (*v0), v1, v2, Order, failure(Failure)
+    v5: (uint32, boolean) = atomic.cas (*v0), v1, v2, Order, failure(relaxed)
     return v3
 }
 "#;

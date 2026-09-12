@@ -235,21 +235,29 @@ b0:
     assert_eq!(tree.iter_nodes::<Function>().count(), 1);
 }
 
-/// Reject a named type whose definition is only its own identity.
+/// Require declared representations instead of transparent aliases.
 #[test]
-fn test_parse_rejects_direct_self_type_definition() {
-    let source = "type Recursive = Recursive;";
+fn test_parse_rejects_type_aliases() {
+    for (source, definition) in [
+        ("type Recursive = Recursive;", "Recursive"),
+        ("type A; type Alias = A;", "A"),
+        ("type A<T>; type Alias = A<int32>;", "A<int32>"),
+        ("type Alias<T> = T;", "T"),
+    ] {
+        let (_, diagnostics) = TestParser::new(source).parse_with_diagnostics();
+        let position = source.rfind(definition).unwrap();
 
-    let (_, diagnostics) = TestParser::new(source).parse_with_diagnostics();
-    let position = source.rfind("Recursive").unwrap();
-
-    // exactly the self-definition rejection at the defining reference
-    assert_eq!(diagnostics.len(), 1);
-    let diagnostic = diagnostics.iter().next().unwrap();
-    assert_eq!(diagnostic.message, "type declaration cannot define itself");
-    let span = diagnostic.primary.target.span().unwrap();
-    assert_eq!(span.start as usize, position);
-    assert_eq!(span.end as usize, position + "Recursive".len());
+        // report the unresolved alias at its defining type expression
+        assert_eq!(diagnostics.len(), 1);
+        let diagnostic = diagnostics.iter().next().unwrap();
+        assert_eq!(
+            diagnostic.message,
+            "MIR type declaration requires a representation; resolve transparent aliases before MIR"
+        );
+        let span = diagnostic.primary.target.span().unwrap();
+        assert_eq!(span.start as usize, position);
+        assert_eq!(span.end as usize, position + definition.len());
+    }
 }
 
 /// Recovering parse restores lifetime names after a broken type declaration.

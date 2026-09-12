@@ -1,7 +1,7 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
     Call, Callee, Function, FunctionBehavior, GenericArgument, Instruction, LocalNodeId, Point,
-    SignatureParameter, Type, TypeId, Value,
+    SignatureParameter, Substitution, Type, TypeId, Value,
 };
 
 impl<'a> FunctionBuilder<'a> {
@@ -14,7 +14,8 @@ impl<'a> FunctionBuilder<'a> {
         result_type: TypeId,
     ) -> Option<Value> {
         // omit SSA storage for void calls
-        let destination = if matches!(self.tree.type_definition(result_type), Type::Void) {
+        let result = Substitution::resolve(result_type, self.tree);
+        let destination = if matches!(self.tree.get(result), Type::Void) {
             None
         } else {
             Some(self.allocate_value())
@@ -148,22 +149,24 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Return the result type one callable signature declares, the destination a call at that
     /// signature defines without a caller-side type.
-    pub fn signature_result(&self, signature: TypeId) -> TypeId {
+    pub fn signature_result(&mut self, signature: TypeId) -> TypeId {
         let result = self.signature_result_type(signature);
 
         self.expect_build(result)
     }
 
     /// Return the result type one callable signature declares.
-    fn signature_result_type(&self, signature: TypeId) -> Result<TypeId, BuildError> {
-        let signature_type = self.tree.type_definition(signature);
+    fn signature_result_type(&mut self, signature: TypeId) -> Result<TypeId, BuildError> {
+        let signature = Substitution::resolve(signature, self.tree);
+        let signature_type = self.tree.get(signature);
         match signature_type {
             Type::FunctionSignature { result, .. } => Ok(*result),
             Type::FunctionPointer { .. } | Type::Function { .. } => {
                 let Some(signature) = signature_type.callable_signature() else {
                     return Err(BuildError::MissingFunctionSignature { ty: signature });
                 };
-                let signature_type = self.tree.type_definition(signature);
+                let signature = Substitution::resolve(signature, self.tree);
+                let signature_type = self.tree.get(signature);
                 let Some((_, _, result)) = signature_type.function_signature_parts() else {
                     return Err(BuildError::MissingFunctionSignature { ty: signature });
                 };

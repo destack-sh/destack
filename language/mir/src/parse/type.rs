@@ -392,6 +392,10 @@ impl Parser {
                         ParseError::invalid(&format!("identified type '{name}'"), start)
                     })?;
 
+                let base = self
+                    .tree
+                    .intern_type(Type::Declaration { declaration: base });
+
                 return self.apply_type_arguments(base, arguments);
             }
         };

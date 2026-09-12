@@ -11,9 +11,9 @@ use crate::{
     Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
     FloatType, Function, FunctionHeaderSpans, GenericArgument, Global, IndexSlice, Instruction,
     Lifetime, Local, LocalNodeId, Node, NodeIndexEntry, NodeType, Path, Projection, Provenance,
-    ProvenanceTable, Reference, Space, Static, StaticId, Storage, SwitchCase, SwitchCaseSlice,
-    Symbol, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId, TypedValueSpan, Value,
-    ValueSlice,
+    ProvenanceTable, Reference, Space, Static, StaticId, Storage, Substitution, SwitchCase,
+    SwitchCaseSlice, Symbol, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
+    TypedValueSpan, Value, ValueSlice,
 };
 
 /// MIR tree for a single unit.
@@ -73,10 +73,8 @@ pub struct Tree {
 
     /// Interned type ids grouped by structural hash.
     pub(crate) type_index: FxIndexMap<u64, SmallVec<[TypeId; 1]>>,
-    /// Declared type ids indexed by persistent symbol.
-    pub(crate) declared_types: FxIndexMap<Symbol, TypeId>,
-    /// Expanded generic applications.
-    pub(crate) representations: FxIndexMap<TypeId, TypeId>,
+    /// Type declarations indexed by persistent symbol.
+    pub(crate) declared_types: FxIndexMap<Symbol, LocalNodeId<TypeDeclaration>>,
     /// Structural field ids grouped by hash.
     pub(crate) field_index: FxIndexMap<u64, SmallVec<[LocalNodeId<Field>; 1]>>,
     /// Canonical compile-time values grouped by structural hash.
@@ -162,7 +160,6 @@ impl Tree {
             storage_joins: Vec::new(),
             type_index: FxIndexMap::default(),
             declared_types: FxIndexMap::default(),
-            representations: FxIndexMap::default(),
             field_index: FxIndexMap::default(),
             static_index: FxIndexMap::default(),
 
@@ -182,52 +179,44 @@ impl Tree {
         tree
     }
 
-    /// Return the definition reached through declarations and expanded applications.
-    pub fn type_definition(&self, mut ty: TypeId) -> &Type {
-        // traverse transparent definitions while preserving unresolved declarations
-        let mut remaining = self.types.len();
-        loop {
-            let definition = match self.get(ty) {
-                Type::Declaration { declaration } => self.get(*declaration).definition,
-                Type::Application { .. } => self.representation(ty),
-                _ => None,
-            };
-            let Some(definition) = definition else {
-                return self.get(ty);
-            };
-            assert!(remaining > 0, "cyclic MIR type definition {ty:?}");
-            remaining -= 1;
-            ty = definition;
+    /// Return the declared representation or the type itself.
+    pub fn type_definition(&self, ty: TypeId) -> &Type {
+        match self.get(ty) {
+            Type::Declaration { declaration } => match self.get(*declaration).definition {
+                Some(definition) => self.get(definition),
+                None => self.get(ty),
+            },
+            definition => definition,
         }
     }
 
     /// Return the transparent representation type.
-    pub fn repr_type(&self, mut ty: TypeId) -> TypeId {
+    pub fn repr_type(&mut self, mut ty: TypeId) -> TypeId {
         loop {
-            match self.type_definition(ty) {
-                Type::Newtype { inner, .. } => {
-                    ty = *inner;
-                }
+            ty = Substitution::resolve(ty, self);
+            match self.get(ty) {
+                Type::Newtype { inner, .. } => ty = *inner,
                 _ => return ty,
             }
         }
     }
 
-    /// Return the transparent storage type, reading an application through its representation.
-    pub fn storage_type(&self, mut ty: TypeId) -> TypeId {
+    /// Return the initialized storage type beneath transparent forms.
+    pub fn storage_type(&mut self, mut ty: TypeId) -> TypeId {
         loop {
-            ty = match self.type_definition(ty) {
-                Type::Uninit { value: base } | Type::ManuallyDrop { value: base } => *base,
-                Type::Newtype { inner, .. } => *inner,
+            ty = Substitution::resolve(ty, self);
+            match self.get(ty) {
+                Type::Uninit { value } | Type::ManuallyDrop { value } => ty = *value,
+                Type::Newtype { inner, .. } => ty = *inner,
                 _ => return ty,
-            };
+            }
         }
     }
 
     /// Return the heap storage carried by one managed allocation result.
-    pub fn managed_storage(&self, ty: TypeId) -> Option<Storage> {
+    pub fn managed_storage(&mut self, ty: TypeId) -> Option<Storage> {
         let ty = self.storage_type(ty);
-        let ty = self.type_definition(ty);
+        let ty = self.get(ty);
         let storage = ty.reference_storage()?;
 
         (ty.reference_kind() == Some(Reference::Managed) && storage.heap_space().is_some())
@@ -251,7 +240,20 @@ impl Tree {
             return None;
         }
 
+        // inspect nominal arguments without expanding recursive definitions
         let lifetime = match self.type_definition(ty) {
+            Type::Application { arguments, .. } => {
+                let lifetimes = arguments.iter().filter_map(|argument| match argument {
+                    GenericArgument::Type(ty) => self.type_lifetime_inner(*ty, visited),
+                    GenericArgument::Region { lifetime, .. } => Some(lifetime.clone()),
+                    _ => None,
+                });
+
+                Some(Lifetime::new(
+                    lifetimes.flat_map(|lifetime| lifetime.extents),
+                ))
+                .filter(|lifetime| !lifetime.is_empty())
+            }
             Type::Dynamic {
                 kind: Reference::Borrowed,
                 lifetime,
@@ -304,7 +306,9 @@ impl Tree {
                 .filter(|lifetime| !lifetime.is_empty())
             }
             Type::Newtype { inner, .. } => self.type_lifetime_inner(*inner, visited),
-            Type::Uninit { value } => self.type_lifetime_inner(*value, visited),
+            Type::Uninit { value } | Type::ManuallyDrop { value } => {
+                self.type_lifetime_inner(*value, visited)
+            }
             Type::Variant {
                 discriminant,
                 cases,
@@ -335,19 +339,6 @@ impl Tree {
             }
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
                 self.type_lifetime_inner(*element, visited)
-            }
-            // collect the regions an application's arguments carry
-            Type::Application { arguments, .. } => {
-                let nested_lifetimes = arguments.iter().filter_map(|argument| match argument {
-                    GenericArgument::Region { lifetime, .. } => Some(lifetime.clone()),
-                    GenericArgument::Type(argument) => self.type_lifetime_inner(*argument, visited),
-                    _ => None,
-                });
-
-                Some(Lifetime::new(
-                    nested_lifetimes.flat_map(|lifetime| lifetime.extents.into_iter()),
-                ))
-                .filter(|lifetime| !lifetime.is_empty())
             }
             _ => None,
         };
@@ -381,13 +372,25 @@ impl Tree {
             return true;
         }
 
+        // inspect nominal arguments without expanding recursive definitions
         let contains = match ty {
+            Type::Application { arguments, .. } => {
+                arguments.iter().any(|argument| match argument {
+                    GenericArgument::Type(ty) => {
+                        self.type_contains_borrowed_refs_inner(*ty, visited)
+                    }
+                    GenericArgument::Region { .. } => true,
+                    _ => false,
+                })
+            }
             Type::Struct { fields, .. } => fields.iter().any(|field| {
                 let field = self.get(*field);
                 self.type_contains_borrowed_refs_inner(field.ty, visited)
             }),
             Type::Newtype { inner, .. } => self.type_contains_borrowed_refs_inner(*inner, visited),
-            Type::Uninit { value } => self.type_contains_borrowed_refs_inner(*value, visited),
+            Type::Uninit { value } | Type::ManuallyDrop { value } => {
+                self.type_contains_borrowed_refs_inner(*value, visited)
+            }
             Type::Variant {
                 discriminant,
                 cases,
@@ -409,9 +412,6 @@ impl Tree {
             | Type::Vector { element, .. } => {
                 self.type_contains_borrowed_refs_inner(*element, visited)
             }
-            Type::Application { base, .. } => {
-                self.type_contains_borrowed_refs_inner(*base, visited)
-            }
             _ => false,
         };
         visited.swap_remove(&type_id);
@@ -420,17 +420,17 @@ impl Tree {
     }
 
     /// Return borrowed reference-like paths carried by one type.
-    pub fn type_borrowed_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
+    pub fn type_borrowed_paths(&mut self, ty: TypeId) -> Vec<BorrowedPath> {
         self.collect_borrowed_paths(ty, false)
     }
 
     /// Return borrowed paths used for origin tracking.
-    pub fn type_origin_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
+    pub fn type_origin_paths(&mut self, ty: TypeId) -> Vec<BorrowedPath> {
         self.collect_borrowed_paths(ty, true)
     }
 
     /// Return borrowed reference-like paths carried by one type.
-    fn collect_borrowed_paths(&self, ty: TypeId, is_tracking: bool) -> Vec<BorrowedPath> {
+    fn collect_borrowed_paths(&mut self, ty: TypeId, is_tracking: bool) -> Vec<BorrowedPath> {
         let mut borrowed_paths = Vec::new();
 
         self.collect_type_borrowed_paths(ty, is_tracking, Path::root(), &mut borrowed_paths);
@@ -440,13 +440,16 @@ impl Tree {
 
     /// Collect borrowed paths carried by one type into an output vector.
     fn collect_type_borrowed_paths(
-        &self,
+        &mut self,
         ty: TypeId,
         is_tracking: bool,
         path: Path,
         borrowed_paths: &mut Vec<BorrowedPath>,
     ) {
-        match self.type_definition(ty) {
+        let resolved = Substitution::resolve(ty, self);
+        let definition = self.get(resolved).clone();
+
+        match &definition {
             // record reference-like leaves
             Type::Dynamic {
                 kind,
@@ -491,12 +494,12 @@ impl Tree {
             // descend into named fields
             Type::Struct { fields, .. } => {
                 for (index, field) in fields.iter().enumerate() {
-                    let field = self.get(*field);
+                    let ty = self.get(*field).ty;
                     let path = path.clone().with_projection(Projection::Field {
                         index: index as u32,
                     });
 
-                    self.collect_type_borrowed_paths(field.ty, is_tracking, path, borrowed_paths);
+                    self.collect_type_borrowed_paths(ty, is_tracking, path, borrowed_paths);
                 }
             }
             // descend into positional fields
@@ -509,10 +512,14 @@ impl Tree {
                     self.collect_type_borrowed_paths(*element, is_tracking, path, borrowed_paths);
                 }
             }
-            // descend through transparent storage wrappers
-            Type::Newtype { inner, .. }
-            | Type::Uninit { value: inner }
-            | Type::ManuallyDrop { value: inner } => {
+            // select the stored field of a newtype
+            Type::Newtype { inner, .. } => {
+                let path = path.with_projection(Projection::Field { index: 0 });
+
+                self.collect_type_borrowed_paths(*inner, is_tracking, path, borrowed_paths);
+            }
+            // preserve paths through initialization and destruction modifiers
+            Type::Uninit { value: inner } | Type::ManuallyDrop { value: inner } => {
                 self.collect_type_borrowed_paths(*inner, is_tracking, path, borrowed_paths);
             }
             // descend into each possible storage shape
@@ -529,14 +536,6 @@ impl Tree {
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
                 let path = path.with_projection(Projection::Elements);
                 self.collect_type_borrowed_paths(*element, is_tracking, path, borrowed_paths);
-            }
-            // read the substituted definition of an application
-            Type::Application { .. } => {
-                let applied = self
-                    .representation(ty)
-                    .unwrap_or_else(|| unreachable!("unexpanded MIR application {ty:?}"));
-
-                self.collect_type_borrowed_paths(applied, is_tracking, path, borrowed_paths);
             }
             _ => {}
         }
@@ -1368,12 +1367,7 @@ impl_tree!(Terminator, terminators);
 impl_tree!(Local, locals);
 impl_tree!(Global, globals);
 
-impl TreeImpl<TypeDeclaration> for Tree {
-    #[inline]
-    fn get(tree: &Tree, idx: u32) -> &TypeDeclaration {
-        tree.type_declarations.get(idx)
-    }
-}
+impl_tree!(TypeDeclaration, type_declarations);
 
 impl TreeImpl<Type> for Tree {
     #[inline]

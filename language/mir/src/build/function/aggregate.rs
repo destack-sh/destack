@@ -1,7 +1,7 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    AddressKind, BinaryOperator, ConvertMode, Copy, DispatchSlot, Instruction, LocalNodeId, Tree,
-    Type, TypeId, Value, VectorReduceOperator,
+    BinaryOperator, ConvertMode, Copy, DispatchSlot, Instruction, LocalNodeId, Place, Substitution,
+    Tree, Type, TypeId, Value, VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -93,14 +93,11 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Read the discriminant of a stored variant.
-    pub fn variant_tag_load(&mut self, variant: Value, variant_type: LocalNodeId<Type>) -> Value {
+    pub fn variant_tag_load(&mut self, place: Place, variant_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         let tag_type = self.variant_discriminant_type(variant_type);
         let tag_type = self.expect_build(tag_type);
-        self.insert_instruction(Instruction::VariantTagLoad {
-            destination,
-            variant,
-        });
+        self.insert_instruction(Instruction::VariantTagLoad { destination, place });
         self.define_value(destination, tag_type);
 
         destination
@@ -120,47 +117,6 @@ impl<'a> FunctionBuilder<'a> {
         });
         self.define_value(destination, payload_type);
 
-        destination
-    }
-
-    /// Get the address of one statically selected variant payload.
-    pub fn variant_payload_addr(
-        &mut self,
-        variant: Value,
-        case: u32,
-        result_type: LocalNodeId<Type>,
-        kind: AddressKind,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::VariantPayloadAddr {
-            destination,
-            variant,
-            case,
-            result_type,
-            kind,
-        });
-        self.define_value(destination, result_type);
-
-        destination
-    }
-
-    /// Get the address of one structural field in an aggregate.
-    pub fn field_addr(
-        &mut self,
-        aggregate: Value,
-        field: u32,
-        result_type: LocalNodeId<Type>,
-        kind: AddressKind,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FieldAddr {
-            destination,
-            aggregate,
-            field,
-            result_type,
-            kind,
-        });
-        self.define_value(destination, result_type);
         destination
     }
 
@@ -198,50 +154,10 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Get the address of an element from an array.
-    pub fn element_addr(
-        &mut self,
-        base: Value,
-        index: Value,
-        result_type: LocalNodeId<Type>,
-        kind: AddressKind,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::ElementAddr {
-            destination,
-            base,
-            index,
-            result_type,
-            kind,
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
-
-    /// Form a non-owning slice view over a contiguous source region.
-    pub fn slice_view(
-        &mut self,
-        source: Value,
-        start: Value,
-        length: Value,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::SliceView {
-            destination,
-            source,
-            start,
-            length,
-            result_type,
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
-
     /// Read the runtime length from a slice descriptor.
     pub fn slice_length(&mut self, slice: Value) -> Value {
         let destination = self.allocate_value();
-        let usize_type = self.ensure_usize_type();
+        let usize_type = self.tree.intern_type(Type::Usize);
         self.insert_instruction(Instruction::SliceLength { destination, slice });
         self.define_value(destination, usize_type);
         destination
@@ -486,8 +402,8 @@ impl<'a> FunctionBuilder<'a> {
         owner: LocalNodeId<Type>,
         project: impl FnOnce(&Tree, &Type) -> BuildResult<LocalNodeId<Type>>,
     ) -> BuildResult<LocalNodeId<Type>> {
-        // project an application through its representation
-        let owner = self.tree.represented(TypeId::from(owner));
+        // substitute the aggregate before selecting its component
+        let owner = Substitution::resolve(owner, self.tree);
 
         project(self.tree, self.tree.type_definition(owner))
     }

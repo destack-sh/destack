@@ -1,7 +1,7 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, CompareExchangeAccess, Constant,
-    FenceAccess, FloatType, Instruction, Intrinsic, LocalNodeId, Type, UnaryOperator, Value,
+    FenceAccess, FloatType, Instruction, Intrinsic, LocalNodeId, Place, Type, UnaryOperator, Value,
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -87,7 +87,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a pointer-sized unsigned integer constant.
     pub fn usize_const(&mut self, value: u128) -> Value {
         let destination = self.allocate_value();
-        let ty = self.ensure_usize_type();
+        let ty = self.tree.intern_type(Type::Usize);
         let width = self.pointer_bits;
         self.insert_instruction(Instruction::Const {
             destination,
@@ -298,14 +298,14 @@ impl<'a> FunctionBuilder<'a> {
     /// Load one value atomically.
     pub fn atomic_load(
         &mut self,
-        pointer: Value,
+        place: Place,
         access: AtomicAccess,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicLoad {
             destination,
-            pointer,
+            place,
             result_type,
             access,
         });
@@ -314,9 +314,9 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Store one value atomically.
-    pub fn atomic_store(&mut self, pointer: Value, value: Value, access: AtomicAccess) {
+    pub fn atomic_store(&mut self, place: Place, value: Value, access: AtomicAccess) {
         self.insert_instruction(Instruction::AtomicStore {
-            pointer,
+            place,
             value,
             access,
         });
@@ -325,7 +325,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Compare exchange one memory location atomically.
     pub fn atomic_compare_exchange(
         &mut self,
-        pointer: Value,
+        place: Place,
         expected: Value,
         new_value: Value,
         is_weak: bool,
@@ -335,7 +335,7 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicCompareExchange {
             destination,
-            pointer,
+            place,
             expected,
             new_value,
             is_weak,
@@ -349,7 +349,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn atomic_rmw(
         &mut self,
         operator: AtomicRmwOperator,
-        pointer: Value,
+        place: Place,
         value: Value,
         access: AtomicAccess,
         result_type: LocalNodeId<Type>,
@@ -358,7 +358,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::AtomicRmw {
             destination,
             operator,
-            pointer,
+            place,
             value,
             access,
         });

@@ -4,9 +4,9 @@ use destack_core::FxIndexSet;
 
 use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
-    NewtypeLayout, NodeVisitor, Primitive, Reference, Representation, Scalar, ScalarField, Static,
-    StructLayout, TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeId, Validity, Vector,
-    walk_type,
+    NewtypeLayout, NodeVisitor, PlaceType, Primitive, Reference, Representation, Scalar,
+    ScalarField, Static, StructLayout, Substitution, TargetLayout, TraceMap, Tree, TupleLayout,
+    Type, TypeId, Validity, Vector, walk_function, walk_type,
 };
 
 use super::aggregate::Aggregate;
@@ -16,7 +16,7 @@ use super::variant::Variant;
 #[derive(Debug)]
 pub struct LayoutBuilder<'tree> {
     /// The MIR tree whose types are laid out.
-    tree: &'tree Tree,
+    tree: &'tree mut Tree,
     /// The layouts computed so far.
     layouts: &'tree mut LayoutTable,
     /// The target ABI layout.
@@ -84,30 +84,30 @@ impl std::error::Error for LayoutError {}
 
 /// MIR types reachable from runtime roots.
 struct ReachableTypeCollector {
-    /// The types already traversed.
-    visited: FxIndexSet<LocalNodeId<Type>>,
     /// The reachable types in discovery order.
-    types: Vec<LocalNodeId<Type>>,
+    types: FxIndexSet<LocalNodeId<Type>>,
 }
 
 impl ReachableTypeCollector {
     /// Create an empty reachable-type traversal.
     fn new() -> Self {
         Self {
-            visited: FxIndexSet::default(),
-            types: Vec::new(),
+            types: FxIndexSet::default(),
         }
     }
 }
 
 impl NodeVisitor for ReachableTypeCollector {
+    /// Collect value layouts and the storage layouts used by address operations.
+    fn visit_function(&mut self, tree: &Tree, id: LocalNodeId<Function>, function: &Function) {
+        walk_function(self, tree, id, function);
+    }
+
     fn visit_type(&mut self, tree: &Tree, id: LocalNodeId<Type>, _ty: &Type) {
         // stop reference cycles at their first visited type
-        if !self.visited.insert(id) {
+        if !self.types.insert(id) {
             return;
         }
-
-        self.types.push(id);
 
         // reference layouts do not require layouts for their targets
         let ty = tree.type_definition(id);
@@ -118,7 +118,7 @@ impl NodeVisitor for ReachableTypeCollector {
             | Type::Dynamic { .. }
             | Type::Function { .. }
             | Type::FunctionPointer { .. } => {}
-            Type::Application { .. } if tree.representation(id).is_none() => {}
+            Type::Application { .. } => {}
             _ => walk_type(self, tree, id, ty),
         }
     }
@@ -126,7 +126,11 @@ impl NodeVisitor for ReachableTypeCollector {
 
 impl<'tree> LayoutBuilder<'tree> {
     /// Create layout construction over one MIR tree and table.
-    pub fn new(tree: &'tree Tree, layouts: &'tree mut LayoutTable, target: TargetLayout) -> Self {
+    pub fn new(
+        tree: &'tree mut Tree,
+        layouts: &'tree mut LayoutTable,
+        target: TargetLayout,
+    ) -> Self {
         Self {
             tree,
             layouts,
@@ -150,9 +154,49 @@ impl<'tree> LayoutBuilder<'tree> {
             }
         }
 
+        // lay out each storage projection without retaining a tree borrow
+        let functions = self
+            .tree
+            .iter_nodes::<Function>()
+            .filter(|(_, function)| function.generics.is_empty())
+            .map(|(id, _)| id)
+            .collect::<Vec<_>>();
+        for function in functions {
+            self.layout_places(function)?;
+        }
+
         // lay out every type the walk reached
         for ty in reachable.types {
             self.layout_reachable_type(ty)?;
+        }
+
+        Ok(())
+    }
+
+    /// Lay out every storage component selected by a function.
+    fn layout_places(&mut self, function: LocalNodeId<Function>) -> Result<(), LayoutError> {
+        for block_index in 0..self.tree.get(function).blocks().len() {
+            let block = self.tree.get(function).blocks()[block_index];
+            for index in 0..self.tree.get(block).instructions.len() {
+                let instruction = self.tree.get(block).instructions[index];
+                let instruction = self.tree.get(instruction).clone();
+                if let Some(place) = instruction.place() {
+                    let root = place
+                        .root_type(function, self.tree)
+                        .unwrap_or_else(|| unreachable!("memory place has no root type"));
+                    let mut ty = PlaceType::Value(root);
+                    self.layout_reachable_type(root)?;
+
+                    // collect each storage layout used to compute the selected address
+                    for projection in &place.path.projections {
+                        ty = ty
+                            .project(projection, self.tree)
+                            .unwrap_or_else(|| unreachable!("invalid memory place projection"));
+                        let (PlaceType::Value(layout) | PlaceType::Sequence(layout)) = ty;
+                        self.layout_reachable_type(layout)?;
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -206,18 +250,17 @@ impl<'tree> LayoutBuilder<'tree> {
             return Ok(id);
         }
 
+        // substitute the requested definition before computing its layout
+        let definition = Substitution::resolve(ty, self.tree);
+        if definition != ty {
+            let layout = self.layout_type(definition)?;
+            self.layouts.set_layout_id(ty, layout);
+
+            return Ok(layout);
+        }
+
         // transparent storage forms share their represented layout exactly
         let represented = match self.tree.get(ty) {
-            // lay out an application through its representation
-            Type::Application { .. } => match self.tree.representation(TypeId::from(ty)) {
-                Some(represented) => Some(represented),
-                None => {
-                    return Err(self.unsupported(&format!(
-                        "an unrepresented application {:?}",
-                        self.tree.get(ty)
-                    )));
-                }
-            },
             Type::Uninit { value } | Type::ManuallyDrop { value } => Some(*value),
             _ => None,
         };

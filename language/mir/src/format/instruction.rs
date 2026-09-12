@@ -4,13 +4,11 @@ use destack_fir::write;
 
 use super::call::format_call;
 use super::r#type::{format_generic_arguments, format_parameter};
-use super::value::{
-    format_constant_for_type, format_function_id, format_global_id, format_type_id,
-};
+use super::value::{format_constant_for_type, format_function_id, format_type_id};
 
 use crate::{
     AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatNode, FunctionId,
-    GlobalId, Instruction, LocalNodeId, MemoryOrdering, StorageSet, Type, Value, Writer,
+    Instruction, LocalNodeId, MemoryOrdering, StorageSet, Type, Value, Writer,
 };
 
 impl FormatNode for Instruction {
@@ -129,87 +127,6 @@ impl FormatNode for Instruction {
                         else_value
                     ]
                 )
-            }
-
-            Instruction::LocalGet {
-                copy,
-                destination,
-                local,
-            } => {
-                let local_index = f.context().local_index(*local)?;
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token(if copy.is_yes() {
-                            "local.get.copy"
-                        } else {
-                            "local.get"
-                        }),
-                        space(),
-                        copied_text(&format!("l{local_index}"))
-                    ]
-                )
-            }
-
-            Instruction::LocalAddr {
-                destination,
-                local,
-                kind,
-                ..
-            } => {
-                let local_index = f.context().local_index(*local)?;
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        copied_text(&format!("local.{}", kind.mnemonic())),
-                        space(),
-                        copied_text(&format!("l{local_index}"))
-                    ]
-                )
-            }
-
-            Instruction::LocalSet { local, value } => {
-                let local_index = f.context().local_index(*local)?;
-                write!(
-                    f,
-                    [
-                        token("local.set"),
-                        space(),
-                        copied_text(&format!("l{local_index}")),
-                        token(","),
-                        space(),
-                        value
-                    ]
-                )
-            }
-
-            Instruction::GlobalAddr {
-                destination,
-                global,
-                kind,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        copied_text(&format!("global.{}", kind.mnemonic())),
-                        space()
-                    ]
-                )?;
-                format_global_reference(*global, f)?;
-                Ok(())
             }
 
             Instruction::FunctionAddr {
@@ -362,10 +279,26 @@ impl FormatNode for Instruction {
                     ]
                 )
             }
+            Instruction::Address {
+                destination, place, ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("address"),
+                        space(),
+                        place
+                    ]
+                )
+            }
             Instruction::Load {
                 copy,
                 destination,
-                pointer,
+                place,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -377,15 +310,15 @@ impl FormatNode for Instruction {
                         space(),
                         token(if copy.is_yes() { "load.copy" } else { "load" }),
                         space(),
-                        pointer
+                        place
                     ]
                 )
             }
 
-            Instruction::Store { pointer, value } => {
+            Instruction::Store { place, value } => {
                 write!(
                     f,
-                    [token("store"), space(), pointer, token(","), space(), value]
+                    [token("store"), space(), place, token(","), space(), value]
                 )
             }
 
@@ -499,9 +432,7 @@ impl FormatNode for Instruction {
             }
 
             Instruction::VariantTagLoad {
-                destination,
-                variant,
-                ..
+                destination, place, ..
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -512,7 +443,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("variant.tag.load"),
                         space(),
-                        variant
+                        place
                     ]
                 )
             }
@@ -540,54 +471,6 @@ impl FormatNode for Instruction {
                         token(","),
                         space(),
                         copied_text(&case.to_string())
-                    ]
-                )
-            }
-
-            Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                case,
-                kind,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        copied_text(&format!("variant.payload.{}", kind.mnemonic())),
-                        space(),
-                        variant,
-                        token(","),
-                        space(),
-                        copied_text(&case.to_string())
-                    ]
-                )
-            }
-
-            Instruction::FieldAddr {
-                destination,
-                aggregate,
-                field,
-                kind,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        copied_text(&format!("field.{}", kind.mnemonic())),
-                        space(),
-                        aggregate,
-                        token(","),
-                        space(),
-                        copied_text(&field.to_string())
                     ]
                 )
             }
@@ -641,57 +524,6 @@ impl FormatNode for Instruction {
                         token(","),
                         space(),
                         value
-                    ]
-                )
-            }
-
-            Instruction::ElementAddr {
-                destination,
-                base,
-                index,
-                kind,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        copied_text(&format!("element.{}", kind.mnemonic())),
-                        space(),
-                        base,
-                        token(","),
-                        space(),
-                        index
-                    ]
-                )
-            }
-
-            Instruction::SliceView {
-                destination,
-                source,
-                start,
-                length,
-                ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("slice.view"),
-                        space(),
-                        source,
-                        token(","),
-                        space(),
-                        start,
-                        token(","),
-                        space(),
-                        length
                     ]
                 )
             }
@@ -1146,7 +978,7 @@ impl FormatNode for Instruction {
 
             Instruction::AtomicLoad {
                 destination,
-                pointer,
+                place,
                 access,
                 ..
             } => {
@@ -1159,14 +991,14 @@ impl FormatNode for Instruction {
                         space(),
                         token("atomic.load"),
                         space(),
-                        pointer
+                        place
                     ]
                 )?;
                 format_atomic_access(*access, f)
             }
 
             Instruction::AtomicStore {
-                pointer,
+                place,
                 value,
                 access,
             } => {
@@ -1175,7 +1007,7 @@ impl FormatNode for Instruction {
                     [
                         token("atomic.store"),
                         space(),
-                        pointer,
+                        place,
                         token(","),
                         space(),
                         value
@@ -1186,7 +1018,7 @@ impl FormatNode for Instruction {
 
             Instruction::AtomicCompareExchange {
                 destination,
-                pointer,
+                place,
                 expected,
                 new_value,
                 is_weak,
@@ -1204,7 +1036,7 @@ impl FormatNode for Instruction {
                     [
                         token(opcode),
                         space(),
-                        pointer,
+                        place,
                         token(","),
                         space(),
                         expected,
@@ -1219,7 +1051,7 @@ impl FormatNode for Instruction {
             Instruction::AtomicRmw {
                 destination,
                 operator,
-                pointer,
+                place,
                 value,
                 access,
             } => {
@@ -1230,7 +1062,7 @@ impl FormatNode for Instruction {
                     [
                         token(operator.name()),
                         space(),
-                        pointer,
+                        place,
                         token(","),
                         space(),
                         value
@@ -1323,11 +1155,6 @@ fn format_function_reference<'a>(
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_function_id(function_id, f)
-}
-
-/// Format a global reference.
-fn format_global_reference<'a>(global_id: GlobalId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    format_global_id(global_id, f)
 }
 
 /// Format a parenthesized, comma-separated list of values.

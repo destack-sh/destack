@@ -1,7 +1,6 @@
 use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_options};
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, FormatOptions, Symbol, Tree, Type,
-    TypeHeritage,
 };
 use destack_core::StringPool;
 
@@ -404,10 +403,10 @@ fn test_format_synthetic_copy_marker() {
         fields: vec![left, right],
         copy: Copy::Yes,
     });
-    let representation = tree.get(struct_type).clone();
     let pair = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
-    tree.define_type(pair, representation);
-    tree.insert_type_declaration(declaration_name, Vec::new(), pair, TypeHeritage::default());
+    let declaration = tree.get_mut(pair);
+    declaration.definition = Some(struct_type);
+    declaration.name = Some(declaration_name);
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
@@ -453,10 +452,10 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
         fields: vec![field_id],
         copy: Copy::Yes,
     });
-    let representation = tree.get(struct_type).clone();
     let point = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
-    tree.define_type(point, representation);
-    tree.insert_type_declaration(declaration_name, Vec::new(), point, TypeHeritage::default());
+    let declaration = tree.get_mut(point);
+    declaration.definition = Some(struct_type);
+    declaration.name = Some(declaration_name);
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
@@ -506,7 +505,7 @@ type Borrows<T, 'a, access A> {
     @held: ref<T, borrowed, 'a, readonly>;
 }
 
-type Applied = Borrows<int32, 'static & shared, immutable>;
+type Applied = newtype<Borrows<int32, 'static & shared, immutable>>;
 "#,
     );
 }

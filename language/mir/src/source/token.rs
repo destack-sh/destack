@@ -89,6 +89,8 @@ pub enum TokenType {
     Semicolon,
     /// `,`
     Comma,
+    /// `.`
+    Dot,
     /// `|`
     Pipe,
     /// `&`

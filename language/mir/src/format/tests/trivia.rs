@@ -19,8 +19,8 @@ readonly global Count: int32 = 1
 
 function use(v0: Callable): int32 {
 entry(v0: Callable):
-    v1: ref<int32, borrowed, 'static & local, readonly> = global.address Count
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'static & local, readonly> = address @Count
+    v2: int32 = load.copy (*v1)
     v3: int32 = call.indirect v0(v2): (int32) => int32
     return v3
 }

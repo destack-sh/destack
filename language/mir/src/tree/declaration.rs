@@ -1,30 +1,11 @@
-use destack_core::StringId;
-
-use crate::{
-    GenericParameter, LocalNodeId, Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId,
-};
+use crate::{LocalNodeId, Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId};
 
 impl Tree {
-    /// Record the substituted definition of one type application.
-    pub fn define_application(&mut self, application: TypeId, definition: TypeId) {
-        self.representations.insert(application, definition);
-    }
-
-    /// Return the recorded definition of one type application.
-    pub fn representation(&self, ty: TypeId) -> Option<TypeId> {
-        self.representations.get(&ty).copied()
-    }
-
-    /// Return the recorded definition, or the type itself.
-    pub fn represented(&self, ty: TypeId) -> TypeId {
-        self.representation(ty).unwrap_or(ty)
-    }
-
     /// Reserve one declaration for a recursive or opaque type.
-    pub fn reserve_type(&mut self, symbol: Symbol) -> TypeId {
+    pub fn reserve_type(&mut self, symbol: Symbol) -> LocalNodeId<TypeDeclaration> {
         // reuse the declaration with this persistent identity
-        if let Some(id) = self.identified_type(symbol) {
-            return id;
+        if let Some(declaration) = self.declared_types.get(&symbol) {
+            return *declaration;
         }
 
         // allocate the declaration before interning its type
@@ -37,61 +18,23 @@ impl Tree {
         };
         let local_id = self.type_declarations.allocate(declaration);
         let declaration = self.insert_node(local_id);
-        let id = self.intern_type(Type::Declaration { declaration });
-        self.declared_types.insert(symbol, id);
+        self.intern_type(Type::Declaration { declaration });
+        self.declared_types.insert(symbol, declaration);
 
-        id
+        declaration
     }
 
     /// Return the type declared under one symbol.
     pub fn identified_type(&self, symbol: Symbol) -> Option<TypeId> {
-        self.declared_types.get(&symbol).copied()
+        let declaration = *self.declared_types.get(&symbol)?;
+
+        self.find_type(&Type::Declaration { declaration })
     }
 
     /// Return whether a declaration awaits its definition.
     pub fn type_is_reserved(&self, id: TypeId) -> bool {
         self.type_declaration(id)
             .is_some_and(|declaration| self.get(declaration).definition.is_none())
-    }
-
-    /// Define one reserved type exactly once.
-    pub fn define_type(&mut self, id: TypeId, ty: Type) {
-        // require an incomplete declaration
-        let Type::Declaration { declaration } = *self.get(id) else {
-            panic!("defined structural MIR type {id:?}");
-        };
-        assert!(
-            self.get(declaration).definition.is_none(),
-            "defined MIR type {id:?} twice"
-        );
-
-        // intern the definition without changing the declared identity
-        let definition = self.intern_type(ty);
-        let local_id = self.node_local_id(declaration.id);
-        self.type_declarations.get_mut(local_id).definition = Some(definition);
-    }
-
-    /// Attach source metadata to a reserved declaration.
-    pub fn insert_type_declaration(
-        &mut self,
-        name: StringId,
-        generics: Vec<GenericParameter>,
-        ty: TypeId,
-        heritage: TypeHeritage,
-    ) -> LocalNodeId<TypeDeclaration> {
-        let Type::Declaration { declaration } = *self.get(ty) else {
-            panic!("declared structural MIR type {ty:?}");
-        };
-        let local_id = self.node_local_id(declaration.id);
-        let declared = self.type_declarations.get_mut(local_id);
-        assert!(declared.name.is_none(), "declared MIR type {ty:?} twice");
-
-        // complete the source declaration
-        declared.name = Some(name);
-        declared.generics = generics;
-        declared.heritage = heritage;
-
-        declaration
     }
 
     /// Return the declaration of a type.

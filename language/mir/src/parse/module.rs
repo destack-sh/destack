@@ -389,7 +389,7 @@ impl Parser {
         }
 
         // resolve the reserved type identity
-        let type_id = match self.type_declaration_map.get(&name).copied() {
+        let id = match self.type_declaration_map.get(&name).copied() {
             Some(existing) => existing,
             None => {
                 let symbol = Symbol::named(self.module, self.strings.intern(&name));
@@ -399,15 +399,18 @@ impl Parser {
             }
         };
 
+        let type_id = self.tree.intern_type(Type::Declaration { declaration: id });
+
         // direct nominal heritage
         let heritage = self.parse_type_heritage()?;
 
         // record an opaque declaration and stop before a definition
         if self.eat_token_if(TokenType::Semicolon) {
             let name_id = self.strings.intern(&name);
-            let id = self
-                .tree
-                .insert_type_declaration(name_id, generics, type_id, heritage);
+            let declaration = self.tree.get_mut(id);
+            declaration.name = Some(name_id);
+            declaration.generics = generics;
+            declaration.heritage = heritage;
             self.tree
                 .set_text_span(id, self.span_from_parse_start(item_start));
             self.tree.set_keyword_span(id, keyword_span);
@@ -440,18 +443,22 @@ impl Parser {
             )
         };
 
-        // reject direct self definitions
-        if ty == type_id {
+        // require a representation instead of a transparent alias
+        if matches!(
+            self.tree.get(ty),
+            Type::Declaration { .. } | Type::Application { .. } | Type::Parameter { .. }
+        ) {
             let length = type_span.end.saturating_sub(type_span.start) as usize;
+
             return Err(ParseError::with_length(
-                "type declaration cannot define itself",
+                "MIR type declaration requires a representation; resolve transparent aliases before MIR",
                 type_span.start as usize,
                 length,
             ));
         }
 
         // reject duplicate definitions of one declared name
-        if self.tree.is_defined_type(type_id) {
+        if self.tree.get(id).definition.is_some() {
             return Err(ParseError::new(
                 format!("type '{name}' is already defined"),
                 item_start,
@@ -463,16 +470,18 @@ impl Parser {
         if let Some(copy) = self.copy_attribute(&attributes, item_start)? {
             set_type_copy(&mut resolved, copy, item_start)?;
         }
-        self.tree.define_type(type_id, resolved);
+        let definition = self.tree.intern_type(resolved);
+        self.tree.get_mut(id).definition = Some(definition);
         self.layouts.copy_type_entries(ty, type_id);
         self.dispatch.copy_type_entries(ty, type_id);
         self.drops.copy_type_entries(ty, type_id);
 
         // record declaration
         let name_id = self.strings.intern(&name);
-        let id = self
-            .tree
-            .insert_type_declaration(name_id, generics, type_id, heritage);
+        let declaration = self.tree.get_mut(id);
+        declaration.name = Some(name_id);
+        declaration.generics = generics;
+        declaration.heritage = heritage;
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, keyword_span);
@@ -669,8 +678,10 @@ impl Parser {
                 let value = self.parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
-                let is_nominal = expected_type
-                    .is_some_and(|ty| matches!(self.tree.type_definition(ty), Type::Struct { .. }));
+                let is_nominal = expected_type.is_some_and(|ty| {
+                    let ty = self.tree.storage_type(ty);
+                    matches!(self.tree.get(ty), Type::Struct { .. })
+                });
                 if is_nominal {
                     let value = self.strings.intern(&value);
 
@@ -767,17 +778,16 @@ impl Parser {
 
     /// Return the expected type for one aggregate initializer element.
     fn data_init_element_type(
-        &self,
+        &mut self,
         expected_type: Option<LocalNodeId<Type>>,
         index: usize,
     ) -> Option<LocalNodeId<Type>> {
-        let expected_type = expected_type?;
+        let expected_type = self.tree.storage_type(expected_type?);
 
-        match self.tree.type_definition(expected_type) {
+        match self.tree.get(expected_type) {
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => Some(*element),
             Type::Tuple { elements, .. } => elements.get(index).copied(),
             Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),
-            Type::Newtype { inner, .. } => self.data_init_element_type(Some(*inner), index),
             _ => None,
         }
     }

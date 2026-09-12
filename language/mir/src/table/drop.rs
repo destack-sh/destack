@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{Function, LocalNodeId, Reference, Storage, Tree, Type};
+use crate::{Function, LocalNodeId, Reference, Storage, Substitution, Tree, Type};
 
 /// Drop table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
@@ -74,7 +74,7 @@ impl DropTable {
         &self,
         ty: LocalNodeId<Type>,
         storage: Storage,
-        tree: &Tree,
+        tree: &mut Tree,
     ) -> bool {
         if self.destructor(ty, storage).is_some() || self.hook(ty).is_some() {
             return true;
@@ -129,14 +129,17 @@ impl DropTable {
         &self,
         ty: LocalNodeId<Type>,
         storage: Storage,
-        tree: &Tree,
+        tree: &mut Tree,
         seen: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> bool {
-        match tree.type_definition(ty) {
-            Type::Struct { fields, .. } => fields.iter().any(|field| {
-                let field = tree.get(*field);
+        let ty = Substitution::resolve(ty, tree);
+        let definition = tree.get(ty).clone();
 
-                self.child_requires_destructor(field.ty, storage, tree, seen)
+        match &definition {
+            Type::Struct { fields, .. } => fields.iter().any(|field| {
+                let ty = tree.get(*field).ty;
+
+                self.child_requires_destructor(ty, storage, tree, seen)
             }),
             Type::Tuple { elements, .. } => elements
                 .iter()
@@ -153,12 +156,6 @@ impl DropTable {
             Type::Variant { cases, .. } => cases
                 .iter()
                 .any(|case| self.child_requires_destructor(case.ty, storage, tree, seen)),
-            // answer through the type an application stands for
-            Type::Application { .. } => {
-                let applied = tree.represented(ty);
-
-                applied != ty && self.children_require_destructor(applied, storage, tree, seen)
-            }
             Type::Slice {
                 kind: Reference::Unique,
                 element,
@@ -174,15 +171,17 @@ impl DropTable {
         &self,
         ty: LocalNodeId<Type>,
         storage: Storage,
-        tree: &Tree,
+        tree: &mut Tree,
         seen: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> bool {
+        let representation = Substitution::resolve(ty, tree);
         if self.destructor(ty, storage).is_some()
             || self.hook(ty).is_some()
-            || tree.type_definition(ty).is_unique_storage()
+            || tree.get(representation).is_unique_storage()
         {
             return true;
         }
+
         if !seen.insert(ty) {
             return false;
         }

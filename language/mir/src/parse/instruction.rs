@@ -2,7 +2,7 @@ use crate::source::TokenType;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AddressKind, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
     CompareExchangeAccess, ConvertMode, Copy, CounterId, DispatchSlot, ExecutionScope, FenceAccess,
     GenericParameterDomain, Instruction, LayoutMeasure, LocalNodeId, MemoryOrdering, SamplerId,
     StorageSet, TypeId, UnaryOperator, Value, VectorReduceOperator,
@@ -88,8 +88,7 @@ impl Parser {
         if destination.is_some()
             && matches!(
                 opcode_text,
-                "local.set"
-                    | "store"
+                "store"
                     | "drop"
                     | "release"
                     | "hold"
@@ -111,20 +110,12 @@ impl Parser {
 
         // parse the operation
         let instruction = match opcode_text {
-            // local operations
-            "local.set" => {
-                let local = self.parse_local_segment(&mut segment_spans)?;
-                self.eat_token(TokenType::Comma)?;
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::LocalSet { local, value }
-            }
-
             // memory side effects
             "store" => {
-                let pointer = self.parse_value_segment(&mut segment_spans)?;
+                let place = self.parse_place(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Store { pointer, value }
+                Instruction::Store { place, value }
             }
 
             // calls and intrinsics
@@ -219,12 +210,12 @@ impl Parser {
 
             // atomic memory operations
             "atomic.store" => {
-                let pointer = self.parse_value_segment(&mut segment_spans)?;
+                let place = self.parse_place(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 let access = self.parse_atomic_access()?;
                 Instruction::AtomicStore {
-                    pointer,
+                    place,
                     value,
                     access,
                 }
@@ -347,41 +338,6 @@ impl Parser {
                         }
                     }
 
-                    // local operations
-                    "local.get" | "local.get.copy" => {
-                        let copy = if opcode_text.ends_with(".copy") {
-                            Copy::Yes
-                        } else {
-                            Copy::No
-                        };
-                        let local = self.parse_local_segment(&mut segment_spans)?;
-                        Instruction::LocalGet {
-                            copy,
-                            destination,
-                            local,
-                        }
-                    }
-                    "local.address" | "local.project" => {
-                        let kind = address_kind(opcode_text);
-                        let local = self.parse_local_segment(&mut segment_spans)?;
-                        Instruction::LocalAddr {
-                            destination,
-                            local,
-                            result_type: destination_type,
-                            kind,
-                        }
-                    }
-                    // global operations
-                    "global.address" | "global.project" => {
-                        let kind = address_kind(opcode_text);
-                        let global = self.parse_global_segment(&mut segment_spans)?;
-                        Instruction::GlobalAddr {
-                            destination,
-                            global,
-                            result_type: destination_type,
-                            kind,
-                        }
-                    }
                     "function.address" => {
                         let (function, arguments, span) = self.parse_function_reference_part()?;
                         segment_spans.push(span);
@@ -459,17 +415,25 @@ impl Parser {
                     }
 
                     // memory operations
+                    "address" => {
+                        let place = self.parse_place(&mut segment_spans)?;
+                        Instruction::Address {
+                            destination,
+                            place,
+                            result_type: destination_type,
+                        }
+                    }
                     "load" | "load.copy" => {
                         let copy = if opcode_text.ends_with(".copy") {
                             Copy::Yes
                         } else {
                             Copy::No
                         };
-                        let pointer = self.parse_value_segment(&mut segment_spans)?;
+                        let place = self.parse_place(&mut segment_spans)?;
                         Instruction::Load {
                             copy,
                             destination,
-                            pointer,
+                            place,
                             result_type: destination_type,
                         }
                     }
@@ -518,21 +482,6 @@ impl Parser {
                             value,
                         }
                     }
-                    "field.address" | "field.project" => {
-                        let kind = address_kind(opcode_text);
-                        let aggregate = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let field = self.parse_int_segment(&mut segment_spans)?;
-                        let field = u32::try_from(field)
-                            .map_err(|_| ParseError::invalid("field index", self.pos()))?;
-                        Instruction::FieldAddr {
-                            destination,
-                            aggregate,
-                            field,
-                            result_type: destination_type,
-                            kind,
-                        }
-                    }
                     "element.get" | "element.get.copy" => {
                         let copy = if opcode_text.ends_with(".copy") {
                             Copy::Yes
@@ -566,20 +515,6 @@ impl Parser {
                             value,
                         }
                     }
-                    "element.address" | "element.project" => {
-                        let kind = address_kind(opcode_text);
-                        let base = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::ElementAddr {
-                            destination,
-                            base,
-                            index,
-                            result_type: destination_type,
-                            kind,
-                        }
-                    }
-
                     // variant construction and projection
                     "variant.new" => {
                         let case = self.parse_int_segment(&mut segment_spans)?;
@@ -608,11 +543,8 @@ impl Parser {
                         }
                     }
                     "variant.tag.load" => {
-                        let variant = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::VariantTagLoad {
-                            destination,
-                            variant,
-                        }
+                        let place = self.parse_place(&mut segment_spans)?;
+                        Instruction::VariantTagLoad { destination, place }
                     }
                     "variant.payload" | "variant.payload.copy" => {
                         let copy = if opcode_text.ends_with(".copy") {
@@ -632,37 +564,7 @@ impl Parser {
                             case,
                         }
                     }
-                    "variant.payload.address" | "variant.payload.project" => {
-                        let kind = address_kind(opcode_text);
-                        let variant = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let case = self.parse_int_segment(&mut segment_spans)?;
-                        let case = u32::try_from(case)
-                            .map_err(|_| ParseError::invalid("case index", self.pos()))?;
-                        Instruction::VariantPayloadAddr {
-                            destination,
-                            variant,
-                            case,
-                            result_type: destination_type,
-                            kind,
-                        }
-                    }
-
                     // slice descriptors
-                    "slice.view" => {
-                        let source = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let start = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let length = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::SliceView {
-                            destination,
-                            source,
-                            start,
-                            length,
-                            result_type: destination_type,
-                        }
-                    }
                     "slice.length" => {
                         let slice = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::SliceLength { destination, slice }
@@ -853,17 +755,17 @@ impl Parser {
                     }
                     // atomic memory operations
                     "atomic.load" => {
-                        let pointer = self.parse_value()?;
+                        let place = self.parse_place(&mut segment_spans)?;
                         let access = self.parse_atomic_access()?;
                         Instruction::AtomicLoad {
                             destination,
-                            pointer,
+                            place,
                             result_type: destination_type,
                             access,
                         }
                     }
                     "atomic.cas" | "atomic.cas.weak" => {
-                        let pointer = self.parse_value()?;
+                        let place = self.parse_place(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let expected = self.parse_value()?;
                         self.eat_token(TokenType::Comma)?;
@@ -871,7 +773,7 @@ impl Parser {
                         let access = self.parse_atomic_compare_exchange_access()?;
                         Instruction::AtomicCompareExchange {
                             destination,
-                            pointer,
+                            place,
                             expected,
                             new_value,
                             is_weak: opcode_text == "atomic.cas.weak",
@@ -880,14 +782,14 @@ impl Parser {
                     }
                     _ if opcode_text.starts_with("atomic.rmw.") => {
                         let operator = self.parse_atomic_rmw_operator(opcode_text, opcode_start)?;
-                        let pointer = self.parse_value_segment(&mut segment_spans)?;
+                        let place = self.parse_place(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let value = self.parse_value_segment(&mut segment_spans)?;
                         let access = self.parse_atomic_access()?;
                         Instruction::AtomicRmw {
                             destination,
                             operator,
-                            pointer,
+                            place,
                             value,
                             access,
                         }
@@ -1409,13 +1311,4 @@ impl Parser {
             .parse()
             .map_err(|_| ParseError::invalid("atomic rmw operator", start))
     }
-}
-
-/// Read the address kind spelled by one address mnemonic's final segment.
-fn address_kind(opcode: &str) -> AddressKind {
-    opcode
-        .rsplit('.')
-        .next()
-        .and_then(AddressKind::from_mnemonic)
-        .unwrap_or_default()
 }

@@ -24,8 +24,8 @@ function withLocals(): int64 {
 
 entry:
     v0: int64 = 42
-    local.set l0, v0
-    v1: int64 = local.get l0
+    store l0, v0
+    v1: int64 = load l0
     return v1
 }
 "#,
@@ -41,7 +41,7 @@ function localAddr(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, borrowed, 'frame & frame, mutable> = local.address l0
+    v0: ref<int32, borrowed, 'frame & frame, mutable> = address l0
     return
 }
 "#,

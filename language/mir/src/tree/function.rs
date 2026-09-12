@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Binding, Block, FunctionId, FunctionParameter, GenericArgument, GenericParameter, Instruction,
-    LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Reference, Storage, Symbol,
-    Tree, Type, TypeId, Value,
+    LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Symbol, Tree, Type, TypeId,
+    Value,
 };
 
 /// One MIR function declaration or definition.
@@ -605,50 +605,6 @@ impl Function {
         match self.value_type(value) {
             Some(ty) => ty,
             None => unreachable!("missing type for value {value:?}"),
-        }
-    }
-
-    /// Return the pointee type for one address value.
-    pub fn pointee_type(&self, value: Value, tree: &Tree) -> Option<TypeId> {
-        let ty = self.expect_value_type(value);
-
-        match tree.type_definition(ty) {
-            Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => Some(*pointee),
-            Type::Slice { element, .. } => Some(*element),
-            _ => None,
-        }
-    }
-
-    /// Return the reference kind for one reference-like value.
-    pub fn reference_kind(&self, value: Value, tree: &Tree) -> Option<Reference> {
-        let ty = self.expect_value_type(value);
-
-        tree.type_definition(ty).reference_kind()
-    }
-
-    /// Return the storage for one reference-like value.
-    pub fn reference_storage(&self, value: Value, tree: &Tree) -> Option<Storage> {
-        let ty = self.expect_value_type(value);
-
-        tree.type_definition(ty).reference_storage()
-    }
-
-    /// Return the width of one unsigned integer value.
-    pub fn unsigned_int_width(
-        &self,
-        value: Value,
-        pointer_width_bits: u16,
-        tree: &Tree,
-    ) -> Option<u16> {
-        let ty = self.expect_value_type(value);
-
-        match tree.type_definition(ty) {
-            Type::Int {
-                width,
-                is_signed: false,
-            } => Some(*width),
-            Type::Usize => Some(pointer_width_bits),
-            _ => None,
         }
     }
 

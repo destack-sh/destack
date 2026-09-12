@@ -2,10 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{
-    Binding, BindingEffect, Function, LocalNodeId, MemoryAccess, MemoryOperation, MemoryTarget,
-    Point, StorageSet,
-};
+use crate::{Binding, BindingEffect, Function, LocalNodeId, Point, StorageSet};
 
 /// Function and call effect tables for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -282,24 +279,6 @@ impl MemoryEffect {
             } else {
                 StorageSet::NONE
             },
-        }
-    }
-}
-
-impl From<&MemoryAccess> for MemoryEffect {
-    fn from(access: &MemoryAccess) -> Self {
-        // identify storage directly named by the access
-        let storage = match access.target {
-            MemoryTarget::Local(_) => StorageSet::FRAME,
-            MemoryTarget::Global(_) => StorageSet::GLOBAL,
-            _ => StorageSet::ANY,
-        };
-
-        // retain the operation's reads and writes
-        match access.operation {
-            MemoryOperation::Read => Self::read_only(storage),
-            MemoryOperation::Write => Self::write_only(storage),
-            MemoryOperation::ReadWrite => Self::read_write(storage),
         }
     }
 }

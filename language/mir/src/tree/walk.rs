@@ -126,13 +126,9 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
 
     match instruction {
         Instruction::Cast { to_type, .. } => walk_type_id(visitor, tree, to_type),
-        Instruction::LocalAddr { result_type, .. }
-        | Instruction::GlobalAddr { result_type, .. }
+        Instruction::Address { result_type, .. }
         | Instruction::Load { result_type, .. }
-        | Instruction::FieldAddr { result_type, .. }
-        | Instruction::ElementAddr { result_type, .. }
         | Instruction::VariantNew { result_type, .. }
-        | Instruction::SliceView { result_type, .. }
         | Instruction::DynamicPayload { result_type, .. }
         | Instruction::DynamicRead { result_type, .. }
         | Instruction::DynamicFind { result_type, .. }
@@ -209,8 +205,6 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::Binary { .. }
         | Instruction::Unary { .. }
         | Instruction::Select { .. }
-        | Instruction::LocalGet { .. }
-        | Instruction::LocalSet { .. }
         | Instruction::FunctionEnvironment { .. }
         | Instruction::FunctionEnvironmentCurrent { .. }
         | Instruction::ContextCurrent { .. }
@@ -224,7 +218,6 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::VariantTag { .. }
         | Instruction::VariantTagLoad { .. }
         | Instruction::VariantPayload { .. }
-        | Instruction::VariantPayloadAddr { .. }
         | Instruction::SliceLength { .. }
         | Instruction::DynamicType { .. }
         | Instruction::VectorSplat { .. }

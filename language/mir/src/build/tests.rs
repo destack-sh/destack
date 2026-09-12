@@ -5,9 +5,9 @@ use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{
     Access, BinaryOperator, Callee, Copy, ExecutionScope, Extent, FenceAccess, FloatType,
     FormatOptions, Formatter, GenericArgument, GenericParameter, GenericParameterDomain, Importer,
-    LayoutBuilder, LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability, Reference,
-    Space, Storage, StorageSet, Substitution, Symbol, TargetLayout, TraceMap, Tree, Type,
-    TypeDeclaration, TypeHeritage, TypeId,
+    LayoutBuilder, LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability, Place,
+    Projection, Reference, Space, Storage, StorageSet, Substitution, Symbol, TargetLayout,
+    TraceMap, Tree, Type, TypeDeclaration, TypeId,
 };
 
 /// Format one test MIR tree.
@@ -114,8 +114,8 @@ function withLocal(): int64 {
 
 entry:
     v0: int64 = 42
-    local.set l0, v0
-    v1: int64 = local.get l0
+    store l0, v0
+    v1: int64 = load l0
     return v1
 }";
     assert_eq!(output, expected);
@@ -1023,7 +1023,15 @@ fn test_build_slice_view() {
     let source_value = builder.function_parameter(0);
     let start_value = builder.function_parameter(1);
     let length_value = builder.function_parameter(2);
-    let slice_value = builder.slice_view(source_value, start_value, length_value, slice_type);
+    let slice_value = builder.address(
+        Place::value(source_value)
+            .with_projection(Projection::Deref)
+            .with_projection(Projection::Slice {
+                start: start_value,
+                length: length_value,
+            }),
+        slice_type,
+    );
     builder.return_(Some(slice_value));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1034,7 +1042,7 @@ fn test_build_slice_view() {
     let expected = "\
 function sliceTest<'a>(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a & local, mutable> {
 entry(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, 'a & local, mutable> = slice.view v0, v1, v2
+    v3: slice<int32, borrowed, 'a & local, mutable> = address (*v0)[v1; v2]
     return v3
 }";
     assert_eq!(output, expected);
@@ -1314,19 +1322,19 @@ fn test_build_field_get_from_region_applied_type() {
     let user_field_name = module.strings().intern("id");
     let user_field = module.field(Some(user_field_name), int32);
     let user_name = module.strings().intern("User");
-    let user = module
+    let user_declaration = module
         .tree_mut()
         .reserve_type(Symbol::named(crate::TEST_MODULE, user_name));
-    module.tree_mut().define_type(
-        user,
-        Type::Struct {
-            fields: vec![user_field],
-            copy: Copy::Yes,
-        },
-    );
-    module
-        .tree_mut()
-        .insert_type_declaration(user_name, Vec::new(), user, TypeHeritage::default());
+    let definition = module.tree_mut().intern_type(Type::Struct {
+        fields: vec![user_field],
+        copy: Copy::Yes,
+    });
+    let declaration = module.tree_mut().get_mut(user_declaration);
+    declaration.definition = Some(definition);
+    declaration.name = Some(user_name);
+    let user = module.tree_mut().intern_type(Type::Declaration {
+        declaration: user_declaration,
+    });
 
     // define a region-polymorphic aggregate borrowing the user
     let borrowed_user = module.type_reference(
@@ -1346,22 +1354,20 @@ fn test_build_field_get_from_region_applied_type() {
             outlives: Vec::new(),
         },
     };
-    let view = module
+    let view_declaration = module
         .tree_mut()
         .reserve_type(Symbol::named(crate::TEST_MODULE, view_name));
-    module.tree_mut().define_type(
-        view,
-        Type::Struct {
-            fields: vec![view_field],
-            copy: Copy::Yes,
-        },
-    );
-    module.tree_mut().insert_type_declaration(
-        view_name,
-        vec![region],
-        view,
-        TypeHeritage::default(),
-    );
+    let definition = module.tree_mut().intern_type(Type::Struct {
+        fields: vec![view_field],
+        copy: Copy::Yes,
+    });
+    let declaration = module.tree_mut().get_mut(view_declaration);
+    declaration.definition = Some(definition);
+    declaration.name = Some(view_name);
+    declaration.generics = vec![region];
+    let view = module.tree_mut().intern_type(Type::Declaration {
+        declaration: view_declaration,
+    });
 
     // project the field from one concrete region application
     let frame_view = module.tree_mut().intern_type(Type::Application {
@@ -1371,12 +1377,6 @@ fn test_build_field_get_from_region_applied_type() {
             storage: Storage::Frame,
         }],
     });
-    let arguments = [GenericArgument::Region {
-        lifetime: Lifetime::frame(),
-        storage: Storage::Frame,
-    }];
-    let definition = Substitution::new(module.tree_mut(), &arguments).representation(view);
-    module.tree_mut().define_application(frame_view, definition);
     let frame_user = module.type_reference(
         Reference::Borrowed,
         Lifetime::frame(),
@@ -1705,7 +1705,7 @@ fn test_import_specialized_function_places() {
         destination.type_fingerprint(parameter)
     );
     let mut layouts = LayoutTable::new();
-    let layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
+    let layout = LayoutBuilder::new(&mut destination, &mut layouts, TargetLayout::default())
         .layout_type(parameter)
         .unwrap();
     assert_eq!(
@@ -1724,7 +1724,7 @@ fn test_import_specialized_function_places() {
     };
     *kind = Reference::Raw;
     let raw = destination.intern_type(raw);
-    let raw_layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
+    let raw_layout = LayoutBuilder::new(&mut destination, &mut layouts, TargetLayout::default())
         .layout_type(raw)
         .unwrap();
     assert_eq!(layouts.layout(raw_layout).trace_map, TraceMap::Empty);
@@ -1732,41 +1732,47 @@ fn test_import_specialized_function_places() {
     assert_eq!(layouts.layout(raw_layout).size, layouts.layout(layout).size);
 }
 
-/// Preserve opaque declarations, aliases, and recursive applications across trees.
+/// Preserve identified representations and recursive applications across trees.
 #[test]
 fn test_import_recursive_declarations() {
     let source = "\
 type Opaque<T>;
 
-type Alias = Opaque<int32>;
+type Handle = newtype<Opaque<int32>>;
 
 type Node<T> {
     next: ref<Node<T>, managed, mutable, local>;
     value: T;
 }
 
-type Root = Node<int32>;
+type Root = newtype<Node<int32>>;
 
-type Other = Root;
+type Other = newtype<Root>;
 
 type Grow<T> {
     next: ref<Grow<[T; 2]>, managed, mutable, local>;
     value: T;
 }
 
-type Grown = Grow<int32>;
+type Grown = newtype<Grow<int32>>;
+
+type Borrowed = newtype<Grow<ref<int32, borrowed, 'static & local, readonly>>>;
+
+type Empty<T> = newtype<int32>;
+
+type Retained = newtype<Empty<ref<int32, borrowed, 'static & local, readonly>>>;
 
 type Wrap<T> {
     value: T;
 }
 
-type Nested = Wrap<Wrap<int32>>;
+type Nested = newtype<Wrap<Wrap<int32>>>;
 
-type Identity<T> = T;
+type Identity<T> = newtype<T>;
 
-type Direct = Identity<int32>;
+type Direct = newtype<Identity<int32>>;
 
-type Indirect = Identity<Wrap<int32>>;";
+type Indirect = newtype<Identity<Wrap<int32>>>;";
     let file = test_file(source);
     let (source_tree, strings) = Parser::parse(&file, ParseOptions::default())
         .unwrap()
@@ -1786,20 +1792,39 @@ type Indirect = Identity<Wrap<int32>>;";
     // preserve the complete declaration text without expanding applications
     assert_eq!(format_test_mir(&destination, &strings), source);
 
-    // supply the substituted definitions used by the layouts
-    let applications = destination
-        .iter_nodes::<Type>()
-        .filter_map(|(ty, definition)| match definition {
-            Type::Application { base, arguments } if destination.is_defined_type(*base) => {
-                Some((ty, *base, arguments.clone()))
-            }
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    for (application, base, arguments) in applications {
-        let definition = Substitution::new(&mut destination, &arguments).representation(base);
-        destination.define_application(application, definition);
+    // inspect lifetime arguments without expanding recursively growing reference targets
+    for (name, lifetime, contains) in [
+        ("Grown", None, false),
+        ("Borrowed", Some(Lifetime::new([Extent::Static])), true),
+        ("Retained", Some(Lifetime::new([Extent::Static])), true),
+    ] {
+        let declaration = destination
+            .iter_nodes::<TypeDeclaration>()
+            .map(|(_, declaration)| declaration)
+            .find(|declaration| declaration.name.is_some_and(|id| strings.get(id) == name))
+            .unwrap();
+        let ty = destination.identified_type(declaration.symbol).unwrap();
+        assert_eq!(destination.type_lifetime(ty), lifetime);
+        assert_eq!(destination.type_contains_borrowed_refs(ty), contains);
+        if name == "Retained" {
+            assert_eq!(destination.type_borrowed_paths(ty), Vec::new());
+        }
     }
+
+    // preserve the arguments of opaque applications during representation queries
+    let handle = destination
+        .iter_nodes::<TypeDeclaration>()
+        .map(|(_, declaration)| declaration)
+        .find(|declaration| {
+            declaration
+                .name
+                .is_some_and(|id| strings.get(id) == "Handle")
+        })
+        .unwrap();
+    let Type::Newtype { inner, .. } = *destination.get(handle.definition.unwrap()) else {
+        panic!("expected the declared newtype");
+    };
+    assert_eq!(Substitution::resolve(inner, &mut destination), inner);
 
     // lay out the finite values while keeping recursive reference targets symbolic
     let mut layouts = LayoutTable::new();
@@ -1810,9 +1835,71 @@ type Indirect = Identity<Wrap<int32>>;";
             .find(|declaration| declaration.name.is_some_and(|id| strings.get(id) == name))
             .unwrap();
         let ty = destination.identified_type(declaration.symbol).unwrap();
-        let layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
+        let layout = LayoutBuilder::new(&mut destination, &mut layouts, TargetLayout::default())
             .layout_type(ty)
             .unwrap();
         assert_eq!(layouts.layout(layout).size, size);
     }
+}
+
+/// Lay out projected storage while leaving unused and opaque pointees unlaid out.
+#[test]
+fn test_layout_projected_storage() {
+    let file = test_file(
+        r#"
+type Opaque;
+type Unused { value: int64; }
+type Record { first: int32; second: int64; }
+type Element { first: int64; second: int64; }
+type Choice = variant<uint1> { 0uint1 = int32; 1uint1 = boolean; };
+
+function project(
+    v0: ptr<Opaque, readonly>,
+    v1: slice<Unused, borrowed, 'static, readonly, local>,
+    v2: ptr<Record, readonly>,
+    v3: slice<Element, borrowed, 'static, readonly, local>,
+    v4: ptr<Choice, readonly>,
+    v5: uint64
+): void {
+entry:
+    v6: ptr<int64, readonly> = address (*v2).1
+    v7: slice<Element, borrowed, 'static, readonly, local> = address (*v3)[v5; v5]
+    v8: ref<Element, borrowed, 'static, readonly, local> = address (*v3)[v5]
+    v9: uint1 = variant.tag.load (*v4)
+    return
+}
+"#,
+    );
+    let (mut tree, strings) = Parser::parse(&file, ParseOptions::default())
+        .unwrap()
+        .finish()
+        .unwrap();
+    let mut layouts = LayoutTable::new();
+    LayoutBuilder::new(&mut tree, &mut layouts, TargetLayout::default())
+        .layout_reachable_types()
+        .unwrap();
+
+    // compare every declared type's layout requirement and size
+    let sizes: Vec<_> = tree
+        .iter_nodes::<TypeDeclaration>()
+        .filter_map(|(_, declaration)| {
+            let name = declaration.name?;
+            let ty = tree.identified_type(declaration.symbol).unwrap();
+
+            Some((
+                strings.get(name),
+                layouts.type_layout(ty).map(|layout| layout.size),
+            ))
+        })
+        .collect();
+    assert_eq!(
+        sizes,
+        [
+            ("Opaque", None),
+            ("Unused", None),
+            ("Record", Some(16)),
+            ("Element", Some(16)),
+            ("Choice", Some(8)),
+        ]
+    );
 }

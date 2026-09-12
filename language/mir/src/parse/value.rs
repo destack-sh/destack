@@ -2,14 +2,86 @@ use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{
-    BlockId, BlockParameter, FunctionId, GenericArgument, GlobalId, LocalId, LocalNodeId, Type,
-    TypedValueSpan, Value,
+    BlockId, BlockParameter, FunctionId, GenericArgument, GlobalId, LocalId, LocalNodeId, Place,
+    Projection, Type, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 
 impl Parser {
+    /// Parse a storage root and its projections.
+    pub(super) fn parse_place(&mut self, segments: &mut Vec<Span>) -> ParseResult<Place> {
+        // read a root or a parenthesized dereference or case selection
+        let mut place = if self.eat_token_if(TokenType::OpenParenthesis) {
+            let is_dereference = self.eat_token_if(TokenType::Star);
+            let mut place = self.parse_place(segments)?;
+            if is_dereference {
+                place.push(Projection::Deref);
+            }
+            if self
+                .peek()
+                .is_some_and(|token| self.tree.source_text(token.span) == "as")
+            {
+                self.eat_token(TokenType::Identifier)?;
+                let case = self.parse_place_index(segments)?;
+                place.push(Projection::Variant { case });
+            }
+            self.eat_token(TokenType::CloseParenthesis)?;
+
+            place
+        } else if self.eat_token_if(TokenType::At) {
+            Place::global(self.parse_global_segment(segments)?)
+        } else if self.peek().is_some_and(|token| {
+            self.local_name_map
+                .contains_key(self.tree.source_text(token.span))
+        }) {
+            Place::local(self.parse_local_segment(segments)?)
+        } else {
+            Place::value(self.parse_value_segment(segments)?)
+        };
+
+        // append fields and indexed projections
+        loop {
+            if self.eat_token_if(TokenType::Dot) {
+                let index = self.parse_place_index(segments)?;
+                place.push(Projection::Field { index });
+            } else if self.eat_token_if(TokenType::OpenBracket) {
+                let projection = if self.peek_is(TokenType::Integer) {
+                    Projection::Element {
+                        index: self.parse_place_index(segments)?,
+                    }
+                } else {
+                    let index = self.parse_value_segment(segments)?;
+                    if self.eat_token_if(TokenType::Semicolon) {
+                        let length = self.parse_value_segment(segments)?;
+
+                        Projection::Slice {
+                            start: index,
+                            length,
+                        }
+                    } else {
+                        Projection::Index { index }
+                    }
+                };
+                self.eat_token(TokenType::CloseBracket)?;
+                place.push(projection);
+            } else {
+                break;
+            }
+        }
+
+        Ok(place)
+    }
+
+    /// Parse a concrete field, element, or case index.
+    fn parse_place_index(&mut self, segments: &mut Vec<Span>) -> ParseResult<u32> {
+        let (index, span) = self.parse_int_literal_part()?;
+        segments.push(span);
+
+        u32::try_from(index).map_err(|_| ParseError::invalid("place index", span.start as usize))
+    }
+
     /// Parse a value reference.
     pub(super) fn parse_value(&mut self) -> ParseResult<Value> {
         let (value, _) = self.parse_value_reference_part()?;

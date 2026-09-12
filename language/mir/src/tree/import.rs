@@ -49,16 +49,18 @@ impl<'t, 'd> Importer<'t, 'd> {
         };
 
         // reserve the identity once per import, its definition and declaration naming it again
-        let reserved = self.tree.reserve_type(symbol);
+        let id = self.tree.reserve_type(symbol);
+        let reserved = self.tree.intern_type(Type::Declaration { declaration: id });
         if !self.defining.insert(symbol) {
             return reserved;
         }
 
         // fill the definition from the source, else from the declaring module
-        if !self.tree.is_defined_type(reserved) {
+        if self.tree.get(id).definition.is_none() {
             if source.is_defined_type(ty) {
                 let definition = self.import_type_content(source, ty);
-                self.tree.define_type(reserved, definition);
+                let definition = self.tree.intern_type(definition);
+                self.tree.get_mut(id).definition = Some(definition);
             } else if let Some(declared) = symbol
                 .module()
                 .and_then(|module| (self.declared_of)(module))
@@ -76,10 +78,7 @@ impl<'t, 'd> Importer<'t, 'd> {
         }
 
         // declare it as the source does, attributes included
-        if self
-            .tree
-            .type_declaration(reserved)
-            .is_some_and(|id| self.tree.get(id).name.is_none())
+        if self.tree.get(id).name.is_none()
             && let Some(source_declaration) = source.type_declaration(ty)
         {
             let declaration = source.get(source_declaration).clone();
@@ -103,11 +102,12 @@ impl<'t, 'd> Importer<'t, 'd> {
                     .iter()
                     .map(|parameter| self.import_generic(source, parameter))
                     .collect();
-                let inserted = self
-                    .tree
-                    .insert_type_declaration(name, generics, reserved, heritage);
+                let declaration = self.tree.get_mut(id);
+                declaration.name = Some(name);
+                declaration.generics = generics;
+                declaration.heritage = heritage;
                 for attribute in source.attributes(source_declaration) {
-                    self.tree.push_attribute(inserted, attribute.clone());
+                    self.tree.push_attribute(id, attribute.clone());
                 }
             }
         }

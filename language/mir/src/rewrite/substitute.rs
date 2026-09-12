@@ -19,6 +19,29 @@ pub struct Substitution<'a> {
 }
 
 impl<'a> Substitution<'a> {
+    /// Resolve a declaration or application to its substituted representation.
+    pub fn resolve(ty: TypeId, tree: &mut Tree) -> TypeId {
+        match tree.get(ty) {
+            Type::Declaration { declaration } => match tree.get(*declaration).definition {
+                Some(definition) => definition,
+                None => ty,
+            },
+            Type::Application { base, arguments } => {
+                // preserve applications whose declarations remain opaque
+                let definition = tree.type_definition(*base).clone();
+                if matches!(definition, Type::Declaration { .. }) {
+                    return ty;
+                }
+
+                // substitute one representation while retaining nominal child types
+                let arguments = arguments.clone();
+
+                Substitution::new(tree, &arguments).definition(definition)
+            }
+            _ => ty,
+        }
+    }
+
     /// Substitute the supplied template arguments.
     pub fn new(tree: &'a mut Tree, arguments: &'a [GenericArgument]) -> Self {
         Self {
@@ -294,11 +317,6 @@ impl<'a> Substitution<'a> {
         }
 
         self.tree.intern_static(value)
-    }
-
-    /// Substitute the definition of a template.
-    pub fn representation(&mut self, base: TypeId) -> TypeId {
-        self.definition(self.tree.type_definition(base).clone())
     }
 }
 

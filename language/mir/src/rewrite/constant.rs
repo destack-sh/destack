@@ -1,17 +1,13 @@
 use destack_core::FxIndexMap;
 
 use crate as mir;
-use crate::{
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    terminator_substitute_uses,
-};
+use crate::{instruction_substitute_uses_in_tree, terminator_substitute_uses};
 
 /// Apply constant parameters inside a function body.
 pub fn apply_constant_parameters(
     function_id: mir::LocalNodeId<mir::Function>,
     constants: &[Option<mir::Constant>],
     tree: &mut mir::Tree,
-    accesses: &mut mir::AccessTable,
 ) -> bool {
     // prepare the substitution map and new instructions
     let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
@@ -76,7 +72,6 @@ pub fn apply_constant_parameters(
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if instruction != updated {
                 *tree.get_mut(instruction_id) = updated;
-                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
             }
         }
 

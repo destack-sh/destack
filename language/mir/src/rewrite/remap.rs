@@ -1,10 +1,12 @@
 use crate::{
-    Callee, CheckConstraint, Constant, FunctionId, GenericArgument, GlobalId, Instruction,
-    Terminator, TypeId,
+    Callee, CheckConstraint, Constant, FunctionId, GenericArgument, GlobalId, Instruction, LocalId,
+    PlaceOrigin, Terminator, TypeId,
 };
 
-/// One mapping from the type, function, and global ids of a cloned body onto new ids.
+/// Map declaration and local ids when copying a body.
 pub trait IdRemap {
+    /// Map one local id.
+    fn map_local(&mut self, local: LocalId) -> LocalId;
     /// Map one type id.
     fn map_type(&mut self, ty: TypeId) -> TypeId;
     /// Map one function id.
@@ -63,31 +65,39 @@ impl Callee {
 }
 
 impl Instruction {
-    /// Map every type, function, and global id one instruction names.
+    /// Map every declaration and local id one instruction names.
     pub fn map_ids(&mut self, remap: &mut dyn IdRemap) {
+        // remap storage selected by memory operands
+        let place = match self {
+            Self::Load { place, .. }
+            | Self::VariantTagLoad { place, .. }
+            | Self::Store { place, .. }
+            | Self::Address { place, .. }
+            | Self::AtomicLoad { place, .. }
+            | Self::AtomicStore { place, .. }
+            | Self::AtomicCompareExchange { place, .. }
+            | Self::AtomicRmw { place, .. } => Some(place),
+            _ => None,
+        };
+        if let Some(place) = place {
+            match &mut place.origin {
+                PlaceOrigin::Local(local) => *local = remap.map_local(*local),
+                PlaceOrigin::Global(global) => *global = remap.map_global(*global),
+                PlaceOrigin::Value(_) => {}
+            }
+        }
+
         match self {
             Instruction::Const { value, .. } => value.map_ids(remap),
             Instruction::Cast { to_type, .. } => *to_type = remap.map_type(*to_type),
-            Instruction::LocalAddr { result_type, .. }
+            Instruction::Address { result_type, .. }
             | Instruction::Load { result_type, .. }
-            | Instruction::FieldAddr { result_type, .. }
-            | Instruction::ElementAddr { result_type, .. }
             | Instruction::VariantNew { result_type, .. }
-            | Instruction::VariantPayloadAddr { result_type, .. }
-            | Instruction::SliceView { result_type, .. }
             | Instruction::DynamicPayload { result_type, .. }
             | Instruction::DynamicRead { result_type, .. }
             | Instruction::DynamicFind { result_type, .. }
             | Instruction::NewComplete { result_type, .. }
             | Instruction::AtomicLoad { result_type, .. } => {
-                *result_type = remap.map_type(*result_type);
-            }
-            Instruction::GlobalAddr {
-                global,
-                result_type,
-                ..
-            } => {
-                *global = remap.map_global(*global);
                 *result_type = remap.map_type(*result_type);
             }
             Instruction::FunctionAddr {
@@ -156,8 +166,6 @@ impl Instruction {
             | Instruction::Binary { .. }
             | Instruction::Unary { .. }
             | Instruction::Select { .. }
-            | Instruction::LocalGet { .. }
-            | Instruction::LocalSet { .. }
             | Instruction::FunctionEnvironment { .. }
             | Instruction::FunctionEnvironmentCurrent { .. }
             | Instruction::ContextCurrent { .. }

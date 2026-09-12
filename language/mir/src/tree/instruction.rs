@@ -8,38 +8,9 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
     Constant, ConvertMode, Copy, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
-    GlobalId, IndexSlice, Intrinsic, LocalId, MemoryOrdering, Node, NodeType, SamplerId, Tree,
-    TypeId, UnaryOperator, Value, ValueSlice, VectorReduceOperator,
+    IndexSlice, Intrinsic, MemoryOrdering, Node, NodeType, Place, SamplerId, Tree, TypeId,
+    UnaryOperator, Value, ValueSlice, VectorReduceOperator,
 };
-
-/// What one address instruction means for the borrow check.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
-pub enum AddressKind {
-    /// A borrow of the addressed place, issuing a loan.
-    #[default]
-    Borrow,
-    /// A step of a place path, feeding a load, a store, or another address.
-    Projection,
-}
-
-impl AddressKind {
-    /// Return the instruction mnemonic suffix spelling this kind.
-    pub const fn mnemonic(self) -> &'static str {
-        match self {
-            Self::Borrow => "address",
-            Self::Projection => "project",
-        }
-    }
-
-    /// Parse the instruction mnemonic suffix spelling one kind.
-    pub fn from_mnemonic(mnemonic: &str) -> Option<Self> {
-        match mnemonic {
-            "address" => Some(Self::Borrow),
-            "project" => Some(Self::Projection),
-            _ => None,
-        }
-    }
-}
 
 /// One MIR instruction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -115,47 +86,6 @@ pub enum Instruction {
         else_value: Value,
     },
 
-    // local variables (local.get, local.set, local.address)
-    /// Load from a local variable (stack slot).
-    LocalGet {
-        /// Whether this read duplicates its source.
-        copy: Copy,
-        /// The SSA value to define with the loaded value.
-        destination: Value,
-        /// The local variable to load from.
-        local: LocalId,
-    },
-    /// Get a reference to a local variable.
-    LocalAddr {
-        /// The SSA value to define with the local address.
-        destination: Value,
-        /// The local variable to take the address of.
-        local: LocalId,
-        /// The result reference type.
-        result_type: TypeId,
-        /// Whether the address borrows the local or projects a place through it.
-        kind: AddressKind,
-    },
-    /// Store to a local variable (stack slot).
-    LocalSet {
-        /// The local variable to store to.
-        local: LocalId,
-        /// The value to store.
-        value: Value,
-    },
-
-    // global variables (global.address)
-    /// Get a reference to a mutable global variable.
-    GlobalAddr {
-        /// The SSA value to define with the reference.
-        destination: Value,
-        /// The global variable to get the address of.
-        global: GlobalId,
-        /// The result reference type.
-        result_type: TypeId,
-        /// What the address means for the borrow check.
-        kind: AddressKind,
-    },
     /// Get a function pointer for a function (function.address).
     FunctionAddr {
         /// The SSA value to define with the function pointer.
@@ -233,22 +163,31 @@ pub enum Instruction {
         result_type: TypeId,
     },
 
-    // memory (pointers)
-    /// Load from a pointer (dereference).
+    // memory
+    /// Read a place.
     Load {
         /// Whether this read duplicates its source.
         copy: Copy,
         /// The SSA value to define with the loaded value.
         destination: Value,
-        /// The pointer to load from.
-        pointer: Value,
+        /// The storage to read.
+        place: Place,
         /// The loaded value type.
         result_type: TypeId,
     },
-    /// Store to a pointer (write through pointer).
+    /// Take the address of a place.
+    Address {
+        /// The SSA value to define with the address.
+        destination: Value,
+        /// The addressed storage.
+        place: Place,
+        /// The result reference type.
+        result_type: TypeId,
+    },
+    /// Write a place.
     Store {
-        /// The pointer to store to.
-        pointer: Value,
+        /// The storage to write.
+        place: Place,
         /// The value to store.
         value: Value,
     },
@@ -285,19 +224,6 @@ pub enum Instruction {
         /// The value to insert at the field.
         value: Value,
     },
-    /// Get the address of one structural field in an addressable aggregate.
-    FieldAddr {
-        /// The SSA value to define with the field address.
-        destination: Value,
-        /// The aggregate base to project from.
-        aggregate: Value,
-        /// The zero-based logical field.
-        field: u32,
-        /// The result type of the address.
-        result_type: TypeId,
-        /// Whether the address borrows the field or projects a place through it.
-        kind: AddressKind,
-    },
     /// Extract one statically selected fixed-array element.
     ElementGet {
         /// Whether this read duplicates its source.
@@ -320,20 +246,6 @@ pub enum Instruction {
         /// The value to insert.
         value: Value,
     },
-    /// Get the address of an element from an addressable indexed value (element.address).
-    ElementAddr {
-        /// The SSA value to define with the element address.
-        destination: Value,
-        /// The indexed base to project from.
-        base: Value,
-        /// The index of the element (runtime value).
-        index: Value,
-        /// The result type of the address.
-        result_type: TypeId,
-        /// Whether the address borrows the element or projects a place through it.
-        kind: AddressKind,
-    },
-
     // variant construction and projection
     /// Construct a variant value from one case payload.
     VariantNew {
@@ -357,8 +269,8 @@ pub enum Instruction {
     VariantTagLoad {
         /// The SSA value to define with the discriminant.
         destination: Value,
-        /// The variant address to read from.
-        variant: Value,
+        /// The stored variant whose discriminant is read.
+        place: Place,
     },
     /// Extract the payload of one statically selected variant case.
     VariantPayload {
@@ -371,34 +283,7 @@ pub enum Instruction {
         /// The zero-based case index.
         case: u32,
     },
-    /// Get the address of one statically selected variant payload.
-    VariantPayloadAddr {
-        /// The SSA value to define with the payload address.
-        destination: Value,
-        /// The variant address to project from.
-        variant: Value,
-        /// The zero-based case index.
-        case: u32,
-        /// The result type of the address.
-        result_type: TypeId,
-        /// Whether the address borrows the payload or projects a place through it.
-        kind: AddressKind,
-    },
-
     // slice descriptors
-    /// Form a non-owning slice view over a contiguous source region.
-    SliceView {
-        /// The SSA value to define with the slice view.
-        destination: Value,
-        /// The source slice value.
-        source: Value,
-        /// The start index inside the source slice.
-        start: Value,
-        /// The number of elements in the result.
-        length: Value,
-        /// The result slice type.
-        result_type: TypeId,
-    },
     /// Read the runtime length from a slice descriptor.
     SliceLength {
         /// The SSA value to define with the length.
@@ -636,8 +521,8 @@ pub enum Instruction {
     AtomicLoad {
         /// The SSA value to define with the loaded result.
         destination: Value,
-        /// The pointer to load from.
-        pointer: Value,
+        /// The storage to read.
+        place: Place,
         /// The loaded value type.
         result_type: TypeId,
         /// The atomic access.
@@ -645,8 +530,8 @@ pub enum Instruction {
     },
     /// Store to memory atomically.
     AtomicStore {
-        /// The pointer to store to.
-        pointer: Value,
+        /// The storage to write.
+        place: Place,
         /// The value to store.
         value: Value,
         /// The atomic access.
@@ -656,8 +541,8 @@ pub enum Instruction {
     AtomicCompareExchange {
         /// The SSA value to define with the old value and success flag.
         destination: Value,
-        /// The pointer to update.
-        pointer: Value,
+        /// The storage to update.
+        place: Place,
         /// The expected current value.
         expected: Value,
         /// The replacement value.
@@ -673,8 +558,8 @@ pub enum Instruction {
         destination: Value,
         /// The read modify write operator.
         operator: AtomicRmwOperator,
-        /// The pointer to update.
-        pointer: Value,
+        /// The storage to update.
+        place: Place,
         /// The value argument for the operator.
         value: Value,
         /// The atomic access.
@@ -745,7 +630,8 @@ impl Instruction {
             }
 
             // classify scalar and aggregate instructions as pure
-            Self::Const { .. }
+            Self::Copy { .. }
+            | Self::Const { .. }
             | Self::Binary { .. }
             | Self::Unary { .. }
             | Self::Cast { .. }
@@ -759,10 +645,7 @@ impl Instruction {
             | Self::VariantTag { .. }
             | Self::VariantTagLoad { .. }
             | Self::VariantPayload { .. }
-            | Self::FieldAddr { .. }
-            | Self::ElementAddr { .. }
-            | Self::VariantPayloadAddr { .. }
-            | Self::SliceView { .. }
+            | Self::Address { .. }
             | Self::SliceLength { .. }
             | Self::DynamicBind { .. }
             | Self::DynamicPayload { .. }
@@ -777,23 +660,20 @@ impl Instruction {
             | Self::VectorReduce { .. }
             | Self::VectorCompare { .. }
             | Self::VectorConvert { .. }
-            | Self::GlobalAddr { .. }
             | Self::FunctionAddr { .. }
             | Self::FunctionBind { .. }
             | Self::FunctionEnvironment { .. }
             | Self::FunctionEnvironmentCurrent { .. }
             | Self::ContextCurrent { .. }
             | Self::ContextGet { .. }
-            | Self::LocalAddr { .. }
             | Self::NewComplete { .. }
             | Self::Assume { .. } => false,
 
             // classify nonvolatile reads as pure
-            Self::LocalGet { .. } | Self::Load { .. } => false,
+            Self::Load { .. } => false,
 
             // preserve memory writes
-            Self::LocalSet { .. }
-            | Self::Store { .. }
+            Self::Store { .. }
             | Self::AtomicLoad { .. }
             | Self::AtomicStore { .. }
             | Self::AtomicCompareExchange { .. }
@@ -837,7 +717,7 @@ impl Instruction {
                 ..
             }
             | Self::Cast {
-                operator: CastOperator::FloatToSignedInt | CastOperator::FloatToUnsignedInt,
+                operator: CastOperator::FloatToInt,
                 ..
             }
             | Self::Load { .. }
@@ -870,13 +750,28 @@ impl Instruction {
         }
     }
 
-    /// Return the pointer one storing instruction writes through.
-    pub fn store_pointer(&self) -> Option<Value> {
+    /// Return the storage selected by a memory operation.
+    pub fn place(&self) -> Option<&Place> {
         match self {
-            Instruction::Store { pointer, .. }
-            | Instruction::AtomicStore { pointer, .. }
-            | Instruction::AtomicCompareExchange { pointer, .. }
-            | Instruction::AtomicRmw { pointer, .. } => Some(*pointer),
+            Self::Load { place, .. }
+            | Self::VariantTagLoad { place, .. }
+            | Self::Store { place, .. }
+            | Self::Address { place, .. }
+            | Self::AtomicLoad { place, .. }
+            | Self::AtomicStore { place, .. }
+            | Self::AtomicCompareExchange { place, .. }
+            | Self::AtomicRmw { place, .. } => Some(place),
+            _ => None,
+        }
+    }
+
+    /// Return the place one storing instruction writes.
+    pub fn store_place(&self) -> Option<&Place> {
+        match self {
+            Instruction::Store { place, .. }
+            | Instruction::AtomicStore { place, .. }
+            | Instruction::AtomicCompareExchange { place, .. }
+            | Instruction::AtomicRmw { place, .. } => Some(place),
             _ => None,
         }
     }
@@ -892,10 +787,6 @@ impl Instruction {
             Instruction::Unary { destination, .. } => Some(*destination),
             Instruction::Cast { destination, .. } => Some(*destination),
             Instruction::Select { destination, .. } => Some(*destination),
-            Instruction::LocalGet { destination, .. } => Some(*destination),
-            Instruction::LocalAddr { destination, .. } => Some(*destination),
-            Instruction::LocalSet { .. } => None,
-            Instruction::GlobalAddr { destination, .. } => Some(*destination),
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
             Instruction::FunctionBind { destination, .. } => Some(*destination),
             Instruction::FunctionEnvironment { destination, .. } => Some(*destination),
@@ -904,21 +795,19 @@ impl Instruction {
             | Instruction::ContextReplace { destination, .. }
             | Instruction::ContextBind { destination, .. }
             | Instruction::ContextGet { destination, .. } => Some(*destination),
-            Instruction::Load { destination, .. } => Some(*destination),
+            Instruction::Load { destination, .. } | Instruction::Address { destination, .. } => {
+                Some(*destination)
+            }
             Instruction::Store { .. } => None,
             Instruction::Aggregate { destination, .. } => Some(*destination),
             Instruction::FieldGet { destination, .. } => Some(*destination),
             Instruction::FieldSet { destination, .. } => Some(*destination),
-            Instruction::FieldAddr { destination, .. } => Some(*destination),
             Instruction::ElementGet { destination, .. } => Some(*destination),
             Instruction::ElementSet { destination, .. } => Some(*destination),
-            Instruction::ElementAddr { destination, .. } => Some(*destination),
             Instruction::VariantNew { destination, .. } => Some(*destination),
             Instruction::VariantTag { destination, .. } => Some(*destination),
             Instruction::VariantTagLoad { destination, .. } => Some(*destination),
             Instruction::VariantPayload { destination, .. } => Some(*destination),
-            Instruction::VariantPayloadAddr { destination, .. } => Some(*destination),
-            Instruction::SliceView { destination, .. } => Some(*destination),
             Instruction::SliceLength { destination, .. } => Some(*destination),
             Instruction::DynamicBind { destination, .. } => Some(*destination),
             Instruction::DynamicPayload { destination, .. } => Some(*destination),
@@ -972,10 +861,6 @@ impl Instruction {
                 else_value,
                 ..
             } => smallvec![*condition, *then_value, *else_value],
-            Instruction::LocalGet { .. } => smallvec![],
-            Instruction::LocalAddr { .. } => smallvec![],
-            Instruction::LocalSet { value, .. } => smallvec![*value],
-            Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
             Instruction::FunctionBind { environment, .. } => smallvec![*environment],
             Instruction::FunctionEnvironment { function, .. } => smallvec![*function],
@@ -994,33 +879,33 @@ impl Instruction {
                 default,
                 ..
             } => smallvec![*context, *variable, *default],
-            Instruction::Load { pointer, .. } => smallvec![*pointer],
-            Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
+            Instruction::Load { place, .. }
+            | Instruction::Address { place, .. }
+            | Instruction::AtomicLoad { place, .. } => place.uses(),
+            Instruction::Store { place, value }
+            | Instruction::AtomicStore { place, value, .. }
+            | Instruction::AtomicRmw { place, value, .. } => {
+                let mut values = place.uses();
+                values.push(*value);
+
+                values
+            }
             // arguments stored externally
             Instruction::Aggregate { .. } => smallvec![],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],
             Instruction::FieldSet {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
-            Instruction::FieldAddr { aggregate, .. } => smallvec![*aggregate],
             Instruction::ElementGet { aggregate, .. } => smallvec![*aggregate],
             Instruction::ElementSet {
                 aggregate, value, ..
             } => smallvec![*aggregate, *value],
-            Instruction::ElementAddr { base, index, .. } => smallvec![*base, *index],
             Instruction::VariantNew { payload, .. } => {
                 payload.iter().copied().collect::<SmallVec<[Value; 4]>>()
             }
             Instruction::VariantTag { variant, .. } => smallvec![*variant],
-            Instruction::VariantTagLoad { variant, .. } => smallvec![*variant],
+            Instruction::VariantTagLoad { place, .. } => place.uses(),
             Instruction::VariantPayload { variant, .. } => smallvec![*variant],
-            Instruction::VariantPayloadAddr { variant, .. } => smallvec![*variant],
-            Instruction::SliceView {
-                source,
-                start,
-                length,
-                ..
-            } => smallvec![*source, *start, *length],
             Instruction::SliceLength { slice, .. } => smallvec![*slice],
             Instruction::DynamicBind { payload, .. } => smallvec![*payload],
             Instruction::DynamicPayload { dynamic, .. } => smallvec![*dynamic],
@@ -1057,15 +942,17 @@ impl Instruction {
                 offset,
                 byte_len,
             } => smallvec![*object, *offset, *byte_len],
-            Instruction::AtomicLoad { pointer, .. } => smallvec![*pointer],
-            Instruction::AtomicStore { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::AtomicCompareExchange {
-                pointer,
+                place,
                 expected,
                 new_value,
                 ..
-            } => smallvec![*pointer, *expected, *new_value],
-            Instruction::AtomicRmw { pointer, value, .. } => smallvec![*pointer, *value],
+            } => {
+                let mut values = place.uses();
+                values.extend([*expected, *new_value]);
+
+                values
+            }
             Instruction::AtomicFence { .. } => smallvec![],
             Instruction::Assume { condition } => smallvec![*condition],
             Instruction::ProfileIncrement { .. } => smallvec![],
@@ -1089,8 +976,7 @@ impl Instruction {
     /// Return values consumed by this instruction.
     pub fn consumes(&self, tree: &Tree) -> SmallVec<[Value; 8]> {
         match self {
-            Instruction::LocalSet { value, .. }
-            | Instruction::Store { value, .. }
+            Instruction::Store { value, .. }
             | Instruction::NewComplete { value, .. }
             | Instruction::Release { value } => smallvec![*value],
             Instruction::AtomicStore { value, .. } | Instruction::AtomicRmw { value, .. } => {

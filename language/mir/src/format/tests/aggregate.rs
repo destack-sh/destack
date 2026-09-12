@@ -134,8 +134,8 @@ type Maybe = variant<uint1> { 0uint1 = void; 1uint1 = int32; };
 
 function inspect(v0: ptr<Maybe, readonly>): uint1 {
 entry(v0: ptr<Maybe, readonly>):
-    v1: uint1 = variant.tag.load v0
-    v2: ptr<int32, readonly> = variant.payload.address v0, 0
+    v1: uint1 = variant.tag.load (*v0)
+    v2: ptr<int32, readonly> = address ((*v0) as 1)
     return v1
 }
 "#,

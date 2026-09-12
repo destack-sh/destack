@@ -6,10 +6,10 @@ use destack_source::{
 
 use crate::source::{Lexer, Token, TokenType};
 use crate::{
-    Access, AccessTable, Block, DispatchTable, DropTable, EffectTable, Extent, Function,
-    GenericArgument, GenericParameter, GenericParameterDomain, Global, LayoutTable, Lifetime,
-    LifetimeParameter, Local, LocalNodeId, Node, ProfileTable, RegionBound, Space, Static, Storage,
-    TargetLayout, Tree, Type, Value,
+    Access, Block, DispatchTable, DropTable, EffectTable, Extent, Function, GenericArgument,
+    GenericParameter, GenericParameterDomain, Global, LayoutTable, Lifetime, LifetimeParameter,
+    Local, LocalNodeId, Node, ProfileTable, RegionBound, Space, Static, Storage, TargetLayout,
+    Tree, Type, TypeDeclaration, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -27,8 +27,7 @@ pub struct ParsedMir {
     pub dispatch: DispatchTable,
     /// Canonical MIR drop table.
     pub drops: DropTable,
-    /// Explicit MIR memory access table.
-    pub accesses: AccessTable,
+
     /// Function and call effect table.
     pub effects: EffectTable,
     /// Static profile counter table.
@@ -49,7 +48,6 @@ impl ParsedMir {
         LayoutTable,
         DispatchTable,
         DropTable,
-        AccessTable,
         EffectTable,
         ProfileTable,
         StringPool,
@@ -61,7 +59,6 @@ impl ParsedMir {
             self.layouts,
             self.dispatch,
             self.drops,
-            self.accesses,
             self.effects,
             self.profile,
             self.strings,
@@ -77,7 +74,6 @@ impl ParsedMir {
             layouts: _,
             dispatch: _,
             drops: _,
-            accesses: _,
             effects: _,
             profile: _,
             strings,
@@ -126,8 +122,7 @@ pub struct Parser {
     pub(super) dispatch: DispatchTable,
     /// Canonical MIR drop table.
     pub(super) drops: DropTable,
-    /// Explicit MIR memory access table.
-    pub(super) accesses: AccessTable,
+
     /// Function and call effect table.
     pub(super) effects: EffectTable,
     /// Static profile counter table.
@@ -145,7 +140,7 @@ pub struct Parser {
     /// Map from global names to their ids (for forward references).
     pub(super) global_map: FxIndexMap<String, LocalNodeId<Global>>,
     /// Map from type declaration names to their ids (for references).
-    pub(super) type_declaration_map: FxIndexMap<String, LocalNodeId<Type>>,
+    pub(super) type_declaration_map: FxIndexMap<String, LocalNodeId<TypeDeclaration>>,
     /// Set of type declarations that have been defined.
     pub(super) type_declaration_definitions: FxIndexSet<String>,
     /// Map from symbolic block names to their predeclared block ids.
@@ -192,7 +187,6 @@ impl Parser {
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
             drops: DropTable::default(),
-            accesses: AccessTable::default(),
             effects: EffectTable::default(),
             profile: ProfileTable::default(),
             strings: StringPool::new(),
@@ -232,7 +226,6 @@ impl Parser {
             layouts: parser.layouts,
             dispatch: parser.dispatch,
             drops: parser.drops,
-            accesses: parser.accesses,
             effects: parser.effects,
             profile: parser.profile,
             strings: parser.strings,

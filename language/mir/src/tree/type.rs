@@ -5,7 +5,7 @@ use destack_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
     Constant, Discriminant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, RegionBound,
-    SignatureParameter, Static, StaticId, StorageSet, Symbol, Tree, TypeId,
+    SignatureParameter, Static, StaticId, StorageSet, Substitution, Symbol, Tree, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -28,7 +28,6 @@ pub enum Mutability {
     Hash,
     PartialOrd,
     Ord,
-    Default,
     Serialize,
     Deserialize,
     Reflect,
@@ -38,7 +37,6 @@ pub enum Access {
     /// Readonly access.
     Readonly,
     /// Mutable access.
-    #[default]
     Mutable,
     /// Read access that excludes conflicting writes.
     Immutable,
@@ -49,12 +47,27 @@ pub enum Access {
 }
 
 impl Access {
+    /// Return whether this access grants the requested access.
+    pub fn grants(self, requested: Self) -> bool {
+        self == requested || self == Self::Exclusive || requested == Self::Readonly
+    }
+
     /// Return whether this access may permit writes through the reference.
     pub fn can_write(self) -> bool {
         matches!(
             self,
             Access::Mutable | Access::Exclusive | Access::Parameter(_)
         )
+    }
+
+    /// Return whether overlapping accesses may conflict.
+    pub fn conflicts(self, other: Self) -> bool {
+        match (self, other) {
+            (Self::Exclusive | Self::Parameter(_), _)
+            | (_, Self::Exclusive | Self::Parameter(_)) => true,
+            (Self::Immutable, other) | (other, Self::Immutable) => other.can_write(),
+            _ => false,
+        }
     }
 
     /// Parse a canonical access name.
@@ -978,16 +991,16 @@ impl Type {
             _ => {}
         }
 
-        // erase explicit region arguments on a type application
-        if let Type::Application { arguments, .. } = &mut erased {
-            for argument in arguments {
-                if let GenericArgument::Region { lifetime, .. } = argument {
-                    *lifetime = Lifetime::empty();
-                }
-            }
-        }
-
         erased
+    }
+
+    /// Return the addressed value or slice element type.
+    pub fn pointee_type(&self) -> Option<TypeId> {
+        match self {
+            Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => Some(*pointee),
+            Type::Slice { element, .. } => Some(*element),
+            _ => None,
+        }
     }
 
     /// Return the reference kind for reference-like values.
@@ -1301,8 +1314,9 @@ impl Type {
 
 impl Tree {
     /// Return the payload type one variant stores at a case.
-    pub fn case_payload(&self, ty: TypeId, case: u32) -> Option<TypeId> {
-        let Type::Variant { cases, .. } = self.type_definition(ty) else {
+    pub fn case_payload(&mut self, ty: TypeId, case: u32) -> Option<TypeId> {
+        let ty = Substitution::resolve(ty, self);
+        let Type::Variant { cases, .. } = self.get(ty) else {
             return None;
         };
 

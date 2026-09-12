@@ -1,9 +1,235 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
-use crate::{Access, Lifetime, Reference, Value};
+use crate::{
+    Access, FunctionId, GlobalId, Lifetime, LocalId, Reference, Substitution, Tree, Type, TypeId,
+    Value,
+};
 
-/// One projection in a MIR type path.
+/// The root of a MIR place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum PlaceOrigin {
+    /// A function local.
+    Local(LocalId),
+    /// A module global.
+    Global(GlobalId),
+    /// Storage rooted in an SSA value.
+    Value(Value),
+}
+
+/// A storage location selected by a root and projections.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct Place {
+    /// The root storage.
+    pub origin: PlaceOrigin,
+    /// The structural path from the root.
+    pub path: Path,
+}
+
+impl Place {
+    /// Create a place from one origin.
+    pub fn new(origin: PlaceOrigin) -> Self {
+        Self {
+            origin,
+            path: Path::root(),
+        }
+    }
+
+    /// Create a place rooted in one local.
+    pub fn local(local: LocalId) -> Self {
+        Self::new(PlaceOrigin::Local(local))
+    }
+
+    /// Create a place rooted in one global.
+    pub fn global(global: GlobalId) -> Self {
+        Self::new(PlaceOrigin::Global(global))
+    }
+
+    /// Create a place rooted in one SSA value.
+    pub fn value(value: Value) -> Self {
+        Self::new(PlaceOrigin::Value(value))
+    }
+
+    /// Return this place with one extra projection.
+    pub fn with_projection(mut self, projection: Projection) -> Self {
+        self.path.push(projection);
+
+        self
+    }
+
+    /// Return this place with another path appended.
+    pub fn with_path(mut self, path: &Path) -> Self {
+        self.path = self.path.with_path(path);
+
+        self
+    }
+
+    /// Append one projection.
+    pub fn push(&mut self, projection: Projection) {
+        self.path.push(projection);
+    }
+
+    /// Return the type of the root storage.
+    pub fn root_type(&self, function: FunctionId, tree: &Tree) -> Option<TypeId> {
+        match self.origin {
+            PlaceOrigin::Local(local) => Some(tree.get(local).ty),
+            PlaceOrigin::Global(global) => Some(tree.get(global).ty),
+            PlaceOrigin::Value(value) => tree.get(function).value_type(value),
+        }
+    }
+
+    /// Return the value or sequence selected by this place.
+    pub fn ty(&self, function: FunctionId, tree: &mut Tree) -> Option<PlaceType> {
+        let root = PlaceType::Value(self.root_type(function, tree)?);
+
+        self.path
+            .projections
+            .iter()
+            .try_fold(root, |ty, projection| ty.project(projection, tree))
+    }
+
+    /// Return the last reference type traversed by this place.
+    pub fn reference_type(&self, function: FunctionId, tree: &mut Tree) -> Option<TypeId> {
+        let mut ty = PlaceType::Value(self.root_type(function, tree)?);
+        let mut reference = None;
+
+        // preserve the descriptor type before selecting its referent
+        for projection in &self.path.projections {
+            if *projection == Projection::Deref {
+                let PlaceType::Value(ty) = ty else {
+                    return None;
+                };
+                reference = Some(tree.storage_type(ty));
+            }
+            ty = ty.project(projection, tree)?;
+        }
+
+        reference
+    }
+
+    /// Return whether the address depends only on SSA values and fixed storage.
+    pub fn is_stable(&self) -> bool {
+        let projections = &self.path.projections;
+        if let PlaceOrigin::Value(_) = self.origin
+            && projections.first() == Some(&Projection::Deref)
+        {
+            !projections[1..].contains(&Projection::Deref)
+        } else {
+            !projections.contains(&Projection::Deref)
+        }
+    }
+
+    /// Return the SSA values used by this place.
+    pub fn uses(&self) -> SmallVec<[Value; 4]> {
+        let mut values = SmallVec::new();
+        if let PlaceOrigin::Value(value) = self.origin {
+            values.push(value);
+        }
+
+        // collect dynamic projection operands
+        for projection in &self.path.projections {
+            match projection {
+                Projection::Index { index } => values.push(*index),
+                Projection::Slice { start, length } => values.extend([*start, *length]),
+                _ => {}
+            }
+        }
+
+        values
+    }
+
+    /// Map the root value and dynamic projection operands.
+    pub fn map_values(&mut self, mut map: impl FnMut(Value) -> Value) {
+        if let PlaceOrigin::Value(value) = &mut self.origin {
+            *value = map(*value);
+        }
+
+        self.path.map_values(map);
+    }
+
+    /// Return whether this place contains another place.
+    pub fn contains(&self, other: &Self) -> bool {
+        self.origin == other.origin && self.path.contains(&other.path)
+    }
+}
+
+/// The value or contiguous sequence selected by a place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaceType {
+    /// One sized value.
+    Value(TypeId),
+    /// A contiguous sequence of elements.
+    Sequence(TypeId),
+}
+
+impl PlaceType {
+    /// Select and substitute one component.
+    pub fn project(self, projection: &Projection, tree: &mut Tree) -> Option<Self> {
+        match self {
+            Self::Sequence(element) => match projection {
+                Projection::Element { .. } | Projection::Index { .. } | Projection::Elements => {
+                    Some(Self::Value(element))
+                }
+                Projection::Slice { .. } => Some(self),
+                _ => None,
+            },
+            Self::Value(ty) => {
+                // read the declared representation and retain its applied arguments
+                let (ty, arguments) = match tree.get(ty) {
+                    Type::Application { base, arguments } => (*base, arguments.clone()),
+                    _ => (ty, Vec::new()),
+                };
+                let ty = tree.type_definition(ty);
+
+                // instantiate modified storage before projecting through it
+                if let Type::Uninit { value } | Type::ManuallyDrop { value } = ty {
+                    let value = *value;
+                    let value = Substitution::new(tree, &arguments).ty(value);
+
+                    return Self::Value(value).project(projection, tree);
+                }
+
+                let selected = match (projection, ty) {
+                    (
+                        Projection::Deref,
+                        Type::Reference { pointee, .. } | Type::Pointer { pointee, .. },
+                    ) => Some(Self::Value(*pointee)),
+                    (Projection::Deref, Type::Slice { element, .. }) => {
+                        Some(Self::Sequence(*element))
+                    }
+                    (Projection::Field { index }, ty) => {
+                        ty.field_type(*index, tree).map(Self::Value)
+                    }
+                    (Projection::Variant { case }, Type::Variant { cases, .. }) => {
+                        cases.get(*case as usize).map(|case| Self::Value(case.ty))
+                    }
+                    (
+                        Projection::Elements
+                        | Projection::Element { .. }
+                        | Projection::Index { .. },
+                        Type::FixedArray { element, .. } | Type::Vector { element, .. },
+                    ) => Some(Self::Value(*element)),
+                    (Projection::Slice { .. }, Type::FixedArray { element, .. }) => {
+                        Some(Self::Sequence(*element))
+                    }
+                    _ => None,
+                }?;
+
+                // substitute only the selected field or element
+                let mut substitution = Substitution::new(tree, &arguments);
+                let selected = match selected {
+                    Self::Value(ty) => Self::Value(substitution.ty(ty)),
+                    Self::Sequence(ty) => Self::Sequence(substitution.ty(ty)),
+                };
+
+                Some(selected)
+            }
+        }
+    }
+}
+
+/// One projection in a MIR path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Projection {
     /// Any element of a repeated type.
@@ -35,8 +261,37 @@ pub enum Projection {
         /// The runtime length value.
         length: Value,
     },
-    /// The whole pointee behind a unique reference.
+    /// The referent of a reference.
     Deref,
+}
+
+impl Projection {
+    /// Return whether this projection includes every selection of another projection.
+    pub fn contains(&self, other: &Self) -> bool {
+        self == other
+            || matches!(
+                (self, other),
+                (
+                    Self::Elements,
+                    Self::Element { .. } | Self::Index { .. } | Self::Slice { .. }
+                )
+            )
+    }
+
+    /// Return whether two projections can select the same component.
+    pub fn overlaps(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Field { index: left }, Self::Field { index: right })
+            | (Self::Element { index: left }, Self::Element { index: right }) => left == right,
+            (Self::Variant { case: left }, Self::Variant { case: right }) => left == right,
+            (Self::Deref, Self::Deref) => true,
+            (
+                Self::Elements | Self::Element { .. } | Self::Index { .. } | Self::Slice { .. },
+                Self::Elements | Self::Element { .. } | Self::Index { .. } | Self::Slice { .. },
+            ) => true,
+            _ => false,
+        }
+    }
 }
 
 /// A rootless path through a MIR value or type shape.
@@ -123,7 +378,8 @@ impl Path {
                     *start = map(*start);
                     *length = map(*length);
                 }
-                Projection::Field { .. }
+                Projection::Elements
+                | Projection::Field { .. }
                 | Projection::Element { .. }
                 | Projection::Variant { .. }
                 | Projection::Deref => {}

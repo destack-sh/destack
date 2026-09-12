@@ -3,7 +3,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
     ControlTable, DefinitionTable, DominatorTable, UseTable, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_remap,
+    terminator_remap,
 };
 
 /// Return one block target with appended arguments.
@@ -335,7 +335,6 @@ impl BlockParamForwarding {
 pub fn apply_substitutions_in_dominated_blocks(
     function: &mir::Function,
     tree: &mut mir::Tree,
-    accesses: &mut mir::AccessTable,
     dominator: &DominatorTable,
     root: mir::LocalNodeId<mir::Block>,
     substitutions: &FxIndexMap<mir::Value, mir::Value>,
@@ -370,7 +369,6 @@ pub fn apply_substitutions_in_dominated_blocks(
             // replace when a rewrite occurred
             if updated != instruction {
                 tree.set(instruction_id, updated);
-                remap_instruction_memory_accesses(accesses, instruction_id, substitutions);
                 changed = true;
             }
         }

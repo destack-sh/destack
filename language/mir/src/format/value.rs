@@ -1,13 +1,98 @@
 use destack_core::float_from_bits;
-use destack_fir::format::{Format, FormatResult};
+use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::r#type::{format_generic_arguments, format_parameter, format_type_expanded};
 
 use crate::{
-    BlockId, Constant, Formatter, FunctionId, GlobalId, LocalNodeId, Type, TypeId, Value, Writer,
+    BlockId, Constant, Formatter, FunctionId, GlobalId, LocalNodeId, Place, PlaceOrigin,
+    Projection, Type, TypeId, Value, Writer,
 };
+
+impl<'a> Format<'a, Formatter<'a>> for Place {
+    fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+        format_place(self.origin, &self.path.projections, f)
+    }
+}
+
+/// Format a root and its ordered projections.
+fn format_place<'a>(
+    origin: PlaceOrigin,
+    projections: &[Projection],
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    let Some((projection, prefix)) = projections.split_last() else {
+        return match origin {
+            PlaceOrigin::Local(local) => {
+                let index = f.context().local_index(local)?;
+
+                write!(f, [copied_text(&format!("l{index}"))])
+            }
+            PlaceOrigin::Global(global) => {
+                write!(f, [token("@")])?;
+                format_global_id(global, f)
+            }
+            PlaceOrigin::Value(value) => write!(f, [value]),
+        };
+    };
+
+    match projection {
+        Projection::Deref => {
+            write!(f, [token("(*")])?;
+            format_place(origin, prefix, f)?;
+            write!(f, [token(")")])
+        }
+        Projection::Field { index } => {
+            // reuse parentheses supplied by a dereference or case selection
+            let is_grouped = matches!(
+                prefix.last(),
+                Some(Projection::Deref | Projection::Variant { .. })
+            );
+            if !is_grouped {
+                write!(f, [token("(")])?;
+            }
+            format_place(origin, prefix, f)?;
+            if !is_grouped {
+                write!(f, [token(")")])?;
+            }
+
+            write!(f, [token("."), copied_text(&index.to_string())])
+        }
+        Projection::Variant { case } => {
+            write!(f, [token("(")])?;
+            format_place(origin, prefix, f)?;
+            write!(
+                f,
+                [
+                    space(),
+                    token("as"),
+                    space(),
+                    copied_text(&case.to_string()),
+                    token(")")
+                ]
+            )
+        }
+        Projection::Element { index } => {
+            format_place(origin, prefix, f)?;
+            write!(f, [token("["), copied_text(&index.to_string()), token("]")])
+        }
+        Projection::Index { index } => {
+            format_place(origin, prefix, f)?;
+            write!(f, [token("["), index, token("]")])
+        }
+        Projection::Slice { start, length } => {
+            format_place(origin, prefix, f)?;
+            write!(
+                f,
+                [token("["), start, token(";"), space(), length, token("]")]
+            )
+        }
+        Projection::Elements => Err(FormatError::SyntaxError {
+            message: "a memory operand must select a concrete element or slice",
+        }),
+    }
+}
 
 impl<'a> Format<'a, Formatter<'a>> for Value {
     fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {

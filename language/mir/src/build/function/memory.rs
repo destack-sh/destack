@@ -1,26 +1,10 @@
 use destack_core::StringId;
 
 use crate::build::FunctionBuilder;
-use crate::{
-    Access, AddressKind, Block, Copy, Global, Instruction, Lifetime, Local, LocalNodeId,
-    Mutability, Reference, Storage, Type, Value,
-};
+use crate::{Block, Copy, Global, Instruction, Local, LocalNodeId, Mutability, Place, Type, Value};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
-    /// Return the existing or inserted pointer-sized unsigned integer type.
-    pub fn ensure_usize_type(&mut self) -> LocalNodeId<Type> {
-        if let Some((ty, _)) = self
-            .tree
-            .iter_nodes::<Type>()
-            .find(|(_, ty)| matches!(ty, Type::Usize))
-        {
-            return ty;
-        }
-
-        self.tree.intern_type(Type::Usize)
-    }
-
     /// Create a local variable (stack slot).
     pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
         let local = self.insert(Local::new(ty, mutability));
@@ -30,38 +14,14 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Load from a local variable.
     pub fn local_get(&mut self, local: LocalNodeId<Local>, copy: Copy) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::LocalGet {
-            copy,
-            destination,
-            local,
-        });
-        let local_ty = self.tree.get(local).ty;
-        self.define_value(destination, local_ty);
-        destination
-    }
+        let ty = self.tree.get(local).ty;
 
-    /// Get the address of a local variable.
-    pub fn local_addr(
-        &mut self,
-        local: LocalNodeId<Local>,
-        result_type: LocalNodeId<Type>,
-        kind: AddressKind,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::LocalAddr {
-            destination,
-            local,
-            result_type,
-            kind,
-        });
-        self.define_value(destination, result_type);
-        destination
+        self.load(Place::local(local), ty, copy)
     }
 
     /// Store to a local variable.
     pub fn local_set(&mut self, local: LocalNodeId<Local>, value: Value) {
-        self.insert_instruction(Instruction::LocalSet { local, value });
+        self.store(Place::local(local), value);
     }
 
     /// Set a local at the end of one block, ahead of its terminator.
@@ -71,26 +31,11 @@ impl<'a> FunctionBuilder<'a> {
         local: LocalNodeId<Local>,
         value: Value,
     ) {
-        let instruction = self.insert(Instruction::LocalSet { local, value });
-        self.tree.get_mut(block).instructions.push(instruction);
-    }
-
-    /// Get the address of a mutable global variable.
-    pub fn global_addr(
-        &mut self,
-        global: LocalNodeId<Global>,
-        result_type: LocalNodeId<Type>,
-        kind: AddressKind,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::GlobalAddr {
-            destination,
-            global,
-            result_type,
-            kind,
+        let instruction = self.insert(Instruction::Store {
+            place: Place::local(local),
+            value,
         });
-        self.define_value(destination, result_type);
-        destination
+        self.tree.get_mut(block).instructions.push(instruction);
     }
 
     /// Declare an external global from inside a function body.
@@ -103,62 +48,47 @@ impl<'a> FunctionBuilder<'a> {
         self.insert(Global::import(self.module, name, ty, mutability))
     }
 
-    /// Load one global value through its address.
+    /// Read a global value.
     pub fn load_global(&mut self, global: LocalNodeId<Global>, copy: Copy) -> Value {
-        let global_ty = self.tree.get(global).ty;
-        let global_space = self.tree.get(global).space;
-        let global_pointer = self.tree.intern_type(Type::Reference {
-            kind: Reference::Borrowed,
-            lifetime: Lifetime::empty(),
-            storage: Storage::global(global_space),
-            access: Access::Readonly,
-            pointee: global_ty,
-        });
-        let pointer = self.global_addr(global, global_pointer, AddressKind::Projection);
+        let ty = self.tree.get(global).ty;
 
-        self.load(pointer, global_ty, copy)
+        self.load(Place::global(global), ty, copy)
     }
 
-    /// Store one global value through its address.
+    /// Write a global value.
     pub fn store_global(&mut self, global: LocalNodeId<Global>, value: Value) {
-        let global_ty = self.tree.get(global).ty;
-        let global_space = self.tree.get(global).space;
-        let global_pointer = self.tree.intern_type(Type::Reference {
-            kind: Reference::Borrowed,
-            lifetime: Lifetime::empty(),
-            storage: Storage::global(global_space),
-            access: Access::Mutable,
-            pointee: global_ty,
-        });
-        let pointer = self.global_addr(global, global_pointer, AddressKind::Projection);
-
-        self.store(pointer, value);
+        self.store(Place::global(global), value);
     }
 
-    /// Load from a pointer.
-    pub fn load(
-        &mut self,
-        pointer_value: Value,
-        result_type: LocalNodeId<Type>,
-        copy: Copy,
-    ) -> Value {
+    /// Read a place.
+    pub fn load(&mut self, place: Place, result_type: LocalNodeId<Type>, copy: Copy) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Load {
             copy,
             destination,
-            pointer: pointer_value,
+            place,
             result_type,
         });
         self.define_value(destination, result_type);
         destination
     }
 
-    /// Store to a pointer.
-    pub fn store(&mut self, pointer_value: Value, value: Value) {
-        self.insert_instruction(Instruction::Store {
-            pointer: pointer_value,
-            value,
+    /// Take the address of a place.
+    pub fn address(&mut self, place: Place, result_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Address {
+            destination,
+            place,
+            result_type,
         });
+        self.define_value(destination, result_type);
+
+        destination
+    }
+
+    /// Write a place.
+    pub fn store(&mut self, place: Place, value: Value) {
+        self.insert_instruction(Instruction::Store { place, value });
     }
 
     /// Create a linear uninitialized allocation token type.
