@@ -620,6 +620,13 @@ pub struct ExtensionDefinition {
 }
 
 impl ExtensionDefinition {
+    /// Return the positively implemented interfaces.
+    pub fn implementations(&self) -> impl Iterator<Item = &NominalConformance> {
+        self.implements
+            .iter()
+            .filter(|conformance| conformance.polarity == Polarity::Positive)
+    }
+
     /// Create a new extension.
     pub fn new(
         symbol: GlobalSymbolId,
@@ -749,6 +756,17 @@ pub struct NominalConformance {
     pub source: GlobalNodeIdAny,
     /// The applied interface type.
     pub interface: GlobalTypeId,
+    /// Whether the declaration implements or refuses the interface.
+    pub polarity: Polarity,
+}
+
+/// The direction of one implements clause.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
+pub enum Polarity {
+    /// `implements Copy`.
+    Positive,
+    /// `implements !Copy`.
+    Negative,
 }
 
 /// One field member.
@@ -988,6 +1006,11 @@ impl DefinitionMember {
         }
     }
 
+    /// Return whether this member is an associated type or const.
+    pub fn is_associated(&self) -> bool {
+        matches!(self, Self::AssociatedType(_) | Self::AssociatedConst(_))
+    }
+
     /// Return the declaring member symbol.
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
@@ -1139,7 +1162,21 @@ impl Definition {
     }
 
     /// Return the implemented interfaces.
-    pub fn implementations(&self) -> &[NominalConformance] {
+    pub fn implementations(&self) -> impl Iterator<Item = &NominalConformance> {
+        self.conformances()
+            .iter()
+            .filter(|conformance| conformance.polarity == Polarity::Positive)
+    }
+
+    /// Return the negatively implemented interfaces.
+    pub fn negatives(&self) -> impl Iterator<Item = &NominalConformance> {
+        self.conformances()
+            .iter()
+            .filter(|conformance| conformance.polarity == Polarity::Negative)
+    }
+
+    /// Return every implements clause, positive and negative.
+    pub fn conformances(&self) -> &[NominalConformance] {
         match self {
             Self::Struct(definition) => &definition.implements,
             Self::Class(definition) => &definition.implements,
@@ -1212,7 +1249,6 @@ impl Definition {
             .collect::<SmallVec<[NominalHeritage; 4]>>();
         edges.extend(
             self.implementations()
-                .iter()
                 .map(|conformance| NominalHeritage {
                     source: conformance.source,
                     ty: conformance.interface,

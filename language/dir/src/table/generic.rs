@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::FxIndexMap as IndexMap;
 
 use crate::{
-    Arena, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
+    Arena, GenericParameterBinding, GenericParameterKey, GenericTemplate,
     GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceKey, InstanceOrigin,
     Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
     LocalSymbolId, MemoryParameter, SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
@@ -70,16 +70,6 @@ impl<'a> GenericTable<'a> {
         None
     }
 
-    /// Return the cardinality recorded for one parameter.
-    pub fn cardinality(&self, parameter_id: LocalGenericParameterId) -> Option<Cardinality> {
-        for segment in self.segments.iter().rev() {
-            if let Some(cardinality) = segment.cardinality(parameter_id) {
-                return Some(cardinality);
-            }
-        }
-
-        None
-    }
 
     /// Create a generic table by appending a borrowed tail segment.
     pub fn with_tail<'b>(&'b self, tail: &'b GenericSegment) -> GenericTable<'b> {
@@ -399,8 +389,6 @@ pub struct GenericSegment {
     pub(crate) parameters: Arena<GenericParameterBinding>,
     /// Variances derived from declared member types.
     pub(crate) variances: Vec<(LocalGenericParameterId, VarianceModifier)>,
-    /// Cardinalities derived from declared value positions.
-    pub(crate) cardinalities: Vec<(LocalGenericParameterId, Cardinality)>,
     /// The first generic instance id owned by this table segment.
     pub(crate) first_instance_id: u32,
     /// Generic instances closed by this segment.
@@ -435,7 +423,6 @@ impl GenericSegment {
             templates_by_scope: Vec::new(),
             parameters: Arena::new(),
             variances: Vec::new(),
-            cardinalities: Vec::new(),
             first_instance_id: 0,
             instances: Arena::new(),
             application_instances: IndexMap::default(),
@@ -459,7 +446,6 @@ impl GenericSegment {
             templates_by_scope: Vec::new(),
             parameters: Arena::new(),
             variances: Vec::new(),
-            cardinalities: Vec::new(),
             first_instance_id: base.instance_count(),
             instances: Arena::new(),
             application_instances: IndexMap::default(),
@@ -490,36 +476,6 @@ impl GenericSegment {
             .map(|(_, variance)| *variance)
     }
 
-    /// Record the cardinality one parameter's value positions derive.
-    pub fn set_cardinality(
-        &mut self,
-        parameter_id: LocalGenericParameterId,
-        cardinality: Cardinality,
-    ) {
-        match self
-            .cardinalities
-            .iter_mut()
-            .find(|(recorded, _)| *recorded == parameter_id)
-        {
-            // upgrade a recorded Of to One
-            Some((_, recorded)) => {
-                if matches!(recorded, Cardinality::Of { .. })
-                    && matches!(cardinality, Cardinality::One { .. })
-                {
-                    *recorded = cardinality;
-                }
-            }
-            None => self.cardinalities.push((parameter_id, cardinality)),
-        }
-    }
-
-    /// Return the cardinality recorded for one parameter.
-    pub fn cardinality(&self, parameter_id: LocalGenericParameterId) -> Option<Cardinality> {
-        self.cardinalities
-            .iter()
-            .find(|(recorded, _)| *recorded == parameter_id)
-            .map(|(_, cardinality)| *cardinality)
-    }
 
     /// Append a generic template to this segment.
     pub fn push_template(&mut self, template: GenericTemplate) -> LocalGenericTemplateId {
@@ -647,7 +603,6 @@ impl GenericSegment {
         self.templates.is_empty()
             && self.parameters.is_empty()
             && self.variances.is_empty()
-            && self.cardinalities.is_empty()
             && self.instances.is_empty()
             && self.witnesses.is_empty()
             && self.instantiations.is_empty()

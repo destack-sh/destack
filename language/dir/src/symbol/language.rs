@@ -1936,7 +1936,6 @@ define_language_items! {
         /// `destack:memory/type`.
         type {
             /// Make the default value form explicit.
-            ValueOf => (Type, "memory/type", "ValueOf"),
 
             /// Project the access mode of a memory form.
             AccessOf => (Type, "memory/type", "AccessOf"),

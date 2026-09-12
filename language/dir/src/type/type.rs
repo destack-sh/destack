@@ -773,7 +773,7 @@ pub enum Access {
 
 impl Access {
     /// Parse one canonical access name.
-    pub fn from_text(value: StringId) -> Option<Self> {
+    pub fn from_text(value: &str) -> Option<Self> {
         [
             Self::Readonly,
             Self::Mutable,
@@ -781,7 +781,7 @@ impl Access {
             Self::Exclusive,
         ]
         .into_iter()
-        .find(|access| value == StringId::for_text(access.text()))
+        .find(|access| access.text() == value)
     }
 
     /// Return whether this access grants the requested access.
@@ -822,10 +822,10 @@ impl Space {
     }
 
     /// Parse one canonical space name.
-    pub fn from_text(value: StringId) -> Option<Self> {
+    pub fn from_text(value: &str) -> Option<Self> {
         [Self::Local, Self::Shared, Self::Constant]
             .into_iter()
-            .find(|space| value == StringId::for_text(space.text()))
+            .find(|space| space.text() == value)
     }
 }
 
@@ -2531,8 +2531,8 @@ impl ReceiverMode {
     };
 
     /// Parse one canonical receiver mode name.
-    pub fn from_text(value: StringId) -> Option<Self> {
-        if value == StringId::for_text("once") {
+    pub fn from_text(value: &str) -> Option<Self> {
+        if value == "once" {
             Some(Self::Owned)
         } else {
             Access::from_text(value).map(|access| Self::Borrowed { access })

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Coercion, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey,
-    InstanceKeyVisit, IterationDecision, LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey,
+    InstanceKeyVisit, IterationDecision, LanguageItem, LocalScopeId, StaticKey,
     TypeFlags, TypeFold, VarianceModifier, WhereRelation,
 };
 
@@ -442,20 +442,6 @@ pub struct Instantiation {
     pub source: GlobalNodeIdAny,
 }
 
-/// How many inhabitants one parameter's argument type may have.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum Cardinality {
-    /// The argument must be one exact value's type.
-    One {
-        /// The declared use consuming the value.
-        source: LocalNodeIdAny,
-    },
-    /// The parameter carries one callee parameter's cardinality.
-    Of {
-        /// The callee parameter the argument flows into.
-        callee: GlobalGenericParameterId,
-    },
-}
 
 impl GenericParameterBinding {
     /// Return the parameter's well-known memory kind.
