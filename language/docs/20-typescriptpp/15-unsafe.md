@@ -5,6 +5,10 @@ description: Raw pointers are inert.
 
 # Unsafe
 
+- `*T` and `Raw<T>` are the same unchecked (world-relative) pointer form
+- borrowing and raw-pointer conversion preserve the MemoryMap offset
+- native addresses are materialized for machine access and explicit native interop
+
 Safe Destack code can create and carry raw pointers, because there is nothing directly unsafe about just looking at pointers.
 Raw pointers are inert: they do not keep storage alive, do not participate in borrow checking, and do not prove exclusivity.
 

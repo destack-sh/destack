@@ -35,7 +35,7 @@ duplicate(plain);
 - there are basically four axes to model for memory, and TS++ supports them explicitly:
 - (with the defaults being TS shaped as always)
 -  owneship (managed, owned, borrowed, or raw)
--  access (readonly or mutable)
+-  access (readonly, mutable, immutable, or exclusive)
 -  region: space/place (local, shared, inline, or another defined space) + lifetime
 
 - Value Types, wooo
@@ -58,8 +58,10 @@ duplicate(plain);
 | --- | --- | --- | --- |
 | `T` | direct value for value types, managed reference for reference types | mutable | depends on representation |
 | `^T` | uniquely owned value | mutable | yes |
-| `&T` | borrowed access | mutable | on owned storage, by the borrow check |
+| `&T` | borrowed access | mutable | no |
 | `&readonly T` | borrowed readonly access | readonly | no |
+| `&immutable T` | borrowed readonly access that excludes writers | readonly | yes, from owned storage |
+| `&exclusive T` | borrowed access that excludes every other access | mutable | yes, from owned storage |
 | `*T` | inert unchecked pointer | unchecked | unchecked |
 
 - the owner keeps the value alive and destroys it when the owner's own lifetime ends
@@ -72,5 +74,11 @@ class User {}
 const managed: User = new User();
 const owned: ^User = new User();
 const borrowed: &User = &managed;
-const raw: *User = *borrowed;
+const raw: *User = borrowed;
 ```
+
+- `&readonly T` and `&T` on a class borrow the object, which is what a handle already is; `&immutable T` and `&exclusive T` are promises about a place, and a managed object is not a place you own, so for a class they borrow the slot holding the handle: the handle cannot change under you, the object is reached with `&`
+- for value types, and for an object in owned storage like `^User`, the slot is the value, so the promise covers it; raw pointers point at storage the same way
+- managed handles, aliasable borrows, and immutable borrows are `Copy`; a mutable exclusive borrow moves or reborrows
+- `Copy` and `Clone` are independent; `clone(&immutable this): ^this` clones the stored value, `toOwned(&immutable this): this.Owned` creates an owner for a borrowed referent
+- transferring a non-Copy owner into managed storage consumes it; unions keep every alternative's form without boxing and are `Copy` when every alternative is

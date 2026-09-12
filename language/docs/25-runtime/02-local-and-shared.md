@@ -5,6 +5,7 @@ description: local isolated heap per worker
 
 # Local and Shared
 
+- NOTE: maybe move local / shared into typescrippp..? not sure.
 - so far we have assumed basically single-threaded, async execution
 - this is most code, but obviously a complete language needs to consider concurrency at a more fundamental level, across threads
 - many ways to do this, TS already strongly biases into the "local-first" direction

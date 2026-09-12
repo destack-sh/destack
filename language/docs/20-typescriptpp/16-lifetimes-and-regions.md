@@ -21,3 +21,6 @@ function first<'a, T>(values: &'a readonly T[]): &'a readonly T {
 
 - a borrow used to initialize a binding extends its temporary to the binding lifetime; other
 temporaries live to the end of the enclosing statement
+
+- a region is an extent and a place; access and exclusivity are independent, and joins keep sets of extent/place pairs
+- a closure / coroutine carries the lifetime of every borrow it captures on its type, through callable and interface conversions alike

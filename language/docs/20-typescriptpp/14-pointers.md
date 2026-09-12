@@ -19,3 +19,6 @@ let borrow: &User = &user;   // default: a checked borrow
 let pointer: *User = &user;  // typed as raw: an inert, unchecked pointer value
 let again: &User = pointer;  // ERROR: pointers only reborrow inside @unsafe
 ```
+
+- `*T` and `Raw<T>` are the same unchecked, world-relative offset; it does not retain its target and follows the world mapping across CoW forks
+- `Pointer<T>` stores an unchecked native machine address; conversion between the two is explicit
