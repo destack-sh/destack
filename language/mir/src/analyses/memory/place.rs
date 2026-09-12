@@ -1,11 +1,9 @@
-use destack_serde::Reflect;
-use serde::{Deserialize, Serialize};
-
 use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
-    Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, Function, GlobalId,
-    Instruction, Intrinsic, LocalId, LocalNodeId, Mutation, Path, Projection, Storage, Tree, Value,
+    Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, FunctionId, Instruction,
+    Intrinsic, LocalId, LocalNodeId, Mutation, Place, PlaceOrigin, PlaceType, Projection, Storage,
+    Substitution, Tree, Type, Value,
 };
 
 /// Canonical places for one MIR function.
@@ -15,85 +13,18 @@ pub struct PlaceTable {
     values: Vec<Place>,
 }
 
-/// Root storage for one analyzed MIR place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum PlaceOrigin {
-    /// A function-local stack slot.
-    Local(LocalId),
-    /// A module global.
-    Global(GlobalId),
-    /// Storage rooted in an SSA value.
-    Value(Value),
-}
-
-/// One storage location derived from MIR address values.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct Place {
-    /// The root storage.
-    pub origin: PlaceOrigin,
-    /// The structural path from the root.
-    pub path: Path,
-}
-
 impl Place {
-    /// Create a place from one origin.
-    pub fn new(origin: PlaceOrigin) -> Self {
-        Self {
-            origin,
-            path: Path::root(),
-        }
-    }
-
-    /// Create a place rooted in one local.
-    pub fn local(local: LocalId) -> Self {
-        Self::new(PlaceOrigin::Local(local))
-    }
-
-    /// Create a place rooted in one global.
-    pub fn global(global: GlobalId) -> Self {
-        Self::new(PlaceOrigin::Global(global))
-    }
-
-    /// Create a place rooted in one SSA value.
-    pub fn value(value: Value) -> Self {
-        Self::new(PlaceOrigin::Value(value))
-    }
-
-    /// Return this place with one extra projection.
-    pub fn with_projection(mut self, projection: Projection) -> Self {
-        self.path.push(projection);
-
-        self
-    }
-
-    /// Return this place with another path appended.
-    pub fn with_path(mut self, path: &Path) -> Self {
-        self.path = self.path.with_path(path);
-
-        self
-    }
-
-    /// Append one projection.
-    pub fn push(&mut self, projection: Projection) {
-        self.path.push(projection);
-    }
-
-    /// Return whether this place contains another place.
-    pub fn contains(&self, other: &Self) -> bool {
-        self.origin == other.origin && self.path.contains(&other.path)
-    }
-
     /// Return the storage containing this place.
-    pub fn storage(&self, function: &Function, tree: &Tree) -> Option<Storage> {
-        match self.origin {
-            PlaceOrigin::Local(local) if self.path.first() == Some(&Projection::Deref) => {
-                let ty = tree.get(local).ty;
+    pub fn storage(&self, function: FunctionId, tree: &mut Tree) -> Option<Storage> {
+        if self.path.projections.contains(&Projection::Deref) {
+            let reference = self.reference_type(function, tree)?;
 
-                tree.get(tree.represented(ty)).reference_storage()
+            tree.type_definition(reference).reference_storage()
+        } else {
+            match self.origin {
+                PlaceOrigin::Global(global) => Some(Storage::global(tree.get(global).space)),
+                PlaceOrigin::Local(_) | PlaceOrigin::Value(_) => Some(Storage::Frame),
             }
-            PlaceOrigin::Local(_) => Some(Storage::Frame),
-            PlaceOrigin::Global(global) => Some(Storage::global(tree.get(global).space)),
-            PlaceOrigin::Value(value) => function.reference_storage(value, tree),
         }
     }
 
@@ -102,27 +33,95 @@ impl Place {
         &self,
         other: &Self,
         constants: &ConstantTable,
-        function: &Function,
-        tree: &Tree,
+        function: FunctionId,
+        tree: &mut Tree,
     ) -> bool {
-        // compare projections within the same storage
+        // compare inline projections after the common prefix
         if self.origin == other.origin {
-            return !self
+            let common = self
                 .path
                 .projections
                 .iter()
                 .zip(&other.path.projections)
-                .any(|(left, right)| Self::projections_are_disjoint(left, right, constants));
+                .take_while(|(left, right)| left == right)
+                .count();
+            let left = &self.path.projections[common..];
+            let right = &other.path.projections[common..];
+            if !left.contains(&Projection::Deref) && !right.contains(&Projection::Deref) {
+                return match (left.first(), right.first()) {
+                    (Some(left), Some(right)) => {
+                        !Self::projections_are_disjoint(left, right, constants)
+                    }
+                    _ => true,
+                };
+            }
         }
 
-        // distinguish structural borrow roots from their possible runtime aliases
-        match (self.origin, other.origin) {
-            (PlaceOrigin::Value(_), PlaceOrigin::Value(_)) => false,
-            (PlaceOrigin::Value(_), _) | (_, PlaceOrigin::Value(_)) => {
-                self.storage(function, tree) == other.storage(function, tree)
-            }
-            _ => false,
+        // distinct root values occupy distinct storage until a reference is followed
+        if !self.path.projections.contains(&Projection::Deref)
+            && !other.path.projections.contains(&Projection::Deref)
+        {
+            return false;
         }
+
+        self.storage(function, tree)
+            .zip(other.storage(function, tree))
+            .is_none_or(|(left, right)| left.storage_set(tree).may_alias(right.storage_set(tree)))
+    }
+
+    /// Iterate inline variants whose cases this place selects.
+    pub fn variants(&self) -> impl Iterator<Item = Self> + '_ {
+        self.path
+            .projections
+            .iter()
+            .enumerate()
+            .rev()
+            .take_while(|(_, projection)| **projection != Projection::Deref)
+            .filter_map(|(index, projection)| {
+                if !matches!(projection, Projection::Variant { .. }) {
+                    return None;
+                }
+                let mut variant = self.clone();
+                variant.path.projections.truncate(index);
+
+                Some(variant)
+            })
+    }
+
+    /// Return whether replacing this place may change a case selected by the borrowed place.
+    pub fn may_replace_case(
+        &self,
+        borrowed: &Self,
+        constants: &ConstantTable,
+        function: FunctionId,
+        tree: &mut Tree,
+    ) -> bool {
+        borrowed.variants().any(|mut variant| {
+            // permit writes confined to the selected payload
+            let length = variant.path.projections.len();
+            variant.push(borrowed.path.projections[length].clone());
+            if variant.contains(self) {
+                return false;
+            }
+            variant.path.projections.truncate(length);
+
+            // omit variants whose case cannot change
+            let Some(PlaceType::Value(mut ty)) = variant.ty(function, tree) else {
+                unreachable!("a variant projection requires a value");
+            };
+            loop {
+                ty = Substitution::resolve(ty, tree);
+                match tree.get(ty) {
+                    Type::Uninit { value } | Type::ManuallyDrop { value } => ty = *value,
+                    _ => break,
+                }
+            }
+            let Type::Variant { cases, .. } = tree.get(ty) else {
+                unreachable!("a variant projection requires a variant");
+            };
+
+            cases.len() > 1 && self.may_overlap(&variant, constants, function, tree)
+        })
     }
 
     /// Return whether two projections are proven disjoint.
@@ -131,13 +130,6 @@ impl Place {
         right: &Projection,
         constants: &ConstantTable,
     ) -> bool {
-        // the payloads of two cases never hold values at once
-        if let (Projection::Variant { case: left }, Projection::Variant { case: right }) =
-            (left, right)
-        {
-            return left != right;
-        }
-
         // compare the projected index intervals
         let Some(left) = Self::projection_interval(left, constants) else {
             return false;
@@ -167,7 +159,7 @@ impl Place {
 
                 Some((start, end))
             }
-            Projection::Variant { .. } | Projection::Deref => None,
+            Projection::Elements | Projection::Variant { .. } | Projection::Deref => None,
             Projection::Slice { start, length } => {
                 let start = Self::projection_constant(*start, constants)?;
                 let length = Self::projection_constant(*length, constants)?;
@@ -190,15 +182,15 @@ impl Place {
 
 impl PlaceTable {
     /// Analyse storage origins and address projections for one function.
-    pub fn analyse(function: &Function, graph: &ControlTable, tree: &Tree) -> Self {
-        let mut resolutions = vec![Resolution::Unknown; function.value_types().len()];
+    pub fn analyse(function: FunctionId, graph: &ControlTable, tree: &mut Tree) -> Self {
+        let mut resolutions = vec![Resolution::Unknown; tree.get(function).value_types().len()];
 
         // root function parameters in their incoming values
-        for parameter in &function.parameters {
+        for parameter in &tree.get(function).parameters {
             Self::set(
                 &mut resolutions,
                 parameter.value,
-                Resolution::Known(Place::value(parameter.value)),
+                Resolution::Known(Place::value(parameter.value).with_projection(Projection::Deref)),
             );
         }
 
@@ -213,11 +205,11 @@ impl PlaceTable {
             is_changed = false;
 
             // resolve instruction places in each block
-            for &block_id in function.blocks() {
+            for &block_id in tree.get(function).blocks() {
                 let block = tree.get(block_id);
 
                 // merge every block parameter from its incoming arguments
-                if Some(block_id) != function.entry() {
+                if Some(block_id) != tree.get(function).entry() {
                     for (index, parameter) in block.parameters.iter().enumerate() {
                         let resolution =
                             Self::parameter(block_id, index, graph, &resolutions, tree);
@@ -232,12 +224,25 @@ impl PlaceTable {
                 for &instruction_id in &block.instructions {
                     let instruction = tree.get(instruction_id);
                     match instruction {
-                        Instruction::LocalSet { local, value } if forwarded.contains(local) => {
+                        Instruction::Store {
+                            place:
+                                Place {
+                                    origin: PlaceOrigin::Local(local),
+                                    path,
+                                },
+                            value,
+                        } if path.is_root() && forwarded.contains(local) => {
                             held.insert(*local, Self::copy(*value, &resolutions));
                         }
-                        Instruction::LocalGet { destination, local }
-                            if forwarded.contains(local) =>
-                        {
+                        Instruction::Load {
+                            destination,
+                            place:
+                                Place {
+                                    origin: PlaceOrigin::Local(local),
+                                    path,
+                                },
+                            ..
+                        } if path.is_root() && forwarded.contains(local) => {
                             // resolve the reference held by this local
                             let resolution = match held.get(local) {
                                 Some(Resolution::Opaque) => Resolution::Known(
@@ -272,7 +277,9 @@ impl PlaceTable {
             .enumerate()
             .map(|(index, resolution)| match resolution {
                 Resolution::Known(place) => place,
-                Resolution::Unknown | Resolution::Opaque => Place::value(Value::new(index as u32)),
+                Resolution::Unknown | Resolution::Opaque => {
+                    Place::value(Value::new(index as u32)).with_projection(Projection::Deref)
+                }
             })
             .collect();
 
@@ -291,6 +298,19 @@ impl PlaceTable {
         self.get(value).clone().with_projection(projection)
     }
 
+    /// Resolve the reference root of an explicit memory operand.
+    pub fn resolve_place(&self, place: &Place) -> Place {
+        match (place.origin, place.path.projections.split_first()) {
+            (PlaceOrigin::Value(value), Some((Projection::Deref, projections))) => {
+                let mut resolved = self.get(value).clone();
+                resolved.path.projections.extend_from_slice(projections);
+
+                resolved
+            }
+            _ => place.clone(),
+        }
+    }
+
     /// Resolve one instruction destination.
     fn instruction(
         destination: Value,
@@ -299,34 +319,7 @@ impl PlaceTable {
         tree: &Tree,
     ) -> Resolution {
         match instruction {
-            Instruction::LocalAddr { local, .. } => Resolution::Known(Place::local(*local)),
-            Instruction::GlobalAddr { global, .. } => Resolution::Known(Place::global(*global)),
-            Instruction::FieldAddr {
-                aggregate, field, ..
-            } => Self::resolve_projection(
-                *aggregate,
-                Projection::Field { index: *field },
-                resolutions,
-            ),
-            Instruction::ElementAddr { base, index, .. } => {
-                Self::resolve_projection(*base, Projection::Index { index: *index }, resolutions)
-            }
-            Instruction::VariantPayloadAddr { variant, case, .. } => {
-                Self::resolve_projection(*variant, Projection::Variant { case: *case }, resolutions)
-            }
-            Instruction::SliceView {
-                source,
-                start,
-                length,
-                ..
-            } => Self::resolve_projection(
-                *source,
-                Projection::Slice {
-                    start: *start,
-                    length: *length,
-                },
-                resolutions,
-            ),
+            Instruction::Address { place, .. } => Self::resolve(place, resolutions),
             Instruction::Select {
                 then_value,
                 else_value,
@@ -338,7 +331,9 @@ impl PlaceTable {
                 left.merge(right)
             }
 
-            Instruction::NewComplete { value, .. } => Self::copy(*value, resolutions),
+            Instruction::Copy { value, .. } | Instruction::NewComplete { value, .. } => {
+                Self::copy(*value, resolutions)
+            }
 
             // preserve the storage named by a reinterpreted address
             Instruction::Cast {
@@ -354,29 +349,37 @@ impl PlaceTable {
                 [argument] => Self::copy(*argument, resolutions),
                 _ => unreachable!("representation cast requires one argument"),
             },
-            _ => Resolution::Known(Place::value(destination)),
+            _ => Resolution::Known(Place::value(destination).with_projection(Projection::Deref)),
         }
     }
 
     /// Return reference locals accessed exclusively through local loads and stores.
-    fn forwarded_locals(function: &Function, tree: &Tree) -> FxIndexSet<LocalId> {
+    fn forwarded_locals(function: FunctionId, tree: &mut Tree) -> FxIndexSet<LocalId> {
         let mut exposed = FxIndexSet::default();
-        for &block_id in function.blocks() {
+        for &block_id in tree.get(function).blocks() {
             for &instruction_id in &tree.get(block_id).instructions {
-                if let Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
+                if let Instruction::Address {
+                    place:
+                        Place {
+                            origin: PlaceOrigin::Local(local),
+                            path,
+                        },
+                    ..
+                } = tree.get(instruction_id)
+                    && !path.projections.contains(&Projection::Deref)
+                {
                     exposed.insert(*local);
                 }
             }
         }
 
-        function
-            .locals()
-            .iter()
-            .copied()
-            .filter(|local| {
-                let held = tree.represented(tree.get(*local).ty);
+        (0..tree.get(function).locals().len())
+            .filter_map(|index| {
+                let local = tree.get(function).locals()[index];
+                let held = Substitution::resolve(tree.get(local).ty, tree);
 
-                !exposed.contains(local) && tree.get(held).is_reference_representation()
+                (!exposed.contains(&local) && tree.get(held).is_reference_representation())
+                    .then_some(local)
             })
             .collect()
     }
@@ -423,7 +426,7 @@ impl PlaceTable {
             let terminator = tree.get(source.terminator);
             let result_count = terminator.target_result_count(tree, edge.successor);
             let incoming = if index < result_count {
-                Resolution::Known(Place::value(parameter))
+                Resolution::Known(Place::value(parameter).with_projection(Projection::Deref))
             } else {
                 let arguments = target.arguments(tree);
                 Self::copy(arguments[index - result_count], resolutions)
@@ -434,20 +437,20 @@ impl PlaceTable {
         resolution
     }
 
-    /// Resolve one projected place.
-    fn resolve_projection(
-        value: Value,
-        projection: Projection,
-        resolutions: &[Resolution],
-    ) -> Resolution {
-        match resolutions.get(value.id() as usize) {
-            Some(Resolution::Known(place)) => {
-                Resolution::Known(place.clone().with_projection(projection))
+    /// Resolve a reference dereference while the alias table is being built.
+    fn resolve(place: &Place, resolutions: &[Resolution]) -> Resolution {
+        match (place.origin, place.path.projections.split_first()) {
+            (PlaceOrigin::Value(value), Some((Projection::Deref, projections))) => {
+                match Self::copy(value, resolutions) {
+                    Resolution::Known(mut place) => {
+                        place.path.projections.extend_from_slice(projections);
+
+                        Resolution::Known(place)
+                    }
+                    resolution => resolution,
+                }
             }
-            Some(Resolution::Opaque) => {
-                Resolution::Known(Place::value(value).with_projection(projection))
-            }
-            Some(Resolution::Unknown) | None => Resolution::Unknown,
+            _ => Resolution::Known(place.clone()),
         }
     }
 
@@ -455,7 +458,9 @@ impl PlaceTable {
     fn copy(value: Value, resolutions: &[Resolution]) -> Resolution {
         match resolutions.get(value.id() as usize) {
             Some(Resolution::Known(place)) => Resolution::Known(place.clone()),
-            Some(Resolution::Opaque) => Resolution::Known(Place::value(value)),
+            Some(Resolution::Opaque) => {
+                Resolution::Known(Place::value(value).with_projection(Projection::Deref))
+            }
             Some(Resolution::Unknown) | None => Resolution::Unknown,
         }
     }
@@ -523,7 +528,7 @@ mod tests {
     /// Preserve agreeing references through selections and block arguments.
     #[test]
     fn test_preserve_common_storage_through_merges() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean, v1: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
 entry(v0: boolean, v1: ref<int32, unique, mutable, local>):
@@ -535,20 +540,22 @@ join(v3: ref<int32, unique, mutable, local>):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let table = analyses.place(function, &program.tree);
+        let table = analyses.place(program.entry_function_id(), &mut program.tree);
 
         assert_eq!(
             [Value(2), Value(3)].map(|value| table.get(value)),
-            [&Place::value(Value(1)), &Place::value(Value(1))]
+            [
+                &Place::value(Value(1)).with_projection(Projection::Deref),
+                &Place::value(Value(1)).with_projection(Projection::Deref)
+            ]
         );
     }
 
     /// Preserve a distinct origin when incoming references address different storage.
     #[test]
     fn test_retain_value_origins_for_distinct_incoming_storage() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
 entry(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>):
@@ -559,17 +566,19 @@ join(v3: ref<int32, unique, mutable, local>):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let table = analyses.place(function, &program.tree);
+        let table = analyses.place(program.entry_function_id(), &mut program.tree);
 
-        assert_eq!(table.get(Value(3)), &Place::value(Value(3)));
+        assert_eq!(
+            table.get(Value(3)),
+            &Place::value(Value(3)).with_projection(Projection::Deref)
+        );
     }
 
     /// Compose field, element, and slice projections from the original storage.
     #[test]
     fn test_compose_address_projections() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 type Object {
     values: [int32; 4];
@@ -577,17 +586,18 @@ type Object {
 
 function test<'a>(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64): void {
 entry(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64):
-    v3: ref<[int32; 4], borrowed, 'a, mutable, local> = field.address v0, 0
-    v4: ref<int32, borrowed, 'a, mutable, local> = element.address v3, v1
-    v5: slice<int32, borrowed, 'a, mutable, local> = slice.view v3, v1, v2
+    v3: ref<[int32; 4], borrowed, 'a, mutable, local> = address (*v0).0
+    v4: ref<int32, borrowed, 'a, mutable, local> = address (*v3)[v1]
+    v5: slice<int32, borrowed, 'a, mutable, local> = address (*v3)[v1; v2]
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let table = analyses.place(function, &program.tree);
-        let field = Place::value(Value(0)).with_projection(Projection::Field { index: 0 });
+        let table = analyses.place(program.entry_function_id(), &mut program.tree);
+        let field = Place::value(Value(0))
+            .with_projection(Projection::Deref)
+            .with_projection(Projection::Field { index: 0 });
 
         assert_eq!(
             [Value(3), Value(4), Value(5)].map(|value| table.get(value).clone()),
@@ -607,22 +617,22 @@ entry(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64):
     /// Forward unaddressed locals and preserve places through representation casts.
     #[test]
     fn test_forward_local_references() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>): void {
     local l0: ref<int32, borrowed, 'a, readonly, local>
     local l1: ref<int32, borrowed, 'a, readonly, local>
 
 entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    local.set l1, v0
-    v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, mutable, frame> = local.address l1
-    store v2, v1
+    store l0, v0
+    store l1, v0
+    v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, mutable, frame> = address l1
+    store (*v2), v1
     jump done
 
 done:
-    v3: ref<int32, borrowed, 'a, readonly, local> = local.get l0
-    v4: ref<int32, borrowed, 'a, readonly, local> = local.get l1
+    v3: ref<int32, borrowed, 'a, readonly, local> = load.copy l0
+    v4: ref<int32, borrowed, 'a, readonly, local> = load.copy l1
     v5: usize = cast.bit v3 -> usize
     v6: ref<int32, borrowed, 'a, readonly, local> = intrinsic.memory.raw.transmute(v5)
     v7: ref<int32, borrowed, 'a, readonly, local> = intrinsic.space.cast(v6)
@@ -630,19 +640,18 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let table = analyses.place(function, &program.tree);
+        let table = analyses.place(program.entry_function_id(), &mut program.tree);
 
         assert_eq!(
             [Value(3), Value(4), Value(5), Value(6), Value(7)]
                 .map(|value| table.get(value).clone()),
             [
-                Place::value(Value(0)),
-                Place::value(Value(4)),
-                Place::value(Value(0)),
-                Place::value(Value(0)),
-                Place::value(Value(0)),
+                Place::value(Value(0)).with_projection(Projection::Deref),
+                Place::value(Value(4)).with_projection(Projection::Deref),
+                Place::value(Value(0)).with_projection(Projection::Deref),
+                Place::value(Value(0)).with_projection(Projection::Deref),
+                Place::value(Value(0)).with_projection(Projection::Deref),
             ]
         );
     }
@@ -650,38 +659,37 @@ done:
     /// Constant propagation distinguishes projected array elements.
     #[test]
     fn test_separate_elements_with_distinct_constant_indices() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable, local>): void {
 entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
     v1: uint64 = 0
     v2: uint64 = 1
     v3: uint64 = add v1, v2
-    v4: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v1
-    v5: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v3
+    v4: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v1]
+    v5: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v3]
     return
 }
 "#,
         );
 
         let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
-        let places = analyses.place(function, &program.tree);
+        let constants = analyses.constant(function_id, &mut program.tree);
+        let places = analyses.place(function_id, &mut program.tree);
         // compare projections using direct and propagated constants
         assert!(!places.get(Value(4)).may_overlap(
             places.get(Value(5)),
             &constants,
-            function,
-            &program.tree
+            function_id,
+            &mut program.tree
         ));
     }
 
     /// Preserve the pointee storage of a reference merged through a local.
     #[test]
     fn test_resolve_merged_reference_storage() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean, v1: ref<int32, unique, mutable, shared>, v2: ref<int32, unique, mutable, shared>): void {
     local l0: ref<int32, unique, mutable, shared>
@@ -690,30 +698,61 @@ entry(v0: boolean, v1: ref<int32, unique, mutable, shared>, v2: ref<int32, uniqu
     branch v0 => left | right
 
 left:
-    local.set l0, v1
+    store l0, v1
     jump join
 
 right:
-    local.set l0, v2
+    store l0, v2
     jump join
 
 join:
-    v3: ref<int32, unique, mutable, shared> = local.get l0
+    v3: ref<int32, unique, mutable, shared> = load l0
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let places = analyses.place(function, &program.tree);
-        let local = Place::local(function.local(0));
+        let places = analyses.place(program.entry_function_id(), &mut program.tree);
+        let local = Place::local(program.tree.get(function).local(0));
         let reference = places.get(Value(3));
 
         assert_eq!(reference, &local.clone().with_projection(Projection::Deref));
-        assert_eq!(local.storage(function, &program.tree), Some(Storage::Frame));
         assert_eq!(
-            reference.storage(function, &program.tree),
+            local.storage(program.entry_function_id(), &mut program.tree),
+            Some(Storage::Frame)
+        );
+        assert_eq!(
+            reference.storage(program.entry_function_id(), &mut program.tree),
             Some(Storage::Heap(Space::Shared))
+        );
+
+        // distinguish frame descriptors from their possibly aliased heap referents
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let selected = [
+            local,
+            reference.clone(),
+            Place::value(Value(1)),
+            Place::value(Value(1)).with_projection(Projection::Deref),
+        ];
+        let actual = selected.each_ref().map(|left| {
+            selected.each_ref().map(|right| {
+                left.may_overlap(
+                    right,
+                    &constants,
+                    program.entry_function_id(),
+                    &mut program.tree,
+                )
+            })
+        });
+        assert_eq!(
+            actual,
+            [
+                [true, false, false, false],
+                [false, true, false, true],
+                [false, false, true, false],
+                [false, true, false, true],
+            ]
         );
     }
 }

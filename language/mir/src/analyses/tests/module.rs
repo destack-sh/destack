@@ -6,10 +6,7 @@ use destack_source::{DiagnosticSeverity, ModuleId};
 use crate as mir;
 use crate::analyses::{FunctionCache, ModuleCache};
 use crate::parse::{ParseOptions, Parser, test_file};
-use crate::{
-    AccessTable, DispatchTable, EffectTable, Function, LayoutBuilder, LayoutTable, LocalNodeId,
-    Tree,
-};
+use crate::{DispatchTable, EffectTable, Function, LayoutBuilder, LayoutTable, LocalNodeId, Tree};
 
 /// One parsed MIR module used by analysis tests.
 pub(crate) struct TestModule {
@@ -19,8 +16,7 @@ pub(crate) struct TestModule {
     pub(crate) layouts: Arc<LayoutTable>,
     /// Canonical MIR dispatch table.
     pub(crate) dispatch: DispatchTable,
-    /// Explicit MIR memory access table.
-    pub(crate) accesses: AccessTable,
+
     /// Function and call effect table.
     pub(crate) effects: EffectTable,
     /// String pool for identifiers (immutable, from parser).
@@ -43,12 +39,11 @@ impl TestModule {
         };
         let parsed = Parser::parse(&file, options).expect("MIR parser requires text content");
         let (
-            tree,
+            mut tree,
             target_layout,
             mut layouts,
             dispatch,
             _drops,
-            accesses,
             effects,
             _profile,
             strings,
@@ -61,7 +56,7 @@ impl TestModule {
         }
 
         // construct the layouts supplied by lowering in compiler consumers
-        LayoutBuilder::new(&tree, &mut layouts, target_layout)
+        LayoutBuilder::new(&mut tree, &mut layouts, target_layout)
             .layout_reachable_types()
             .expect("fixture types require valid layouts");
 
@@ -69,7 +64,6 @@ impl TestModule {
             tree,
             layouts: Arc::new(layouts),
             dispatch,
-            accesses,
             effects,
             strings,
         }
@@ -124,8 +118,11 @@ impl TestModule {
             .instructions
             .iter()
             .filter_map(|instruction_id| {
-                if let mir::Instruction::LocalAddr { destination, .. } =
-                    self.tree.get(*instruction_id)
+                if let mir::Instruction::Address {
+                    destination, place, ..
+                } = self.tree.get(*instruction_id)
+                    && matches!(place.origin, mir::PlaceOrigin::Local(_))
+                    && place.path.is_root()
                 {
                     Some(*destination)
                 } else {

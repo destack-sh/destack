@@ -4,8 +4,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Analysis, Function, Instruction, Intrinsic, Local, LocalId, Mutation, NodeTable, Place,
-    PlaceOrigin, PlaceTable, Projection, Reference, Tree, Type, TypeId, Value,
+    Analysis, FunctionId, Instruction, Intrinsic, Local, LocalId, Mutation, NodeTable, Place,
+    PlaceOrigin, PlaceTable, Projection, Reference, Substitution, Tree, Type, TypeId, Value,
 };
 
 /// Dense structural paths whose initialization can change independently.
@@ -27,30 +27,31 @@ pub struct MoveTable {
 
 impl MoveTable {
     /// Build move paths for one function.
-    pub fn analyse(function: &Function, places: &PlaceTable, tree: &Tree) -> Self {
+    pub fn analyse(function: FunctionId, places: &PlaceTable, tree: &mut Tree) -> Self {
         let mut table = Self {
             paths: Vec::new(),
             ids: FxIndexMap::default(),
-            values: vec![None; function.value_types().len()],
-            locals: NodeTable::from_nodes(function.locals(), || None),
+            values: vec![None; tree.get(function).value_types().len()],
+            locals: NodeTable::from_nodes(tree.get(function).locals(), || None),
             pointees: FxIndexMap::default(),
             initialized_pointees: FxIndexSet::default(),
         };
 
         // create roots for every SSA value
-        for (index, ty) in function.value_types().iter().enumerate() {
+        for index in 0..tree.get(function).value_types().len() {
+            let ty = tree.get(function).value_types()[index];
             let Some(ty) = ty else {
                 continue;
             };
 
             // create an independent root for the SSA value
             let value = Value::new(index as u32);
-            let path = table.insert(Place::value(value), *ty, None);
+            let path = table.insert(Place::value(value), ty, None);
             table.values[index] = Some(path);
         }
 
         // create roots for every local
-        for &local in function.locals() {
+        for &local in tree.get(function).locals() {
             let ty = tree.get(local).ty;
 
             // create an independent root for the local
@@ -61,17 +62,22 @@ impl MoveTable {
         // collect types that MIR moves or reconstructs by projection
         let mut projected_types = FxIndexSet::default();
         let mut elements: FxIndexMap<TypeId, FxIndexSet<u32>> = FxIndexMap::default();
-        for &block in function.blocks() {
-            for &instruction in &tree.get(block).instructions {
+        for block_index in 0..tree.get(function).blocks().len() {
+            let block = tree.get(function).blocks()[block_index];
+            for index in 0..tree.get(block).instructions.len() {
+                let instruction = tree.get(block).instructions[index];
                 // retain only the static array elements this function projects
                 if let Instruction::ElementGet {
                     aggregate, index, ..
                 }
                 | Instruction::ElementSet {
                     aggregate, index, ..
-                } = tree.get(instruction)
+                } = &tree.get(instruction).clone()
                 {
-                    let ty = tree.represented(function.expect_value_type(*aggregate));
+                    let ty = Substitution::resolve(
+                        tree.get(function).expect_value_type(*aggregate),
+                        tree,
+                    );
                     elements.entry(ty).or_default().insert(*index);
                 }
 
@@ -94,7 +100,7 @@ impl MoveTable {
                 if let Some(aggregate) = aggregate
                     && table.value(aggregate).is_some()
                 {
-                    projected_types.insert(function.expect_value_type(aggregate));
+                    projected_types.insert(tree.get(function).expect_value_type(aggregate));
                 }
             }
         }
@@ -113,44 +119,40 @@ impl MoveTable {
         }
 
         // track pointee storage independently of the SSA values that own it
-        for (index, ty) in function.value_types().iter().enumerate() {
-            if ty.is_some_and(|ty| tree.get(tree.represented(ty)).is_unique_reference()) {
+        for index in 0..tree.get(function).value_types().len() {
+            let ty = tree.get(function).value_types()[index];
+            if ty.is_some_and(|ty| {
+                let ty = Substitution::resolve(ty, tree);
+                tree.get(ty).is_unique_reference()
+            }) {
                 let value = Value::new(index as u32);
-                if let Some(path) = table.track_pointee(value, function, tree, places, &elements) {
+                if let Some(path) = table.track_pointee(value, tree, places, &elements) {
                     table.pointees.insert(value, path);
                 }
             }
         }
 
         // track the owned pointee each move-only load or store addresses
-        for &block in function.blocks() {
-            for &instruction in &tree.get(block).instructions {
+        for block_index in 0..tree.get(function).blocks().len() {
+            let block = tree.get(function).blocks()[block_index];
+            for index in 0..tree.get(block).instructions.len() {
+                let instruction = tree.get(block).instructions[index];
                 // record explicit assertions of initialized reference storage
                 if let Some(destination) =
-                    initialized_reference(tree.get(instruction), function, tree)
-                    && let Some(path) =
-                        table.track_pointee(destination, function, tree, places, &elements)
+                    initialized_reference(&tree.get(instruction).clone(), function, tree)
+                    && let Some(path) = table.track_pointee(destination, tree, places, &elements)
                 {
                     table.pointees.insert(destination, path);
                     table.initialized_pointees.insert(destination);
                 }
 
-                // track each address used by a load or store
-                let pointer = match tree.get(instruction) {
-                    Instruction::Load { pointer, .. } | Instruction::Store { pointer, .. } => {
-                        *pointer
-                    }
-                    _ => continue,
-                };
-                if table.pointees.contains_key(&pointer) {
+                // track the storage selected by explicit memory operands
+                let instruction = tree.get(instruction).clone();
+                let Some(place) = instruction.place() else {
                     continue;
-                }
-
-                // record the pointee this address moves through
-                if let Some(path) = table.track_pointee(pointer, function, tree, places, &elements)
-                {
-                    table.pointees.insert(pointer, path);
-                }
+                };
+                let place = places.resolve_place(place);
+                table.track_place(&place, tree, &elements);
             }
         }
 
@@ -194,37 +196,30 @@ impl MoveTable {
     fn track_pointee(
         &mut self,
         pointer: Value,
-        function: &Function,
-        tree: &Tree,
+        tree: &mut Tree,
         places: &PlaceTable,
         elements: &FxIndexMap<TypeId, FxIndexSet<u32>>,
     ) -> Option<MovePathId> {
-        // distinguish addressed locals from allocated storage reached through an owner
-        let mut place = places.get(pointer).clone();
-        let root = match place.origin {
-            PlaceOrigin::Local(local) => {
-                if place.path.first() == Some(&Projection::Deref) {
-                    let ty = tree.get(tree.represented(tree.get(local).ty));
-                    let Type::Reference {
-                        kind: Reference::Unique,
-                        pointee,
-                        ..
-                    } = ty
-                    else {
-                        return None;
-                    };
-                    let root = Place::local(local).with_projection(Projection::Deref);
+        self.track_place(places.get(pointer), tree, elements)
+    }
 
-                    self.insert(root, *pointee, None)
-                } else {
-                    self.local(local)?
-                }
-            }
-            PlaceOrigin::Value(value) => {
-                let mut ty = tree.represented(function.expect_value_type(value));
-                while let Type::Uninit { value } | Type::ManuallyDrop { value } = tree.type_definition(ty) {
-                    ty = tree.represented(*value);
-                }
+    /// Track structural storage, crossing only owned references.
+    fn track_place(
+        &mut self,
+        place: &Place,
+        tree: &mut Tree,
+        elements: &FxIndexMap<TypeId, FxIndexSet<u32>>,
+    ) -> Option<MovePathId> {
+        let mut current = match place.origin {
+            PlaceOrigin::Local(local) => self.local(local)?,
+            PlaceOrigin::Value(value) => self.value(value)?,
+            PlaceOrigin::Global(_) => return None,
+        };
+
+        // visit each structural component and each independently owned allocation
+        for (depth, projection) in place.path.projections.iter().enumerate() {
+            if *projection == Projection::Deref {
+                let ty = tree.storage_type(self.get(current).ty);
                 let Type::Reference {
                     kind: Reference::Unique,
                     pointee,
@@ -233,32 +228,21 @@ impl MoveTable {
                 else {
                     return None;
                 };
-                if place.path.first() != Some(&Projection::Deref) {
-                    place.path.projections.insert(0, Projection::Deref);
+                let prefix = self
+                    .get(current)
+                    .place
+                    .clone()
+                    .with_projection(Projection::Deref);
+                current = self.insert(prefix, *pointee, None);
+            } else {
+                if self.children(current).is_empty() {
+                    let path = self.get(current);
+                    self.expand(current, path.place.clone(), path.ty, elements, tree);
                 }
-                let root = Place::value(value).with_projection(Projection::Deref);
-
-                self.insert(root, *pointee, None)
+                current = self.children(current).iter().copied().find(|child| {
+                    self.get(*child).place.path.projections.get(depth) == Some(projection)
+                })?;
             }
-            PlaceOrigin::Global(_) => return None,
-        };
-        let prefix = self.get(root).place.path.projections.len();
-
-        // expand the path one projection at a time down to the addressed storage
-        let mut current = root;
-        for (depth, projection) in place.path.projections.iter().enumerate().skip(prefix) {
-            // expand the children of this step on first arrival
-            if self.children(current).is_empty() {
-                let ty = self.get(current).ty;
-                let prefix = self.get(current).place.clone();
-                self.expand(current, prefix, ty, elements, tree);
-            }
-
-            // step to the child the projection names
-            let child = self.children(current).iter().copied().find(|child| {
-                self.get(*child).place.path.projections.get(depth) == Some(projection)
-            })?;
-            current = child;
         }
 
         Some(current)
@@ -384,9 +368,12 @@ impl MoveTable {
         place: Place,
         ty: TypeId,
         elements: &FxIndexMap<TypeId, FxIndexSet<u32>>,
-        tree: &Tree,
+        tree: &mut Tree,
     ) {
-        let children = match tree.type_definition(ty) {
+        let children = match &{
+            let ty = Substitution::resolve(ty, tree);
+            tree.get(ty).clone()
+        } {
             Type::Struct { fields, .. } => fields
                 .iter()
                 .enumerate()
@@ -436,14 +423,6 @@ impl MoveTable {
                     .into_iter()
                     .map(|index| (Projection::Element { index }, *element))
                     .collect()
-            }
-            // expand an application through the type it stands for
-            Type::Application { .. } => {
-                let applied = tree.represented(ty);
-                if applied != ty {
-                    self.expand(parent, place, applied, elements, tree);
-                }
-                return;
             }
             _ => return,
         };
@@ -523,8 +502,8 @@ impl MovePathId {
 /// Return the reference result of an explicit initialization assertion.
 fn initialized_reference(
     instruction: &Instruction,
-    function: &Function,
-    tree: &Tree,
+    function: FunctionId,
+    tree: &mut Tree,
 ) -> Option<Value> {
     // select reference transmutes with one operand and one result
     let Instruction::Intrinsic {
@@ -538,8 +517,10 @@ fn initialized_reference(
     let [argument] = tree.get_values(*arguments) else {
         unreachable!("transmute requires one argument");
     };
-    let source = tree.get(tree.represented(function.expect_value_type(*argument)));
-    let target = tree.get(tree.represented(function.expect_value_type(*destination)));
+    let source = Substitution::resolve(tree.get(function).expect_value_type(*argument), tree);
+    let source = tree.get(source).clone();
+    let target = Substitution::resolve(tree.get(function).expect_value_type(*destination), tree);
+    let target = tree.get(target).clone();
 
     // recognize the declared transition from uninitialized to initialized pointee storage
     let (
@@ -549,15 +530,16 @@ fn initialized_reference(
         Type::Reference {
             pointee: target, ..
         },
-    ) = (source, target)
+    ) = (&source, &target)
     else {
         return None;
     };
-    let Type::Uninit { value } = tree.get(tree.represented(*source)) else {
+    let source = Substitution::resolve(*source, tree);
+    let Type::Uninit { value } = tree.get(source).clone() else {
         return None;
     };
 
-    (tree.represented(*value) == tree.represented(*target)).then_some(*destination)
+    (value == *target).then_some(*destination)
 }
 
 #[cfg(test)]
@@ -568,7 +550,7 @@ mod tests {
     /// Track only the moved elements of a large fixed array.
     #[test]
     fn test_track_array_elements() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: [ref<int32, unique, mutable, local>; 1048576]): ref<int32, unique, mutable, local> {
 entry(v0: [ref<int32, unique, mutable, local>; 1048576]):
@@ -578,9 +560,8 @@ entry(v0: [ref<int32, unique, mutable, local>; 1048576]):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let paths = analyses.moves(function, &program.tree);
+        let paths = analyses.moves(program.entry_function_id(), &mut program.tree);
         let array = paths.value(Value(0)).unwrap();
         let actual = paths
             .descendants(array)
@@ -600,7 +581,7 @@ entry(v0: [ref<int32, unique, mutable, local>; 1048576]):
     /// Keep an owner's initialization independent from the contents moved through it.
     #[test]
     fn test_separate_owner_and_pointee_move_paths() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>): ref<int32, unique, mutable, local> {
 entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
@@ -609,9 +590,8 @@ entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let paths = analyses.moves(function, &program.tree);
+        let paths = analyses.moves(program.entry_function_id(), &mut program.tree);
         let owner = paths.value(Value(0)).unwrap();
         let pointee = paths.pointee(Value(0)).unwrap();
         let moved = paths.value(Value(1)).unwrap();

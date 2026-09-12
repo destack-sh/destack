@@ -81,15 +81,17 @@ impl ResolutionTable {
     pub fn analyse(
         dispatch: &mir::DispatchTable,
         witnesses: Option<&mir::WitnessTable>,
-        tree: &mir::Tree,
+        tree: &mut mir::Tree,
     ) -> Self {
         let mut targets = Vec::new();
 
         // resolve function values once before visiting each callsite
-        for (_, function) in tree
+        let functions = tree
             .iter_nodes::<mir::Function>()
             .filter(|(_, function)| function.is_defined())
-        {
+            .map(|(id, _)| id)
+            .collect::<Vec<_>>();
+        for function in functions {
             let mut resolver = Resolver {
                 tree,
                 function,
@@ -100,10 +102,13 @@ impl ResolutionTable {
             resolver.analyse();
 
             // resolve each instruction call from its propagated operands
-            for &block_id in function.blocks() {
-                let block = tree.get(block_id);
+            for block_index in 0..resolver.tree.get(function).blocks().len() {
+                let block_id = resolver.tree.get(function).blocks()[block_index];
+                let block = resolver.tree.get(block_id).clone();
                 for &instruction_id in &block.instructions {
-                    if let mir::Instruction::Call { call, .. } = tree.get(instruction_id) {
+                    if let mir::Instruction::Call { call, .. } =
+                        &resolver.tree.get(instruction_id).clone()
+                    {
                         targets.push((
                             mir::Point::Instruction(instruction_id),
                             resolver.resolve(call),
@@ -113,7 +118,7 @@ impl ResolutionTable {
 
                 // include calls that end the block
                 if let mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } =
-                    tree.get(block.terminator)
+                    &resolver.tree.get(block.terminator).clone()
                 {
                     targets.push((mir::Point::Terminator(block_id), resolver.resolve(call)));
                 }
@@ -225,9 +230,9 @@ impl CallValue {
 /// Resolve one function's calls by propagating values through assignments and projections.
 struct Resolver<'a> {
     /// The MIR tree.
-    tree: &'a mir::Tree,
+    tree: &'a mut mir::Tree,
     /// The function whose values and locals are indexed.
-    function: &'a mir::Function,
+    function: mir::FunctionId,
     /// The available dispatch tables.
     dispatch: &'a mir::DispatchTable,
     /// Available witnesses before instantiation resolves their calls.
@@ -254,10 +259,11 @@ impl Resolver<'_> {
     /// Propagate call targets and receiver types through this function's assignments.
     fn analyse(&mut self) {
         // allocate one entry per value and local
-        let count = self.function.value_capacity();
-        self.values = vec![CallValue::Unknown; count + self.function.locals().len()];
+        let count = self.tree.get(self.function).value_capacity();
+        self.values = vec![CallValue::Unknown; count + self.tree.get(self.function).locals().len()];
         let locals = mir::NodeTable::from_entries(
-            self.function
+            self.tree
+                .get(self.function)
                 .locals()
                 .iter()
                 .enumerate()
@@ -268,25 +274,51 @@ impl Resolver<'_> {
         let mut edges = Vec::new();
 
         // admit caller supplied values at function entry
-        for parameter in &self.function.parameters {
+        for parameter in &self.tree.get(self.function).parameters {
             self.values[parameter.value.id() as usize] = CallValue::Open;
         }
 
         // connect instruction operands to the assignments that consume them
-        for &block_id in self.function.blocks() {
+        for &block_id in self.tree.get(self.function).blocks() {
             let block = self.tree.get(block_id);
             for &instruction_id in &block.instructions {
                 let instruction = self.tree.get(instruction_id);
                 let transfer = match instruction {
-                    mir::Instruction::LocalSet { local, value } => Transfer::Copy {
+                    mir::Instruction::Copy { destination, value } => Transfer::Copy {
+                        source: value.id() as usize,
+                        destination: destination.id() as usize,
+                    },
+                    mir::Instruction::Store {
+                        place:
+                            mir::Place {
+                                origin: mir::PlaceOrigin::Local(local),
+                                path,
+                            },
+                        value,
+                    } if path.is_root() => Transfer::Copy {
                         source: value.id() as usize,
                         destination: *locals.get(*local),
                     },
-                    mir::Instruction::LocalGet { destination, local } => Transfer::Copy {
+                    mir::Instruction::Load {
+                        destination,
+                        place:
+                            mir::Place {
+                                origin: mir::PlaceOrigin::Local(local),
+                                path,
+                            },
+                        ..
+                    } if path.is_root() => Transfer::Copy {
                         source: *locals.get(*local),
                         destination: destination.id() as usize,
                     },
-                    mir::Instruction::LocalAddr { local, .. } => {
+                    mir::Instruction::Address {
+                        place:
+                            mir::Place {
+                                origin: mir::PlaceOrigin::Local(local),
+                                path,
+                            },
+                        ..
+                    } if !path.projections.contains(&mir::Projection::Deref) => {
                         self.values[*locals.get(*local)] = CallValue::Open;
                         Transfer::Instruction(instruction_id)
                     }
@@ -488,7 +520,8 @@ impl Resolver<'_> {
     fn cast(&self, source: mir::Value, destination: mir::Value) -> CallValue {
         match self.value(source) {
             CallValue::Fields(_)
-                if self.function.value_type(source) != self.function.value_type(destination) =>
+                if self.tree.get(self.function).value_type(source)
+                    != self.tree.get(self.function).value_type(destination) =>
             {
                 CallValue::Open
             }
@@ -502,7 +535,7 @@ impl Resolver<'_> {
     }
 
     /// Resolve the possible targets of one call.
-    fn resolve(&self, call: &mir::Call) -> Resolution {
+    fn resolve(&mut self, call: &mir::Call) -> Resolution {
         match &call.callee {
             mir::Callee::Direct { function, .. } => Resolution::function(*function),
             mir::Callee::Indirect { value } => match self.value(*value) {
@@ -559,7 +592,7 @@ impl Resolver<'_> {
             } => {
                 let function = self
                     .witnesses
-                    .and_then(|witnesses| witnesses.get(self.tree, *receiver, *interface))
+                    .and_then(|witnesses| witnesses.get(*receiver, *interface))
                     .and_then(|witness| {
                         witness
                             .functions
@@ -576,7 +609,7 @@ impl Resolver<'_> {
     }
 
     /// Return a statically exact receiver type when its representation establishes it.
-    fn receiver_type(&self, receiver: mir::Value) -> Option<mir::TypeId> {
+    fn receiver_type(&mut self, receiver: mir::Value) -> Option<mir::TypeId> {
         // use an allocation's concrete type for reference receivers
         if let CallValue::Receiver(ty) = self.value(receiver) {
             return Some(*ty);
@@ -584,12 +617,13 @@ impl Resolver<'_> {
 
         // use the declared type for values whose representation is concrete
         let ty = self
-            .function
+            .tree
+            .get(self.function)
             .value_type(receiver)
             .unwrap_or_else(|| unreachable!("receiver has no type"));
-        let ty = self.tree.represented(ty);
+        let definition = mir::Substitution::resolve(ty, self.tree);
 
-        (!self.tree.get(ty).is_reference_representation()).then_some(ty)
+        (!self.tree.get(definition).is_reference_representation()).then_some(ty)
     }
 }
 
@@ -602,7 +636,7 @@ mod tests {
     /// Resolve a function field independently of neighboring fields with different signatures.
     #[test]
     fn test_resolve_function_field() {
-        let program = TestProgram::new(&[r#"
+        let mut program = TestProgram::new(&[r#"
 function first(): void {
 entry:
     return
@@ -623,12 +657,12 @@ entry(v0: int32):
     return
 }
 "#]);
-        let module = &program.modules[0];
-        let function = module.tree.get(module.entry_function_id());
-        let block = module.tree.get(function.block(0));
-        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &module.tree);
-        let point = mir::Point::Instruction(block.instructions[4]);
         let effects = program.analyse_effects(None);
+        let module = &mut program.modules[0];
+        let function = module.entry_function_id();
+        let block = module.tree.get(function).block(0);
+        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &mut module.tree);
+        let point = mir::Point::Instruction(module.tree.get(block).instructions[4]);
 
         assert_eq!(
             resolution.resolution(point),
@@ -638,7 +672,10 @@ entry(v0: int32):
             }
         );
         assert_eq!(
-            effects.function(function.symbol).unwrap().effect,
+            effects
+                .function(module.tree.get(function).symbol)
+                .unwrap()
+                .effect,
             mir::FunctionEffect {
                 memory: mir::MemoryEffect::none(),
                 behavior: mir::FunctionBehavior::none().with_will_return(),
@@ -649,7 +686,7 @@ entry(v0: int32):
     /// Resolve a replaced field while retaining the caller supplied value in its neighbor.
     #[test]
     fn test_resolve_replaced_function_field() {
-        let module = TestModule::new(
+        let mut module = TestModule::new(
             r#"
 function callee(): void {
 entry:
@@ -668,12 +705,15 @@ entry(v0: (fn() => void, fn() => void)):
 }
 "#,
         );
-        let function = module.tree.get(module.entry_function_id());
-        let block = module.tree.get(function.block(0));
-        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &module.tree);
+        let function = module.entry_function_id();
+        let block = module.tree.get(function).block(0);
+        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &mut module.tree);
         let callee = module.function_id_by_name("callee");
-        let targets = [block.instructions[3], block.instructions[5]]
-            .map(|instruction| resolution.resolution(mir::Point::Instruction(instruction)));
+        let targets = [
+            module.tree.get(block).instructions[3],
+            module.tree.get(block).instructions[5],
+        ]
+        .map(|instruction| resolution.resolution(mir::Point::Instruction(instruction)));
 
         assert_eq!(
             targets,
@@ -693,7 +733,7 @@ entry(v0: (fn() => void, fn() => void)):
     /// Resolve nested function fields selected by loop arguments and copied through a local.
     #[test]
     fn test_resolve_nested_function_fields_in_loop() {
-        let module = TestModule::new(
+        let mut module = TestModule::new(
             r#"
 function first(): void {
 entry:
@@ -719,11 +759,11 @@ entry(v0: boolean):
     jump loop(v6)
 
 loop(v8: ((fn() => void, int32), int32)):
-    local.set l0, v8
+    store l0, v8
     branch v0 => loop(v7) | exit
 
 exit:
-    v9: ((fn() => void, int32), int32) = local.get l0
+    v9: ((fn() => void, int32), int32) = load.copy l0
     v10: (fn() => void, int32) = field.get v9, 0
     v11: fn() => void = field.get v10, 0
     call.indirect v11(): () => void
@@ -731,14 +771,16 @@ exit:
 }
 "#,
         );
-        let function = module.tree.get(module.entry_function_id());
-        let block = module.tree.get(function.blocks()[2]);
-        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &module.tree);
+        let function = module.entry_function_id();
+        let block = module.tree.get(function).blocks()[2];
+        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &mut module.tree);
         let first = module.function_id_by_name("first");
         let second = module.function_id_by_name("second");
 
         assert_eq!(
-            resolution.resolution(mir::Point::Instruction(block.instructions[3])),
+            resolution.resolution(mir::Point::Instruction(
+                module.tree.get(block).instructions[3]
+            )),
             &mir::Resolution {
                 functions: vec![first, second],
                 is_open: false
@@ -749,7 +791,7 @@ exit:
     /// Resolve each callback after replacing one fixed array element.
     #[test]
     fn test_resolve_function_array_elements() {
-        let module = TestModule::new(
+        let mut module = TestModule::new(
             r#"
 function first(): void {
 entry:
@@ -775,13 +817,16 @@ entry:
 }
 "#,
         );
-        let function = module.tree.get(module.entry_function_id());
-        let block = module.tree.get(function.block(0));
-        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &module.tree);
+        let function = module.entry_function_id();
+        let block = module.tree.get(function).block(0);
+        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &mut module.tree);
         let first = module.function_id_by_name("first");
         let second = module.function_id_by_name("second");
-        let targets = [block.instructions[5], block.instructions[7]]
-            .map(|instruction| resolution.resolution(mir::Point::Instruction(instruction)));
+        let targets = [
+            module.tree.get(block).instructions[5],
+            module.tree.get(block).instructions[7],
+        ]
+        .map(|instruction| resolution.resolution(mir::Point::Instruction(instruction)));
 
         assert_eq!(
             targets,
@@ -801,7 +846,7 @@ entry:
     /// Preserve indirect dispatch when blackBox conceals a callback from optimization.
     #[test]
     fn test_preserve_indirect_call_through_black_box() {
-        let module = TestModule::new(
+        let mut module = TestModule::new(
             r#"
 function callee(): void {
 entry:
@@ -818,12 +863,15 @@ entry:
 }
 "#,
         );
-        let function = module.tree.get(module.entry_function_id());
-        let block = module.tree.get(function.block(0));
-        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &module.tree);
+        let function = module.entry_function_id();
+        let block = module.tree.get(function).block(0);
+        let resolution = mir::ResolutionTable::analyse(&module.dispatch, None, &mut module.tree);
         let callee = module.function_id_by_name("callee");
-        let targets = [block.instructions[1], block.instructions[3]]
-            .map(|instruction| resolution.resolution(mir::Point::Instruction(instruction)));
+        let targets = [
+            module.tree.get(block).instructions[1],
+            module.tree.get(block).instructions[3],
+        ]
+        .map(|instruction| resolution.resolution(mir::Point::Instruction(instruction)));
 
         assert_eq!(
             targets,
@@ -843,7 +891,7 @@ entry:
     /// Preserve function targets through bitcasts and leave numeric conversions unresolved.
     #[test]
     fn test_distinguish_bitcasts_from_numeric_conversions() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function callee(): void {
 entry:
@@ -856,19 +904,22 @@ entry:
     v1: uint64 = cast.bit v0 -> uint64
     v2: fn() => void = cast.bit v1 -> fn() => void
     call.indirect v2(): () => void
-    v3: uint32 = cast.truncate v1 -> uint32
-    v4: uint64 = cast.extend.u v3 -> uint64
+    v3: uint32 = cast.intToInt v1 -> uint32
+    v4: uint64 = cast.intToInt v3 -> uint64
     v5: fn() => void = cast.bit v4 -> fn() => void
     call.indirect v5(): () => void
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
-        let block = program.tree.get(function.block(0));
-        let resolution = mir::ResolutionTable::analyse(&program.dispatch, None, &program.tree);
-        let targets = [block.instructions[3], block.instructions[7]]
-            .map(|instruction| resolution.resolution(mir::Point::Instruction(instruction)));
+        let function = program.entry_function_id();
+        let block = program.tree.get(function).block(0);
+        let resolution = mir::ResolutionTable::analyse(&program.dispatch, None, &mut program.tree);
+        let targets = [
+            program.tree.get(block).instructions[3],
+            program.tree.get(block).instructions[7],
+        ]
+        .map(|instruction| resolution.resolution(mir::Point::Instruction(instruction)));
         let callee = program.function_id_by_name("callee");
 
         assert_eq!(
@@ -906,9 +957,14 @@ entry(v0: int32):
 
         let callee = program.function_id_by_name("callee");
         let test = program.function_id_by_name("test");
-        let function = program.tree.get(test);
-        let class = function.parameters[0].ty;
-        let callsite = mir::Point::Instruction(program.tree.get(function.block(0)).instructions[0]);
+        let function = test;
+        let class = program.tree.get(function).parameters[0].ty;
+        let callsite = mir::Point::Instruction(
+            program
+                .tree
+                .get(program.tree.get(function).block(0))
+                .instructions[0],
+        );
 
         // attach the exact virtual table needed by the callsite
         program.dispatch.insert_virtual_table(mir::VirtualTable {
@@ -917,7 +973,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let resolution = analyses.resolution(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&mut program.tree, &program.dispatch);
 
         assert_eq!(resolution.target(callsite), Some(callee));
     }
@@ -942,10 +998,15 @@ entry(v0: int32):
 
         let callee = program.function_id_by_name("callee");
         let test = program.function_id_by_name("test");
-        let function = program.tree.get(test);
-        let concrete = function.parameters[0].ty;
+        let function = test;
+        let concrete = program.tree.get(function).parameters[0].ty;
         let constraint = concrete;
-        let callsite = mir::Point::Instruction(program.tree.get(function.block(0)).instructions[0]);
+        let callsite = mir::Point::Instruction(
+            program
+                .tree
+                .get(program.tree.get(function).block(0))
+                .instructions[0],
+        );
 
         // attach the concrete dynamic table selected by receiver and constraint
         program.dispatch.insert_dynamic_table(mir::DynamicTable {
@@ -956,7 +1017,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let resolution = analyses.resolution(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&mut program.tree, &program.dispatch);
 
         assert_eq!(resolution.target(callsite), Some(callee));
     }
@@ -1005,8 +1066,8 @@ entry(v0: int32):
             });
         }
         let mut analyses = program.module_analyses();
-        let resolution = analyses.resolution(&program.tree, &program.dispatch);
-        let calls = analyses.call(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&mut program.tree, &program.dispatch);
+        let calls = analyses.call(&mut program.tree, &program.dispatch);
         assert_eq!(resolution.target(callsite), Some(first));
         assert_eq!(
             calls
@@ -1029,8 +1090,8 @@ entry(v0: int32):
         analyses.invalidate(mir::Mutation::LAYOUT);
 
         // require both analyses to select the new receiver's implementation
-        let resolution = analyses.resolution(&program.tree, &program.dispatch);
-        let calls = analyses.call(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&mut program.tree, &program.dispatch);
+        let calls = analyses.call(&mut program.tree, &program.dispatch);
         assert_eq!(resolution.target(callsite), Some(second));
         assert_eq!(
             calls
@@ -1045,7 +1106,7 @@ entry(v0: int32):
     /// Virtual calls do not resolve without a dispatch table.
     #[test]
     fn test_leave_missing_virtual_table_open() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -1056,7 +1117,7 @@ entry(v0: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let resolution = analyses.resolution(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&mut program.tree, &program.dispatch);
 
         let block = program
             .tree
@@ -1074,7 +1135,7 @@ entry(v0: int32):
     /// Preserve all known function targets selected by branch arguments.
     #[test]
     fn test_resolve_merged_function_addresses() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function alpha(): void {
 entry:
@@ -1102,8 +1163,8 @@ join(v3: fn() => void):
         let join = program.tree.get(program.tree.get(function).blocks()[1]);
         let point = mir::Point::Instruction(join.instructions[0]);
         let mut analyses = program.module_analyses();
-        let resolution = analyses.resolution(&program.tree, &program.dispatch);
-        let calls = analyses.call(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&mut program.tree, &program.dispatch);
+        let calls = analyses.call(&mut program.tree, &program.dispatch);
         let mut functions = vec![
             program.function_id_by_name("alpha"),
             program.function_id_by_name("beta"),
@@ -1132,7 +1193,7 @@ join(v3: fn() => void):
     /// Preserve known targets when an indirect call can also select an incoming function.
     #[test]
     fn test_preserve_known_targets_of_open_calls() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function callee(): void {
 entry:
@@ -1152,8 +1213,8 @@ entry(v0: boolean, v1: fn() => void):
         let entry = program.tree.get(program.entry_block_id(function));
         let point = mir::Point::Instruction(entry.instructions[2]);
         let mut analyses = program.module_analyses();
-        let resolution = analyses.resolution(&program.tree, &program.dispatch);
-        let calls = analyses.call(&program.tree, &program.dispatch);
+        let resolution = analyses.resolution(&mut program.tree, &program.dispatch);
+        let calls = analyses.call(&mut program.tree, &program.dispatch);
         let callee = program.function_id_by_name("callee");
 
         assert_eq!(
@@ -1202,12 +1263,12 @@ entry:
 "#,
         );
         let function = program.entry_function_id();
-        let block = program.tree.get(program.entry_block_id(function));
-        let point = mir::Point::Instruction(block.instructions[1]);
+        let block = program.entry_block_id(function);
+        let point = mir::Point::Instruction(program.tree.get(block).instructions[1]);
         let mir::Instruction::NewZeroed {
             storage_type: concrete,
             ..
-        } = program.tree.get(block.instructions[0])
+        } = program.tree.get(program.tree.get(block).instructions[0])
         else {
             panic!("expected Object allocation");
         };
@@ -1217,7 +1278,7 @@ entry:
             concrete,
             methods: vec![callee],
         });
-        let resolution = mir::ResolutionTable::analyse(&program.dispatch, None, &program.tree);
+        let resolution = mir::ResolutionTable::analyse(&program.dispatch, None, &mut program.tree);
 
         assert_eq!(
             resolution.resolution(point),
@@ -1265,21 +1326,18 @@ entry(v0: int32):
         };
         let callee = program.function_id_by_name("implementation");
         let mut witnesses = mir::WitnessTable::default();
-        witnesses.insert(
-            &mut program.tree,
-            mir::Witness {
-                concrete: receiver,
-                constraint: interface,
-                functions: vec![mir::WitnessFunction {
-                    requirement,
-                    function: callee,
-                }],
-                types: Vec::new(),
-                constants: Vec::new(),
-            },
-        );
+        witnesses.insert(mir::Witness {
+            concrete: receiver,
+            constraint: interface,
+            functions: vec![mir::WitnessFunction {
+                requirement,
+                function: callee,
+            }],
+            types: Vec::new(),
+            constants: Vec::new(),
+        });
         let resolution =
-            mir::ResolutionTable::analyse(&program.dispatch, Some(&witnesses), &program.tree);
+            mir::ResolutionTable::analyse(&program.dispatch, Some(&witnesses), &mut program.tree);
 
         assert_eq!(
             resolution.resolution(mir::Point::Instruction(instruction)),

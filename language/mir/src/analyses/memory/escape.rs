@@ -169,17 +169,22 @@ impl EscapeBody {
         resolution: &ResolutionTable,
         calls: &CallTable,
         declared: &EffectTable,
-        tree: &Tree,
+        tree: &mut Tree,
     ) -> NodeTable<Function, Arc<EscapeTable>> {
         let mut bodies = FxIndexMap::default();
         let mut effects = FxIndexMap::<Symbol, EscapeEffect>::default();
         let mut results = FxIndexMap::default();
 
         // extract definitions and declarations through the same pointer graph model
-        for (id, function) in tree.iter_nodes::<Function>() {
-            let graph = Arc::new(ControlTable::analyse(function, tree));
-            let body = EscapeBody::analyse(function, graph, resolution, declared, tree);
-            effects.insert(function.symbol, body.initial_effect());
+        let functions = tree
+            .iter_nodes::<Function>()
+            .map(|(id, _)| id)
+            .collect::<Vec<_>>();
+        for id in functions {
+            let symbol = tree.get(id).symbol;
+            let graph = Arc::new(ControlTable::analyse(tree.get(id), tree));
+            let body = EscapeBody::analyse(id, graph, resolution, declared, tree);
+            effects.insert(symbol, body.initial_effect());
             bodies.insert(id, body);
         }
 
@@ -254,28 +259,31 @@ impl EscapeTable {
 impl EscapeBody {
     /// Extract pointer flow from a defined function's operations and exact control flow edges.
     pub fn analyse(
-        function: &mir::Function,
+        function: mir::FunctionId,
         graph: Arc<mir::ControlTable>,
         resolution: &mir::ResolutionTable,
         effects: &mir::EffectTable,
-        tree: &mir::Tree,
+        tree: &mut mir::Tree,
     ) -> Self {
         // describe externally defined functions through their declarations
-        if !function.is_defined() {
+        if !tree.get(function).is_defined() {
             return Self::declaration(function, tree);
         }
 
         // build the control and place tables required by storage flow
         let dominators = mir::DominatorTable::analyse(graph.clone());
-        let loops = mir::LoopTable::analyse(function, &graph, &dominators);
+        let loops = mir::LoopTable::analyse(tree.get(function), &graph, &dominators);
         let places = mir::PlaceTable::analyse(function, &graph, tree);
-        let count = function.value_capacity() as u32;
+        let count = tree.get(function).value_capacity() as u32;
         let mut body = Self {
             exposure_depths: (0..count)
                 .map(|value| {
                     i32::from(
-                        function.reference_kind(mir::Value(value), tree)
-                            == Some(mir::ReferenceKind::Unique),
+                        {
+                            let ty = tree.get(function).expect_value_type(mir::Value(value));
+                            let ty = mir::Substitution::resolve(ty, tree);
+                            tree.get(ty).reference_kind()
+                        } == Some(mir::Reference::Unique),
                     )
                 })
                 .collect(),
@@ -283,7 +291,8 @@ impl EscapeBody {
             depths: vec![0; count as usize],
             external: vec![false; count as usize],
             roots: Vec::new(),
-            parameters: function
+            parameters: tree
+                .get(function)
                 .parameters
                 .iter()
                 .map(|parameter| parameter.value.id())
@@ -300,14 +309,15 @@ impl EscapeBody {
         body.location(0, false);
         body.location(0, false);
         body.exposure_depths[body.result as usize] = i32::from(
-            tree.get(function.return_type).reference_kind() == Some(mir::ReferenceKind::Unique),
+            tree.get(tree.get(function).return_type).reference_kind()
+                == Some(mir::Reference::Unique),
         );
         body.roots.extend([body.retained, body.result]);
-        if function.environment.is_some() {
+        if tree.get(function).environment.is_some() {
             body.environment = Some(body.location(0, false));
         }
         let locals = mir::NodeTable::from_entries(
-            function
+            tree.get(function)
                 .locals()
                 .iter()
                 .map(|&local| {
@@ -398,10 +408,10 @@ impl EscapeBody {
     }
 
     /// Describe a declaration using conservative parameter retention and external results.
-    fn declaration(function: &mir::Function, tree: &mir::Tree) -> Self {
+    fn declaration(function: mir::FunctionId, tree: &mir::Tree) -> Self {
         // allocate parameter, result, and external retention locations
-        let count = function.parameters.len() as u32;
-        let environment = function.environment.map(|_| count + 2);
+        let count = tree.get(function).parameters.len() as u32;
+        let environment = tree.get(function).environment.map(|_| count + 2);
         let total = count as usize + 2 + usize::from(environment.is_some());
         let mut body = Self {
             value_count: 0,
@@ -421,7 +431,8 @@ impl EscapeBody {
         // preserve ownership on returned references while allowing external pointers in contents
         body.external[body.result as usize] = true;
         body.exposure_depths[body.result as usize] = i32::from(
-            tree.get(function.return_type).reference_kind() == Some(mir::ReferenceKind::Unique),
+            tree.get(tree.get(function).return_type).reference_kind()
+                == Some(mir::Reference::Unique),
         );
         for parameter in body.parameters.iter().copied().chain(body.environment) {
             body.flows.push(EscapeFlow {
@@ -914,19 +925,17 @@ impl EscapeBuilder<'_> {
         instruction: &mir::Instruction,
     ) {
         match instruction {
-            mir::Instruction::LocalAddr {
-                destination, local, ..
-            } => self.flow(*self.locals.get(*local), destination.id(), -1),
-            mir::Instruction::LocalGet { destination, local } => {
-                self.flow(*self.locals.get(*local), destination.id(), 0)
+            mir::Instruction::Copy { destination, value } => {
+                self.flow(value.id(), destination.id(), 0)
             }
-            mir::Instruction::LocalSet { local, value } => {
-                self.flow(value.id(), *self.locals.get(*local), 0)
+            mir::Instruction::Address {
+                destination, place, ..
+            } => {
+                self.read(place, *destination, -1);
             }
-            mir::Instruction::GlobalAddr { destination, .. }
-            | mir::Instruction::ContextCurrent { destination }
+            mir::Instruction::ContextCurrent { destination }
             | mir::Instruction::DynamicFind { destination, .. } => {
-                self.body.external[destination.id() as usize] = true
+                self.body.external[destination.id() as usize] = true;
             }
             mir::Instruction::FunctionEnvironmentCurrent { destination } => {
                 let environment = self.body.environment.unwrap_or_else(|| {
@@ -935,36 +944,30 @@ impl EscapeBuilder<'_> {
                 self.flow(environment, destination.id(), 0);
             }
             mir::Instruction::Load {
-                destination,
-                pointer,
-                ..
+                destination, place, ..
             }
             | mir::Instruction::AtomicLoad {
-                destination,
-                pointer,
-                ..
-            } => self.flow(pointer.id(), destination.id(), 1),
-            mir::Instruction::Store { pointer, value }
-            | mir::Instruction::AtomicStore { pointer, value, .. } => {
-                self.store(*pointer, *value, 0)
-            }
+                destination, place, ..
+            } => self.read(place, *destination, 0),
+            mir::Instruction::Store { place, value }
+            | mir::Instruction::AtomicStore { place, value, .. } => self.store(place, *value, 0),
             mir::Instruction::AtomicRmw {
                 destination,
-                pointer,
+                place,
                 value,
                 ..
             } => {
-                self.store(*pointer, *value, 0);
-                self.flow(pointer.id(), destination.id(), 1);
+                self.store(place, *value, 0);
+                self.read(place, *destination, 0);
             }
             mir::Instruction::AtomicCompareExchange {
                 destination,
-                pointer,
+                place,
                 new_value,
                 ..
             } => {
-                self.store(*pointer, *new_value, 0);
-                self.flow(pointer.id(), destination.id(), 1);
+                self.store(place, *new_value, 0);
+                self.read(place, *destination, 0);
             }
             mir::Instruction::Call { destination, call } => self.call(
                 mir::Point::Instruction(id),
@@ -986,9 +989,21 @@ impl EscapeBuilder<'_> {
                 value,
                 ..
             } => {
-                self.store(*destination, *context, 0);
-                self.store(*destination, *variable, 0);
-                self.store(*destination, *value, 0);
+                self.store(
+                    &mir::Place::value(*destination).with_projection(mir::Projection::Deref),
+                    *context,
+                    0,
+                );
+                self.store(
+                    &mir::Place::value(*destination).with_projection(mir::Projection::Deref),
+                    *variable,
+                    0,
+                );
+                self.store(
+                    &mir::Place::value(*destination).with_projection(mir::Projection::Deref),
+                    *value,
+                    0,
+                );
             }
             mir::Instruction::ContextGet {
                 destination,
@@ -1019,12 +1034,7 @@ impl EscapeBuilder<'_> {
                 value: argument,
                 ..
             } => self.flow(argument.id(), destination.id(), 0),
-            mir::Instruction::FieldAddr {
-                destination,
-                aggregate,
-                ..
-            }
-            | mir::Instruction::FieldGet {
+            mir::Instruction::FieldGet {
                 destination,
                 aggregate,
                 ..
@@ -1034,24 +1044,11 @@ impl EscapeBuilder<'_> {
                 aggregate,
                 ..
             } => self.flow(aggregate.id(), destination.id(), 0),
-            mir::Instruction::ElementAddr {
-                destination, base, ..
-            } => self.flow(base.id(), destination.id(), 0),
             mir::Instruction::VariantPayload {
                 destination,
                 variant,
                 ..
-            }
-            | mir::Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                ..
             } => self.flow(variant.id(), destination.id(), 0),
-            mir::Instruction::SliceView {
-                destination,
-                source,
-                ..
-            } => self.flow(source.id(), destination.id(), 0),
             mir::Instruction::DynamicBind {
                 destination,
                 payload,
@@ -1202,10 +1199,16 @@ impl EscapeBuilder<'_> {
         arguments: &[mir::Value],
     ) {
         match intrinsic {
-            mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
-                self.store(arguments[0], arguments[1], 1)
-            }
-            mir::Intrinsic::VolatileStore => self.store(arguments[0], arguments[1], 0),
+            mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => self.store(
+                &mir::Place::value(arguments[0]).with_projection(mir::Projection::Deref),
+                arguments[1],
+                1,
+            ),
+            mir::Intrinsic::VolatileStore => self.store(
+                &mir::Place::value(arguments[0]).with_projection(mir::Projection::Deref),
+                arguments[1],
+                0,
+            ),
             mir::Intrinsic::VolatileLoad => {
                 if let Some(destination) = destination {
                     self.flow(arguments[0].id(), destination.id(), 1);
@@ -1230,10 +1233,30 @@ impl EscapeBuilder<'_> {
         }
     }
 
+    /// Record a place read, subtracting one dereference when taking its address.
+    fn read(&mut self, place: &mir::Place, destination: mir::Value, adjustment: i32) {
+        let source = match place.origin {
+            mir::PlaceOrigin::Value(value) => value.id(),
+            mir::PlaceOrigin::Local(local) => *self.locals.get(local),
+            mir::PlaceOrigin::Global(_) => {
+                self.body.external[destination.id() as usize] = true;
+                return;
+            }
+        };
+        let dereferences = place
+            .path
+            .projections
+            .iter()
+            .filter(|projection| **projection == mir::Projection::Deref)
+            .count() as i32;
+
+        self.flow(source, destination.id(), dereferences + adjustment);
+    }
+
     /// Store a pointer into a known local allocation or externally accessible storage.
-    fn store(&mut self, pointer: mir::Value, value: mir::Value, dereferences: i32) {
+    fn store(&mut self, place: &mir::Place, value: mir::Value, dereferences: i32) {
         // resolve the storage receiving the pointer
-        let place = self.places.get(pointer);
+        let place = self.places.resolve_place(place);
         let destination = match place.origin {
             mir::PlaceOrigin::Local(local)
                 if !place.path.projections.contains(&mir::Projection::Deref) =>
@@ -1241,7 +1264,8 @@ impl EscapeBuilder<'_> {
                 *self.locals.get(local)
             }
             mir::PlaceOrigin::Value(root)
-                if !place.path.projections.contains(&mir::Projection::Deref) =>
+                if place.path.first() == Some(&mir::Projection::Deref)
+                    && !place.path.projections[1..].contains(&mir::Projection::Deref) =>
             {
                 // select instruction allocations with an unambiguous result
                 match self.body.allocations.iter().find(|allocation| {
@@ -1326,7 +1350,7 @@ mod tests {
     /// Keep allocations distinct when fallible operations share one success parameter.
     #[test]
     fn test_return_fallible_allocations() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): uninit<ref<int32, unique, mutable, local>> {
 entry(v0: boolean):
@@ -1348,7 +1372,12 @@ failure:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let blocks = program.tree.get(function).blocks();
         let expected = AllocationEscape {
             is_returned: true,
@@ -1369,7 +1398,7 @@ failure:
     /// Read the previous iteration's allocation after creating the next allocation.
     #[test]
     fn test_preserve_loop_allocations() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
     local l0: ref<int32, unique, mutable, local>
@@ -1377,16 +1406,16 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: ref<int32, unique, mutable, local> = new.zeroed int32
     v5: int32 = 7
-    store v1, v5
-    local.set l0, v1
+    store (*v1), v5
+    store l0, v1
     jump loop
 
 loop:
-    v2: ref<int32, unique, mutable, local> = local.get l0
+    v2: ref<int32, unique, mutable, local> = load l0
     v3: ref<int32, unique, mutable, local> = new.zeroed int32
-    v4: int32 = load v2
-    store v3, v5
-    local.set l0, v3
+    v4: int32 = load.copy (*v2)
+    store (*v3), v5
+    store l0, v3
     branch v0 => loop | exit
 
 exit:
@@ -1396,11 +1425,16 @@ exit:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
-        let block = program.tree.get(program.tree.get(function).blocks()[1]);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
+        let block = program.tree.get(function).blocks()[1];
 
         assert_eq!(
-            escape.allocation(Point::Instruction(block.instructions[1])),
+            escape.allocation(Point::Instruction(program.tree.get(block).instructions[1])),
             Some(&AllocationEscape {
                 is_returned: false,
                 is_retained: false,
@@ -1412,7 +1446,7 @@ exit:
     /// Keep an allocation reusable when every reference expires within its loop iteration.
     #[test]
     fn test_reuse_loop_allocations() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -1429,11 +1463,16 @@ exit:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
-        let block = program.tree.get(program.tree.get(function).blocks()[1]);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
+        let block = program.tree.get(function).blocks()[1];
 
         assert_eq!(
-            escape.allocation(Point::Instruction(block.instructions[0])),
+            escape.allocation(Point::Instruction(program.tree.get(block).instructions[0])),
             Some(&AllocationEscape::default())
         );
     }
@@ -1441,7 +1480,7 @@ exit:
     /// Read a previous allocation after revisiting either entry of an irreducible cycle.
     #[test]
     fn test_preserve_irreducible_allocations() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
     local l0: ref<int32, unique, mutable, local>
@@ -1449,36 +1488,41 @@ function test(v0: boolean): int32 {
 entry(v0: boolean):
     v1: ref<int32, unique, mutable, local> = new.zeroed int32
     v7: int32 = 7
-    store v1, v7
-    local.set l0, v1
+    store (*v1), v7
+    store l0, v1
     branch v0 => left | right
 
 left:
-    v2: ref<int32, unique, mutable, local> = local.get l0
+    v2: ref<int32, unique, mutable, local> = load l0
     v3: ref<int32, unique, mutable, local> = new.zeroed int32
-    v4: int32 = load v2
-    store v3, v4
-    local.set l0, v3
+    v4: int32 = load.copy (*v2)
+    store (*v3), v4
+    store l0, v3
     jump right
 
 right:
     branch v0 => left | exit
 
 exit:
-    v5: ref<int32, unique, mutable, local> = local.get l0
-    v6: int32 = load v5
+    v5: ref<int32, unique, mutable, local> = load l0
+    v6: int32 = load.copy (*v5)
     return v6
 }
 "#,
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let block = program.tree.get(program.tree.get(function).blocks()[1]);
+        let block = program.tree.get(function).blocks()[1];
 
         assert_eq!(
             analyses
-                .escape(function, &program.tree, &program.effects, &program.dispatch)
-                .allocation(Point::Instruction(block.instructions[1])),
+                .escape(
+                    function,
+                    &mut program.tree,
+                    &program.effects,
+                    &program.dispatch
+                )
+                .allocation(Point::Instruction(program.tree.get(block).instructions[1])),
             Some(&AllocationEscape {
                 is_returned: false,
                 is_retained: false,
@@ -1490,7 +1534,7 @@ exit:
     /// Reuse storage when an irreducible cycle consumes each pointer within its allocation block.
     #[test]
     fn test_reuse_irreducible_allocations() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -1499,7 +1543,7 @@ entry(v0: boolean):
 
 left:
     v2: ref<int32, unique, mutable, local> = new.zeroed int32
-    v3: int32 = load v2
+    v3: int32 = load.copy (*v2)
     jump right(v3)
 
 right(v4: int32):
@@ -1512,12 +1556,17 @@ exit:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let block = program.tree.get(program.tree.get(function).blocks()[1]);
+        let block = program.tree.get(function).blocks()[1];
 
         assert_eq!(
             analyses
-                .escape(function, &program.tree, &program.effects, &program.dispatch)
-                .allocation(Point::Instruction(block.instructions[0])),
+                .escape(
+                    function,
+                    &mut program.tree,
+                    &program.effects,
+                    &program.dispatch
+                )
+                .allocation(Point::Instruction(program.tree.get(block).instructions[0])),
             Some(&AllocationEscape::default()),
         );
     }
@@ -1525,23 +1574,28 @@ exit:
     /// Follow an allocation through a local address, store, and load before returning it.
     #[test]
     fn test_return_through_local_storage() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): ref<int32, unique, mutable, local> {
     local l0: ref<int32, unique, mutable, local>
 
 entry:
     v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = local.address l0
-    store v1, v0
-    v2: ref<int32, unique, mutable, local> = load v1
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = address l0
+    store (*v1), v0
+    v2: ref<int32, unique, mutable, local> = load (*v1)
     return v2
 }
 "#,
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1557,11 +1611,11 @@ entry:
     /// Record a returned pointer loaded from a parameter at one dereference.
     #[test]
     fn test_return_loaded_parameter() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static, readonly, local>): ref<int32, borrowed, 'static, readonly, local> {
 entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static, readonly, local>):
-    v1: ref<int32, borrowed, 'static, readonly, local> = load v0
+    v1: ref<int32, borrowed, 'static, readonly, local> = load.copy (*v0)
     return v1
 }
 "#,
@@ -1569,7 +1623,7 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static,
         let mut analyses = program.module_analyses();
         let escape = analyses.escape(
             program.entry_function_id(),
-            &program.tree,
+            &mut program.tree,
             &program.effects,
             &program.dispatch,
         );
@@ -1594,11 +1648,11 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static,
     /// Distinguish a unique parameter's private address from external pointers in its contents.
     #[test]
     fn test_distinguish_owned_parameter_contents() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, local>): void {
 entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, local>):
-    v1: ref<int32, borrowed, 'static, readonly, local> = load v0
+    v1: ref<int32, borrowed, 'static, readonly, local> = load.copy (*v0)
     return
 }
 "#,
@@ -1606,7 +1660,7 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, 
         let mut analyses = program.module_analyses();
         let escape = analyses.escape(
             program.entry_function_id(),
-            &program.tree,
+            &mut program.tree,
             &program.effects,
             &program.dispatch,
         );
@@ -1621,19 +1675,24 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, 
     /// Retain a pointer stored through an incoming reference.
     #[test]
     fn test_store_through_parameter() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, local>): void {
 entry(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, local>):
     v1: ref<int32, unique, mutable, local> = new.zeroed int32
-    store v0, v1
+    store (*v0), v1
     return
 }
 "#,
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1650,7 +1709,7 @@ entry(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, lo
     /// Preserve a returned allocation address through integer vector operations.
     #[test]
     fn test_return_address_through_vector() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): usize {
 entry:
@@ -1665,7 +1724,12 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1681,7 +1745,7 @@ entry:
     /// Preserve returned allocation addresses through reversible bit operations.
     #[test]
     fn test_return_address_through_bit_operations() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): usize {
 entry:
@@ -1695,12 +1759,17 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let block = program.tree.get(program.entry_block_id(function));
+        let block = program.entry_block_id(function);
 
         assert_eq!(
             analyses
-                .escape(function, &program.tree, &program.effects, &program.dispatch)
-                .allocation(Point::Instruction(block.instructions[0])),
+                .escape(
+                    function,
+                    &mut program.tree,
+                    &program.effects,
+                    &program.dispatch
+                )
+                .allocation(Point::Instruction(program.tree.get(block).instructions[0])),
             Some(&AllocationEscape {
                 is_returned: true,
                 is_retained: false,
@@ -1712,7 +1781,7 @@ entry:
     /// Return either allocation selected by the branch.
     #[test]
     fn test_return_merged_allocations() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): ref<int32, unique, mutable, local> {
 entry(v0: boolean):
@@ -1727,7 +1796,12 @@ join(v3: ref<int32, unique, mutable, local>):
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let entry = program.tree.get(program.entry_block_id(function));
         let expected = AllocationEscape {
             is_returned: true,
@@ -1749,7 +1823,7 @@ join(v3: ref<int32, unique, mutable, local>):
     /// Keep arguments private when a known callee reads nothing and retains nothing.
     #[test]
     fn test_preserve_uncaptured_call_arguments() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function sink(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -1766,7 +1840,12 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1779,7 +1858,7 @@ entry:
     /// Distinguish returning an argument from retaining it outside the call.
     #[test]
     fn test_discard_returned_argument() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function identity(v0: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -1797,12 +1876,17 @@ entry:
         let mut analyses = program.module_analyses();
         let identity = analyses.escape(
             program.function_id_by_name("identity"),
-            &program.tree,
+            &mut program.tree,
             &program.effects,
             &program.dispatch,
         );
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1822,7 +1906,7 @@ entry:
     /// Propagate returned parameters through mutually recursive calls.
     #[test]
     fn test_return_through_recursive_calls() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function first(v0: ref<int32, unique, mutable, local>, v1: boolean): ref<int32, unique, mutable, local> {
 entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
@@ -1847,7 +1931,7 @@ entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
         for name in ["first", "second"] {
             let escape = analyses.escape(
                 program.function_id_by_name(name),
-                &program.tree,
+                &mut program.tree,
                 &program.effects,
                 &program.dispatch,
             );
@@ -1868,7 +1952,7 @@ entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
     /// Track the environment returned by a known closure target.
     #[test]
     fn test_return_closure_environment() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 @environment(ref<int32, unique, mutable, local>)
 function captured(): ref<int32, unique, mutable, local> {
@@ -1888,12 +1972,17 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let block = program.tree.get(program.entry_block_id(function));
+        let block = program.entry_block_id(function);
 
         assert_eq!(
             analyses
-                .escape(function, &program.tree, &program.effects, &program.dispatch)
-                .allocation(Point::Instruction(block.instructions[0])),
+                .escape(
+                    function,
+                    &mut program.tree,
+                    &program.effects,
+                    &program.dispatch
+                )
+                .allocation(Point::Instruction(program.tree.get(block).instructions[0])),
             Some(&AllocationEscape {
                 is_returned: true,
                 is_retained: false,
@@ -1904,7 +1993,7 @@ entry:
             analyses
                 .escape(
                     program.function_id_by_name("captured"),
-                    &program.tree,
+                    &mut program.tree,
                     &program.effects,
                     &program.dispatch
                 )
@@ -1920,7 +2009,7 @@ entry:
     /// Retain arguments passed to an external call and expose its independent result.
     #[test]
     fn test_propagate_external_pointer_effects() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 external function retain(ref<int32, unique, mutable, local>): void
 external function fetch(): ref<int32, unique, mutable, local>
@@ -1943,7 +2032,12 @@ entry:
         );
         let mut analyses = program.module_analyses();
         let function = program.entry_function_id();
-        let escape = analyses.escape(function, &program.tree, &program.effects, &program.dispatch);
+        let escape = analyses.escape(
+            function,
+            &mut program.tree,
+            &program.effects,
+            &program.dispatch,
+        );
         let entry = program.tree.get(program.entry_block_id(function));
 
         assert_eq!(
@@ -1973,7 +2067,7 @@ entry:
         // expose a borrowed result at its address while preserving unique result storage
         let borrowed = analyses.escape(
             program.function_id_by_name("receive"),
-            &program.tree,
+            &mut program.tree,
             &program.effects,
             &program.dispatch,
         );

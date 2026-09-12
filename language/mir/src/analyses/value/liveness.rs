@@ -3,8 +3,8 @@ use std::cmp::Reverse;
 use destack_core::{BitSet, FxIndexSet};
 
 use crate::{
-    Analysis, Block, ControlTable, Function, Instruction, Local, LocalNodeId, Mutation, NodeTable,
-    PlaceOrigin, PlaceTable, Tree, Value,
+    Analysis, Block, ControlTable, Function, Instruction, Local, LocalId, LocalNodeId, Mutation,
+    NodeTable, PlaceOrigin, PlaceTable, Tree, Value,
 };
 
 /// Liveness for one MIR function.
@@ -200,14 +200,11 @@ impl LivenessTable {
         instruction: &Instruction,
         local_indices: &NodeTable<Local, usize>,
     ) {
-        match instruction {
-            Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
-                let index = *local_indices.get(*local);
-                if !seen_local_defs.contains(index) {
-                    liveness.local_use.insert(index);
-                }
+        if let Some(local) = Self::used_local(instruction) {
+            let index = *local_indices.get(local);
+            if !seen_local_defs.contains(index) {
+                liveness.local_use.insert(index);
             }
-            _ => {}
         }
     }
 
@@ -225,10 +222,36 @@ impl LivenessTable {
         }
 
         // record the local defined by a store
-        if let Instruction::LocalSet { local, .. } = instruction {
-            let index = *local_indices.get(*local);
+        if let Some(local) = Self::defined_local(instruction) {
+            let index = *local_indices.get(local);
             seen_local_defs.insert(index);
             liveness.local_def.insert(index);
+        }
+    }
+
+    /// Return the local completely replaced by an instruction.
+    fn defined_local(instruction: &Instruction) -> Option<LocalId> {
+        let (Instruction::Store { place, .. } | Instruction::AtomicStore { place, .. }) =
+            instruction
+        else {
+            return None;
+        };
+
+        match place.origin {
+            PlaceOrigin::Local(local) if place.path.is_root() => Some(local),
+            _ => None,
+        }
+    }
+
+    /// Return the local whose contents or address an instruction uses.
+    fn used_local(instruction: &Instruction) -> Option<LocalId> {
+        if Self::defined_local(instruction).is_some() {
+            return None;
+        }
+
+        match instruction.place()?.origin {
+            PlaceOrigin::Local(local) => Some(local),
+            _ => None,
         }
     }
 
@@ -413,28 +436,24 @@ impl LivenessTable {
             }
 
             // transfer the one local read or definition
-            match instruction {
-                Instruction::LocalSet { local, .. } => {
-                    let index = self.local_index(*local);
-                    if locals.contains(index) {
-                        local_changes.push(LocalChange::Add {
-                            offset,
-                            local: index as u32,
-                        });
-                    }
-                    locals.remove(index);
+            if let Some(local) = Self::defined_local(instruction) {
+                let index = self.local_index(local);
+                if locals.contains(index) {
+                    local_changes.push(LocalChange::Add {
+                        offset,
+                        local: index as u32,
+                    });
                 }
-                Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
-                    let index = self.local_index(*local);
-                    if !locals.contains(index) {
-                        locals.insert(index);
-                        local_changes.push(LocalChange::Remove {
-                            offset,
-                            local: index as u32,
-                        });
-                    }
+                locals.remove(index);
+            } else if let Some(local) = Self::used_local(instruction) {
+                let index = self.local_index(local);
+                if !locals.contains(index) {
+                    locals.insert(index);
+                    local_changes.push(LocalChange::Remove {
+                        offset,
+                        local: index as u32,
+                    });
                 }
-                _ => {}
             }
         }
 
@@ -581,14 +600,11 @@ impl LivenessTable {
 
         // walk later local reads and writes backward
         for instruction_id in block.instructions.iter().skip(instruction_offset).rev() {
-            match tree.get(*instruction_id) {
-                Instruction::LocalSet { local, .. } => {
-                    live.shift_remove(local);
-                }
-                Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } => {
-                    live.insert(*local);
-                }
-                _ => {}
+            let instruction = tree.get(*instruction_id);
+            if let Some(local) = Self::defined_local(instruction) {
+                live.shift_remove(&local);
+            } else if let Some(local) = Self::used_local(instruction) {
+                live.insert(local);
             }
         }
 
@@ -732,9 +748,9 @@ function test(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
+    store l0, v0
     v3: int32 = 99
-    v1: int32 = local.get l0
+    v1: int32 = load.copy l0
     v2: int32 = add v0, v1
     return v2
 }

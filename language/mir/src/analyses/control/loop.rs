@@ -407,7 +407,7 @@ b1:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         assert_eq!(analysis.len(), 1);
 
@@ -446,7 +446,7 @@ b2:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         assert_eq!(analysis.len(), 1);
 
@@ -487,7 +487,7 @@ b3:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         assert_eq!(analysis.len(), 1);
 
@@ -533,7 +533,7 @@ b4:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         assert_eq!(analysis.len(), 2);
 
@@ -582,7 +582,7 @@ b3:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         let block0 = function.block(0);
         let block1 = function.block(1);
@@ -651,7 +651,7 @@ b3:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         assert_eq!(analysis.len(), 0);
         assert!(analysis.loops().is_empty());
@@ -686,7 +686,7 @@ b3:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         assert_eq!(analysis.len(), 1);
 
@@ -730,7 +730,7 @@ b4:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         assert_eq!(analysis.len(), 1);
 
@@ -773,7 +773,7 @@ b3:
         let function_id = test.first_function_id();
         let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.loops(function, &test.tree);
+        let analysis = analyses.loops(function_id, &test.tree);
 
         let top_level = analysis
             .top_level_loops()
@@ -804,7 +804,7 @@ latch:
         );
         let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let table = analyses.loops(function, &program.tree);
+        let table = analyses.loops(program.entry_function_id(), &program.tree);
         let header = function.block(1);
         let latch = function.block(2);
         let natural_loop = table.header_loop(header).expect("loop header");
@@ -839,7 +839,7 @@ exit:
         );
         let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let table = analyses.loops(function, &program.tree);
+        let table = analyses.loops(program.entry_function_id(), &program.tree);
         let header = function.block(1);
         let latch = function.block(2);
         let exit = function.block(3);
@@ -872,7 +872,7 @@ exit:
         );
         let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let table = analyses.loops(function, &program.tree);
+        let table = analyses.loops(program.entry_function_id(), &program.tree);
 
         assert!(table.loops().is_empty());
         assert_eq!(

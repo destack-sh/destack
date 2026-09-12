@@ -4,9 +4,9 @@ use destack_core::FxIndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Analysis, CallTable, DropTable, EffectTable, Function, FunctionBehavior, Global,
-    GlobalInitializer, Instruction, Linkage, MemoryEffect, Mutation, Storage, Symbol, Terminator,
-    Tree, TypeId,
+    Analysis, CallTable, DropTable, EffectTable, Function, FunctionBehavior, FunctionId, Global,
+    GlobalInitializer, Instruction, Linkage, MemoryEffect, Mutation, PlaceOrigin, Storage, Symbol,
+    Terminator, Tree, TypeId,
 };
 
 /// Symbol references for one module.
@@ -193,22 +193,29 @@ impl LinkTable {
     /// Return the symbol reference made by one instruction.
     fn instruction_edge(
         instruction: &Instruction,
-        function: &Function,
-        tree: &Tree,
+        function: FunctionId,
+        tree: &mut Tree,
         drops: &DropTable,
     ) -> Option<LinkEdge> {
+        // retain global references made directly by memory operands
+        if let Some(place) = instruction.place()
+            && let PlaceOrigin::Global(global) = place.origin
+        {
+            return Some(LinkEdge {
+                target: tree.get(global).symbol,
+                kind: LinkEdgeKind::Address,
+            });
+        }
+
         match instruction {
             Instruction::FunctionAddr { function, .. }
             | Instruction::FunctionBind { function, .. } => Some(LinkEdge {
                 target: tree.get(*function).symbol,
                 kind: LinkEdgeKind::Address,
             }),
-            Instruction::GlobalAddr { global, .. } => Some(LinkEdge {
-                target: tree.get(*global).symbol,
-                kind: LinkEdgeKind::Address,
-            }),
             Instruction::Drop { value } => {
-                let ty = function
+                let ty = tree
+                    .get(function)
                     .value_type(*value)
                     .unwrap_or_else(|| unreachable!("drop value has no type"));
 
@@ -241,7 +248,7 @@ impl LinkTable {
     /// Return the destructor reference made by one fallible allocation.
     fn terminator_edge(
         terminator: &Terminator,
-        tree: &Tree,
+        tree: &mut Tree,
         drops: &DropTable,
     ) -> Option<LinkEdge> {
         let (ty, success) = match terminator {
@@ -276,7 +283,7 @@ impl LinkTable {
     fn allocation_edge(
         ty: TypeId,
         result: TypeId,
-        tree: &Tree,
+        tree: &mut Tree,
         drops: &DropTable,
     ) -> Option<LinkEdge> {
         let storage = tree.managed_storage(result)?;
@@ -312,13 +319,18 @@ impl LinkTable {
         call_table: &CallTable,
         effects: &EffectTable,
         drops: &DropTable,
-        tree: &Tree,
+        tree: &mut Tree,
     ) -> Self {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
 
         // record each defined function with its attributes and outgoing references
-        for (function_id, function) in tree.iter_nodes::<Function>() {
+        let functions = tree
+            .iter_nodes::<Function>()
+            .map(|(id, _)| id)
+            .collect::<Vec<_>>();
+        for function_id in functions {
+            let function = tree.get(function_id);
             // skip declarations without a body
             if function.entry().is_none() {
                 continue;
@@ -352,18 +364,23 @@ impl LinkTable {
             }
 
             // record symbol references from instruction operands
-            for &block_id in function.blocks() {
-                let block = tree.get(block_id);
-                for &instruction_id in &block.instructions {
-                    if let Some(edge) =
-                        LinkTable::instruction_edge(tree.get(instruction_id), function, tree, drops)
-                    {
+            for index in 0..tree.get(function_id).blocks().len() {
+                let block_id = tree.get(function_id).blocks()[index];
+                for index in 0..tree.get(block_id).instructions.len() {
+                    let instruction_id = tree.get(block_id).instructions[index];
+                    if let Some(edge) = LinkTable::instruction_edge(
+                        &tree.get(instruction_id).clone(),
+                        function_id,
+                        tree,
+                        drops,
+                    ) {
                         edges.push((symbol, edge));
                     }
                 }
 
+                let terminator = tree.get(block_id).terminator;
                 if let Some(edge) =
-                    LinkTable::terminator_edge(tree.get(block.terminator), tree, drops)
+                    LinkTable::terminator_edge(&tree.get(terminator).clone(), tree, drops)
                 {
                     edges.push((symbol, edge));
                 }

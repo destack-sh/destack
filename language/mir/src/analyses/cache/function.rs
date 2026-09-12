@@ -83,9 +83,9 @@ impl FunctionCache {
     /// Return alias relationships, analysing them when required.
     pub fn alias(
         &mut self,
-        function: &mir::Function,
+        function: mir::FunctionId,
         layouts: Arc<mir::LayoutTable>,
-        tree: &mir::Tree,
+        tree: &mut mir::Tree,
     ) -> Result<Arc<AliasTable>, mir::LayoutError> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.alias {
@@ -113,7 +113,11 @@ impl FunctionCache {
     }
 
     /// Return known constants, analysing them when required.
-    pub fn constant(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<ConstantTable> {
+    pub fn constant(
+        &mut self,
+        function: mir::FunctionId,
+        tree: &mut mir::Tree,
+    ) -> Arc<ConstantTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.constant {
             return result.clone();
@@ -135,14 +139,14 @@ impl FunctionCache {
     }
 
     /// Return the control-flow graph, analysing it when required.
-    pub fn control(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<ControlTable> {
+    pub fn control(&mut self, function: mir::FunctionId, tree: &mir::Tree) -> Arc<ControlTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.control {
             return result.clone();
         }
 
         // analyse and cache the result
-        let result = Arc::new(ControlTable::analyse(function, tree));
+        let result = Arc::new(ControlTable::analyse(tree.get(function), tree));
         self.control = Some(result.clone());
 
         result
@@ -151,7 +155,7 @@ impl FunctionCache {
     /// Return value definitions, analysing them when required.
     pub fn definition(
         &mut self,
-        function: &mir::Function,
+        function: mir::FunctionId,
         tree: &mir::Tree,
     ) -> Arc<DefinitionTable> {
         // reuse the result while its inputs remain unchanged
@@ -160,14 +164,18 @@ impl FunctionCache {
         }
 
         // analyse and cache the result
-        let result = Arc::new(DefinitionTable::analyse(function, tree));
+        let result = Arc::new(DefinitionTable::analyse(tree.get(function), tree));
         self.definition = Some(result.clone());
 
         result
     }
 
     /// Return dominators, analysing them when required.
-    pub fn dominator(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<DominatorTable> {
+    pub fn dominator(
+        &mut self,
+        function: mir::FunctionId,
+        tree: &mir::Tree,
+    ) -> Arc<DominatorTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.dominator {
             return result.clone();
@@ -186,7 +194,7 @@ impl FunctionCache {
     /// Return exclusive access to scalar evolution and its memoized queries.
     pub fn evolution(
         &mut self,
-        function: &mir::Function,
+        function: mir::FunctionId,
         tree: &mir::Tree,
     ) -> &mut ScalarEvolutionTable {
         // reuse the query state or construct it from the function's analyses
@@ -212,7 +220,7 @@ impl FunctionCache {
     }
 
     /// Return value liveness, analysing it when required.
-    pub fn liveness(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<LivenessTable> {
+    pub fn liveness(&mut self, function: mir::FunctionId, tree: &mir::Tree) -> Arc<LivenessTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.liveness {
             return result.clone();
@@ -220,7 +228,7 @@ impl FunctionCache {
 
         // analyse and cache the result
         let control = self.control(function, tree);
-        let result = Arc::new(LivenessTable::analyse(function, &control, tree));
+        let result = Arc::new(LivenessTable::analyse(tree.get(function), &control, tree));
         self.liveness = Some(result.clone());
 
         result
@@ -229,8 +237,8 @@ impl FunctionCache {
     /// Return move-path initialization, analysing it when required.
     pub fn initialization(
         &mut self,
-        function: &mir::Function,
-        tree: &mir::Tree,
+        function: mir::FunctionId,
+        tree: &mut mir::Tree,
     ) -> Arc<InitializationTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.initialization {
@@ -252,7 +260,7 @@ impl FunctionCache {
     }
 
     /// Return loops, analysing them when required.
-    pub fn loops(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<LoopTable> {
+    pub fn loops(&mut self, function: mir::FunctionId, tree: &mir::Tree) -> Arc<LoopTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.loops {
             return result.clone();
@@ -263,7 +271,11 @@ impl FunctionCache {
         let dominators = self.dominator(function, tree);
 
         // analyse and cache the result
-        let result = Arc::new(LoopTable::analyse(function, &control, &dominators));
+        let result = Arc::new(LoopTable::analyse(
+            tree.get(function),
+            &control,
+            &dominators,
+        ));
         self.loops = Some(result.clone());
 
         result
@@ -272,9 +284,8 @@ impl FunctionCache {
     /// Return the memory effects of individual operations.
     pub fn memory_effect(
         &mut self,
-        function: &mir::Function,
-        tree: &mir::Tree,
-        accesses: &mir::AccessTable,
+        function: mir::FunctionId,
+        tree: &mut mir::Tree,
         effects: &mir::EffectTable,
     ) -> Arc<MemoryEffectTable> {
         // reuse the classification while its inputs remain unchanged
@@ -286,7 +297,7 @@ impl FunctionCache {
         let constants = self.constant(function, tree);
         let control = self.control(function, tree);
         let result = Arc::new(MemoryEffectTable::analyse(
-            function, &constants, &control, accesses, effects, tree,
+            function, &constants, &control, effects, tree,
         ));
         self.memory_effect = Some(result.clone());
 
@@ -296,9 +307,8 @@ impl FunctionCache {
     /// Return memory SSA for the function.
     pub fn ssa(
         &mut self,
-        function: &mir::Function,
-        tree: &mir::Tree,
-        accesses: &mir::AccessTable,
+        function: mir::FunctionId,
+        tree: &mut mir::Tree,
         effects: &mir::EffectTable,
     ) -> Arc<MemorySsaTable> {
         // reuse the graph while its inputs remain unchanged
@@ -309,11 +319,11 @@ impl FunctionCache {
         // compute the control graph, dominators, and operation effects
         let control = self.control(function, tree);
         let dominators = self.dominator(function, tree);
-        let effects = self.memory_effect(function, tree, accesses, effects);
+        let effects = self.memory_effect(function, tree, effects);
 
         // construct and cache memory SSA
         let result = Arc::new(MemorySsaTable::analyse(
-            function,
+            tree.get(function),
             &control,
             &dominators,
             effects,
@@ -325,7 +335,7 @@ impl FunctionCache {
     }
 
     /// Return move paths, analysing them when required.
-    pub fn moves(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<MoveTable> {
+    pub fn moves(&mut self, function: mir::FunctionId, tree: &mut mir::Tree) -> Arc<MoveTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.moves {
             return result.clone();
@@ -342,7 +352,7 @@ impl FunctionCache {
     }
 
     /// Return canonical places, analysing them when required.
-    pub fn place(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<PlaceTable> {
+    pub fn place(&mut self, function: mir::FunctionId, tree: &mut mir::Tree) -> Arc<PlaceTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.place {
             return result.clone();
@@ -359,7 +369,7 @@ impl FunctionCache {
     }
 
     /// Return borrow origins, analysing them when required.
-    pub fn origin(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<OriginTable> {
+    pub fn origin(&mut self, function: mir::FunctionId, tree: &mut mir::Tree) -> Arc<OriginTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.origin {
             return result.clone();
@@ -379,7 +389,7 @@ impl FunctionCache {
     /// Return postdominators, analysing them when required.
     pub fn postdominator(
         &mut self,
-        function: &mir::Function,
+        function: mir::FunctionId,
         tree: &mir::Tree,
     ) -> Arc<PostdominatorTable> {
         // reuse the result while its inputs remain unchanged
@@ -398,14 +408,14 @@ impl FunctionCache {
     }
 
     /// Return value uses, analysing them when required.
-    pub fn uses(&mut self, function: &mir::Function, tree: &mir::Tree) -> Arc<UseTable> {
+    pub fn uses(&mut self, function: mir::FunctionId, tree: &mir::Tree) -> Arc<UseTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.uses {
             return result.clone();
         }
 
         // analyse and cache the result
-        let result = Arc::new(UseTable::analyse(function, tree));
+        let result = Arc::new(UseTable::analyse(tree.get(function), tree));
         self.uses = Some(result.clone());
 
         result
@@ -511,93 +521,50 @@ impl Default for FunctionCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::MemoryAccessEffect;
     use crate::analyses::tests::TestModule;
-    use crate::{MemoryAccessEffect, MemoryRegion};
 
-    /// Refresh memory effects after changing an explicit access ordering.
+    /// Refresh memory effects after changing an atomic load's ordering.
     #[test]
     fn test_refresh_changed_memory_accesses() {
         let mut program = TestModule::new(
             r#"
-function test(): int32 {
-    local l0: int32
-
-entry:
-    v0: int32 = 1
-    local.set l0, v0
-    v1: int32 = local.get l0
+function test<'a>(v0: ref<int32, borrowed, 'a & local, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'a & local, readonly>):
+    v1: int32 = atomic.load (*v0), acquire, scope(device)
     return v1
 }
 "#,
         );
         let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
-        let local = function.locals()[0];
-        let block = function.block(0);
-        let instructions = program.tree.get(block).instructions.clone();
+        let block = program.tree.get(function_id).block(0);
+        let instruction = program.tree.get(block).instructions[0];
         let mut analyses = FunctionCache::new();
-        let effects =
-            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
-
-        // check every instruction and the terminator without constructing memory SSA
-        let mut expected = vec![
-            vec![],
-            vec![MemoryAccessEffect {
-                reads: false,
-                writes: true,
-                order: mir::MemoryAccessOrder::Plain,
-                is_barrier: false,
-                region: MemoryRegion::Local(local),
-            }],
-            vec![MemoryAccessEffect {
-                reads: true,
-                writes: false,
-                order: mir::MemoryAccessOrder::Plain,
-                is_barrier: false,
-                region: MemoryRegion::Local(local),
-            }],
-        ];
-        let actual = instructions
-            .iter()
-            .map(|instruction| {
-                effects
-                    .instruction_effects(*instruction)
-                    .cloned()
-                    .collect::<Vec<_>>()
-            })
+        let effects = analyses.memory_effect(function_id, &mut program.tree, &program.effects);
+        let mut expected = effects
+            .instruction_effects(instruction)
+            .cloned()
             .collect::<Vec<_>>();
-        assert_eq!(actual, expected);
+        assert_eq!(expected.len(), 1);
         assert_eq!(
-            effects.terminator_effects(block).collect::<Vec<_>>(),
-            Vec::<&MemoryAccessEffect>::new()
+            expected[0].order,
+            mir::MemoryAccessOrder::Atomic(mir::AtomicAccess::new(
+                mir::MemoryOrdering::Acquire,
+                mir::ExecutionScope::Device
+            ))
         );
 
-        // change the read to volatile through explicit access metadata
-        program.accesses.insert(
-            instructions[2],
-            vec![mir::MemoryAccess {
-                operation: mir::MemoryOperation::Read,
-                target: mir::MemoryTarget::Local(local),
-                byte_len: Some(4),
-                alignment_bytes: None,
-                order: mir::MemoryAccessOrder::Volatile,
-            }],
-        );
+        // change the operation and invalidate its cached effects
+        let mir::Instruction::AtomicLoad { access, .. } = program.tree.get_mut(instruction) else {
+            unreachable!("fixture instruction is an atomic load");
+        };
+        access.ordering = mir::MemoryOrdering::Relaxed;
+        expected[0].order = mir::MemoryAccessOrder::Atomic(*access);
         analyses.invalidate(Mutation::MEMORY);
-        let function = program.tree.get(function_id);
-        let updated =
-            analyses.memory_effect(function, &program.tree, &program.accesses, &program.effects);
-
-        // preserve the other accesses while observing the changed ordering
-        expected[2][0].order = mir::MemoryAccessOrder::Volatile;
-        let actual = instructions
-            .iter()
-            .map(|instruction| {
-                updated
-                    .instruction_effects(*instruction)
-                    .cloned()
-                    .collect::<Vec<_>>()
-            })
+        let updated = analyses.memory_effect(function_id, &mut program.tree, &program.effects);
+        let actual = updated
+            .instruction_effects(instruction)
+            .cloned()
             .collect::<Vec<_>>();
         assert_eq!(actual, expected);
         assert_eq!(
@@ -624,24 +591,26 @@ done:
 }
 "#,
         );
-        let function = tree.get(function_id).clone();
-        let entry = function.block(0);
-        let middle = function.block(1);
-        let exit = function.block(2);
+        let entry = tree.get(function_id).block(0);
+        let middle = tree.get(function_id).block(1);
+        let exit = tree.get(function_id).block(2);
         let mut cache = FunctionCache::new();
-        let control = cache.control(&function, &tree);
-        let dominators = cache.dominator(&function, &tree);
-        let postdominators = cache.postdominator(&function, &tree);
+        let control = cache.control(function_id, &tree);
+        let dominators = cache.dominator(function_id, &tree);
+        let postdominators = cache.postdominator(function_id, &tree);
         assert_eq!(postdominators.immediate_postdominator(entry), Some(exit));
         assert_eq!(dominators.immediate_dominator(exit), Some(entry));
 
         // preserve cached graph results when only values change
         cache.invalidate(Mutation::VALUE);
-        assert!(Arc::ptr_eq(&control, &cache.control(&function, &tree)));
-        assert!(Arc::ptr_eq(&dominators, &cache.dominator(&function, &tree)));
+        assert!(Arc::ptr_eq(&control, &cache.control(function_id, &tree)));
+        assert!(Arc::ptr_eq(
+            &dominators,
+            &cache.dominator(function_id, &tree)
+        ));
         assert!(Arc::ptr_eq(
             &postdominators,
-            &cache.postdominator(&function, &tree)
+            &cache.postdominator(function_id, &tree)
         ));
 
         // remove the direct edge from entry to exit and invalidate its dependents
@@ -651,9 +620,9 @@ done:
             target: mir::BlockTarget::new(middle, arguments),
         };
         cache.invalidate(Mutation::CONTROL);
-        let changed_control = cache.control(&function, &tree);
-        let changed_dominators = cache.dominator(&function, &tree);
-        let changed_postdominators = cache.postdominator(&function, &tree);
+        let changed_control = cache.control(function_id, &tree);
+        let changed_dominators = cache.dominator(function_id, &tree);
+        let changed_postdominators = cache.postdominator(function_id, &tree);
         assert!(!Arc::ptr_eq(&control, &changed_control));
         assert!(!Arc::ptr_eq(&dominators, &changed_dominators));
         assert!(!Arc::ptr_eq(&postdominators, &changed_postdominators));

@@ -4,9 +4,9 @@ use destack_core::BitSet;
 use smallvec::SmallVec;
 
 use crate::{
-    AddressKind, Analysis, Block, BlockTarget, ControlTable, DataflowTable, Edge, ForwardTransfer,
-    Function, Instruction, Intrinsic, Lattice, LocalNodeId, LocalNodeIdAny, MovePathId, MoveTable,
-    Mutation, Place, PlaceTable, Projection, Terminator, Tree, Type, Value,
+    Analysis, Block, BlockTarget, ControlTable, DataflowTable, Edge, ForwardTransfer, Function,
+    FunctionId, Instruction, Intrinsic, Lattice, LocalNodeId, LocalNodeIdAny, MovePathId,
+    MoveTable, Mutation, Place, PlaceTable, Projection, Terminator, Tree, Type, Value,
 };
 
 /// Move-path initialization across one MIR function.
@@ -32,18 +32,18 @@ pub struct Unavailability {
 impl InitializationTable {
     /// Build initialization for one function.
     pub fn analyse(
-        function: &Function,
+        function: FunctionId,
         control: &ControlTable,
         paths: Arc<MoveTable>,
         places: Arc<PlaceTable>,
-        tree: &Tree,
+        tree: &mut Tree,
     ) -> Self {
         let table = Self {
             paths,
             places,
             flow: DataflowTable::new(),
         };
-        let entry = table.parameter_state(function);
+        let entry = table.parameter_state(tree.get(function));
         let flow = DataflowTable::forward(
             function,
             tree,
@@ -93,53 +93,30 @@ impl InitializationTable {
 
         // handle projected and replacement reads separately
         match instruction {
-            Instruction::LocalGet { local, .. } => {
-                self.collect_place(&Place::local(*local), state, &mut unavailable);
-                let pointee = Place::local(*local).with_projection(Projection::Deref);
-                if let Some(path) = self.paths.place(&pointee)
-                    && let Some(path) = state.unavailable(path, &self.paths)
-                {
-                    unavailable.push(state.unavailability(path));
-                }
-            }
             Instruction::FieldGet {
                 aggregate, field, ..
             } => {
                 let projection = Projection::Field { index: *field };
                 self.collect_projection(*aggregate, projection, state, &mut unavailable);
             }
-            Instruction::FieldAddr {
-                aggregate,
-                field,
-                kind: AddressKind::Borrow,
-                ..
-            } => {
-                let projection = Projection::Field { index: *field };
-                let place = self.project(*aggregate, projection);
-                self.collect_moved_place(&place, state, &mut unavailable);
-            }
-            Instruction::FieldAddr { aggregate, .. } => {
-                self.collect_value(*aggregate, state, &mut unavailable);
-            }
-            Instruction::LocalAddr {
-                local,
-                kind: AddressKind::Borrow,
-                ..
-            } => {
-                self.collect_moved_place(&Place::local(*local), state, &mut unavailable);
-            }
-            // require the owned storage a load reads
-            Instruction::Load { pointer, .. } => {
-                self.collect_handle(*pointer, state, &mut unavailable);
-                if let Some(path) = self.paths.pointee(*pointer)
+            Instruction::Load { place, .. } | Instruction::AtomicLoad { place, .. } => {
+                self.collect_address(place, state, &mut unavailable);
+                let place = self.places.resolve_place(place);
+                self.collect_place(&place, state, &mut unavailable);
+                let pointee = place.with_projection(Projection::Deref);
+                if let Some(path) = self.paths.place(&pointee)
                     && let Some(path) = state.unavailable(path, &self.paths)
                 {
                     unavailable.push(state.unavailability(path));
                 }
             }
-            // permit stores through valid references to moved or uninitialized storage
-            Instruction::Store { pointer, value } => {
-                self.collect_handle(*pointer, state, &mut unavailable);
+            Instruction::Address { place, .. } => {
+                self.collect_address(place, state, &mut unavailable);
+                let place = self.places.resolve_place(place);
+                self.collect_moved_place(&place, state, &mut unavailable);
+            }
+            Instruction::Store { place, value } | Instruction::AtomicStore { place, value, .. } => {
+                self.collect_address(place, state, &mut unavailable);
                 self.collect_value(*value, state, &mut unavailable);
             }
             // require the reference token when asserting its pointee initialized
@@ -166,11 +143,6 @@ impl InitializationTable {
                 let projection = Projection::Element { index: *index };
                 self.collect_projection(*aggregate, projection, state, &mut unavailable);
             }
-            Instruction::ElementAddr { base, index, .. } => {
-                let projection = Projection::Index { index: *index };
-                self.collect_projection(*base, projection, state, &mut unavailable);
-                self.collect_value(*index, state, &mut unavailable);
-            }
             Instruction::FieldSet {
                 aggregate,
                 field,
@@ -190,34 +162,6 @@ impl InitializationTable {
                 let projection = Projection::Element { index: *index };
                 self.collect_replacement(*aggregate, projection, state, &mut unavailable);
                 self.collect_value(*value, state, &mut unavailable);
-            }
-            Instruction::VariantPayloadAddr { variant, case, .. } => {
-                let projection = Projection::Variant { case: *case };
-                self.collect_projection(*variant, projection, state, &mut unavailable);
-            }
-            Instruction::SliceView {
-                destination,
-                source,
-                start,
-                length,
-                ..
-            } => {
-                let projection = Projection::Slice {
-                    start: *start,
-                    length: *length,
-                };
-                let place = self.places.project(*source, projection);
-
-                // require the source value when the slice defines a view over an untracked base
-                if self.paths.place(&place) == self.paths.value(*destination) {
-                    self.collect_value(*source, state, &mut unavailable);
-                }
-                // otherwise require the projected place
-                else {
-                    self.collect_place(&place, state, &mut unavailable);
-                }
-                self.collect_value(*start, state, &mut unavailable);
-                self.collect_value(*length, state, &mut unavailable);
             }
             _ => {
                 for value in instruction.reads(tree) {
@@ -260,6 +204,28 @@ impl InitializationTable {
                 .clone()
                 .with_projection(projection),
             None => self.places.project(value, projection),
+        }
+    }
+
+    /// Require the references and indices used to address a place.
+    fn collect_address(
+        &self,
+        place: &Place,
+        state: &InitializationState,
+        unavailable: &mut SmallVec<[Unavailability; 4]>,
+    ) {
+        for value in place.uses() {
+            self.collect_handle(value, state, unavailable);
+        }
+
+        // require each stored reference before following it
+        let mut prefix = Place::new(place.origin);
+        for projection in &place.path.projections {
+            if *projection == Projection::Deref {
+                let reference = self.places.resolve_place(&prefix);
+                self.collect_place(&reference, state, unavailable);
+            }
+            prefix.push(projection.clone());
         }
     }
 
@@ -377,45 +343,63 @@ impl InitializationTable {
         let instruction = tree.get(instruction_id);
         let anchor = instruction_id.into_any();
 
-        // move storage read into a move-only destination
-        match instruction {
-            Instruction::LocalGet { destination, local }
-                if self.paths.value(*destination).is_some() =>
-            {
-                if let Some(path) = self.paths.local(*local) {
-                    state.move_path(path, anchor, &self.paths);
-                }
+        // transfer owned pointee initialization independently of its reference value
+        let transfer = match instruction {
+            Instruction::Load {
+                place, destination, ..
+            } => {
+                let source = self
+                    .places
+                    .resolve_place(place)
+                    .with_projection(Projection::Deref);
+
+                self.paths
+                    .place(&source)
+                    .zip(self.paths.pointee(*destination))
             }
+            Instruction::Store { place, value } => {
+                let target = self
+                    .places
+                    .resolve_place(place)
+                    .with_projection(Projection::Deref);
+
+                self.paths.pointee(*value).zip(self.paths.place(&target))
+            }
+            _ => None,
+        };
+        if let Some((source, target)) = transfer
+            && source != target
+        {
+            state.copy(&[(source, target)], &self.paths);
+        }
+
+        // uninitialize storage consumed by explicit move reads
+        match instruction {
             Instruction::FieldGet {
-                destination,
+                copy,
                 aggregate,
                 field,
-            } if self.paths.value(*destination).is_some() => {
+                ..
+            } if copy.is_no() => {
                 let projection = Projection::Field { index: *field };
                 self.uninitialize_projection(*aggregate, projection, anchor, state, tree);
             }
             Instruction::ElementGet {
-                destination,
+                copy,
                 aggregate,
                 index,
-            } if self.paths.value(*destination).is_some() => {
+                ..
+            } if copy.is_no() => {
                 let projection = Projection::Element { index: *index };
                 self.uninitialize_projection(*aggregate, projection, anchor, state, tree);
             }
-            Instruction::VariantPayload {
-                destination,
-                variant,
-                ..
-            } if self.paths.value(*destination).is_some() => {
+            Instruction::VariantPayload { copy, variant, .. } if copy.is_no() => {
                 self.uninitialize_value(*variant, anchor, state);
             }
             // move the owned storage a load reads
-            Instruction::Load {
-                destination,
-                pointer,
-                ..
-            } if self.paths.value(*destination).is_some() => {
-                if let Some(path) = self.paths.pointee(*pointer) {
+            Instruction::Load { copy, place, .. } if copy.is_no() => {
+                let place = self.places.resolve_place(place);
+                if let Some(path) = self.paths.place(&place) {
                     state.move_path(path, anchor, &self.paths);
                 }
             }
@@ -434,26 +418,24 @@ impl InitializationTable {
             state.initialize(path, &self.paths);
         }
 
-        // initialize storage defined by the instruction
-        if let Instruction::LocalSet { local, .. } = instruction
-            && let Some(path) = self.paths.local(*local)
-        {
-            state.initialize(path, &self.paths);
-            let pointee = Place::local(*local).with_projection(Projection::Deref);
-            if let Some(path) = self.paths.place(&pointee) {
+        // initialize the destination storage without changing borrowed pointees
+        if let Instruction::Store { place, .. } = instruction {
+            let place = self.places.resolve_place(place);
+            if let Some(path) = self.paths.place(&place) {
                 state.initialize(path, &self.paths);
             }
-        }
-        if let Instruction::Store { pointer, .. } = instruction
-            && let Some(path) = self.paths.pointee(*pointer)
-        {
-            state.initialize(path, &self.paths);
         }
         if let Some(destination) = instruction.destination()
             && let Some(path) = self.paths.value(destination)
         {
             state.initialize(path, &self.paths);
-            if let Some(pointee) = self.paths.pointee(destination) {
+            if matches!(
+                instruction,
+                Instruction::NewZeroed { .. }
+                    | Instruction::NewComplete { .. }
+                    | Instruction::Call { .. }
+            ) && let Some(pointee) = self.paths.pointee(destination)
+            {
                 state.initialize(pointee, &self.paths);
             }
         }
@@ -861,7 +843,7 @@ mod tests {
     /// Merge local initialization from every reachable branch.
     #[test]
     fn test_require_initialization_on_every_incoming_branch() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function partial(v0: boolean, v1: ref<int32, unique, mutable, local>): void {
     local l0: ref<int32, unique, mutable, local>
@@ -870,7 +852,7 @@ entry(v0: boolean, v1: ref<int32, unique, mutable, local>):
     branch v0 => left | right
 
 left:
-    local.set l0, v1
+    store l0, v1
     jump join
 
 right:
@@ -887,11 +869,11 @@ entry(v0: boolean, v1: ref<int32, unique, mutable, local>):
     branch v0 => left | right
 
 left:
-    local.set l0, v1
+    store l0, v1
     jump join
 
 right:
-    local.set l0, v1
+    store l0, v1
     jump join
 
 join:
@@ -920,11 +902,17 @@ join:
                 ],
             ),
         ] {
-            let function = program.tree.get(program.function_id_by_name(name));
+            let function = program.function_id_by_name(name);
             let mut analyses = program.function_analyses();
-            let table = analyses.initialization(function, &program.tree);
-            let local = table.paths.local(function.locals()[0]).unwrap();
-            let actual = function
+            let table =
+                analyses.initialization(program.function_id_by_name(name), &mut program.tree);
+            let local = table
+                .paths
+                .local(program.tree.get(function).locals()[0])
+                .unwrap();
+            let actual = program
+                .tree
+                .get(function)
                 .blocks()
                 .iter()
                 .map(|&block| {
@@ -942,17 +930,17 @@ join:
     /// Propagate a local move through the backedge and into the loop exit.
     #[test]
     fn test_preserve_moved_storage_across_backedges() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
     local l0: ref<int32, unique, mutable, local>
 
 entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
-    local.set l0, v0
+    store l0, v0
     jump header
 
 header:
-    v2: ref<int32, unique, mutable, local> = local.get l0
+    v2: ref<int32, unique, mutable, local> = load l0
     branch v1 => header | done
 
 done:
@@ -960,12 +948,21 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let table = analyses.initialization(function, &program.tree);
-        let local = table.paths.local(function.locals()[0]).unwrap();
-        let moved = program.tree.get(function.block(1)).instructions[0].into_any();
-        let actual = function
+        let table = analyses.initialization(program.entry_function_id(), &mut program.tree);
+        let local = table
+            .paths
+            .local(program.tree.get(function).locals()[0])
+            .unwrap();
+        let moved = program
+            .tree
+            .get(program.tree.get(function).block(1))
+            .instructions[0]
+            .into_any();
+        let actual = program
+            .tree
+            .get(function)
             .blocks()
             .iter()
             .map(|&block| {
@@ -1003,7 +1000,7 @@ entry(v0: ref<int32, unique, mutable, local>):
     jump join
 
 dead:
-    local.set l0, v0
+    store l0, v0
     jump join
 
 join:
@@ -1017,10 +1014,13 @@ join:
         function.replace_blocks(vec![dead, entry, join], &program.tree);
         program.tree.set(id, function);
 
-        let function = program.tree.get(id);
+        let function = id;
         let mut analyses = program.function_analyses();
-        let table = analyses.initialization(function, &program.tree);
-        let local = table.paths.local(function.locals()[0]).unwrap();
+        let table = analyses.initialization(id, &mut program.tree);
+        let local = table
+            .paths
+            .local(program.tree.get(function).locals()[0])
+            .unwrap();
         let actual = [entry, dead, join].map(|block| {
             (
                 table.entry(block).map(|state| state.get(local)),
@@ -1041,7 +1041,7 @@ join:
     /// Preserve both owned parameters when a backedge swaps their values.
     #[test]
     fn test_preserve_swapped_block_arguments() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): void {
 entry(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>):
@@ -1054,12 +1054,14 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let paths = analyses.moves(function, &program.tree);
-        let table = analyses.initialization(function, &program.tree);
+        let paths = analyses.moves(program.entry_function_id(), &mut program.tree);
+        let table = analyses.initialization(program.entry_function_id(), &mut program.tree);
         let values = [Value(1), Value(2)].map(|value| paths.value(value).unwrap());
-        let actual = function
+        let actual = program
+            .tree
+            .get(function)
             .blocks()
             .iter()
             .map(|&block| {
@@ -1084,7 +1086,7 @@ done:
     /// Initialize values produced on successful allocation and invoke edges.
     #[test]
     fn test_initialize_results_only_on_success_edges() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 external function make(): ref<int32, unique, mutable, local>
 
@@ -1114,12 +1116,15 @@ failure:
 "#,
         );
         for name in ["allocate", "construct"] {
-            let function = program.tree.get(program.function_id_by_name(name));
+            let function = program.function_id_by_name(name);
             let mut analyses = program.function_analyses();
-            let paths = analyses.moves(function, &program.tree);
-            let table = analyses.initialization(function, &program.tree);
+            let paths = analyses.moves(program.function_id_by_name(name), &mut program.tree);
+            let table =
+                analyses.initialization(program.function_id_by_name(name), &mut program.tree);
             let result = paths.value(Value(0)).unwrap();
-            let actual = function
+            let actual = program
+                .tree
+                .get(function)
                 .blocks()
                 .iter()
                 .map(|&block| {
@@ -1145,7 +1150,7 @@ failure:
     /// Keep an initialization token consumed after producing its unique reference.
     #[test]
     fn test_consume_unique_initialization_token() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -1158,11 +1163,14 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let paths = analyses.moves(function, &program.tree);
-        let initialization = analyses.initialization(function, &program.tree);
-        let state = initialization.entry(function.block(1)).unwrap();
+        let paths = analyses.moves(program.entry_function_id(), &mut program.tree);
+        let initialization =
+            analyses.initialization(program.entry_function_id(), &mut program.tree);
+        let state = initialization
+            .entry(program.tree.get(function).block(1))
+            .unwrap();
         let actual = [Value(0), Value(1)].map(|value| state.get(paths.value(value).unwrap()));
 
         assert_eq!(actual, [Uninitialized, Initialized]);
@@ -1171,25 +1179,25 @@ done:
     /// Preserve moved pointee storage when its owner becomes a block argument.
     #[test]
     fn test_transfer_owner_after_moving_pointee() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>): void {
 entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
-    v1: ref<int32, unique, mutable, local> = load v0
+    v1: ref<int32, unique, mutable, local> = load (*v0)
     jump done(v0)
 
 done(v2: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
-    v3: ref<int32, unique, mutable, local> = load v2
+    v3: ref<int32, unique, mutable, local> = load (*v2)
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let paths = analyses.moves(function, &program.tree);
-        let table = analyses.initialization(function, &program.tree);
-        let block = program.tree.get(function.block(1));
-        let state = table.entry(function.block(1)).unwrap();
+        let paths = analyses.moves(program.entry_function_id(), &mut program.tree);
+        let table = analyses.initialization(program.entry_function_id(), &mut program.tree);
+        let block = program.tree.get(program.tree.get(function).block(1));
+        let state = table.entry(program.tree.get(function).block(1)).unwrap();
         let owner = paths.value(Value(2)).unwrap();
         let pointee = paths.pointee(Value(2)).unwrap();
 
@@ -1206,7 +1214,11 @@ done(v2: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
             state,
             &program.tree,
         );
-        let moved_at = program.tree.get(function.block(0)).instructions[0].into_any();
+        let moved_at = program
+            .tree
+            .get(program.tree.get(function).block(0))
+            .instructions[0]
+            .into_any();
 
         assert_eq!(
             unavailable.as_slice(),
@@ -1220,7 +1232,7 @@ done(v2: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
     /// Initialize borrowed storage only after its explicit reference conversion.
     #[test]
     fn test_initialize_pointees_after_explicit_assume_init() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 external function inspect<'a>(ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'a, mutable, frame>): void
 
@@ -1228,9 +1240,10 @@ function test(): void {
     local l0: ref<int32, unique, mutable, local>
 
 entry:
-    v0: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = local.address l0
+    v0: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = address l0
     v1: ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'frame, mutable, frame> = cast.bit v0 -> ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'frame, mutable, frame>
-    call inspect(v1): <'a>(ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'a, mutable, frame>) => void
+    v4: ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'frame, mutable, frame> = copy v1
+    call inspect(v4): <'a>(ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'a, mutable, frame>) => void
     jump pending
 
 pending:
@@ -1238,18 +1251,20 @@ pending:
     jump complete
 
 complete:
-    v3: ref<int32, unique, mutable, local> = local.get l0
+    v3: ref<int32, unique, mutable, local> = load l0
     release v3
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let paths = analyses.moves(function, &program.tree);
-        let table = analyses.initialization(function, &program.tree);
-        let local = paths.local(function.locals()[0]).unwrap();
-        let actual = function
+        let paths = analyses.moves(program.entry_function_id(), &mut program.tree);
+        let table = analyses.initialization(program.entry_function_id(), &mut program.tree);
+        let local = paths.local(program.tree.get(function).locals()[0]).unwrap();
+        let actual = program
+            .tree
+            .get(function)
             .blocks()
             .iter()
             .map(|&block| {
@@ -1268,7 +1283,7 @@ complete:
                 (Initialized, Uninitialized),
             ]
         );
-        for &block in function.blocks() {
+        for &block in program.tree.get(function).blocks() {
             let mut state = table.entry(block).unwrap().clone();
             for &instruction in &program.tree.get(block).instructions {
                 assert_eq!(
@@ -1280,6 +1295,8 @@ complete:
                         )
                         .as_slice(),
                     &[],
+                    "{:?}",
+                    program.tree.get(instruction),
                 );
                 table.transfer_instruction(instruction, &mut state, &program.tree);
             }
@@ -1289,7 +1306,7 @@ complete:
     /// Track moved pointees after different owners merge through a local.
     #[test]
     fn test_move_pointee_from_merged_local() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean, v1: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v2: ref<ref<int32, unique, mutable, local>, unique, mutable, local>): void {
     local l0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>
@@ -1298,26 +1315,26 @@ entry(v0: boolean, v1: ref<ref<int32, unique, mutable, local>, unique, mutable, 
     branch v0 => left | right
 
 left:
-    local.set l0, v1
+    store l0, v1
     jump join
 
 right:
-    local.set l0, v2
+    store l0, v2
     jump join
 
 join:
-    v3: ref<ref<int32, unique, mutable, local>, unique, mutable, local> = local.get l0
-    v4: ref<int32, unique, mutable, local> = load v3
-    v5: ref<int32, unique, mutable, local> = load v3
+    v3: ref<ref<int32, unique, mutable, local>, unique, mutable, local> = load l0
+    v4: ref<int32, unique, mutable, local> = load (*v3)
+    v5: ref<int32, unique, mutable, local> = load (*v3)
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let paths = analyses.moves(function, &program.tree);
-        let table = analyses.initialization(function, &program.tree);
-        let block = function.block(3);
+        let paths = analyses.moves(program.entry_function_id(), &mut program.tree);
+        let table = analyses.initialization(program.entry_function_id(), &mut program.tree);
+        let block = program.tree.get(function).block(3);
         let instructions = &program.tree.get(block).instructions;
         let mut state = table.entry(block).unwrap().clone();
         let pointee = paths.pointee(Value(3)).unwrap();
@@ -1355,22 +1372,22 @@ join:
     /// Reinitialize an owned pointee after moving its previous value.
     #[test]
     fn test_replace_moved_pointee() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
-    v2: ref<int32, unique, mutable, local> = load v0
-    store v0, v1
-    v3: ref<int32, unique, mutable, local> = load v0
+    v2: ref<int32, unique, mutable, local> = load (*v0)
+    store (*v0), v1
+    v3: ref<int32, unique, mutable, local> = load (*v0)
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let paths = analyses.moves(function, &program.tree);
-        let table = analyses.initialization(function, &program.tree);
-        let entry = function.block(0);
+        let paths = analyses.moves(program.entry_function_id(), &mut program.tree);
+        let table = analyses.initialization(program.entry_function_id(), &mut program.tree);
+        let entry = program.tree.get(function).block(0);
         let pointee = paths.pointee(Value(0)).unwrap();
         let mut state = table.entry(entry).unwrap().clone();
         let mut actual = vec![state.get(pointee)];
@@ -1398,7 +1415,7 @@ entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v1: r
     /// Keep an untouched field initialized after moving its sibling out of an aggregate.
     #[test]
     fn test_move_one_field_without_consuming_its_sibling() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: (ref<int32, unique, mutable, local>, ref<int32, unique, mutable, local>)): void {
 entry(v0: (ref<int32, unique, mutable, local>, ref<int32, unique, mutable, local>)):
@@ -1410,10 +1427,10 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let table = analyses.initialization(function, &program.tree);
-        let state = table.entry(function.block(1)).unwrap();
+        let table = analyses.initialization(program.entry_function_id(), &mut program.tree);
+        let state = table.entry(program.tree.get(function).block(1)).unwrap();
         let aggregate = table.paths.value(Value(0)).unwrap();
         let children = table.paths.children(aggregate);
         let actual = children

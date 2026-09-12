@@ -434,7 +434,7 @@ mod tests {
     /// Link a load through disjoint stores to the preceding write of its local.
     #[test]
     fn test_find_local_clobber() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -442,25 +442,36 @@ function test(): int32 {
 
 entry:
     v0: int32 = 7
-    local.set l0, v0
-    local.set l1, v0
-    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
-    v2: int32 = load v1
+    store l0, v0
+    store l1, v0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = address l0
+    v2: int32 = load.copy (*v1)
     return v2
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
-        let instructions = &program.tree.get(function.block(0)).instructions;
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
         let alias = analyses
-            .alias(function, program.layouts.clone(), &program.tree)
+            .alias(
+                program.entry_function_id(),
+                program.layouts.clone(),
+                &mut program.tree,
+            )
             .unwrap();
+        let instructions = &program
+            .tree
+            .get(program.tree.get(function).block(0))
+            .instructions;
         let first = memory.instruction_access(instructions[1]).unwrap();
         let second = memory.instruction_access(instructions[2]).unwrap();
         let load = memory.instruction_access(instructions[4]).unwrap();
-        let region = MemoryRegion::Local(function.local(0));
+        let region = MemoryRegion::Local(program.tree.get(function).local(0));
 
         assert_eq!(memory.defining_access(first), Some(memory.live_on_entry()));
         assert_eq!(memory.defining_access(second), Some(first));
@@ -474,7 +485,7 @@ entry:
     /// Merge both branch stores before a load at their join.
     #[test]
     fn test_merge_branch_stores() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
@@ -482,29 +493,37 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
 
 left:
     v2: int32 = 1
-    store v0, v2
+    store (*v0), v2
     jump join
 
 right:
     v3: int32 = 2
-    store v0, v3
+    store (*v0), v3
     jump join
 
 join:
-    v4: int32 = load v0
+    v4: int32 = load.copy (*v0)
     return v4
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
         let alias = analyses
-            .alias(function, program.layouts.clone(), &program.tree)
+            .alias(
+                program.entry_function_id(),
+                program.layouts.clone(),
+                &mut program.tree,
+            )
             .unwrap();
-        let left = function.block(1);
-        let right = function.block(2);
-        let join = function.block(3);
+        let left = program.tree.get(function).block(1);
+        let right = program.tree.get(function).block(2);
+        let join = program.tree.get(function).block(3);
         let first = memory
             .instruction_access(program.tree.get(left).instructions[1])
             .unwrap();
@@ -534,7 +553,7 @@ join:
     /// Recover the earlier clobber merge through branches that write another local.
     #[test]
     fn test_skip_disjoint_branch_stores() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
     local l0: int32
@@ -546,40 +565,52 @@ entry(v0: boolean):
     branch v0 => left | right
 
 left:
-    local.set l0, v1
+    store l0, v1
     jump join
 
 right:
-    local.set l0, v2
+    store l0, v2
     jump join
 
 join:
-    v3: int32 = local.get l0
+    v3: int32 = load.copy l0
     branch v0 => next_left | next_right
 
 next_left:
-    local.set l1, v1
+    store l1, v1
     jump exit
 
 next_right:
-    local.set l1, v2
+    store l1, v2
     jump exit
 
 exit:
-    v4: int32 = local.get l0
+    v4: int32 = load.copy l0
     return v4
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
         let alias = analyses
-            .alias(function, program.layouts.clone(), &program.tree)
+            .alias(
+                program.entry_function_id(),
+                program.layouts.clone(),
+                &mut program.tree,
+            )
             .unwrap();
-        let join = memory.block_phi(function.block(3)).unwrap();
-        let exit = memory.block_phi(function.block(6)).unwrap();
-        let region = MemoryRegion::Local(function.local(0));
+        let join = memory
+            .block_phi(program.tree.get(function).block(3))
+            .unwrap();
+        let exit = memory
+            .block_phi(program.tree.get(function).block(6))
+            .unwrap();
+        let region = MemoryRegion::Local(program.tree.get(function).local(0));
         let mut cursor = memory.cursor(&alias);
 
         assert_eq!(cursor.clobber(join, &region).unwrap(), join);
@@ -589,7 +620,7 @@ exit:
     /// Skip a loop's disjoint store while retaining its memory merge.
     #[test]
     fn test_find_clobber_through_loop() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
     local l0: int32
@@ -597,12 +628,12 @@ function test(v0: boolean): int32 {
 
 entry(v0: boolean):
     v1: int32 = 7
-    local.set l0, v1
+    store l0, v1
     jump loop
 
 loop:
-    v2: int32 = local.get l0
-    local.set l1, v2
+    v2: int32 = load.copy l0
+    store l1, v2
     branch v0 => loop | exit
 
 exit:
@@ -610,14 +641,22 @@ exit:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
         let alias = analyses
-            .alias(function, program.layouts.clone(), &program.tree)
+            .alias(
+                program.entry_function_id(),
+                program.layouts.clone(),
+                &mut program.tree,
+            )
             .unwrap();
-        let entry = function.block(0);
-        let header = function.block(1);
+        let entry = program.tree.get(function).block(0);
+        let header = program.tree.get(function).block(1);
         let initial = memory
             .instruction_access(program.tree.get(entry).instructions[1])
             .unwrap();
@@ -631,7 +670,7 @@ exit:
             panic!("expected memory phi")
         };
         let incoming = merge.incoming.iter().copied().collect::<FxIndexMap<_, _>>();
-        let region = MemoryRegion::Local(function.local(0));
+        let region = MemoryRegion::Local(program.tree.get(function).local(0));
 
         assert_eq!(
             incoming,
@@ -647,12 +686,12 @@ exit:
     /// Include incoming function memory when control returns to the entry block.
     #[test]
     fn test_merge_entry_backedge() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
-    v2: int32 = load v0
-    store v0, v2
+    v2: int32 = load.copy (*v0)
+    store (*v0), v2
     branch v1 => entry(v0, v1) | exit
 
 exit:
@@ -660,13 +699,21 @@ exit:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
         let alias = analyses
-            .alias(function, program.layouts.clone(), &program.tree)
+            .alias(
+                program.entry_function_id(),
+                program.layouts.clone(),
+                &mut program.tree,
+            )
             .unwrap();
-        let entry = function.block(0);
+        let entry = program.tree.get(function).block(0);
         let instructions = &program.tree.get(entry).instructions;
         let load = memory.instruction_access(instructions[0]).unwrap();
         let store = memory.instruction_access(instructions[1]).unwrap();
@@ -690,7 +737,7 @@ exit:
     /// Keep both copy regions on one definition and both comparison regions on one use.
     #[test]
     fn test_link_copy_definition_to_comparison_use() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
@@ -701,10 +748,17 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
-        let instructions = &program.tree.get(function.block(0)).instructions;
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
+        let instructions = &program
+            .tree
+            .get(program.tree.get(function).block(0))
+            .instructions;
         let copy = memory.instruction_access(instructions[1]).unwrap();
         let compare = memory.instruction_access(instructions[2]).unwrap();
         let MemoryNode::Def(copy_node) = memory.access(copy) else {
@@ -721,24 +775,35 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     /// Stop clobber searches at fences and acquire loads across disjoint storage.
     #[test]
     fn test_stop_clobber_search_at_fences_and_acquire_loads() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<atomic<int32>, borrowed, 'a, readonly, shared>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<atomic<int32>, borrowed, 'a, readonly, shared>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, shared>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, shared>):
     atomic.fence sequentiallyConsistent, scope(device), storage(shared)
-    v2: int32 = atomic.load v1, acquire, scope(device)
-    v3: int32 = load v0
+    v2: int32 = atomic.load (*v1), acquire, scope(device)
+    v3: int32 = load.copy (*v0)
     return v3
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
         let alias = analyses
-            .alias(function, program.layouts.clone(), &program.tree)
+            .alias(
+                program.entry_function_id(),
+                program.layouts.clone(),
+                &mut program.tree,
+            )
             .unwrap();
-        let instructions = &program.tree.get(function.block(0)).instructions;
+        let instructions = &program
+            .tree
+            .get(program.tree.get(function).block(0))
+            .instructions;
         let fence = memory.instruction_access(instructions[0]).unwrap();
         let acquire = memory.instruction_access(instructions[1]).unwrap();
         let load = memory.instruction_access(instructions[2]).unwrap();
@@ -762,7 +827,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<atomic<int32>, borro
     /// Preserve loop memory when an indexed query changes between iterations.
     #[test]
     fn test_preserve_loop_address_changes() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a>(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
 entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean):
@@ -770,14 +835,14 @@ entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean):
     v3: usize = 1
     v4: usize = 8
     v5: int32 = 7
-    v6: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v3, v4
+    v6: slice<int32, borrowed, 'a, mutable, local> = address (*v0)[v3; v4]
     jump loop(v2)
 
 loop(v7: usize):
-    v8: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v7
-    v9: ref<int32, borrowed, 'a, mutable, local> = element.address v6, v7
-    store v8, v5
-    v10: int32 = load v9
+    v8: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v7]
+    v9: ref<int32, borrowed, 'a, mutable, local> = address (*v6)[v7]
+    store (*v8), v5
+    v10: int32 = load.copy (*v9)
     v11: usize = add v7, v3
     branch v1 => loop(v11) | exit
 
@@ -786,13 +851,21 @@ exit:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
         let alias = analyses
-            .alias(function, program.layouts.clone(), &program.tree)
+            .alias(
+                program.entry_function_id(),
+                program.layouts.clone(),
+                &mut program.tree,
+            )
             .unwrap();
-        let block = function.block(1);
+        let block = program.tree.get(function).block(1);
         let load = program.tree.get(block).instructions[3];
         let access = memory.instruction_access(load).unwrap();
         let start = memory.defining_access(access).unwrap();
@@ -808,7 +881,7 @@ exit:
     /// Link both invoke continuations to the call's memory definition.
     #[test]
     fn test_link_invoke_memory() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 external function change(): void
 
@@ -817,26 +890,35 @@ entry(v0: ptr<int32, readonly>):
     invoke change(): () => void => normal | unwind
 
 normal:
-    v1: int32 = load v0
+    v1: int32 = load.copy (*v0)
     return v1
 
 unwind:
-    v2: int32 = load v0
+    v2: int32 = load.copy (*v0)
     return v2
 
 unused:
-    v3: int32 = load v0
+    v3: int32 = load.copy (*v0)
     return v3
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(function, &program.tree, &program.accesses, &program.effects);
-        let invoke = memory.terminator_access(function.block(0)).unwrap();
+        let memory = analyses.ssa(
+            program.entry_function_id(),
+            &mut program.tree,
+            &program.effects,
+        );
+        let invoke = memory
+            .terminator_access(program.tree.get(function).block(0))
+            .unwrap();
         let actual = (1..4)
             .map(|index| {
-                let instruction = program.tree.get(function.block(index)).instructions[0];
+                let instruction = program
+                    .tree
+                    .get(program.tree.get(function).block(index))
+                    .instructions[0];
                 memory
                     .instruction_access(instruction)
                     .and_then(|access| memory.defining_access(access))

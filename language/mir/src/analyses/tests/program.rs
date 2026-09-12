@@ -57,24 +57,24 @@ impl TestProgram {
 
     /// Analyse all modules with optional previous interprocedural results.
     pub(crate) fn analyse_effects(
-        &self,
+        &mut self,
         previous: Option<&ProgramEffectTable>,
     ) -> ProgramEffectTable {
         // extract function effects from each module's MIR
         let mut functions = Vec::new();
-        for module in &self.modules {
-            let resolution = ResolutionTable::analyse(&module.dispatch, None, &module.tree);
-            for (id, function) in module.tree.iter_nodes::<Function>() {
-                let analysis = FunctionEffectBody::analyse(
-                    id,
-                    &resolution,
-                    &module.accesses,
-                    &module.effects,
-                    &module.tree,
-                )
-                .expect("MIR effects should be serializable");
+        for module in &mut self.modules {
+            let resolution = ResolutionTable::analyse(&module.dispatch, None, &mut module.tree);
+            let ids = module
+                .tree
+                .iter_nodes::<Function>()
+                .map(|(id, function)| (id, function.symbol))
+                .collect::<Vec<_>>();
+            for (id, symbol) in ids {
+                let analysis =
+                    FunctionEffectBody::analyse(id, &resolution, &module.effects, &mut module.tree)
+                        .expect("MIR effects should be serializable");
 
-                functions.push((function.symbol, Arc::new(analysis)));
+                functions.push((symbol, Arc::new(analysis)));
             }
         }
 

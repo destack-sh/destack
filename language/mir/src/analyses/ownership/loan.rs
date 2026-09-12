@@ -1,7 +1,7 @@
 use destack_core::BitSet;
 use smallvec::SmallVec;
 
-use crate::{Access, LocalNodeIdAny, Path, Place, Value};
+use crate::{Access, ConstantTable, FunctionId, LocalNodeIdAny, Path, Place, Tree, Value};
 
 /// Dense identity of one borrow loan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -47,8 +47,8 @@ enum LoanTarget {
     Place {
         /// The canonical borrowed place.
         place: Place,
-        /// The value through which the storage was borrowed.
-        source: Option<Value>,
+        /// The storage of the reference through which this loan was borrowed.
+        source: Option<Place>,
     },
     /// One referent admitted by a function parameter path.
     Parameter { value: Value, path: Path },
@@ -134,29 +134,39 @@ impl LoanTable {
         self.roots[start..end].iter().map(|root| root.loan)
     }
 
+    /// Append unseen ancestors to the given loans and record every included identity.
+    pub fn extend_parents(&self, loans: &mut Vec<LoanId>, included: &mut BitSet) {
+        // visit each newly included loan once, including cyclic loop origins
+        loans.retain(|loan| included.insert(loan.index()));
+        let mut index = 0;
+        while index < loans.len() {
+            for &parent in self.get(loans[index]).parents() {
+                if included.insert(parent.index()) {
+                    loans.push(parent);
+                }
+            }
+            index += 1;
+        }
+    }
+
     /// Return the active loan conflicting with a new loan.
     pub fn conflict(
         &self,
         loan: &Loan,
         active: &[LoanId],
-        mut may_overlap: impl FnMut(&Place, &Place) -> bool,
-        mut is_exclusive: impl FnMut(&Loan) -> bool,
+        constants: &ConstantTable,
+        function: FunctionId,
+        tree: &mut Tree,
     ) -> Option<LoanId> {
         // authorize reborrows through every ancestor loan, including cyclic loop origins
         let mut parents = BitSet::new(self.len());
-        let mut pending = loan.parents.clone();
-        while let Some(parent) = pending.pop() {
-            if !parents.contains(parent.index()) {
-                parents.insert(parent.index());
-                pending.extend_from_slice(self.get(parent).parents());
-            }
-        }
+        let mut pending = loan.parents.to_vec();
+        self.extend_parents(&mut pending, &mut parents);
 
         active.iter().copied().find(|&current| {
             let current_loan = self.get(current);
             !parents.contains(current.index())
-                && current_loan.may_overlap(loan, &mut may_overlap)
-                && (is_exclusive(current_loan) || is_exclusive(loan))
+                && current_loan.conflicts(loan, constants, function, tree)
         })
     }
 
@@ -216,7 +226,7 @@ impl Loan {
     /// Create a loan over one concrete MIR place.
     pub fn new(
         place: Place,
-        source: Option<Value>,
+        source: Option<Place>,
         access: Access,
         representation: Value,
         parents: impl IntoIterator<Item = LoanId>,
@@ -255,10 +265,10 @@ impl Loan {
         }
     }
 
-    /// Return the value through which concrete storage was borrowed.
-    pub fn source(&self) -> Option<Value> {
-        match self.target {
-            LoanTarget::Place { source, .. } => source,
+    /// Return the storage of the reference through which this loan was borrowed.
+    pub fn source(&self) -> Option<&Place> {
+        match &self.target {
+            LoanTarget::Place { source, .. } => source.as_ref(),
             LoanTarget::Parameter { .. } => None,
         }
     }
@@ -273,16 +283,23 @@ impl Loan {
         self.access.can_write()
     }
 
-    /// Return whether this loan may overlap another loan.
-    fn may_overlap(
+    /// Return whether these loans exclude one another or permit invalidating a selected case.
+    pub fn conflicts(
         &self,
         other: &Self,
-        may_overlap: &mut impl FnMut(&Place, &Place) -> bool,
+        constants: &ConstantTable,
+        function: FunctionId,
+        tree: &mut Tree,
     ) -> bool {
         match (&self.target, &other.target) {
+            // preserve access guarantees and the validity of selected cases
             (LoanTarget::Place { place: left, .. }, LoanTarget::Place { place: right, .. }) => {
-                may_overlap(left, right)
+                (self.access.conflicts(other.access)
+                    && left.may_overlap(right, constants, function, tree))
+                    || (self.writes() && left.may_replace_case(right, constants, function, tree))
+                    || (other.writes() && right.may_replace_case(left, constants, function, tree))
             }
+            // compare incoming loans by their parameter and structural path
             (
                 LoanTarget::Parameter {
                     value: left,
@@ -293,7 +310,9 @@ impl Loan {
                     path: right_path,
                 },
             ) => {
-                left == right && (left_path.contains(right_path) || right_path.contains(left_path))
+                self.access.conflicts(other.access)
+                    && left == right
+                    && (left_path.contains(right_path) || right_path.contains(left_path))
             }
             (LoanTarget::Place { .. }, LoanTarget::Parameter { .. })
             | (LoanTarget::Parameter { .. }, LoanTarget::Place { .. }) => false,
@@ -319,7 +338,7 @@ mod tests {
     /// Permit ancestral reborrows and reject an independent overlapping exclusive borrow.
     #[test]
     fn test_allow_ancestors_and_reject_overlapping_siblings() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 type Pair { first: int32; second: int32; }
 type Box { pair: Pair; }
@@ -331,22 +350,23 @@ entry:
     v0: int32 = 7
     v1: Pair = aggregate (v0, v0)
     v2: Box = aggregate (v1)
-    local.set l0, v2
-    v3: ref<Box, borrowed, 'frame, mutable, frame> = local.address l0
-    v4: ref<Pair, borrowed, 'frame, mutable, frame> = field.address v3, 0
-    v5: ref<int32, borrowed, 'frame, mutable, frame> = field.address v4, 0
-    v6: ref<int32, borrowed, 'frame, mutable, frame> = field.address v4, 1
-    v7: ref<int32, borrowed, 'frame, mutable, frame> = field.address v4, 0
-    v8: ref<int32, borrowed, 'frame, readonly, frame> = field.address v4, 0
-    v9: ref<int32, borrowed, 'frame, readonly, frame> = field.address v4, 0
+    store l0, v2
+    v3: ref<Box, borrowed, 'frame, exclusive, frame> = address l0
+    v4: ref<Pair, borrowed, 'frame, exclusive, frame> = address (*v3).0
+    v5: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v4).0
+    v6: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v4).1
+    v7: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v4).0
+    v8: ref<int32, borrowed, 'frame, readonly, frame> = address (*v4).0
+    v9: ref<int32, borrowed, 'frame, readonly, frame> = address (*v4).0
+    v10: ref<int32, borrowed, 'frame, mutable, frame> = address (*v4).0
+    v11: ref<int32, borrowed, 'frame, immutable, frame> = address (*v4).0
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let constants = analyses.constant(function, &program.tree);
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let loans = origins.loans();
         let [
             root,
@@ -356,7 +376,19 @@ entry:
             overlapping,
             reader,
             other_reader,
-        ] = [3, 4, 5, 6, 7, 8, 9].map(|value| loans.root(Value(value)).unwrap());
+            mutable,
+            immutable,
+        ] = [3, 4, 5, 6, 7, 8, 9, 10, 11].map(|value| loans.root(Value(value)).unwrap());
+
+        // retain the complete ancestry when only the leaf borrow remains live
+        let mut live = vec![first];
+        let mut included = BitSet::new(loans.len());
+        loans.extend_parents(&mut live, &mut included);
+        assert_eq!(
+            included.iter().collect::<Vec<_>>(),
+            [root, parent, first].map(LoanId::index)
+        );
+
         for (loan, active, expected) in [
             (first, vec![root, parent], None),
             (second, vec![first], None),
@@ -368,8 +400,9 @@ entry:
             let actual = loans.conflict(
                 loans.get(loan),
                 &active,
-                |left, right| left.may_overlap(right, &constants, function, &program.tree),
-                Loan::writes,
+                &constants,
+                program.entry_function_id(),
+                &mut program.tree,
             );
 
             assert_eq!(
@@ -379,12 +412,34 @@ entry:
                 loans.get(loan).representation
             );
         }
+
+        // compare all access pairs on the same field
+        let accesses = [reader, mutable, immutable, first];
+        let expected = [
+            [None, None, None, Some(first)],
+            [None, None, Some(immutable), Some(first)],
+            [None, Some(mutable), None, Some(first)],
+            [Some(reader), Some(mutable), Some(immutable), Some(first)],
+        ];
+        let actual = accesses.map(|loan| {
+            accesses.map(|active| {
+                loans.conflict(
+                    loans.get(loan),
+                    &[active],
+                    &constants,
+                    program.entry_function_id(),
+                    &mut program.tree,
+                )
+            })
+        });
+
+        assert_eq!(actual, expected);
     }
 
     /// Permit reborrows from either selected parent and reject an overlapping sibling.
     #[test]
     fn test_allow_both_selected_reborrow_parents() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 type Pair { first: int32; second: int32; }
 
@@ -395,21 +450,20 @@ function test(v0: boolean): void {
 entry(v0: boolean):
     v1: int32 = 7
     v2: Pair = aggregate (v1, v1)
-    local.set l0, v2
-    local.set l1, v2
-    v3: ref<Pair, borrowed, 'frame, mutable, frame> = local.address l0
-    v4: ref<Pair, borrowed, 'frame, mutable, frame> = local.address l1
-    v5: ref<Pair, borrowed, 'frame, mutable, frame> = select v0, v3, v4
-    v6: ref<int32, borrowed, 'frame, mutable, frame> = field.address v5, 0
-    v7: ref<int32, borrowed, 'frame, mutable, frame> = field.address v5, 0
+    store l0, v2
+    store l1, v2
+    v3: ref<Pair, borrowed, 'frame, exclusive, frame> = address l0
+    v4: ref<Pair, borrowed, 'frame, exclusive, frame> = address l1
+    v5: ref<Pair, borrowed, 'frame, exclusive, frame> = select v0, v3, v4
+    v6: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v5).0
+    v7: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v5).0
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let constants = analyses.constant(function, &program.tree);
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let loans = origins.loans();
         let [left, right, first, sibling] =
             [3, 4, 6, 7].map(|value| loans.root(Value(value)).unwrap());
@@ -419,32 +473,104 @@ entry(v0: boolean):
             let actual = loans.conflict(
                 loans.get(sibling),
                 &active,
-                |left, right| left.may_overlap(right, &constants, function, &program.tree),
-                Loan::writes,
+                &constants,
+                program.entry_function_id(),
+                &mut program.tree,
             );
 
             assert_eq!(actual, expected);
         }
     }
 
+    /// Preserve borrowed inline cases while permitting payload writes and retained referents.
+    #[test]
+    fn test_preserve_borrowed_variant_cases() {
+        let mut program = TestModule::new(
+            r#"
+type Inner = variant<uint1> { 0uint1 = void; 1uint1 = int32; };
+type Packet = variant<uint1> { 0uint1 = void; 1uint1 = (int32, ref<int32, managed, mutable, local>, Inner); };
+type Single = variant<uint1> { 0uint1 = int32; };
+
+function test(v0: Packet, v1: Single): void {
+    local l0: Packet
+    local l1: Single
+
+entry(v0: Packet, v1: Single):
+    store l0, v0
+    store l1, v1
+    v2: ref<Packet, borrowed, 'frame, mutable, frame> = address l0
+    v3: ref<int32, borrowed, 'frame, readonly, frame> = address (l0 as 1).0
+    v4: ref<int32, borrowed, 'frame, mutable, frame> = address (l0 as 1).0
+    v5: ref<ref<int32, managed, mutable, local>, borrowed, 'frame, readonly, frame> = address (l0 as 1).1
+    v6: ref<int32, borrowed, 'frame, readonly, local> = address (*(l0 as 1).1)
+    v7: ref<Single, borrowed, 'frame, mutable, frame> = address l1
+    v8: ref<int32, borrowed, 'frame, readonly, frame> = address (l1 as 0)
+    v9: ref<Inner, borrowed, 'frame, mutable, frame> = address (l0 as 1).2
+    v10: ref<int32, borrowed, 'frame, readonly, frame> = address ((l0 as 1).2 as 1)
+    return
+}
+"#,
+        );
+        let mut analyses = program.function_analyses();
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let loans = origins.loans();
+
+        // compare both borrowing orders for each storage relationship
+        for (left, right, expected) in [
+            (2, 3, true),
+            (2, 4, true),
+            (3, 4, false),
+            (2, 5, true),
+            (4, 5, false),
+            (2, 6, false),
+            (5, 6, false),
+            (7, 8, false),
+            (2, 10, true),
+            (9, 10, true),
+            (4, 10, false),
+            (9, 3, false),
+            (7, 10, false),
+        ] {
+            let left = loans.root(Value(left)).unwrap();
+            let right = loans.root(Value(right)).unwrap();
+            let actual = [(left, right), (right, left)].map(|(borrowed, active)| {
+                loans.conflict(
+                    loans.get(borrowed),
+                    &[active],
+                    &constants,
+                    program.entry_function_id(),
+                    &mut program.tree,
+                )
+            });
+            let expected = if expected {
+                [Some(right), Some(left)]
+            } else {
+                [None, None]
+            };
+
+            assert_eq!(actual, expected, "loans {left:?}, {right:?}");
+        }
+    }
+
     /// Permit a loop reborrow whose ancestry includes its previous iteration.
     #[test]
     fn test_allow_reborrows_through_cyclic_ancestry() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
-external function identity<'a>(ref<int32, borrowed, 'a, mutable, frame>): ref<int32, borrowed, 'a, mutable, frame>
+external function identity<'a>(ref<int32, borrowed, 'a, exclusive, frame>): ref<int32, borrowed, 'a, exclusive, frame>
 
 function test(v0: boolean): void {
     local l0: int32
 
 entry(v0: boolean):
     v1: int32 = 7
-    local.set l0, v1
-    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    store l0, v1
+    v2: ref<int32, borrowed, 'frame, exclusive, frame> = address l0
     jump loop(v2)
 
-loop(v3: ref<int32, borrowed, 'frame, mutable, frame>):
-    v4: ref<int32, borrowed, 'frame, mutable, frame> = call identity(v3): <'frame>(ref<int32, borrowed, 'frame, mutable, frame>) => ref<int32, borrowed, 'frame, mutable, frame>
+loop(v3: ref<int32, borrowed, 'frame, exclusive, frame>):
+    v4: ref<int32, borrowed, 'frame, exclusive, frame> = call identity(v3): <'frame>(ref<int32, borrowed, 'frame, exclusive, frame>) => ref<int32, borrowed, 'frame, exclusive, frame>
     branch v0 => loop(v4) | exit
 
 exit:
@@ -452,10 +578,9 @@ exit:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let constants = analyses.constant(function, &program.tree);
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let loans = origins.loans();
         let root = loans.root(Value(2)).unwrap();
         let reborrow = loans.root(Value(4)).unwrap();
@@ -464,8 +589,9 @@ exit:
         let conflict = loans.conflict(
             loans.get(reborrow),
             &[root, reborrow],
-            |left, right| left.may_overlap(right, &constants, function, &program.tree),
-            Loan::writes,
+            &constants,
+            program.entry_function_id(),
+            &mut program.tree,
         );
 
         assert_eq!(conflict, None);

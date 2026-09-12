@@ -818,6 +818,7 @@ impl<'a> ValueQuery<'a> {
             return false;
         };
         match tree.get(instruction) {
+            Instruction::Copy { value, .. } => self.nonzero(*value, depth + 1),
             Instruction::Select {
                 then_value,
                 else_value,
@@ -827,12 +828,24 @@ impl<'a> ValueQuery<'a> {
                 operator: UnaryOperator::Negate,
                 argument,
                 ..
-            }
-            | Instruction::Cast {
-                operator: CastOperator::ZeroExtend | CastOperator::SignExtend,
-                argument,
-                ..
             } => self.nonzero(*argument, depth + 1),
+            Instruction::Cast {
+                operator: CastOperator::IntToInt,
+                argument,
+                to_type,
+                ..
+            } => {
+                let source = tree.get(function.expect_value_type(*argument));
+                let target = tree.get(*to_type);
+                let pointer_bits = self.target.pointer_bits();
+                let widths = (
+                    source.int_info_with_pointer_width(pointer_bits),
+                    target.int_info_with_pointer_width(pointer_bits),
+                );
+
+                matches!(widths, (Some((source, _)), Some((target, _))) if target >= source)
+                    && self.nonzero(*argument, depth + 1)
+            }
             Instruction::Intrinsic {
                 intrinsic:
                     Intrinsic::ByteSwap
@@ -936,6 +949,7 @@ impl<'a> ValueQuery<'a> {
 
         // transfer known bits through integer operations
         let bits = match tree.get(instruction) {
+            Instruction::Copy { value, .. } => self.bits(*value, depth + 1),
             Instruction::Const { value, .. } => match value {
                 Constant::Int { value, .. } => KnownBits::constant(*value as u128, mask),
                 Constant::UInt { value, .. } => KnownBits::constant(*value, mask),
@@ -985,37 +999,33 @@ impl<'a> ValueQuery<'a> {
             } => {
                 let bits = self.bits(*argument, depth + 1);
                 let source = tree.get(function.expect_value_type(*argument));
-                let source_width = source
-                    .int_info_with_pointer_width(target.pointer_bits())
-                    .map(|(width, _)| width);
-                match (operator, source_width) {
-                    (CastOperator::Bitcast | CastOperator::Truncate, Some(_)) => bits,
-                    (CastOperator::ZeroExtend | CastOperator::SignExtend, Some(source_width))
-                        if source_width > 0 && source_width <= width =>
+                let source_integer = source.int_info_with_pointer_width(target.pointer_bits());
+                match (operator, source_integer) {
+                    (CastOperator::Bitcast, Some(_)) => bits,
+                    (CastOperator::IntToInt, Some((source_width, _))) if source_width >= width => {
+                        bits
+                    }
+                    (CastOperator::IntToInt, Some((source_width, source_signed)))
+                        if source_width > 0 =>
                     {
                         let high = mask ^ (u128::MAX >> (128 - source_width));
                         let sign = 1 << (source_width - 1);
                         KnownBits {
                             zero: bits.zero
-                                | if *operator == CastOperator::ZeroExtend || bits.zero & sign != 0
-                                {
+                                | if !source_signed || bits.zero & sign != 0 {
                                     high
                                 } else {
                                     0
                                 },
                             one: bits.one
-                                | if *operator == CastOperator::SignExtend && bits.one & sign != 0 {
+                                | if source_signed && bits.one & sign != 0 {
                                     high
                                 } else {
                                     0
                                 },
                         }
                     }
-                    (CastOperator::Saturate, Some(source_width)) => {
-                        let source_signed = matches!(
-                            source.int_info_with_pointer_width(target.pointer_bits()),
-                            Some((_, true))
-                        );
+                    (CastOperator::IntToIntSaturating, Some((source_width, source_signed))) => {
                         let sign = 1u128 << (width - 1);
                         let maximum = if is_signed { sign - 1 } else { mask };
                         if source_signed {
@@ -1109,8 +1119,8 @@ entry(v0: int32):
     v3: int32 = or v0, v1
     v4: int32 = and v0, v2
     v5: int32 = ushr v0, v1
-    v6: uint8 = cast.truncate v0 -> uint8
-    v7: int32 = cast.extend.u v6 -> int32
+    v6: uint8 = cast.intToInt v0 -> uint8
+    v7: int32 = cast.intToInt v6 -> int32
     v8: int32 = -1
     return v4
 }
@@ -1618,7 +1628,7 @@ entry(v0: int8):
     v2: int8 = -8
     v3: int8 = and v0, v1
     v4: int8 = add v3, v2
-    v5: uint8 = cast.saturate v4 -> uint8
+    v5: uint8 = cast.intToIntSaturating v4 -> uint8
     return
 }
 "#,
@@ -1847,9 +1857,9 @@ function test(v0: int128): void {
 entry(v0: int128):
     v1: int128 = -170141183460469231731687303715884105728
     v2: int128 = or v0, v1
-    v3: int64 = cast.saturate v2 -> int64
-    v4: uint128 = cast.saturate v2 -> uint128
-    v5: int128 = cast.extend.s v3 -> int128
+    v3: int64 = cast.intToIntSaturating v2 -> int64
+    v4: uint128 = cast.intToIntSaturating v2 -> uint128
+    v5: int128 = cast.intToInt v3 -> int128
     return
 }
 "#,

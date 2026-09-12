@@ -43,10 +43,10 @@ impl From<Option<u64>> for MemorySize {
 }
 
 /// One MIR address used by memory analysis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemoryAddress {
-    /// An address carried directly by one SSA value.
-    Value(mir::Value),
+    /// Storage selected by an explicit place.
+    Place(mir::Place),
     /// A field selected from one dynamic value.
     Dynamic {
         /// The dynamic value carrying the payload and dispatch table.
@@ -57,18 +57,41 @@ pub enum MemoryAddress {
 }
 
 impl MemoryAddress {
-    /// Return the SSA value carrying this address.
-    pub const fn value(self) -> mir::Value {
+    /// Return whether the address depends only on immutable SSA values and fixed storage.
+    pub fn is_stable(&self) -> bool {
         match self {
-            Self::Value(value) | Self::Dynamic { value, .. } => value,
+            Self::Dynamic { .. } => true,
+            Self::Place(place) => place.is_stable(),
+        }
+    }
+
+    /// Return the SSA reference at the root, when the address has one.
+    pub fn value(&self) -> Option<mir::Value> {
+        match self {
+            Self::Place(place) => match place.origin {
+                mir::PlaceOrigin::Value(value)
+                    if place.path.first() == Some(&mir::Projection::Deref) =>
+                {
+                    Some(value)
+                }
+                _ => None,
+            },
+            Self::Dynamic { value, .. } => Some(*value),
         }
     }
 }
 
 impl From<mir::Value> for MemoryAddress {
-    /// Convert an SSA address into a memory address.
+    /// Select the referent of an SSA address.
     fn from(value: mir::Value) -> Self {
-        Self::Value(value)
+        Self::Place(mir::Place::value(value).with_projection(mir::Projection::Deref))
+    }
+}
+
+impl From<mir::Place> for MemoryAddress {
+    /// Preserve an explicit place operand.
+    fn from(place: mir::Place) -> Self {
+        Self::Place(place)
     }
 }
 
@@ -82,7 +105,7 @@ pub struct MemoryLocation {
     /// The value type being accessed, when known.
     pub value_type: Option<mir::TypeId>,
     /// Reference kind for the address, when known.
-    pub reference_kind: Option<mir::ReferenceKind>,
+    pub reference_kind: Option<mir::Reference>,
     /// Storage for the address, when known.
     pub reference_storage: Option<mir::Storage>,
 }
@@ -115,7 +138,7 @@ impl MemoryLocation {
         address: impl Into<MemoryAddress>,
         size: MemorySize,
         value_type: Option<mir::TypeId>,
-        reference_kind: Option<mir::ReferenceKind>,
+        reference_kind: Option<mir::Reference>,
         reference_storage: Option<mir::Storage>,
     ) -> Self {
         Self {
@@ -128,10 +151,10 @@ impl MemoryLocation {
     }
 
     /// Return the memory spaces this location can touch.
-    pub fn spaces(&self) -> mir::StorageSet {
+    pub fn spaces(&self, tree: &mir::Tree) -> mir::StorageSet {
         self.reference_storage
             .as_ref()
-            .map(|storage| storage.storage_set())
+            .map(|storage| storage.storage_set(tree))
             .unwrap_or(mir::StorageSet::ANY)
     }
 
@@ -187,13 +210,6 @@ impl MemoryRegion {
         Self::Any { spaces }
     }
 
-    /// Create an imprecise region for one storage region.
-    pub fn any_storage(storage: mir::Storage) -> Self {
-        Self::Any {
-            spaces: storage.storage_set(),
-        }
-    }
-
     /// Return whether this region is owned by the current activation frame.
     pub fn is_frame_storage(&self) -> bool {
         matches!(self, Self::Local(_))
@@ -204,7 +220,7 @@ impl MemoryRegion {
     pub fn from_address(
         address: impl Into<MemoryAddress>,
         value_type: Option<mir::TypeId>,
-        reference_kind: Option<mir::ReferenceKind>,
+        reference_kind: Option<mir::Reference>,
         reference_storage: Option<mir::Storage>,
     ) -> Self {
         let size = value_type.map_or(MemorySize::Dynamic, MemorySize::Type);
@@ -225,7 +241,7 @@ impl MemoryRegion {
     pub fn from_address_with_size(
         address: impl Into<MemoryAddress>,
         value_type: Option<mir::TypeId>,
-        reference_kind: Option<mir::ReferenceKind>,
+        reference_kind: Option<mir::Reference>,
         reference_storage: Option<mir::Storage>,
         size: Option<u64>,
     ) -> Self {
@@ -326,8 +342,8 @@ pub enum StorageRoot {
     Global {
         /// The global declaration.
         global: mir::LocalNodeId<mir::Global>,
-        /// The global space.
-        space: mir::Space,
+        /// The possible storage spaces.
+        spaces: mir::StorageSet,
     },
     /// Storage created by one allocation operation.
     Allocation {
@@ -335,13 +351,13 @@ pub enum StorageRoot {
         point: mir::Point,
         /// The block that executes the allocation.
         block: mir::BlockId,
-        /// The allocation storage.
-        storage: mir::Storage,
+        /// The possible storage spaces.
+        spaces: mir::StorageSet,
     },
     /// An address whose allocation is unknown.
     Address {
-        /// The SSA value defining the base address.
-        value: mir::Value,
+        /// The place selecting the base address.
+        place: mir::Place,
         /// The memory spaces permitted by its type.
         spaces: mir::StorageSet,
     },
@@ -385,9 +401,10 @@ impl StorageRoot {
     pub fn spaces(&self) -> mir::StorageSet {
         match self {
             StorageRoot::LocalSlot(_) => mir::StorageSet::FRAME,
-            StorageRoot::Global { space, .. } => mir::Storage::global(*space).storage_set(),
-            StorageRoot::Allocation { storage, .. } => storage.storage_set(),
-            StorageRoot::Parameter { spaces, .. } | StorageRoot::Address { spaces, .. } => *spaces,
+            StorageRoot::Global { spaces, .. }
+            | StorageRoot::Allocation { spaces, .. }
+            | StorageRoot::Parameter { spaces, .. }
+            | StorageRoot::Address { spaces, .. } => *spaces,
         }
     }
 }
@@ -535,9 +552,9 @@ pub(super) struct MemoryRegionBuilder<'a> {
     /// Value definitions for address origin.
     definitions: &'a DefinitionTable,
     /// The MIR tree.
-    tree: &'a mir::Tree,
+    pub(super) tree: &'a mut mir::Tree,
     /// The MIR function.
-    function: &'a mir::Function,
+    function: mir::FunctionId,
     /// Dominance used to distinguish values from different loop iterations.
     dominators: &'a DominatorTable,
     /// Integer constants used in address arithmetic.
@@ -551,10 +568,10 @@ pub(super) struct MemoryRegionBuilder<'a> {
 impl<'a> MemoryRegionBuilder<'a> {
     /// Create a new region builder.
     pub(super) fn new(
-        function: &'a mir::Function,
+        function: mir::FunctionId,
         definitions: &'a DefinitionTable,
         dominators: &'a DominatorTable,
-        tree: &'a mir::Tree,
+        tree: &'a mut mir::Tree,
         layouts: &'a mir::LayoutTable,
         constants: &'a mir::ConstantTable,
         target: mir::TargetLayout,
@@ -571,6 +588,112 @@ impl<'a> MemoryRegionBuilder<'a> {
         }
     }
 
+    /// Resolve an explicit place into storage and byte offsets.
+    pub(super) fn place(
+        &mut self,
+        operand: &mir::Place,
+        depth: usize,
+    ) -> Result<MemoryRegion, mir::LayoutError> {
+        let invalid = || mir::LayoutError::Unsupported {
+            construct: format!("memory place {operand:?}"),
+        };
+        let root_type = operand
+            .root_type(self.function, self.tree)
+            .ok_or_else(invalid)?;
+        let mut ty = mir::PlaceType::Value(root_type);
+        let mut prefix = mir::Place::new(operand.origin);
+        let root = match operand.origin {
+            mir::PlaceOrigin::Local(local) => StorageRoot::LocalSlot(local),
+            mir::PlaceOrigin::Global(global) => StorageRoot::Global {
+                global,
+                spaces: mir::Storage::global(self.tree.get(global).space).storage_set(self.tree),
+            },
+            mir::PlaceOrigin::Value(_) => StorageRoot::Address {
+                place: prefix.clone(),
+                spaces: mir::StorageSet::FRAME,
+            },
+        };
+        let mut region = MemoryRegion::Place(MemoryPlace::from_root(root));
+
+        // apply each projection with the layout of the storage it selects
+        for projection in &operand.path.projections {
+            let selected = ty.project(projection, self.tree).ok_or_else(invalid)?;
+            match projection {
+                mir::Projection::Deref => {
+                    if prefix.path.is_root()
+                        && let mir::PlaceOrigin::Value(value) = prefix.origin
+                    {
+                        region = self.region(value, depth + 1)?;
+                    } else {
+                        let mir::PlaceType::Value(reference) = ty else {
+                            return Err(invalid());
+                        };
+                        let reference = self.tree.storage_type(reference);
+                        let spaces = self
+                            .tree
+                            .type_definition(reference)
+                            .reference_storage()
+                            .map_or(mir::StorageSet::ANY, |storage| {
+                                storage.storage_set(self.tree)
+                            });
+                        let place = prefix.clone().with_projection(mir::Projection::Deref);
+                        region =
+                            MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Address {
+                                place,
+                                spaces,
+                            }));
+                    }
+                }
+                mir::Projection::Field { index } => {
+                    let mir::PlaceType::Value(aggregate) = ty else {
+                        return Err(invalid());
+                    };
+                    let field = self
+                        .layout(aggregate)?
+                        .source_field(*index)
+                        .ok_or_else(invalid)?;
+                    if let MemoryRegion::Place(place) = &mut region {
+                        place.add_const_offset(i64::from(field.offset));
+                    }
+                }
+                mir::Projection::Variant { case } => {
+                    let mir::PlaceType::Value(variant) = ty else {
+                        return Err(invalid());
+                    };
+                    let mir::LayoutShape::Variant(layout) = &self.layout(variant)?.shape else {
+                        return Err(invalid());
+                    };
+                    let payload = layout.cases.get(*case as usize).ok_or_else(invalid)?;
+                    if let MemoryRegion::Place(place) = &mut region {
+                        place.add_const_offset(i64::from(payload.payload_offset));
+                    }
+                }
+                mir::Projection::Element { index } => {
+                    let mir::PlaceType::Value(element) = selected else {
+                        return Err(invalid());
+                    };
+                    let stride = self.layout(element)?.stride();
+                    if let MemoryRegion::Place(place) = &mut region {
+                        place.const_offset = place
+                            .const_offset
+                            .wrapping_add(i128::from(*index) * stride as i128);
+                    }
+                }
+                mir::Projection::Index { index } | mir::Projection::Slice { start: index, .. } => {
+                    let (mir::PlaceType::Value(element) | mir::PlaceType::Sequence(element)) =
+                        selected;
+                    let stride = self.layout(element)?.stride();
+                    self.add_index(&mut region, *index, stride as u64);
+                }
+                mir::Projection::Elements => return Err(invalid()),
+            }
+            prefix.push(projection.clone());
+            ty = selected;
+        }
+
+        Ok(region)
+    }
+
     /// Resolve an address value to a memory region.
     pub(super) fn region(
         &mut self,
@@ -583,7 +706,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         }
 
         // bound cyclic block arguments and long address expressions
-        if depth == MAX_ADDRESS_DEPTH {
+        if depth >= MAX_ADDRESS_DEPTH {
             return Ok(self.address_region(address));
         }
 
@@ -608,7 +731,7 @@ impl<'a> MemoryRegionBuilder<'a> {
                     .iter()
                     .all(|input| input.argument == Some(address));
                 return Ok(if is_unchanged {
-                    self.parameter_region(index, &self.function.parameters[index])
+                    self.parameter_region(index, &self.tree.get(self.function).parameters[index])
                 } else {
                     self.address_region(address)
                 });
@@ -629,7 +752,16 @@ impl<'a> MemoryRegionBuilder<'a> {
                     // require allocation identities and symbolic indices to precede the merge
                     if let MemoryRegion::Place(place) = &region {
                         let base = match place.root {
-                            StorageRoot::Address { value, .. } => Some(value),
+                            StorageRoot::Address { ref place, .. } => {
+                                if place
+                                    .uses()
+                                    .iter()
+                                    .any(|value| !self.is_available(*value, input.edge.target))
+                                {
+                                    return Ok(self.address_region(address));
+                                }
+                                None
+                            }
                             StorageRoot::Allocation {
                                 point: mir::Point::Instruction(instruction),
                                 ..
@@ -658,7 +790,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         };
 
         // read the defining instruction
-        let instruction = self.tree.get(instruction_id);
+        let instruction = &self.tree.get(instruction_id).clone();
 
         // decompose allocations, projections, and address conversions
         let region = match instruction {
@@ -682,107 +814,7 @@ impl<'a> MemoryRegionBuilder<'a> {
                 self.region(value, depth + 1)?
             }
 
-            // identify global storage
-            mir::Instruction::GlobalAddr {
-                destination,
-                global,
-                ..
-            } if *destination == address => {
-                let global_id = *global;
-                let global = self.tree.get(global_id);
-
-                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Global {
-                    global: global_id,
-                    space: global.space,
-                }))
-            }
-            mir::Instruction::LocalAddr {
-                destination, local, ..
-            } if *destination == address => {
-                MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::LocalSlot(*local)))
-            }
-
-            // apply the field offset from the canonical aggregate layout
-            mir::Instruction::FieldAddr {
-                destination,
-                aggregate,
-                field,
-                ..
-            } if *destination == address => {
-                let aggregate = *aggregate;
-
-                // require the aggregate layout before projecting its field
-                let ty = self.address_type(aggregate);
-                let field = self.layout(ty)?.source_field(*field).ok_or_else(|| {
-                    mir::LayoutError::Unsupported {
-                        construct: format!("field.address {field} on {ty:?}"),
-                    }
-                })?;
-                let offset = i64::from(field.offset);
-                let mut region = self.region(aggregate, depth + 1)?;
-                if let MemoryRegion::Place(place) = &mut region {
-                    place.add_const_offset(offset);
-                }
-
-                region
-            }
-
-            // extend precise region with an indexed offset
-            mir::Instruction::ElementAddr {
-                destination,
-                base,
-                index,
-                ..
-            } if *destination == address => {
-                let base = *base;
-                let index = *index;
-
-                // resolve the base before adding the element offset
-                let mut region = self.region(base, depth + 1)?;
-
-                // use the canonical element stride
-                let scale = self.element_size(base)?;
-                self.add_index(&mut region, index, scale);
-
-                region
-            }
-
-            // apply the payload offset from the canonical variant layout
-            mir::Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                case,
-                ..
-            } if *destination == address => {
-                let variant = *variant;
-                let ty = self.address_type(variant);
-                let mir::LayoutShape::Variant(layout) = &self.layout(ty)?.shape else {
-                    return Err(mir::LayoutError::Unsupported {
-                        construct: format!("variant.payload.address on {ty:?}"),
-                    });
-                };
-                let payload = layout.cases.get(*case as usize).ok_or_else(|| {
-                    mir::LayoutError::Unsupported {
-                        construct: format!("variant.payload.address {case} on {ty:?}"),
-                    }
-                })?;
-                let offset = i64::from(payload.payload_offset);
-                let mut region = self.region(variant, depth + 1)?;
-                if let MemoryRegion::Place(place) = &mut region {
-                    place.add_const_offset(offset);
-                }
-
-                region
-            }
-
-            // project a slice view into its source storage
-            mir::Instruction::SliceView { source, start, .. } => {
-                let mut region = self.region(*source, depth + 1)?;
-                let scale = self.element_size(*source)?;
-                self.add_index(&mut region, *start, scale);
-
-                region
-            }
+            mir::Instruction::Address { place, .. } => self.place(place, depth + 1)?,
 
             // preserve addresses through pointer bitcasts
             mir::Instruction::Cast {
@@ -791,8 +823,18 @@ impl<'a> MemoryRegionBuilder<'a> {
                 operator: mir::CastOperator::Bitcast,
                 ..
             } if *destination == address
-                && self.function.pointee_type(*argument, self.tree).is_some()
-                && self.function.pointee_type(address, self.tree).is_some() =>
+                && {
+                    let ty = self.tree.get(self.function).expect_value_type(*argument);
+                    let ty = mir::Substitution::resolve(ty, self.tree);
+                    self.tree.get(ty).pointee_type()
+                }
+                .is_some()
+                && {
+                    let ty = self.tree.get(self.function).expect_value_type(address);
+                    let ty = mir::Substitution::resolve(ty, self.tree);
+                    self.tree.get(ty).pointee_type()
+                }
+                .is_some() =>
             {
                 let argument = *argument;
 
@@ -827,12 +869,24 @@ impl<'a> MemoryRegionBuilder<'a> {
                 intrinsic: mir::Intrinsic::Transmute | mir::Intrinsic::SpaceCast,
                 arguments,
                 ..
-            } if self.function.pointee_type(address, self.tree).is_some() => {
-                let [argument] = self.tree.get_values(*arguments) else {
+            } if {
+                let ty = self.tree.get(self.function).expect_value_type(address);
+                let ty = mir::Substitution::resolve(ty, self.tree);
+                self.tree.get(ty).pointee_type()
+            }
+            .is_some() =>
+            {
+                let [argument] = *self.tree.get_values(*arguments) else {
                     unreachable!("pointer reinterpretation requires one MIR argument");
                 };
-                if self.function.pointee_type(*argument, self.tree).is_some() {
-                    self.region(*argument, depth + 1)?
+                if {
+                    let ty = self.tree.get(self.function).expect_value_type(argument);
+                    let ty = mir::Substitution::resolve(ty, self.tree);
+                    self.tree.get(ty).pointee_type()
+                }
+                .is_some()
+                {
+                    self.region(argument, depth + 1)?
                 } else {
                     self.address_region(address)
                 }
@@ -871,13 +925,16 @@ impl<'a> MemoryRegionBuilder<'a> {
             index: index as u32,
             spaces: ty
                 .reference_storage()
-                .map_or(mir::StorageSet::ANY, |storage| storage.storage_set()),
+                .map_or(mir::StorageSet::ANY, |storage| {
+                    storage.storage_set(self.tree)
+                }),
         }))
     }
 
     /// Return the storage created by one allocation.
-    fn allocation_region(&self, point: mir::Point, address: mir::Value) -> MemoryRegion {
-        let ty = self.tree.get(self.value_type(address));
+    fn allocation_region(&mut self, point: mir::Point, address: mir::Value) -> MemoryRegion {
+        let ty = self.value_type(address);
+        let ty = self.tree.get(ty);
         let Some(storage) = ty.reference_storage() else {
             unreachable!("MIR allocation result requires reference storage");
         };
@@ -894,32 +951,36 @@ impl<'a> MemoryRegionBuilder<'a> {
         MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Allocation {
             point,
             block,
-            storage,
+            spaces: storage.storage_set(self.tree),
         }))
     }
 
     /// Retain an unknown allocation's base address and permitted memory spaces.
-    fn address_region(&self, address: mir::Value) -> MemoryRegion {
-        let ty = self.tree.get(self.value_type(address));
+    fn address_region(&mut self, address: mir::Value) -> MemoryRegion {
+        let ty = self.value_type(address);
+        let ty = self.tree.get(ty);
         let spaces = ty
             .reference_storage()
-            .map_or(mir::StorageSet::ANY, |storage| storage.storage_set());
+            .map_or(mir::StorageSet::ANY, |storage| {
+                storage.storage_set(self.tree)
+            });
 
         MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Address {
-            value: address,
+            place: mir::Place::value(address).with_projection(mir::Projection::Deref),
             spaces,
         }))
     }
 
     /// Return the value type for an SSA value.
-    fn value_type(&self, value: mir::Value) -> mir::LocalNodeId<mir::Type> {
-        let mut ty = self
-            .tree
-            .represented(self.function.expect_value_type(value));
+    fn value_type(&mut self, value: mir::Value) -> mir::LocalNodeId<mir::Type> {
+        let mut ty = mir::Substitution::resolve(
+            self.tree.get(self.function).expect_value_type(value),
+            self.tree,
+        );
         while let mir::Type::Uninit { value } | mir::Type::ManuallyDrop { value } =
             self.tree.get(ty)
         {
-            ty = self.tree.represented(*value);
+            ty = mir::Substitution::resolve(*value, self.tree);
         }
 
         ty
@@ -930,31 +991,6 @@ impl<'a> MemoryRegionBuilder<'a> {
         self.layouts
             .type_layout(ty)
             .ok_or(mir::LayoutError::Missing { ty })
-    }
-
-    /// Return the type addressed by a reference or represented by an aggregate value.
-    fn address_type(&self, value: mir::Value) -> mir::TypeId {
-        let ty = self.value_type(value);
-        match self.tree.get(ty) {
-            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
-            _ => ty,
-        }
-    }
-
-    /// Return the byte stride for one indexed value.
-    fn element_size(&self, array: mir::Value) -> Result<u64, mir::LayoutError> {
-        // inspect the indexed value or its pointee
-        let ty = self.address_type(array);
-        let element = match self.tree.get(ty) {
-            mir::Type::FixedArray { element, .. } | mir::Type::Slice { element, .. } => *element,
-            _ => {
-                return Err(mir::LayoutError::Unsupported {
-                    construct: format!("element.address on {:?}", self.tree.get(ty)),
-                });
-            }
-        };
-
-        Ok(self.layout(element)?.stride() as u64)
     }
 
     /// Add an element index to a resolved address.
@@ -1079,18 +1115,29 @@ impl<'a> MemoryRegionBuilder<'a> {
                 }
             }
 
-            // preserve integer values through extensions with the same signed interpretation
+            // preserve the numeric value through lossless integer widening
             if let Some(mir::Instruction::Cast {
-                operator, argument, ..
+                operator: mir::CastOperator::IntToInt,
+                argument,
+                to_type,
+                ..
             }) = instruction
             {
-                let ty = self.tree.get(self.function.expect_value_type(*argument));
-                if let Some((_, is_signed)) =
-                    ty.int_info_with_pointer_width(self.target.pointer_bits())
-                    && ((*operator == mir::CastOperator::SignExtend && is_signed)
-                        || (*operator == mir::CastOperator::ZeroExtend && !is_signed))
-                {
-                    return self.expand_index(*argument, scale, depth + 1, place);
+                let source = self
+                    .tree
+                    .get(self.tree.get(self.function).expect_value_type(*argument));
+                let target = self.tree.get(*to_type);
+                let pointer_bits = self.target.pointer_bits();
+                if let (Some((source_width, source_signed)), Some((target_width, target_signed))) = (
+                    source.int_info_with_pointer_width(pointer_bits),
+                    target.int_info_with_pointer_width(pointer_bits),
+                ) {
+                    let preserves_value = (target_width >= source_width
+                        && source_signed == target_signed)
+                        || (target_width > source_width && !source_signed);
+                    if preserves_value {
+                        return self.expand_index(*argument, scale, depth + 1, place);
+                    }
                 }
             }
         }
@@ -1124,7 +1171,9 @@ impl<'a> MemoryRegionBuilder<'a> {
         left: mir::Value,
         right: mir::Value,
     ) -> bool {
-        let ty = self.tree.get(self.function.expect_value_type(left));
+        let ty = self
+            .tree
+            .get(self.tree.get(self.function).expect_value_type(left));
         let Some((width, is_signed)) = ty.int_info_with_pointer_width(self.target.pointer_bits())
         else {
             return false;
@@ -1133,7 +1182,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         let left = KnownBits::analyse(
             left,
             0,
-            self.function,
+            self.tree.get(self.function),
             self.definitions,
             self.target,
             self.tree,
@@ -1141,7 +1190,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         let right = KnownBits::analyse(
             right,
             0,
-            self.function,
+            self.tree.get(self.function),
             self.definitions,
             self.target,
             self.tree,

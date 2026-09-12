@@ -2,11 +2,11 @@ use destack_core::FxIndexSet;
 use smallvec::SmallVec;
 
 use crate::{
-    Access, AddressKind, Analysis, Block, BlockTarget, BorrowedPath, Call, ControlTable,
-    DataflowTable, Edge, ForwardTransfer, Function, Instruction, Intrinsic, Lattice, Lifetime,
-    LifetimeParameter, LifetimeSlot, LifetimeTerm, Loan, LoanId, LoanTable, LocalId, LocalNodeId,
-    LocalNodeIdAny, Mutation, Path, Place, PlaceOrigin, PlaceTable, Projection, ReferenceKind,
-    Storage, Successor, Terminator, Tree, Type, TypeId, Value,
+    Access, Analysis, Block, BlockTarget, BorrowedPath, Call, ControlTable, DataflowTable, Edge,
+    Extent, ForwardTransfer, FunctionId, Instruction, Intrinsic, Lattice, Lifetime,
+    LifetimeParameter, Loan, LoanId, LoanTable, LocalId, LocalNodeId, LocalNodeIdAny, Mutation,
+    Path, Place, PlaceOrigin, PlaceTable, Projection, Reference, Substitution, Successor,
+    Terminator, Tree, Type, TypeId, Value,
 };
 
 /// Borrow origin across one MIR function.
@@ -21,8 +21,8 @@ pub struct OriginTable {
 /// Origin that keeps a borrowed value valid.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Origin {
-    /// The lifetime regions.
-    regions: SmallVec<[Region; 2]>,
+    /// The lifetime extents.
+    extents: SmallVec<[Extent; 2]>,
     /// Loans kept active by this value.
     loans: SmallVec<[LoanId; 2]>,
 }
@@ -39,12 +39,12 @@ pub struct OriginState {
 }
 
 /// The per-function analyses one origin transfer reads.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct OriginContext<'a> {
     /// The function being transferred.
-    pub function: &'a Function,
+    pub function: FunctionId,
     /// The MIR tree.
-    pub tree: &'a Tree,
+    pub tree: &'a mut Tree,
     /// Places derived by address values.
     pub places: &'a PlaceTable,
     /// The loans of the function.
@@ -71,25 +71,12 @@ pub struct PlaceBinding {
     pub origin: Origin,
 }
 
-/// Lifetime region that keeps a borrowed value valid.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum Region {
-    /// Global or static storage.
-    Static,
-    /// Explicit lifetime slot.
-    Lifetime(LifetimeSlot),
-    /// Managed storage, alive while reachable.
-    Managed,
-    /// Storage in the current function frame.
-    Frame,
-}
-
 /// The per-function analyses one origin table is built from.
 struct OriginBuilder<'a> {
     /// The function being analyzed.
-    function: &'a Function,
+    function: FunctionId,
     /// The MIR tree.
-    tree: &'a Tree,
+    tree: &'a mut Tree,
     /// Places derived by address values.
     places: &'a PlaceTable,
     /// The loans declared so far.
@@ -107,8 +94,8 @@ struct CallWrite {
 impl<'a> OriginContext<'a> {
     /// Create the context for one function.
     pub fn new(
-        function: &'a Function,
-        tree: &'a Tree,
+        function: FunctionId,
+        tree: &'a mut Tree,
         places: &'a PlaceTable,
         loans: &'a LoanTable,
     ) -> Self {
@@ -121,11 +108,12 @@ impl<'a> OriginContext<'a> {
     }
 
     /// Return initial origin for the function parameters.
-    fn initial_state(&self) -> OriginState {
+    fn initial_state(&mut self) -> OriginState {
         let mut state = OriginState::new();
 
         // seed parameter origin from declared types
-        for parameter in &self.function.parameters {
+        for index in 0..self.tree.get(self.function).parameters.len() {
+            let parameter = self.tree.get(self.function).parameters[index].clone();
             for (path, mut origin) in self.parameter_bindings(parameter.ty) {
                 if let Some(loan) = self.loans.carried(parameter.value, &path) {
                     origin = origin.with_loan(loan);
@@ -138,7 +126,7 @@ impl<'a> OriginContext<'a> {
     }
 
     /// Return origin implied by one parameter type.
-    fn parameter_bindings(&self, ty: TypeId) -> Vec<(Path, Origin)> {
+    fn parameter_bindings(&mut self, ty: TypeId) -> Vec<(Path, Origin)> {
         // derive each reference path from its declared lifetime
         self.tree
             .type_origin_paths(ty)
@@ -151,21 +139,22 @@ impl<'a> OriginContext<'a> {
     }
 
     /// Transfer one block from its entry state.
-    fn solve_block(&self, block_id: LocalNodeId<Block>, state: &mut OriginState) {
-        let block = self.tree.get(block_id);
-        for &instruction_id in &block.instructions {
+    fn solve_block(&mut self, block_id: LocalNodeId<Block>, state: &mut OriginState) {
+        for index in 0..self.tree.get(block_id).instructions.len() {
+            let instruction_id = self.tree.get(block_id).instructions[index];
             state.advance(self, instruction_id);
         }
     }
 
     /// Bind predecessor values to successor parameters.
-    fn bind_edge(&self, edge: Edge, target: &BlockTarget, state: &mut OriginState) {
-        let predecessor = self.tree.get(edge.source);
-        let terminator = self.tree.get(predecessor.terminator);
-        let arguments = target.arguments(self.tree);
+    fn bind_edge(&mut self, edge: Edge, target: &BlockTarget, state: &mut OriginState) {
+        let terminator_id = self.tree.get(edge.source).terminator;
+        let terminator = &self.tree.get(terminator_id).clone();
+        let arguments = &target.arguments(self.tree).to_vec();
         let parameters = terminator
             .target_parameters(self.tree, edge.successor, target)
-            .unwrap_or_else(|| unreachable!("MIR edge parameter count mismatch"));
+            .unwrap_or_else(|| unreachable!("MIR edge parameter count mismatch"))
+            .to_vec();
 
         // retain possible call writes on both normal and unwind edges
         if let Terminator::Invoke { call, .. } = terminator {
@@ -192,7 +181,7 @@ impl<'a> OriginContext<'a> {
             let mut issued = Origin::none();
             for loan_id in self.loans.roots_of(parameter) {
                 let loan = self.loans.get(loan_id);
-                if loan.issued_at == predecessor.terminator.into_any()
+                if loan.issued_at == terminator_id.into_any()
                     && let Some(place) = loan.place()
                 {
                     issued = issued.merge(&state.place(self, place).with_loan(loan_id));
@@ -214,7 +203,7 @@ impl<'a> OriginContext<'a> {
 
     /// Return origin carried by one normal invoke result.
     fn invoke_result(
-        &self,
+        &mut self,
         successor: Successor,
         terminator: &Terminator,
         state: &OriginState,
@@ -229,37 +218,37 @@ impl<'a> OriginContext<'a> {
         }
 
         // resolve the call arguments
-        let arguments = self.tree.get_values(call.arguments);
+        let arguments = &self.tree.get_values(call.arguments).to_vec();
 
         Some(self.call_result(state, call.signature, arguments))
     }
 
     /// Bind origin carried by one instruction call result.
-    fn define_call_result(&self, state: &mut OriginState, instruction: &Instruction) {
+    fn define_call_result(&mut self, state: &mut OriginState, instruction: &Instruction) {
         let Instruction::Call { call, .. } = instruction else {
             return;
         };
         let Some(destination) = instruction.destination() else {
             return;
         };
-        let ty = self.function.expect_value_type(destination);
+        let ty = self.tree.get(self.function).expect_value_type(destination);
         if self.tree.type_lifetime(ty).is_none() && !self.tree.type_contains_borrowed_refs(ty) {
             return;
         }
 
         // resolve the call arguments
-        let arguments = self.tree.get_values(call.arguments);
+        let arguments = &self.tree.get_values(call.arguments).to_vec();
         let bindings = self.call_result(state, call.signature, arguments);
         state.insert_bindings(destination, bindings);
     }
 
     /// Return the borrowed arguments one call result reborrows, with the access each takes.
-    fn call_reborrows(&self, signature: TypeId, arguments: &[Value]) -> Vec<(Value, Access)> {
+    fn call_reborrows(&mut self, signature: TypeId, arguments: &[Value]) -> Vec<(Value, Access)> {
         let Type::FunctionSignature {
             lifetimes,
             parameters,
             result,
-        } = self.tree.get(signature)
+        } = &self.tree.get(signature).clone()
         else {
             unreachable!("call has no function signature")
         };
@@ -289,8 +278,8 @@ impl<'a> OriginContext<'a> {
         // keep each borrowed argument whose region the result covers
         let mut reborrows = Vec::new();
         for (parameter, &argument) in parameter_types.iter().zip(arguments) {
-            let parameter_type = self.tree.get(*parameter);
-            if parameter_type.reference_kind() != Some(ReferenceKind::Borrowed) {
+            let parameter_type = self.tree.get(*parameter).clone();
+            if parameter_type.reference_kind() != Some(Reference::Borrowed) {
                 continue;
             }
             let Some(access) = parameter_type.reference_access() else {
@@ -316,7 +305,7 @@ impl<'a> OriginContext<'a> {
 
     /// Return origin carried by one call result.
     pub fn call_result(
-        &self,
+        &mut self,
         state: &OriginState,
         signature: TypeId,
         arguments: &[Value],
@@ -325,7 +314,7 @@ impl<'a> OriginContext<'a> {
             lifetimes,
             parameters,
             result,
-        } = self.tree.get(signature)
+        } = &self.tree.get(signature).clone()
         else {
             unreachable!("call has no function signature")
         };
@@ -369,7 +358,7 @@ impl<'a> OriginContext<'a> {
 
     /// Map callee lifetime regions to caller origin.
     pub fn map_lifetime(
-        &self,
+        &mut self,
         state: &OriginState,
         lifetime: &Lifetime,
         lifetimes: &[LifetimeParameter],
@@ -379,11 +368,11 @@ impl<'a> OriginContext<'a> {
         let mut origin = Origin::none();
 
         // map the storage extents directly
-        for term in &lifetime.terms {
+        for term in &lifetime.extents {
             match term {
-                LifetimeTerm::Static => origin = origin.merge(&Origin::one(Region::Static)),
-                LifetimeTerm::Managed => origin = origin.merge(&Origin::one(Region::Managed)),
-                LifetimeTerm::Frame | LifetimeTerm::Slot(_) | LifetimeTerm::Parameter(_) => {}
+                Extent::Static => origin = origin.merge(&Origin::one(Extent::Static)),
+                Extent::Managed => origin = origin.merge(&Origin::one(Extent::Managed)),
+                Extent::Frame | Extent::Bound(_) | Extent::Parameter(_) => {}
             }
         }
 
@@ -401,15 +390,15 @@ impl<'a> OriginContext<'a> {
 
             // map stored borrow paths through the actual argument's pointee type
             let parameter = self.tree.storage_type(*parameter);
-            let Type::Reference { pointee, .. } = self.tree.get(parameter) else {
+            let Type::Reference { pointee, .. } = &self.tree.get(parameter).clone() else {
                 continue;
             };
             let actual = self
                 .tree
-                .storage_type(self.function.expect_value_type(*argument));
+                .storage_type(self.tree.get(self.function).expect_value_type(*argument));
             let Type::Reference {
                 pointee: actual, ..
-            } = self.tree.get(actual)
+            } = &self.tree.get(actual).clone()
             else {
                 unreachable!("reference parameter has a nonreference argument")
             };
@@ -444,10 +433,10 @@ impl<'a> OriginContext<'a> {
 impl OriginTable {
     /// Analyse borrow origins for one function.
     pub fn analyse(
-        function: &Function,
+        function: FunctionId,
         control: &ControlTable,
         places: &PlaceTable,
-        tree: &Tree,
+        tree: &mut Tree,
     ) -> Self {
         let mut builder = OriginBuilder {
             function,
@@ -485,20 +474,20 @@ impl Analysis for OriginTable {
 
 impl OriginBuilder<'_> {
     /// Return the transfer context over the loans declared so far.
-    fn context(&self) -> OriginContext<'_> {
+    fn context(&mut self) -> OriginContext<'_> {
         OriginContext::new(self.function, self.tree, self.places, &self.loans)
     }
 
     /// Solve origin flow to its fixed point.
-    fn solve(&self, control: &ControlTable) -> DataflowTable<OriginState> {
-        let cx = self.context();
-        let entry = cx.initial_state();
+    fn solve(&mut self, control: &ControlTable) -> DataflowTable<OriginState> {
+        let entry = self.context().initial_state();
         DataflowTable::forward(
             self.function,
             self.tree,
             control,
             entry,
-            |transfer, mut state, _| {
+            |transfer, mut state, tree| {
+                let mut cx = OriginContext::new(self.function, tree, self.places, &self.loans);
                 match transfer {
                     // transfer each instruction in the block
                     ForwardTransfer::Block(block) => cx.solve_block(block, &mut state),
@@ -516,14 +505,16 @@ impl OriginBuilder<'_> {
     /// Declare every loan identity before origin flow.
     fn declare_loans(&mut self) {
         let entry = self
-            .function
+            .tree
+            .get(self.function)
             .entry()
             .unwrap_or_else(|| unreachable!("defined function has no entry block"));
 
         // declare borrowed paths entering through function parameters
-        for parameter in &self.function.parameters {
+        for index in 0..self.tree.get(self.function).parameters.len() {
+            let parameter = self.tree.get(self.function).parameters[index].clone();
             for borrowed in self.tree.type_origin_paths(parameter.ty) {
-                if borrowed.kind != ReferenceKind::Borrowed {
+                if borrowed.kind != Reference::Borrowed {
                     continue;
                 }
                 let loan = Loan::parameter(
@@ -537,8 +528,9 @@ impl OriginBuilder<'_> {
         }
 
         // declare every loan a borrowing instruction issues
-        for &block_id in self.function.blocks() {
-            let block = self.tree.get(block_id);
+        for block_index in 0..self.tree.get(self.function).blocks().len() {
+            let block_id = self.tree.get(self.function).blocks()[block_index];
+            let block = self.tree.get(block_id).clone();
             for &instruction_id in &block.instructions {
                 if let Some((representation, loan)) = self.issued_loan(instruction_id) {
                     self.loans.insert(representation, Path::root(), loan);
@@ -546,7 +538,7 @@ impl OriginBuilder<'_> {
                 if let Instruction::Call {
                     call,
                     destination: Some(destination),
-                } = self.tree.get(instruction_id)
+                } = &self.tree.get(instruction_id).clone()
                 {
                     for (representation, loan) in
                         self.call_reborrow_loans(call, *destination, instruction_id.into_any())
@@ -557,13 +549,14 @@ impl OriginBuilder<'_> {
             }
 
             // declare reborrows produced by normal invoke continuations
-            let terminator = self.tree.get(block.terminator);
-            if let Terminator::Invoke { call, target, .. } = terminator
+            let terminator_id = self.tree.get(block_id).terminator;
+            let terminator = self.tree.get(terminator_id).clone();
+            if let Terminator::Invoke { call, target, .. } = &terminator
                 && terminator.target_result_count(self.tree, Successor::InvokeNormal) != 0
             {
                 let destination = self.tree.get(target.block).parameters[0].value;
                 for (representation, loan) in
-                    self.call_reborrow_loans(call, destination, block.terminator.into_any())
+                    self.call_reborrow_loans(call, destination, terminator_id.into_any())
                 {
                     self.loans.insert(representation, Path::root(), loan);
                 }
@@ -575,13 +568,13 @@ impl OriginBuilder<'_> {
 
     /// Return one result reborrow for each argument covered by the result's region.
     fn call_reborrow_loans(
-        &self,
+        &mut self,
         call: &Call,
         destination: Value,
         issued_at: LocalNodeIdAny,
     ) -> Vec<(Value, Loan)> {
-        let arguments = self.tree.get_values(call.arguments);
-        let context = self.context();
+        let arguments = &self.tree.get_values(call.arguments).to_vec();
+        let mut context = self.context();
 
         context
             .call_reborrows(call.signature, arguments)
@@ -589,7 +582,7 @@ impl OriginBuilder<'_> {
             .map(|(argument, access)| {
                 let loan = Loan::new(
                     self.places.get(argument).clone(),
-                    Some(argument),
+                    Some(Place::value(argument)),
                     access,
                     destination,
                     [],
@@ -602,87 +595,57 @@ impl OriginBuilder<'_> {
     }
 
     /// Return the loan issued by a borrow address or a cast from an owning reference.
-    fn issued_loan(&self, instruction_id: LocalNodeId<Instruction>) -> Option<(Value, Loan)> {
-        let (representation, place, source, kind) = match self.tree.get(instruction_id) {
-            Instruction::FieldAddr {
-                destination,
-                aggregate,
-                kind,
-                ..
-            } => (
-                *destination,
-                self.places.get(*destination).clone(),
-                Some(*aggregate),
-                *kind,
-            ),
-            Instruction::ElementAddr {
-                destination,
-                base,
-                kind,
-                ..
-            } => (
-                *destination,
-                self.places.get(*destination).clone(),
-                Some(*base),
-                *kind,
-            ),
-            Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                kind,
-                ..
-            } => (
-                *destination,
-                self.places.get(*destination).clone(),
-                Some(*variant),
-                *kind,
-            ),
-            Instruction::SliceView {
-                destination,
-                source,
-                ..
-            } => (
-                *destination,
-                self.places.get(*destination).clone(),
-                Some(*source),
-                AddressKind::Borrow,
-            ),
-            Instruction::LocalAddr {
-                destination,
-                local,
-                kind,
-                ..
-            } => (*destination, Place::local(*local), None, *kind),
-            Instruction::GlobalAddr {
-                destination,
-                global,
-                kind,
-                ..
-            } => (*destination, Place::global(*global), None, *kind),
+    fn issued_loan(&mut self, instruction_id: LocalNodeId<Instruction>) -> Option<(Value, Loan)> {
+        let instruction = self.tree.get(instruction_id).clone();
+        let (representation, place, source) = match &instruction {
+            Instruction::Address {
+                destination, place, ..
+            } => {
+                // retain the reference storage at the last dereference for parent loans
+                let source = place
+                    .path
+                    .projections
+                    .iter()
+                    .rposition(|projection| matches!(projection, Projection::Deref))
+                    .map(|index| {
+                        let source = Place {
+                            origin: place.origin,
+                            path: Path {
+                                projections: place.path.projections[..index].to_vec(),
+                            },
+                        };
+
+                        self.places.resolve_place(&source)
+                    });
+
+                (*destination, self.places.resolve_place(place), source)
+            }
             Instruction::Cast {
                 destination,
                 argument,
                 ..
             } if matches!(
-                self.function.reference_kind(*argument, self.tree),
-                Some(ReferenceKind::Managed | ReferenceKind::Unique)
+                {
+                    let ty = self.tree.get(self.function).expect_value_type(*argument);
+                    let ty = Substitution::resolve(ty, self.tree);
+                    self.tree.get(ty).reference_kind()
+                },
+                Some(Reference::Managed | Reference::Unique)
             ) =>
             {
                 (
                     *destination,
                     self.places.get(*argument).clone(),
-                    Some(*argument),
-                    AddressKind::Borrow,
+                    Some(Place::value(*argument)),
                 )
             }
             _ => return None,
         };
-        // a place step borrows nothing
-        if kind == AddressKind::Projection {
-            return None;
-        }
-        let ty = self.function.expect_value_type(representation);
-        let value_type = self.tree.get(ty);
+        let ty = self
+            .tree
+            .get(self.function)
+            .expect_value_type(representation);
+        let value_type = self.tree.get(ty).clone();
         if !value_type.is_borrowed_reference() {
             return None;
         }
@@ -703,36 +666,37 @@ impl OriginBuilder<'_> {
 
     /// Bind each loan's parent loans from the solved flow.
     fn bind_parents(&mut self, flow: &DataflowTable<OriginState>) {
-        let cx = self.context();
+        let mut cx = self.context();
         let mut parents = Vec::new();
-        for &block_id in self.function.blocks() {
+        for block_index in 0..cx.tree.get(cx.function).blocks().len() {
+            let block_id = cx.tree.get(cx.function).blocks()[block_index];
             let Some(mut state) = flow.entry(block_id).cloned() else {
                 continue;
             };
-            let block = self.tree.get(block_id);
+            let block = cx.tree.get(block_id).clone();
 
             // replay the block, reading each issued loan's origins at its issue
             for &instruction_id in &block.instructions {
-                let instruction = self.tree.get(instruction_id);
+                let instruction = cx.tree.get(instruction_id).clone();
                 if let Some(destination) = instruction.destination() {
                     for loan in cx.loans.roots_of(destination) {
                         if let Some(parent) = cx.loans.get(loan).source() {
-                            parents.push((loan, state.value(parent).loans().to_vec()));
+                            parents.push((loan, state.place(&mut cx, parent).loans().to_vec()));
                         }
                     }
                 }
-                state.advance(&cx, instruction_id);
+                state.advance(&mut cx, instruction_id);
             }
 
             // bind parents at the invoke before assigning its continuation result
-            if let Terminator::Invoke { target, .. } = self.tree.get(block.terminator) {
-                for parameter in &self.tree.get(target.block).parameters {
+            if let Terminator::Invoke { target, .. } = cx.tree.get(block.terminator) {
+                for parameter in cx.tree.get(target.block).parameters.clone() {
                     for loan in cx.loans.roots_of(parameter.value) {
-                        let current = cx.loans.get(loan);
+                        let current = cx.loans.get(loan).clone();
                         if current.issued_at == block.terminator.into_any()
                             && let Some(source) = current.source()
                         {
-                            parents.push((loan, state.value(source).loans().to_vec()));
+                            parents.push((loan, state.place(&mut cx, source).loans().to_vec()));
                         }
                     }
                 }
@@ -746,31 +710,6 @@ impl OriginBuilder<'_> {
     }
 }
 
-impl Region {
-    /// Return this region as a MIR lifetime.
-    fn lifetime(&self) -> Lifetime {
-        match self {
-            Self::Static => Lifetime::static_storage(),
-            Self::Lifetime(slot) => Lifetime::slot(slot.0),
-            Self::Managed => Lifetime::managed(),
-            Self::Frame => Lifetime::frame(),
-        }
-    }
-
-    /// Return whether this region is local to the current function.
-    fn is_local(&self) -> bool {
-        match self {
-            Self::Frame => true,
-            Self::Static | Self::Lifetime(_) | Self::Managed => false,
-        }
-    }
-
-    /// Return whether this region is covered by a required lifetime.
-    fn is_covered_by(&self, required: &Lifetime, parameters: &[LifetimeParameter]) -> bool {
-        required.accepts(&self.lifetime(), parameters)
-    }
-}
-
 impl Origin {
     /// Create empty origin.
     fn none() -> Self {
@@ -778,12 +717,12 @@ impl Origin {
     }
 
     /// Create origin from one origin.
-    fn one(origin: Region) -> Self {
+    fn one(origin: Extent) -> Self {
         Self::new([origin])
     }
 
     /// Create origin from many regions.
-    fn new(regions: impl IntoIterator<Item = Region>) -> Self {
+    fn new(regions: impl IntoIterator<Item = Extent>) -> Self {
         let mut unique = SmallVec::new();
 
         // retain insertion order while removing duplicates
@@ -794,58 +733,43 @@ impl Origin {
         }
 
         Self {
-            regions: unique,
+            extents: unique,
             loans: SmallVec::new(),
         }
     }
 
     /// Create origin from one MIR lifetime.
     fn from_lifetime(lifetime: &Lifetime) -> Self {
-        Self::new(lifetime.terms.iter().map(|term| match term {
-            LifetimeTerm::Static => Region::Static,
-            LifetimeTerm::Frame => Region::Frame,
-            LifetimeTerm::Managed => Region::Managed,
-            LifetimeTerm::Slot(slot) => Region::Lifetime(*slot),
-            LifetimeTerm::Parameter(index) => {
-                unreachable!("region parameter {index} of a type declaration reached a body")
-            }
-        }))
+        Self::new(lifetime.extents.iter().copied())
     }
 
     /// Derive a reference path's origin from its lifetime or implicit managed storage.
     fn from_path(borrowed: &BorrowedPath) -> Self {
         match borrowed.kind {
-            ReferenceKind::Managed if borrowed.lifetime.is_empty() => Self::one(Region::Managed),
+            Reference::Managed if borrowed.lifetime.is_empty() => Self::one(Extent::Managed),
             _ => Self::from_lifetime(&borrowed.lifetime),
         }
     }
 
     /// Create origin for one managed reference type.
     fn from_managed(ty: &Type) -> Self {
-        if ty
-            .reference_storage()
-            .and_then(Storage::heap_space)
-            .is_none()
-        {
-            unreachable!("managed reference has non-heap storage")
-        }
         ty.reference_lifetime()
             .filter(|lifetime| !lifetime.is_empty())
             .map(Self::from_lifetime)
-            .unwrap_or_else(|| Self::one(Region::Managed))
+            .unwrap_or_else(|| Self::one(Extent::Managed))
     }
 
     /// Create origin for one reference-like type.
     fn from_reference(ty: &Type) -> Self {
         match ty.reference_kind() {
-            Some(ReferenceKind::Managed) => Self::from_managed(ty),
-            Some(ReferenceKind::Borrowed) => ty
+            Some(Reference::Managed) => Self::from_managed(ty),
+            Some(Reference::Borrowed) => ty
                 .reference_lifetime()
                 .filter(|lifetime| !lifetime.is_empty())
                 .map(Self::from_lifetime)
                 .unwrap_or_default(),
-            Some(ReferenceKind::Unique) => Self::one(Region::Frame),
-            None => Self::none(),
+            Some(Reference::Unique) => Self::one(Extent::Frame),
+            Some(Reference::Raw) | None => Self::none(),
         }
     }
 
@@ -861,46 +785,49 @@ impl Origin {
 
     /// Return whether this origin is empty.
     pub fn is_empty(&self) -> bool {
-        self.regions.is_empty() && self.loans.is_empty()
+        self.extents.is_empty() && self.loans.is_empty()
     }
 
     /// Return whether any region may escape the function.
     pub fn has_escaping_region(&self) -> bool {
-        self.regions.iter().any(|region| !region.is_local())
+        self.extents.iter().any(|region| *region != Extent::Frame)
     }
 
     /// Return whether any region is local to this function.
     pub fn has_local_region(&self) -> bool {
-        self.regions.iter().any(Region::is_local)
+        self.extents.contains(&Extent::Frame)
     }
 
     /// Return whether this origin has a proven lifetime region.
     pub fn has_region(&self) -> bool {
-        !self.regions.is_empty()
+        !self.extents.is_empty()
     }
 
     /// Return whether this origin satisfies a required MIR lifetime.
     pub fn is_covered_by(&self, required: &Lifetime, parameters: &[LifetimeParameter]) -> bool {
-        self.regions
-            .iter()
-            .all(|region| region.is_covered_by(required, parameters))
+        self.extents.iter().all(|region| {
+            required
+                .extents
+                .iter()
+                .any(|required| region.outlives(*required, parameters))
+        })
     }
 
     /// Return whether this origin lives at least as long as `other`.
     pub fn outlives(&self, other: &Origin, parameters: &[LifetimeParameter]) -> bool {
-        other.regions.is_empty()
-            || (!self.regions.is_empty()
-                && self.regions.iter().all(|region| {
+        other.extents.is_empty()
+            || (!self.extents.is_empty()
+                && self.extents.iter().all(|region| {
                     other
-                        .regions
+                        .extents
                         .iter()
-                        .all(|shorter| shorter.lifetime().accepts(&region.lifetime(), parameters))
+                        .all(|shorter| region.outlives(*shorter, parameters))
                 }))
     }
 
     /// Merge two origin sets.
     fn merge(&self, other: &Self) -> Self {
-        Self::new(self.regions.iter().chain(&other.regions).cloned())
+        Self::new(self.extents.iter().chain(&other.extents).cloned())
             .with_loans(&self.loans)
             .with_loans(&other.loans)
     }
@@ -1113,7 +1040,14 @@ impl OriginState {
     }
 
     /// Return origin stored in one place.
-    pub fn place(&self, cx: &OriginContext<'_>, place: &Place) -> Origin {
+    pub fn place(&self, cx: &mut OriginContext<'_>, place: &Place) -> Origin {
+        // read SSA components directly before crossing a reference
+        if let PlaceOrigin::Value(value) = place.origin
+            && !place.path.projections.contains(&Projection::Deref)
+        {
+            return self.value_path(value, &place.path);
+        }
+
         let mut origin = self
             .get_place(place)
             .cloned()
@@ -1130,53 +1064,33 @@ impl OriginState {
     }
 
     /// Return origin of one place's storage itself.
-    fn storage_origin(&self, cx: &OriginContext<'_>, place: &Place) -> Origin {
+    fn storage_origin(&self, cx: &mut OriginContext<'_>, place: &Place) -> Origin {
         match (place.origin, place.path.first()) {
             (PlaceOrigin::Local(local), Some(Projection::Deref)) => self
                 .get_place(&Place::local(local))
                 .cloned()
                 .unwrap_or_else(|| Self::local_reference_origin(cx, local)),
-            (PlaceOrigin::Local(_), _) => Origin::one(Region::Frame),
-            (PlaceOrigin::Global(_), _) => Origin::one(Region::Static),
+            (PlaceOrigin::Local(_), _) => Origin::one(Extent::Frame),
+            (PlaceOrigin::Global(_), _) => Origin::one(Extent::Static),
             (PlaceOrigin::Value(value), _) => self.storage(cx, value, &place.path),
         }
     }
 
     /// Return the origin one reference local's type gives its storage before any store.
-    fn local_reference_origin(cx: &OriginContext<'_>, local: LocalId) -> Origin {
+    fn local_reference_origin(cx: &mut OriginContext<'_>, local: LocalId) -> Origin {
         let ty = cx.tree.get(local).ty;
-        let ty = cx.tree.get(cx.tree.storage_type(TypeId::from(ty)));
+        let ty = cx.tree.storage_type(ty);
+        let ty = cx.tree.get(ty).clone();
         match ty.reference_kind() {
-            Some(ReferenceKind::Managed | ReferenceKind::Borrowed) => Origin::from_reference(ty),
-            Some(ReferenceKind::Unique) => Origin::one(Region::Frame),
-            None => Origin::none(),
+            Some(Reference::Managed | Reference::Borrowed) => Origin::from_reference(&ty),
+            Some(Reference::Unique) => Origin::one(Extent::Frame),
+            Some(Reference::Raw) | None => Origin::none(),
         }
     }
 
     /// Return origin paths carried by one value.
-    pub fn value_bindings(&self, cx: &OriginContext<'_>, value: Value) -> Vec<(Path, Origin)> {
-        self.value_paths(cx, value)
-            .into_iter()
-            .map(|(path, origin, _)| (path, origin))
-            .collect()
-    }
-
-    /// Return the origin at each borrowed path of a value.
-    pub fn value_borrows(&self, cx: &OriginContext<'_>, value: Value) -> Vec<(Path, Origin)> {
-        self.value_paths(cx, value)
-            .into_iter()
-            .filter(|(_, _, kind)| *kind == ReferenceKind::Borrowed)
-            .map(|(path, origin, _)| (path, origin))
-            .collect()
-    }
-
-    /// Return origins and reference kinds, binding values without reference paths at the root.
-    fn value_paths(
-        &self,
-        cx: &OriginContext<'_>,
-        value: Value,
-    ) -> Vec<(Path, Origin, ReferenceKind)> {
-        let ty = cx.function.expect_value_type(value);
+    pub fn value_bindings(&self, cx: &mut OriginContext<'_>, value: Value) -> Vec<(Path, Origin)> {
+        let ty = cx.tree.get(cx.function).expect_value_type(value);
         let paths = cx.tree.type_origin_paths(TypeId::from(ty));
         if paths.is_empty() {
             let origin = self.value(value);
@@ -1184,18 +1098,33 @@ impl OriginState {
                 return Vec::new();
             }
 
-            return vec![(Path::root(), origin, ReferenceKind::Borrowed)];
+            return vec![(Path::root(), origin)];
         }
 
         paths
             .into_iter()
+            .filter_map(|borrowed| {
+                let origin = self.value_path(value, &borrowed.path);
+                let is_tracked = borrowed.kind == Reference::Borrowed || !origin.is_empty();
+
+                is_tracked.then_some((borrowed.path, origin))
+            })
+            .collect()
+    }
+
+    /// Return the origin at each borrowed path of a value.
+    pub fn value_borrows(&self, cx: &mut OriginContext<'_>, value: Value) -> Vec<(Path, Origin)> {
+        let ty = cx.tree.get(cx.function).expect_value_type(value);
+
+        cx.tree
+            .type_origin_paths(TypeId::from(ty))
+            .into_iter()
+            .filter(|borrowed| borrowed.kind == Reference::Borrowed)
             .map(|borrowed| {
                 let origin = self.value_path(value, &borrowed.path);
 
-                (borrowed.path, origin, borrowed.kind)
+                (borrowed.path, origin)
             })
-            // skip handle paths holding no tracked handle
-            .filter(|(_, origin, kind)| *kind == ReferenceKind::Borrowed || !origin.is_empty())
             .collect()
     }
 
@@ -1209,13 +1138,17 @@ impl OriginState {
     }
 
     /// Advance through one MIR instruction.
-    pub fn advance(&mut self, cx: &OriginContext<'_>, instruction_id: LocalNodeId<Instruction>) {
-        let instruction = cx.tree.get(instruction_id);
+    pub fn advance(
+        &mut self,
+        cx: &mut OriginContext<'_>,
+        instruction_id: LocalNodeId<Instruction>,
+    ) {
+        let instruction = cx.tree.get(instruction_id).clone();
 
         // bind a borrowed call result before transferring stored origin
-        cx.define_call_result(self, instruction);
+        cx.define_call_result(self, &instruction);
 
-        self.transfer_instruction(cx, instruction);
+        self.transfer_instruction(cx, &instruction);
 
         // bind loans onto the value this instruction defines
         let Some(destination) = instruction.destination() else {
@@ -1245,7 +1178,7 @@ impl OriginState {
     }
 
     /// Copy origin from one value into another.
-    fn copy(&mut self, cx: &OriginContext<'_>, source: Value, destination: Value) {
+    fn copy(&mut self, cx: &mut OriginContext<'_>, source: Value, destination: Value) {
         let place = cx.places.get(source);
         self.copy_place(cx, place, destination);
 
@@ -1258,14 +1191,14 @@ impl OriginState {
     /// Return the loans one copied reference-like value carries into its copy.
     fn carried_loans(
         &self,
-        cx: &OriginContext<'_>,
+        cx: &mut OriginContext<'_>,
         source: Value,
         destination: Value,
     ) -> Option<Origin> {
         // keep the same borrow through a reference-like copy under another type
-        let ty = cx
-            .tree
-            .storage_type(TypeId::from(cx.function.expect_value_type(destination)));
+        let ty = cx.tree.storage_type(TypeId::from(
+            cx.tree.get(cx.function).expect_value_type(destination),
+        ));
         cx.tree.get(ty).reference_kind()?;
         let carried = self.value(source);
         if carried.loans().is_empty() {
@@ -1275,7 +1208,7 @@ impl OriginState {
     }
 
     /// Copy origin from one place into one value.
-    fn copy_place(&mut self, cx: &OriginContext<'_>, place: &Place, destination: Value) {
+    fn copy_place(&mut self, cx: &mut OriginContext<'_>, place: &Place, destination: Value) {
         if !Self::carries(cx, destination) {
             return;
         }
@@ -1285,7 +1218,7 @@ impl OriginState {
         self.insert(destination, root);
 
         // preserve nested borrowed paths
-        let ty = cx.function.expect_value_type(destination);
+        let ty = cx.tree.get(cx.function).expect_value_type(destination);
         for borrowed in cx.tree.type_origin_paths(TypeId::from(ty)) {
             let source = place.clone().with_path(&borrowed.path);
             let origin = self.place(cx, &source);
@@ -1294,13 +1227,13 @@ impl OriginState {
     }
 
     /// Load stored origin into one value.
-    fn load(&mut self, cx: &OriginContext<'_>, place: &Place, destination: Value) {
+    fn load(&mut self, cx: &mut OriginContext<'_>, place: &Place, destination: Value) {
         if !Self::carries(cx, destination) {
             return;
         }
 
         // read the destination type
-        let ty = cx.function.expect_value_type(destination);
+        let ty = cx.tree.get(cx.function).expect_value_type(destination);
         let paths = cx.tree.type_origin_paths(TypeId::from(ty));
         let bindings = if paths.is_empty() {
             let origin = self
@@ -1333,7 +1266,7 @@ impl OriginState {
     /// Merge origin from alternative values.
     fn merge_values(
         &mut self,
-        cx: &OriginContext<'_>,
+        cx: &mut OriginContext<'_>,
         values: impl IntoIterator<Item = Value>,
         destination: Value,
     ) {
@@ -1360,28 +1293,15 @@ impl OriginState {
         self.insert_bindings(destination, bindings);
     }
 
-    /// Return the origin path one projection selects inside a value.
-    fn value_projection(cx: &OriginContext<'_>, value: Value, projection: Projection) -> Path {
-        // read through applications, dropping the projection at a newtype layer
-        let mut ty = TypeId::from(cx.function.expect_value_type(value));
-        loop {
-            ty = match cx.tree.get(ty) {
-                Type::Newtype { .. } => return Path::root(),
-                Type::Application { base, .. } => *base,
-                _ => return Path::root().with_projection(projection),
-            };
-        }
-    }
-
     /// Replace one destination projection from a value.
     fn replace(
         &mut self,
-        cx: &OriginContext<'_>,
+        cx: &mut OriginContext<'_>,
         source: Value,
         destination: Value,
         projection: Projection,
     ) {
-        let base = Self::value_projection(cx, destination, projection);
+        let base = Path::root().with_projection(projection);
         let bindings = self.value_bindings(cx, source);
         self.replace_paths(destination, base, bindings);
     }
@@ -1389,12 +1309,12 @@ impl OriginState {
     /// Merge one value into a destination projection.
     fn merge_projection(
         &mut self,
-        cx: &OriginContext<'_>,
+        cx: &mut OriginContext<'_>,
         source: Value,
         destination: Value,
         projection: Projection,
     ) {
-        let base = Self::value_projection(cx, destination, projection);
+        let base = Path::root().with_projection(projection);
         let bindings = self.value_bindings(cx, source);
         self.merge_paths(destination, base, bindings);
     }
@@ -1402,12 +1322,12 @@ impl OriginState {
     /// Project one structural value path into a destination value.
     fn project(
         &mut self,
-        cx: &OriginContext<'_>,
+        cx: &mut OriginContext<'_>,
         source: Value,
         destination: Value,
         projection: Projection,
     ) {
-        let prefix = Self::value_projection(cx, source, projection);
+        let prefix = Path::root().with_projection(projection);
         let bindings = self
             .value_bindings(cx, source)
             .into_iter()
@@ -1418,19 +1338,12 @@ impl OriginState {
     }
 
     /// Transfer one MIR instruction.
-    fn transfer_instruction(&mut self, cx: &OriginContext<'_>, instruction: &Instruction) {
+    fn transfer_instruction(&mut self, cx: &mut OriginContext<'_>, instruction: &Instruction) {
         match instruction {
             Instruction::Call { call, .. } => self.transfer_call(cx, call),
-            Instruction::LocalGet { destination, local } => {
-                self.load(cx, &Place::local(*local), *destination);
-            }
-            Instruction::LocalSet { local, value } => {
-                let place = Place::local(*local);
-                let bindings = self.value_bindings(cx, *value);
-                self.insert_place_bindings(place, bindings);
-            }
-            Instruction::Store { pointer, value } => {
-                let place = cx.places.get(*pointer).clone();
+            Instruction::Copy { destination, value } => self.copy(cx, *value, *destination),
+            Instruction::Store { place, value } => {
+                let place = cx.places.resolve_place(place);
                 let mut bindings = self.value_bindings(cx, *value);
                 if Self::storage_outlives_reference(cx, &place) {
                     self.escape_loans(&bindings);
@@ -1442,7 +1355,8 @@ impl OriginState {
                 destination,
                 values,
             } => {
-                self.aggregate(cx, *destination, cx.tree.get_values(*values));
+                let values = cx.tree.get_values(*values).to_vec();
+                self.aggregate(cx, *destination, &values);
             }
             Instruction::Select {
                 destination,
@@ -1456,6 +1370,7 @@ impl OriginState {
                 destination,
                 aggregate,
                 field,
+                ..
             } => {
                 self.project(
                     cx,
@@ -1468,6 +1383,7 @@ impl OriginState {
                 destination,
                 aggregate,
                 index,
+                ..
             } => {
                 self.project(
                     cx,
@@ -1505,35 +1421,10 @@ impl OriginState {
                 );
             }
             Instruction::Load {
-                destination,
-                pointer,
-                ..
+                destination, place, ..
             } => {
-                self.load(cx, cx.places.get(*pointer), *destination);
-            }
-            // a projected place carries the origin of the place it projects from
-            Instruction::FieldAddr {
-                destination,
-                aggregate: base,
-                kind: AddressKind::Projection,
-                ..
-            }
-            | Instruction::ElementAddr {
-                destination,
-                base,
-                kind: AddressKind::Projection,
-                ..
-            }
-            | Instruction::VariantPayloadAddr {
-                destination,
-                variant: base,
-                kind: AddressKind::Projection,
-                ..
-            } => {
-                let origin = self.value(*base);
-                if !origin.is_empty() {
-                    self.insert(*destination, origin);
-                }
+                let place = cx.places.resolve_place(place);
+                self.load(cx, &place, *destination);
             }
             Instruction::Cast {
                 destination,
@@ -1567,14 +1458,14 @@ impl OriginState {
                 intrinsic: Intrinsic::Transmute,
                 arguments,
             } => {
-                if let [argument] = cx.tree.get_values(*arguments) {
-                    let argument_type = cx.function.expect_value_type(*argument);
+                if let [argument] = *cx.tree.get_values(*arguments) {
+                    let argument_type = cx.tree.get(cx.function).expect_value_type(argument);
                     let storage = cx.tree.storage_type(TypeId::from(argument_type));
                     match cx.tree.get(storage).reference_kind() {
-                        Some(ReferenceKind::Unique) => {
-                            self.insert(*destination, Origin::one(Region::Static));
+                        Some(Reference::Unique) => {
+                            self.insert(*destination, Origin::one(Extent::Static));
                         }
-                        _ => self.copy(cx, *argument, *destination),
+                        _ => self.copy(cx, argument, *destination),
                     }
                 }
             }
@@ -1602,12 +1493,12 @@ impl OriginState {
             }
             // null references and constants outlive every frame
             Instruction::Const { destination, .. } => {
-                let ty = cx.function.expect_value_type(*destination);
+                let ty = cx.tree.get(cx.function).expect_value_type(*destination);
                 let bindings = cx
                     .tree
                     .type_origin_paths(TypeId::from(ty))
                     .into_iter()
-                    .map(|borrowed| (borrowed.path, Origin::one(Region::Static)))
+                    .map(|borrowed| (borrowed.path, Origin::one(Extent::Static)))
                     .collect();
                 self.insert_bindings(*destination, bindings);
             }
@@ -1615,6 +1506,7 @@ impl OriginState {
                 destination,
                 variant,
                 case,
+                ..
             } => {
                 self.project(
                     cx,
@@ -1630,14 +1522,14 @@ impl OriginState {
                 payload,
                 ..
             } => {
-                let ty = cx.function.expect_value_type(*destination);
+                let ty = cx.tree.get(cx.function).expect_value_type(*destination);
                 let built = Path::root().with_projection(Projection::Variant { case: *case });
                 let absent = cx
                     .tree
                     .type_origin_paths(TypeId::from(ty))
                     .into_iter()
                     .filter(|borrowed| borrowed.path.strip_prefix(&built).is_none())
-                    .map(|borrowed| (borrowed.path, Origin::one(Region::Static)))
+                    .map(|borrowed| (borrowed.path, Origin::one(Extent::Static)))
                     .collect();
                 self.insert_bindings(*destination, absent);
                 if let Some(payload) = payload {
@@ -1654,24 +1546,19 @@ impl OriginState {
     }
 
     /// Populate origin for one aggregate construction.
-    fn aggregate(&mut self, cx: &OriginContext<'_>, destination: Value, values: &[Value]) {
-        let ty = cx.function.expect_value_type(destination);
+    fn aggregate(&mut self, cx: &mut OriginContext<'_>, destination: Value, values: &[Value]) {
+        let ty = cx.tree.get(cx.function).expect_value_type(destination);
 
         // bind each logical slot to its destination path
         for (index, value) in values.iter().copied().enumerate() {
-            if let Some(projection) = Self::aggregate_projection(cx, ty, index) {
-                self.merge_projection(cx, value, destination, projection);
-            } else {
-                let source = self.value(value);
-                let current = self.value(destination);
-                self.insert(destination, current.merge(&source));
-            }
+            let projection = Self::aggregate_projection(cx, ty, index);
+            self.merge_projection(cx, value, destination, projection);
         }
     }
 
     /// Return whether one value type carries origin.
-    fn carries(cx: &OriginContext<'_>, value: Value) -> bool {
-        let ty = TypeId::from(cx.function.expect_value_type(value));
+    fn carries(cx: &mut OriginContext<'_>, value: Value) -> bool {
+        let ty = TypeId::from(cx.tree.get(cx.function).expect_value_type(value));
 
         cx.tree.type_lifetime(ty).is_some() || !cx.tree.type_origin_paths(ty).is_empty()
     }
@@ -1679,22 +1566,22 @@ impl OriginState {
     /// Root stored handles in the written storage when it outlives their regions.
     fn root_handles(
         &self,
-        cx: &OriginContext<'_>,
+        cx: &mut OriginContext<'_>,
         place: &Place,
         bindings: &mut [(Path, Origin)],
         value: Value,
     ) {
-        let ty = cx.function.expect_value_type(value);
+        let ty = cx.tree.get(cx.function).expect_value_type(value);
         let paths = cx.tree.type_origin_paths(TypeId::from(ty));
         for (path, origin) in bindings.iter_mut() {
             let is_handle = paths
                 .iter()
-                .any(|borrowed| &borrowed.path == path && borrowed.kind == ReferenceKind::Managed);
+                .any(|borrowed| &borrowed.path == path && borrowed.kind == Reference::Managed);
             if !is_handle {
                 continue;
             }
             let slot = self.storage_origin(cx, &place.clone().with_path(path));
-            if slot.outlives(origin, &cx.function.lifetimes) {
+            if slot.outlives(origin, &cx.tree.get(cx.function).lifetimes) {
                 *origin = slot;
             }
         }
@@ -1702,26 +1589,25 @@ impl OriginState {
 
     /// Return the path for one logical aggregate slot.
     fn aggregate_projection(
-        cx: &OriginContext<'_>,
+        cx: &mut OriginContext<'_>,
         ty: LocalNodeId<Type>,
         index: usize,
-    ) -> Option<Projection> {
+    ) -> Projection {
+        let ty = Substitution::resolve(ty, cx.tree);
         match cx.tree.get(ty) {
-            Type::Struct { .. } | Type::Tuple { .. } => Some(Projection::Field {
+            Type::Struct { .. } | Type::Tuple { .. } | Type::Newtype { .. } => Projection::Field {
                 index: index as u32,
-            }),
-            Type::FixedArray { .. } => Some(Projection::Element {
+            },
+            Type::FixedArray { .. } => Projection::Element {
                 index: index as u32,
-            }),
-            Type::Newtype { .. } => None,
-            Type::Application { base, .. } => Self::aggregate_projection(cx, *base, index),
+            },
             _ => unreachable!("aggregate destination is not an aggregate type"),
         }
     }
 
     /// Return origin implied by one value type.
-    fn type_origin(cx: &OriginContext<'_>, value: Value) -> Origin {
-        let ty = cx.function.expect_value_type(value);
+    fn type_origin(cx: &mut OriginContext<'_>, value: Value) -> Origin {
+        let ty = cx.tree.get(cx.function).expect_value_type(value);
 
         cx.tree
             .type_lifetime(TypeId::from(ty))
@@ -1730,20 +1616,21 @@ impl OriginState {
     }
 
     /// Return origin for one storage-producing destination.
-    fn destination(cx: &OriginContext<'_>, destination: Value) -> Origin {
-        let ty = cx.function.expect_value_type(destination);
-        let ty = cx.tree.get(cx.tree.storage_type(TypeId::from(ty)));
+    fn destination(cx: &mut OriginContext<'_>, destination: Value) -> Origin {
+        let ty = cx.tree.get(cx.function).expect_value_type(destination);
+        let ty = cx.tree.storage_type(ty);
+        let ty = cx.tree.get(ty).clone();
 
         // handle each reference kind
         match ty.reference_kind() {
-            Some(ReferenceKind::Managed) => Origin::from_managed(ty),
-            Some(ReferenceKind::Unique) => Origin::one(Region::Frame),
-            Some(ReferenceKind::Borrowed) | None => Origin::none(),
+            Some(Reference::Managed) => Origin::from_managed(&ty),
+            Some(Reference::Unique) => Origin::one(Extent::Frame),
+            Some(Reference::Borrowed | Reference::Raw) | None => Origin::none(),
         }
     }
 
     /// Return origin implied by one value path used as storage.
-    fn storage(&self, cx: &OriginContext<'_>, value: Value, path: &Path) -> Origin {
+    fn storage(&self, cx: &mut OriginContext<'_>, value: Value, path: &Path) -> Origin {
         if let Some(origin) = self.get_at(value, path) {
             return origin.clone();
         }
@@ -1754,47 +1641,53 @@ impl OriginState {
         }
 
         // read the value type
-        let ty = cx.function.expect_value_type(value);
-        let ty = cx.tree.get(cx.tree.storage_type(TypeId::from(ty)));
+        let ty = cx.tree.get(cx.function).expect_value_type(value);
+        let ty = cx.tree.storage_type(ty);
+        let ty = cx.tree.get(ty).clone();
         match ty.reference_kind() {
-            Some(ReferenceKind::Managed | ReferenceKind::Borrowed) => self
+            Some(Reference::Managed | Reference::Borrowed) => self
                 .get_at(value, &Path::root())
                 .cloned()
-                .unwrap_or_else(|| Origin::from_reference(ty)),
-            Some(ReferenceKind::Unique) => Origin::one(Region::Frame),
-            None => Origin::none(),
+                .unwrap_or_else(|| Origin::from_reference(&ty)),
+            Some(Reference::Unique) => Origin::one(Extent::Frame),
+            Some(Reference::Raw) | None => Origin::none(),
         }
     }
 
     /// Return whether addressed storage may outlive its reference value.
-    fn storage_outlives_reference(cx: &OriginContext<'_>, place: &Place) -> bool {
+    fn storage_outlives_reference(cx: &mut OriginContext<'_>, place: &Place) -> bool {
         match (place.origin, place.path.first()) {
             (PlaceOrigin::Local(local), Some(Projection::Deref)) => {
                 let ty = cx.tree.get(local).ty;
-                let ty = cx.tree.get(cx.tree.storage_type(TypeId::from(ty)));
+                let ty = cx.tree.storage_type(ty);
+                let ty = cx.tree.get(ty).clone();
 
                 matches!(
                     ty.reference_kind(),
-                    Some(ReferenceKind::Managed | ReferenceKind::Borrowed)
+                    Some(Reference::Managed | Reference::Borrowed)
                 )
             }
             (PlaceOrigin::Local(_), _) => false,
             (PlaceOrigin::Global(_), _) => true,
             (PlaceOrigin::Value(value), _) => matches!(
-                cx.function.reference_kind(value, cx.tree),
-                Some(ReferenceKind::Managed | ReferenceKind::Borrowed)
+                {
+                    let ty = cx.tree.get(cx.function).expect_value_type(value);
+                    let ty = Substitution::resolve(ty, cx.tree);
+                    cx.tree.get(ty).reference_kind()
+                },
+                Some(Reference::Managed | Reference::Borrowed)
             ),
         }
     }
 
     /// Merge the borrow writes permitted by one call signature.
-    fn transfer_call(&mut self, cx: &OriginContext<'_>, call: &Call) {
+    fn transfer_call(&mut self, cx: &mut OriginContext<'_>, call: &Call) {
         // read the declared lifetime relationships and arguments
-        let signature = cx.tree.get(call.signature);
+        let signature = &cx.tree.get(call.signature).clone();
         let Some((lifetimes, parameters, _)) = signature.function_signature_parts() else {
             unreachable!("call has no function signature")
         };
-        let arguments = cx.tree.get_values(call.arguments);
+        let arguments = &cx.tree.get_values(call.arguments).to_vec();
         let parameter_types = parameters
             .iter()
             .map(|parameter| parameter.ty)
@@ -1812,7 +1705,7 @@ impl OriginState {
                 }
 
                 // classify the writable storage exposed by this type
-                let (storage, access, has_address) = match cx.tree.get(ty) {
+                let (storage, access, has_address) = match cx.tree.type_definition(ty) {
                     Type::Reference {
                         pointee, access, ..
                     } => {
@@ -1830,12 +1723,23 @@ impl OriginState {
                     Type::Dynamic { access, .. } | Type::Function { access, .. } => {
                         (ty, *access, false)
                     }
-                    Type::FunctionSignature { .. } | Type::FunctionPointer { .. } => continue,
-                    _ => {
-                        pending
-                            .extend(cx.tree.child_type_ids(ty).into_iter().map(|ty| (ty, false)));
+                    Type::Struct { fields, .. } => {
+                        pending.extend(fields.iter().map(|field| (cx.tree.get(*field).ty, false)));
                         continue;
                     }
+                    Type::Tuple { elements } => {
+                        pending.extend(elements.iter().map(|ty| (*ty, false)));
+                        continue;
+                    }
+                    Type::Variant { cases, .. } => {
+                        pending.extend(cases.iter().map(|case| (case.ty, false)));
+                        continue;
+                    }
+                    Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
+                        pending.push((*element, false));
+                        continue;
+                    }
+                    _ => continue,
                 };
 
                 // require writable storage before collecting possible borrow writes
@@ -1916,12 +1820,90 @@ impl Lattice for OriginState {
 #[cfg(test)]
 mod tests {
     use crate::analyses::tests::TestModule;
-    use crate::{Place, Value};
+    use crate::{OriginContext, Path, Place, Projection, Value};
+
+    /// Track allocation ownership separately from a borrow retained inside an aggregate.
+    #[test]
+    fn test_distinguish_owned_and_borrowed_origins() {
+        let mut program = TestModule::new(
+            r#"
+type Pair<'a> {
+    owner: ref<int32, unique, mutable, local>;
+    borrow: ref<int32, borrowed, 'a, readonly, local>;
+}
+
+type Named<'a> = newtype<Pair<'a>>;
+
+function test<'a>(v0: ref<int32, unique, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, local>):
+    v2: Pair<'a & local> = aggregate (v0, v1)
+    v3: Named<'a & local> = aggregate (v2)
+    v4: Pair<'a & local> = field.get v3, 0
+    v5: ref<int32, borrowed, 'a & local, readonly> = field.get.copy v4, 1
+    jump done
+
+done:
+    return
+}
+"#,
+        );
+        let function = program.entry_function_id();
+        let mut analyses = program.function_analyses();
+        let places = analyses.place(program.entry_function_id(), &mut program.tree);
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let mut context = OriginContext::new(
+            program.entry_function_id(),
+            &mut program.tree,
+            &places,
+            origins.loans(),
+        );
+        let state = origins
+            .entry(context.tree.get(function).blocks()[1])
+            .unwrap();
+        let actual = [Value(0), Value(1), Value(2), Value(3), Value(4), Value(5)].map(|value| {
+            state
+                .value_borrows(&mut context, value)
+                .into_iter()
+                .map(|(path, origin)| {
+                    let loans = origin
+                        .loans()
+                        .iter()
+                        .map(|loan| origins.loans().get(*loan).representation)
+                        .collect::<Vec<_>>();
+
+                    (path, loans)
+                })
+                .collect::<Vec<_>>()
+        });
+
+        assert_eq!(
+            actual,
+            [
+                vec![],
+                vec![(Path::root(), vec![Value(1)])],
+                vec![(
+                    Path::root().with_projection(Projection::Field { index: 1 }),
+                    vec![Value(1)]
+                )],
+                vec![(
+                    Path::root()
+                        .with_projection(Projection::Field { index: 0 })
+                        .with_projection(Projection::Field { index: 1 }),
+                    vec![Value(1)]
+                )],
+                vec![(
+                    Path::root().with_projection(Projection::Field { index: 1 }),
+                    vec![Value(1)]
+                )],
+                vec![(Path::root(), vec![Value(1)])],
+            ]
+        );
+    }
 
     /// A call preserves loan identities when it copies a borrow from addressed storage.
     #[test]
     fn test_retain_borrows_read_from_argument_storage() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 external function save<'a, 'b, 'c>(ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'c, mutable, local>): void
 
@@ -1929,8 +1911,8 @@ function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref
     local l0: ref<int32, borrowed, 'a, readonly, local>
 
 entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>, v2: ref<int32, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    v3: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, readonly, frame> = local.address l0
+    store l0, v0
+    v3: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, readonly, frame> = address l0
     call save(v3, v1): <'x, 'y, 'z>(ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'y, readonly, local>, ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'z, mutable, local>) => void
     jump done
 
@@ -1939,10 +1921,10 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let done = function.blocks()[1];
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let done = program.tree.get(function).blocks()[1];
         let retained = origins
             .entry(done)
             .unwrap()
@@ -1957,7 +1939,7 @@ done:
     /// Both invoke successors retain borrows that the callee may store through an argument.
     #[test]
     fn test_retain_invoke_writes_on_normal_and_unwind_edges() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void
 
@@ -1973,10 +1955,10 @@ unwind:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let retained = function.blocks()[1..]
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let retained = program.tree.get(function).blocks()[1..]
             .iter()
             .map(|&block| {
                 origins
@@ -1995,7 +1977,7 @@ unwind:
     /// An unresolved indirect call propagates stored borrows from its signature.
     #[test]
     fn test_retain_indirect_call_writes() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a, 'b>(v0: fn(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>) => void, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void {
 entry(v0: fn(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>) => void, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>):
@@ -2007,10 +1989,10 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let done = function.blocks()[1];
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let done = program.tree.get(function).blocks()[1];
         let retained = origins
             .entry(done)
             .unwrap()
@@ -2025,7 +2007,7 @@ done:
     /// A call can retain a borrow in an element of a writable slice.
     #[test]
     fn test_retain_writes_through_borrowed_slice() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, slice<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void
 
@@ -2039,10 +2021,10 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let done = function.blocks()[1];
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let done = program.tree.get(function).blocks()[1];
         let retained = origins
             .entry(done)
             .unwrap()
@@ -2057,7 +2039,7 @@ done:
     /// A writable reference nested in an aggregate can retain a borrowed argument.
     #[test]
     fn test_retain_writes_through_nested_reference() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 type Target<'a, 'b> {
     value: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>;
@@ -2075,10 +2057,10 @@ done:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let done = function.blocks()[1];
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let done = program.tree.get(function).blocks()[1];
         let retained = origins
             .entry(done)
             .unwrap()
@@ -2093,7 +2075,7 @@ done:
     /// Merge the distinct borrow arguments of two edges entering the same block.
     #[test]
     fn test_merge_borrow_arguments() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local> {
 entry(v0: boolean, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<int32, borrowed, 'a, readonly, local>):
@@ -2104,10 +2086,10 @@ join(v3: ref<int32, borrowed, 'a, readonly, local>):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let table = analyses.origin(function, &program.tree);
-        let join = table.entry(function.block(1)).unwrap();
+        let table = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let join = table.entry(program.tree.get(function).block(1)).unwrap();
         let origins = [Value(1), Value(2), Value(3)].map(|value| {
             join.value(value)
                 .loans()
@@ -2126,7 +2108,7 @@ join(v3: ref<int32, borrowed, 'a, readonly, local>):
     /// Merge backedge borrows with function parameters before forwarding them to the exit.
     #[test]
     fn test_merge_entry_backedge_borrows() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local> {
 entry(v0: boolean, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<int32, borrowed, 'a, readonly, local>):
@@ -2137,13 +2119,13 @@ done(v3: ref<int32, borrowed, 'a, readonly, local>):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let table = analyses.origin(function, &program.tree);
+        let table = analyses.origin(program.entry_function_id(), &mut program.tree);
         let actual = [
-            (function.block(0), Value(1)),
-            (function.block(0), Value(2)),
-            (function.block(1), Value(3)),
+            (program.tree.get(function).block(0), Value(1)),
+            (program.tree.get(function).block(0), Value(2)),
+            (program.tree.get(function).block(1), Value(3)),
         ]
         .map(|(block, value)| {
             let mut origins = table
@@ -2172,7 +2154,7 @@ done(v3: ref<int32, borrowed, 'a, readonly, local>):
     /// Keep an addressed borrow live after writing through that borrow.
     #[test]
     fn test_retain_borrow_after_store() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 type Box {
     value: int32;
@@ -2180,21 +2162,21 @@ type Box {
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'frame, mutable, local> = address (*v0).0
     v2: int32 = 7
-    store v1, v2
+    store (*v1), v2
     jump done
 
 done:
-    v3: int32 = load v1
+    v3: int32 = load.copy (*v1)
     return v3
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let state = origins.entry(function.block(1)).unwrap();
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let state = origins.entry(program.tree.get(function).block(1)).unwrap();
         let retained = state
             .value(Value(1))
             .loans()
@@ -2208,7 +2190,7 @@ done:
     /// Preserve both possible referents of an invoke result on its normal continuation.
     #[test]
     fn test_reborrow_invoke_arguments() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 external function select<'a>(ref<int32, borrowed, 'a, readonly, local>, ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local>
 
@@ -2217,7 +2199,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a
     invoke select(v0, v1): <'a>(ref<int32, borrowed, 'a, readonly, local>, ref<int32, borrowed, 'a, readonly, local>) => ref<int32, borrowed, 'a, readonly, local> => normal | unwind
 
 normal(v2: ref<int32, borrowed, 'a, readonly, local>):
-    v3: int32 = load v2
+    v3: int32 = load.copy (*v2)
     return
 
 unwind:
@@ -2225,10 +2207,10 @@ unwind:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(function, &program.tree);
-        let state = origins.entry(function.block(1)).unwrap();
+        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
+        let state = origins.entry(program.tree.get(function).block(1)).unwrap();
         let actual = state
             .value(Value(2))
             .loans()
@@ -2250,13 +2232,19 @@ unwind:
             [
                 (None, vec![]),
                 (None, vec![]),
-                (Some(Place::value(Value(0))), vec![Value(0)]),
-                (Some(Place::value(Value(1))), vec![Value(1)]),
+                (
+                    Some(Place::value(Value(0)).with_projection(Projection::Deref)),
+                    vec![Value(0)]
+                ),
+                (
+                    Some(Place::value(Value(1)).with_projection(Projection::Deref)),
+                    vec![Value(1)]
+                ),
             ]
         );
         assert_eq!(
             origins
-                .entry(function.block(2))
+                .entry(program.tree.get(function).block(2))
                 .unwrap()
                 .value(Value(2))
                 .loans(),

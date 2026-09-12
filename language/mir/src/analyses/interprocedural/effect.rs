@@ -37,9 +37,8 @@ impl EffectBody {
         function: mir::FunctionId,
         graph: &mir::ControlTable,
         resolution: &mir::ResolutionTable,
-        accesses: &mir::AccessTable,
         effects: &mir::EffectTable,
-        tree: &mir::Tree,
+        tree: &mut mir::Tree,
     ) -> Self {
         // use declared effects for functions without bodies
         let declaration = tree.get(function);
@@ -62,8 +61,7 @@ impl EffectBody {
         // extract each reachable operation once before interprocedural propagation
         let mut builder = FunctionEffectBuilder {
             tree,
-            function: declaration,
-            accesses,
+            function,
             effects,
             resolution,
             memory: mir::MemoryEffect::none(),
@@ -84,7 +82,7 @@ impl EffectBody {
                 .collect(),
         );
         let will_return = graph.reachable_blocks().all(|block| {
-            let terminator = tree.get(tree.get(block).terminator);
+            let terminator = builder.tree.get(builder.tree.get(block).terminator);
             let is_abrupt = matches!(
                 terminator,
                 mir::Terminator::Abort { .. }
@@ -217,18 +215,23 @@ impl mir::EffectTable {
     pub fn analyse(
         resolution: &mir::ResolutionTable,
         calls: &mir::CallTable,
-        accesses: &mir::AccessTable,
         declared: &mir::EffectTable,
-        tree: &mir::Tree,
+        tree: &mut mir::Tree,
     ) -> Self {
         let mut bodies = FxIndexMap::default();
         let mut effects = FxIndexMap::default();
 
         // seed defined functions with their local effects and declarations with explicit effects
-        for (function, declaration) in tree.iter_nodes::<mir::Function>() {
+        let functions = tree
+            .iter_nodes::<mir::Function>()
+            .map(|(id, _)| id)
+            .collect::<Vec<_>>();
+        for function in functions {
+            let declaration = tree.get(function);
+            let symbol = declaration.symbol;
             let graph = mir::ControlTable::analyse(declaration, tree);
-            let body = EffectBody::analyse(function, &graph, resolution, accesses, declared, tree);
-            effects.insert(declaration.symbol, body.local.clone());
+            let body = EffectBody::analyse(function, &graph, resolution, declared, tree);
+            effects.insert(symbol, body.local.clone());
             bodies.insert(function, body);
         }
 
@@ -353,11 +356,10 @@ impl Analysis for mir::EffectTable {
 /// Extract operation effects and call dependencies from one function body.
 struct FunctionEffectBuilder<'a> {
     /// The MIR tree.
-    tree: &'a mir::Tree,
+    tree: &'a mut mir::Tree,
     /// The function being analysed.
-    function: &'a mir::Function,
-    /// Explicit instruction memory accesses.
-    accesses: &'a mir::AccessTable,
+    function: mir::FunctionId,
+
     /// Explicit function and call effects.
     effects: &'a mir::EffectTable,
     /// Possible callees at each callsite.
@@ -376,9 +378,9 @@ struct FunctionEffectBuilder<'a> {
 impl FunctionEffectBuilder<'_> {
     /// Record the local effects and calls of one reachable block.
     fn record_block(&mut self, block_id: mir::BlockId) {
-        let block = self.tree.get(block_id);
+        let block = self.tree.get(block_id).clone();
         for &instruction in &block.instructions {
-            let operation = self.tree.get(instruction);
+            let operation = &self.tree.get(instruction).clone();
             if matches!(operation, mir::Instruction::Call { .. }) {
                 self.calls.push(EffectCall::new(
                     mir::Point::Instruction(instruction),
@@ -388,7 +390,7 @@ impl FunctionEffectBuilder<'_> {
                     self.tree,
                 ));
             } else {
-                let effect = self.instruction_effect(instruction, operation);
+                let effect = self.instruction_effect(operation);
                 self.memory = self.memory.union(&effect.memory);
                 self.behavior = self.behavior.union(&effect.behavior);
             }
@@ -429,36 +431,40 @@ impl FunctionEffectBuilder<'_> {
     }
 
     /// Build an effect for one non-call instruction.
-    fn instruction_effect(
-        &self,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
-        instruction: &mir::Instruction,
-    ) -> mir::FunctionEffect {
+    fn instruction_effect(&mut self, instruction: &mir::Instruction) -> mir::FunctionEffect {
         // map MIR operations to local effects
         let mut effect = match instruction {
-            mir::Instruction::Load { pointer, .. }
-            | mir::Instruction::AtomicLoad { pointer, .. } => mir::FunctionEffect::memory(
-                mir::MemoryEffect::read_only(self.value_storage(*pointer)),
-            ),
-            mir::Instruction::VariantTagLoad { variant, .. } => mir::FunctionEffect::memory(
-                mir::MemoryEffect::read_only(self.value_storage(*variant)),
-            ),
+            mir::Instruction::Load { place, copy, .. } => {
+                let storage = self.place_storage(place);
+                let memory = match copy {
+                    mir::Copy::Yes => mir::MemoryEffect::read_only(storage),
+                    mir::Copy::No => mir::MemoryEffect::read_write(storage),
+                };
+
+                mir::FunctionEffect::memory(memory)
+            }
+            mir::Instruction::AtomicLoad { place, .. } => {
+                mir::FunctionEffect::memory(mir::MemoryEffect::read_only(self.place_storage(place)))
+            }
+            mir::Instruction::VariantTagLoad { place, .. } => {
+                mir::FunctionEffect::memory(mir::MemoryEffect::read_only(self.place_storage(place)))
+            }
             mir::Instruction::DynamicRead { dynamic, .. } => mir::FunctionEffect::memory(
                 mir::MemoryEffect::read_only(self.value_storage(*dynamic)),
             ),
-            mir::Instruction::Store { pointer, .. }
-            | mir::Instruction::AtomicStore { pointer, .. } => mir::FunctionEffect::memory(
-                mir::MemoryEffect::write_only(self.value_storage(*pointer)),
+            mir::Instruction::Store { place, .. } | mir::Instruction::AtomicStore { place, .. } => {
+                mir::FunctionEffect::memory(mir::MemoryEffect::write_only(
+                    self.place_storage(place),
+                ))
+            }
+            mir::Instruction::AtomicCompareExchange { place, .. }
+            | mir::Instruction::AtomicRmw { place, .. } => mir::FunctionEffect::memory(
+                mir::MemoryEffect::read_write(self.place_storage(place)),
             ),
-            mir::Instruction::AtomicCompareExchange { .. }
-            | mir::Instruction::AtomicRmw { .. }
-            | mir::Instruction::AtomicFence { .. } => {
+            mir::Instruction::AtomicFence { .. } => {
                 mir::FunctionEffect::memory(mir::MemoryEffect::read_write(mir::StorageSet::ANY))
             }
             mir::Instruction::BarrierWrite { .. } => mir::FunctionEffect::none(),
-            mir::Instruction::LocalGet { .. } | mir::Instruction::LocalSet { .. } => {
-                mir::FunctionEffect::none()
-            }
             mir::Instruction::NewZeroed { result_type, .. }
             | mir::Instruction::NewUninit { result_type, .. }
             | mir::Instruction::NewSliceZeroed { result_type, .. }
@@ -493,13 +499,13 @@ impl FunctionEffectBuilder<'_> {
                 memory: mir::MemoryEffect::none(),
                 behavior: mir::FunctionBehavior::none().with_preserved_execution(),
             },
-            mir::Instruction::Const { .. }
+            mir::Instruction::Copy { .. }
+            | mir::Instruction::Const { .. }
             | mir::Instruction::Binary { .. }
             | mir::Instruction::Unary { .. }
             | mir::Instruction::Cast { .. }
             | mir::Instruction::Select { .. }
-            | mir::Instruction::LocalAddr { .. }
-            | mir::Instruction::GlobalAddr { .. }
+            | mir::Instruction::Address { .. }
             | mir::Instruction::FunctionAddr { .. }
             | mir::Instruction::FunctionBind { .. }
             | mir::Instruction::FunctionEnvironment { .. }
@@ -507,15 +513,11 @@ impl FunctionEffectBuilder<'_> {
             | mir::Instruction::Aggregate { .. }
             | mir::Instruction::FieldGet { .. }
             | mir::Instruction::FieldSet { .. }
-            | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::ElementGet { .. }
             | mir::Instruction::ElementSet { .. }
-            | mir::Instruction::ElementAddr { .. }
             | mir::Instruction::VariantNew { .. }
             | mir::Instruction::VariantTag { .. }
             | mir::Instruction::VariantPayload { .. }
-            | mir::Instruction::VariantPayloadAddr { .. }
-            | mir::Instruction::SliceView { .. }
             | mir::Instruction::SliceLength { .. }
             | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
@@ -550,33 +552,57 @@ impl FunctionEffectBuilder<'_> {
             effect.behavior.determinism = mir::Determinism::NonDeterministic;
         }
 
-        // apply explicit memory accesses and retain the operation's behavior
-        if let Some(accesses) = self.accesses.get(instruction_id) {
-            effect.memory = accesses
-                .iter()
-                .fold(mir::MemoryEffect::none(), |memory, access| {
-                    memory.union(&mir::MemoryEffect::from(access))
-                });
+        // retain reads of stored references traversed by every memory operand
+        if let Some(place) = instruction.place() {
+            let mut prefix = mir::Place::new(place.origin);
+            for projection in &place.path.projections {
+                if *projection == mir::Projection::Deref {
+                    let read = mir::MemoryEffect::read_only(self.place_storage(&prefix));
+                    effect.memory = effect.memory.union(&read);
+                }
+                prefix.push(projection.clone());
+            }
         }
 
         effect
     }
 
+    /// Resolve externally observable storage selected by a place.
+    fn place_storage(&mut self, place: &mir::Place) -> mir::StorageSet {
+        // direct function storage does not escape through the operation itself
+        if matches!(
+            place.origin,
+            mir::PlaceOrigin::Local(_) | mir::PlaceOrigin::Value(_)
+        ) && !place.path.projections.contains(&mir::Projection::Deref)
+        {
+            return mir::StorageSet::NONE;
+        }
+
+        // native addresses and unresolved storage require conservative effects
+        place
+            .storage(self.function, self.tree)
+            .map_or(mir::StorageSet::ANY, |storage| {
+                storage.storage_set(self.tree)
+            })
+    }
+
     /// Resolve the backing storage for one typed value.
-    fn value_storage(&self, value: mir::Value) -> mir::StorageSet {
-        let ty = self.function.expect_value_type(value);
+    fn value_storage(&mut self, value: mir::Value) -> mir::StorageSet {
+        let ty = self.tree.get(self.function).expect_value_type(value);
 
         self.type_storage(ty)
     }
 
     /// Resolve the backing storage for one reference-like type.
-    fn type_storage(&self, ty: mir::TypeId) -> mir::StorageSet {
+    fn type_storage(&mut self, ty: mir::TypeId) -> mir::StorageSet {
         let ty = self.tree.storage_type(ty);
 
         self.tree
             .get(ty)
             .reference_storage()
-            .map_or(mir::StorageSet::ANY, mir::Storage::storage_set)
+            .map_or(mir::StorageSet::ANY, |storage| {
+                storage.storage_set(self.tree)
+            })
     }
 
     /// Build a memory effect for an intrinsic.
@@ -623,7 +649,7 @@ mod tests {
     /// Pure arithmetic functions have no memory or behavioral effects.
     #[test]
     fn test_classify_pure_function() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function pure(v0: int32): int32 {
 entry(v0: int32):
@@ -634,12 +660,7 @@ entry(v0: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("pure");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -653,7 +674,7 @@ entry(v0: int32):
     /// Allocation and free instructions are surfaced in function behavior.
     #[test]
     fn test_record_allocation_effects() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function allocate(): void {
 entry:
@@ -665,12 +686,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("allocate");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -686,7 +702,7 @@ entry:
     /// Preserve execution of spin hints, black boxes, and breakpoints.
     #[test]
     fn test_preserve_execution_effects() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function backoff(): void {
 entry:
@@ -708,12 +724,7 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let expected = mir::FunctionEffect {
             memory: mir::MemoryEffect::none(),
             behavior: mir::FunctionBehavior::none().with_preserved_execution(),
@@ -730,7 +741,7 @@ entry:
     /// Direct calls propagate callee effects to callers.
     #[test]
     fn test_propagate_direct_calls() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function allocate(): ref<int32, unique, mutable, local> {
 entry:
@@ -747,12 +758,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("root");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -792,12 +798,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let effect = effects.function(root).expect("missing function effect");
 
         assert_eq!(
@@ -830,12 +831,7 @@ entry:
         };
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let root = program.function_id_by_name("root");
         let effect = effects.function(root).expect("missing function effect");
 
@@ -869,12 +865,7 @@ entry:
         };
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let root = program.function_id_by_name("root");
         let effect = effects.function(root).expect("missing function effect");
 
@@ -890,7 +881,7 @@ entry:
     /// Preserve possible parking when a call can select an unknown internal function.
     #[test]
     fn test_preserve_unknown_callee_parking() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
@@ -901,12 +892,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("test");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -920,7 +906,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Panic terminators are may-panic and no-return.
     #[test]
     fn test_record_panics_without_returns() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function fail(v0: ref<int32, managed, readonly, local>): void {
 entry(v0: ref<int32, managed, readonly, local>):
@@ -930,12 +916,7 @@ entry(v0: ref<int32, managed, readonly, local>):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("fail");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -951,7 +932,7 @@ entry(v0: ref<int32, managed, readonly, local>):
     /// Infer guaranteed return through acyclic callees while preserving possible divergence.
     #[test]
     fn test_propagate_return_behavior() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function leaf(): void {
 entry:
@@ -993,12 +974,7 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let table = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let returns = ["leaf", "caller", "tail", "recursive", "cycle", "endless"].map(|name| {
             table
                 .function(program.function_id_by_name(name))
@@ -1023,11 +999,11 @@ entry:
     /// Distinguish ordinary memory accesses from observable atomic accesses.
     #[test]
     fn test_classify_memory_accesses() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function read<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, readonly, local>):
-    v1: int32 = load v0
+    v1: int32 = load.copy (*v0)
     return v1
 
 dead:
@@ -1038,24 +1014,19 @@ dead:
 
 function write<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32): void {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32):
-    store v0, v1
+    store (*v0), v1
     return
 }
 
 function synchronize<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, readonly, local>):
-    v1: int32 = atomic.load v0, acquire, scope(device)
+    v1: int32 = atomic.load (*v0), acquire, scope(device)
     return v1
 }
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.effect(
-            &program.tree,
-            &program.accesses,
-            &program.effects,
-            &program.dispatch,
-        );
+        let table = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
         let actual = ["read", "write", "synchronize"].map(|name| {
             table
                 .function(program.function_id_by_name(name))

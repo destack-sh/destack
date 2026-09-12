@@ -92,22 +92,22 @@ impl ConstantValue {
 impl ConstantTable {
     /// Analyse scalar and aggregate constants along executable control-flow edges.
     pub fn analyse(
-        function: &mir::Function,
+        function: mir::FunctionId,
         uses: &UseTable,
         target: TargetLayout,
-        tree: &mir::Tree,
+        tree: &mut mir::Tree,
     ) -> Self {
         ConstantSolver::new(function, uses, target, tree).solve(&FxIndexMap::default())
     }
 
     /// Analyse a function with explicitly supplied parameter constants.
     pub fn with_parameter_constants(
-        function: &mir::Function,
-        tree: &mir::Tree,
+        function: mir::FunctionId,
+        tree: &mut mir::Tree,
         target: TargetLayout,
         constants: &FxIndexMap<mir::Value, mir::Constant>,
     ) -> Self {
-        let uses = UseTable::analyse(function, tree);
+        let uses = UseTable::analyse(tree.get(function), tree);
 
         ConstantSolver::new(function, &uses, target, tree).solve(constants)
     }
@@ -149,9 +149,9 @@ impl Analysis for ConstantTable {
 /// Sparse worklist for executable edges and their dependent SSA operations.
 struct ConstantSolver<'a> {
     /// The function whose constants are being solved.
-    function: &'a mir::Function,
+    function: mir::FunctionId,
     /// The MIR definitions and operands.
-    tree: &'a mir::Tree,
+    tree: &'a mut mir::Tree,
     /// The target's scalar widths.
     target: TargetLayout,
     /// Dependent operations grouped by their used values.
@@ -165,17 +165,19 @@ struct ConstantSolver<'a> {
 impl<'a> ConstantSolver<'a> {
     /// Allocate the value lattices and index their dependent operations.
     fn new(
-        function: &'a mir::Function,
+        function: mir::FunctionId,
         uses: &'a UseTable,
         target: TargetLayout,
-        tree: &'a mir::Tree,
+        tree: &'a mut mir::Tree,
     ) -> Self {
         // allocate executable block states and the initial operation worklist
-        let blocks = NodeTable::from_nodes(function.blocks(), || false);
+        let blocks = NodeTable::from_nodes(tree.get(function).blocks(), || false);
         let mut pending = FxIndexSet::default();
-        if let Some(entry) = function.entry() {
+        if let Some(entry) = tree.get(function).entry() {
             pending.reserve(tree.get(entry).instructions.len() + 1);
         }
+
+        let count = tree.get(function).value_capacity();
 
         Self {
             function,
@@ -184,7 +186,7 @@ impl<'a> ConstantSolver<'a> {
             uses,
             pending,
             table: ConstantTable {
-                values: vec![ConstantValue::Unknown; function.value_capacity()],
+                values: vec![ConstantValue::Unknown; count],
                 blocks,
                 edges: FxIndexSet::default(),
             },
@@ -193,12 +195,12 @@ impl<'a> ConstantSolver<'a> {
 
     /// Solve value changes and newly executable edges to a fixed point.
     fn solve(mut self, parameters: &FxIndexMap<mir::Value, mir::Constant>) -> ConstantTable {
-        let Some(entry) = self.function.entry() else {
+        let Some(entry) = self.tree.get(self.function).entry() else {
             return self.table;
         };
 
         // seed runtime parameters and explicitly supplied constants
-        for parameter in &self.function.parameters {
+        for parameter in &self.tree.get(self.function).parameters {
             let value = parameters
                 .get(&parameter.value)
                 .map_or(ConstantValue::Overdefined, |constant| {
@@ -254,7 +256,7 @@ impl<'a> ConstantSolver<'a> {
 
     /// Evaluate one instruction's result under the current operand lattices.
     fn instruction(&mut self, id: mir::LocalNodeId<mir::Instruction>) {
-        let instruction = self.tree.get(id);
+        let instruction = &self.tree.get(id).clone();
         let Some(destination) = instruction.destination() else {
             return;
         };
@@ -291,6 +293,7 @@ impl<'a> ConstantSolver<'a> {
                     })
                 }
             }
+            mir::Instruction::Copy { value, .. } => self.table.value(*value).clone(),
             mir::Instruction::Const { value, .. } => match value {
                 mir::Constant::Uninit
                 | mir::Constant::Parameter(_)
@@ -362,7 +365,7 @@ impl<'a> ConstantSolver<'a> {
                 result_type,
                 ..
             } => {
-                let ty = self.tree.represented(*result_type);
+                let ty = mir::Substitution::resolve(*result_type, self.tree);
                 let mir::Type::Variant { cases, .. } = self.tree.get(ty) else {
                     unreachable!("variant.new requires a represented variant type");
                 };
@@ -566,8 +569,12 @@ impl<'a> ConstantSolver<'a> {
 
     /// Propagate values through each executable successor of one terminator.
     fn terminator(&mut self, block: mir::BlockId) {
-        let terminator = self.tree.get(self.tree.get(block).terminator);
-        let targets = terminator.targets(self.tree, block);
+        let terminator = &self.tree.get(self.tree.get(block).terminator).clone();
+        let targets = terminator
+            .targets(self.tree, block)
+            .into_iter()
+            .map(|(edge, target)| (edge, target.clone()))
+            .collect::<Vec<_>>();
         let selected = match terminator {
             mir::Terminator::Branch { condition, .. } => match self.table.value(*condition) {
                 ConstantValue::Unknown => return,
@@ -641,8 +648,8 @@ impl<'a> ConstantSolver<'a> {
             }
             self.table.edges.insert(edge);
             let result_count = terminator.target_result_count(self.tree, edge.successor);
-            let parameters = &self.tree.get(target.block).parameters;
-            let arguments = target.arguments(self.tree);
+            let parameters = &self.tree.get(target.block).parameters.clone();
+            let arguments = &target.arguments(self.tree).to_vec();
             assert_eq!(
                 parameters.len(),
                 result_count + arguments.len(),
@@ -1890,7 +1897,7 @@ pub fn fold_binary_signed(
     // construct signed results in the operand width
     let result_int = |value: i128| {
         Some(mir::Constant::Int {
-            value: truncate_signed(value, width),
+            value: signed_from_bits(value as u128, width),
             width,
             is_signed: true,
         })
@@ -2082,306 +2089,132 @@ pub fn fold_cast(
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> Option<mir::Constant> {
-    // load target type
-    let target_type = tree.get(to_type);
+    let target = tree.type_definition(to_type);
 
-    // apply cast semantics
     match operator {
-        mir::CastOperator::Bitcast => Some(value),
+        // preserve the source bits at an equally sized scalar type
+        mir::CastOperator::Bitcast => {
+            let (bits, width) = match value {
+                mir::Constant::Float { bits, format } => (u128::from(bits), format.width()),
+                value => {
+                    let (bits, width, _) = decode_int_constant(&value)?;
 
-        mir::CastOperator::Truncate => {
-            // read target integer width
-            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width,
-                None => return Some(value),
+                    (bits, width)
+                }
             };
+            match target {
+                mir::Type::Float(format) if format.width() == width => Some(mir::Constant::Float {
+                    bits: bits as u64,
+                    format: *format,
+                }),
+                _ => {
+                    let (target_width, is_signed) =
+                        target.int_info_with_pointer_width(pointer_width_bits)?;
 
-            // truncate integer values
-            match value {
-                mir::Constant::Int { value, .. } => Some(mir::Constant::Int {
-                    value: truncate_signed(value, target_width),
-                    width: target_width,
-                    is_signed: true,
-                }),
-                mir::Constant::UInt { value, .. } => Some(mir::Constant::UInt {
-                    value: truncate_unsigned(value, target_width),
-                    width: target_width,
-                }),
-                _ => Some(value),
+                    (target_width == width).then(|| encode_int_constant(bits, width, is_signed))
+                }
             }
         }
-
-        mir::CastOperator::Saturate => {
-            // read target integer bounds
+        // extend by source signedness, then retain the destination bits
+        mir::CastOperator::IntToInt | mir::CastOperator::IntToIntSaturating => {
+            let (bits, width, is_signed) = decode_int_constant(&value)?;
             let (target_width, target_signed) =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                    Some(info) => info,
-                    None => return Some(value),
-                };
-            let (min_bound, max_bound) = integer_bounds(target_width, target_signed)?;
-
-            // clamp integer values
-            match value {
-                mir::Constant::Int { value, .. } => {
-                    let value = value.clamp(min_bound, max_bound);
-                    Some(integer_constant_from_i128(
-                        value,
-                        target_width,
-                        target_signed,
-                    ))
+                target.int_info_with_pointer_width(pointer_width_bits)?;
+            let is_negative = is_signed && signed_from_bits(bits, width) < 0;
+            let converted = if operator == mir::CastOperator::IntToInt {
+                if is_signed {
+                    signed_from_bits(bits, width) as u128
+                } else {
+                    bits
                 }
-                mir::Constant::UInt { value, .. } => {
-                    let value = unsigned_as_saturating_i128(value, max_bound);
-                    let value = value.clamp(min_bound, max_bound);
-                    Some(integer_constant_from_i128(
-                        value,
-                        target_width,
-                        target_signed,
-                    ))
+            } else if target_signed {
+                let (minimum, maximum) = integer_bounds(target_width, true)?;
+                if is_negative {
+                    signed_from_bits(bits, width).max(minimum) as u128
+                } else {
+                    bits.min(maximum as u128)
                 }
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::ZeroExtend => {
-            // read target integer width
-            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width,
-                None => return Some(value),
+            } else if is_negative {
+                0
+            } else {
+                bits.min(mask_to_width(u128::MAX, target_width))
             };
 
-            // zero extend integer values
-            match value {
-                mir::Constant::UInt { value, .. } => Some(mir::Constant::UInt {
-                    value,
-                    width: target_width,
-                }),
-                mir::Constant::Int { value, width, .. } => {
-                    let masked = truncate_unsigned(value as u128, width);
-                    Some(mir::Constant::UInt {
-                        value: masked,
-                        width: target_width,
-                    })
+            Some(encode_int_constant(
+                mask_to_width(converted, target_width),
+                target_width,
+                target_signed,
+            ))
+        }
+        // check the truncated float against exact powers of two before host conversion
+        mir::CastOperator::FloatToInt | mir::CastOperator::FloatToIntSaturating => {
+            let mir::Constant::Float { bits, format } = value else {
+                return None;
+            };
+            let value = float_from_bits(format.format(), bits).trunc();
+            let (width, is_signed) = target.int_info_with_pointer_width(pointer_width_bits)?;
+            let upper = 2.0_f64.powi(i32::from(width) - i32::from(is_signed));
+            let lower = if is_signed { -upper } else { 0.0 };
+            if operator == mir::CastOperator::FloatToInt
+                && (!value.is_finite() || value < lower || value >= upper)
+            {
+                return None;
+            }
+
+            // host casts saturate and map NaN to zero before narrowing the range
+            let bits = if is_signed {
+                let (minimum, maximum) = integer_bounds(width, true)?;
+
+                (value as i128).clamp(minimum, maximum) as u128
+            } else {
+                (value as u128).min(mask_to_width(u128::MAX, width))
+            };
+
+            Some(encode_int_constant(bits, width, is_signed))
+        }
+        // round integers directly into the requested float format
+        mir::CastOperator::IntToFloat => {
+            let (bits, width, is_signed) = decode_int_constant(&value)?;
+            let mir::Type::Float(format) = target else {
+                return None;
+            };
+            let bits = match (format, is_signed) {
+                (mir::FloatType::Float32, true) => {
+                    (signed_from_bits(bits, width) as f32).to_bits() as u64
                 }
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::SignExtend => {
-            // read target integer width
-            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width,
-                None => return Some(value),
+                (mir::FloatType::Float32, false) => (bits as f32).to_bits() as u64,
+                (mir::FloatType::Float64, true) => (signed_from_bits(bits, width) as f64).to_bits(),
+                (mir::FloatType::Float64, false) => (bits as f64).to_bits(),
             };
 
-            // sign extend integer values
-            match value {
-                mir::Constant::Int { value, width, .. } => Some(mir::Constant::Int {
-                    value: sign_extend(value, width, target_width),
-                    width: target_width,
-                    is_signed: true,
-                }),
-                mir::Constant::UInt { value, width } => {
-                    let as_signed = signed_from_bits(value, width);
-                    Some(mir::Constant::Int {
-                        value: sign_extend(as_signed, width, target_width),
-                        width: target_width,
-                        is_signed: true,
-                    })
-                }
-                _ => Some(value),
-            }
+            Some(mir::Constant::Float {
+                bits,
+                format: *format,
+            })
         }
-
-        mir::CastOperator::FloatToSignedInt => {
-            // read target integer width
-            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width,
-                None => 64,
+        // convert between float formats and preserve equal-format bits
+        mir::CastOperator::FloatToFloat => {
+            let mir::Constant::Float { bits, format } = value else {
+                return None;
+            };
+            let mir::Type::Float(target) = target else {
+                return None;
+            };
+            let bits = if format == *target {
+                bits
+            } else {
+                float_to_bits(target.format(), float_from_bits(format.format(), bits))
             };
 
-            // convert float to signed int
-            match value {
-                mir::Constant::Float { bits, format } => {
-                    let value = float_from_bits(format.format(), bits);
-                    let (min_bound, max_bound) = integer_bounds(target_width, true)?;
-                    let converted = float_to_int_checked(value, min_bound, max_bound)?;
-                    Some(mir::Constant::Int {
-                        value: converted,
-                        width: target_width,
-                        is_signed: true,
-                    })
-                }
-                _ => Some(value),
-            }
+            Some(mir::Constant::Float {
+                bits,
+                format: *target,
+            })
         }
-
-        mir::CastOperator::FloatToUnsignedInt => {
-            // read target integer width
-            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width,
-                None => 64,
-            };
-
-            // convert float to unsigned int
-            match value {
-                mir::Constant::Float { bits, format } => {
-                    let value = float_from_bits(format.format(), bits);
-                    let (min_bound, max_bound) = integer_bounds(target_width, false)?;
-                    let converted = float_to_int_checked(value, min_bound, max_bound)?;
-                    Some(mir::Constant::UInt {
-                        value: converted as u128,
-                        width: target_width,
-                    })
-                }
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::FloatToSignedIntSaturating => {
-            // read target integer width
-            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width,
-                None => 64,
-            };
-
-            // convert float to signed int with saturation
-            match value {
-                mir::Constant::Float { bits, format } => {
-                    let value = float_from_bits(format.format(), bits);
-                    let (min_bound, max_bound) = integer_bounds(target_width, true)?;
-                    let converted = float_to_int_saturating(value, min_bound, max_bound);
-                    Some(mir::Constant::Int {
-                        value: converted,
-                        width: target_width,
-                        is_signed: true,
-                    })
-                }
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::FloatToUnsignedIntSaturating => {
-            // read target integer width
-            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
-                Some((width, _)) => width,
-                None => 64,
-            };
-
-            // convert float to unsigned int with saturation
-            match value {
-                mir::Constant::Float { bits, format } => {
-                    let value = float_from_bits(format.format(), bits);
-                    let (min_bound, max_bound) = integer_bounds(target_width, false)?;
-                    let converted = float_to_int_saturating(value, min_bound, max_bound);
-                    Some(mir::Constant::UInt {
-                        value: converted as u128,
-                        width: target_width,
-                    })
-                }
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::SignedIntToFloat => {
-            // read target float format
-            let target_format = match target_type {
-                mir::Type::Float(float_type) => *float_type,
-                _ => mir::FloatType::Float64,
-            };
-
-            // convert signed int to float
-            match value {
-                mir::Constant::Int { value, .. } => Some(mir::Constant::Float {
-                    bits: match target_format {
-                        mir::FloatType::Float32 => (value as f32).to_bits() as u64,
-                        mir::FloatType::Float64 => (value as f64).to_bits(),
-                    },
-                    format: target_format,
-                }),
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::UnsignedIntToFloat => {
-            // read target float format
-            let target_format = match target_type {
-                mir::Type::Float(float_type) => *float_type,
-                _ => mir::FloatType::Float64,
-            };
-
-            // convert unsigned int to float
-            match value {
-                mir::Constant::UInt { value, .. } => Some(mir::Constant::Float {
-                    bits: match target_format {
-                        mir::FloatType::Float32 => (value as f32).to_bits() as u64,
-                        mir::FloatType::Float64 => (value as f64).to_bits(),
-                    },
-                    format: target_format,
-                }),
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::FloatTruncate => {
-            // convert to target float format
-            let target_format = match target_type {
-                mir::Type::Float(float_type) => *float_type,
-                _ => mir::FloatType::Float32,
-            };
-            match value {
-                mir::Constant::Float { bits, format } => {
-                    let value = float_from_bits(format.format(), bits);
-                    Some(mir::Constant::Float {
-                        bits: float_to_bits(target_format.format(), value),
-                        format: target_format,
-                    })
-                }
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::FloatExtend | mir::CastOperator::FloatConvert => {
-            // convert to target float format
-            let target_format = match target_type {
-                mir::Type::Float(float_type) => *float_type,
-                _ => mir::FloatType::Float64,
-            };
-            match value {
-                mir::Constant::Float { bits, format } => {
-                    let value = float_from_bits(format.format(), bits);
-                    Some(mir::Constant::Float {
-                        bits: float_to_bits(target_format.format(), value),
-                        format: target_format,
-                    })
-                }
-                _ => Some(value),
-            }
-        }
-
-        mir::CastOperator::PointerToInt | mir::CastOperator::IntToPointer => None,
-    }
-}
-
-/// Truncate a signed integer to a target bit width.
-fn truncate_signed(value: i128, width: u16) -> i128 {
-    // handle full width
-    if width >= 128 {
-        return value;
-    }
-
-    // build bit mask
-    let mask = (1u128 << width) - 1;
-    let masked = (value as u128) & mask;
-    let sign_bit = 1u128 << (width - 1);
-
-    // set sign extension when needed
-    if masked & sign_bit != 0 {
-        (masked | !mask) as i128
-    }
-    // otherwise keep masked value
-    else {
-        masked as i128
+        mir::CastOperator::PointerToInt
+        | mir::CastOperator::IntToPointer
+        | mir::CastOperator::ReferenceToPointer
+        | mir::CastOperator::PointerToReference => None,
     }
 }
 
@@ -2400,65 +2233,6 @@ fn integer_bounds(width: u16, is_signed: bool) -> Option<(i128, i128)> {
         let max = (u128::MAX >> (128 - width)) as i128;
         Some((0, max))
     }
-}
-
-/// Convert a finite float whose truncated value fits the integer bounds.
-fn float_to_int_checked(value: f64, min_bound: i128, max_bound: i128) -> Option<i128> {
-    // compare against exact power-of-two limits before the host's saturating conversion
-    let truncated = value.trunc();
-    let upper = (max_bound as u128 + 1) as f64;
-    if !truncated.is_finite() || truncated < min_bound as f64 || truncated >= upper {
-        return None;
-    }
-
-    Some(truncated as i128)
-}
-
-/// Convert a float to an integer with saturation.
-fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128 {
-    (value as i128).clamp(min_bound, max_bound)
-}
-
-/// Create a signed or unsigned integer constant.
-fn integer_constant_from_i128(value: i128, width: u16, is_signed: bool) -> mir::Constant {
-    if is_signed {
-        mir::Constant::Int {
-            value,
-            width,
-            is_signed: true,
-        }
-    } else {
-        mir::Constant::UInt {
-            value: value as u128,
-            width,
-        }
-    }
-}
-
-/// Convert an unsigned integer to i128 with target-bound saturation.
-fn unsigned_as_saturating_i128(value: u128, max_bound: i128) -> i128 {
-    // clamp before crossing the signed boundary
-    if value > i128::MAX as u128 {
-        max_bound
-    } else {
-        value as i128
-    }
-}
-
-/// Truncate an unsigned integer to a target bit width.
-fn truncate_unsigned(value: u128, width: u16) -> u128 {
-    mask_to_width(value, width)
-}
-
-/// Sign extend a value from one width to another.
-fn sign_extend(value: i128, from_width: u16, to_width: u16) -> i128 {
-    // handle no extend case
-    if from_width >= to_width || from_width >= 128 {
-        return value;
-    }
-
-    // extend using truncate logic
-    truncate_signed(value, from_width)
 }
 
 /// Try to fold a unary operation on a constant.
@@ -2499,26 +2273,74 @@ mod tests {
     use super::*;
     use crate::analyses::tests::TestModule;
 
+    /// Fold numeric casts at signed, unsigned, floating, and bit-pattern boundaries.
+    #[test]
+    fn test_fold_cast_boundaries() {
+        let mut program = TestModule::new(
+            r#"
+function test(): void {
+entry:
+    v0: int8 = -1
+    v1: uint16 = cast.intToInt v0 -> uint16
+    v2: uint128 = 340282366920938463463374607431768211455
+    v3: int8 = cast.intToIntSaturating v2 -> int8
+    v4: uint128 = cast.intToIntSaturating v0 -> uint128
+    v5: float64 = 256.0
+    v6: uint8 = cast.floatToIntSaturating v5 -> uint8
+    v7: uint8 = cast.floatToInt v5 -> uint8
+    v8: float64 = -0.5
+    v9: uint8 = cast.floatToInt v8 -> uint8
+    v10: uint32 = 1065353216
+    v11: float32 = cast.bit v10 -> float32
+    v12: float64 = cast.intToFloat v0 -> float64
+    v13: float64 = cast.floatToFloat v11 -> float64
+    return
+}
+"#,
+        );
+        let mut analyses = program.function_analyses();
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let actual = [1, 3, 4, 6, 7, 9, 11, 12, 13]
+            .map(|index| constants.constant(mir::Value(index)).cloned());
+
+        assert_eq!(
+            actual,
+            [
+                Some(mir::Constant::uint16(65535)),
+                Some(mir::Constant::int8(127)),
+                Some(mir::Constant::UInt {
+                    value: 0,
+                    width: 128
+                }),
+                Some(mir::Constant::uint8(255)),
+                None,
+                Some(mir::Constant::uint8(0)),
+                Some(mir::Constant::float32(1.0)),
+                Some(mir::Constant::float64(-1.0)),
+                Some(mir::Constant::float64(1.0)),
+            ]
+        );
+    }
+
     /// Mutable globals are not treated as constants.
     #[test]
     fn test_keep_mutable_global_loads_unknown() {
-        let test = TestModule::new(
+        let mut test = TestModule::new(
             r#"
 global flag: boolean = true
 
 function test(): boolean {
 entry:
-    v0: ref<boolean, borrowed, 'static, mutable, local> = global.address flag
-    v1: boolean = load v0
+    v0: ref<boolean, borrowed, 'static, mutable, local> = address @flag
+    v1: boolean = load.copy (*v0)
     return v1
 }
 "#,
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function, &test.tree);
+        let analysis = analyses.constant(function_id, &mut test.tree);
 
         let constant = analysis.constant(mir::Value::new(1)).cloned();
         assert_eq!(constant, None);
@@ -2527,7 +2349,7 @@ entry:
     /// Constant results of binary operations are propagated.
     #[test]
     fn test_fold_constant_addition() {
-        let test = TestModule::new(
+        let mut test = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -2540,9 +2362,8 @@ entry:
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function, &test.tree);
+        let analysis = analyses.constant(function_id, &mut test.tree);
 
         let constant = analysis.constant(mir::Value::new(2)).cloned();
         assert_eq!(
@@ -2558,7 +2379,7 @@ entry:
     /// Preserve agreeing parameters while widening conflicting parameters at the same join.
     #[test]
     fn test_join_agreeing_and_conflicting_arguments() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
@@ -2577,9 +2398,8 @@ join(v3: boolean, v4: boolean):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
 
         assert_eq!(
             constants.value(mir::Value(3)),
@@ -2591,7 +2411,7 @@ join(v3: boolean, v4: boolean):
     /// Fallible allocation result parameters do not consume edge arguments.
     #[test]
     fn test_preserve_arguments_after_allocation_results() {
-        let test = TestModule::new(
+        let mut test = TestModule::new(
             r#"
 function test(v0: int64): boolean {
 entry(v0: int64):
@@ -2609,11 +2429,10 @@ b2:
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function, &test.tree);
+        let analysis = analyses.constant(function_id, &mut test.tree);
 
-        let success = function.block(1);
+        let success = test.tree.get(function_id).block(1);
         let success_block = test.tree.get(success);
         let argument = success_block.parameters[1].value;
         let constant = analysis.constant(argument).cloned();
@@ -2624,7 +2443,7 @@ b2:
     /// Conflicting arguments to a single target are not treated as constants.
     #[test]
     fn test_distinguish_arguments_on_repeated_edges() {
-        let test = TestModule::new(
+        let mut test = TestModule::new(
             r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
@@ -2639,9 +2458,8 @@ b1(v3: boolean):
         );
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = test.tree.get(function_id);
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function, &test.tree);
+        let analysis = analyses.constant(function_id, &mut test.tree);
 
         let constant = analysis.constant(mir::Value::new(3)).cloned();
         assert_eq!(constant, None);
@@ -2650,7 +2468,7 @@ b1(v3: boolean):
     /// Follow only the selected edge when two branch arms pass different values to one block.
     #[test]
     fn test_select_branch_arguments() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -2664,13 +2482,12 @@ join(v3: int32):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let edge = mir::Edge::new(
-            function.block(0),
+            program.tree.get(program.entry_function_id()).block(0),
             mir::Successor::BranchThen,
-            function.block(1),
+            program.tree.get(program.entry_function_id()).block(1),
         );
 
         assert_eq!(
@@ -2683,7 +2500,7 @@ join(v3: int32):
     /// Widen a loop recurrence after its executable backedge supplies a different value.
     #[test]
     fn test_widen_constants_changed_by_loop_backedges() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -2700,9 +2517,8 @@ exit(v5: int32):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let actual = (0..6)
             .map(|value| constants.value(mir::Value(value)).clone())
             .collect::<Vec<_>>();
@@ -2723,7 +2539,7 @@ exit(v5: int32):
     /// Preserve constant fields when another field remains dynamic.
     #[test]
     fn test_preserve_constant_fields_beside_dynamic_fields() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -2735,9 +2551,8 @@ entry(v0: int32):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
 
         assert_eq!(
             constants.constant(mir::Value(3)),
@@ -2749,7 +2564,7 @@ entry(v0: int32):
     /// Fold integer bit operations in the operand width.
     #[test]
     fn test_fold_bit_operations_in_the_declared_width() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): uint32 {
 entry:
@@ -2766,9 +2581,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let actual = (3..9)
             .map(|value| constants.constant(mir::Value(value)).cloned())
             .collect::<Vec<_>>();
@@ -2781,7 +2595,7 @@ entry:
     /// Select a failed division check before evaluating the guarded arithmetic.
     #[test]
     fn test_select_check_failure() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -2799,10 +2613,11 @@ failure:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
-        let executable = function
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let executable = program
+            .tree
+            .get(program.entry_function_id())
             .blocks()
             .iter()
             .map(|block| constants.is_executable(*block))
@@ -2815,7 +2630,7 @@ failure:
     /// Round a fused multiply-add once at binary32 precision.
     #[test]
     fn test_round_float32_fma() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): float32 {
 entry:
@@ -2826,9 +2641,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
 
         assert_eq!(
             constants.constant(mir::Value(2)),
@@ -2842,26 +2656,25 @@ entry:
     /// Preserve declared rounding and integer limits during scalar conversion.
     #[test]
     fn test_convert_float_limits() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
     v0: int64 = 4611686293305294849
     v1: uint64 = 9223372586610589697
-    v2: float32 = cast.intToFloat.s v0 -> float32
-    v3: float32 = cast.intToFloat.u v1 -> float32
+    v2: float32 = cast.intToFloat v0 -> float32
+    v3: float32 = cast.intToFloat v1 -> float32
     v4: float64 = 1.7014118346046923e38
-    v5: int128 = cast.floatToInt.s v4 -> int128
-    v6: int128 = cast.floatToIntSaturating.s v4 -> int128
+    v5: int128 = cast.floatToInt v4 -> int128
+    v6: int128 = cast.floatToIntSaturating v4 -> int128
     v7: float64 = 127.9
-    v8: int8 = cast.floatToInt.s v7 -> int8
+    v8: int8 = cast.floatToInt v7 -> int8
     return
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let actual = [2, 3, 5, 6, 8].map(|value| constants.constant(mir::Value(value)).cloned());
 
         assert_eq!(
@@ -2893,7 +2706,7 @@ entry:
     /// Clamp overflowing signed addition and subtraction to their respective limits.
     #[test]
     fn test_saturate_signed_addition_and_subtraction() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2906,9 +2719,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         for (value, expected) in [
             (3, mir::Constant::int8(127)),
             (4, mir::Constant::int8(-128)),
@@ -2924,7 +2736,7 @@ entry:
     /// Produce both the wrapped integer and overflow flag from overflowing addition.
     #[test]
     fn test_fold_wrapped_value_and_overflow_flag() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2937,9 +2749,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         for (value, expected) in [
             (3, mir::Constant::int8(-128)),
             (4, mir::Constant::Boolean { value: true }),
@@ -2963,7 +2774,7 @@ entry:
     /// Round the midpoint of signed minimum and maximum toward zero.
     #[test]
     fn test_round_signed_midpoint_toward_zero() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2974,9 +2785,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let expected = mir::Constant::int8(0);
         assert_eq!(constants.constant(mir::Value(2)), Some(&expected));
     }
@@ -2984,7 +2794,7 @@ entry:
     /// Round a negative quotient upward and return a nonnegative Euclidean remainder.
     #[test]
     fn test_fold_signed_division_rounding() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2996,9 +2806,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         for (value, expected) in [(2, mir::Constant::int8(-42)), (3, mir::Constant::int8(1))] {
             assert_eq!(
                 constants.constant(mir::Value(value)),
@@ -3011,7 +2820,7 @@ entry:
     /// Represent the full distance between signed limits in the unsigned result type.
     #[test]
     fn test_fold_unsigned_distance_between_signed_limits() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -3022,9 +2831,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let expected = mir::Constant::UInt {
             value: 255,
             width: 8,
@@ -3035,7 +2843,7 @@ entry:
     /// Recognize that the signed minimum is divisible by minus one.
     #[test]
     fn test_fold_divisibility_by_minus_one() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -3046,9 +2854,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let expected = mir::Constant::Boolean { value: true };
         assert_eq!(constants.constant(mir::Value(2)), Some(&expected));
     }
@@ -3056,7 +2863,7 @@ entry:
     /// Clamp values below, within, and above the declared integer interval.
     #[test]
     fn test_fold_clamp_endpoints() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -3074,9 +2881,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         for (value, expected) in [(4, 1), (5, 1), (6, 3), (8, 2), (9, 3)] {
             assert_eq!(
                 constants.constant(mir::Value(value)),
@@ -3089,7 +2895,7 @@ entry:
     /// Fold unchecked addition within the signed range, including its maximum.
     #[test]
     fn test_fold_unchecked_addition_within_integer_limits() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -3103,9 +2909,8 @@ entry:
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
 
         assert_eq!(
             constants.constant(mir::Value(3)),
@@ -3120,7 +2925,7 @@ entry:
     /// Select a switch case without merging default arguments sent to the same target.
     #[test]
     fn test_select_switch_arguments_on_repeated_targets() {
-        let program = TestModule::new(
+        let mut program = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -3137,13 +2942,13 @@ unused(v4: int32):
 }
 "#,
         );
-        let function = program.tree.get(program.entry_function_id());
+        let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(function, &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
         let edge = mir::Edge::new(
-            function.block(0),
+            program.tree.get(function).block(0),
             mir::Successor::SwitchCase { value: 1 },
-            function.block(1),
+            program.tree.get(function).block(1),
         );
 
         assert_eq!(

@@ -82,42 +82,52 @@ where
 {
     /// Run a forward dataflow analysis using a worklist algorithm.
     pub fn forward<F>(
-        function: &mir::Function,
-        tree: &mir::Tree,
+        function: mir::FunctionId,
+        tree: &mut mir::Tree,
         cfg: &ControlTable,
         entry_state: S,
         mut transfer: F,
     ) -> Self
     where
-        F: for<'a> FnMut(ForwardTransfer<'a>, S, &mir::Tree) -> S,
+        F: for<'a> FnMut(ForwardTransfer<'a>, S, &mut mir::Tree) -> S,
     {
-        let entry = match function.entry() {
+        let entry = match tree.get(function).entry() {
             Some(entry) => entry,
             None => return Self::new(),
         };
 
-        let mut result = Self::for_function(function);
+        let mut result = Self::for_function(tree.get(function));
 
         // seed the worklist with the entry block
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
-        let mut in_worklist = NodeTable::from_nodes(function.blocks(), || false);
+        let mut in_worklist = NodeTable::from_nodes(tree.get(function).blocks(), || false);
 
         worklist.push_back(entry);
         *in_worklist.get_mut(entry) = true;
 
+        // reuse edge storage while transfers instantiate types
+        let mut incoming = Vec::new();
         while let Some(block_id) = worklist.pop_front() {
             *in_worklist.get_mut(block_id) = false;
 
             // merge the function entry state and every reached incoming edge
             let mut merged = (block_id == entry).then(|| entry_state.clone());
-            for (edge, target) in cfg.incoming_edges(block_id, tree) {
+            incoming.clear();
+            incoming.extend(
+                cfg.incoming_edges(block_id, tree)
+                    .map(|(edge, target)| (edge, target.clone())),
+            );
+            for (edge, target) in &incoming {
                 let Some(predecessor_exit) = result.exit(edge.source) else {
                     continue;
                 };
 
                 // transfer and merge this exact edge's state
                 let state = transfer(
-                    ForwardTransfer::Edge { edge, target },
+                    ForwardTransfer::Edge {
+                        edge: *edge,
+                        target,
+                    },
                     predecessor_exit.clone(),
                     tree,
                 );

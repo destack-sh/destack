@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    Analysis, DefinitionTable, DominatorTable, Function, LoopTable, Mutation, TargetLayout, Tree,
+    Analysis, DefinitionTable, DominatorTable, FunctionId, LoopTable, Mutation, TargetLayout, Tree,
 };
 
 /// Symbolic scalar recurrences and loop exit counts.
@@ -11,7 +11,7 @@ pub struct ScalarEvolutionTable {}
 impl ScalarEvolutionTable {
     /// Construct scalar evolution for one function.
     pub fn analyse(
-        _function: &Function,
+        _function: FunctionId,
         _definitions: Arc<DefinitionTable>,
         _dominators: Arc<DominatorTable>,
         _loops: Arc<LoopTable>,
