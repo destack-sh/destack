@@ -84,7 +84,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                                     &state,
                                     &live,
                                     |left, right| {
-                                        left.may_overlap(right, &constants, function, tree)
+                                        left.may_overlap(right, &constants, function_id, tree)
                                     },
                                     &moves,
                                     &places,
@@ -105,8 +105,8 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
 
                 // advance origin and liveness together
                 let instruction = tree.get(instruction_id);
-                let cx = mir::OriginContext::new(function, tree, &places, loans);
-                state.advance(&cx, instruction_id);
+                let mut cx = mir::OriginContext::new(function_id, tree, &places, loans);
+                state.advance(&mut cx, instruction_id);
                 live.advance(instruction, tree);
             }
         }

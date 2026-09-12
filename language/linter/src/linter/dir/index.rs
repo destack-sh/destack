@@ -415,7 +415,9 @@ impl<'a> Dir<'a> {
     ) -> Result<dir::Access, ProviderError> {
         let ty = self.get_type(type_id)?;
         let access = match ty {
-            dir::Type::Literal(dir::Literal::String(value)) => dir::Access::from_text(value),
+            dir::Type::Literal(dir::Literal::String(value)) => {
+                dir::Access::from_text(self.strings.get(value))
+            }
             _ => None,
         };
         let Some(access) = access else {
