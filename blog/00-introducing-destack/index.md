@@ -1,7 +1,7 @@
 ---
-title: "Introducing TypeScript++"
+title: "Introducing Destack"
 subtitle: "Evolving TypeScript into the Last Programming Language"
-date: "2026-09-14"
+date: "2026-09-21"
 author: "Florian"
 ---
 
@@ -12,7 +12,7 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 
 [illustration of cambrian explosion carnage](TODO)
 
-- We let down the the _original_ promise of software.  
+- The _original_ promise of software has, so far not been realized, and a duller version of it has settled in by sheer inertia.  
 - Somewhere, in the midst of 20 different SaaS vendors with 2 second loading pages and incompatible formats, the beauty of orchestrating logic on top with enlightened silicon was lost.
 - not in the "install a connector" sense, but in the drag a thing from one tab into the other sense, in the "ask the computer to modify the software just for you" sense.
 
@@ -139,7 +139,7 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 <!--- I've tried that, it doesn't work, I don't want to do that-->
 <!--- I want to be _more_ in the details than ever, I want the code to be right and look right, I want to understand every byte, every cycle, every pixel.-->
 
-[castle in the sky svg? unvanncy valley maybe?](TODO)
+[simpsons meme about serving undifferentiated slop (food)](TODO)
 
 - a complex system that works starts from a simple system that works
 - in any non-trivial systems I have seen, there is no useful separation of the system and its "specification"
@@ -203,7 +203,7 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 - "software in motion"
 - code is going to run _everything_, even more so than it already does (literally)
 
-[c4 diagram or something?](TODO)
+[c4 diagram or Uml diagram or something?](TODO)
 
 - incremental, iterative, multi-level precision
 <!--- who measures the measurer? where is the kernel of truth?-->
@@ -227,7 +227,7 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 - this is a great idea, in a multi-language world of heterogeneous stacks.
 - "use the best tool for the job"
 
-- unfortunately, _minimal_ is eventually not quite enough, because it _requires_.
+- unfortunately, _minimality_ in isolation is not quite enough, because it _requires_.
 - even "multi-paradigm" languages like Java or C# that have organically accumulated more systems-y features over time do not (attempt to) cover the complete spectrum
 - general software architecture is no longer exploratory and hasn't been for a while, which is why we have so many frameworks and meta-frameworks solving largely the same problems in largely the same ways
 - we want _complete_
@@ -246,8 +246,6 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 - much better standardization, much better simulation
 - and, if we can manage the perf aspect, much faster and more scalable software too.
 
-[spacex engines](TODO)
-
 - what is the ideal final stack?
 if we finally have the unique opportunity to build a completely new programming system, why not just .. throw everything away and start from scratch?
 <!--- there are all these suboptimal choices embedded deep into contemporary programming systems
@@ -260,6 +258,8 @@ if we finally have the unique opportunity to build a completely new programming 
 - but theoretical 100% optimality probably doesn't really matter as such. 
 <!--- pragmatic perfection-->
 
+[the essence of the bull](TODO)
+
 - I don't want to learn a new and totally different stack, I already know the ones that exist
 - I want to use the Web, basically TypeScript, and build with stuff I'm familiar with
 - I want to use what I already know, with minimal new learning
@@ -270,33 +270,6 @@ if we finally have the unique opportunity to build a completely new programming 
 <!--- we're going to get a lot more software-->
 <!--- simulating software is -->
 
-# TypeScript++
-
-- TypeScript is a great foundation
-- there is already wide range of prior art in the realm of "TS ergonomics with systems performance", but that is just one aspect of what we'Re trying to do here
-<!--- so, before doing something new, the first question is: why not extend what already exists-->
-<!--- fully standardized across the stack-->
-- static hermes, assembly script, ...
-- all in - not incrementally adoptable.
-- (though we do have C ABI ofc)
-
-- I like imperative programming
-- the current set of modern programming languages is pretty good
-- colored functions are fine, Promises are fine actually. microtasks a little weird but whatever
-- number is okay as a type actually, it's convenient
-- bigint and string as lowercase primitives are fine, not ideal, but fine
-- all in all, it's fine, and most importantly: it's familiar
-- (... and it's how the web works!)
-- no intention of "fixing" anything that is sound but clumsy and can be trivially linted for 
-- more importantly, want a complete language that can represent all the things we need, and then constrain by package / library (but it all has to go togetheraaa)
-- so let's just get on with it
-
-- what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed? 
-- basically, what is "TypeScript++"? TS that runs predictably like JVM/CLR/Go with som Rust-y bits
-<!--- what is the minimum set of changes / additions we need to good prior art to get what we need-->
-- the question is explicitly _not_ what is the "best theortical version if we did TypeScript all over again". 
-- instead: "what is the most typescript we can make it, removing only what is absolutely necessary" (default decision = keep)
-
 - what's the most boring thing we could build?
 - don't try to be cute or clever or fancy
 - no "improvements", only corrections
@@ -304,23 +277,37 @@ if we finally have the unique opportunity to build a completely new programming 
 - only use boring ideas already proven by other languages / libraries / ..
 - safe, sound, predictable, and above all: *familiar*
 
-- TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
-<!--- (AssemblyScript and friends fail in the 'feel like TS' department, and Static Hermes does not by design attempt to go "beyond" TS either, which means we need to start from scratch)-->
-- the dichotomy between "scripting languages" and "systems languages" no longer makes much sense if it's not humans doing the typing (assuming "compile times" are fast)
-<!--- begone with the need for a separate language and stack to run "backend" or "compute heavy" tasks once we "outgrow" node.js or whatever.-->
-<!--- .. TypeScript also happens to be the very same language that runs the web, the biggest software platform in the world!-->
-<!--- but of course, it would have to really *feel* like TypeScript, not just "look" like TypeScript! as much as possible, TypeScript semantics - far beyond the surface syntax - should be preserved for this to really be a day one language.-->
-- TS++ fashions itself as a "superset of a strict subset of TS", which is vaguely reminiscient of the relationship between C and C++
-- mechnically, what is the ergonomic ladder of TS++ between TS -> Rust, what are the minimal things to remove for unsoundness, and the minimum features to add to cover the whole universal language spectrum
+# TypeScript++
 
-<!--- well, ideally:
-- a language that compiles quickly, runs fast, analyses well, runs everywhere
-- above all, a language that is boring, "works as you would expect", so we can innovate in other places
-- I don't want to learn new stuff in this area, I want to do better with the stuff I already know
-- ideally we want something that can run at the web properly *and* can run systems software at machine speed, and is legible to humans and agents alike.-->
-<!--- above all, we need a complete system, a unified method of software production, to reliably produce correct, optimal, integrated software in one standardized way-->
-<!--- fully integrated infrastructure, from the bottom to the top of the "stack". -->
-<!--- at the centre of it must sit a universal language and runtime.-->
+- The complete final stack logically requires the complete final language
+- And somewhat surprisingly, we do not quite have that universal complete language yet. 
+- Of course, there are languages you could _contort_ to target all platforms and write everything from systems software to API services to web apps.
+- Besides, if we want the deep sort of analysis and standardization we seek, it is much easier to start from scratch than try to retrofit this into an existing ecosystem.
+
+- The closest thing we have to a universal language is TypeScript.
+- TypeScript is actually pretty great.
+- Everyone knows TypeScript. 
+- Critically, the web runs on TypeScript (JavaScript).
+- the dichotomy between "scripting languages" and "systems languages" no longer makes much sense if it's not humans doing the typing (assuming "compile times" are fast)
+
+- TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
+- there is already wide range of prior art in the realm of "TS ergonomics with systems performance" we can learn from, but that is just one aspect of what we'Re trying to do here
+<!--- so, before doing something new, the first question is: why not extend what already exists-->
+<!--- fully standardized across the stack-->
+- static hermes, assembly script, ...
+- all in - not incrementally adoptable.
+- (though we do have C ABI ofc)
+
+- what we want, then, is effectively "TypeScript++".
+- all the soundness warts removed, just enough features added to enable memory safe systems programming, and a familiar enough runtime to require no new learning (even if it's just for code review).
+- what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed? 
+- basically, what is "TypeScript++"? TS that runs predictably like JVM/CLR/Go with som Rust-y bits
+<!--- what is the minimum set of changes / additions we need to good prior art to get what we need-->
+- the question is explicitly _not_ what is the "best theortical version if we did TypeScript all over again". 
+- instead: "what is the most typescript we can make it, removing only what is absolutely necessary" (default decision = keep)
+
+- TS++ fashions itself as a "superset of a strict subset of TS", which - if you squint - is somewhat reminiscient of the relationship between C and C++.
+- mechnically, what is the ergonomic ladder of TS++ between TS -> Rust, what are the minimal things to remove for unsoundness, and the minimum features to add to cover the whole universal language spectrum
 
 - there are a lot of interesting details in making "TS++" actually work.
 - like how we coulds

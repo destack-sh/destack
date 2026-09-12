@@ -2,7 +2,7 @@
 export const prerenderRoutes = [
     "/",
     "/blog/",
-    "/blog/introducing-typescript-plus-plus/",
+    "/blog/introducing-destack/",
     "/docs/",
     "/docs/setup/",
     "/docs/language/",
