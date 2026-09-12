@@ -6,19 +6,19 @@ author: "Florian"
 ---
 
 Software is entering a Cambrian Explosion, and, it is worth remembering, that means most specimen will go extinct, and the survivors will look very different.
-Both products and processes will undergo intense evolutionary pressure, with instant migrations enabling a ruthless exploration of the full space of possible software. 
-Until, eventually, we arrive at some new final form, resembling the familiar old only in name. 
-<!--- (and, perhaps, sidebar placement).-->
+Both products and processes will undergo intense evolutionary pressure, with near-instant cheap migrations enabling a ruthless exploration of the hitherto underexplored space of all possible software. 
+Eventually, we will arrive at some new final form, resembling the familiar old only in name. 
 
 [illustration of cambrian explosion carnage](TODO)
 
-- The _original_ promise of software has, so far not been realized, and a duller version of it has settled in by sheer inertia.  
-- Somewhere, in the midst of 20 different SaaS vendors with 2 second loading pages and incompatible formats, the beauty of orchestrating logic on top with enlightened silicon was lost.
-- not in the "install a connector" sense, but in the drag a thing from one tab into the other sense, in the "ask the computer to modify the software just for you" sense.
+- The _original_ stunning promise of software has not been fulfilled, and, even as the underlying hardware advanced tremendiously, a duller more insular version of software has settled in by sheer inertia.  
+- Somewhere, in the midst of 20 different SaaS vendors with 2 second loading pages and incompatible formats, the beauty of interchangeable and hackable software was lost.
+- Unofrtunately, it is not just like all we're missing are adequate "connectors" between cloud-only SaaS vendors A and B, it is the fundamental architecture that is wrong.
+<!--- not in the "install a connector" sense, but in the drag a thing from one tab into the other sense, in the "ask the computer to modify the software just for you" sense.-->
 
-- If you need software, there are two sad choices: build or buy.
-- Choose build, and endure the uncertain process of artisinal production through dependency forest, supply chain attacks, vendor sprawl, and deployment hell, only to get some clunky software and an additional maintenance burden.
-- Choose buy, and endure the integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck with that vendor for at least the next few years. 
+- As of today, if you need software, there were two sad choices: build or buy.
+- Choose build, and take on the uncertain process of artisinal production through dependency forest, supply chain attacks, vendor sprawl, and deployment hell, only to get some clunky software and an additional maintenance burden.
+- Choose buy, and pay the cost and integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck with that vendor for at least the next good while.
 
 <!--- very hard to run software locally-->
 - The promised land of _great_ software will not arrive by vaguely gesturing at the computer to spraypaint a blend of past software, nor by blindly "accelerating" old processes in "self-driving factories". 
@@ -34,9 +34,10 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 - above all, we want software we can just forget about.
 <!--- (which components do I need to run this software? vendor sprawl, ..)-->
 
-[that old IBM ad about replacing 50 engineers or something?](TODO)
+[wind tunnel simulation thingy..? or the wind tunel of the wright brothers? what is the wind tunnel for software?](TODO)
 
 <!--homoiconic software-->
+- it's an old joke that computer science really has nothing to do with either science or computers.
 - The greatness within software, we need to industrialise software production.
 - artisinal production will not cut it. we must first put the "engineering" into "software engineering".
 - scaling the high quality manufacture of any product requires first understanding, with considerable precision, the dynamics of the process
@@ -47,7 +48,7 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 <!--- we could finally put the "engineering" into "software engineering"-->
 <!--- 50 years in, there's a thousand ways to do any given thing, and we _still_ haven't solved "works on my machine"-->
 
-[wind tunnel simulation thingy..? or the wind tunel of the wright brothers? what is the wind tunnel for software?](TODO)
+[that old IBM ad about replacing 50 engineers or something?](TODO)
 
 # Higher Order Programming
 
@@ -116,7 +117,7 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 - Unlike the jump from machine code to assembly, and then assembly to C, the jump from hand-directing edits to having an agent do it is much more about _abstraction of process_ than _abstraction of specification_.
 - Basically, agentic coding feels a lot like the invention of the rich text editor with spellchecks abstracts over handwriting with pencil on parchment.
 - Editing becomes easier, substantiation is simpler, figuring out what to specify is stil lhard.
-- And if the _specification_ drifts from reality, we get bizzaro slop. 
+- And as the _specification_ drifts from reality, we get bizzaro slop. 
 
 - In that sense, higher level direction is not an abstraction at all, it is an enabler for a new kind of process.
 - The ideal level of code for programming has nothing to do with either code or programming.
@@ -203,7 +204,7 @@ Until, eventually, we arrive at some new final form, resembling the familiar old
 - "software in motion"
 - code is going to run _everything_, even more so than it already does (literally)
 
-[c4 diagram or Uml diagram or something?](TODO)
+[blind man and the elephant vs C4 diagram and xray lol?](TODO)
 
 - incremental, iterative, multi-level precision
 <!--- who measures the measurer? where is the kernel of truth?-->

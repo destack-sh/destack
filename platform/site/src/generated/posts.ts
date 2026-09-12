@@ -42,7 +42,7 @@ export type TableOfContentsEntry = {
 export const posts = [
     {
         author: "Florian",
-        contentRoute: "/_content/html/eaed2ab7bbed94c98dc9f392686a6df6e370770565777e89ebd6c335ec32fe4c.html",
+        contentRoute: "/_content/html/567b2775c24f4a31d9f63a40e03d867f3e2a06d08440aaee53244e175821b253.html",
         date: "2026-09-21",
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",
@@ -51,7 +51,7 @@ export const posts = [
         tableOfContents: [{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"long-live-code","text":"Long Live Code"},{"depth":1,"id":"the-system-and-the-meta-system","text":"The System and The Meta System"},{"depth":1,"id":"boring-software","text":"Boring Software"},{"depth":1,"id":"typescript","text":"TypeScript++"}],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 5092,
+        tokens: 5150,
     }
 ] as const satisfies readonly Post[];
 
