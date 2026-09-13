@@ -1,93 +1,93 @@
 ---
 title: "Introducing Destack"
-subtitle: "Evolving TypeScript into the Last Programming Language"
+subtitle: "TypeScript++, the last programming language, and the final stack."
 date: "2026-09-21"
 author: "Florian"
 ---
 
 Software is entering a Cambrian Explosion, and, it is worth remembering, that means most specimen will go extinct, and the survivors will look very different.
-Both products and processes will undergo intense evolutionary pressure, with near-instant cheap migrations enabling a ruthless exploration of the hitherto underexplored space of all possible software. 
+Both products and processes will undergo intense evolutionary pressure, with fast migrations enabling an exhaustive exploration of the hitherto underexplored space of all possible software. 
 Eventually, we will arrive at some new final form, resembling the familiar old only in name. 
 
 [illustration of cambrian explosion carnage](TODO)
 
-We have let down the original promise of software.
-Hardware has advanced tremendously, incredible, and yet, a duller, more insular version of the software dream has settled in and stayed stuck in by sheer inertia.  
-- Somewhere, in the midst of 20 different SaaS vendors with 2 second loading pages and incompatible formats, the beauty of open, hackable software was lost.
-- Unfortunately, it is not just a case of missing "connectors", it is a much more fundamental architecture issue that begins right where software is produced.
-<!--- not in the "install a connector" sense, but in the drag a thing from one tab into the other sense, in the "ask the computer to modify the software just for you" sense.-->
+As of today, if you need software, there are two options:
+- **Build** and take on the uncertain process of artisinal production directly, including the risk for supply chain attacks, vendor sprawl, and deployment hell, only to most likely get half baked software and an additional maintenance burden.
+- **Buy** and pay the cost and integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck paying rent to some vendor for at least the next good while.
 
-As of today, if you need software, there are the two classic choices: build or buy.
-- Choose build, and take on the uncertain process of artisinal production through dependency forest, supply chain attacks, vendor sprawl, and deployment hell, only to get some clunky software and an additional maintenance burden.
-- Choose buy, and pay the cost and integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck paying rent to some vendor for at least the next good while.
-- There is 
+Until now. 
+Suddenly, we have a rare dual opportunity: probabilistic computing enables new kinds of useful software, _and_ it drastically reduces the cost of production and thus also migration between software. 
 
-<!--- very hard to run software locally-->
-- The promised land of _great_ software will not arrive by vaguely gesturing at the computer to spraypaint a blend of past software, nor by blindly "accelerating" old processes in "self-driving factories". 
-<!--- (if for no other reason than that competitive pressures will demand it)-->
-- No. If we want _new_ software, beautiful software, fast software, _great_ software, we also need _new_ processes.
-- Now that we finally have the chance: what _should_ software be?
+It is evidently, hilariously clear that the contemporary software stack is croaking under the weight, volume and angle of its new silicon users; it was, regerettably, not built for this, and it's a damn shame, because the original dream for software very much waited for this moment.
 
-- so, ideally, I want software I can own and hack. no rent, no lock-in.
-- Something fully hackable, debuggable, that I can myself whenever and however I please.
-- not really hackable or debuggable
-- not really visible / homoiconic
-- not standardized in any useful way
-- above all, we want software we can just forget about.
-<!--- (which components do I need to run this software? vendor sprawl, ..)-->
+# The Software We Were Promised
+
+Software wasn't meant to be like _this_.
+Software was meant to be open, hackable, remixable. 
+Hardware has advanced tremendously, incredible, and yet, a duller, fragmented version of software dreams has settled in and stayed stuck.  
+What gives?
+
+Somewhere, in the terms of service of the average 47 different SaaS vendors with 2 second loading pages and their incompatible disjoint data stores, this dream died with a whimper.
+It is not just a case of missing "connectors", it is a much more fundamental architecture issue that makes it impossible right from the very beginning of production.
+
+Building a new stack was too instane, too expensive an idea to even consider; and even if you could, who would ever use it?
+Migrations were expensive, ecosystems were everything.
+Were.
+
+To get the most out of software, we need software we can _own_, no rent, no lock-in.
+Something fully hackable, debuggable, that is easy to self-host.
+Not necessarily because we want to, but because we want to want to
+
+And we're not going to get that software by merely "accelerating" old processes in "self-driving factories". 
+To truly industrialise the precise industrialised manufacture of software, we need entirely _new_ processes.
 
 [wind tunnel simulation thingy..? or the wind tunel of the wright brothers? what is the wind tunnel for software?](TODO)
 
 <!--homoiconic software-->
-- There is an an old joke that computer science has nothing to do with either science or computers.
-- The greatness within software, we need to industrialise software production.
-- artisinal production will not cut it. we must first put the "engineering" into "software engineering".
-- scaling the high quality manufacture of any product requires first understanding, with considerable precision, the dynamics of the process
-- aerodynamics for software engineering, if you will 
-- our medium is purely digital and - if done right - fully testable, there is no excuse for software being _less_ than perfectly reliably and maximally fast, seven nines included. 
-<!--- figure out the system that builds the system, without vague "prompt in a loop" fantasies.-->
-<!--- The _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale-->
-<!--- we could finally put the "engineering" into "software engineering"-->
-<!--- 50 years in, there's a thousand ways to do any given thing, and we _still_ haven't solved "works on my machine"-->
+<!--There is an an old joke that computer science really has nothing to do with either computers or science.-->
+If software is solved, why do we only have like three databases that everyone trusts, instead of either just one, or infinitely many?
+Everybody can vibecode a database, the tests pass, but nobody dares using it.
+Weird.
+Something is clearly amiss.
+How do we put the "engineering" into "software engineering"?
 
-[that old IBM ad about replacing 50 engineers or something?](TODO)
-
-- There is another reason to care about getting software right this time.
-- it's not just that AI lowers production and switching costs, it _also_ enables entirely new kinds of software that we couldn't even do before.
-- probabilistic computing is here, and it is here to stay
-- so how do we make _that_ work
-- every 
+The current artisinal software production process has many issues, but fundamentally, they're all rooted in the inscrutable complexity of the monster we've made: >50M LoC to get anything on screen, too many fragmented tools and services, too hard to simulate accurately (what are bugs, after all).
+Our inability to accurately simulate software is ironic considering our medium is purely digital, and thus, if the stack actually worked like it should, there is no excuse for software being _less_ than perfectly reliably and maximally fast, seven nines, picture perfect. 
 
 # Higher Order Programming
 
-- The history of programming is one of increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script whatever.
-- And that's great.
-- Climbing the ladder of abstraction yields more output for every bit of input.
-- We gradually remove ourselves from the cumbersome burden of having to actually spell out _exactly_ what we want the machine to be doing: which electrons? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
+The history of programming is one of increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script whatever.
+And that's great.
+
+Climbing the ladder of abstraction yields more output for every bit of input.
+We gradually remove ourselves from the cumbersome burden of having to actually spell out _exactly_ what we want the machine to be doing: which electrons? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
 
 [mechanically crafted gear computer thingy](TODO)
 
-- Historically, when some more "accessible" programming-adjacent  becomes too common, the "real" programmers no longer consider it programming. thus, excel is not "programming", just like image classification is not "AI"
-- And of course, there is the trivial but important point that we're _already_ not writing most code ourselves - the OS, standard libraries, dependency ecosystems, some compiler/transpiler is writing the actual low level code for us, ..
+Historically, whenever some more "accessible" programming-adjacent becomes too common, the "real" programmers no longer consider it programming.
+Thus, excel is not "programming", just like image classification is no longer "AI" (and soon, presumably, voice recognition and chatbots).
 
-<!--- if programming is really just about problem solving, and code is just one medium for formalising solutions, we should expect to see some other evolved forms at varying levels of abstraction-->
-- The idea of programming beyond code almost as old as code itself.
-- Right from the very start, the computing pioneers dreamed of 
-<!--- And non-code "higher order" programming is not a new idea.-->
-- Spreadsheets sparked the first personal computer revolution, TODO, and game developers have been doing working with non-code abstractions for decades now. 
-- we have now figured out a new way to prompt simple software into existence
+The cynical programmer would now note the obvious counterpoint to the offended programmer: we're _already_ not writing most code ourselves, because of the massive stack between code and hardware.
+Millions upon millions of lines between the "raw" code and the actual hardware. 
+But we don't talk about that, and code _is_ programming.
 
+Yet, the idea of programming beyond code almost as old as code itself.
+Right from the very start, the computing pioneers dreamed of interacting with the computer with natural language and multimodal inputs.
 
-[screenshot of spreadsheet? "the most popular programming language"](TODO)
+Then, spreadsheets sparked the first personal computer revolution, TODO, 
+
+[that old IBM ad about replacing 50 engineers or something?](TODO)
+
+and game developers have been doing working with non-code abstractions for decades now. 
+we have now figured out a new way to prompt simple software into existence.
+
+<!--[screenshot of spreadsheet? "the most popular programming language"](TODO)-->
 <!--[the 20 million line problem, casey](TODO)-->
 
-- It follows then that we might want to go all the way, that the ultimate sophistication of programming is not programming at all, but pure unconstrained natural language, more like "talking to a colleague"? 
+<!--- It follows then that we might want to go all the way, that the ultimate sophistication of programming is not programming at all, but pure unconstrained natural language, more like "talking to a colleague"? 
 - Oh, how great software could be, how magnificient, how accessible, if only we could make programming as simple and unconstrained as natural language?
 - If we didn't have to write code at all, nor trouble ourselves with any of the nuances and rigor imposed by formal languages!
-- One can only imagine the splendidness of an ecosystem of unconstrained creation!
-
-:::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
-:::
+- One can only imagine the splendidness of an ecosystem of unconstrained creation!-->
 
 - Fortunately, magnificiently, we already have precedent to understand where low-code, high volume engineering might end up.
 - Unfortunately, it still involves quite a lot of problem solving and "programming", albeit at a different level.
@@ -98,8 +98,10 @@ As of today, if you need software, there are the two classic choices: build or b
 - Everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game! 
 - Then, eventually, the nerds figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine". 
 
-:::video src="https://www.youtube.com/watch?v=WFu1utKAZ18" title="Rayman Legends: The Design Process Within the UbiArt Framework" poster="https://i.ytimg.com/vi/WFu1utKAZ18/maxresdefault.jpg"
+:::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
 :::
+<!--:::video src="https://www.youtube.com/watch?v=WFu1utKAZ18" title="Rayman Legends: The Design Process Within the UbiArt Framework" poster="https://i.ytimg.com/vi/WFu1utKAZ18/maxresdefault.jpg"
+:::-->
 
 - Initially, when using an engine, maybe you didn't always get exactly the same level of control, or even hit _quite_ the same high notes as the best hardcore engineers could without. 
 - But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before.
@@ -231,7 +233,7 @@ As of today, if you need software, there are the two classic choices: build or b
 <!--- incremental granularity (a la casey muratori)-->
 - you can't engineer precision and alignment (i.e. understanding) into a system post-hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start)
 
-# Boring Software
+# Software We Can Forget About
 
 - there is something beautiful about doing the most with the fewest possible parts.
 - in programming, a simpler language like C or Go is considered more "elegant" than say C++ or Rust.
@@ -292,8 +294,9 @@ if we finally have the unique opportunity to build a completely new programming 
 
 # TypeScript++
 
-- The complete final stack logically requires the complete final language
-- And somewhat surprisingly, we do not quite have that universal complete language yet. 
+- The complete final stack logically requires the complete final language.
+- As always, the first instinct is to serach for something that already exists - Python? TypeScript?
+- But surprisingly, we do not quite have that universal complete language yet. 
 - Of course, there are languages you could _contort_ to target all platforms and write everything from systems software to API services to web apps.
 - Besides, if we want the deep sort of analysis and standardization we seek, it is much easier to start from scratch than try to retrofit this into an existing ecosystem.
 

@@ -42,16 +42,16 @@ export type TableOfContentsEntry = {
 export const posts = [
     {
         author: "Florian",
-        contentRoute: "/_content/html/2ffe6a6a8ee18237f259075fbf71059f350f9a5e85bfc97a2d4f3cd2a0889478.html",
+        contentRoute: "/_content/html/4ef553e3c4d0b594a85bb598a3b0e61393927e607623e7e3174c6f5d3d7c5817.html",
         date: "2026-09-21",
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",
         slug: "introducing-destack",
-        subtitle: "Evolving TypeScript into the Last Programming Language",
-        tableOfContents: [{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"long-live-code","text":"Long Live Code"},{"depth":1,"id":"the-system-and-the-meta-system","text":"The System and The Meta System"},{"depth":1,"id":"boring-software","text":"Boring Software"},{"depth":1,"id":"typescript","text":"TypeScript++"}],
+        subtitle: "TypeScript++, the last programming language, and the final stack",
+        tableOfContents: [{"depth":1,"id":"the-software-we-were-promised","text":"The Software We Were Promised"},{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"long-live-code","text":"Long Live Code"},{"depth":1,"id":"the-system-and-the-meta-system","text":"The System and The Meta System"},{"depth":1,"id":"software-we-can-forget-about","text":"Software We Can Forget About"},{"depth":1,"id":"typescript","text":"TypeScript++"}],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 5227,
+        tokens: 5305,
     }
 ] as const satisfies readonly Post[];
 
