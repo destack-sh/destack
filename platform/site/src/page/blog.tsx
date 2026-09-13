@@ -121,6 +121,7 @@ const styles = stylex.create({
         },
         ":hover": {
             color: tokens.accent,
+            backgroundColor: tokens.creamDeep,
         },
     },
     postRow: {
@@ -133,9 +134,10 @@ const styles = stylex.create({
         lineHeight: 1.5,
     },
     title: {
-        color: tokens.ink,
-        fontSize: "var(--size-minor-title)",
-        fontWeight: 600,
+        color: "inherit",
+        fontFamily: tokens.displayFont,
+        fontSize: "var(--size-subsection-title)",
+        fontWeight: 500,
         lineHeight: 1.25,
     },
 });

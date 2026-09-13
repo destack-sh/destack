@@ -20,7 +20,7 @@ export const primaryLinks: readonly NavigationLink[] = collections.flatMap(
             : [
                   {
                       href: collection.route,
-                      label: collection.title.toLowerCase(),
+                      label: collection.title,
                       shortcut: collection.shortcut,
                   },
               ],
@@ -28,11 +28,11 @@ export const primaryLinks: readonly NavigationLink[] = collections.flatMap(
 
 /// The external Destack community destinations.
 export const socialLinks: readonly NavigationLink[] = [
-    { href: "https://discord.gg/xUFQ45TWYd", label: "discord", shortcut: "c" },
-    { href: "https://x.com/destack", label: "x", shortcut: "x" },
+    { href: "https://discord.gg/xUFQ45TWYd", label: "Discord", shortcut: "c" },
+    { href: "https://x.com/destack", label: "X", shortcut: "x" },
     {
         href: "https://github.com/destack-sh/destack",
-        label: "github",
+        label: "GitHub",
         shortcut: "g",
     },
 ];

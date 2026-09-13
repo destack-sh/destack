@@ -46,10 +46,10 @@ const styles = stylex.create({
         borderTopWidth: tokens.hairline,
         display: "grid",
         fontFamily: tokens.textFont,
-        fontSize: "var(--size-label)",
-        fontWeight: 500,
+        fontSize: "var(--size-navigation)",
+        fontWeight: 600,
         gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
-        minHeight: "3rem",
+        minHeight: "3.5rem",
         minWidth: 0,
         width: "100%",
         [mobile]: {
@@ -83,6 +83,7 @@ const styles = stylex.create({
         gridColumn: "9 / -1",
         justifySelf: "end",
         whiteSpace: "nowrap",
+        textTransform: "capitalize",
         [mobile]: {
             flexWrap: "wrap",
             gap: "0.25rem 0.875rem",

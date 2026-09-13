@@ -10,20 +10,22 @@
 
 @layer reset {
 :root {
-    --publication-page: #f7f7f3;
-    --publication-page-muted: #efefea;
-    --publication-listing: #fbfbf8;
-    --publication-ink: #171a1b;
-    --publication-soft: #62686a;
-    --publication-line: #c9cbc6;
-    --publication-accent: #d95f36;
-    --publication-rust: #a44328;
-    --publication-syntax-type: #0f6470;
-    --publication-syntax-function: #8a5a0e;
-    --publication-syntax-property: #33586b;
-    --publication-syntax-literal: #96690a;
-    --publication-syntax-string: #3f7038;
-    --publication-syntax-punctuation: #6d5b45;
+    color-scheme: light dark;
+    --publication-page: light-dark(#f7f7f3, #10242c);
+    --publication-page-muted: light-dark(#eaf0ed, #1b343d);
+    --publication-listing: light-dark(#fbfbf8, #0c1e25);
+    --publication-ink: light-dark(#171a1b, #e7ece8);
+    --publication-night: light-dark(#12313c, #f1eadb);
+    --publication-soft: light-dark(#62686a, #a6b9ba);
+    --publication-line: light-dark(#b8c4c3, #405b64);
+    --publication-accent: light-dark(#c34f29, #f18c62);
+    --publication-rust: light-dark(#a44328, #ec9878);
+    --publication-syntax-type: light-dark(#0f6470, #79c6ce);
+    --publication-syntax-function: light-dark(#8a5a0e, #e4b66c);
+    --publication-syntax-property: light-dark(#33586b, #a4c4df);
+    --publication-syntax-literal: light-dark(#96690a, #dcb776);
+    --publication-syntax-string: light-dark(#3f7038, #a8cd91);
+    --publication-syntax-punctuation: light-dark(#6d5b45, #b8c2bf);
     --publication-hairline: 1px;
     --publication-stroke: 3px;
     --size-page-title: clamp(2.25rem, 3.8vw, 3.25rem);
@@ -32,9 +34,22 @@
     --size-subsection-title: 1.5rem;
     --size-minor-title: 1.125rem;
     --size-body: 1.0625rem;
-    --size-navigation: 0.8125rem;
+    --size-navigation: 0.875rem;
     --size-label: var(--size-navigation);
     --width-prose: 40rem;
+}
+
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+/* keep the illustrated cover's palette independent of the reading theme */
+[data-poster] {
+    color-scheme: light;
 }
 
 *,
@@ -113,12 +128,15 @@ summary::-webkit-details-marker {
 .markdown h2,
 .markdown h3 {
     margin: 0;
-    color: var(--publication-ink);
+    color: var(--publication-night);
     font-family: "IBM Plex Sans Condensed", "IBM Plex Sans Variable", sans-serif;
 }
 
 .markdown h1 {
+    grid-column: wide;
     margin-top: 2.25rem;
+    border-top: var(--publication-hairline) solid var(--publication-line);
+    padding-top: 1.25rem;
     font-size: var(--size-section-title);
     font-weight: 500;
     letter-spacing: -0.015em;
@@ -145,6 +163,11 @@ summary::-webkit-details-marker {
 .markdown > h2:first-child,
 .markdown > h3:first-child {
     margin-top: 0;
+}
+
+.markdown > h1:first-child {
+    border-top: 0;
+    padding-top: 0;
 }
 
 .markdown p,
@@ -287,7 +310,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown th {
-    background: transparent;
+    background: var(--publication-page-muted);
     border-bottom-color: var(--publication-line);
     font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
     font-weight: 600;
@@ -367,10 +390,10 @@ summary::-webkit-details-marker {
 }
 
 .markdown-callout {
-    padding: 0.75rem 1rem;
+    padding: 1rem 1.25rem;
     border: 0;
     border-left: 2px solid var(--publication-accent);
-    background: transparent;
+    background: var(--publication-page-muted);
 }
 
 .markdown-callout > p {
@@ -387,8 +410,8 @@ summary::-webkit-details-marker {
 .markdown-figure,
 [data-publication-listing] {
     border-top: var(--publication-hairline) solid var(--publication-line);
-    border-right: 0;
-    border-left: 0;
+    border-right: var(--publication-hairline) solid var(--publication-line);
+    border-left: var(--publication-hairline) solid var(--publication-line);
 }
 
 .markdown-diagram figcaption,
@@ -396,11 +419,12 @@ summary::-webkit-details-marker {
     display: flex;
     align-items: baseline;
     gap: 0.625rem;
-    background: transparent;
+    background: var(--publication-page-muted);
     border-bottom: var(--publication-hairline) solid var(--publication-line);
     padding: 0.5rem 0.75rem;
     color: var(--publication-ink);
     font-size: var(--size-label);
+    font-weight: 500;
     line-height: 1.4;
 }
 
@@ -710,6 +734,12 @@ summary::-webkit-details-marker {
 }
 
 [data-publication="manual"] .markdown > h1:first-child {
+    display: none;
+}
+
+/* use the article header's rule when chapter contents start the page */
+[data-publication="manual"] .markdown > h1:first-child + hr,
+[data-publication="manual"] .markdown > hr:first-child {
     display: none;
 }
 

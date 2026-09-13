@@ -5,6 +5,7 @@ import { installCommand } from "../content/site";
 import { tokens } from "../style/tokens.stylex";
 
 const mobile = "@media (max-width: 767px)";
+const shortScreen = "@media (min-width: 768px) and (max-height: 800px)";
 const reducedMotion = "@media (prefers-reduced-motion: reduce)";
 // give the rings a stronger diagonal than the cloud bands
 const ringTilt = "rotate(-22 480 254)";
@@ -51,6 +52,7 @@ export function Cover() {
         <section {...stylex.attrs(posterStyles.matte)}>
             <div
                 {...stylex.attrs(posterStyles.field)}
+                data-poster
                 onPointerMove={move}
                 onPointerLeave={reset}
             >
@@ -165,7 +167,7 @@ export function Cover() {
 
                 <div {...stylex.attrs(posterStyles.actions)}>
                     <p {...stylex.attrs(posterStyles.fineLine)}>
-                        Own your software stack
+                        Own your stack
                     </p>
 
                     <div {...stylex.attrs(posterStyles.actionRow)}>
@@ -369,6 +371,10 @@ const posterStyles = stylex.create({
         justifyItems: "center",
         padding: "1rem clamp(1rem, 3vw, 3rem) 2.5rem",
         textAlign: "center",
+        [shortScreen]: {
+            gap: "0.875rem",
+            paddingBottom: "1.5rem",
+        },
         [mobile]: {
             gap: "1rem",
             padding: "0.75rem 0.75rem 1.25rem",
@@ -376,7 +382,7 @@ const posterStyles = stylex.create({
     },
     boarding: {
         alignSelf: "center",
-        backgroundColor: tokens.accent,
+        backgroundColor: "#d95f36",
         color: tokens.cream,
         fontFamily: tokens.monoFont,
         fontSize: "var(--size-navigation)",
@@ -508,6 +514,10 @@ const posterStyles = stylex.create({
         justifyItems: "center",
         padding: "2.5rem clamp(1rem, 3vw, 3rem) 1rem",
         width: "100%",
+        [shortScreen]: {
+            paddingTop: "1.5rem",
+            paddingBottom: "0.75rem",
+        },
         [mobile]: {
             gap: "0.4rem",
             minWidth: 0,

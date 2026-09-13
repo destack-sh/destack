@@ -121,7 +121,9 @@ function ReaderToolbar(props: ReaderToolbarProps) {
     return (
         <header {...stylex.attrs(styles.toolbar, styles.toolbarPublication)}>
             <details {...stylex.attrs(styles.menu)} name="reader-tools">
-                <summary {...stylex.attrs(styles.menuSummary)}>menu</summary>
+                <summary {...stylex.attrs(styles.menuSummary)}>
+                    Contents
+                </summary>
                 <div {...stylex.attrs(styles.menuBody)}>
                     {props.navigation(props.activeHeading)}
                 </div>

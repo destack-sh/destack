@@ -154,7 +154,7 @@ export function CommandPalette() {
                 title="Search"
                 type="button"
             >
-                search
+                Search
             </button>
 
             <Portal>
@@ -215,7 +215,7 @@ export function CommandPalette() {
                                 onClick={() => dialog?.close()}
                                 type="button"
                             >
-                                close
+                                Close
                             </button>
                         </div>
 
@@ -455,6 +455,11 @@ const styles = stylex.create({
         whiteSpace: "nowrap",
         maxWidth: "15rem",
         textAlign: "right",
+        "@media (max-width: 640px)": {
+            gridColumn: "1 / -1",
+            maxWidth: "none",
+            textAlign: "left",
+        },
     },
     empty: {
         color: tokens.ink,
@@ -492,13 +497,14 @@ const styles = stylex.create({
     },
     inputLabel: {
         alignItems: "center",
+        backgroundColor: tokens.creamDeep,
         borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "grid",
         gap: "0.5rem",
         gridTemplateColumns: "1rem minmax(0, 1fr) auto",
-        padding: "0.75rem 1rem",
+        padding: "1rem",
     },
     mark: {
         backgroundColor: "transparent",
@@ -510,6 +516,7 @@ const styles = stylex.create({
         borderColor: tokens.line,
         borderStyle: "solid",
         borderWidth: tokens.hairline,
+        boxShadow: "0 16px 64px rgb(18 49 60 / 18%)",
         color: tokens.ink,
         fontFamily: tokens.textFont,
         fontSize: "var(--size-body)",
@@ -530,6 +537,9 @@ const styles = stylex.create({
         gridTemplateColumns: "minmax(0, 1fr) minmax(0, auto)",
         gap: "0.2rem 1rem",
         minWidth: 0,
+        "@media (max-width: 640px)": {
+            gridTemplateColumns: "minmax(0, 1fr)",
+        },
     },
     resultButton: {
         alignItems: "center",
@@ -576,8 +586,7 @@ const styles = stylex.create({
         borderTopWidth: 0,
     },
     selected: {
-        backgroundColor:
-            "color-mix(in srgb, var(--publication-accent) 9%, var(--publication-page))",
+        backgroundColor: tokens.creamDeep,
         color: tokens.ink,
     },
     scopes: {
@@ -600,6 +609,7 @@ const styles = stylex.create({
         cursor: "pointer",
         font: "inherit",
         fontSize: "var(--size-navigation)",
+        fontWeight: 600,
         padding: "0.7rem 0.5rem",
         whiteSpace: "nowrap",
         ":hover": { color: tokens.accent },

@@ -11,14 +11,16 @@ Eventually, we will arrive at some new final form, resembling the familiar old o
 
 [illustration of cambrian explosion carnage](TODO)
 
-- The _original_ stunning promise of software has not been fulfilled, and, even as the underlying hardware advanced tremendiously, a duller more insular version of software has settled in by sheer inertia.  
-- Somewhere, in the midst of 20 different SaaS vendors with 2 second loading pages and incompatible formats, the beauty of interchangeable and hackable software was lost.
-- Unofrtunately, it is not just like all we're missing are adequate "connectors" between cloud-only SaaS vendors A and B, it is the fundamental architecture that is wrong.
+We have let down the original promise of software.
+Hardware has advanced tremendously, incredible, and yet, a duller, more insular version of the software dream has settled in and stayed stuck in by sheer inertia.  
+- Somewhere, in the midst of 20 different SaaS vendors with 2 second loading pages and incompatible formats, the beauty of open, hackable software was lost.
+- Unfortunately, it is not just a case of missing "connectors", it is a much more fundamental architecture issue that begins right where software is produced.
 <!--- not in the "install a connector" sense, but in the drag a thing from one tab into the other sense, in the "ask the computer to modify the software just for you" sense.-->
 
-- As of today, if you need software, there were two sad choices: build or buy.
+As of today, if you need software, there are the two classic choices: build or buy.
 - Choose build, and take on the uncertain process of artisinal production through dependency forest, supply chain attacks, vendor sprawl, and deployment hell, only to get some clunky software and an additional maintenance burden.
-- Choose buy, and pay the cost and integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck with that vendor for at least the next good while.
+- Choose buy, and pay the cost and integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck paying rent to some vendor for at least the next good while.
+- There is 
 
 <!--- very hard to run software locally-->
 - The promised land of _great_ software will not arrive by vaguely gesturing at the computer to spraypaint a blend of past software, nor by blindly "accelerating" old processes in "self-driving factories". 
@@ -37,7 +39,7 @@ Eventually, we will arrive at some new final form, resembling the familiar old o
 [wind tunnel simulation thingy..? or the wind tunel of the wright brothers? what is the wind tunnel for software?](TODO)
 
 <!--homoiconic software-->
-- it's an old joke that computer science really has nothing to do with either science or computers.
+- There is an an old joke that computer science has nothing to do with either science or computers.
 - The greatness within software, we need to industrialise software production.
 - artisinal production will not cut it. we must first put the "engineering" into "software engineering".
 - scaling the high quality manufacture of any product requires first understanding, with considerable precision, the dynamics of the process
@@ -50,6 +52,12 @@ Eventually, we will arrive at some new final form, resembling the familiar old o
 
 [that old IBM ad about replacing 50 engineers or something?](TODO)
 
+- There is another reason to care about getting software right this time.
+- it's not just that AI lowers production and switching costs, it _also_ enables entirely new kinds of software that we couldn't even do before.
+- probabilistic computing is here, and it is here to stay
+- so how do we make _that_ work
+- every 
+
 # Higher Order Programming
 
 - The history of programming is one of increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script whatever.
@@ -59,14 +67,16 @@ Eventually, we will arrive at some new final form, resembling the familiar old o
 
 [mechanically crafted gear computer thingy](TODO)
 
+- Historically, when some more "accessible" programming-adjacent  becomes too common, the "real" programmers no longer consider it programming. thus, excel is not "programming", just like image classification is not "AI"
+- And of course, there is the trivial but important point that we're _already_ not writing most code ourselves - the OS, standard libraries, dependency ecosystems, some compiler/transpiler is writing the actual low level code for us, ..
+
 <!--- if programming is really just about problem solving, and code is just one medium for formalising solutions, we should expect to see some other evolved forms at varying levels of abstraction-->
-- The idea of extending programming beyond code is perhaps older than code itself.
+- The idea of programming beyond code almost as old as code itself.
+- Right from the very start, the computing pioneers dreamed of 
 <!--- And non-code "higher order" programming is not a new idea.-->
 - Spreadsheets sparked the first personal computer revolution, TODO, and game developers have been doing working with non-code abstractions for decades now. 
 - we have now figured out a new way to prompt simple software into existence
 
-- Historically, when some more "accessible" programming-adjacent  becomes too common, the "real" programmers no longer consider it programming. thus, excel is not "programming", just like image classification is not "AI"
-- And of course, there is the trivial but important point that we're _already_ not writing most code ourselves - the OS, standard libraries, dependency ecosystems, some compiler/transpiler is writing the actual low level code for us, ..
 
 [screenshot of spreadsheet? "the most popular programming language"](TODO)
 <!--[the 20 million line problem, casey](TODO)-->
@@ -105,27 +115,29 @@ Eventually, we will arrive at some new final form, resembling the familiar old o
 # Long Live Code
 
 - Programming is problem solving: iterating, thinking, working to understand a problem and specifying its solution in some repeatable form.
-- It doesn't even have to be computer code or any formal language at all - recipe writing is programming, too.
 - In the olden days of 12 months ago, we used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code.
+- It doesn't even have to be computer code or any formal language at all - recipe writing is programming, too.
+- All that really matters is repeatable specification, in any useful form.
 
 - The production and distribution of code has been so central to software engineering that it's easy to forget that nobody actually cares about code.
 - Code, beautiful though it may be, is in itself inert and useless, just like the software it describes.
 <!--- if we increasingly work through other tools, why invest in a language?-->
 - So, now that we don't _have_ to, should we even think about code at all?
-- Asking whether code is still meaningful because AI exists feels like asking why care about numbers when calculators exist. 
+- That seems like the wrong question, akin to:
+- Why care about numbers when calculators exist?
 
 - Unlike the jump from machine code to assembly, and then assembly to C, the jump from hand-directing edits to having an agent do it is much more about _abstraction of process_ than _abstraction of specification_.
 - Basically, agentic coding feels a lot like the invention of the rich text editor with spellchecks abstracts over handwriting with pencil on parchment.
-- Editing becomes easier, substantiation is simpler, figuring out what to specify is stil lhard.
-- And as the _specification_ drifts from reality, we get bizzaro slop. 
+- Editing becomes easier, substantiation simplifies.
+
+:::video src="https://www.youtube.com/watch?v=72y2EC5fkcE" title="Tomorrow Corporation Tech Demo" poster="https://i.ytimg.com/vi/72y2EC5fkcE/maxresdefault.jpg"
+:::
 
 - In that sense, higher level direction is not an abstraction at all, it is an enabler for a new kind of process.
 - The ideal level of code for programming has nothing to do with either code or programming.
 - Instead of one character at a time, one program at a time, I want to understand _everything_ at all granularities: what is the space of all possible software programs to solve the space of problems I have, and how do I most efficiently get there, where do I go once I'm there, how do I stay in the right place as the problem shifts?
 
-:::video src="https://www.youtube.com/watch?v=72y2EC5fkcE" title="Tomorrow Corporation Tech Demo" poster="https://i.ytimg.com/vi/72y2EC5fkcE/maxresdefault.jpg"
-:::
-
+<!--- And as the _specification_ drifts from reality, we get bizzaro slop. -->
 - Unconstrained software produciton produces a strange sort of software, one that exists purely in linimal space, untethered from and unbothered by reality.
 - The tests pass, the screenshots look good, and nothing works.
 - Left to its own devices, the software factory lands _perfectly_ in the middle of the uncanny valley of software.

@@ -65,12 +65,13 @@ export const publicationStyles = stylex.create({
         borderBottomWidth: tokens.hairline,
         display: "grid",
         gap: "0.75rem",
-        paddingBlock: "2rem",
+        paddingBlock: "2.5rem",
         "@media (max-width: 767px)": {
             paddingBlock: "1rem 1.25rem",
         },
     },
     title: {
+        color: tokens.night,
         fontFamily: tokens.displayFont,
         fontSize: "var(--size-page-title)",
         fontWeight: 500,
@@ -92,7 +93,7 @@ export const publicationStyles = stylex.create({
         borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-        color: tokens.ink,
+        color: tokens.night,
         display: "flex",
         fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",

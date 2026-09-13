@@ -6,6 +6,7 @@ import { publicationStyles } from "./publication.stylex";
 
 import { type Post, type PostContent } from "../generated/posts";
 import { ContentsTree, type ContentsEntry } from "./contents";
+import { Breadcrumbs } from "./breadcrumbs";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
 
@@ -26,7 +27,9 @@ export function BlogArticle(props: BlogArticleProps) {
     return (
         <Reader
             contents={props.post.tableOfContents}
-            location={() => <BlogLocation post={props.post} />}
+            location={() => (
+                <Breadcrumbs items={[{ href: "/blog/", label: "Blog" }]} />
+            )}
             navigation={(activeHeading) => (
                 <BlogNavigation
                     activeHeading={activeHeading}
@@ -43,23 +46,6 @@ export function BlogArticle(props: BlogArticleProps) {
             <div class="markdown" innerHTML={props.content.html} />
             <PostNavigation post={props.post} posts={props.posts} />
         </Reader>
-    );
-}
-
-/// Properties for the blog article location.
-type BlogLocationProps = {
-    /// The current post.
-    post: Post;
-};
-
-/// Render the post publication details.
-function BlogLocation(props: BlogLocationProps) {
-    return (
-        <span>
-            <time>{props.post.date}</time>
-            {" / "}
-            {props.post.author}
-        </span>
     );
 }
 
@@ -86,7 +72,7 @@ export function BlogNavigation(props: BlogNavigationProps) {
                 {...stylex.attrs(publicationStyles.collectionTitle)}
                 href="/blog/"
             >
-                blog
+                Blog
             </A>
 
             <ol {...stylex.attrs(publicationStyles.collectionList)}>
@@ -136,6 +122,10 @@ function BlogArticleHeader(props: BlogArticleHeaderProps) {
             </h1>
             <p {...stylex.attrs(publicationStyles.description)}>
                 {props.post.subtitle}
+            </p>
+            <p {...stylex.attrs(styles.byline)}>
+                <span>{props.post.author}</span>
+                <time dateTime={props.post.date}>{props.post.date}</time>
             </p>
         </header>
     );
@@ -202,6 +192,14 @@ function PostNavigationLink(props: PostNavigationLinkProps) {
 
 /// Journal navigation and article styles.
 const styles = stylex.create({
+    byline: {
+        display: "flex",
+        flexWrap: "wrap",
+        fontSize: "var(--size-navigation)",
+        fontWeight: 600,
+        gap: "0.5rem 1.5rem",
+        margin: "0.5rem 0 0",
+    },
     book: {
         alignContent: "start",
         display: "grid",

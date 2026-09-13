@@ -21,8 +21,16 @@ function Document(props: DocumentProps) {
         <html lang="en">
             <head>
                 <meta charset="utf-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <link rel="icon" href="/brand/favicon/favicon.svg" type="image/svg+xml" />
+                <meta
+                    name="viewport"
+                    content="width=device-width, initial-scale=1"
+                />
+                <script src="/theme.js" />
+                <link
+                    rel="icon"
+                    href="/brand/favicon/favicon.svg"
+                    type="image/svg+xml"
+                />
                 {props.assets}
             </head>
             <body>

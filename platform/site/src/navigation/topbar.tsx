@@ -1,14 +1,27 @@
 import * as stylex from "@stylexjs/stylex";
+import { useLocation } from "@solidjs/router";
+import { createMemo } from "solid-js";
 
 import { CommandPalette } from "../command/palette";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
 import { primaryLinks } from "./navigation";
+import { ThemeToggle } from "./theme";
 
 const mobile = "@media (max-width: 767px)";
 
 /// Render the global site navigation.
 export function TopBar() {
+    const location = useLocation();
+
+    // select the most specific navigation destination for the current route
+    const activeLink = createMemo(
+        () =>
+            primaryLinks
+                .filter((link) => location.pathname.startsWith(link.href))
+                .sort((left, right) => right.href.length - left.href.length)[0],
+    );
+
     return (
         <header {...stylex.attrs(styles.root)}>
             <div {...stylex.attrs(styles.frame)}>
@@ -17,9 +30,15 @@ export function TopBar() {
                         href="/"
                         shortcut="h"
                         style={styles.brand}
-                        title="Alt+H: home"
+                        title="Alt+H: Home"
                     >
-                        destack.sh
+                        <img
+                            alt=""
+                            width="28"
+                            height="28"
+                            src="/brand/favicon/favicon.svg"
+                        />
+                        Destack
                     </SiteLink>
 
                     <nav
@@ -30,7 +49,11 @@ export function TopBar() {
                             <SiteLink
                                 href={href}
                                 shortcut={shortcut}
-                                style={styles.link}
+                                style={[
+                                    styles.link,
+                                    activeLink()?.href === href &&
+                                        styles.active,
+                                ]}
                                 title={`Alt+${shortcut.toUpperCase()}: ${label}`}
                             >
                                 {label}
@@ -38,6 +61,7 @@ export function TopBar() {
                         ))}
                         <CommandPalette />
                     </nav>
+                    <ThemeToggle />
                 </div>
             </div>
         </header>
@@ -54,26 +78,32 @@ const styles = stylex.create({
         borderBottomWidth: tokens.hairline,
         display: "grid",
         fontFamily: tokens.textFont,
-        fontSize: "var(--size-label)",
-        fontWeight: 500,
-        gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
-        minHeight: "3rem",
+        fontSize: "var(--size-navigation)",
+        fontWeight: 600,
+        gridTemplateColumns: "auto minmax(0, 1fr) auto",
+        columnGap: "1.5rem",
+        minHeight: "4rem",
         minWidth: 0,
         width: "100%",
         [mobile]: {
             gap: "0.75rem",
-            gridTemplateColumns: "minmax(0, 1fr)",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
             paddingBlock: "0.75rem",
         },
     },
     brand: {
-        color: tokens.ink,
+        alignItems: "center",
+        color: tokens.night,
+        display: "inline-flex",
         fontFamily: tokens.textFont,
+        fontSize: "var(--size-navigation)",
         fontWeight: 600,
-        gridColumn: "1 / span 8",
+        gap: "0.625rem",
+        gridColumn: "1",
+        justifySelf: "start",
         ":hover": hover,
         [mobile]: {
-            gridColumn: 1,
+            gridColumn: "1",
             gridRow: 1,
         },
     },
@@ -89,19 +119,26 @@ const styles = stylex.create({
         display: "flex",
         flexWrap: "wrap",
         gap: "1.5rem",
-        gridColumn: "9 / -1",
+        gridColumn: 2,
         justifyContent: "flex-end",
         minWidth: 0,
         [mobile]: {
             gap: "0.875rem",
-            gridColumn: 1,
+            gridColumn: "1 / -1",
             gridRow: 2,
             justifyContent: "space-between",
         },
     },
     link: {
-        color: tokens.ink,
+        color: tokens.night,
+        paddingBlock: "0.625rem",
         ":hover": hover,
+    },
+    active: {
+        textDecorationLine: "underline",
+        textDecorationColor: tokens.accent,
+        textDecorationThickness: "2px",
+        textUnderlineOffset: "0.5em",
     },
     root: {
         backgroundColor: tokens.page,
