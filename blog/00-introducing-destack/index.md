@@ -27,10 +27,13 @@ Software was meant to be open, hackable, remixable.
 Hardware has advanced tremendously, incredible, and yet, a duller, fragmented version of software dreams has settled in and stayed stuck.  
 What gives?
 
-Somewhere, in the terms of service of the average 47 different SaaS vendors with 2 second loading pages and their incompatible disjoint data stores, this dream died with a whimper.
-It is not just a case of missing "connectors", it is a much more fundamental architecture issue that makes it impossible right from the very beginning of production.
+:::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
+:::
 
-Building a new stack was too instane, too expensive an idea to even consider; and even if you could, who would ever use it?
+Somewhere, deep in the terms of service of the 47 different SaaS vendors with 2 second loading pages and incompatible disjoint data stores, this software dream died with a whimper.
+It is insufficient to patch this problem with "connectors", the problem is a much more fundamental architecture issue, one that it is impossible to correct unless we reconsider the entire stack.
+
+Building a new stack was too insane, too expensive an idea to even consider; and even if you could, who would ever use it?
 Migrations were expensive, ecosystems were everything.
 Were.
 
@@ -40,19 +43,21 @@ Not necessarily because we want to, but because we want to want to
 
 And we're not going to get that software by merely "accelerating" old processes in "self-driving factories". 
 To truly industrialise the precise industrialised manufacture of software, we need entirely _new_ processes.
+New procesess, not just for studying and developing software behavior, but entirely new lifecycles.
 
 [wind tunnel simulation thingy..? or the wind tunel of the wright brothers? what is the wind tunnel for software?](TODO)
 
 <!--homoiconic software-->
 <!--There is an an old joke that computer science really has nothing to do with either computers or science.-->
-If software is solved, why do we only have like three databases that everyone trusts, instead of either just one, or infinitely many?
+If software is solved, why is there still so much bad software?
+<!--Why do we only have like three databases that everyone trusts, instead of either just one, or infinitely many?-->
 Everybody can vibecode a database, the tests pass, but nobody dares using it.
 Weird.
 Something is clearly amiss.
 How do we put the "engineering" into "software engineering"?
 
-The current artisinal software production process has many issues, but fundamentally, they're all rooted in the inscrutable complexity of the monster we've made: >50M LoC to get anything on screen, too many fragmented tools and services, too hard to simulate accurately (what are bugs, after all).
-Our inability to accurately simulate software is ironic considering our medium is purely digital, and thus, if the stack actually worked like it should, there is no excuse for software being _less_ than perfectly reliably and maximally fast, seven nines, picture perfect. 
+Software production has many issues, mostly rooted in the inscrutable complexity of the monster we've made: it takes >50M LoC to get anything on screen, too many fragmented tools and services, too hard to simulate accurately (what are bugs, after all).
+Our inability to accurately simulate software behavior is ironic considering our medium is purely digital, and thus, if the stack actually worked like it should, there is no excuse for software being _less_ than perfectly reliably and maximally fast, seven nines, picture perfect. 
 
 # Higher Order Programming
 
@@ -64,73 +69,58 @@ We gradually remove ourselves from the cumbersome burden of having to actually s
 
 [mechanically crafted gear computer thingy](TODO)
 
-Historically, whenever some more "accessible" programming-adjacent becomes too common, the "real" programmers no longer consider it programming.
-Thus, excel is not "programming", just like image classification is no longer "AI" (and soon, presumably, voice recognition and chatbots).
+Historically, whenever some more accessible form of programming becomes too common, the "real" programmers no longer consider it programming.
+Thus, Excel is not "programming", just like image classification is no longer "AI" - and soon, presumably, voice recognition, chatbots, and agentiveness will blend into boring software like the magic of the internet did.
 
-The cynical programmer would now note the obvious counterpoint to the offended programmer: we're _already_ not writing most code ourselves, because of the massive stack between code and hardware.
-Millions upon millions of lines between the "raw" code and the actual hardware. 
+The observant programmer may now note the obvious reality that we're _already_ not writing most code ourselves, even when we still used to hand-write code, because of the massive stack separating bits from atoms - all those millions upon millions of lines between the "raw" code and the actual hardware. 
 But we don't talk about that, and code _is_ programming.
 
 Yet, the idea of programming beyond code almost as old as code itself.
 Right from the very start, the computing pioneers dreamed of interacting with the computer with natural language and multimodal inputs.
 
-Then, spreadsheets sparked the first personal computer revolution, TODO, 
+Spreadsheets kicked off the first personal computer revolution in earnest, thereby replacing entire rooms of people performing menial tabulations by hand with a much more approachable and programmable interface.
+(And thereby also giving those people higher level jobs.)
 
 [that old IBM ad about replacing 50 engineers or something?](TODO)
 
-and game developers have been doing working with non-code abstractions for decades now. 
-we have now figured out a new way to prompt simple software into existence.
+To this day, the humble spreadsheet is _still_ the most popular application platform and surprisingly hard to displace.
+But, of course, we generaly do not buy professional software that comprises purely a spreadsheet, in much the same way that we don't buy software purely made of connectors
+There is a little more to "real" higher level software.
 
-<!--[screenshot of spreadsheet? "the most popular programming language"](TODO)-->
-<!--[the 20 million line problem, casey](TODO)-->
+The history of game development parallels and often previsages the history of software development, simply because games face even tighter constraints on everything, and even more competitive pressure to get the most out of hardware, all the while working with multidiscplinary teams. 
+Early on, game development was also a complete schlep, and only a tiny guild of brilliant nerds could pull off presentable commercial games.
 
-<!--- It follows then that we might want to go all the way, that the ultimate sophistication of programming is not programming at all, but pure unconstrained natural language, more like "talking to a colleague"? 
-- Oh, how great software could be, how magnificient, how accessible, if only we could make programming as simple and unconstrained as natural language?
-- If we didn't have to write code at all, nor trouble ourselves with any of the nuances and rigor imposed by formal languages!
-- One can only imagine the splendidness of an ecosystem of unconstrained creation!-->
+To get a game started, everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game! 
+Then, eventually, we figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine". 
 
-- Fortunately, magnificiently, we already have precedent to understand where low-code, high volume engineering might end up.
-- Unfortunately, it still involves quite a lot of problem solving and "programming", albeit at a different level.
-
-<!--- the future of software development is lots more like game development-->
-<!--- parallels to the early personal software revolution as well-->
-- Early on, game development - even more so than software development - was a complete schlep, and only a self-selected guild of obsessed nerds could pull it off.
-- Everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game! 
-- Then, eventually, the nerds figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine". 
-
-:::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
-:::
+[the first version of unreal engine or something?](TODO)
 <!--:::video src="https://www.youtube.com/watch?v=WFu1utKAZ18" title="Rayman Legends: The Design Process Within the UbiArt Framework" poster="https://i.ytimg.com/vi/WFu1utKAZ18/maxresdefault.jpg"
 :::-->
 
-- Initially, when using an engine, maybe you didn't always get exactly the same level of control, or even hit _quite_ the same high notes as the best hardcore engineers could without. 
-- But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before.
-- People like game designers, writers, and artists, could finally contribute directly to the game, be it via Lua, visual scripting, material editors, or customised in-game level designers.
+Initially, when using an engine, maybe you didn't always get exactly the same level of control, or even hit _quite_ the same high notes as the best hardcore engineers could without. 
+But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before.
+Non-programmer people like designers, writers, and artists, could now contribute _directly_ to the product, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
 
-- so: 
-- continuous granularity
-- reusable parts, "asset stores" (ShadCN), ..
-- lot of the time is just iterating in some more interactive editor
-- sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game, sometimes you watch others play the game, or spawn in some bots to help with a task.
-- it's all part of the game
+At no point in the history of game development did we actually remove code, even though a lot of it was abstracted for many use cases, and you can now get very far never looking at any "real" code at all.
+Now, when building a game, sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game, sometimes you watch others play the game, and so it goes.
 
 # Long Live Code
 
-- Programming is problem solving: iterating, thinking, working to understand a problem and specifying its solution in some repeatable form.
-- In the olden days of 12 months ago, we used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code.
-- It doesn't even have to be computer code or any formal language at all - recipe writing is programming, too.
-- All that really matters is repeatable specification, in any useful form.
+Programming is problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
+In the olden days of 12 months ago, we programmers used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code.
+But really, as we now know, it doesn't even have to be computer code or any formal language at all - recipe writing is programming, too.
+<!--All that really matters is repeatable specification, in any useful form.-->
 
-- The production and distribution of code has been so central to software engineering that it's easy to forget that nobody actually cares about code.
-- Code, beautiful though it may be, is in itself inert and useless, just like the software it describes.
+<!--The production and distribution of code has been so central to software engineering that it's easy to forget that nobody actually cares about the code.-->
+<!--- Code, beautiful though it may be, is in itself inert and useless, just like the software it describes.-->
 <!--- if we increasingly work through other tools, why invest in a language?-->
-- So, now that we don't _have_ to, should we even think about code at all?
-- That seems like the wrong question, akin to:
-- Why care about numbers when calculators exist?
+<!--- So, now that we don't _have_ to, should we even think about code at all?-->
+<!--- That seems like the wrong question, akin to:-->
+<!--- Why care about numbers when calculators exist?-->
 
-- Unlike the jump from machine code to assembly, and then assembly to C, the jump from hand-directing edits to having an agent do it is much more about _abstraction of process_ than _abstraction of specification_.
-- Basically, agentic coding feels a lot like the invention of the rich text editor with spellchecks abstracts over handwriting with pencil on parchment.
-- Editing becomes easier, substantiation simplifies.
+Unlike the jump from machine code to Python, the jump from hand-directing edits to agentic coding is much more about the _abstraction of production_ than _abstraction of specification_.
+It feels a lot like the invention of the rich text editor with spellchecks abstracts over handwriting with pencil on parchment.
+Editing becomes easier, substantiation simplifies.
 
 :::video src="https://www.youtube.com/watch?v=72y2EC5fkcE" title="Tomorrow Corporation Tech Demo" poster="https://i.ytimg.com/vi/72y2EC5fkcE/maxresdefault.jpg"
 :::
@@ -156,7 +146,7 @@ we have now figured out a new way to prompt simple software into existence.
 
 [simpsons meme about serving undifferentiated slop (food)](TODO)
 
-- a complex system that works starts from a simple system that works
+Every complex system that works starts from a simple system that works.
 - in any non-trivial systems I have seen, there is no useful separation of the system and its "specification"
 - sometimes the exact sequence of steps matters, sometimes it does not
 - the granularity of the specification to care about depends strongly on how standardized and thus how structured the solution space is.
@@ -172,8 +162,8 @@ we have now figured out a new way to prompt simple software into existence.
 
 # The System and The Meta System
 
-- We now have agents contributing to software production, and there is a lot of excitement about "agent native" software.
-- Software to make software, it all lines up very nicely, and it makes for great marketing.
+We now have agents contributing to software production, and there is a lot of excitement about "agent native" software.
+Software to make software, it all lines up very nicely, and it makes for great marketing.
 - Agents are a new kind of software, for sure, but fundamentally it's all still software.
 - The more pertinent question then is: how do we build complex software in the first place? What does the ideal supporting system look like?
 
