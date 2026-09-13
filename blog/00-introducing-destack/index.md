@@ -16,9 +16,11 @@ As of today, if you need software, there are two options:
 - **Buy** and pay the cost and integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck paying rent to some vendor for at least the next good while.
 
 Until now. 
-Suddenly, we have a rare dual opportunity: probabilistic computing enables new kinds of useful software, _and_ it drastically reduces the cost of production and thus also migration between software. 
+Suddenly, we have a rare dual opportunity: probabilistic computing enables new kinds of useful software, which drives new use cases and exploration, _and_ simultaenously AI drastically reduces the cost of software production and migration. 
+It's the perfect time to reconsider everything.
 
-It is evidently, hilariously clear that the contemporary software stack is croaking under the weight, volume and angle of its new silicon users; it was, regerettably, not built for this, and it's a damn shame, because the original dream for software very much waited for this moment.
+It is also evidently, abundantly clear that the contemporary software stack is croaking under its own weight, that the volume and angle of its new silicon users is too much; the software stack of the past was, regerettably, not built for this future.
+And it's a damn shame, because the original dream for software very much waited for this moment.
 
 # The Software We Were Promised
 
@@ -30,12 +32,9 @@ What gives?
 :::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
 :::
 
-Somewhere, deep in the terms of service of the 47 different SaaS vendors with 2 second loading pages and incompatible disjoint data stores, this software dream died with a whimper.
+Somewhere, deep in the terms of service of 47 different SaaS vendors with disjoint data stores, this software dream died with a whimper.
 It is insufficient to patch this problem with "connectors", the problem is a much more fundamental architecture issue, one that it is impossible to correct unless we reconsider the entire stack.
-
-Building a new stack was too insane, too expensive an idea to even consider; and even if you could, who would ever use it?
-Migrations were expensive, ecosystems were everything.
-Were.
+Building a new stack is just on the cusp of moving from _impossible_ to _very hard_.
 
 To get the most out of software, we need software we can _own_, no rent, no lock-in.
 Something fully hackable, debuggable, that is easy to self-host.
@@ -72,12 +71,26 @@ We gradually remove ourselves from the cumbersome burden of having to actually s
 Historically, whenever some more accessible form of programming becomes too common, the "real" programmers no longer consider it programming.
 Thus, Excel is not "programming", just like image classification is no longer "AI" - and soon, presumably, voice recognition, chatbots, and agentiveness will blend into boring software like the magic of the internet did.
 
-The observant programmer may now note the obvious reality that we're _already_ not writing most code ourselves, even when we still used to hand-write code, because of the massive stack separating bits from atoms - all those millions upon millions of lines between the "raw" code and the actual hardware. 
-But we don't talk about that, and code _is_ programming.
+In whatever form, "programming" is just problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
+We used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code, but really, it doesn't even have to be any formal language at all - recipe writing is programming, too.
+<!--All that really matters is repeatable specification, in any useful form.-->
 
-Yet, the idea of programming beyond code almost as old as code itself.
+<!--The production and distribution of code has been so central to software engineering that it's easy to forget that nobody actually cares about the code.-->
+<!--- Code, beautiful though it may be, is in itself inert and useless, just like the software it describes.-->
+<!--- if we increasingly work through other tools, why invest in a language?-->
+<!--- So, now that we don't _have_ to, should we even think about code at all?-->
+<!--- That seems like the wrong question, akin to:-->
+<!--- Why care about numbers when calculators exist?-->
+
+Unlike the jump from machine code to Python, the jump from hand-directing edits to agentic coding is much more about the _abstraction of production_ than _abstraction of specification_.
+It feels a lot like the invention of the rich text editor with spellchecks abstracts over handwriting with pencil on parchment.
+Editing becomes easier, the specification remains.
+
+<!--The observant programmer may now note the obvious reality that we're _already_ not writing most code ourselves, even when we still used to hand-write code, because of the massive stack separating bits from atoms - all those millions upon millions of lines between the "raw" code and the actual hardware. 
+But we don't talk about that, and code _is_ programming.-->
+
+<!--Yet, the idea of programming beyond code almost as old as code itself.-->
 Right from the very start, the computing pioneers dreamed of interacting with the computer with natural language and multimodal inputs.
-
 Spreadsheets kicked off the first personal computer revolution in earnest, thereby replacing entire rooms of people performing menial tabulations by hand with a much more approachable and programmable interface.
 (And thereby also giving those people higher level jobs.)
 
@@ -101,103 +114,51 @@ Initially, when using an engine, maybe you didn't always get exactly the same le
 But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before.
 Non-programmer people like designers, writers, and artists, could now contribute _directly_ to the product, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
 
-At no point in the history of game development did we actually remove code, even though a lot of it was abstracted for many use cases, and you can now get very far never looking at any "real" code at all.
+The history of game development never "removed" code, even as a lot of it was abstracted for many development use cases that previously required it, and you can now get very far (and sometimes even to the end!) into building a real game without never looking at any "real" code at all.
 Now, when building a game, sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game, sometimes you watch others play the game, and so it goes.
-
-# Long Live Code
-
-Programming is problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
-In the olden days of 12 months ago, we programmers used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code.
-But really, as we now know, it doesn't even have to be computer code or any formal language at all - recipe writing is programming, too.
-<!--All that really matters is repeatable specification, in any useful form.-->
-
-<!--The production and distribution of code has been so central to software engineering that it's easy to forget that nobody actually cares about the code.-->
-<!--- Code, beautiful though it may be, is in itself inert and useless, just like the software it describes.-->
-<!--- if we increasingly work through other tools, why invest in a language?-->
-<!--- So, now that we don't _have_ to, should we even think about code at all?-->
-<!--- That seems like the wrong question, akin to:-->
-<!--- Why care about numbers when calculators exist?-->
-
-Unlike the jump from machine code to Python, the jump from hand-directing edits to agentic coding is much more about the _abstraction of production_ than _abstraction of specification_.
-It feels a lot like the invention of the rich text editor with spellchecks abstracts over handwriting with pencil on parchment.
-Editing becomes easier, substantiation simplifies.
-
-:::video src="https://www.youtube.com/watch?v=72y2EC5fkcE" title="Tomorrow Corporation Tech Demo" poster="https://i.ytimg.com/vi/72y2EC5fkcE/maxresdefault.jpg"
-:::
-
-- In that sense, higher level direction is not an abstraction at all, it is an enabler for a new kind of process.
-- The ideal level of code for programming has nothing to do with either code or programming.
-- Instead of one character at a time, one program at a time, I want to understand _everything_ at all granularities: what is the space of all possible software programs to solve the space of problems I have, and how do I most efficiently get there, where do I go once I'm there, how do I stay in the right place as the problem shifts?
-
-<!--- And as the _specification_ drifts from reality, we get bizzaro slop. -->
-- Unconstrained software produciton produces a strange sort of software, one that exists purely in linimal space, untethered from and unbothered by reality.
-- The tests pass, the screenshots look good, and nothing works.
-- Left to its own devices, the software factory lands _perfectly_ in the middle of the uncanny valley of software.
-<!--- somehow, this brand of slop is almost always immediately obvious.-->
-- even with the purple gradients polished away, untethered software never quite solves the right proble, and it's never solved in quite the right way
-
-- the disconnect of between reality and some  
-- to connect software with reality, we need to actually understand and align the problem and its solution with what we want 
-- abstraction, yes, but not purely abstraction of specification, also abstraction of exploration, with full specificity available on demand
-- otherwise, it's just an art project
-<!--- famously, disconnected PMs make the best products?-->
-<!--- I've tried that, it doesn't work, I don't want to do that-->
-<!--- I want to be _more_ in the details than ever, I want the code to be right and look right, I want to understand every byte, every cycle, every pixel.-->
-
-[simpsons meme about serving undifferentiated slop (food)](TODO)
-
-Every complex system that works starts from a simple system that works.
-- in any non-trivial systems I have seen, there is no useful separation of the system and its "specification"
-- sometimes the exact sequence of steps matters, sometimes it does not
-- the granularity of the specification to care about depends strongly on how standardized and thus how structured the solution space is.
-- there is not, and cannot be, some magic abstraction on top of code that will solve _all_ our problems - if the job is solving novel problems.
-
-- There is a more promising angle and prerequisite to increased production capacity: standardization.
-- Over the past decade, opinionated formatters have standardized the _appearence_ of code.
-- Can we also standardize the _shape_ of code? Not just syntax, but semantics: state trees, call flows, dependencies, entire architecture. 
-- Standardization at all granularities.
-
-- what are the decisions we can where we can settle on one set of good, coherent options, sort of like how the advent of opinionated formatters put an end to a whole series of unproductive discussions?
-- the world is going to run on software, even more so than now, how do we make sure that software is doing what we want?
 
 # The System and The Meta System
 
-We now have agents contributing to software production, and there is a lot of excitement about "agent native" software.
-Software to make software, it all lines up very nicely, and it makes for great marketing.
-- Agents are a new kind of software, for sure, but fundamentally it's all still software.
-- The more pertinent question then is: how do we build complex software in the first place? What does the ideal supporting system look like?
+There is a lot of excitement about "agent native" software and "software factories".
+They're two sides of the same coin, and even though there is no precise definition here, it all centres around the idea .
+The key question is: how do we build complex software we can trust?
+Remember, agents are just software too.
+What does the ideal supporting system look like?
 
-- Of course, we want good abstractions, high performance, open standards.
+<!--- Of course, we want good abstractions, high performance, open standards.
 - Essentially, all the things that software should have done anyway, but now we get to take them to the limit: complete, standardized software systems that are fully _homoiconic_ and hackable at every level of granularity.
-- Beyond aiding in construction and maintenance, the "software to build the software", the "meta system", is instrumental in figuring out what we should even be specifying in the first place.
+- Beyond aiding in construction and maintenance, the "software to build the software", the "meta system", is instrumental in figuring out what we should even be specifying in the first place.-->
 
-- Fundamentally, there is not a single test, suite of tests, mathematical proof, or any single definitive gate that you can run to convince me that some non-trivial general purpose program is correct.
+Fundamentally, there is not a test, suite of tests, certificate, proof, or _any_ single "definitive" gate that you can run to convince me that some non-trivial general purpose program is correct.
+Complex software systems span many granuliarities, and human written or not
 - doesn't matter whether it's human written or not, software is just very complex
 - mathematical proofs are ofc very useful for rigid and fully formalizable systems, but insufficient
 
-- the fundamental problem I have with software is not "oh I wish I had mathematical proof  this program I specified works" it is "how do I know what software to build" and then "how do I know that the specificaiton does what I want"? 
+<!--- the fundamental problem I have with software is not "oh I wish I had mathematical proof  this program I specified works" it is "how do I know what software to build" and then "how do I know that the specificaiton does what I want"? 
 - I don't get any of this feedback from AI 
 - there is zero conceptual backpressure from AI
 - a "correct proof" or "passing test" means nothing if it's not what I want
-- I'm not ready to vouch for a 27k line "proof" I don't understand verifying some properties I also don't understand
+- I'm not ready to vouch for a 27k line "proof" I don't understand verifying some properties I also don't understand-->
 
-[lean proof assistent bugs](TODO)
+<!--[lean proof assistent bugs](TODO)-->
 
-- and the only way to assess "correct" for any interesting software is to see it in motion under many different angles, over time
+- the only way to assess "correct" for any interesting software is to see it in motion under many different angles, over time
 - this is not an intelligence problem!
 - it _may_ be possible to "prove" some software to be correct, but I do not know what to prove 
 - merely interacting with software 
 <!--- correctness = alignment + visibility-->
 <!--- correctness is ultimately about alignment, and we can only align on what we can see-->
 - I don't know what I want until I see it, and I also don't know what I _don't_ want until I see that too
+
 - correctness is an iterative process, alignment is continuous, the shape is changing
+- this is true for symbolic software, but it is especially true for probabilstic software.
 - "correctness" must be specified acrosss many layers to systematically exclude all the things we do _not_ want
 <!--- (and ofc there are probabilistic assessments that are even harder to nail down)-->
+- if everything is code, how do we make sure it's the right code?
 
 [a building under construction with scaffolding](TODO)
 
-- our tools for building, interacting with, understanding software are pretty primitive
-- if everything is code, how do we make sure it's the right code?
+Our tools for building, interacting with, understanding software are astoundingly primitive.
 - "oh just have the AI tell you if the code is right" but again what is right?
 - (in this sense, the "alignment problem" feels much more like a product and legibility problem, and certainly not _merely_ an intelligence problem, which is short term bearish but long term very bullish)
 - this does not magically go away with more abstractions or "smarter AI"
@@ -281,6 +242,14 @@ if we finally have the unique opportunity to build a completely new programming 
 - don't "fix" what's not _actually_ broken
 - only use boring ideas already proven by other languages / libraries / ..
 - safe, sound, predictable, and above all: *familiar*
+
+- There is a more promising angle and prerequisite to increased production capacity: standardization.
+- Over the past decade, opinionated formatters have standardized the _appearence_ of code.
+- Can we also standardize the _shape_ of code? Not just syntax, but semantics: state trees, call flows, dependencies, entire architecture. 
+- Standardization at all granularities.
+
+- what are the decisions we can where we can settle on one set of good, coherent options, sort of like how the advent of opinionated formatters put an end to a whole series of unproductive discussions?
+- the world is going to run on software, even more so than now, how do we make sure that software is doing what we want?
 
 # TypeScript++
 
