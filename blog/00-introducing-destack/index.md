@@ -166,14 +166,14 @@ We have long figured out that opinionated formatters are a great idea to remove 
 Maybe not _perfectly_, but the standardization _is_ the benefit.
 Why not also standardize the _shape_ of code? Not just syntax, not just linters, but semantics: state trees, call flows, dependencies, entire architectures. 
 
-- very simple product to manage personal software, personal software stack
+<!--- very simple product to manage personal software, personal software stack
 - comes with a default stack
 - entire familiar web / npm ecosystem at your disposal
 - personal package manager
 - personal git / jj (including remote) somehow..?
 
 - manage whatever stack you want, but with strong defaults (?)
-- best approximation of final Destack we could manage in the existing ecosystem, to get as close as possible and get started immediately
+- best approximation of final Destack we could manage in the existing ecosystem, to get as close as possible and get started immediately-->
 
 # TypeScript++
 
