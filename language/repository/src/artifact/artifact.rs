@@ -528,8 +528,9 @@ impl Repository {
         let span = parsed
             .tree
             .get_main_span_by_id(declaration.local_id.id)
+            .or_else(|| parsed.tree.get_span_by_id(declaration.local_id.id))
             .ok_or_else(|| RepositoryError::InvalidArtifact {
-                message: format!("parsed declaration has no main span: {declaration:?}"),
+                message: format!("parsed declaration has no span: {declaration:?}"),
             })?;
         let file = self
             .file(revision, span.file)?
