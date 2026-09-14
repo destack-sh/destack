@@ -11,15 +11,15 @@ Eventually, we will arrive at some new final form, resembling the familiar old o
 
 [illustration of cambrian explosion carnage](TODO)
 
-As of today, if you need software, there are two options:
+If you need software, there are two options:
 - **Build** and take on the uncertain process of artisinal production directly, including the risk for supply chain attacks, vendor sprawl, and deployment hell, only to most likely get half baked software and an additional maintenance burden.
 - **Buy** and pay the cost and integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck paying rent to some vendor for at least the next good while.
 
-Until now. 
-Suddenly, we have a rare dual opportunity: probabilistic computing enables new kinds of useful software, which drives new use cases and exploration, _and_ simultaenously AI drastically reduces the cost of software production and migration. 
+But now, suddenly, we have a rare dual opportunity: probabilistic computing enables new kinds of useful software, which drives new use cases and exploration, _and_ simultaenously AI drastically reduces the cost of software production and migration. 
 It's the perfect time to reconsider everything.
 
-It is also evidently, abundantly clear that the contemporary software stack is croaking under its own weight, that the volume and angle of its new silicon users is too much; the software stack of the past was, regerettably, not built for this future.
+The contemporary software stack is beginning to buckle under its own weight, and the volume and angle of its new silicon users is too much.
+Alas, the software stack built on the past was, regerettably, not built for this future.
 And it's a damn shame, because the original dream for software very much waited for this moment.
 
 # The Software We Were Promised
@@ -32,10 +32,10 @@ What gives?
 :::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
 :::
 
-Somewhere, deep in the terms of service of 47 different SaaS vendors with disjoint data stores, this software dream died with a whimper.
+Somewhere, deep in the terms of service of 47 different SaaS vendors with disjoint data stores, the software dream died with a whimper.
 It is insufficient to patch this problem with "connectors", the problem is a much more fundamental architecture issue, one that it is impossible to correct unless we reconsider the entire stack.
-Building a new stack is just on the cusp of moving from _impossible_ to _very hard_.
 
+Building a new stack is just on the cusp of moving from _impossible_ to _very hard_.
 To get the most out of software, we need software we can _own_, no rent, no lock-in.
 Something fully hackable, debuggable, that is easy to self-host.
 Not necessarily because we want to, but because we want to want to
@@ -51,11 +51,11 @@ New procesess, not just for studying and developing software behavior, but entir
 If software is solved, why is there still so much bad software?
 <!--Why do we only have like three databases that everyone trusts, instead of either just one, or infinitely many?-->
 Everybody can vibecode a database, the tests pass, but nobody dares using it.
-Weird.
+Strange.
 Something is clearly amiss.
 How do we put the "engineering" into "software engineering"?
 
-Software production has many issues, mostly rooted in the inscrutable complexity of the monster we've made: it takes >50M LoC to get anything on screen, too many fragmented tools and services, too hard to simulate accurately (what are bugs, after all).
+The production of software has many issues, mostly rooted in the inscrutable complexity of the monster we've made: it takes >50M LoC to get anything on screen, too many fragmented tools and services, too hard to simulate accurately (what are bugs, after all).
 Our inability to accurately simulate software behavior is ironic considering our medium is purely digital, and thus, if the stack actually worked like it should, there is no excuse for software being _less_ than perfectly reliably and maximally fast, seven nines, picture perfect. 
 
 # Higher Order Programming
@@ -119,8 +119,9 @@ Now, when building a game, sometimes you "play" the game, sometimes you edit the
 
 # The System and The Meta System
 
-There is a lot of excitement about "agent native" software and "software factories".
-They're two sides of the same coin, and even though there is no precise definition here, it all centres around the idea .
+There is a lot of excitement around "agent native" software and "software factories" - the ideas that we need new more hackable software, and the idea to build them auto semi-autonomously with software that writes software (i.e., agents).
+They're two sides of the same coin, ...
+
 The key question is: how do we build complex software we can trust?
 Remember, agents are just software too.
 What does the ideal supporting system look like?
@@ -129,10 +130,10 @@ What does the ideal supporting system look like?
 - Essentially, all the things that software should have done anyway, but now we get to take them to the limit: complete, standardized software systems that are fully _homoiconic_ and hackable at every level of granularity.
 - Beyond aiding in construction and maintenance, the "software to build the software", the "meta system", is instrumental in figuring out what we should even be specifying in the first place.-->
 
-Fundamentally, there is not a test, suite of tests, certificate, proof, or _any_ single "definitive" gate that you can run to convince me that some non-trivial general purpose program is correct.
-Complex software systems span many granuliarities, and human written or not
-- doesn't matter whether it's human written or not, software is just very complex
-- mathematical proofs are ofc very useful for rigid and fully formalizable systems, but insufficient
+Fundamentally, there is not a test, suite of tests, certificate, proof, or _any_ single "definitive" gate that you can run to convince me that some non-trivial software program is correct.
+Complex software systems span many granuliarities, and human written or not, misalignment can hide in any of them.
+<!--- doesn't matter whether it's human written or not, software is just very complex-->
+<!--- mathematical proofs are ofc very useful for rigid and fully formalizable systems, but insufficient-->
 
 <!--- the fundamental problem I have with software is not "oh I wish I had mathematical proof  this program I specified works" it is "how do I know what software to build" and then "how do I know that the specificaiton does what I want"? 
 - I don't get any of this feedback from AI 
@@ -142,7 +143,7 @@ Complex software systems span many granuliarities, and human written or not
 
 <!--[lean proof assistent bugs](TODO)-->
 
-- the only way to assess "correct" for any interesting software is to see it in motion under many different angles, over time
+- the only way to judge correctness - i.e., does it do what I want - for any interesting software is to see it in motion under many different angles, over time
 - this is not an intelligence problem!
 - it _may_ be possible to "prove" some software to be correct, but I do not know what to prove 
 - merely interacting with software 
@@ -206,8 +207,8 @@ Our tools for building, interacting with, understanding software are astoundingl
 
 [carcinicisation of stacks](TODO)
 
-- boring software must mean _complete_ software, an integrated stack, since that has fewer parts that work better together.
-- at first, this smay seem contradictory
+- boring software is _complete_ software, that is, an integrated stack that "just works", since fewer choices with fewer parts work better together.
+- at first, this may seem contradictory
 - but there is a tremendous advantage to using a single language for *everything*, as shown by the popularity of single language monorepos (suboptimal though they are in various respects)
 - much better standardization, much better simulation
 - and, if we can manage the perf aspect, much faster and more scalable software too.
@@ -251,10 +252,23 @@ if we finally have the unique opportunity to build a completely new programming 
 - what are the decisions we can where we can settle on one set of good, coherent options, sort of like how the advent of opinionated formatters put an end to a whole series of unproductive discussions?
 - the world is going to run on software, even more so than now, how do we make sure that software is doing what we want?
 
+# Destack
+
+- As always, the first instinct is to search for something that already exists - Python? TypeScript?
+- We can get very far with just TypeScript, Web APIs
+
+- very simple product to manage personal software, personal software stack
+- comes with a default stack
+- entire familiar web / npm ecosystem at your disposal
+- personal package manager
+- personal git / jj (including remote) somehow..?
+
+- manage whatever stack you want, but with strong defaults (?)
+- best approximation of final Destack we could manage in the existing ecosystem, to get as close as possible and get started immediately
+
 # TypeScript++
 
-- The complete final stack logically requires the complete final language.
-- As always, the first instinct is to serach for something that already exists - Python? TypeScript?
+- The complete final stack will, eventually, require the complete final language.
 - But surprisingly, we do not quite have that universal complete language yet. 
 - Of course, there are languages you could _contort_ to target all platforms and write everything from systems software to API services to web apps.
 - Besides, if we want the deep sort of analysis and standardization we seek, it is much easier to start from scratch than try to retrofit this into an existing ecosystem.
