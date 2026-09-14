@@ -154,7 +154,7 @@ export function CommandPalette() {
                 title="Search"
                 type="button"
             >
-                Search
+                search
             </button>
 
             <Portal>

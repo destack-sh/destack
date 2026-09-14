@@ -24,7 +24,7 @@ export function Footer() {
                                 style={styles.link}
                                 title={`Alt+${shortcut.toUpperCase()}: ${label}`}
                             >
-                                {label}
+                                {label.toLowerCase()}
                             </SiteLink>
                         ))}
                     </nav>
@@ -47,7 +47,7 @@ const styles = stylex.create({
         display: "grid",
         fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
-        fontWeight: 600,
+        fontWeight: 400,
         gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
         minHeight: "3.5rem",
         minWidth: 0,
@@ -83,7 +83,6 @@ const styles = stylex.create({
         gridColumn: "9 / -1",
         justifySelf: "end",
         whiteSpace: "nowrap",
-        textTransform: "capitalize",
         [mobile]: {
             flexWrap: "wrap",
             gap: "0.25rem 0.875rem",

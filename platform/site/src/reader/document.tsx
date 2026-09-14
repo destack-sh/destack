@@ -193,7 +193,7 @@ const styles = stylex.create({
         gap: 0,
     },
     bookLink: {
-        color: tokens.ink,
+        color: tokens.soft,
         display: "block",
         fontSize: "var(--size-navigation)",
         lineHeight: 1.3,
@@ -230,6 +230,7 @@ const styles = stylex.create({
         paddingTop: `calc(${tokens.publicationSpace} * 2)`,
     },
     paginationLink: {
+        textTransform: "lowercase",
         color: tokens.ink,
         ":hover": {
             color: tokens.accent,

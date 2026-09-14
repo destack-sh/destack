@@ -15,7 +15,7 @@ export const tokens = stylex.defineVars({
     ink: "var(--publication-ink)",
     line: "var(--publication-line)",
     monoFont: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
-    night: "var(--publication-night)",
+    night: "#12313c",
     orange: "var(--publication-accent)",
     posterFont: '"Limelight", "Futura", "Arial Black", sans-serif',
     orangeLight: "#e77443",

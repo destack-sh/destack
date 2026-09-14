@@ -11,14 +11,13 @@
 @layer reset {
 :root {
     color-scheme: light dark;
-    --publication-page: light-dark(#f7f7f3, #10242c);
-    --publication-page-muted: light-dark(#eaf0ed, #1b343d);
-    --publication-listing: light-dark(#fbfbf8, #0c1e25);
-    --publication-ink: light-dark(#171a1b, #e7ece8);
-    --publication-night: light-dark(#12313c, #f1eadb);
-    --publication-soft: light-dark(#62686a, #a6b9ba);
-    --publication-line: light-dark(#b8c4c3, #405b64);
-    --publication-accent: light-dark(#c34f29, #f18c62);
+    --publication-page: light-dark(#f8f7f4, #1b1a19);
+    --publication-page-muted: light-dark(#efeeea, #292725);
+    --publication-listing: light-dark(#f1f0ec, #232220);
+    --publication-ink: light-dark(#272624, #d5d2cb);
+    --publication-soft: light-dark(#68655f, #a39e94);
+    --publication-line: light-dark(#dedbd5, #3d3a36);
+    --publication-accent: light-dark(#b95532, #d68b65);
     --publication-rust: light-dark(#a44328, #ec9878);
     --publication-syntax-type: light-dark(#0f6470, #79c6ce);
     --publication-syntax-function: light-dark(#8a5a0e, #e4b66c);
@@ -103,7 +102,7 @@ summary::-webkit-details-marker {
         [wide-start text-start] minmax(0, var(--width-prose))
         [text-end] minmax(0, 1fr) [wide-end];
     min-width: 0;
-    gap: 1.125rem 0;
+    gap: 0.75rem 0;
     font-size: var(--size-body);
     font-weight: 400;
     line-height: 1.7;
@@ -128,15 +127,13 @@ summary::-webkit-details-marker {
 .markdown h2,
 .markdown h3 {
     margin: 0;
-    color: var(--publication-night);
+    color: var(--publication-ink);
     font-family: "IBM Plex Sans Condensed", "IBM Plex Sans Variable", sans-serif;
 }
 
 .markdown h1 {
     grid-column: wide;
-    margin-top: 2.25rem;
-    border-top: var(--publication-hairline) solid var(--publication-line);
-    padding-top: 1.25rem;
+    margin-top: 1.25rem;
     font-size: var(--size-section-title);
     font-weight: 500;
     letter-spacing: -0.015em;
@@ -144,7 +141,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown h2 {
-    margin-top: 1.75rem;
+    margin-top: 1.25rem;
     font-size: var(--size-subsection-title);
     font-weight: 500;
     letter-spacing: -0.02em;
@@ -163,11 +160,6 @@ summary::-webkit-details-marker {
 .markdown > h2:first-child,
 .markdown > h3:first-child {
     margin-top: 0;
-}
-
-.markdown > h1:first-child {
-    border-top: 0;
-    padding-top: 0;
 }
 
 .markdown p,
@@ -410,8 +402,8 @@ summary::-webkit-details-marker {
 .markdown-figure,
 [data-publication-listing] {
     border-top: var(--publication-hairline) solid var(--publication-line);
-    border-right: var(--publication-hairline) solid var(--publication-line);
-    border-left: var(--publication-hairline) solid var(--publication-line);
+    border-right: 0;
+    border-left: 0;
 }
 
 .markdown-diagram figcaption,
@@ -730,21 +722,20 @@ summary::-webkit-details-marker {
 
 /* publication-specific generated copy */
 [data-publication="journal"] .markdown {
-    padding-top: 1.5rem;
+    padding-top: 2rem;
 }
 
 [data-publication="manual"] .markdown > h1:first-child {
     display: none;
 }
 
-/* use the article header's rule when chapter contents start the page */
-[data-publication="manual"] .markdown > h1:first-child + hr,
-[data-publication="manual"] .markdown > hr:first-child {
-    display: none;
+[data-publication="manual"] .markdown {
+    padding-top: 2rem;
 }
 
-[data-publication="manual"] .markdown {
-    padding-top: 1.5rem;
+/* start chapter content directly after its hidden source title */
+[data-publication="manual"] .markdown > h1:first-child + :is(h2, h3) {
+    margin-top: 0;
 }
 
 /* generated standard library reference */

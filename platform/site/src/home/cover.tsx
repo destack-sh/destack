@@ -173,7 +173,7 @@ export function Cover() {
                     <div {...stylex.attrs(posterStyles.actionRow)}>
                         <Installation />
                         <a
-                            {...stylex.attrs(posterStyles.boarding)}
+                            {...stylex.attrs(posterStyles.action)}
                             href="/docs/setup/"
                         >
                             start building <span aria-hidden="true">→</span>
@@ -348,12 +348,12 @@ function Installation() {
 const posterStyles = stylex.create({
     actionRow: {
         alignItems: "center",
-        borderColor: tokens.cream,
+        borderColor: "#45606a",
         borderStyle: "solid",
         borderWidth: tokens.hairline,
         display: "flex",
         gap: "1.5rem",
-        justifyContent: "center",
+        justifyContent: "space-between",
         maxWidth: "40rem",
         padding: "0.55rem 0.6rem 0.55rem 1.4rem",
         width: "100%",
@@ -380,21 +380,18 @@ const posterStyles = stylex.create({
             padding: "0.75rem 0.75rem 1.25rem",
         },
     },
-    boarding: {
+    action: {
         alignSelf: "center",
-        backgroundColor: "#d95f36",
-        color: tokens.cream,
-        fontFamily: tokens.monoFont,
+        backgroundColor: "#dba07c",
+        color: "#272624",
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
-        letterSpacing: "0.14em",
-        padding: "0.65rem 1.2rem",
+        padding: "0.75rem 1.25rem",
         textDecoration: "none",
-        textTransform: "uppercase",
         whiteSpace: "nowrap",
         ":hover": {
-            backgroundColor: tokens.cream,
-            color: tokens.ink,
+            backgroundColor: "#e8b797",
         },
         [mobile]: {
             textAlign: "center",

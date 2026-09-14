@@ -38,7 +38,7 @@ export function TopBar() {
                             height="28"
                             src="/brand/favicon/favicon.svg"
                         />
-                        Destack
+                        destack
                     </SiteLink>
 
                     <nav
@@ -56,7 +56,7 @@ export function TopBar() {
                                 ]}
                                 title={`Alt+${shortcut.toUpperCase()}: ${label}`}
                             >
-                                {label}
+                                {label.toLowerCase()}
                             </SiteLink>
                         ))}
                         <CommandPalette />
@@ -79,7 +79,7 @@ const styles = stylex.create({
         display: "grid",
         fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
-        fontWeight: 600,
+        fontWeight: 400,
         gridTemplateColumns: "auto minmax(0, 1fr) auto",
         columnGap: "1.5rem",
         minHeight: "4rem",
@@ -93,7 +93,7 @@ const styles = stylex.create({
     },
     brand: {
         alignItems: "center",
-        color: tokens.night,
+        color: tokens.ink,
         display: "inline-flex",
         fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
@@ -130,14 +130,15 @@ const styles = stylex.create({
         },
     },
     link: {
-        color: tokens.night,
+        color: tokens.ink,
         paddingBlock: "0.625rem",
         ":hover": hover,
     },
     active: {
+        fontWeight: 600,
         textDecorationLine: "underline",
         textDecorationColor: tokens.accent,
-        textDecorationThickness: "2px",
+        textDecorationThickness: "1px",
         textUnderlineOffset: "0.5em",
     },
     root: {

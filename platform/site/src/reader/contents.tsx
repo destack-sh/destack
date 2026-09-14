@@ -145,7 +145,7 @@ function outlineFor(entries: readonly ContentsEntry[]) {
 
 const styles = stylex.create({
     link: {
-        color: tokens.ink,
+        color: tokens.soft,
         display: "block",
         lineHeight: 1.3,
         paddingBlock: "0.25rem",

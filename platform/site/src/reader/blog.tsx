@@ -210,7 +210,7 @@ const styles = stylex.create({
         paddingTop: `calc(${tokens.publicationSpace} * 0.5)`,
     },
     bookLink: {
-        color: tokens.ink,
+        color: tokens.soft,
         display: "block",
         lineHeight: 1.3,
         paddingBlock: "0.25rem",

@@ -48,12 +48,13 @@ const styles = stylex.create({
     },
     link: {
         color: tokens.text,
-        fontWeight: 600,
+        fontWeight: 400,
         ":hover": {
             color: tokens.accent,
         },
     },
     root: {
+        textTransform: "lowercase",
         alignItems: "baseline",
         display: "flex",
         flexWrap: "wrap",
