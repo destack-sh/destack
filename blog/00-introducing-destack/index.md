@@ -49,7 +49,6 @@ New procesess, not just for studying and developing software behavior, but entir
 <!--homoiconic software-->
 <!--There is an an old joke that computer science really has nothing to do with either computers or science.-->
 If software is solved, why is there still so much bad software?
-<!--Why do we only have like three databases that everyone trusts, instead of either just one, or infinitely many?-->
 Everybody can vibecode a database, the tests pass, but nobody dares using it.
 Strange.
 Something is clearly amiss.
@@ -71,7 +70,7 @@ We gradually remove ourselves from the cumbersome burden of having to actually s
 Historically, whenever some more accessible form of programming becomes too common, the "real" programmers no longer consider it programming.
 Thus, Excel is not "programming", just like image classification is no longer "AI" - and soon, presumably, voice recognition, chatbots, and agentiveness will blend into boring software like the magic of the internet did.
 
-In whatever form, "programming" is just problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
+In whatever form, "Programming" is just problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
 We used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code, but really, it doesn't even have to be any formal language at all - recipe writing is programming, too.
 <!--All that really matters is repeatable specification, in any useful form.-->
 
@@ -123,104 +122,49 @@ Fundamentally, there is not a test, suite of tests, certificate, proof, or _any_
 Complex software systems span many granuliarities, and human written or not, misalignment can hide in any of them.
 Mathematical proo, passing tests, and green gates all mean nothing if it's not what I actually wanted.
 
-There is a lot of excitement around "agent native" software and "software factories" - the ideas that we need new more hackable software, and the idea to build them auto semi-autonomously with software that writes software (i.e., agents).
-What, exactly, are we accelerating?
+At the same time, there is a lot of excitement around "agent native" software and "software factories" - the ideas that we need new more hackable software, and the idea to build them auto semi-autonomously with software that writes software (i.e., agents).
+Where, exactly, are we accelerating to?
 
 The temptation to let agents swarm out on a hunch adds a whole new dimension of yak shaving, and yet it's almost never rewarded with anything useful.
-Eventually, even my most well intentioned unconstrained production ends in potemkin soup where everything _looks_ right but nothing quite works, nothing really fits together, and actually it's not what I wanted at all when I finally _see_ it.
+Eventually, even my most well intentioned unconstrained production ends in potemkin software where everything _looks_ right but nothing quite works, nothing really fits together, and actually it's not what I wanted at all when I finally _see_ it.
 
-The lack of visibility and continous alignment causes a weird sort of drift from reality, which ultimately still makes it surprisingly tricky to automate production outside of routine migrations and well scoped autofixes.
-When everything is a great idea, everything is implemented immediately, the software just has no shape at all; and worse, there is very little "conceptual backpressure" from reality, so we can't even do much better next time.
-
-- the only way to judge correctness - i.e., does it do what I want - for any interesting software is to see it in motion under many different angles, over time
-- this is not an intelligence problem!
-- it _may_ be possible to "prove" some software to be correct, but I do not know what to prove 
-- merely interacting with software 
-<!--- correctness = alignment + visibility-->
-<!--- correctness is ultimately about alignment, and we can only align on what we can see-->
-- I don't know what I want until I see it, and I also don't know what I _don't_ want until I see that too
-
-- correctness is an iterative process, alignment is continuous, the shape is changing
-- this is true for symbolic software, but it is especially true for probabilstic software.
-- "correctness" must be specified acrosss many layers to systematically exclude all the things we do _not_ want
-<!--- (and ofc there are probabilistic assessments that are even harder to nail down)-->
-- if everything is code, how do we make sure it's the right code?
+The only way to judge correctness - i.e., does it do what I want - is to see just see the software in motion under many different angles and granularities, inside out.
+Notable, this is not an intelligence problem, it's not even an AI problem - I just don't know what I want until I see it, and I also don't know what I _don't_ want until I see that, too.
 
 [a building under construction with scaffolding](TODO)
 
-Our tools for building, interacting with, understanding software are astoundingly primitive.
-- "oh just have the AI tell you if the code is right" but again what is right?
-- (in this sense, the "alignment problem" feels much more like a product and legibility problem, and certainly not _merely_ an intelligence problem, which is short term bearish but long term very bullish)
-- this does not magically go away with more abstractions or "smarter AI"
+The "correctness" of a system is an iterative process; its alignment must be continuous, because the shape of the problem and solution must shift in tandem.
+This has always been true for any real symbolic software, but it is especially true for probabilstic software.
 
-- understand the shape of software and the space of all possible software
-- make a map
-- much better static and dynamic analysis
-- "software in motion"
-- code is going to run _everything_, even more so than it already does (literally)
-
-[blind man and the elephant vs C4 diagram and xray lol?](TODO)
-
-- incremental, iterative, multi-level precision
-<!--- who measures the measurer? where is the kernel of truth?-->
-<!--- an equivalent problem with proof systems (hello Gödel)-->
-- alignment requires visibility, we cannot align what we cannot see
-- need a common vocabulary
-- correctness is much more iterative, squishy, and multimodal than some cold mathematical proof
-- (especially as we get into squishy computation!)
-- visibility and precision must be built on a solid foundation, incrementally
-- precision requires looking systems..
-- .. from many angles, in detail, high low, statically and dynamically, in motion, statically, all sorts of dynamics, ...
-<!--- incremental granularity (a la casey muratori)-->
-- you can't engineer precision and alignment (i.e. understanding) into a system post-hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start)
+Under this lense, it's clear that our tools for building, interacting with, understanding software are astoundingly primitive.
+We have tools for understanding _code_, testing _code_, analyzing _telemetry_, and the best we can do for "what is the shape of my software?" is .. generating UML diagrams?
+I want to understand shape of software and the space of all possible software that solves all the problems I'm interested in, and then navigate that efficiently.
+<!--- code is going to run _everything_, even more so than it already does (literally)-->
 
 # Destack
 
-- there is something beautiful about doing the most with the fewest parts.
-- in programming, a simpler language like C or Go is considered more "elegant" than C++ or Rust.
-- (now, few people would have called either "minimal" at the time they were introduced)
-<!--- it's about using the least parts to get the most done, with deliberate "no" to the last 20%.-->
-- minimal languages is a great idea, in a multi-language world of heterogeneous stacks.
-<!--- "use the best tool for the job"-->
+There is something beautiful about doing the most with the fewest parts.
+In programming, a more constrained language like C or Go is generally considered more "elegant" than C++ or Rust.
+Minimal languages and tools are a great idea in a world of heterogenous stacks with humans doing most of the work.
+And in any case, most serious programming languages have a way of accumulating more or less the same set of features over time.
 
-- unfortunately, _minimality_ in isolation is not _quite_ enough, because we do actually need to perform a wide variety of tasks, and the less "the system" provides, the more we need to do in diverging ways in userland.
-- even "multi-paradigm" languages like Java or C# that have organically accumulated more systems-y features over time do not (attempt to) cover the complete spectrum
-- general software architecture is no longer exploratory and hasn't been for a while, which is why we have so many frameworks and meta-frameworks solving largely the same problems in largely the same ways
-- we want _complete_
-<!--- it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases-->
-<!--- various languages with different tradeoffs and their own "focus", even multi-paradigm ones-->
-<!--- the carcinisation of (managed) languages-->
-<!--- however, over time, most serious languages with actual production use evolve an set of common features for building serious software-->
-<!--- Go and generics, Java / C# and unsafe / structs / ref, ...
-- JVM/CLR by default, Rust on demand-->
+Thus, _minimality_ in isolation is not _quite_ enough, because we do actually need to perform a wide variety of tasks in software, and the less "the system" provides, the more we need to do in diverging ways in userland.
+By now, he space of general purpose software architecture is well explored, which is why we have so many frameworks and meta-frameworks solving largely the same problems in largely the same ways
 
 [carcinicisation](TODO)
 
-- there is a tremendous advantage to using a single language for *everything*, as shown by the popularity of single language monorepos (suboptimal though they are in various respects)
-- much better standardization, much better simulation
-- and, if we can manage the perf aspect, much faster and more scalable software too.
+Indeed, there is a tremendous advantage to using one language for *everything*, as evidenced by the popularity of single language monorepos (suboptimal though they are in many respects).
+With a universal language, we would get to use the same domain models, libraries, and build systems across the entire application and lifecycle!
 
-- I don't want to learn a new and totally different stack, I already know the ones that exist
-- I want to use the Web, basically TypeScript, and build with stuff I'm familiar with
-- I want to use what I already know, with minimal new learning
-
-- in essence, what's the most boring thing we could build, that still does everything we need?
-- don't try to be cute or clever or fancy
-- no "improvements", only corrections
-- don't "fix" what's not _actually_ broken
-- only use "boring" ideas already proven by other languages / libraries / standards / ..
-- safe, sound, predictable, and above all: *familiar*
+What is the most boring universal stack we can build?
+Like, I don't want to learn a new and totally different stack, I already know the modern ones pretty well, and I have better things to do.
+The Web is pretty great, TypeScript is pretty great, how far can we take that?. 
 
 [the essence of the bull](TODO)
 
-<!--- Predictable, known behavior - even if imperfect - is better than something totally new, theoretically perfect thing-->
-
-- Oinionated formatters have already standardized the _appearence_ of code.
-- Why not also standardize the _shape_ of code? Not just syntax, not just linters, but semantics: state trees, call flows, dependencies, entire architectures. 
-<!--- Standardization at all granularities.-->
-
-- As always, the first instinct is to search for something that already exists - Python? TypeScript?
-- We can get very far with just TypeScript, Web APIs
+We have long figured out that opinionated formatters are a great idea to remove silly syntax debates and just standardized the _appearence_ of code once and for all.
+Maybe not _perfectly_, but the standardization _is_ the benefit.
+Why not also standardize the _shape_ of code? Not just syntax, not just linters, but semantics: state trees, call flows, dependencies, entire architectures. 
 
 - very simple product to manage personal software, personal software stack
 - comes with a default stack
@@ -233,32 +177,24 @@ Our tools for building, interacting with, understanding software are astoundingl
 
 # TypeScript++
 
-- The complete final stack will, eventually, require the complete final language.
-- But surprisingly, we do not quite have that universal complete language yet. 
-- Of course, there are languages you could _contort_ to target all platforms and write everything from systems software to API services to web apps.
-- Besides, if we want the deep sort of analysis and standardization we seek, it is much easier to start from scratch than try to retrofit this into an existing ecosystem.
+The univeral final stack will, eventually, require the universral final language.
+But surprisingly, we do not quite have that universal complete language yet. 
+Of course, there are languages you could _contort_ to target all platforms and write everything from systems software to API services to web apps.
+But there is a reason nobody runs Rust rust for web apps, even though WASM has existed for a decade.
 
-- The closest thing we have to a universal language is TypeScript.
-- TypeScript is actually pretty great.
-- Everyone knows TypeScript. 
-- Critically, the web runs on TypeScript (JavaScript).
+The closest thing we have to a universal language is TypeScript.
+TypeScript is actually pretty great.
+Everyone knows TypeScript, and - critically - the web runs on TypeScript (JavaScript).
 - the dichotomy between "scripting languages" and "systems languages" no longer makes much sense if it's not humans doing the typing (assuming "compile times" are fast)
 
-- TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
-- there is already wide range of prior art in the realm of "TS ergonomics with systems performance" we can learn from, but that is just one aspect of what we'Re trying to do here
-<!--- so, before doing something new, the first question is: why not extend what already exists-->
-<!--- fully standardized across the stack-->
-- static hermes, assembly script, ...
-- all in - not incrementally adoptable.
-- (though we do have C ABI ofc)
+TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language.
+Naturally, there is serious prior art in the realm of "TS ergonomics with systems performance": Static Hermes, Assembly Script, ...
 
-- what we want, then, is effectively "TypeScript++".
-- all the soundness warts removed, just enough features added to enable memory safe systems programming, and a familiar enough runtime to require no new learning (even if it's just for code review).
-- what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed? 
-- basically, what is "TypeScript++"? TS that runs predictably like JVM/CLR/Go with som Rust-y bits
+We want, effectively, "TypeScript++".
+Kill all the soundness warts, add just enough features added to enable memory safe systems programming, and build out familiar enough serious runtime.
+Importantly, the question is _not_ what is the "best theortical version if we did TypeScript all over again", but: "what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed? 
+<!--- basically, what is "TypeScript++"? TS that runs predictably like JVM/CLR/Go with som Rust-y bits-->
 <!--- what is the minimum set of changes / additions we need to good prior art to get what we need-->
-- the question is explicitly _not_ what is the "best theortical version if we did TypeScript all over again". 
-- instead: "what is the most typescript we can make it, removing only what is absolutely necessary" (default decision = keep)
 
 - TS++ fashions itself as a "superset of a strict subset of TS", which - if you squint - is somewhat reminiscient of the relationship between C and C++.
 - mechnically, what is the ergonomic ladder of TS++ between TS -> Rust, what are the minimal things to remove for unsoundness, and the minimum features to add to cover the whole universal language spectrum
@@ -266,9 +202,3 @@ Our tools for building, interacting with, understanding software are astoundingl
 - there are a lot of interesting details in making "TS++" actually work.
 - like how _exactly_ do we combine as much of TS surface feel as possible, while also compiling to a strict sound languaeg? while _also_ enabling up to Rust-level control (and ideally performance)?
 - you can read all about it at [docs](/docs/language/)
-
-# Hello
-
-<!--- Destack TS++ is currently very much in alpha
-- you can play with it at .. 
-- rapidly build out the p90 set needed for most everyday software-->
