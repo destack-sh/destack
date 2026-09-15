@@ -124,6 +124,42 @@ impl DropPlan {
     pub const fn stride(self) -> usize {
         self.stride as usize
     }
+
+    /// Return the number of values this plan covers in one allocation.
+    pub fn value_count(self, byte_len: usize) -> HeapResult<usize> {
+        let stride = self.stride();
+        let count = match self.cardinality {
+            DropCardinality::One if stride > 0 && byte_len >= stride => 1,
+            DropCardinality::Repeated
+                if stride > 0 && byte_len >= stride && byte_len.is_multiple_of(stride) =>
+            {
+                byte_len / stride
+            }
+            _ => {
+                return Err(HeapError::representation(
+                    HeapRepresentationError::InvalidDropLayout { byte_len, stride },
+                ));
+            }
+        };
+
+        Ok(count)
+    }
+}
+
+/// The outcome of releasing one uniquely owned allocation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Release {
+    /// The allocation was freed.
+    Freed,
+    /// Heap storage retained the allocation for the collector.
+    Retained,
+    /// The caller destroys the allocation's values through this plan, then frees it.
+    Destroy {
+        /// The destruction plan.
+        plan: DropPlan,
+        /// The allocation byte length selecting the value count.
+        byte_len: usize,
+    },
 }
 
 const _: () = assert!(std::mem::size_of::<DropPlan>() == 3 * std::mem::size_of::<u32>());
@@ -197,20 +233,7 @@ impl DropCursor {
     ) -> HeapResult<Self> {
         // derive exact value cardinality from the allocation shape
         let stride = plan.stride();
-        let remaining =
-            if plan.cardinality == DropCardinality::One && stride > 0 && byte_len >= stride {
-                1
-            } else if plan.cardinality == DropCardinality::Repeated
-                && stride > 0
-                && byte_len >= stride
-                && byte_len.is_multiple_of(stride)
-            {
-                byte_len / stride
-            } else {
-                return Err(HeapError::representation(
-                    HeapRepresentationError::InvalidDropLayout { byte_len, stride },
-                ));
-            };
+        let remaining = plan.value_count(byte_len)?;
 
         Ok(Self {
             collector,

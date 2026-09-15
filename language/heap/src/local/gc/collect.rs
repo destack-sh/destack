@@ -461,7 +461,9 @@ impl HeapStorage {
                 let reference =
                     HeapReference::new(span.first_offset + slot_index * span.size_class);
                 if phase == Phase::Drop {
-                    if let Some(drop) = span.drop {
+                    if let Some(drop) = span.drop
+                        && !slot.is_empty
+                    {
                         let cursor = DropCursor::new(
                             GcCollector::Local,
                             DropReference::Local(reference),
@@ -519,6 +521,7 @@ impl HeapStorage {
             is_occupied: span.occupied.contains(slot_index),
             is_marked: span.mark_epoch == self.collector.mark_epoch
                 && span.marked.contains(slot_index),
+            is_empty: span.empty.contains(slot_index),
         })
     }
 
@@ -565,7 +568,9 @@ impl HeapStorage {
 
             // run Drop without reclaiming storage
             if phase == Phase::Drop {
-                if let Some(drop) = block.drop {
+                if let Some(drop) = block.drop
+                    && !block.empty
+                {
                     let cursor = DropCursor::new(
                         GcCollector::Local,
                         DropReference::Local(reference),
@@ -876,4 +881,6 @@ struct SlotReclaim {
     is_occupied: bool,
     /// Whether the slot is marked in the active cycle.
     is_marked: bool,
+    /// Whether the slot's values moved out before its release.
+    is_empty: bool,
 }

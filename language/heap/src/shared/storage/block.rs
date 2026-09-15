@@ -20,6 +20,10 @@ pub(crate) struct LargeBlock {
     pub(crate) trace_map: Arc<TraceMap>,
     /// The drop plan for this managed block.
     pub(crate) drop: Option<DropPlan>,
+    /// Whether a borrow or heap storage retained this block for the collector.
+    pub(crate) retained: bool,
+    /// Whether this block's values moved out, freed by the collector without its drop plan.
+    pub(crate) empty: bool,
     /// The last shared collection mark epoch that reached this block.
     pub(crate) mark_epoch: u64,
 }
@@ -62,4 +66,8 @@ pub(crate) struct LargeBlockImage {
     pub trace_map: TraceMap,
     /// The drop plan for this managed block.
     pub drop: Option<DropPlan>,
+    /// Whether a borrow or heap storage retained this block.
+    pub retained: bool,
+    /// Whether this block's values moved out.
+    pub empty: bool,
 }

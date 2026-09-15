@@ -146,6 +146,8 @@ impl HeapStorage {
                 let occupied = span.occupied_snapshot();
                 let local_reference_bits = span.local_reference_snapshot();
                 let shared_reference_bits = span.shared_reference_snapshot();
+                let retained = span.retained_snapshot();
+                let empty = span.empty_snapshot();
                 let span = SmallSpan::from_image(
                     span.first_offset,
                     span.class,
@@ -153,6 +155,8 @@ impl HeapStorage {
                     &occupied,
                     &local_reference_bits,
                     &shared_reference_bits,
+                    &retained,
+                    &empty,
                     pages,
                     span.list.load(),
                 );
@@ -241,6 +245,8 @@ impl HeapStorage {
                 occupied: span.occupied_snapshot(),
                 local_reference_bits: span.local_reference_snapshot(),
                 shared_reference_bits: span.shared_reference_snapshot(),
+                retained: span.retained_snapshot(),
+                empty: span.empty_snapshot(),
             });
         }
 
@@ -257,6 +263,8 @@ impl HeapStorage {
                 byte_len: block.byte_len,
                 trace_map: (*block.trace_map).clone(),
                 drop: block.drop,
+                retained: block.retained,
+                empty: block.empty,
             }));
         }
 
@@ -298,6 +306,8 @@ impl HeapStorage {
                             &span.occupied,
                             &span.local_reference_bits,
                             &span.shared_reference_bits,
+                            &span.retained,
+                            &span.empty,
                             pages,
                             SpanList::Central,
                         ))
@@ -323,6 +333,8 @@ impl HeapStorage {
                             pages,
                             trace_map: Arc::new(block.trace_map.clone()),
                             drop: block.drop,
+                            retained: block.retained,
+                            empty: block.empty,
                             mark_epoch: 0,
                         })))
                     })

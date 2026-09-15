@@ -2,8 +2,8 @@ use crate::local::gc::Phase;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
     AllocationShape, DEFAULT_GC_MINIMUM_WORK_BYTES, DropId, DropReference, GcAdvance, GcCollector,
-    GcOptions, GcPhase, Heap, HeapError, HeapOptions, HeapReference, HeapResult, Payload, RootSlot,
-    SharedHeapReference, SizeClassTable, TestLayout, local_trace_map, shared_trace_map,
+    GcOptions, GcPhase, Heap, HeapError, HeapOptions, HeapReference, HeapResult, Payload, Release,
+    RootSlot, SharedHeapReference, SizeClassTable, TestLayout, local_trace_map, shared_trace_map,
     test_layout, test_layouts, visit_heap_references,
 };
 use destack_mir::{TraceMap, TraceTable};
@@ -150,9 +150,9 @@ fn test_reserve_small_reuses_a_freed_slot_of_the_class_span() {
         .expect("class span should have a free slot");
 
     assert_eq!(reserved, second);
-    assert!(heap.is_heap_live(first));
-    assert!(heap.is_heap_live(reserved));
-    assert!(heap.is_heap_live(third));
+    assert!(heap.is_live(first));
+    assert!(heap.is_live(reserved));
+    assert!(heap.is_live(third));
     assert_eq!(heap.heap_allocation_count(), 3);
 }
 
@@ -172,7 +172,7 @@ fn test_collect_full_clears_a_reclaimed_slot_before_zeroed_reuse() {
         &mut |_| Ok(()),
     )
     .expect("full collection should succeed");
-    assert!(!heap.is_heap_live(reference));
+    assert!(!heap.is_live(reference));
 
     // reuse the slot through the zeroed path
     let reused = heap.test_allocate(layout.block(), Payload::Zeroed);
@@ -516,7 +516,7 @@ fn test_step_collection_drops_an_allocation_before_reclamation() {
     assert_eq!(drop.collector, GcCollector::Local);
     assert_eq!(drop.reference, DropReference::Local(reference));
     assert_eq!(drop.drop, DropId::from_index(1));
-    assert!(heap.is_heap_live(reference));
+    assert!(heap.is_live(reference));
     heap.complete_drop(drop.reference)
         .expect("allocation Drop should complete");
 
@@ -534,7 +534,7 @@ fn test_step_collection_drops_an_allocation_before_reclamation() {
         }
     }
 
-    assert!(!heap.is_heap_live(reference));
+    assert!(!heap.is_live(reference));
 }
 
 /// Surface repeated values individually in reverse acquisition order.
@@ -584,7 +584,136 @@ fn test_step_collection_drops_repeated_values_incrementally() {
             DropReference::Local(reference),
         ]
     );
-    assert!(!heap.is_heap_live(reference));
+    assert!(!heap.is_live(reference));
+}
+
+/// Hand back the drop plan of an unretained allocation, freeing it once the caller ran it.
+#[test]
+fn test_release_hands_back_the_plan_of_an_unretained_allocation() {
+    let options = HeapOptions::local();
+    let mut heap = test_heap(options);
+    let shape = test_layout(16, TraceMap::empty())
+        .block()
+        .with_drop(DropId::from_index(1))
+        .expect("Drop plan should build");
+    let reference = heap.test_allocate(shape, Payload::Zeroed);
+
+    // destroy the value before the storage returns
+    let Release::Destroy { plan, byte_len } =
+        heap.release(reference).expect("release should succeed")
+    else {
+        panic!("an unretained allocation hands back its plan");
+    };
+    assert_eq!(plan.drop, DropId::from_index(1));
+    assert_eq!(
+        plan.value_count(byte_len)
+            .expect("plan should cover the block"),
+        1
+    );
+    assert!(heap.is_live(reference));
+
+    heap.free(reference).expect("free should succeed");
+    assert!(!heap.is_live(reference));
+}
+
+/// Free an unretained allocation without a plan immediately.
+#[test]
+fn test_release_frees_an_unretained_allocation_without_a_plan() {
+    let options = HeapOptions::local();
+    let mut heap = test_heap(options);
+    let layout = test_layout(16, TraceMap::empty());
+    let reference = heap.test_allocate(layout.block(), Payload::Zeroed);
+
+    assert_eq!(
+        heap.release(reference).expect("release should succeed"),
+        Release::Freed
+    );
+    assert!(!heap.is_live(reference));
+}
+
+/// Leave a retained allocation to the collector, which runs its drop plan once.
+#[test]
+fn test_release_defers_a_retained_allocation_to_the_collector() {
+    let options = HeapOptions::local();
+    let mut heap = test_heap(options);
+    let trace_map = local_trace_map(&[0]);
+    let layouts = test_layouts(&[(16, TraceMap::empty()), (8, trace_map)]);
+    let [child_layout, parent_layout]: [TestLayout; 2] =
+        layouts.try_into().expect("test layouts should match");
+    let child_shape = child_layout
+        .block()
+        .with_drop(DropId::from_index(1))
+        .expect("Drop plan should build");
+
+    // store the child in a heap block so heap storage retains it
+    let child = heap.test_allocate(child_shape, Payload::Zeroed);
+    let _parent = heap.test_allocate(
+        parent_layout.block(),
+        Payload::Bytes(&child.bits().to_le_bytes()),
+    );
+    assert_eq!(
+        heap.release(child).expect("release should succeed"),
+        Release::Retained
+    );
+    assert!(heap.is_live(child));
+
+    // collect with no roots: the child is destroyed once, then reclaimed
+    let mut roots = [];
+    let mut dropped = Vec::new();
+    heap.collect_full(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view(),
+        &mut |drop| {
+            dropped.push(drop.reference);
+
+            Ok(())
+        },
+    )
+    .expect("full collection should succeed");
+
+    assert_eq!(dropped, [DropReference::Local(child)]);
+    assert!(!heap.is_live(child));
+}
+
+/// Free a retained allocation whose values moved out, leaving it to the collector without its drop plan.
+#[test]
+fn test_free_leaves_a_retained_allocation_to_the_collector_without_its_plan() {
+    let options = HeapOptions::local();
+    let mut heap = test_heap(options);
+    let trace_map = local_trace_map(&[0]);
+    let layouts = test_layouts(&[(16, TraceMap::empty()), (8, trace_map)]);
+    let [child_layout, parent_layout]: [TestLayout; 2] =
+        layouts.try_into().expect("test layouts should match");
+    let child_shape = child_layout
+        .block()
+        .with_drop(DropId::from_index(1))
+        .expect("Drop plan should build");
+
+    // store the child in a heap block, then move its values out
+    let child = heap.test_allocate(child_shape, Payload::Zeroed);
+    let _parent = heap.test_allocate(
+        parent_layout.block(),
+        Payload::Bytes(&child.bits().to_le_bytes()),
+    );
+    heap.free(child).expect("free should succeed");
+    assert!(heap.is_live(child));
+
+    // collect with no roots: the child is reclaimed without a drop callback
+    let mut roots = [];
+    let mut dropped = Vec::new();
+    heap.collect_full(
+        &mut |visit| visit_roots(&mut roots, visit),
+        trace_view(),
+        &mut |drop| {
+            dropped.push(drop.reference);
+
+            Ok(())
+        },
+    )
+    .expect("full collection should succeed");
+
+    assert_eq!(dropped, []);
+    assert!(!heap.is_live(child));
 }
 
 /// Run one full bounded cycle after heap block pressure.
@@ -612,7 +741,7 @@ fn test_step_collection_runs_full_after_pressure() {
 
     // preserve the rooted block and record a full cycle
     assert_eq!(stats.freed_allocations, 0);
-    assert!(heap.is_heap_live(root));
+    assert!(heap.is_live(root));
     assert_eq!(heap.gc_state().last_collector, Some(GcCollector::Local));
 }
 
@@ -863,7 +992,7 @@ fn test_reserve_small_closes_during_an_active_cycle() {
 
     // free only the unrooted primers and keep the mid-sweep block
     assert_eq!(stats.freed_allocations, 10);
-    assert!(heap.is_heap_live(reference));
+    assert!(heap.is_live(reference));
 }
 
 /// Share one span across no-scan classes that differ only by trace id.

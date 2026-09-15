@@ -27,6 +27,8 @@ pub(crate) struct SmallSpan {
     pub(crate) marked: Bitmap,
     /// The slots managed storage referenced, whose release waits for the collector.
     pub(crate) retained: Bitmap,
+    /// The released slots whose values moved out, freed by the collector without their drop plan.
+    pub(crate) empty: Bitmap,
     /// The mark epoch represented by this span's mark bitmap.
     pub(crate) mark_epoch: u64,
     /// The memory pages for this span.
@@ -72,4 +74,6 @@ pub(crate) struct SmallSpanImage {
     pub shared_reference_bits: Bitmap,
     /// The slots managed storage referenced.
     pub retained: Bitmap,
+    /// The released slots whose values moved out.
+    pub empty: Bitmap,
 }

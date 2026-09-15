@@ -43,6 +43,11 @@ impl HeapStorage {
         let place = self.allocate_place(cache, layout, payload, should_keep_worker_cache)?;
         let reference = self.base_reference(place)?;
 
+        // retain the shared allocations the payload references
+        if let Payload::Bytes(bytes) = payload {
+            self.retain_payload(cache, layout.trace_map, bytes)?;
+        }
+
         // publish initialized shared references to an active mark cycle
         let has_shared_reference = payload.byte_len().is_some() && layout.has_shared_reference;
         self.publish_shared_allocation(reference, has_shared_reference)?;
@@ -694,6 +699,8 @@ impl HeapStorage {
             pages,
             trace_map: Arc::new(trace_map),
             drop,
+            retained: false,
+            empty: false,
             mark_epoch: 0,
         };
         let block = Arc::new(RwLock::new(block));

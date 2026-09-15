@@ -217,6 +217,7 @@ impl HeapStorage {
         span.occupied.clear(slot_index);
         span.marked.clear(slot_index);
         span.retained.clear(slot_index);
+        span.empty.clear(slot_index);
         let size_class = span.class.size_class();
         clear_slot_reference_bits(
             &mut span.local_reference_bits,
@@ -340,6 +341,7 @@ impl HeapStorage {
             trace_map,
             drop,
             retained: false,
+            empty: false,
             mark_epoch: 0,
         };
 
@@ -401,6 +403,7 @@ impl HeapStorage {
             shared_reference_bits: Bitmap::with_capacity(slot_count * scan_word_count),
             marked: Bitmap::with_capacity(slot_count),
             retained: Bitmap::with_capacity(slot_count),
+            empty: Bitmap::with_capacity(slot_count),
             mark_epoch: 0,
             pages,
         };

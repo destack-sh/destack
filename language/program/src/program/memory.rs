@@ -114,7 +114,7 @@ impl Memory<'_> {
         let shared = SharedHeapReference::from_bits(owner);
 
         // select the owning heap
-        if self.local_heap.is_heap_live(local) {
+        if self.local_heap.is_live(local) {
             Ok(Some(HeapEdge::Local(local)))
         } else if self.shared_cache.contains_heap_reference(shared)
             || self.shared_heap.is_heap_live(shared)

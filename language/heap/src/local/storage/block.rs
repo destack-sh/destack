@@ -20,6 +20,8 @@ pub(crate) struct LargeBlock {
     pub(crate) drop: Option<DropPlan>,
     /// Whether managed storage referenced this block, its release waiting for the collector.
     pub(crate) retained: bool,
+    /// Whether the released block's values moved out, freeing it without its drop plan.
+    pub(crate) empty: bool,
     /// The mark epoch when this block was last marked.
     pub(crate) mark_epoch: u64,
 }
@@ -64,4 +66,6 @@ pub(crate) struct LargeBlockImage {
     pub drop: Option<DropPlan>,
     /// Whether managed storage referenced this block.
     pub retained: bool,
+    /// Whether the released block's values moved out.
+    pub empty: bool,
 }

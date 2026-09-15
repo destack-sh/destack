@@ -6,8 +6,8 @@ use destack_mir::TraceMap;
 use crate::local::storage::HeapStorage;
 use crate::{
     Allocation, AllocationPlan, DropPlan, DropReference, GcAdvance, GcDrop, GcPacer, GcState,
-    GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot,
-    SharedHeapReference, SmallAllocationPlan,
+    GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, Release,
+    RootSlot, SharedHeapReference, SmallAllocationPlan,
 };
 use destack_memory::{MemoryMap, MemoryRange};
 
@@ -112,13 +112,30 @@ impl Heap {
             .trace_shared_roots(roots, budget_bytes, trace_view)
     }
 
-    /// Release one heap block: freed now, or left to the collector once the managed graph retained it.
-    pub fn release(&mut self, reference: HeapReference) -> HeapResult<()> {
-        if !self.storage.is_retained(reference)? {
-            self.storage.free(reference)?;
+    /// Release one uniquely owned block.
+    pub fn release(&mut self, reference: HeapReference) -> HeapResult<Release> {
+        if self.storage.is_retained(reference)? {
+            return Ok(Release::Retained);
         }
 
-        Ok(())
+        // destroy the values before freeing the storage
+        if let Some(plan) = self.storage.drop_plan(reference)? {
+            let byte_len = self.storage.byte_len(reference)?;
+
+            return Ok(Release::Destroy { plan, byte_len });
+        }
+        self.storage.free(reference)?;
+
+        Ok(Release::Freed)
+    }
+
+    /// Free one uniquely owned block holding no live values.
+    pub fn free(&mut self, reference: HeapReference) -> HeapResult<()> {
+        if self.storage.is_retained(reference)? {
+            return self.storage.mark_empty(reference);
+        }
+
+        self.storage.free(reference)
     }
 
     /// Return the current derived collector pacing targets.
@@ -316,7 +333,7 @@ impl Heap {
     }
 
     /// Return whether one heap reference currently refers to one live block.
-    pub fn is_heap_live(&self, reference: HeapReference) -> bool {
+    pub fn is_live(&self, reference: HeapReference) -> bool {
         self.storage.is_live(reference)
     }
 

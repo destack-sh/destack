@@ -97,7 +97,7 @@ impl HeapStorage {
         Ok(())
     }
 
-    /// Retain one allocation for the collector once managed storage references it.
+    /// Retain one allocation for the collector while a borrow or heap storage reaches it.
     pub(crate) fn retain(&mut self, reference: HeapReference) -> HeapResult<()> {
         if reference.is_nullish() || self.is_constant(reference) {
             return Ok(());
@@ -122,6 +122,39 @@ impl HeapStorage {
         }
 
         Ok(())
+    }
+
+    /// Record that one retained allocation's values moved out, so the collector frees it alone.
+    pub(crate) fn mark_empty(&mut self, reference: HeapReference) -> HeapResult<()> {
+        let Some(extent) = self.resolve_extent(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
+        };
+
+        match extent.place {
+            HeapPlace::Slot(slot) => {
+                let Some(span) = self.span_mut(slot.span_index()) else {
+                    return Err(HeapError::internal("missing span"));
+                };
+                span.empty.set(slot.slot_index());
+            }
+            HeapPlace::LargeBlock(block_id) => {
+                let Some(block) = self.large_block_mut(block_id) else {
+                    return Err(HeapError::internal("missing large block"));
+                };
+                block.empty = true;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return the logical byte length of one allocation base.
+    pub(crate) fn byte_len(&self, reference: HeapReference) -> HeapResult<usize> {
+        let Some(extent) = self.resolve_extent(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
+        };
+
+        Ok(extent.byte_len)
     }
 
     /// Return whether the managed graph retained one allocation.

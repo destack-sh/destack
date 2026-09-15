@@ -40,7 +40,11 @@ pub(crate) struct SmallSpan {
     /// The exact shared-reference bits for each occupied slot.
     pub(crate) shared_reference_bits: AtomicBitmap,
     /// The marked slots in this span.
-    marked: AtomicBitmap,
+    pub(crate) marked: AtomicBitmap,
+    /// The slots a borrow or heap storage retained, whose release waits for the collector.
+    pub(crate) retained: AtomicBitmap,
+    /// The released slots whose values moved out, freed by the collector without their drop plan.
+    pub(crate) empty: AtomicBitmap,
     /// The marked slots whose payloads have already been scanned.
     scanned: AtomicBitmap,
     /// The next marked slot candidate to scan.
@@ -79,6 +83,8 @@ impl SmallSpan {
             local_reference_bits: AtomicBitmap::with_capacity(slot_count * scan_word_count),
             shared_reference_bits: AtomicBitmap::with_capacity(slot_count * scan_word_count),
             marked: AtomicBitmap::with_capacity(slot_count),
+            retained: AtomicBitmap::with_capacity(slot_count),
+            empty: AtomicBitmap::with_capacity(slot_count),
             scanned: AtomicBitmap::with_capacity(slot_count),
             scan_cursor: AtomicUsize::new(0),
             mark_epoch: AtomicU64::new(0),
@@ -96,6 +102,8 @@ impl SmallSpan {
         occupied: &Bitmap,
         local_reference_bits: &Bitmap,
         shared_reference_bits: &Bitmap,
+        retained: &Bitmap,
+        empty: &Bitmap,
         pages: MemoryRange,
         list: SpanList,
     ) -> Self {
@@ -115,6 +123,8 @@ impl SmallSpan {
             local_reference_bits: AtomicBitmap::from_bitmap(local_reference_bits),
             shared_reference_bits: AtomicBitmap::from_bitmap(shared_reference_bits),
             marked: AtomicBitmap::with_capacity(slot_count),
+            retained: AtomicBitmap::from_bitmap(retained),
+            empty: AtomicBitmap::from_bitmap(empty),
             scanned: AtomicBitmap::with_capacity(slot_count),
             scan_cursor: AtomicUsize::new(0),
             mark_epoch: AtomicU64::new(0),
@@ -241,6 +251,8 @@ impl SmallSpan {
         self.needs_zero.set(slot_index);
         self.marked.clear(slot_index);
         self.scanned.clear(slot_index);
+        self.retained.clear(slot_index);
+        self.empty.clear(slot_index);
         self.clear_reference_bits(slot_index);
 
         // publish the newly reusable slot
@@ -375,6 +387,16 @@ impl SmallSpan {
         self.shared_reference_bits.snapshot()
     }
 
+    /// Return the retained bitmap as an image bitmap.
+    pub(crate) fn retained_snapshot(&self) -> Bitmap {
+        self.retained.snapshot()
+    }
+
+    /// Return the empty bitmap as an image bitmap.
+    pub(crate) fn empty_snapshot(&self) -> Bitmap {
+        self.empty.snapshot()
+    }
+
     /// Return the next free slot from a start offset.
     fn next_free_slot(&self, start: usize) -> usize {
         let start = start.max(self.dense_len.load(Ordering::Acquire));
@@ -476,6 +498,10 @@ pub(crate) struct SmallSpanImage {
     pub local_reference_bits: Bitmap,
     /// The exact shared-reference bits for each occupied slot.
     pub shared_reference_bits: Bitmap,
+    /// The slots a borrow or heap storage retained.
+    pub retained: Bitmap,
+    /// The released slots whose values moved out.
+    pub empty: Bitmap,
 }
 
 /// One shared small-span block list.

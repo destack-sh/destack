@@ -5,7 +5,7 @@ use destack_mir::{TraceMap, TraceTable};
 
 use crate::{
     AllocationCache, AllocationShape, DEFAULT_GC_MINIMUM_WORK_BYTES, DropId, DropReference,
-    GcAdvance, GcCollector, GcOptions, GcPhase, HeapAllocationError, HeapError, Payload,
+    GcAdvance, GcCollector, GcOptions, GcPhase, HeapAllocationError, HeapError, Payload, Release,
     SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedHeapReference, SharedMarkWorker,
     SizeClassTable, TestLayout, shared_trace_map, test_layout, test_layouts,
 };

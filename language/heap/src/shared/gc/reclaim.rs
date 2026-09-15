@@ -279,7 +279,11 @@ impl HeapStorage {
                 let slot_offset = span.class.size_class() * slot_index;
                 let reference = SharedHeapReference::new(span.first_offset + slot_offset);
                 let byte_len = span.class.size_class();
-                let drop = span.class.drop_plan();
+                let drop = if span.empty.contains(slot_index) {
+                    None
+                } else {
+                    span.class.drop_plan()
+                };
                 *swept_bytes += if phase == GcPhase::Drop {
                     METADATA_STEP_BYTES
                 } else {
@@ -326,7 +330,7 @@ impl HeapStorage {
             }
 
             // skip blocks that cannot require a runtime callback during Drop
-            if phase == GcPhase::Drop && block.drop.is_none() {
+            if phase == GcPhase::Drop && (block.drop.is_none() || block.empty) {
                 *swept_bytes += METADATA_STEP_BYTES;
 
                 continue;
@@ -342,7 +346,7 @@ impl HeapStorage {
             return Ok(Some(UnreachableAllocation {
                 reference: SharedHeapReference::new(block.first_offset),
                 byte_len: block.byte_len,
-                drop: block.drop,
+                drop: if block.empty { None } else { block.drop },
             }));
         }
 

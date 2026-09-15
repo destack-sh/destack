@@ -356,7 +356,7 @@ impl TestWorker {
 
     /// Return whether one worker-local test allocation is live.
     pub(crate) fn is_live(&self, reference: heap::HeapReference) -> bool {
-        self.worker.heap.is_heap_live(reference)
+        self.worker.heap.is_live(reference)
     }
 
     /// Request one full worker-local collection.

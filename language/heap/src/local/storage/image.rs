@@ -259,6 +259,7 @@ impl HeapStorage {
             shared_reference_bits: span.shared_reference_bits.clone(),
             marked: Bitmap::with_capacity(span.slot_count),
             retained: span.retained.clone(),
+            empty: span.empty.clone(),
             mark_epoch: 0,
             pages,
         }
@@ -277,6 +278,7 @@ impl HeapStorage {
             shared_reference_bits: span.shared_reference_bits.clone(),
             marked: Bitmap::with_capacity(span.slot_count),
             retained: span.retained.clone(),
+            empty: span.empty.clone(),
             mark_epoch: 0,
             pages: span.pages,
         }
@@ -334,6 +336,7 @@ impl HeapStorage {
             trace_map: block.trace_map.clone(),
             drop: block.drop,
             retained: block.retained,
+            empty: block.empty,
             mark_epoch: 0,
         })
     }
@@ -351,6 +354,7 @@ impl HeapStorage {
             trace_map: block.trace_map.clone(),
             drop: block.drop,
             retained: block.retained,
+            empty: block.empty,
             mark_epoch: block.mark_epoch,
         })
     }
@@ -375,6 +379,7 @@ impl HeapStorage {
             local_reference_bits: span.local_reference_bits.clone(),
             shared_reference_bits: span.shared_reference_bits.clone(),
             retained: span.retained.clone(),
+            empty: span.empty.clone(),
         }
     }
 
@@ -396,6 +401,7 @@ impl HeapStorage {
             trace_map: block.trace_map.clone(),
             drop: block.drop,
             retained: block.retained,
+            empty: block.empty,
         }
     }
 }

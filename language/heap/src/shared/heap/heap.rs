@@ -12,8 +12,8 @@ use crate::shared::storage::{AllocationCache, HeapStorage, HeapStorageImage};
 use crate::{
     AccountingRegion, Allocation, AllocationPlan, DropPlan, DropReference, GcAdvance, GcCollector,
     GcDrop, GcPacer, GcPhase, GcState, GcStats, HeapAllocationError, HeapError, HeapGcStateError,
-    HeapResult, Payload, SharedHeapOptions, SharedHeapReference, SmallAllocationClass, TraceView,
-    apply_byte_delta,
+    HeapResult, Payload, Release, SharedHeapOptions, SharedHeapReference, SmallAllocationClass,
+    TraceView, apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -344,13 +344,38 @@ impl SharedHeap {
         self.storage.drop_plan(reference)
     }
 
-    /// Free one shared heap block immediately.
+    /// Release one uniquely owned shared block.
+    pub fn release(
+        &self,
+        cache: &mut AllocationCache,
+        reference: SharedHeapReference,
+    ) -> HeapResult<Release> {
+        self.storage.flush_reference_cache(cache, reference);
+        if self.storage.is_retained(reference)? {
+            return Ok(Release::Retained);
+        }
+
+        // destroy the values before freeing the storage
+        if let Some(plan) = self.storage.drop_plan(reference)? {
+            let byte_len = self.storage.byte_len(reference)?;
+
+            return Ok(Release::Destroy { plan, byte_len });
+        }
+        self.storage.free(reference)?;
+
+        Ok(Release::Freed)
+    }
+
+    /// Free one uniquely owned shared block holding no live values.
     pub fn free(
         &self,
         cache: &mut AllocationCache,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
         self.storage.flush_reference_cache(cache, reference);
+        if self.storage.is_retained(reference)? {
+            return self.storage.mark_empty(reference);
+        }
 
         self.storage.free(reference).map(|_| ())
     }
