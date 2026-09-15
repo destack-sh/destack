@@ -14,7 +14,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         match space {
             mir::Space::Local => Ok(HeapEdge::Local(HeapReference::from_bits(bits))),
             mir::Space::Shared => Ok(HeapEdge::Shared(SharedHeapReference::from_bits(bits))),
-            mir::Space::Constant | mir::Space::Parameter(_) | mir::Space::Join(_) => {
+            mir::Space::Constant | mir::Space::Parameter(_) | mir::Space::Join(_) | mir::Space::Of(_) => {
                 Err(self.invalid_instruction())
             }
         }
