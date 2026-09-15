@@ -83,10 +83,7 @@ impl Parser<'_> {
 
             // new and destruction
             "new" => self.parse_new(name, token, function),
-            "free" | "drop" => self.parse_reference_operation(name, token, function),
-
-            // address stability
-            "pin" | "unpin" => self.parse_reference_operation(name, token, function),
+            "release" | "free" | "drop" => self.parse_reference_operation(name, token, function),
 
             // collector protocol
             "barrier" => self.parse_reference_operation(name, token, function),

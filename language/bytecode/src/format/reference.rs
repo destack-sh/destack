@@ -10,9 +10,9 @@ impl InstructionFormatter<'_, '_, '_> {
     /// Format one reference lifetime or storage operation.
     pub(super) fn format_reference(&mut self, opcode: Opcode) -> FormatResult<()> {
         match opcode {
-            Opcode::FREE => self.format_free(),
+            Opcode::RELEASE => self.format_owner("release"),
+            Opcode::FREE => self.format_owner("free"),
             Opcode::DROP => self.format_drop(),
-            Opcode::DROP_INDIRECT => self.format_indirect_drop(),
             Opcode::BARRIER => self.format_barrier(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid reference opcode",
@@ -20,11 +20,11 @@ impl InstructionFormatter<'_, '_, '_> {
         }
     }
 
-    /// Format one unique allocation release.
-    fn format_free(&mut self) -> FormatResult<()> {
+    /// Format one operation on an allocation owner.
+    fn format_owner(&mut self, text: &str) -> FormatResult<()> {
         let owner = self.register_id()?;
 
-        self.write_opcode("free")?;
+        self.write_opcode(text)?;
         self.write_register(owner)
     }
 
@@ -45,14 +45,6 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_span(value)?;
         self.write_comma()?;
         self.write_text(&destructor)
-    }
-
-    /// Format one allocation-selected destruction.
-    fn format_indirect_drop(&mut self) -> FormatResult<()> {
-        let owner = self.register_id()?;
-
-        self.write_opcode("drop")?;
-        self.write_register(owner)
     }
 
     /// Format one managed reference write barrier.

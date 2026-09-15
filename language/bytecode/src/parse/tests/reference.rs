@@ -16,7 +16,7 @@ function f1 {
     memory.store r0, r4, 8
     barrier r4, r3, r3: ref<managed, local>
     drop r0, f0
-    drop r2
+    release r2
     free r2
     return r4
 }
@@ -31,7 +31,7 @@ function f1 {
             Opcode::STORE,
             Opcode::BARRIER,
             Opcode::DROP,
-            Opcode::DROP_INDIRECT,
+            Opcode::RELEASE,
             Opcode::FREE,
             Opcode::RETURN,
         ]

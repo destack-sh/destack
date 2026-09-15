@@ -14,6 +14,7 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let opcode = match name {
+            "release" => Opcode::RELEASE,
             "free" => Opcode::FREE,
             "drop" => Opcode::DROP,
             "barrier" => Opcode::BARRIER,
@@ -22,42 +23,23 @@ impl Parser<'_> {
         let results = self.parse_definitions(opcode)?;
 
         match name {
-            "free" => self.parse_free(&results, function),
-            "pin" | "unpin" => self.parse_reference_lifetime(opcode, token, &results, function),
+            "release" | "free" => self.parse_owner(opcode, &results, function),
             "drop" => self.parse_drop(&results, function),
             "barrier" => self.parse_barrier(token, &results, function),
             _ => Err(ParseError::new("invalid reference operation", token.span)),
         }
     }
 
-    /// Parse one unique allocation release.
-    fn parse_free(
+    /// Parse one operation on an allocation owner.
+    fn parse_owner(
         &mut self,
+        opcode: Opcode,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let owner = self.parse_register()?;
-        let mut instruction = InstructionBuilder::new(Opcode::FREE);
-        instruction.register(owner);
-
-        function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one managed pin transition.
-    fn parse_reference_lifetime(
-        &mut self,
-        opcode: Opcode,
-        token: Token,
-        results: &[RegisterSpan],
-        function: &mut FunctionParser,
-    ) -> ParseResult<()> {
-        let value = self.parse_register()?;
-        let reference = self.parse_reference_representation(token)?;
-
-        // encode the lifetime transition
         let mut instruction = InstructionBuilder::new(opcode);
-        instruction.register(value);
-        instruction.reference(reference.kind(), reference.storage());
+        instruction.register(owner);
 
         function.emit(instruction, results, self.empty_span())
     }
@@ -69,20 +51,7 @@ impl Parser<'_> {
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
         let value = self.parse_register_span()?;
-
-        // encode allocation-selected destruction without a linked function
-        if !self.eat_token_if(TokenType::Comma) {
-            if value.word_count != 1 {
-                return Err(ParseError::new(
-                    "indirect drop requires one owner register",
-                    self.empty_span(),
-                ));
-            }
-            let mut instruction = InstructionBuilder::new(Opcode::DROP_INDIRECT);
-            instruction.register(value.start);
-
-            return function.emit(instruction, results, self.empty_span());
-        }
+        self.eat_token(TokenType::Comma)?;
 
         // resolve the linked destructor
         let destructor = self.parse_function_id()?;

@@ -340,8 +340,8 @@ opcodes! {
     }
 
     // allocation and destruction
-    FREE = 0x0081 {
-        text: "free",
+    RELEASE = 0x0081 {
+        text: "release",
         signature: "(owner: ref<unique>) => void",
         operands: [Register],
     }
@@ -350,8 +350,8 @@ opcodes! {
         signature: "(value: value, destructor: FunctionId) => void",
         operands: [RegisterSpan, Function],
     }
-    DROP_INDIRECT = 0x0083 {
-        text: "drop",
+    FREE = 0x0083 {
+        text: "free",
         signature: "(owner: ref<unique>) => void",
         operands: [Register],
     }

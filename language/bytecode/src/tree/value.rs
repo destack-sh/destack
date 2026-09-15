@@ -38,6 +38,8 @@ impl ReferenceKind {
     pub const UNIQUE: Self = Self(1);
     /// Non-owning checked access.
     pub const BORROWED: Self = Self(2);
+    /// Unchecked access without retention.
+    pub const RAW: Self = Self(3);
 
     /// Return the stable bytecode code.
     pub const fn code(self) -> u8 {
@@ -50,13 +52,14 @@ impl ReferenceKind {
             "managed" => Some(Self::MANAGED),
             "unique" => Some(Self::UNIQUE),
             "borrowed" => Some(Self::BORROWED),
+            "raw" => Some(Self::RAW),
             _ => None,
         }
     }
 
     /// Return whether this ownership is defined by the bytecode ISA.
     pub const fn is_defined(self) -> bool {
-        self.0 <= Self::BORROWED.0
+        self.0 <= Self::RAW.0
     }
 
     /// Return the canonical bytecode text name.
@@ -65,6 +68,7 @@ impl ReferenceKind {
             Self::MANAGED => Some("managed"),
             Self::UNIQUE => Some("unique"),
             Self::BORROWED => Some("borrowed"),
+            Self::RAW => Some("raw"),
             _ => None,
         }
     }
