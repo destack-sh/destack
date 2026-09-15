@@ -86,7 +86,7 @@ impl Direction {
     }
 }
 
-/// One checked counter update.
+/// One counter update.
 struct CounterUpdate<'a> {
     /// The updated storage path.
     access: &'a dir::AccessResolution,
@@ -99,7 +99,7 @@ struct CounterUpdate<'a> {
 }
 
 impl<'a> CounterUpdate<'a> {
-    /// Select one checked counter update.
+    /// Select one counter update.
     fn select(
         module: &'a DirModule<'_>,
         increment: dir::LocalNodeId<dir::Expression>,
@@ -164,7 +164,7 @@ impl<'a> CounterUpdate<'a> {
         }))
     }
 
-    /// Return the direction required by one checked stop condition.
+    /// Return the direction required by one stop condition.
     fn required_direction(
         &self,
         module: &DirModule<'_>,
@@ -314,7 +314,7 @@ for (let index: int32 = 10; index >= 0; index--) {}
         session.assert_no_diagnostics();
     }
 
-    /// Read a named step whose checked type retains its exact value.
+    /// Read a named step whose type retains its exact value.
     #[test]
     fn test_reports_named_negative_step() {
         let session = TestSession::dir(

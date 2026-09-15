@@ -156,14 +156,14 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // require removal to preserve the checked result type
+        // require removal to preserve the result type
         if module.node_type_id(expression.into_any())?
             != module.node_type_id(identity.value.into_any())?
         {
             continue;
         }
 
-        // report and remove the checked identity operation
+        // report and remove the identity operation
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("operation has an identity operand", span);
         if let Some(suggestion) = suggestion(module, lint, expression, identity.value)? {
@@ -246,7 +246,7 @@ function retain(value: bigint): bigint {
         );
     }
 
-    /// Remove a zero shift without changing the checked integer type.
+    /// Remove a zero shift without changing the integer type.
     #[test]
     fn test_removes_zero_shift() {
         let session = TestSession::dir(
@@ -390,7 +390,7 @@ function retain(value: float64): float64 {
         session.assert_no_diagnostics();
     }
 
-    /// Preserve an effectful call whose checked result is an identity value.
+    /// Preserve an effectful call whose result is an identity value.
     #[test]
     fn test_accepts_effectful_identity_operand() {
         let session = TestSession::dir(

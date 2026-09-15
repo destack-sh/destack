@@ -34,7 +34,7 @@ function point(x: int32): { x: int32 } {
     }
 }
 
-/// Report object fields that repeat an equally named checked binding.
+/// Report object fields that repeat an equally named binding.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();

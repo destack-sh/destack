@@ -69,7 +69,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect adjacent statements within each checked block
+    // inspect adjacent statements within each block
     for (_, block) in view.iter_nodes::<dir::Block>() {
         let mut expressions = block.iter_expressions();
         let Some(mut first) = expressions.next() else {

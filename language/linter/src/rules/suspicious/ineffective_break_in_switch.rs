@@ -55,7 +55,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect unlabeled valueless breaks whose checked target is a switch
+    // inspect unlabeled valueless breaks whose target is a switch
     for (expression, node) in view.iter_nodes::<dir::Expression>() {
         if !matches!(
             node,
@@ -100,7 +100,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // report the break whose nearest checked target is the switch
+        // report the break whose nearest target is the switch
         let span = module.source_extent(expression.into_any())?;
         output.report(lint.diagnostic(
             "break exits the switch rather than the enclosing loop",

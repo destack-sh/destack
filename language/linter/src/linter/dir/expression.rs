@@ -56,7 +56,7 @@ impl DirModule<'_> {
         None
     }
 
-    /// Return the ordered operands of one checked builtin short-circuit chain.
+    /// Return the ordered operands of one builtin short-circuit chain.
     pub(crate) fn short_circuit_operands(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -76,7 +76,7 @@ impl DirModule<'_> {
         Ok(operands)
     }
 
-    /// Return whether the checked parent selects one builtin binary operator.
+    /// Return whether the parent selects one builtin binary operator.
     pub(crate) fn has_builtin_binary_parent(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -93,7 +93,7 @@ impl DirModule<'_> {
         Ok(selected == Some(operator))
     }
 
-    /// Append the operands of one checked builtin short-circuit chain.
+    /// Append the operands of one builtin short-circuit chain.
     fn collect_short_circuit_operands(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -441,7 +441,7 @@ impl DirModule<'_> {
         Ok(!changes_read)
     }
 
-    /// Return whether checked boolean structure proves one expression implies another.
+    /// Return whether boolean structure proves one expression implies another.
     pub(crate) fn boolean_implies(
         &self,
         premise: dir::LocalNodeId<dir::Expression>,
@@ -514,7 +514,7 @@ impl DirModule<'_> {
         Ok(false)
     }
 
-    /// Return whether evaluating one checked expression can trap.
+    /// Return whether evaluating one expression can trap.
     fn can_trap(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -581,7 +581,7 @@ impl DirModule<'_> {
         Ok(can_trap)
     }
 
-    /// Return whether two checked expressions denote the same computation.
+    /// Return whether two expressions denote the same computation.
     pub fn is_same_computation(
         &self,
         left: dir::LocalNodeId<dir::Expression>,
@@ -596,7 +596,7 @@ impl DirModule<'_> {
             (None, None) => {}
         }
 
-        // require identical checked source types for computed values
+        // require identical source types for computed values
         if self.node_type_id(left.into_any())? != self.node_type_id(right.into_any())? {
             return Ok(false);
         }
@@ -703,7 +703,7 @@ impl DirModule<'_> {
         Ok(is_same)
     }
 
-    /// Return whether two builtin operands produce the same checked value.
+    /// Return whether two builtin operands produce the same value.
     pub fn is_same_operand(
         &self,
         left_operand: &dir::BuiltinOperand,

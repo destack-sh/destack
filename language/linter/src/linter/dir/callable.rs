@@ -56,7 +56,7 @@ impl DirModule<'_> {
         };
         let (Some(space), Some(slot @ dir::MemberSlot::Key(_))) = (space, slot) else {
             return Err(ProviderError::internal(format!(
-                "checked accessor {node:?} has no named member slot"
+                "accessor {node:?} has no named member slot"
             )));
         };
 
@@ -336,7 +336,7 @@ impl DirModule<'_> {
         Some(values)
     }
 
-    /// Return the nominal owner when one member belongs to a checked definition.
+    /// Return the nominal owner when one member belongs to a definition.
     pub(crate) fn member_owner(
         &self,
         member: dir::LocalNodeId<dir::Member>,
@@ -717,7 +717,7 @@ impl DirModule<'_> {
         self.dir.type_includes_undefined(result)
     }
 
-    /// Return the checked parameter count of one callable expression.
+    /// Return the parameter count of one callable expression.
     pub fn callable_parameter_count(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -735,14 +735,12 @@ impl DirModule<'_> {
         let signature = self
             .dir
             .callable_signature_type_id(type_id)?
-            .ok_or_else(|| {
-                ProviderError::internal(format!("checked type {type_id:?} is not callable"))
-            })?;
+            .ok_or_else(|| ProviderError::internal(format!("type {type_id:?} is not callable")))?;
 
         Ok(self.dir.signature_parameters(signature)?.len())
     }
 
-    /// Return the checked result type id of one callable expression.
+    /// Return the result type id of one callable expression.
     pub fn callable_return_type_id(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -754,7 +752,7 @@ impl DirModule<'_> {
             .callable_signature_type_id(type_id)?
             .ok_or_else(|| {
                 ProviderError::internal(format!(
-                    "checked callback expression {expression:?} has non-callable type {type_id:?}"
+                    "callback expression {expression:?} has non-callable type {type_id:?}"
                 ))
             })?;
 

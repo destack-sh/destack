@@ -205,7 +205,7 @@ impl IndexedAccess {
             return Ok(Some(0));
         }
 
-        // recognize checked addition with one constant operand
+        // recognize addition with one constant operand
         let Some((operator, [left, right])) = module.integral_binary(expression)? else {
             return Ok(None);
         };

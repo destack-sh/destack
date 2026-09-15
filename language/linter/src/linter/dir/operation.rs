@@ -218,7 +218,7 @@ impl DirModule<'_> {
         }))
     }
 
-    /// Select one checked equality comparison against null or undefined.
+    /// Select one equality comparison against null or undefined.
     fn nullish_comparison(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -445,7 +445,7 @@ impl DirModule<'_> {
             _ => return Ok(None),
         };
 
-        // require checked integral behavior for unary and compound updates
+        // require integral behavior for unary and compound updates
         let Some(operands) = self.builtin_operands(expression.into_any())? else {
             return Ok(None);
         };
@@ -456,7 +456,7 @@ impl DirModule<'_> {
         Ok(Some(step))
     }
 
-    /// Return the parameters selected by one checked call.
+    /// Return the parameters selected by one call.
     pub(crate) fn call_parameters(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -475,19 +475,19 @@ impl DirModule<'_> {
             .callable_signature_type_id(callable)?
             .ok_or_else(|| {
                 ProviderError::internal(format!(
-                    "checked call expression {expression:?} selected non-callable type {callable:?}"
+                    "call expression {expression:?} selected non-callable type {callable:?}"
                 ))
             })?;
 
         self.dir.signature_parameters(signature).map(Some)
     }
 
-    /// Return the receiver type selected by every arm of one checked call.
+    /// Return the receiver type selected by every arm of one call.
     pub(crate) fn call_receiver_type_id(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::GlobalTypeId>, ProviderError> {
-        // read the checked runtime alternatives
+        // read the runtime alternatives
         let Some(decision) = self.call_decision(expression)? else {
             return Ok(None);
         };
@@ -495,12 +495,12 @@ impl DirModule<'_> {
         Ok(decision.agreed_receiver_type())
     }
 
-    /// Return the declaration symbol selected by every arm of one checked call.
+    /// Return the declaration symbol selected by every arm of one call.
     pub(crate) fn call_symbol(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::GlobalSymbolId>, ProviderError> {
-        // read the checked runtime alternatives
+        // read the runtime alternatives
         let Some(decision) = self.call_decision(expression)? else {
             return Ok(None);
         };
@@ -508,7 +508,7 @@ impl DirModule<'_> {
         Ok(decision.agreed_target_symbol())
     }
 
-    /// Return the declaration symbol selected by one checked construction.
+    /// Return the declaration symbol selected by one construction.
     pub(crate) fn construct_symbol(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -520,14 +520,14 @@ impl DirModule<'_> {
             }
 
             return Err(ProviderError::internal(format!(
-                "checked construction {global:?} has no construct resolution"
+                "construction {global:?} has no construct resolution"
             )));
         };
 
         Ok(decision.target.symbol())
     }
 
-    /// Iterate expressions with a checked call resolution.
+    /// Iterate expressions with a call resolution.
     pub fn call_expressions(
         &self,
     ) -> impl Iterator<Item = Result<dir::LocalNodeId<dir::Expression>, ProviderError>> + '_ {
@@ -547,7 +547,7 @@ impl DirModule<'_> {
             })
     }
 
-    /// Iterate expressions with a checked operator resolution.
+    /// Iterate expressions with an operator resolution.
     pub fn operator_expressions(
         &self,
     ) -> impl Iterator<Item = Result<dir::LocalNodeId<dir::Expression>, ProviderError>> + '_ {
@@ -573,7 +573,7 @@ impl DirModule<'_> {
         &self,
         node: dir::LocalNodeIdAny,
     ) -> Result<Option<&dir::OperatorDecision>, ProviderError> {
-        // read the required checked operator decision
+        // read the required operator decision
         let global = node.into_global(self.id);
         let Some(resolution) = self.decisions.operator_decision(global) else {
             if self.node_type(node)?.is_error() {
@@ -588,7 +588,7 @@ impl DirModule<'_> {
         Ok(Some(resolution))
     }
 
-    /// Return one checked compiler-defined unary operation.
+    /// Return one compiler-defined unary operation.
     pub fn builtin_unary(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -603,7 +603,7 @@ impl DirModule<'_> {
         Ok(operation)
     }
 
-    /// Return one checked compiler-defined binary operation.
+    /// Return one compiler-defined binary operation.
     pub fn builtin_binary(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -618,7 +618,7 @@ impl DirModule<'_> {
         Ok(operation)
     }
 
-    /// Return one operand selected for a checked builtin operator application.
+    /// Return one operand selected for a builtin operator application.
     pub fn builtin_operand(
         &self,
         application: dir::LocalNodeIdAny,
@@ -639,7 +639,7 @@ impl DirModule<'_> {
         Ok(Some(operand))
     }
 
-    /// Return the operands selected for one checked builtin operator application.
+    /// Return the operands selected for one builtin operator application.
     pub fn builtin_operands(
         &self,
         application: dir::LocalNodeIdAny,
@@ -651,12 +651,12 @@ impl DirModule<'_> {
         Ok(operands)
     }
 
-    /// Return the call decision selected for one checked expression.
+    /// Return the call decision selected for one expression.
     pub(crate) fn call_decision(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<&dir::CallDecision>, ProviderError> {
-        // read the required checked call decision
+        // read the required call decision
         let global = node.into_global_any(self.id);
         let Some(resolution) = self.decisions.call_decision(global) else {
             if self.node_type(node.into_any())?.is_error() {
@@ -669,13 +669,13 @@ impl DirModule<'_> {
             }
 
             return Err(ProviderError::internal(format!(
-                "checked call expression {} in module {:?} has no call resolution",
+                "call expression {} in module {:?} has no call resolution",
                 node.id, self.id
             )));
         };
         if resolution.arms().is_empty() {
             return Err(ProviderError::internal(format!(
-                "checked call expression {global:?} has no runtime alternatives"
+                "call expression {global:?} has no runtime alternatives"
             )));
         }
 
@@ -687,7 +687,7 @@ impl DirModule<'_> {
         &self,
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<&[dir::GenericArgumentBinding]>, ProviderError> {
-        // read the checked runtime alternatives
+        // read the runtime alternatives
         let Some(decision) = self.call_decision(node)? else {
             return Ok(None);
         };
@@ -695,12 +695,24 @@ impl DirModule<'_> {
         Ok(decision.agreed_generic_arguments())
     }
 
-    /// Return the member decision selected for one checked expression.
+    /// Return the element type one `Iterator.cloned` call duplicates.
+    pub(crate) fn cloned_element(
+        &self,
+        node: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<dir::GlobalTypeId>, ProviderError> {
+        let Some(decision) = self.call_decision(node)? else {
+            return Ok(None);
+        };
+
+        self.dir.application_argument(decision.return_type(), 1)
+    }
+
+    /// Return the member decision selected for one expression.
     pub(super) fn member_decision(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<&dir::MemberDecision>, ProviderError> {
-        // read the required checked member decision
+        // read the required member decision
         let global = node.into_global_any(self.id);
         let Some(resolution) = self.decisions.member_decision(global) else {
             if self.node_type(node.into_any())?.is_error() {
@@ -713,7 +725,7 @@ impl DirModule<'_> {
             }
 
             return Err(ProviderError::internal(format!(
-                "checked member expression {} in module {:?} has no member resolution",
+                "member expression {} in module {:?} has no member resolution",
                 node.id, self.id
             )));
         };
@@ -721,12 +733,12 @@ impl DirModule<'_> {
         Ok(Some(resolution))
     }
 
-    /// Return the subscript decision selected for one checked expression.
+    /// Return the subscript decision selected for one expression.
     pub fn subscript_decision(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<&dir::SubscriptDecision>, ProviderError> {
-        // read the required checked subscript decision
+        // read the required subscript decision
         let global = node.into_global_any(self.id);
         let Some(resolution) = self.decisions.subscript_decision(global) else {
             if self.node_type(node.into_any())?.is_error() {
@@ -734,7 +746,7 @@ impl DirModule<'_> {
             }
 
             return Err(ProviderError::internal(format!(
-                "checked subscript expression {} in module {:?} has no subscript resolution",
+                "subscript expression {} in module {:?} has no subscript resolution",
                 node.id, self.id
             )));
         };

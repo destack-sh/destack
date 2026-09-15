@@ -47,7 +47,7 @@ function ready(): boolean {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect checked applications of the canonical allow decorator
+    // inspect applications of the canonical allow decorator
     for (_, application) in module.decorators.iter_applications() {
         if application.resolution.target.language_item() != Some(dir::LanguageItem::Allow) {
             continue;

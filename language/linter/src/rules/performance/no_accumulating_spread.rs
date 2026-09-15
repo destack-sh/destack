@@ -454,7 +454,7 @@ warning[no-accumulating-spread]: reduction accumulator is copied on every iterat
             r#"
 function callbacks(source: int32[]): (() => int32[])[] {
     let output: int32[] = [];
-    const callbacks: (() => int32[])[] = [];
+    let callbacks: (() => int32[])[] = [];
     for (const value of source) {
         callbacks.push(() => {
             output = [...output, value];

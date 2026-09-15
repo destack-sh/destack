@@ -102,7 +102,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // require checked equivalent fallback behavior
+        // require equivalent fallback behavior
         if !module.is_alpha_equivalent(
             nested_fallback_body.into_any(),
             enclosing_fallback_body.into_any(),

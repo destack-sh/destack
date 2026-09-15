@@ -46,7 +46,7 @@ enum Negation {
 }
 
 impl Negation {
-    /// Select one checked builtin negation.
+    /// Select one builtin negation.
     fn select(
         module: &DirModule<'_>,
         condition: dir::LocalNodeId<dir::Expression>,

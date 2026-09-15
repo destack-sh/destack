@@ -42,7 +42,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked equality expressions
+    // inspect equality expressions
     for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Binary {
             left,

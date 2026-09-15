@@ -130,7 +130,7 @@ fn suggestion(
         return Ok(None);
     }
 
-    // retain the checked value with postfix-safe grouping
+    // retain the value with postfix-safe grouping
     let value = module.expression_source(value, dir::OperatorPrecedence::Postfix)?;
     let patch = Patch::replace(span, format!("{value}.isInfinite()"));
     let suggestion = lint.suggestion("call `.isInfinite()`", patch)?;

@@ -18,14 +18,14 @@ Instead, you SHOULD compare the borrowed and owned representations directly.
             reported: r#"
 import { StringSlice } from "destack:string";
 
-function matches(value: &readonly StringSlice, expected: string): boolean {
+function matches(value: &immutable StringSlice, expected: string): boolean {
     return value.toOwned() == expected;
 }
 "#,
             accepted: r#"
 import { StringSlice } from "destack:string";
 
-function matches(value: &readonly StringSlice, expected: string): boolean {
+function matches(value: &immutable StringSlice, expected: string): boolean {
     return value == expected;
 }
 "#,
@@ -151,7 +151,7 @@ mod tests {
             r#"
 import { StringSlice } from "destack:string";
 
-function differs(value: string, expected: &readonly StringSlice): boolean {
+function differs(value: string, expected: &immutable StringSlice): boolean {
     return value != expected.toOwned();
 }
 "#,
@@ -161,7 +161,7 @@ function differs(value: string, expected: &readonly StringSlice): boolean {
             r#"
 import { StringSlice } from "destack:string";
 
-function differs(value: string, expected: &readonly StringSlice): boolean {
+function differs(value: string, expected: &immutable StringSlice): boolean {
     return value != expected;
 }
 "#,
@@ -176,7 +176,7 @@ function differs(value: string, expected: &readonly StringSlice): boolean {
             r#"
 import { StringSlice } from "destack:string";
 
-function copy(value: &readonly StringSlice): ^string {
+function copy(value: &immutable StringSlice): ^string {
     return value.toOwned();
 }
 "#,
@@ -218,7 +218,7 @@ function matches(value: &readonly Value, expected: Value): boolean {
             r#"
 import { CString, CStringSlice } from "destack:string";
 
-function matches(value: &readonly CStringSlice, expected: CString): boolean {
+function matches(value: &immutable CStringSlice, expected: CString): boolean {
     return value.toOwned() == expected;
 }
 "#,
@@ -228,7 +228,7 @@ function matches(value: &readonly CStringSlice, expected: CString): boolean {
             r#"
 import { CString, CStringSlice } from "destack:string";
 
-function matches(value: &readonly CStringSlice, expected: CString): boolean {
+function matches(value: &immutable CStringSlice, expected: CString): boolean {
     return value == expected;
 }
 "#,
@@ -243,7 +243,7 @@ function matches(value: &readonly CStringSlice, expected: CString): boolean {
             r#"
 import { OsString, OsStringSlice } from "destack:string";
 
-function matches(value: &readonly OsStringSlice, expected: OsString): boolean {
+function matches(value: &immutable OsStringSlice, expected: OsString): boolean {
     return value.toOwned() == expected;
 }
 "#,
@@ -253,7 +253,7 @@ function matches(value: &readonly OsStringSlice, expected: OsString): boolean {
             r#"
 import { OsString, OsStringSlice } from "destack:string";
 
-function matches(value: &readonly OsStringSlice, expected: OsString): boolean {
+function matches(value: &immutable OsStringSlice, expected: OsString): boolean {
     return value == expected;
 }
 "#,
@@ -268,7 +268,7 @@ function matches(value: &readonly OsStringSlice, expected: OsString): boolean {
             r#"
 import { Path, PathSlice } from "destack:fs";
 
-function matches(value: &readonly PathSlice, expected: Path): boolean {
+function matches(value: &immutable PathSlice, expected: Path): boolean {
     return value.toOwned() == expected;
 }
 "#,
@@ -278,7 +278,7 @@ function matches(value: &readonly PathSlice, expected: Path): boolean {
             r#"
 import { Path, PathSlice } from "destack:fs";
 
-function matches(value: &readonly PathSlice, expected: Path): boolean {
+function matches(value: &immutable PathSlice, expected: Path): boolean {
     return value == expected;
 }
 "#,

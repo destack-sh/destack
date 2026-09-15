@@ -60,7 +60,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // require checked named-member lookup on every selected arm
+        // require named-member lookup on every selected arm
         let Some(resolution) = module.subscript_decision(expression)? else {
             continue;
         };

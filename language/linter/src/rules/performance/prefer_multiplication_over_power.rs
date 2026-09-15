@@ -38,7 +38,7 @@ function square(value: float64): float64 {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect checked builtin square operations
+    // inspect builtin square operations
     for expression in module.operator_expressions() {
         let expression = expression?;
         let Some((dir::BinaryOperator::Exponent, [base, exponent])) =

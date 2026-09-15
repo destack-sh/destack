@@ -38,7 +38,7 @@ struct Buffer {
     }
 }
 
-/// The checked ownership behavior of one receiver parameter.
+/// The ownership behavior of one receiver parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReceiverForm {
     /// A receiver consumed by value.
@@ -47,6 +47,8 @@ enum ReceiverForm {
     Readonly,
     /// A receiver borrowed with mutable access.
     Mutable,
+    /// A receiver borrowed with generic access.
+    Borrowed,
 }
 
 /// Report method names whose receiver contradicts the standard convention.
@@ -58,6 +60,23 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         .map(|conformance| conformance.member)
         .collect::<FxIndexSet<_>>();
     let mut output = LintOutput::default();
+
+    // collect the members of every value declaration, whose bare `this` is a value
+    let mut value_members = FxIndexSet::default();
+    for (_, declaration) in view.iter_nodes::<dir::Declaration>() {
+        let members = match declaration {
+            dir::Declaration::Struct(declaration) => &declaration.members,
+            dir::Declaration::Enum(declaration) => &declaration.members,
+            dir::Declaration::Global(_)
+            | dir::Declaration::Module(_)
+            | dir::Declaration::Type(_)
+            | dir::Declaration::Class(_)
+            | dir::Declaration::Interface(_)
+            | dir::Declaration::Extension(_)
+            | dir::Declaration::Function(_) => continue,
+        };
+        value_members.extend(members.iter().copied());
+    }
 
     // inspect authored nominal methods with identifier names
     for (node, member) in view.iter_nodes::<dir::Member>() {
@@ -82,16 +101,16 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         } else if *is_static {
             None
         } else if has_prefix(name, "into") {
-            (receiver_form(node, signature, module)? != Some(ReceiverForm::Value))
+            (receiver_form(node, signature, module, &value_members)? != Some(ReceiverForm::Value))
                 .then_some("consume its receiver")
         } else if has_prefix(name, "as") {
             (!matches!(
-                receiver_form(node, signature, module)?,
-                Some(ReceiverForm::Readonly | ReceiverForm::Mutable)
+                receiver_form(node, signature, module, &value_members)?,
+                Some(ReceiverForm::Readonly | ReceiverForm::Mutable | ReceiverForm::Borrowed)
             ))
             .then_some("borrow its receiver")
         } else if has_suffix_pair(name, "to", "Mut") {
-            (receiver_form(node, signature, module)? != Some(ReceiverForm::Mutable))
+            (receiver_form(node, signature, module, &value_members)? != Some(ReceiverForm::Mutable))
                 .then_some("borrow its receiver with mutable access")
         } else {
             None
@@ -108,18 +127,20 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Classify the checked form of one explicit or implicit receiver.
+/// Classify the form of one explicit or implicit receiver.
 fn receiver_form(
     member: dir::LocalNodeId<dir::Member>,
     signature: &dir::FunctionSignature,
     module: &DirModule<'_>,
+    value_members: &FxIndexSet<dir::LocalNodeId<dir::Member>>,
 ) -> Result<Option<ReceiverForm>, ProviderError> {
-    // read the explicit receiver type or its checked implicit binding
+    // read the explicit receiver type or the implicit binding
     let type_id = if let Some(parameter) = signature.this_parameter {
-        let Some(declared_type) = module.view().get(parameter).declared_type() else {
-            return Ok(None);
-        };
-        module.node_type_id(declared_type.into_any())?
+        let symbol = module.declaration_symbol(parameter)?;
+        module
+            .types
+            .get_symbol_type_id(symbol)
+            .ok_or_else(|| ProviderError::internal(format!("receiver {symbol:?} has no type")))?
     } else {
         let global = member.into_global_any(module.id);
         let symbol = module
@@ -127,16 +148,21 @@ fn receiver_form(
             .implicit_receiver_symbol(global)
             .ok_or_else(|| {
                 ProviderError::internal(format!(
-                    "checked instance method {global:?} has no implicit receiver"
+                    "instance method {global:?} has no implicit receiver"
                 ))
             })?;
         let symbol = symbol.into_global(module.id);
         module.types.get_symbol_type_id(symbol).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "checked implicit receiver {symbol:?} has no reduced type"
-            ))
+            ProviderError::internal(format!("implicit receiver {symbol:?} has no type"))
         })?
     };
+
+    // classify a bare `this` by its declaration, a value declaration owning its receiver
+    if matches!(module.dir.get_type(type_id)?, dir::Type::This) {
+        return Ok(value_members
+            .contains(&member)
+            .then_some(ReceiverForm::Value));
+    }
 
     // classify reduced ownership and access
     let form = match module.dir.default_ownership(type_id)? {
@@ -144,7 +170,7 @@ fn receiver_form(
         Some(dir::Ownership::Borrowed) => match module.dir.borrow_access(type_id)? {
             Some(dir::Access::Readonly | dir::Access::Immutable) => ReceiverForm::Readonly,
             Some(dir::Access::Mutable | dir::Access::Exclusive) => ReceiverForm::Mutable,
-            None => return Ok(None),
+            None => ReceiverForm::Borrowed,
         },
         Some(dir::Ownership::Managed | dir::Ownership::Raw) | None => return Ok(None),
     };

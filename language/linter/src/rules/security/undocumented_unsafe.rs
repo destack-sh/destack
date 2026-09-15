@@ -43,7 +43,7 @@ function execute(): void {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect checked applications of the canonical unsafe decorator
+    // inspect applications of the canonical unsafe decorator
     for (_, application) in module.decorators.iter_applications() {
         if !matches!(
             application.resolution.target,
@@ -100,7 +100,7 @@ fn has_safety_section(module: &DirModule<'_>, owner: dir::LocalNodeIdAny) -> boo
     documentation.lines().any(|line| line.trim() == "# Safety")
 }
 
-/// Return whether one checked unsafe decorator carries a nonempty reason.
+/// Return whether one unsafe decorator carries a nonempty reason.
 fn has_reason(
     module: &DirModule<'_>,
     application: &dir::DecoratorApplication,
@@ -389,7 +389,7 @@ warning[undocumented-unsafe]: unsafe region has no safety rationale
         );
     }
 
-    /// Accept a local unsafe block with a checked decorator reason.
+    /// Accept a local unsafe block with a decorator reason.
     #[test]
     fn test_accepts_unsafe_block_with_decorator_reason() {
         let session = TestSession::dir(

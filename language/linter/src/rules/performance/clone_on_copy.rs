@@ -6,10 +6,10 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow cloning values whose checked type is Copy.
+    /// Disallow cloning values whose type is Copy.
     pub CLONE_ON_COPY {
         id: "clone-on-copy",
-        summary: "Disallow cloning values whose checked type is Copy",
+        summary: "Disallow cloning values whose type is Copy",
         explanation: r#"
 Calling `clone` on a Copy value implies that duplication may require explicit work.
 Instead, you SHOULD use the value directly and let Copy semantics duplicate it implicitly.

@@ -246,7 +246,7 @@ function preserve(value: int32): int32 {
         let session = TestSession::dir(
             &NO_NEEDLESS_MATCH,
             r#"
-import { PartialCompare } from "destack:ops";
+import { Compare } from "destack:ops";
 
 newtype Bound<T> =
     | { kind: "included"; value: T }
@@ -254,14 +254,14 @@ newtype Bound<T> =
     | { kind: "unbounded" };
 
 newtype interface RangeBounds<T> {
-    startBound(&readonly this): Bound<&readonly T>;
+    startBound(&immutable this): Bound<&immutable T>;
 
-    endBound(&readonly this): Bound<&readonly T>;
+    endBound(&immutable this): Bound<&immutable T>;
 
-    contains<U: PartialCompare<T>>(
-        &readonly this,
-        value: &readonly U,
-    ): boolean where T: PartialCompare<U> {
+    contains<U: Compare<T>>(
+        &immutable this,
+        value: &immutable U,
+    ): boolean where T: Compare<U> {
         let isAfterStart = match (this.startBound()) {
             { kind: "included", value: bound } => *bound <= *value
             { kind: "excluded", value: bound } => *bound < *value

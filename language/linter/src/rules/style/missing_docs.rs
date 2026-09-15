@@ -68,9 +68,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         if matches!(node.ty, dir::NodeType::Member) {
             let global = node.into_global(module.id);
             let symbol = module.bindings.declaration_symbol(global).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "checked declaration member {global:?} has no symbol"
-                ))
+                ProviderError::internal(format!("declaration member {global:?} has no symbol"))
             })?;
             if implementations.contains(&symbol.into_global(module.id)) {
                 continue;

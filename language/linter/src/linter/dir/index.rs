@@ -14,7 +14,7 @@ use super::{DirModule, DirModuleStorage};
 /// The recursion bound cyclic type graphs compare under.
 const TYPE_MATCH_DEPTH: usize = 64;
 
-/// Checked DIR available to one lint run.
+/// DIR available to one lint run.
 #[derive(Debug)]
 pub struct Dir<'a> {
     /// The active profile.
@@ -30,7 +30,7 @@ pub struct Dir<'a> {
 }
 
 impl<'a> Dir<'a> {
-    /// Return one loaded checked module.
+    /// Return one loaded module.
     pub fn module(&self, module: ModuleId) -> Result<DirModule<'_>, ProviderError> {
         let storage = self
             .modules
@@ -42,14 +42,14 @@ impl<'a> Dir<'a> {
         Ok(DirModule::new(self, storage))
     }
 
-    /// Iterate the loaded checked modules.
+    /// Iterate the loaded modules.
     pub fn modules(&self) -> impl Iterator<Item = DirModule<'_>> {
         self.modules
             .values()
             .map(|storage| DirModule::new(self, storage))
     }
 
-    /// Return one checked type by global id.
+    /// Return one type by global id.
     pub fn get_type(&self, type_id: dir::GlobalTypeId) -> Result<dir::Type, ProviderError> {
         self.read_types(type_id.module_id, |types| {
             types
@@ -60,7 +60,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return one positional argument from a checked nominal application.
+    /// Return one positional argument from a nominal application.
     pub(crate) fn application_argument(
         &self,
         type_id: dir::GlobalTypeId,
@@ -71,7 +71,7 @@ impl<'a> Dir<'a> {
             return Ok(None);
         };
 
-        // read the complete checked argument list from its owning interner
+        // read the complete argument list from its owning interner
         self.read_types(type_id.module_id, |types| {
             let argument = types
                 .type_ids(application.arguments)
@@ -79,7 +79,7 @@ impl<'a> Dir<'a> {
                 .copied()
                 .ok_or_else(|| {
                     ProviderError::internal(format!(
-                        "checked application {type_id:?} has no argument at index {index}"
+                        "application {type_id:?} has no argument at index {index}"
                     ))
                 })?;
 
@@ -87,7 +87,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return whether two checked types have equal structural content.
+    /// Return whether two types have equal structural content.
     pub fn types_match(
         &self,
         left: dir::GlobalTypeId,
@@ -96,7 +96,7 @@ impl<'a> Dir<'a> {
         self.types_match_bounded(left, right, TYPE_MATCH_DEPTH)
     }
 
-    /// Return whether two checked types share one content, up to a depth.
+    /// Return whether two types share one content, up to a depth.
     fn types_match_bounded(
         &self,
         left: dir::GlobalTypeId,
@@ -278,7 +278,7 @@ impl<'a> Dir<'a> {
         Ok(true)
     }
 
-    /// Strip placement forms from one checked type id.
+    /// Strip placement forms from one type id.
     pub fn strip_form(
         &self,
         mut type_id: dir::GlobalTypeId,
@@ -337,9 +337,7 @@ impl<'a> Dir<'a> {
     ) -> Result<Vec<dir::StaticKey>, ProviderError> {
         self.read_declaration_tables(symbol.module_id, |tables| {
             let definition = tables.definitions.definition(symbol).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "nominal field owner {symbol:?} has no checked definition"
-                ))
+                ProviderError::internal(format!("nominal field owner {symbol:?} has no definition"))
             })?;
             let fields = definition
                 .instance_fields()
@@ -358,7 +356,7 @@ impl<'a> Dir<'a> {
         let mut visited = FxIndexSet::default();
         let mut pending = vec![symbol];
 
-        // traverse checked base declarations once
+        // traverse base declarations once
         while let Some(current) = pending.pop() {
             if !visited.insert(current) {
                 continue;
@@ -367,7 +365,7 @@ impl<'a> Dir<'a> {
                 self.read_declaration_tables(current.module_id, |tables| {
                     let definition = tables.definitions.definition(current).ok_or_else(|| {
                         ProviderError::internal(format!(
-                            "nominal declaration {current:?} has no checked definition"
+                            "nominal declaration {current:?} has no definition"
                         ))
                     })?;
                     let has_instance_member = current != symbol
@@ -392,14 +390,12 @@ impl<'a> Dir<'a> {
                 return Ok(true);
             }
 
-            // resolve the next base declarations from their checked types
+            // resolve the next base declarations from their types
             for base in bases {
                 let base = self.strip_form(base)?;
                 let ty = self.get_type(base)?;
                 let base = ty.symbol().ok_or_else(|| {
-                    ProviderError::internal(format!(
-                        "checked heritage type {base:?} is not nominal"
-                    ))
+                    ProviderError::internal(format!("heritage type {base:?} is not nominal"))
                 })?;
                 pending.push(base);
             }
@@ -408,7 +404,7 @@ impl<'a> Dir<'a> {
         Ok(false)
     }
 
-    /// Return the access represented by one checked memory type.
+    /// Return the access represented by one memory type.
     pub(super) fn memory_access(
         &self,
         type_id: dir::GlobalTypeId,
@@ -422,14 +418,14 @@ impl<'a> Dir<'a> {
         };
         let Some(access) = access else {
             return Err(ProviderError::internal(format!(
-                "checked memory access {type_id:?} has non-access type {ty:?}"
+                "memory access {type_id:?} has non-access type {ty:?}"
             )));
         };
 
         Ok(access)
     }
 
-    /// Return whether one checked type is a nominal enum.
+    /// Return whether one type is a nominal enum.
     pub(crate) fn is_enum_type(&self, type_id: dir::GlobalTypeId) -> Result<bool, ProviderError> {
         let type_id = self.strip_form(type_id)?;
         let Some(symbol) = self.get_type(type_id)?.symbol() else {
@@ -454,7 +450,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return the payload carried by one checked borrowed type.
+    /// Return the payload carried by one borrowed type.
     pub(super) fn borrow_form(
         &self,
         type_id: dir::GlobalTypeId,
@@ -471,16 +467,14 @@ impl<'a> Dir<'a> {
         // read the solved borrow payload
         self.read_types(type_id.module_id, |types| {
             let borrow = types.borrow_form_maybe(borrow).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "checked borrowed type {type_id:?} has no borrow payload"
-                ))
+                ProviderError::internal(format!("borrowed type {type_id:?} has no borrow payload"))
             })?;
 
             Ok(Some(*borrow))
         })
     }
 
-    /// Return the access carried by one checked borrowed type.
+    /// Return the access carried by one borrowed type.
     pub(crate) fn borrow_access(
         &self,
         type_id: dir::GlobalTypeId,
@@ -508,7 +502,7 @@ impl<'a> Dir<'a> {
         Ok(signature)
     }
 
-    /// Return the checked parameters from one function signature.
+    /// Return the parameters from one function signature.
     pub(super) fn signature_parameters(
         &self,
         signature: dir::GlobalTypeId,
@@ -522,7 +516,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return the checked result type id from one callable signature.
+    /// Return the result type id from one callable signature.
     pub(super) fn signature_return_type_id(
         &self,
         signature: dir::GlobalTypeId,
@@ -531,12 +525,12 @@ impl<'a> Dir<'a> {
 
         signature_type.return_type.ok_or_else(|| {
             ProviderError::internal(format!(
-                "checked callable signature {signature:?} has no return type"
+                "callable signature {signature:?} has no return type"
             ))
         })
     }
 
-    /// Return one checked function signature payload.
+    /// Return one function signature payload.
     fn signature_type(
         &self,
         signature: dir::GlobalTypeId,
@@ -557,7 +551,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return whether one checked type includes an element selected by `predicate`.
+    /// Return whether one type includes an element selected by `predicate`.
     pub fn type_includes(
         &self,
         type_id: dir::GlobalTypeId,
@@ -580,7 +574,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return whether one checked type includes undefined.
+    /// Return whether one type includes undefined.
     pub fn type_includes_undefined(
         &self,
         type_id: dir::GlobalTypeId,
@@ -588,7 +582,7 @@ impl<'a> Dir<'a> {
         self.type_includes(type_id, dir::Type::is_undefined)
     }
 
-    /// Return the sole nullish literal included by one checked type.
+    /// Return the sole nullish literal included by one type.
     pub(crate) fn sole_nullish(
         &self,
         type_id: dir::GlobalTypeId,
@@ -605,7 +599,7 @@ impl<'a> Dir<'a> {
         Ok(literal)
     }
 
-    /// Return one checked type's union elements, or the type itself.
+    /// Return one type's union elements, or the type itself.
     pub fn union_elements(
         &self,
         type_id: dir::GlobalTypeId,
@@ -619,7 +613,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return one checked type's intersection elements, or the type itself.
+    /// Return one type's intersection elements, or the type itself.
     pub fn intersection_elements(
         &self,
         type_id: dir::GlobalTypeId,
@@ -633,7 +627,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return one checked static value by global id.
+    /// Return one static value by global id.
     pub fn get_static(
         &self,
         static_id: dir::GlobalStaticId,
@@ -650,7 +644,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return the checked static value selected by one symbol.
+    /// Return the static value selected by one symbol.
     pub fn symbol_static(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -665,7 +659,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return whether one declaration carries any checked decorator.
+    /// Return whether one declaration carries any decorator.
     pub(crate) fn has_decorators(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -686,7 +680,7 @@ impl<'a> Dir<'a> {
             })
         })?;
 
-        // inspect checked applications attached to the declaration
+        // inspect applications attached to the declaration
         self.read_decorators(symbol.module_id, |decorators| {
             let has_decorator = decorators
                 .applications_for_owner(declaration)
@@ -697,7 +691,7 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Load checked DIR for selected modules.
+    /// Load DIR for selected modules.
     pub(crate) fn load(
         repository: &'a Repository,
         revision: Revision,
@@ -758,7 +752,7 @@ impl<'a> Dir<'a> {
             return read(&module.types);
         }
 
-        // read the foreign tables through the module's checked stages
+        // read the foreign tables through the module's stages
         let view = self.foreign_view(module)?;
 
         read(view.types())
@@ -775,7 +769,7 @@ impl<'a> Dir<'a> {
             return read(&module.statics);
         }
 
-        // read the foreign tables through the module's checked stages
+        // read the foreign tables through the module's stages
         let view = self.foreign_view(module)?;
 
         read(view.statics())
@@ -792,7 +786,7 @@ impl<'a> Dir<'a> {
             return read(&module.decorators);
         }
 
-        // read the foreign tables through the module's checked stages
+        // read the foreign tables through the module's stages
         let view = self.foreign_view(module)?;
 
         read(view.decorators())
@@ -814,7 +808,7 @@ impl<'a> Dir<'a> {
             });
         }
 
-        // read the foreign tables through the module's checked stages
+        // read the foreign tables through the module's stages
         let view = self.foreign_view(module)?;
 
         read(&DeclarationTables {
@@ -827,7 +821,7 @@ impl<'a> Dir<'a> {
 }
 
 impl Dir<'_> {
-    /// Read one foreign module's checked stages with their tables stacked.
+    /// Read one foreign module's stages with their tables stacked.
     fn foreign_view(&self, module_id: ModuleId) -> Result<DirView, ProviderError> {
         let reader = &self.artifacts;
         let profile = self.profile;

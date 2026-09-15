@@ -43,7 +43,7 @@ if (ready()) {
     }
 }
 
-/// Report loops whose checked flow cannot reach another iteration.
+/// Report loops whose flow cannot reach another iteration.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();

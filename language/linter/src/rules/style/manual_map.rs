@@ -17,7 +17,7 @@ Instead, you SHOULD return the result of `map` directly.
         example: {
             reported: r#"
 function doubled(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         result.push(value * 2);
     }
@@ -215,7 +215,7 @@ mod tests {
             &MANUAL_MAP,
             r#"
 function doubled(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         result.push(value * 2);
     }
@@ -230,7 +230,7 @@ warning[manual-map]: loop manually collects mapped values
  ──▶ main.ds:3:5
   │
 1 │ function doubled(values: int32[]): int32[] {
-2 │     const result: int32[] = [];
+2 │     let result: int32[] = [];
 3 │     for (const value of values) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 4 │         result.push(value * 2);
@@ -246,7 +246,7 @@ warning[manual-map]: loop manually collects mapped values
 +++ b/main.ds
 
     1│ function doubled(values: int32[]): int32[] {
--   2│     const result: int32[] = [];
+-   2│     let result: int32[] = [];
 -   3│     for (const value of values) {
 -   4│         result.push(value * 2);
 -   5│     }
@@ -271,7 +271,7 @@ function doubled(values: int32[]): int32[] {
             &MANUAL_MAP,
             r#"
 function wrap(values: int32[]): { value: int32 }[] {
-    const result: { value: int32 }[] = [];
+    let result: { value: int32 }[] = [];
     for (const value of values) {
         result.push({ value });
     }
@@ -296,7 +296,7 @@ function wrap(values: int32[]): { value: int32 }[] {
             &MANUAL_MAP,
             r#"
 function values(entries: { value: int32 }[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const { value } of entries) {
         result.push(value);
     }
@@ -321,7 +321,7 @@ function values(entries: { value: int32 }[]): int32[] {
             &MANUAL_MAP,
             r#"
 function unwrap(values: (int32 | undefined)[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         result.push(value!);
     }
@@ -348,7 +348,7 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
 declare function increment(value: &int32): int32;
 
 function incremented(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (let value of values) {
         result.push(increment(&value));
     }
@@ -367,7 +367,7 @@ function incremented(values: int32[]): int32[] {
             &MANUAL_MAP,
             r#"
 function doubled(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         result.push(value);
         result.push(value);
@@ -391,7 +391,7 @@ async function double(value: int32): Promise<int32> {
 }
 
 async function doubled(values: int32[]): Promise<int32[]> {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         result.push(await double(value));
     }
@@ -410,7 +410,7 @@ async function doubled(values: int32[]): Promise<int32[]> {
             &MANUAL_MAP,
             r#"
 function copy(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         result.push(value);
     }
@@ -431,7 +431,7 @@ function copy(values: int32[]): int32[] {
 declare function select(result: int32[], values: int32[]): int32[];
 
 function copy(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of select(result, values)) {
         result.push(value);
     }
@@ -450,7 +450,7 @@ function copy(values: int32[]): int32[] {
             &MANUAL_MAP,
             r#"
 function copy(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         result.push(value);
     }
@@ -495,7 +495,7 @@ function copy(source: int32[]): Values {
             &MANUAL_MAP,
             r#"
 function doubled(values: Set<int32>): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         result.push(value * 2);
     }

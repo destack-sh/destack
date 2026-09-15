@@ -10,10 +10,10 @@ use destack_source::{File, ModuleId};
 
 use super::Dir;
 
-/// A borrowed checked DIR module.
+/// A borrowed DIR module.
 #[derive(Debug, Clone, Copy)]
 pub struct DirModule<'a> {
-    /// The indexed checked DIR.
+    /// The indexed DIR.
     pub dir: &'a Dir<'a>,
     /// The module id.
     pub id: ModuleId,
@@ -35,7 +35,7 @@ pub struct DirModule<'a> {
     pub types: &'a dir::TypeTable<'static>,
     /// The static table.
     pub statics: &'a dir::StaticTable<'static>,
-    /// The checked decorator table.
+    /// The decorator table.
     pub decorators: &'a dir::DecoratorTable<'static>,
     /// The resolution table.
     pub resolutions: &'a dir::ResolutionTable<'static>,
@@ -63,7 +63,7 @@ pub struct DirModule<'a> {
     pub namespace_scope: dir::LocalScopeId,
 }
 
-/// Owned checked DIR storage for one module.
+/// Owned DIR storage for one module.
 #[derive(Debug)]
 pub(super) struct DirModuleStorage {
     /// The module id.
@@ -86,7 +86,7 @@ pub(super) struct DirModuleStorage {
     pub(super) types: dir::TypeTable<'static>,
     /// The static table.
     pub(super) statics: dir::StaticTable<'static>,
-    /// The checked decorator table.
+    /// The decorator table.
     pub(super) decorators: dir::DecoratorTable<'static>,
     /// The resolution table.
     resolutions: dir::ResolutionTable<'static>,
@@ -117,7 +117,7 @@ pub(super) struct DirModuleStorage {
 }
 
 impl<'a> DirModule<'a> {
-    /// Create a borrowed checked DIR module.
+    /// Create a borrowed DIR module.
     pub(super) fn new(dir: &'a Dir<'a>, storage: &'a DirModuleStorage) -> Self {
         Self {
             dir,
@@ -147,7 +147,7 @@ impl<'a> DirModule<'a> {
         }
     }
 
-    /// Return the reduced checked type of one local node.
+    /// Return the reduced type of one local node.
     pub fn node_type(&self, node: dir::LocalNodeIdAny) -> Result<dir::Type, ProviderError> {
         let type_id = self.node_type_id(node)?;
 
@@ -179,7 +179,7 @@ impl<'a> DirModule<'a> {
         false
     }
 
-    /// Return the reduced checked type id of one local node.
+    /// Return the reduced type id of one local node.
     pub fn node_type_id(
         &self,
         node: dir::LocalNodeIdAny,
@@ -260,7 +260,7 @@ impl<'a> DirModule<'a> {
 }
 
 impl DirModuleStorage {
-    /// Load one module's checked DIR.
+    /// Load one module's DIR.
     pub(super) fn load(
         repository: &Repository,
         revision: Revision,
@@ -271,7 +271,7 @@ impl DirModuleStorage {
     ) -> Result<Self, ProviderError> {
         let module_id = module.id;
 
-        // read the DIR artifacts, the checked stages stacked once
+        // read the DIR artifacts, the stages stacked once
         let reader = artifacts;
         let view = DirView::checked(
             reader.read::<DirParsed>(module_id)?,
@@ -334,7 +334,7 @@ impl DirModuleStorage {
             files.push(file);
         }
 
-        // take the checked tables
+        // take the tables
         let bindings = view.bindings().clone();
         let modules = view.modules().clone();
         let types = view.types().clone();

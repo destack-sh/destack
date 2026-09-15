@@ -72,7 +72,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         let [_, value, ..] = bindings else {
             return Err(ProviderError::internal(
-                "checked Map.get call has fewer than two generic bindings",
+                "Map.get call has fewer than two generic bindings",
             ));
         };
         if module.dir.type_includes_undefined(value.argument)? {

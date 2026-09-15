@@ -9,7 +9,7 @@ impl Dir<'_> {
         self.read_declaration_tables(ty.module_id, |tables| Ok(tables.representations.copies(ty)))
     }
 
-    /// Return whether one checked type is a mutable managed reference.
+    /// Return whether one type is a mutable managed reference.
     pub(crate) fn is_mutable_reference(
         &self,
         type_id: dir::GlobalTypeId,
@@ -63,7 +63,7 @@ impl Dir<'_> {
         Ok(!is_immutable)
     }
 
-    /// Return the runtime ownership one persisted checked type defaults to.
+    /// Return the runtime ownership one persisted type defaults to.
     pub fn default_ownership(
         &self,
         type_id: dir::GlobalTypeId,
@@ -97,7 +97,7 @@ impl Dir<'_> {
             {
                 let value = self.application_argument(type_id, 0)?.ok_or_else(|| {
                     ProviderError::internal(format!(
-                        "checked WithAccess application {type_id:?} has no value argument"
+                        "WithAccess application {type_id:?} has no value argument"
                     ))
                 })?;
 

@@ -18,7 +18,7 @@ Keep ownership when transferring the value is part of the callable's behavior.
         example: {
             reported: r#"
 class Packet {
-    code: int32;
+    code: int32 = 0;
 }
 
 function packetCode(packet: ^Packet): int32 {
@@ -27,7 +27,7 @@ function packetCode(packet: ^Packet): int32 {
 "#,
             accepted: r#"
 class Packet {
-    code: int32;
+    code: int32 = 0;
 }
 
 function packetCode(packet: &readonly Packet): int32 {
@@ -47,10 +47,18 @@ function packetCode(packet: &readonly Packet): int32 {
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // aggregate each local binding's uses once
+    // collect the source ranges flow proves unreachable
+    let mut unreachable = Vec::new();
+    for node in module.flows.unreachable_nodes() {
+        unreachable.push(module.span(node)?);
+    }
+
+    // aggregate each local binding's reachable uses once
     let mut uses = FxIndexMap::<_, dir::BindingUse>::default();
     for occurrence in module.flows.binding_occurrences() {
-        if occurrence.symbol.module_id == module.id {
+        let span = module.span(occurrence.node)?;
+        let is_dead = unreachable.iter().any(|dead| dead.contains_span(span));
+        if occurrence.symbol.module_id == module.id && !is_dead {
             *uses.entry(occurrence.symbol.local_id).or_default() |= occurrence.uses;
         }
     }
@@ -69,7 +77,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // preserve ownership, mutation, captures, and exclusion required by checked uses
+        // preserve ownership, mutation, captures, and exclusion the uses require
         if uses.get(&symbol).is_some_and(|uses| {
             uses.may_mutate()
                 || uses.contains(dir::BindingUse::MUTABLE)
@@ -82,17 +90,20 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // report only owned types that sema proved cannot copy
         let symbol = symbol.into_global(module.id);
-        let ty = module.types.get_symbol_type_id(symbol).ok_or_else(|| {
-            ProviderError::internal(format!("checked parameter {symbol:?} has no type"))
-        })?;
+        let ty = module
+            .types
+            .get_symbol_type_id(symbol)
+            .ok_or_else(|| ProviderError::internal(format!("parameter {symbol:?} has no type")))?;
+        let payload = module.dir.strip_form(ty)?;
         if module.dir.default_ownership(ty)? != Some(dir::Ownership::Owned)
             || module.dir.copies(ty)? != Some(false)
+            || matches!(module.dir.get_type(payload)?, dir::Type::Parameter(_))
         {
             continue;
         }
 
         // report the complete parameter declaration
-        let span = module.main_span(parameter.into_any())?;
+        let span = module.span(parameter.into_any())?;
         let diagnostic = lint
             .diagnostic("move-only parameter is never consumed", span)
             .help("accept a readonly borrow unless the function must take ownership");
@@ -113,7 +124,7 @@ mod tests {
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Packet { code: int32; }
+class Packet { code: int32 = 0; }
 
 function packetCode(v0: ^Packet): int32 {
     return v0.code;
@@ -126,7 +137,7 @@ function packetCode(v0: ^Packet): int32 {
 warning[needless-pass-by-value]: move-only parameter is never consumed
  ──▶ main.ds:3:21
   │
-1 │ class Packet { code: int32; }
+1 │ class Packet { code: int32 = 0; }
 2 │
 3 │ function packetCode(v0: ^Packet): int32 {
   │                     ^^^^^^^^^^^
@@ -145,7 +156,7 @@ warning[needless-pass-by-value]: move-only parameter is never consumed
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Packet { code: int32; }
+class Packet { code: int32 = 0; }
 
 function packetCode(v0: ^Packet, flag: boolean): int32 {
     if (flag) { return v0.code; }
@@ -159,7 +170,7 @@ function packetCode(v0: ^Packet, flag: boolean): int32 {
 warning[needless-pass-by-value]: move-only parameter is never consumed
  ──▶ main.ds:3:21
   │
-1 │ class Packet { code: int32; }
+1 │ class Packet { code: int32 = 0; }
 2 │
 3 │ function packetCode(v0: ^Packet, flag: boolean): int32 {
   │                     ^^^^^^^^^^^
@@ -178,7 +189,7 @@ warning[needless-pass-by-value]: move-only parameter is never consumed
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Packet { code: int32; }
+class Packet { code: int32 = 0; }
 
 function packetCode(v0: ^Packet): int32 {
     return v0.code;
@@ -192,7 +203,7 @@ function packetCode(v0: ^Packet): int32 {
 warning[needless-pass-by-value]: move-only parameter is never consumed
  ──▶ main.ds:3:21
   │
-1 │ class Packet { code: int32; }
+1 │ class Packet { code: int32 = 0; }
 2 │
 3 │ function packetCode(v0: ^Packet): int32 {
   │                     ^^^^^^^^^^^
@@ -211,7 +222,7 @@ warning[needless-pass-by-value]: move-only parameter is never consumed
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Packet { code: int32; }
+class Packet { code: int32 = 0; }
 
 function keep(v0: ^Packet): ^Packet { return v0; }
 "#,
@@ -226,7 +237,7 @@ function keep(v0: ^Packet): ^Packet { return v0; }
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Data { value: int32; }
+class Data { value: int32 = 0; }
 struct Packet { data: ^Data; }
 
 function takeData(v0: Packet): ^Data { return v0.data; }
@@ -242,7 +253,7 @@ function takeData(v0: Packet): ^Data { return v0.data; }
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Packet { code: int32; }
+class Packet { code: int32 = 0; }
 
 function setCode(v0: ^Packet, v1: int32): void { v0.code = v1; }
 "#,
@@ -257,7 +268,7 @@ function setCode(v0: ^Packet, v1: int32): void { v0.code = v1; }
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Packet { code: int32; }
+class Packet { code: int32 = 0; }
 function consume(value: ^Packet): ^Packet { return value; }
 
 function forward(v0: ^Packet): ^Packet { return consume(v0); }
@@ -273,7 +284,7 @@ function forward(v0: ^Packet): ^Packet { return consume(v0); }
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Packet { code: int32; }
+class Packet { code: int32 = 0; }
 
 function packetCode(v0: &readonly Packet): int32 { return v0.code; }
 "#,
@@ -301,7 +312,7 @@ function increment(v0: int32): int32 { return v0 + 1; }
         let session = TestSession::dir(
             &NEEDLESS_PASS_BY_VALUE,
             r#"
-class Packet { code: int32; }
+class Packet { code: int32 = 0; }
 function read(value: &immutable Packet): int32 { return value.code; }
 
 function packetCode(v0: ^Packet): int32 { return read(&immutable v0); }

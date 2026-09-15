@@ -48,7 +48,7 @@ struct LintFixture {
     lint: &'static Lint,
     /// The source repository.
     repository: Arc<Repository>,
-    /// The checked revision.
+    /// The revision.
     revision: RevisionPin,
     /// The artifact session.
     session: Session,
@@ -157,17 +157,17 @@ impl TestSession {
         }
     }
 
-    /// Run one isolated checked DIR lint fixture.
+    /// Run one isolated DIR lint fixture.
     pub(crate) fn dir(lint: &'static Lint, source: &str) -> Self {
         Self::dir_path(lint, SOURCE_PATH, source)
     }
 
-    /// Run one isolated checked DIR lint fixture at one source path.
+    /// Run one isolated DIR lint fixture at one source path.
     pub(crate) fn dir_path(lint: &'static Lint, path: &str, source: &str) -> Self {
         Self::dir_files(lint, path, source, &[])
     }
 
-    /// Run one checked DIR lint fixture with additional source files.
+    /// Run one DIR lint fixture with additional source files.
     pub(crate) fn dir_files(
         lint: &'static Lint,
         path: &str,
@@ -206,11 +206,24 @@ impl TestSession {
         }
 
         // build the MIR module consumed by the lint
-        let (tree, target, mut layouts, dispatch, drops, accesses, effects, profile, strings, _) =
+        let (tree, target, mut layouts, dispatch, drops, effects, profile, strings, _) =
             parsed.into_parts();
-        mir::LayoutBuilder::new(&tree, &mut layouts, target)
+        let mut builder = mir::LayoutBuilder::new(&tree, &mut layouts, target);
+        builder
             .layout_reachable_types()
             .expect("lint MIR layouts should build");
+
+        // lay out every concrete type declaration for the declaration lints
+        let declared = tree
+            .iter_nodes::<mir::TypeDeclaration>()
+            .filter(|(_, declaration)| declaration.generics.is_empty())
+            .filter_map(|(_, declaration)| declaration.definition)
+            .collect::<Vec<_>>();
+        for ty in declared {
+            builder
+                .layout_type(ty)
+                .expect("lint MIR declaration layouts should build");
+        }
         let lowered = MirLowered {
             tree: Arc::new(tree),
             target,
@@ -218,7 +231,6 @@ impl TestSession {
             dispatch,
             drops,
             witnesses: mir::WitnessTable::default(),
-            accesses,
             effects,
             profile,
             initializer: None,
@@ -499,7 +511,7 @@ impl LintFixture {
             .expect("lint test diagnostics should be readable")
     }
 
-    /// Finish one lint test session from this checked fixture.
+    /// Finish one lint test session from this fixture.
     fn finish(self, diagnostics: DiagnosticCollection) -> TestSession {
         TestSession {
             lint: self.lint,
@@ -555,7 +567,7 @@ impl DiagnosticContext for LintFixture {
 }
 
 impl ProviderContext for LintFixture {
-    /// Return the checked revision.
+    /// Return the revision.
     fn revision(&self) -> Revision {
         self.revision.revision()
     }

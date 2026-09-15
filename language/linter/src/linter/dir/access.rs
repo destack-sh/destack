@@ -12,7 +12,7 @@ impl DirModule<'_> {
         let global = target.into_global_any(self.id);
         let resolution = self.decisions.assignment_decision(global).ok_or_else(|| {
             ProviderError::internal(format!(
-                "checked assignment target {global:?} has no assignment decision"
+                "assignment target {global:?} has no assignment decision"
             ))
         })?;
 
@@ -39,7 +39,7 @@ impl DirModule<'_> {
                 dir::Expression::Member { left, .. } => {
                     let decision = self.decisions.member_decision(global).ok_or_else(|| {
                         ProviderError::internal(format!(
-                            "checked stored projection {global:?} has no member decision"
+                            "stored projection {global:?} has no member decision"
                         ))
                     })?;
                     if !decision.is_stored() {
@@ -51,7 +51,7 @@ impl DirModule<'_> {
                 dir::Expression::Index { left, .. } => {
                     let decision = self.decisions.subscript_decision(global).ok_or_else(|| {
                         ProviderError::internal(format!(
-                            "checked stored projection {global:?} has no subscript decision"
+                            "stored projection {global:?} has no subscript decision"
                         ))
                     })?;
                     if !decision.is_stored() {
@@ -100,7 +100,7 @@ impl DirModule<'_> {
         Ok(true)
     }
 
-    /// Return the strongest access granted through one checked place.
+    /// Return the strongest access granted through one place.
     pub(crate) fn place_access(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -128,7 +128,7 @@ impl DirModule<'_> {
         }
     }
 
-    /// Return the stable storage selected by one checked expression.
+    /// Return the stable storage selected by one expression.
     pub fn access_resolution(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
@@ -138,7 +138,7 @@ impl DirModule<'_> {
         self.decisions.access_resolution(global)
     }
 
-    /// Return whether two nodes select the same checked storage.
+    /// Return whether two nodes select the same storage.
     pub(crate) fn is_same_access(
         &self,
         left: dir::LocalNodeIdAny,

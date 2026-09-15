@@ -45,7 +45,7 @@ function ensureValue(values: Map<string, int32>, key: string): void {
 struct GuardedInsertion {
     /// The map expression.
     map: dir::LocalNodeId<dir::Expression>,
-    /// The checked and inserted key.
+    /// The tested and inserted key.
     key: dir::LocalNodeId<dir::Expression>,
     /// The conditionally inserted value.
     value: dir::LocalNodeId<dir::Expression>,

@@ -143,7 +143,7 @@ pub struct LintProvenance {
 /// The IR tier inspected by one lint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LintTier {
-    /// Checked DIR.
+    /// DIR.
     Dir,
     /// Verified MIR.
     Mir,
@@ -222,10 +222,10 @@ impl LintOutput {
     }
 }
 
-/// One checked DIR module lint function.
+/// One DIR module lint function.
 pub type DirModuleCheck = for<'a> fn(&DirModule<'a>, &Lint) -> LintResult;
 
-/// One checked DIR program lint function.
+/// One DIR program lint function.
 pub type DirProgramCheck = for<'a> fn(&DirProgram<'a>, &Lint) -> LintResult;
 
 /// One verified MIR module lint function.
@@ -237,9 +237,9 @@ pub type MirProgramCheck = for<'a> fn(&mut MirProgram<'a>, &Lint) -> LintResult;
 /// The tier and scope of a lint.
 #[derive(Clone, Copy)]
 pub enum LintCheck {
-    /// Check one module's checked DIR.
+    /// Check one module's DIR.
     DirModule(DirModuleCheck),
-    /// Check one target program's checked DIR.
+    /// Check one target program's DIR.
     DirProgram(DirProgramCheck),
     /// Check one module's verified MIR.
     MirModule(MirModuleCheck),

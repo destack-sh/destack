@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_repository::ProviderError;
 use destack_source::Patch;
 
 use crate::rules::declare_lint;
@@ -18,14 +17,14 @@ Instead, you SHOULD call `copied` to state the Copy requirement directly.
             reported: r#"
 import { Iterator } from "destack:iter";
 
-function copy(values: Iterator<&readonly int32>): int32[] {
+function copy(values: Iterator<&immutable int32>): int32[] {
     return values.cloned().toArray();
 }
 "#,
             accepted: r#"
 import { Iterator } from "destack:iter";
 
-function copy(values: Iterator<&readonly int32>): int32[] {
+function copy(values: Iterator<&immutable int32>): int32[] {
     return values.copied().toArray();
 }
 "#,
@@ -56,16 +55,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // require the inferred element parameter to satisfy Copy
-        let Some(bindings) = module.call_generic_bindings(expression)? else {
+        // require the cloned element to satisfy Copy
+        let Some(element) = module.cloned_element(expression)? else {
             continue;
         };
-        let Some(element) = bindings.first() else {
-            return Err(ProviderError::internal(
-                "checked Iterator.cloned call has no element type argument",
-            ));
-        };
-        if !module.satisfies_copy(element.argument)? {
+        if !module.satisfies_copy(element)? {
             continue;
         }
 
@@ -96,7 +90,7 @@ mod tests {
             r#"
 import { Iterator } from "destack:iter";
 
-declare function values(): Iterator<&readonly int32>;
+declare function values(): Iterator<&immutable int32>;
 
 function copy(): int32[] {
     return values().cloned().toArray();
@@ -108,7 +102,7 @@ function copy(): int32[] {
             r#"
 import { Iterator } from "destack:iter";
 
-declare function values(): Iterator<&readonly int32>;
+declare function values(): Iterator<&immutable int32>;
 
 function copy(): int32[] {
     return values().copied().toArray();
@@ -125,7 +119,7 @@ function copy(): int32[] {
             r#"
 import { Iterator } from "destack:iter";
 
-function copy<T: Copy>(values: Iterator<&readonly T>): T[] {
+function copy<T: Copy>(values: Iterator<&immutable T>): T[] {
     return values.cloned().toArray();
 }
 "#,
@@ -135,7 +129,7 @@ function copy<T: Copy>(values: Iterator<&readonly T>): T[] {
             r#"
 import { Iterator } from "destack:iter";
 
-function copy<T: Copy>(values: Iterator<&readonly T>): T[] {
+function copy<T: Copy>(values: Iterator<&immutable T>): T[] {
     return values.copied().toArray();
 }
 "#,
@@ -152,7 +146,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly Label[]): Label[] {
+function copy(values: &immutable Label[]): Label[] {
     return values.iterator().cloned().toArray();
 }
 "#,
@@ -169,7 +163,7 @@ function copy(values: &readonly Label[]): Label[] {
             r#"
 import { Iterator } from "destack:iter";
 
-function copy(values: Iterator<&readonly int32> | undefined): int32[] | undefined {
+function copy(values: Iterator<&immutable int32> | undefined): int32[] | undefined {
     return values?.cloned().toArray();
 }
 "#,
@@ -179,7 +173,7 @@ function copy(values: Iterator<&readonly int32> | undefined): int32[] | undefine
             r#"
 import { Iterator } from "destack:iter";
 
-function copy(values: Iterator<&readonly int32> | undefined): int32[] | undefined {
+function copy(values: Iterator<&immutable int32> | undefined): int32[] | undefined {
     return values?.copied().toArray();
 }
 "#,

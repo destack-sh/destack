@@ -11,7 +11,7 @@ declare_lint! {
         id: "manual-saturating-arithmetic",
         summary: "Prefer saturating arithmetic over equivalent manual bounds logic",
         explanation: r#"
-Falling back from checked unsigned arithmetic to the matching integer bound manually implements saturation.
+Falling back from overflow-checked unsigned arithmetic to the matching integer bound manually implements saturation.
 Instead, you SHOULD call the corresponding saturating arithmetic method.
 "#,
         example: {
@@ -34,7 +34,7 @@ function add(left: uint32, right: uint32): uint32 {
     }
 }
 
-/// One checked unsigned operation followed by its saturating bound.
+/// One overflow-checked unsigned operation followed by its saturating bound.
 struct ManualSaturation {
     /// The complete coalescing expression.
     expression: dir::LocalNodeId<dir::Expression>,
@@ -46,7 +46,7 @@ struct ManualSaturation {
     method: &'static str,
 }
 
-/// Report checked arithmetic with a matching bound fallback.
+/// Report overflow-checked arithmetic with a matching bound fallback.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
@@ -66,10 +66,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
 
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic(
-            "checked arithmetic falls back to its saturating bound",
-            span,
-        );
+        let mut diagnostic = lint.diagnostic("arithmetic falls back to its saturating bound", span);
         if let Some(suggestion) = suggestion(module, lint, &manual)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
@@ -79,7 +76,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Select one exact checked operation and matching bound fallback.
+/// Select one exact overflow-checked operation and matching bound fallback.
 fn manual_saturation(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
@@ -119,7 +116,7 @@ fn manual_saturation(
         return Ok(None);
     }
 
-    // pair each checked operation with the bound that has exact saturating behavior
+    // pair each overflow-checked operation with the bound that has exact saturating behavior
     let operation = module.language_member(checked)?;
     let bound = module.language_member(bound)?;
     let method = match (operation, bound) {
@@ -158,7 +155,7 @@ fn manual_saturation(
     }))
 }
 
-/// Replace checked arithmetic and its fallback with one saturating call.
+/// Replace overflow-checked arithmetic and its fallback with one saturating call.
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
@@ -185,13 +182,13 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Replace checked addition with saturatingAdd.
+    /// Replace overflow-checked addition with saturatingAdd.
     #[test]
     fn test_replaces_checked_addition() {
         TestSession::assert_example(&MANUAL_SATURATING_ARITHMETIC);
     }
 
-    /// Replace checked subtraction with saturatingSubtract.
+    /// Replace overflow-checked subtraction with saturatingSubtract.
     #[test]
     fn test_replaces_checked_subtraction() {
         let session = TestSession::dir(
@@ -212,7 +209,7 @@ function subtract(left: uint16, right: uint16): uint16 {
         );
     }
 
-    /// Replace checked multiplication with saturatingMultiply.
+    /// Replace overflow-checked multiplication with saturatingMultiply.
     #[test]
     fn test_replaces_checked_multiplication() {
         let session = TestSession::dir(
@@ -233,7 +230,7 @@ function multiply(left: uint64, right: uint64): uint64 {
         );
     }
 
-    /// Replace checked exponentiation with saturatingPower.
+    /// Replace overflow-checked exponentiation with saturatingPower.
     #[test]
     fn test_replaces_checked_power() {
         let session = TestSession::dir(
@@ -284,7 +281,7 @@ function add(left: int32, right: int32): int32 {
         session.assert_no_diagnostics();
     }
 
-    /// Accept an ordinary checked operation without a fallback.
+    /// Accept an overflow-checked operation without a fallback.
     #[test]
     fn test_accepts_checked_arithmetic() {
         let session = TestSession::dir(

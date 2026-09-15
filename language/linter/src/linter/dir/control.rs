@@ -489,16 +489,16 @@ impl DirModule<'_> {
         None
     }
 
-    /// Return the checked control target selected by one break or continue expression.
+    /// Return the control target selected by one break or continue expression.
     pub(crate) fn transfer_target(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<dir::LocalNodeId<dir::Expression>, ProviderError> {
-        // read the checked target selected for this transfer
+        // read the target selected for this transfer
         let global = expression.into_global_any(self.id);
         let target = self.decisions.transfer_decision(global).ok_or_else(|| {
             ProviderError::internal(format!(
-                "checked control transfer {global:?} has no target decision"
+                "control transfer {global:?} has no target decision"
             ))
         })?;
 
@@ -547,7 +547,7 @@ impl DirModule<'_> {
         let target = iteration.into_global(self.id);
         let view = self.view();
 
-        // inspect checked transfers selecting this iteration
+        // inspect transfers selecting this iteration
         for (source, selected) in self.decisions.transfer_entries() {
             if source.module_id != self.id {
                 return Err(ProviderError::internal(format!(
@@ -586,7 +586,7 @@ impl DirModule<'_> {
         let target = iteration.into_global(self.id);
         let view = self.view();
 
-        // inspect checked breaks selecting this loop
+        // inspect breaks selecting this loop
         for (source, selected) in self.decisions.transfer_entries() {
             if source.module_id != self.id {
                 return Err(ProviderError::internal(format!(

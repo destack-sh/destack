@@ -40,7 +40,7 @@ struct OverflowTest {
     receiver: dir::LocalNodeId<dir::Expression>,
     /// The other arithmetic operand.
     argument: dir::LocalNodeId<dir::Expression>,
-    /// The checked arithmetic method.
+    /// The overflow-checked arithmetic method.
     method: &'static str,
 }
 
@@ -122,7 +122,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // replace the post-operation comparison with checked arithmetic
+        // replace the post-operation comparison with an overflow-checked method
         let span = module.source_extent(expression.into_any())?;
         let mut diagnostic = lint.diagnostic("overflow is tested after arithmetic", span);
         if let Some(suggestion) = suggestion(module, lint, expression, &test)? {
@@ -148,13 +148,13 @@ fn suggestion(
         return Ok(None);
     }
 
-    // retain both arithmetic operands in their checked order
+    // retain both arithmetic operands in their order
     let receiver = module.expression_source(test.receiver, dir::OperatorPrecedence::Postfix)?;
     let argument = module.source(argument_span)?;
     let method = test.method;
     let replacement = format!("{receiver}.{method}({argument}) === undefined");
     let patch = Patch::replace(span, replacement);
-    let suggestion = lint.suggestion("use checked arithmetic", patch)?;
+    let suggestion = lint.suggestion("use overflow-checked arithmetic", patch)?;
 
     Ok(Some(suggestion))
 }

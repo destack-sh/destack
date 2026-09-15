@@ -27,7 +27,7 @@ import { take } from "destack:memory";
 
 function remove<T: Default>(initial: T): T {
     let value = initial;
-    return take(&value);
+    return take(&exclusive value);
 }
 "#,
         },
@@ -44,7 +44,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect adjacent statements within each checked block
+    // inspect adjacent statements within each block
     for (_, block) in view.iter_nodes::<dir::Block>() {
         let mut expressions = block.iter_expressions();
         let Some(mut declaration) = expressions.next() else {
@@ -61,7 +61,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 let place = module.source(place)?;
                 let diagnostic = lint
                     .diagnostic("place is moved and then assigned its default", span)
-                    .help(format!("use `take(&{place})`"));
+                    .help(format!("use `take(&exclusive {place})`"));
                 output.report(diagnostic);
             }
 
@@ -86,7 +86,7 @@ fn taken_place(
         return Ok(None);
     };
 
-    // require a plain assignment back into the same checked place
+    // require a plain assignment back into the same place
     let Some(assignment) = module.place_assignment(assignment) else {
         return Ok(None);
     };
@@ -163,7 +163,7 @@ warning[manual-take]: place is moved and then assigned its default
 6 │ }
   │
 
- = help: use `take(&value)`
+ = help: use `take(&exclusive value)`
 "#,
         );
     }

@@ -48,7 +48,7 @@ function increment(value: int32): int32 {
     }
 }
 
-/// One checked callable implementation considered by duplicate-code detection.
+/// One callable implementation considered by duplicate-code detection.
 #[derive(Debug, Clone, Copy)]
 struct CallableImplementation {
     /// The callable root.
@@ -59,7 +59,7 @@ struct CallableImplementation {
     span: Span,
 }
 
-/// One checked block's statements and cumulative structural sizes.
+/// One block's statements and cumulative structural sizes.
 #[derive(Debug)]
 struct StatementSequence {
     /// The module containing every statement.
@@ -84,7 +84,7 @@ struct StatementSeed {
 }
 
 impl CallableImplementation {
-    /// Collect substantial authored callable implementations from one checked module.
+    /// Collect substantial authored callable implementations from one module.
     fn collect(module: DirModule<'_>) -> Result<Vec<Self>, ProviderError> {
         let view = module.view();
         let mut implementations = Vec::new();
@@ -112,7 +112,7 @@ impl CallableImplementation {
 }
 
 impl StatementSequence {
-    /// Build one checked statement sequence.
+    /// Build one statement sequence.
     fn new(
         program: &DirProgram<'_>,
         statements: Vec<dir::GlobalNodeIdAny>,
@@ -266,7 +266,7 @@ fn check(program: &DirProgram<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Report later substantial callables that repeat an earlier checked implementation.
+/// Report later substantial callables that repeat an earlier implementation.
 fn report_duplicate_callables(
     program: &DirProgram<'_>,
     lint: &Lint,
@@ -297,7 +297,7 @@ fn report_duplicate_callables(
             .entry(fingerprint)
             .or_default();
 
-        // confirm every hash candidate with exact checked alpha-equivalence
+        // confirm every hash candidate with exact alpha-equivalence
         let mut duplicate = None;
         for earlier in candidates.iter() {
             let left_callable = [earlier.callable];

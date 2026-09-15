@@ -71,7 +71,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return one checked diagnostic control's final reason.
+/// Return one diagnostic control's final reason.
 fn diagnostic_reason(
     module: &DirModule<'_>,
     application: &dir::DecoratorApplication,

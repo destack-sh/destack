@@ -71,7 +71,17 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                     .and_then(|call| tree.get_values(call.arguments).first().copied());
 
                 // report move-only sources that are movable and dead afterward
-                if let Some(receiver) = receiver {
+                let is_copy = receiver.is_some_and(|receiver| {
+                    function
+                        .value_type(receiver)
+                        .and_then(|ty| tree.get(ty).pointee_type())
+                        .is_some_and(|pointee| {
+                            mir::Copy::decide(pointee, function_id, tree).is_yes()
+                        })
+                });
+                if let Some(receiver) = receiver
+                    && !is_copy
+                {
                     let receiver_origin = state.value(receiver);
                     if let [loan_id] = receiver_origin.loans() {
                         let loan = loans.get(*loan_id);
@@ -84,7 +94,13 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                                     &state,
                                     &live,
                                     |left, right| {
-                                        left.may_overlap(right, &constants, function_id, tree)
+                                        left.may_overlap(
+                                            right,
+                                            &constants,
+                                            &places,
+                                            function_id,
+                                            tree,
+                                        )
                                     },
                                     &moves,
                                     &places,
@@ -210,7 +226,7 @@ function retain(value: rc.Rc<int32>): (rc.Rc<int32>, rc.Rc<int32>) {
 import { rc } from "destack:memory";
 
 function retain(value: rc.Rc<int32>): (rc.Rc<int32>, usize) {
-    const borrowed: &readonly rc.Rc<int32> = &readonly value;
+    const borrowed: &immutable rc.Rc<int32> = &immutable value;
     const cloned = value.clone();
 
     return (cloned, borrowed.strongCount());
@@ -229,7 +245,7 @@ function retain(value: rc.Rc<int32>): (rc.Rc<int32>, usize) {
             r#"
 import { rc } from "destack:memory";
 
-function retain(value: &readonly rc.Rc<int32>): rc.Rc<int32> {
+function retain(value: &immutable rc.Rc<int32>): rc.Rc<int32> {
     return value.clone();
 }
 "#,

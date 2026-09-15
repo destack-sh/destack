@@ -17,13 +17,13 @@ Instead, you SHOULD use the original iterator until lookahead is required.
         example: {
             reported: r#"
 function consume(values: int32[]): void {
-    const iterator = values.iterator().peekable();
+    let iterator = values.iterator().peekable();
     iterator.next();
 }
 "#,
             accepted: r#"
 function consume(values: int32[]): void {
-    const iterator = values.iterator();
+    let iterator = values.iterator();
     iterator.next();
 }
 "#,
@@ -198,7 +198,7 @@ mod tests {
             &UNUSED_PEEKABLE,
             r#"
 function consume(values: int32[]): void {
-    const iterator = values.iterator().peekable();
+    let iterator = values.iterator().peekable();
     iterator.next();
 }
 "#,
@@ -207,11 +207,11 @@ function consume(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[unused-peekable]: peekable iterator is never peeked
- ──▶ main.ds:2:22
+ ──▶ main.ds:2:20
   │
 1 │ function consume(values: int32[]): void {
-2 │     const iterator = values.iterator().peekable();
-  │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2 │     let iterator = values.iterator().peekable();
+  │                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │     iterator.next();
 4 │ }
   │
@@ -221,15 +221,15 @@ warning[unused-peekable]: peekable iterator is never peeked
 +++ b/main.ds
 
     1│ function consume(values: int32[]): void {
--   2│     const iterator = values.iterator().peekable();
-+   2│     const iterator = values.iterator();
+-   2│     let iterator = values.iterator().peekable();
++   2│     let iterator = values.iterator();
     3│     iterator.next();
 "#,
         );
         session.assert_fixes(
             r#"
 function consume(values: int32[]): void {
-    const iterator = values.iterator();
+    let iterator = values.iterator();
     iterator.next();
 }
 "#,
@@ -243,7 +243,7 @@ function consume(values: int32[]): void {
             &UNUSED_PEEKABLE,
             r#"
 function consume(values: int32[]): isize {
-    const iterator = values.iterator().peekable();
+    let iterator = values.iterator().peekable();
     iterator.next();
 
     return iterator.count();
@@ -254,7 +254,7 @@ function consume(values: int32[]): isize {
         session.assert_fixes(
             r#"
 function consume(values: int32[]): isize {
-    const iterator = values.iterator();
+    let iterator = values.iterator();
     iterator.next();
 
     return iterator.count();
@@ -270,7 +270,7 @@ function consume(values: int32[]): isize {
             &UNUSED_PEEKABLE,
             r#"
 function consume(values: int32[]): void {
-    const iterator = values.iterator().peekable();
+    let iterator = values.iterator().peekable();
     for (const value of iterator) {
         value;
     }
@@ -281,7 +281,7 @@ function consume(values: int32[]): void {
         session.assert_fixes(
             r#"
 function consume(values: int32[]): void {
-    const iterator = values.iterator();
+    let iterator = values.iterator();
     for (const value of iterator) {
         value;
     }
@@ -297,7 +297,7 @@ function consume(values: int32[]): void {
             &UNUSED_PEEKABLE,
             r#"
 function inspect(values: int32[]): void {
-    const iterator = values.iterator().peekable();
+    let iterator = values.iterator().peekable();
     iterator.peek();
 }
 "#,
@@ -315,7 +315,7 @@ function inspect(values: int32[]): void {
 declare function consume(value: unknown): void;
 
 function forward(values: int32[]): void {
-    const iterator = values.iterator().peekable();
+    let iterator = values.iterator().peekable();
     consume(iterator);
 }
 "#,
@@ -333,7 +333,7 @@ function forward(values: int32[]): void {
 import { Iterator, PeekableIterator } from "destack:iter";
 
 function consume(values: Iterator<int32>): void {
-    const iterator: PeekableIterator<Iterator<int32>, int32> = values.peekable();
+    let iterator: PeekableIterator<Iterator<int32>, int32> = values.peekable();
     iterator.next();
 }
 "#,

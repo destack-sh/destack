@@ -34,7 +34,7 @@ function identity(value: string): string {
     }
 }
 
-/// Report one-value templates that preserve the checked value type.
+/// Report one-value templates that preserve the value type.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
@@ -64,7 +64,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // require the interpolation to preserve its checked type
+        // require the interpolation to preserve its type
         if module.adjusted_type(expression.into_any())? != module.adjusted_type(value.into_any())? {
             continue;
         }

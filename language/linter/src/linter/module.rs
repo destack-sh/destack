@@ -32,11 +32,11 @@ impl Linter {
             return Ok(dependencies);
         }
 
-        // require checked controls for every selected module lint
+        // require controls for every selected module lint
         dependencies.require(ArtifactKey::dir_declared(module, profile));
         dependencies.require(ArtifactKey::dir_checked(module, profile));
 
-        // require the checked DIR of this module and of every module its resolutions name
+        // require the DIR of this module and of every module its resolutions name
         if lints.has_modules() {
             dependencies.require(ArtifactKey::environment_bound(profile));
             for kind in lints.dir_indexes(LintScope::Module) {
@@ -58,7 +58,7 @@ impl Linter {
                 Err(error) => return Err(error),
             };
 
-            // require the edges and the checked DIR of every reached module
+            // require the edges and the DIR of every reached module
             for reached in reachable.iter().copied() {
                 dependencies.require_projection(
                     graph_key,
@@ -91,13 +91,13 @@ impl Linter {
             return Ok(ModuleLinted.into());
         }
 
-        // skip checked controls when no module implementation is selected
+        // skip controls when no module implementation is selected
         let mut lints = self.resolve_lints(context, target.package_id())?;
         if !lints.has_modules() {
             return Ok(ModuleLinted.into());
         }
 
-        // activate selected lints from checked source controls
+        // activate selected lints from source controls
         let artifacts = self.artifact_reader(context);
         let checked = artifacts.read::<DirChecked>((module, profile))?;
         let control_tables = [checked.controls.clone()];
@@ -112,7 +112,7 @@ impl Linter {
         Ok(ModuleLinted.into())
     }
 
-    /// Execute checked DIR module lints.
+    /// Execute DIR module lints.
     fn lint_dir_module(
         &self,
         context: &dyn ProviderContext,
@@ -125,7 +125,7 @@ impl Linter {
             return Ok(());
         }
 
-        // load this module's checked DIR
+        // load this module's DIR
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
         let environment = artifacts.read::<EnvironmentBound>(profile)?;

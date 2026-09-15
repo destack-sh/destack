@@ -376,7 +376,7 @@ warning[prefer-enumerate]: iteration maintains its index manually
         );
     }
 
-    /// Report a differently typed counter without changing its checked type.
+    /// Report a differently typed counter without changing its type.
     #[test]
     fn test_reports_int32_counter_without_suggestion() {
         let source = r#"
@@ -569,7 +569,7 @@ function indexes(values: int32[], output: isize[]): void {
             &PREFER_ENUMERATE,
             r#"
 function callbacks(values: int32[]): (() => isize)[] {
-    const output: (() => isize)[] = [];
+    let output: (() => isize)[] = [];
     let index: isize = 0;
     for (const value of values) {
         value;

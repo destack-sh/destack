@@ -26,7 +26,7 @@ struct Label {
     values: ^int32[];
 }
 
-function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
     return values.cloned().take(count);
 }
 "#,
@@ -37,7 +37,7 @@ struct Label {
     values: ^int32[];
 }
 
-function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
     return values.take(count).cloned();
 }
 "#,
@@ -193,15 +193,10 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // leave Copy elements to cloned-instead-of-copied
-        let Some(bindings) = module.call_generic_bindings(operation.receiver)? else {
+        let Some(element) = module.cloned_element(operation.receiver)? else {
             continue;
         };
-        let Some(element) = bindings.first() else {
-            return Err(ProviderError::internal(
-                "checked Iterator.cloned call has no element type argument",
-            ));
-        };
-        if module.satisfies_copy(element.argument)? {
+        if module.satisfies_copy(element)? {
             continue;
         }
 
@@ -322,7 +317,7 @@ struct Label {
     values: ^int32[];
 }
 
-function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
     return values.cloned().take(count);
 }
 "#,
@@ -334,7 +329,7 @@ warning[iter-overeager-cloned]: iterator cloning precedes an operation that can 
  ──▶ main.ds:8:12
   │
 6 │
-7 │ function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+7 │ function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
 8 │     return values.cloned().take(count);
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 9 │ }
@@ -344,7 +339,7 @@ warning[iter-overeager-cloned]: iterator cloning precedes an operation that can 
 --- a/main.ds
 +++ b/main.ds
 
-    7│ function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+    7│ function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
 -   8│     return values.cloned().take(count);
 +   8│     return values.take(count).cloned();
     9│ }
@@ -358,7 +353,7 @@ struct Label {
     values: ^int32[];
 }
 
-function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
     return values.take(count).cloned();
 }
 "#,
@@ -377,7 +372,7 @@ struct Label {
     values: ^int32[];
 }
 
-function suffix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+function suffix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
     return values.cloned().drop(count);
 }
 "#,
@@ -391,7 +386,7 @@ struct Label {
     values: ^int32[];
 }
 
-function suffix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+function suffix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
     return values.drop(count).cloned();
 }
 "#,
@@ -410,7 +405,7 @@ struct Label {
     values: ^int32[];
 }
 
-function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
+function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
     return values.take(count).cloned();
 }
 "#,
@@ -431,15 +426,15 @@ struct Label {
     values: ^int32[];
 }
 
-function nonempty(values: Iterator<&readonly Label>): Iterator<Label> {
+function nonempty(values: Iterator<&immutable Label>): Iterator<Label> {
     return values.cloned().filter((value) => value.values.length > 0);
 }
 
-function prefix(values: Iterator<&readonly Label>): Iterator<Label> {
+function prefix(values: Iterator<&immutable Label>): Iterator<Label> {
     return values.cloned().takeWhile((value) => value.values.length > 0);
 }
 
-function suffix(values: Iterator<&readonly Label>): Iterator<Label> {
+function suffix(values: Iterator<&immutable Label>): Iterator<Label> {
     return values.cloned().dropWhile((value) => value.values.length === 0);
 }
 "#,
@@ -453,15 +448,15 @@ struct Label {
     values: ^int32[];
 }
 
-function nonempty(values: Iterator<&readonly Label>): Iterator<Label> {
+function nonempty(values: Iterator<&immutable Label>): Iterator<Label> {
     return values.filter((value) => value.values.length > 0).cloned();
 }
 
-function prefix(values: Iterator<&readonly Label>): Iterator<Label> {
+function prefix(values: Iterator<&immutable Label>): Iterator<Label> {
     return values.takeWhile((value) => value.values.length > 0).cloned();
 }
 
-function suffix(values: Iterator<&readonly Label>): Iterator<Label> {
+function suffix(values: Iterator<&immutable Label>): Iterator<Label> {
     return values.dropWhile((value) => value.values.length === 0).cloned();
 }
 "#,
@@ -480,15 +475,15 @@ struct Label {
     values: ^int32[];
 }
 
-function first(values: Iterator<&readonly Label>): Label | undefined {
+function first(values: Iterator<&immutable Label>): Label | undefined {
     return values.cloned().first();
 }
 
-function last(values: Iterator<&readonly Label>): Label | undefined {
+function last(values: Iterator<&immutable Label>): Label | undefined {
     return values.cloned().last();
 }
 
-function find(values: Iterator<&readonly Label>): Label | undefined {
+function find(values: Iterator<&immutable Label>): Label | undefined {
     return values.cloned().find((value) => value.values.length > 0);
 }
 "#,
@@ -502,15 +497,15 @@ struct Label {
     values: ^int32[];
 }
 
-function first(values: Iterator<&readonly Label>): Label | undefined {
+function first(values: Iterator<&immutable Label>): Label | undefined {
     return values.first()?.clone();
 }
 
-function last(values: Iterator<&readonly Label>): Label | undefined {
+function last(values: Iterator<&immutable Label>): Label | undefined {
     return values.last()?.clone();
 }
 
-function find(values: Iterator<&readonly Label>): Label | undefined {
+function find(values: Iterator<&immutable Label>): Label | undefined {
     return values.find((value) => value.values.length > 0)?.clone();
 }
 "#,
@@ -525,7 +520,7 @@ function find(values: Iterator<&readonly Label>): Label | undefined {
             r#"
 import { Iterator } from "destack:iter";
 
-function prefix(values: Iterator<&readonly int32>): Iterator<int32> {
+function prefix(values: Iterator<&immutable int32>): Iterator<int32> {
     return values.cloned().take(2);
 }
 "#,
@@ -571,7 +566,7 @@ struct Label {
     values: ^int32[];
 }
 
-function prefix(values: Iterator<&readonly Label>): Iterator<Label> {
+function prefix(values: Iterator<&immutable Label>): Iterator<Label> {
     return values.cloned(/* retain */).take(2);
 }
 "#,
@@ -583,7 +578,7 @@ warning[iter-overeager-cloned]: iterator cloning precedes an operation that can 
  ──▶ main.ds:8:12
   │
 6 │
-7 │ function prefix(values: Iterator<&readonly Label>): Iterator<Label> {
+7 │ function prefix(values: Iterator<&immutable Label>): Iterator<Label> {
 8 │     return values.cloned(/* retain */).take(2);
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 9 │ }

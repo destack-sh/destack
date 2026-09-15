@@ -39,7 +39,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect labeled transfers with a checked control target
+    // inspect labeled transfers with a control target
     for (global, selected) in module.decisions.transfer_entries() {
         if global.module_id != module.id {
             return Err(ProviderError::internal(format!(

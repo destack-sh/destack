@@ -140,7 +140,7 @@ struct Point {
     x: int32;
 }
 
-function points(value: Managed<Point>): Managed<Point>[] {
+function points(value: Managed<Point, "local">): Managed<Point, "local">[] {
     const values = [value, value, value];
     values.fill(value);
     return values;
@@ -153,7 +153,7 @@ function points(value: Managed<Point>): Managed<Point>[] {
 warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
   ──▶ main.ds:9:17
    │
- 7 │ function points(value: Managed<Point>): Managed<Point>[] {
+ 7 │ function points(value: Managed<Point, "local">): Managed<Point, "local">[] {
  8 │     const values = [value, value, value];
  9 │     values.fill(value);
    │                 ^^^^^
@@ -178,7 +178,7 @@ class Cell {
     value: int32 = 0;
 }
 
-function cells(value: Managed<Owned<Cell>>): Managed<Owned<Cell>>[] {
+function cells(value: Managed<Owned<Cell>, "local">): Managed<Owned<Cell>, "local">[] {
     const values = [value, value, value];
     values.fill(value);
     return values;
@@ -191,7 +191,7 @@ function cells(value: Managed<Owned<Cell>>): Managed<Owned<Cell>>[] {
 warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
   ──▶ main.ds:9:17
    │
- 7 │ function cells(value: Managed<Owned<Cell>>): Managed<Owned<Cell>>[] {
+ 7 │ function cells(value: Managed<Owned<Cell>, "local">): Managed<Owned<Cell>, "local">[] {
  8 │     const values = [value, value, value];
  9 │     values.fill(value);
    │                 ^^^^^

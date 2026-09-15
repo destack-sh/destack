@@ -7,17 +7,17 @@ use destack_source::ModuleId;
 use super::super::LintProgram;
 use super::{Dir, DirModule};
 
-/// Checked DIR for one target program.
+/// DIR for one target program.
 #[derive(Debug)]
 pub struct DirProgram<'a> {
     /// The program.
     pub program: Arc<LintProgram>,
-    /// The checked DIR.
+    /// The DIR.
     pub dir: Dir<'a>,
 }
 
 impl<'a> DirProgram<'a> {
-    /// Load checked DIR for one target program.
+    /// Load DIR for one target program.
     pub(crate) fn load(
         repository: &'a Repository,
         revision: Revision,
@@ -42,7 +42,7 @@ impl<'a> DirProgram<'a> {
         Ok(Self { program, dir })
     }
 
-    /// Return checked DIR for one module.
+    /// Return DIR for one module.
     pub fn module(&self, module: ModuleId) -> Result<DirModule<'_>, ProviderError> {
         self.dir.module(module)
     }

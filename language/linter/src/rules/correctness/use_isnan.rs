@@ -56,7 +56,7 @@ enum NanEquality {
 }
 
 impl NanEquality {
-    /// Select one checked NaN comparison.
+    /// Select one NaN comparison.
     fn select(
         module: &DirModule<'_>,
         left: dir::LocalNodeId<dir::Expression>,
@@ -236,7 +236,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked equality and switch expressions
+    // inspect equality and switch expressions
     for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
         match expression {
             // value === NaN
@@ -255,7 +255,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                     continue;
                 }
 
-                // select one checked NaN comparison
+                // select one NaN comparison
                 let Some(comparison) = NanEquality::select(module, *left, *right, *operator)?
                 else {
                     continue;
@@ -278,7 +278,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 let mut has_selector = false;
                 let mut uses_builtin_equality = true;
 
-                // collect cases that use the checked builtin equality
+                // collect cases that use the builtin equality
                 for case in cases {
                     let dir::SwitchSelector::Case(selector) = view.get(*case).selector else {
                         continue;
@@ -347,7 +347,7 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Report inequality with a checked NaN constant expression.
+    /// Report inequality with a NaN constant expression.
     #[test]
     fn test_reports_nan_inequality() {
         let session = TestSession::dir(

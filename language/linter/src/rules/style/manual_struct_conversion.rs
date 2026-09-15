@@ -103,7 +103,7 @@ fn conversion_source(
         .strip_form(module.node_type_id(target.into_any())?)?;
     let target_symbol = module.dir.get_type(target_type)?.symbol().ok_or_else(|| {
         ProviderError::internal(format!(
-            "checked nominal literal target {target:?} has non-nominal type {target_type:?}"
+            "nominal literal target {target:?} has non-nominal type {target_type:?}"
         ))
     })?;
     let fields = module.dir.instance_field_keys(target_symbol)?;

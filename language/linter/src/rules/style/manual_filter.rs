@@ -17,7 +17,7 @@ Instead, you SHOULD return the result of `filter` directly.
         example: {
             reported: r#"
 function positive(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         if (value > 0) {
             result.push(value);
@@ -233,7 +233,7 @@ mod tests {
             &MANUAL_FILTER,
             r#"
 function positive(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         if (value > 0) {
             result.push(value);
@@ -250,7 +250,7 @@ warning[manual-filter]: loop manually collects matching values
  ──▶ main.ds:3:5
   │
 1 │ function positive(values: int32[]): int32[] {
-2 │     const result: int32[] = [];
+2 │     let result: int32[] = [];
 3 │     for (const value of values) {
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 4 │         if (value > 0) {
@@ -270,7 +270,7 @@ warning[manual-filter]: loop manually collects matching values
 +++ b/main.ds
 
     1│ function positive(values: int32[]): int32[] {
--   2│     const result: int32[] = [];
+-   2│     let result: int32[] = [];
 -   3│     for (const value of values) {
 -   4│         if (value > 0) {
 -   5│             result.push(value);
@@ -297,7 +297,7 @@ function positive(values: int32[]): int32[] {
             &MANUAL_FILTER,
             r#"
 function positive(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         if (value > 0) {
             result.push(value + 1);
@@ -320,7 +320,7 @@ function positive(values: int32[]): int32[] {
 declare function increment(value: &int32): int32;
 
 function positive(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (let value of values) {
         if (increment(&value) > 0) {
             result.push(value);
@@ -345,7 +345,7 @@ async function isPositive(value: int32): Promise<boolean> {
 }
 
 async function positive(values: int32[]): Promise<int32[]> {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         if (await isPositive(value)) {
             result.push(value);
@@ -366,7 +366,7 @@ async function positive(values: int32[]): Promise<int32[]> {
             &MANUAL_FILTER,
             r#"
 function partition(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         if (value > 0) {
             result.push(value);
@@ -389,7 +389,7 @@ function partition(values: int32[]): int32[] {
             &MANUAL_FILTER,
             r#"
 function positive(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         if (value > 0) {
             result.push(value);
@@ -412,7 +412,7 @@ function positive(values: int32[]): int32[] {
 declare function select(result: int32[], values: int32[]): int32[];
 
 function positive(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of select(result, values)) {
         if (value > 0) {
             result.push(value);
@@ -433,7 +433,7 @@ function positive(values: int32[]): int32[] {
             &MANUAL_FILTER,
             r#"
 function positive(values: int32[]): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         if (value > 0) {
             result.push(value);
@@ -455,7 +455,7 @@ function positive(values: int32[]): int32[] {
             &MANUAL_FILTER,
             r#"
 function positive(values: Set<int32>): int32[] {
-    const result: int32[] = [];
+    let result: int32[] = [];
     for (const value of values) {
         if (value > 0) {
             result.push(value);

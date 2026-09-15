@@ -275,7 +275,7 @@ fn suggestion(
     let result_extent = module.source_extent(result.into_any())?;
     let fallback_extent = module.source_extent(fallback.body)?;
 
-    // read the optional error parameter from its checked declaration
+    // read the optional error parameter from its declaration
     let binding = if let Some(binding) = fallback.binding {
         let declaration = module.symbol_declaration(binding)?;
         let declaration = module.source_extent(declaration.local_id)?;

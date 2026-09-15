@@ -38,7 +38,7 @@ impl LintSet {
         };
         let mut selected = Vec::with_capacity(capacity);
 
-        // select implementations independently of checked source controls
+        // select implementations independently of source controls
         for lint in lints {
             let is_selected =
                 options.only.is_empty() || options.only.iter().any(|id| id == lint.id.as_ref());
@@ -81,7 +81,7 @@ impl LintSet {
         }
     }
 
-    /// Retain lints enabled by configuration or checked source controls.
+    /// Retain lints enabled by configuration or source controls.
     pub(crate) fn retain_active(&mut self, controls: &DiagnosticControlIndex<'_>) {
         self.selected.retain(|(lint, severity)| {
             let diagnostic = StringId::for_text(lint.id.as_ref());
@@ -98,7 +98,7 @@ impl LintSet {
         &self.errors
     }
 
-    /// Iterate checked DIR module lints.
+    /// Iterate DIR module lints.
     pub(crate) fn dir_modules(
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, DirModuleCheck)> {
@@ -108,7 +108,7 @@ impl LintSet {
         })
     }
 
-    /// Iterate checked DIR program lints.
+    /// Iterate DIR program lints.
     pub(crate) fn dir_programs(
         &self,
     ) -> impl Iterator<Item = (&Lint, Option<DiagnosticSeverity>, DirProgramCheck)> {
@@ -138,17 +138,17 @@ impl LintSet {
         })
     }
 
-    /// Return whether this set contains checked DIR module lints.
+    /// Return whether this set contains DIR module lints.
     pub(crate) fn has_dir_modules(&self) -> bool {
         self.dir_modules().next().is_some()
     }
 
-    /// Return whether this set contains checked DIR program lints.
+    /// Return whether this set contains DIR program lints.
     pub(crate) fn has_dir_programs(&self) -> bool {
         self.dir_programs().next().is_some()
     }
 
-    /// Iterate module indexes required by checked DIR lints at one scope.
+    /// Iterate module indexes required by DIR lints at one scope.
     pub(crate) fn dir_indexes(&self, scope: LintScope) -> impl Iterator<Item = IndexKind> + '_ {
         IndexKind::ALL.into_iter().filter(move |kind| {
             self.iter().any(|(lint, _)| {

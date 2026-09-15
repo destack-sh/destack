@@ -74,7 +74,7 @@ impl DirModule<'_> {
         }
         if self.representation_item(expression.into_any())? != Some(item) {
             return Err(ProviderError::internal(format!(
-                "language item constructor {item:?} has another checked representation"
+                "language item constructor {item:?} has another representation"
             )));
         }
         let [argument] = arguments.as_slice() else {
@@ -108,7 +108,7 @@ impl DirModule<'_> {
         Ok(primitive)
     }
 
-    /// Return the exact scalar constant selected by one checked expression.
+    /// Return the exact scalar constant selected by one expression.
     pub fn scalar_constant(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
@@ -140,7 +140,7 @@ impl DirModule<'_> {
         Ok(value)
     }
 
-    /// Return the exact integral constant selected by one checked expression.
+    /// Return the exact integral constant selected by one expression.
     pub fn integral_constant(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
@@ -185,7 +185,7 @@ impl DirModule<'_> {
         Ok(maximum == Some(value))
     }
 
-    /// Return whether one checked expression denotes an exact numeric constant.
+    /// Return whether one expression denotes an exact numeric constant.
     pub(crate) fn is_numeric_constant(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
@@ -295,7 +295,7 @@ impl DirModule<'_> {
         Ok(is_negative_zero)
     }
 
-    /// Return whether one checked expression denotes positive or negative infinity.
+    /// Return whether one expression denotes positive or negative infinity.
     pub fn is_infinite(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
@@ -303,12 +303,12 @@ impl DirModule<'_> {
         Ok(self.infinity(node)?.is_some())
     }
 
-    /// Return the exact infinite value denoted by one checked expression.
+    /// Return the exact infinite value denoted by one expression.
     pub fn infinity(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<f64>, ProviderError> {
-        // recognize exact checked scalar constants
+        // recognize exact scalar constants
         if let Some(dir::Literal::Float(value)) = self.scalar_constant(node)?
             && value.is_infinite()
         {
@@ -344,9 +344,9 @@ impl DirModule<'_> {
         Ok(value)
     }
 
-    /// Return whether one checked expression denotes NaN.
+    /// Return whether one expression denotes NaN.
     pub fn is_nan(&self, node: dir::LocalNodeId<dir::Expression>) -> Result<bool, ProviderError> {
-        // recognize exact checked scalar constants
+        // recognize exact scalar constants
         if self
             .scalar_constant(node)?
             .is_some_and(|value| value.is_nan())

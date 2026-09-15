@@ -55,7 +55,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // skip additions owned by a larger checked string-addition chain
+        // skip additions owned by a larger string-addition chain
         let parent = view.ancestor::<dir::Expression>(expression.into_any());
         let is_nested = match parent.map(|parent| (parent, view.get(parent))) {
             Some((
@@ -74,7 +74,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // compose one template from the complete checked chain
+        // compose one template from the complete chain
         let span = module.source_extent(expression.into_any())?;
         let mut replacement = String::new();
         let mut retained = Vec::new();
@@ -96,7 +96,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Append one checked string-addition subtree to a template body.
+/// Append one string-addition subtree to a template body.
 fn append_template(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,

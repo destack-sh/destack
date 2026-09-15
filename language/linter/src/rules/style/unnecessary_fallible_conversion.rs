@@ -63,7 +63,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         let Some(destination) = bindings.last() else {
             return Err(ProviderError::internal(
-                "checked Integer.tryInto call has no destination type argument",
+                "Integer.tryInto call has no destination type argument",
             ));
         };
         let destination = module.dir.strip_form(destination.argument)?;

@@ -75,7 +75,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return whether one checked assignment pattern writes a source access back to itself.
+/// Return whether one assignment pattern writes a source access back to itself.
 fn contains_self_assignment(
     module: &DirModule<'_>,
     pattern: dir::GlobalNodeId<dir::AssignPattern>,
@@ -85,13 +85,11 @@ fn contains_self_assignment(
         .decisions
         .assign_pattern_decision(pattern.into_any())
         .ok_or_else(|| {
-            ProviderError::internal(format!(
-                "checked assignment pattern {pattern:?} has no decision"
-            ))
+            ProviderError::internal(format!("assignment pattern {pattern:?} has no decision"))
         })?;
 
     match decision {
-        // compare one direct target with its checked source projection
+        // compare one direct target with its source projection
         dir::AssignPatternDecision::Place => {
             let dir::AssignPattern::Place { expression } = module.view().get(pattern.local_id)
             else {
@@ -131,7 +129,7 @@ fn contains_self_assignment(
     }
 }
 
-/// Return whether any checked field projection writes its source access back to itself.
+/// Return whether any field projection writes its source access back to itself.
 fn contains_projections(
     module: &DirModule<'_>,
     fields: &[dir::AssignPatternFieldResolution],
@@ -145,7 +143,7 @@ fn contains_projections(
     Ok(false)
 }
 
-/// Return whether one checked projection writes its source access back to itself.
+/// Return whether one projection writes its source access back to itself.
 fn contains_projection(
     module: &DirModule<'_>,
     source: dir::GlobalNodeIdAny,

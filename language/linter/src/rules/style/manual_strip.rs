@@ -90,7 +90,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
         // suggest the canonical stripping operation
         let span = module.source_extent(expression.into_any())?;
-        let mut diagnostic = lint.diagnostic("string boundary is checked before slicing", span);
+        let mut diagnostic = lint.diagnostic("string boundary is tested before slicing", span);
         if let Some(fix) = fix(module, lint, expression, boundary, receiver, affix)? {
             diagnostic = diagnostic.suggestion(fix);
         }

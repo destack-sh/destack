@@ -20,7 +20,7 @@ pub struct MirModule<'a> {
     pub analyses: mir::ModuleCache,
     /// The repository string pool.
     pub strings: Arc<StringPool>,
-    /// The checked DIR the MIR lowered from, absent for parsed MIR.
+    /// The DIR the MIR lowered from, absent for parsed MIR.
     dir: Option<Dir<'a>>,
 }
 
@@ -44,7 +44,7 @@ impl<'a> MirModule<'a> {
         }
     }
 
-    /// Load one module's verified MIR beside its checked DIR.
+    /// Load one module's verified MIR beside its DIR.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn load(
         repository: &'a Repository,
@@ -72,7 +72,7 @@ impl<'a> MirModule<'a> {
         Ok(Self::new(module, lowered, strings, Some(dir)))
     }
 
-    /// Return one call operation whose checked expression selects a canonical language member.
+    /// Return one call operation whose expression selects a canonical language member.
     pub fn language_call(
         &self,
         instruction: mir::LocalNodeId<mir::Instruction>,

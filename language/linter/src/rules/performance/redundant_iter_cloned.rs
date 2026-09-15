@@ -34,7 +34,7 @@ struct Label {
     values: ^int32[];
 }
 
-function lengths(values: Iterator<&readonly Label>): Iterator<isize> {
+function lengths(values: Iterator<&immutable Label>): Iterator<isize> {
     return values.cloned().map((value) => value.values.length);
 }
 "#,
@@ -45,7 +45,7 @@ struct Label {
     values: ^int32[];
 }
 
-function lengths(values: Iterator<&readonly Label>): Iterator<isize> {
+function lengths(values: Iterator<&immutable Label>): Iterator<isize> {
     return values.map((value) => value.values.length);
 }
 "#,
@@ -197,7 +197,7 @@ struct Label {
     values: ^int32[];
 }
 
-function count(values: Iterator<&readonly Label>): isize {
+function count(values: Iterator<&immutable Label>): isize {
     return values.cloned().count();
 }
 "#,
@@ -211,7 +211,7 @@ struct Label {
     values: ^int32[];
 }
 
-function count(values: Iterator<&readonly Label>): isize {
+function count(values: Iterator<&immutable Label>): isize {
     return values.count();
 }
 "#,
@@ -230,7 +230,7 @@ struct Label {
     values: ^int32[];
 }
 
-function visit(values: Iterator<&readonly Label>): void {
+function visit(values: Iterator<&immutable Label>): void {
     values.cloned().forEach((value) => {
         value.values.length;
     });
@@ -246,7 +246,7 @@ struct Label {
     values: ^int32[];
 }
 
-function visit(values: Iterator<&readonly Label>): void {
+function visit(values: Iterator<&immutable Label>): void {
     values.forEach((value) => {
         value.values.length;
     });
@@ -267,7 +267,7 @@ struct Label {
     values: ^int32[];
 }
 
-function firstLength(values: Iterator<&readonly Label>): isize | undefined {
+function firstLength(values: Iterator<&immutable Label>): isize | undefined {
     return values.cloned().findMap((value) => value.values.length);
 }
 "#,
@@ -281,7 +281,7 @@ struct Label {
     values: ^int32[];
 }
 
-function firstLength(values: Iterator<&readonly Label>): isize | undefined {
+function firstLength(values: Iterator<&immutable Label>): isize | undefined {
     return values.findMap((value) => value.values.length);
 }
 "#,
@@ -300,7 +300,7 @@ struct Label {
     values: ^int32[];
 }
 
-function collect(values: Iterator<&readonly Label>): Label[] {
+function collect(values: Iterator<&immutable Label>): Label[] {
     return values.cloned().toArray();
 }
 "#,
@@ -321,7 +321,7 @@ struct Label {
     values: ^int32[];
 }
 
-function consume(values: Iterator<&readonly Label>): void {
+function consume(values: Iterator<&immutable Label>): void {
     values.cloned().forEach((value: Label) => {
         value.values.length;
     });

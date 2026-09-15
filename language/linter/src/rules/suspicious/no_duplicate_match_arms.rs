@@ -4,7 +4,7 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow match arms with identical checked bodies.
+    /// Disallow match arms with identical bodies.
     pub NO_DUPLICATE_MATCH_ARMS {
         id: "no-duplicate-match-arms",
         summary: "Disallow match arms with identical bodies",
@@ -40,7 +40,7 @@ function describe(value: int32): string {
     }
 }
 
-/// Report later match arms whose checked bodies repeat an earlier arm.
+/// Report later match arms whose bodies repeat an earlier arm.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();

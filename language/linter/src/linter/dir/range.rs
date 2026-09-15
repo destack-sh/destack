@@ -61,7 +61,7 @@ impl OrderedComparison {
 }
 
 impl DirModule<'_> {
-    /// Return the range represented by one pair of checked comparisons.
+    /// Return the range represented by one pair of comparisons.
     pub(crate) fn comparison_range(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,

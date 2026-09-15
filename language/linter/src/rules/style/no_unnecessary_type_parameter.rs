@@ -16,7 +16,7 @@ A type parameter remains useful when it appears in multiple signature positions 
 "#,
         example: {
             reported: r#"
-function printValue<T: Display>(value: &readonly T): void {
+function printValue<T: Display>(value: &immutable T): void {
     value.display();
 }
 "#,
@@ -111,7 +111,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_UNNECESSARY_TYPE_PARAMETER,
             r#"
-function display<T: Display>(value: &readonly T): void {
+function display<T: Display>(value: &immutable T): void {
     value.display();
 }
 "#,
@@ -122,7 +122,7 @@ function display<T: Display>(value: &readonly T): void {
 warning[no-unnecessary-type-parameter]: type parameter occurs once in the callable signature
  ──▶ main.ds:1:18
   │
-1 │ function display<T: Display>(value: &readonly T): void {
+1 │ function display<T: Display>(value: &immutable T): void {
   │                  ^
 2 │     value.display();
 3 │ }
@@ -153,7 +153,7 @@ function choose<T: Display>(left: T, right: T): T {
             &NO_UNNECESSARY_TYPE_PARAMETER,
             r#"
 interface Formatter {
-    <T: Display>(value: &readonly T): void;
+    <T: Display>(value: &immutable T): void;
 }
 "#,
         );
@@ -164,7 +164,7 @@ warning[no-unnecessary-type-parameter]: type parameter occurs once in the callab
  ──▶ main.ds:2:6
   │
 1 │ interface Formatter {
-2 │     <T: Display>(value: &readonly T): void;
+2 │     <T: Display>(value: &immutable T): void;
   │      ^
 3 │ }
   │

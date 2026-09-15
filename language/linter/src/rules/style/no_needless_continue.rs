@@ -42,7 +42,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect every authored continue with a checked target
+    // inspect every authored continue with a target
     for (expression, node) in view.iter_nodes::<dir::Expression>() {
         if !matches!(node, dir::Expression::Continue { .. }) {
             continue;

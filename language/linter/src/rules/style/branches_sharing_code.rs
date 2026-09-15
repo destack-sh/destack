@@ -153,7 +153,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // require corresponding checked tails under each arm's pattern bindings
+        // require corresponding tails under each arm's pattern bindings
         let first_tail = tails[0];
         let first_tail = [first_tail.into_global_any(module.id)];
         let mut spans = vec![module.source_extent(first_tail[0].local_id)?];

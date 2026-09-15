@@ -18,14 +18,14 @@ Instead, you SHOULD call `cloneFrom` so the destination can reuse its existing a
             reported: r#"
 import { rc } from "destack:memory";
 
-function replace(target: &rc.Rc<int32>, source: &readonly rc.Rc<int32>): void {
+function replace(target: &exclusive rc.Rc<int32>, source: &immutable rc.Rc<int32>): void {
     *target = source.clone();
 }
 "#,
             accepted: r#"
 import { rc } from "destack:memory";
 
-function replace(target: &rc.Rc<int32>, source: &readonly rc.Rc<int32>): void {
+function replace(target: &exclusive rc.Rc<int32>, source: &immutable rc.Rc<int32>): void {
     target.cloneFrom(source);
 }
 "#,
@@ -67,12 +67,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let target_type = module.dir.strip_form(target_type)?;
         let source_type = module.adjusted_type_id(clone.receiver.into_any())?;
         let source_type = module.dir.strip_form(source_type)?;
-        if target_type != source_type
+        if !module.dir.types_match(target_type, source_type)?
             || module.satisfies_copy(source_type)?
-            || module
-                .coercions
-                .coercion(assignment.value.into_global_any(module.id))
-                .is_some()
             || module.place_access(assignment.target)? != Some(dir::Access::Exclusive)
         {
             continue;
@@ -147,7 +143,7 @@ function retain(value: &exclusive rc.Rc<int32>): void {
     *value = value.clone();
 }
 
-function replaceAlias(target: &rc.Rc<int32>, source: &readonly rc.Rc<int32>): void {
+function replaceAlias(target: &rc.Rc<int32>, source: &immutable rc.Rc<int32>): void {
     *target = source.clone();
 }
 "#,

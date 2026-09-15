@@ -63,7 +63,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // require one selected operation and one duplicable checked target
+        // require one selected operation and one duplicable target
         if module
             .operator_decision(assignment.value.into_any())?
             .is_none()

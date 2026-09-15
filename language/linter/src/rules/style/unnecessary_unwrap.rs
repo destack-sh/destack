@@ -6,10 +6,10 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow unwrap after checked control flow proves the Result variant.
+    /// Disallow unwrap after control flow proves the Result variant.
     pub UNNECESSARY_UNWRAP {
         id: "unnecessary-unwrap",
-        summary: "Disallow unwrap after checked control flow proves the Result variant",
+        summary: "Disallow unwrap after control flow proves the Result variant",
         explanation: r#"
 Unwrapping a Result after control flow has already narrowed it repeats a variant check that is known to succeed.
 Instead, you SHOULD read the narrowed variant payload directly.
@@ -40,7 +40,7 @@ function value(result: Result<int32, string>): int32 {
     }
 }
 
-/// Report Result unwrap calls whose receiver is already a checked variant.
+/// Report Result unwrap calls whose receiver is already a variant.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
@@ -63,7 +63,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             _ => continue,
         };
 
-        // rely exclusively on the checked narrowed receiver type
+        // rely exclusively on the narrowed receiver type
         let receiver = module.adjusted_type_id(call.receiver.into_any())?;
         if !module.dir.represents_item(receiver, variant)? {
             continue;

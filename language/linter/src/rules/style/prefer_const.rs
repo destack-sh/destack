@@ -45,7 +45,7 @@ struct LetBinding {
     declaration: dir::LocalNodeId<dir::Expression>,
     /// The node that introduces the binding.
     node: dir::LocalNodeIdAny,
-    /// The checked binding symbol.
+    /// The binding symbol.
     symbol: dir::LocalSymbolId,
     /// Whether the declarator initializes the binding.
     is_initialized: bool,

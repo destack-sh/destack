@@ -131,7 +131,7 @@ fn suggestion(
         parameter_spans.push(span);
     }
 
-    // omit an index parameter that checked flow proves unused
+    // omit an index parameter that flow proves unused
     let is_index_used = parameters.get(1).is_some_and(|parameter| {
         !module
             .declared_binding_uses(parameter.into_any(), occurrences)

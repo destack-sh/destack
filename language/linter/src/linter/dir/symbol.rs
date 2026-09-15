@@ -9,7 +9,7 @@ impl DirModule<'_> {
         let mut candidate = preferred.to_string();
         let mut suffix = 2;
 
-        // advance until no checked binding uses the candidate
+        // advance until no binding uses the candidate
         while self.bindings.symbols().any(|symbol| {
             symbol
                 .name()
@@ -43,7 +43,7 @@ impl DirModule<'_> {
             .any(|name| enclosing_names.contains(&name))
     }
 
-    /// Iterate checked name references to one binding.
+    /// Iterate name references to one binding.
     pub(crate) fn symbol_references(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -55,7 +55,7 @@ impl DirModule<'_> {
             })
     }
 
-    /// Iterate checked identifier references to one binding.
+    /// Iterate identifier references to one binding.
     pub(crate) fn binding_references(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -70,7 +70,7 @@ impl DirModule<'_> {
         })
     }
 
-    /// Return the only checked symbol declared within one node subtree.
+    /// Return the only symbol declared within one node subtree.
     pub(crate) fn sole_declared_symbol(
         &self,
         node: dir::LocalNodeIdAny,
@@ -81,7 +81,7 @@ impl DirModule<'_> {
         symbols.next().is_none().then_some(symbol)
     }
 
-    /// Iterate the checked symbols declared within one node subtree.
+    /// Iterate the symbols declared within one node subtree.
     pub(crate) fn symbols_declared_within(
         &self,
         node: dir::LocalNodeIdAny,
@@ -184,7 +184,7 @@ impl DirModule<'_> {
         Ok(uses)
     }
 
-    /// Return the declaration node that introduced one checked symbol.
+    /// Return the declaration node that introduced one symbol.
     pub fn symbol_declaration(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -195,50 +195,48 @@ impl DirModule<'_> {
             )));
         }
 
-        // read the checked symbol declaration
+        // read the symbol declaration
         let binding = self
             .bindings
             .get_symbol_maybe(symbol.local_id)
-            .ok_or_else(|| ProviderError::internal(format!("missing checked symbol {symbol:?}")))?;
+            .ok_or_else(|| ProviderError::internal(format!("missing symbol {symbol:?}")))?;
         let declaration = binding.declaration.ok_or_else(|| {
-            ProviderError::internal(format!("checked symbol {symbol:?} has no declaration"))
+            ProviderError::internal(format!("symbol {symbol:?} has no declaration"))
         })?;
 
         Ok(declaration)
     }
 
-    /// Return the symbol introduced by one checked declaration node.
+    /// Return the symbol introduced by one declaration node.
     pub fn declaration_symbol<T: dir::Node>(
         &self,
         node: dir::LocalNodeId<T>,
     ) -> Result<dir::GlobalSymbolId, ProviderError> {
-        // read the checked declaration binding
+        // read the declaration binding
         let declaration = node.into_global_any(self.id);
         let symbol = self
             .bindings
             .declaration_symbol(declaration)
             .ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "checked declaration {declaration:?} introduces no symbol"
-                ))
+                ProviderError::internal(format!("declaration {declaration:?} introduces no symbol"))
             })?;
 
         Ok(symbol.into_global(self.id))
     }
 
-    /// Return the single declaration symbol selected directly by one checked expression.
+    /// Return the single declaration symbol selected directly by one expression.
     pub fn selected_symbol(
         &self,
         node: dir::LocalNodeId<dir::Expression>,
     ) -> Result<Option<dir::GlobalSymbolId>, ProviderError> {
-        // select the checked resolution for supported expression forms
+        // select the resolution for supported expression forms
         let view = self.view();
         let global = node.into_global_any(self.id);
         let symbol = match view.get(node) {
             dir::Expression::Identifier { .. } => {
                 let resolution = self.resolutions.name_resolution(global).ok_or_else(|| {
                     ProviderError::internal(format!(
-                        "checked identifier expression {} in module {:?} has no name resolution",
+                        "identifier expression {} in module {:?} has no name resolution",
                         node.id, self.id
                     ))
                 })?;

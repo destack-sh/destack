@@ -330,7 +330,7 @@ impl DirModule<'_> {
         Ok(DiagnosticAnchor::Span(span))
     }
 
-    /// Return the checked DIR tree.
+    /// Return the DIR tree.
     pub fn view(&self) -> dir::View<'_> {
         dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
     }

@@ -73,7 +73,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return whether every checked parameter use remains valid for a slice.
+/// Return whether every parameter use remains valid for a slice.
 fn can_use_slice_parameter(
     module: &DirModule<'_>,
     parameter: dir::LocalNodeId<dir::Parameter>,
@@ -84,7 +84,7 @@ fn can_use_slice_parameter(
         return Ok(false);
     };
 
-    // require every checked binding reference to remain valid
+    // require every binding reference to remain valid
     for expression in module.binding_references(symbol) {
         if !view.is_inside(expression.into_any(), body.into_any()) {
             continue;
@@ -104,7 +104,7 @@ fn use_accepts_slice(
 ) -> Result<bool, ProviderError> {
     let view = module.view();
 
-    // accept checked coercions of the complete parameter to a slice
+    // accept coercions of the complete parameter to a slice
     let adjusted = module.adjusted_type_id(expression.into_any())?;
     if module.dir.representation_item(adjusted)? == Some(dir::LanguageItem::Slice) {
         return Ok(true);
@@ -259,7 +259,6 @@ function inspect(values: &readonly int32[]): void {
     values.size;
     values.isEmpty;
     values.rest(0);
-    values.iterator();
     values.first();
     values.last();
     values.view(0);
@@ -274,7 +273,6 @@ function inspect(values: &readonly [int32]): void {
     values.size;
     values.isEmpty;
     values.rest(0);
-    values.iterator();
     values.first();
     values.last();
     values.view(0);

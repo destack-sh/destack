@@ -241,7 +241,7 @@ fn suggestion(
     Ok(Some(suggestion))
 }
 
-/// Return whether one checked string concatenation includes the assigned place.
+/// Return whether one string concatenation includes the assigned place.
 fn concatenates_target(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,

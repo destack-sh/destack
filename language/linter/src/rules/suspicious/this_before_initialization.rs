@@ -27,7 +27,7 @@ class Point {
         this.y = y;
     }
 
-    describe(): void {}
+    describe(&readonly this): void {}
 }
 "#,
             accepted: r#"
@@ -41,7 +41,7 @@ class Point {
         this.describe();
     }
 
-    describe(): void {}
+    describe(&readonly this): void {}
 }
 "#,
         },
@@ -254,7 +254,7 @@ class Point {
         this.y = y;
     }
 
-    describe(): void {}
+    describe(&readonly this): void {}
 }
 "#,
         );
@@ -326,7 +326,7 @@ class Point {
         this.describe();
     }
 
-    describe(): void {}
+    describe(&readonly this): void {}
 }
 "#,
         );

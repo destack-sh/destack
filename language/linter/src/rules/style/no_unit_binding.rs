@@ -34,7 +34,7 @@ record();
     }
 }
 
-/// Report initialized local bindings whose checked type is unit.
+/// Report initialized local bindings whose type is unit.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
@@ -49,7 +49,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         };
         let Some(type_id) = module.types.get_symbol_type_id(symbol) else {
             return Err(ProviderError::internal(format!(
-                "checked binding {symbol:?} has no reduced type"
+                "binding {symbol:?} has no reduced type"
             )));
         };
         if !module.dir.get_type(type_id)?.is_unit() {

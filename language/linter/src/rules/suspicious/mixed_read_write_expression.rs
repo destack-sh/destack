@@ -56,7 +56,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             .push(occurrence);
     }
 
-    // compare each checked mutation with reads sharing its callable and root
+    // compare each mutation with reads sharing its callable and root
     for occurrences in accesses.values() {
         for mutation in occurrences
             .iter()

@@ -32,7 +32,7 @@ function changed(left: int32, right: int32): boolean {
     }
 }
 
-/// Report comparisons whose operands repeat the same checked value.
+/// Report comparisons whose operands repeat the same value.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
@@ -54,7 +54,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         };
 
-        // require both operands to repeat one checked value
+        // require both operands to repeat one value
         if !module.is_same_operand(left_operand, right_operand)? {
             continue;
         }

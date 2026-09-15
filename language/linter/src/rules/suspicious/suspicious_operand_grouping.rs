@@ -45,7 +45,7 @@ function equals(left: Point, right: Point): boolean {
     }
 }
 
-/// One checked comparison between projected members.
+/// One comparison between projected members.
 struct MemberComparison {
     /// The complete comparison expression.
     expression: dir::LocalNodeId<dir::Expression>,

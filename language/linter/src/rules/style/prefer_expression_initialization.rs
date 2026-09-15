@@ -135,7 +135,7 @@ fn initializes_binding(
         } => Ok(assigned_value(module, *then_expression, symbol)?.is_some()
             && assigned_value(module, *else_expression, symbol)?.is_some()),
 
-        // require every arm of an exhaustive checked match
+        // require every arm of an exhaustive match
         dir::Expression::Match { arms, .. } if !arms.is_empty() => {
             for arm in arms {
                 let body = match view.get(*arm) {

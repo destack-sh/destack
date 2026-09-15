@@ -37,7 +37,7 @@ function send(isReady: boolean): void {}
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let mut output = LintOutput::default();
 
-    // inspect value-bearing declaration symbols through their checked types
+    // inspect value-bearing declaration symbols through their types
     for (declaration, symbol_id) in module.bindings.declaration_symbols() {
         if declaration.module_id != module.id {
             continue;
@@ -68,7 +68,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .parameter_by_symbol(symbol_id)
                 .ok_or_else(|| {
                     ProviderError::internal(format!(
-                        "checked generic symbol {symbol_id:?} has no generic parameter"
+                        "generic symbol {symbol_id:?} has no generic parameter"
                     ))
                 })?;
             let binding = module.generics.get_parameter(parameter_id);
@@ -80,7 +80,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         } else {
             let Some(type_id) = module.types.get_symbol_type_id(symbol_id) else {
                 return Err(ProviderError::internal(format!(
-                    "checked value symbol `{name}` ({symbol_id:?}) has no reduced type"
+                    "value symbol `{name}` ({symbol_id:?}) has no reduced type"
                 )));
             };
 

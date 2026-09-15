@@ -4,20 +4,18 @@ use destack_repository::ProviderError;
 use super::DirModule;
 
 impl DirModule<'_> {
-    /// Return the checked decision for one pattern.
+    /// Return the decision for one pattern.
     pub(crate) fn pattern_decision(
         &self,
         pattern: dir::LocalNodeId<dir::Pattern>,
     ) -> Result<&dir::PatternDecision, ProviderError> {
         let pattern = pattern.into_global_any(self.id);
         self.decisions.pattern_decision(pattern).ok_or_else(|| {
-            ProviderError::internal(format!(
-                "checked pattern {pattern:?} has no pattern decision"
-            ))
+            ProviderError::internal(format!("pattern {pattern:?} has no pattern decision"))
         })
     }
 
-    /// Return the canonical language item selected by one checked pattern.
+    /// Return the canonical language item selected by one pattern.
     pub(crate) fn pattern_language_item(
         &self,
         pattern: dir::LocalNodeId<dir::Pattern>,

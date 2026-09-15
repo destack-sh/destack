@@ -6,11 +6,11 @@ use destack_repository::ProviderError;
 
 use super::{Dir, DirModule};
 
-/// One checked alpha-equivalence comparison between two DIR subtrees.
+/// One alpha-equivalence comparison between two DIR subtrees.
 pub(crate) struct AlphaComparison<'a> {
-    /// The left checked module.
+    /// The left module.
     left: DirModule<'a>,
-    /// The right checked module.
+    /// The right module.
     right: DirModule<'a>,
     /// The paired declaration and reference symbols.
     symbols: Bijection<dir::GlobalSymbolId>,
@@ -82,7 +82,7 @@ impl<'a> AlphaComparison<'a> {
         Ok(true)
     }
 
-    /// Compare two optional checked conditions under the active correspondence.
+    /// Compare two optional conditions under the active correspondence.
     pub(crate) fn compare_conditions(
         &mut self,
         left: Option<&dir::Condition>,
@@ -128,7 +128,7 @@ impl<'a> AlphaComparison<'a> {
         Ok(true)
     }
 
-    /// Compare two checked DIR subtrees.
+    /// Compare two DIR subtrees.
     fn compare(
         &mut self,
         left: dir::LocalNodeIdAny,
@@ -145,7 +145,7 @@ impl<'a> AlphaComparison<'a> {
         if !self.pair_declaration_nodes(left, right)? || !self.pair_control_nodes(left, right) {
             return Ok(false);
         }
-        if !self.checked_meaning_matches(left, right)? {
+        if !self.runtime_meaning_matches(left, right)? {
             return Ok(false);
         }
 
@@ -223,8 +223,8 @@ impl<'a> AlphaComparison<'a> {
         }
     }
 
-    /// Compare checked resolutions that determine one node's runtime meaning.
-    fn checked_meaning_matches(
+    /// Compare resolutions that determine one node's runtime meaning.
+    fn runtime_meaning_matches(
         &self,
         left: dir::LocalNodeIdAny,
         right: dir::LocalNodeIdAny,
@@ -264,7 +264,7 @@ impl<'a> AlphaComparison<'a> {
             return Ok(false);
         }
 
-        // compare control transfers by their corresponding checked target
+        // compare control transfers by their corresponding target
         let left_transfer = self.left.decisions.transfer_decision(left_global);
         let right_transfer = self.right.decisions.transfer_decision(right_global);
         let transfers_match = match (left_transfer, right_transfer) {
@@ -288,7 +288,7 @@ impl<'a> AlphaComparison<'a> {
         Ok(true)
     }
 
-    /// Compare checked operation selections for two expressions.
+    /// Compare operation selections for two expressions.
     fn expression_decisions_match(
         &self,
         left: dir::LocalNodeId<dir::Expression>,
@@ -345,7 +345,7 @@ impl<'a> AlphaComparison<'a> {
             return Ok(false);
         }
 
-        // compare the checked builtin domains or declaration-backed operators
+        // compare the builtin domains or declaration-backed operators
         let left_operator = self.left.decisions.operator_decision(left_global);
         let right_operator = self.right.decisions.operator_decision(right_global);
         let operators_match = match (left_operator, right_operator) {
@@ -362,7 +362,7 @@ impl<'a> AlphaComparison<'a> {
         Ok(operators_match)
     }
 
-    /// Compare two optional checked types across their owning modules.
+    /// Compare two optional types across their owning modules.
     fn optional_types_match(
         &self,
         left: Option<dir::GlobalTypeId>,
@@ -693,7 +693,7 @@ impl Dir<'_> {
         })
     }
 
-    /// Return the common checked module of one node sequence.
+    /// Return the common module of one node sequence.
     fn sequence_module(
         &self,
         nodes: &[dir::GlobalNodeIdAny],

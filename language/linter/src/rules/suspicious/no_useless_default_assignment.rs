@@ -6,13 +6,13 @@ use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
 
 declare_lint! {
-    /// Disallow defaults that cannot be selected by the checked input type.
+    /// Disallow defaults that cannot be selected by the input type.
     pub NO_USELESS_DEFAULT_ASSIGNMENT {
         id: "no-useless-default-assignment",
-        summary: "Disallow defaults that cannot be selected by the checked input type",
+        summary: "Disallow defaults that cannot be selected by the input type",
         explanation: r#"
 A destructuring default can only run when its selected value is `undefined`.
-Instead, you SHOULD remove the default when the checked input type excludes `undefined`.
+Instead, you SHOULD remove the default when the input type excludes `undefined`.
 "#,
         example: {
             reported: r#"
@@ -36,7 +36,7 @@ function name(user: { name: string }): string {
     }
 }
 
-/// Report default patterns whose checked input excludes undefined.
+/// Report default patterns whose input excludes undefined.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
@@ -84,7 +84,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Report one default whose checked input excludes undefined.
+/// Report one default whose input excludes undefined.
 fn report_default(
     module: &DirModule<'_>,
     lint: &Lint,

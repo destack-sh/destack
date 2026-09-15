@@ -158,7 +158,7 @@ impl Linter {
         }
         let mut required = program_modules.iter().copied().collect::<FxIndexSet<_>>();
 
-        // require checked controls from package-owned code modules
+        // require controls from package-owned code modules
         for module in program_modules.iter().copied() {
             if module.package_id != target.package_id() {
                 continue;
@@ -171,7 +171,7 @@ impl Linter {
             }
         }
 
-        // require checked DIR for DIR program lints and the MIR lints reading through it
+        // require DIR for DIR program lints and the MIR lints reading through it
         if lints.has_programs() {
             let Some(environment) =
                 self.collect_environment_bound(context, profile, &mut dependencies)?
@@ -277,7 +277,7 @@ impl Linter {
         Ok(ProgramLinted.into())
     }
 
-    /// Execute checked DIR program lints.
+    /// Execute DIR program lints.
     fn lint_dir_program(
         &self,
         context: &dyn ProviderContext,
@@ -289,7 +289,7 @@ impl Linter {
             return Ok(());
         }
 
-        // load checked DIR for the target modules and globals
+        // load DIR for the target modules and globals
         let revision = context.revision();
         let artifacts = self.artifact_reader(context);
         let profile = program.profile.id();

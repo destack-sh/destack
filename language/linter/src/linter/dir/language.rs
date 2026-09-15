@@ -16,16 +16,14 @@ impl Dir<'_> {
     ) -> Result<Option<Vec<dir::AutoInterface>>, ProviderError> {
         self.read_declaration_tables(symbol.module_id, |tables| {
             let definition = tables.definitions.definition(symbol).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "nominal declaration {symbol:?} has no checked definition"
-                ))
+                ProviderError::internal(format!("nominal declaration {symbol:?} has no definition"))
             })?;
 
             Ok(definition.derives().map(<[_]>::to_vec))
         })
     }
 
-    /// Return the canonical language item represented by one checked type.
+    /// Return the canonical language item represented by one type.
     pub fn representation_item(
         &self,
         type_id: dir::GlobalTypeId,
@@ -48,7 +46,7 @@ impl Dir<'_> {
         Ok(item)
     }
 
-    /// Return whether one checked type represents the given language item, alone or intersected.
+    /// Return whether one type represents the given language item, alone or intersected.
     pub fn represents_item(
         &self,
         type_id: dir::GlobalTypeId,
@@ -104,7 +102,7 @@ impl Dir<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<dir::LanguageMember>, ProviderError> {
         self.read_declaration_tables(symbol.module_id, |tables| {
-            // locate the member in its checked definition
+            // locate the member in its definition
             let Some((declaring, definition, member)) = tables.definitions.member(symbol) else {
                 return Ok(None);
             };
@@ -257,7 +255,7 @@ impl DirModule<'_> {
         Ok(item == Some(language_item))
     }
 
-    /// Return the canonical language item targeted by one checked expression.
+    /// Return the canonical language item targeted by one expression.
     pub fn language_item(
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -354,7 +352,7 @@ impl DirModule<'_> {
         let mut symbols = symbols;
         let Some(symbol) = symbols.next() else {
             return Err(ProviderError::internal(
-                "checked operation resolution has no runtime alternatives",
+                "operation resolution has no runtime alternatives",
             ));
         };
         let Some(symbol) = symbol else {

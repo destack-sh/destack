@@ -412,7 +412,7 @@ function firstPositive(values: Iterator<int32>): int32 | undefined {
         );
     }
 
-    /// Replace a trailing undefined constant while preserving its checked value.
+    /// Replace a trailing undefined constant while preserving its value.
     #[test]
     fn test_replaces_undefined_constant() {
         let session = TestSession::dir(

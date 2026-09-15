@@ -20,7 +20,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly Label[]): Label[] {
+function copy(values: &immutable Label[]): Label[] {
     return values.iterator().cloned().toArray();
 }
 "#,
@@ -29,7 +29,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly Label[]): Label[] {
+function copy(values: &immutable Label[]): Label[] {
     return values.clone();
 }
 "#,
@@ -233,7 +233,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly Label[]): Label[] {
+function copy(values: &immutable Label[]): Label[] {
     return values.iterator().cloned().toArray();
 }
 "#,
@@ -245,7 +245,7 @@ warning[iter-cloned-collect]: collection is copied through its iterator
  ──▶ main.ds:6:12
   │
 4 │
-5 │ function copy(values: &readonly Label[]): Label[] {
+5 │ function copy(values: &immutable Label[]): Label[] {
 6 │     return values.iterator().cloned().toArray();
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 7 │ }
@@ -255,7 +255,7 @@ warning[iter-cloned-collect]: collection is copied through its iterator
 --- a/main.ds
 +++ b/main.ds
 
-    5│ function copy(values: &readonly Label[]): Label[] {
+    5│ function copy(values: &immutable Label[]): Label[] {
 -   6│     return values.iterator().cloned().toArray();
 +   6│     return values.clone();
     7│ }
@@ -267,7 +267,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly Label[]): Label[] {
+function copy(values: &immutable Label[]): Label[] {
     return values.clone();
 }
 "#,
@@ -284,7 +284,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly Label[]): Label[] {
+function copy(values: &immutable Label[]): Label[] {
     return values.values().cloned().collect();
 }
 "#,
@@ -296,7 +296,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly Label[]): Label[] {
+function copy(values: &immutable Label[]): Label[] {
     return values.clone();
 }
 "#,
@@ -313,7 +313,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly [Label]): Label[] {
+function copy(values: &immutable [Label]): Label[] {
     return values.iterator().cloned().toArray();
 }
 "#,
@@ -325,7 +325,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly [Label]): Label[] {
+function copy(values: &immutable [Label]): Label[] {
     return values.toOwned();
 }
 "#,
@@ -338,15 +338,15 @@ function copy(values: &readonly [Label]): Label[] {
         let session = TestSession::dir(
             &ITER_CLONED_COLLECT,
             r#"
-function copy(values: &readonly [int32]): int32[] {
-    return values.iterator().toArray();
+function copy(values: &immutable [int32]): int32[] {
+    return values.iterator().copied().toArray();
 }
 "#,
         );
 
         session.assert_fixes(
             r#"
-function copy(values: &readonly [int32]): int32[] {
+function copy(values: &immutable [int32]): int32[] {
     return values.toOwned();
 }
 "#,
@@ -363,7 +363,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: Label[] | undefined): Label[] | undefined {
+function copy(values: &immutable Label[] | undefined): Label[] | undefined {
     return values?.iterator().cloned().toArray();
 }
 "#,
@@ -375,7 +375,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: Label[] | undefined): Label[] | undefined {
+function copy(values: &immutable Label[] | undefined): Label[] | undefined {
     return values?.clone();
 }
 "#,
@@ -392,7 +392,7 @@ struct Label {
     values: ^int32[];
 }
 
-function lengths(values: &readonly Label[]): isize[] {
+function lengths(values: &immutable Label[]): isize[] {
     return values.iterator().cloned().map((value) => value.values.length).toArray();
 }
 "#,
@@ -413,7 +413,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: Iterator<&readonly Label>): Label[] {
+function copy(values: Iterator<&immutable Label>): Label[] {
     return values.cloned().toArray();
 }
 "#,
@@ -461,7 +461,7 @@ struct Label {
     values: ^int32[];
 }
 
-function copy(values: &readonly Label[]): Label[] {
+function copy(values: &immutable Label[]): Label[] {
     return values.iterator().cloned(/* retain */).toArray();
 }
 "#,
@@ -473,7 +473,7 @@ warning[iter-cloned-collect]: collection is copied through its iterator
  ──▶ main.ds:6:12
   │
 4 │
-5 │ function copy(values: &readonly Label[]): Label[] {
+5 │ function copy(values: &immutable Label[]): Label[] {
 6 │     return values.iterator().cloned(/* retain */).toArray();
   │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 7 │ }

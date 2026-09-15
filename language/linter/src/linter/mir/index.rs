@@ -49,7 +49,7 @@ impl<'a> Mir<'a> {
         self.modules.values_mut()
     }
 
-    /// Load verified MIR for selected modules beside their checked DIR.
+    /// Load verified MIR for selected modules beside their DIR.
     pub(crate) fn load(
         repository: &'a Repository,
         revision: Revision,

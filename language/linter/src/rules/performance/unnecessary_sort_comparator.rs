@@ -19,12 +19,12 @@ Instead, you SHOULD omit the comparator and use the natural-order overload.
         example: {
             reported: r#"
 function order(values: int32[]): void {
-    values.sort((left, right) => left.compare(right));
+    values.sortUnstable((left, right) => left.compare(right));
 }
 "#,
             accepted: r#"
 function order(values: int32[]): void {
-    values.sort();
+    values.sortUnstable();
 }
 "#,
         },
@@ -172,7 +172,7 @@ mod tests {
             &UNNECESSARY_SORT_COMPARATOR,
             r#"
 function order(values: int32[]): void {
-    values.sort((left, right) => left.compare(right));
+    values.sortUnstable((left, right) => left.compare(right));
 }
 "#,
         );
@@ -180,11 +180,11 @@ function order(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[unnecessary-sort-comparator]: comparator reproduces natural ordering
- ──▶ main.ds:2:17
+ ──▶ main.ds:2:25
   │
 1 │ function order(values: int32[]): void {
-2 │     values.sort((left, right) => left.compare(right));
-  │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2 │     values.sortUnstable((left, right) => left.compare(right));
+  │                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 3 │ }
   │
 
@@ -193,15 +193,15 @@ warning[unnecessary-sort-comparator]: comparator reproduces natural ordering
 +++ b/main.ds
 
     1│ function order(values: int32[]): void {
--   2│     values.sort((left, right) => left.compare(right));
-+   2│     values.sort();
+-   2│     values.sortUnstable((left, right) => left.compare(right));
++   2│     values.sortUnstable();
     3│ }
 "#,
         );
         session.assert_fixes(
             r#"
 function order(values: int32[]): void {
-    values.sort();
+    values.sortUnstable();
 }
 "#,
         );
@@ -241,8 +241,8 @@ function order(values: ^int32[], slice: &[int32]): ^int32[] {
             &UNNECESSARY_SORT_COMPARATOR,
             r#"
 function order(values: int32[]): void {
-    values.sort((left, right) => right.compare(left));
-    values.sort((left, right) => left.absDiff(0).compare(right.absDiff(0)));
+    values.sortUnstable((left, right) => right.compare(left));
+    values.sortUnstable((left, right) => left.absDiff(0).compare(right.absDiff(0)));
 }
 "#,
         );

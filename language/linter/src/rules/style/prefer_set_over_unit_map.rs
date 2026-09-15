@@ -35,7 +35,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect authored Map type applications
+    // collect authored Map type applications and constructions with their arguments
+    let mut applications = Vec::new();
     for (node, ty) in view.iter_nodes::<dir::TypeExpression>() {
         let (dir::TypeExpression::Reference {
             generic_arguments, ..
@@ -46,10 +47,34 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
+        let item = module.representation_item(node.into_any())?;
+        applications.push((node.into_any(), item, generic_arguments.clone(), None));
+    }
+    for (node, expression) in view.iter_nodes::<dir::Expression>() {
+        let dir::Expression::New {
+            left,
+            generic_arguments,
+            arguments,
+        } = expression
+        else {
+            continue;
+        };
+        let item = module.language_item(*left)?;
+        let construction = Some(arguments.len());
+        applications.push((
+            node.into_any(),
+            item,
+            generic_arguments.clone(),
+            construction,
+        ));
+    }
+
+    // report each map whose value type is unit
+    for (node, item, generic_arguments, construction) in applications {
         let [key, value] = generic_arguments.as_slice() else {
             continue;
         };
-        let (map_name, set_name, set_item) = match module.representation_item(node.into_any())? {
+        let (map_name, set_name, set_item) = match item {
             Some(dir::LanguageItem::Map) => ("Map", "Set", dir::LanguageItem::Set),
             Some(dir::LanguageItem::SortedMap) => {
                 ("SortedMap", "SortedSet", dir::LanguageItem::SortedSet)
@@ -61,7 +86,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             ),
             _ => continue,
         };
-        if module.is_within_language_item(node.into_any(), set_item)? {
+        if module.is_within_language_item(node, set_item)? {
             continue;
         }
         let dir::GenericArgument::Type { value: key } = view.get(*key) else {
@@ -75,11 +100,11 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
 
         // replace the redundant value mapping with direct membership
-        let extent = module.source_extent(node.into_any())?;
+        let extent = module.source_extent(node)?;
         let span = module.source_extent(value.into_any())?;
         let message = format!("{map_name} value type carries no information");
         let mut diagnostic = lint.diagnostic(message, span);
-        if let Some(suggestion) = suggestion(module, lint, extent, *key, set_name)? {
+        if let Some(suggestion) = suggestion(module, lint, extent, *key, set_name, construction)? {
             diagnostic = diagnostic.suggestion(suggestion);
         }
         output.report(diagnostic);
@@ -95,15 +120,21 @@ fn suggestion(
     extent: destack_source::Span,
     key: dir::LocalNodeId<dir::TypeExpression>,
     set: &str,
+    construction: Option<usize>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let retained = module.source_extent(key.into_any())?;
     if module.has_unretained_comment(extent, &[retained])? {
         return Ok(None);
     }
 
-    // retain the authored key type
+    // retain the authored key type, constructing an empty set in place of an empty map
     let key = module.source(retained)?;
-    let patch = Patch::replace(extent, format!("{set}<{key}>"));
+    let replacement = match construction {
+        None => format!("{set}<{key}>"),
+        Some(0) => format!("new {set}<{key}>()"),
+        Some(_) => return Ok(None),
+    };
+    let patch = Patch::replace(extent, replacement);
     let suggestion = lint.suggestion(format!("use a {set}"), patch)?;
 
     Ok(Some(suggestion))

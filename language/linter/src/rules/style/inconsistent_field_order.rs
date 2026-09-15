@@ -57,7 +57,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let ty = module.dir.get_type(type_id)?;
         let symbol = ty.symbol().ok_or_else(|| {
             ProviderError::internal(format!(
-                "checked nominal literal {node:?} has non-nominal type {type_id:?}"
+                "nominal literal {node:?} has non-nominal type {type_id:?}"
             ))
         })?;
 
@@ -103,7 +103,7 @@ fn report_out_of_order_fields(
         let key = dir::StaticKey::from(name);
         let position = positions.get(&key).copied().ok_or_else(|| {
             ProviderError::internal(format!(
-                "checked nominal literal field {key:?} is absent from its declaration"
+                "nominal literal field {key:?} is absent from its declaration"
             ))
         })?;
         let is_out_of_order = furthest.is_some_and(|furthest| position < furthest);

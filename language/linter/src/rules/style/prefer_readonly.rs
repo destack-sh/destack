@@ -51,7 +51,7 @@ class User {
     }
 }
 
-/// Report private fields whose checked uses are readonly after initialization.
+/// Report private fields whose uses are readonly after initialization.
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let occurrences = module.flows.access_occurrences().collect::<Vec<_>>();

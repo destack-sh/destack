@@ -37,7 +37,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
 
-    // inspect checked comparison expressions
+    // inspect comparison expressions
     for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
         let dir::Expression::Binary {
             left,
@@ -57,7 +57,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // select one checked negative-zero operand
+        // select one negative-zero operand
         let negative_zero = if module.is_negative_zero(*left)? {
             *left
         } else if module.is_negative_zero(*right)? {

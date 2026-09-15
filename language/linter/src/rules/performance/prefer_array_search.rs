@@ -119,7 +119,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let occurrences = module.flows.binding_occurrences().collect::<Vec<_>>();
     let mut output = LintOutput::default();
 
-    // inspect checked Array calls once and select their complete observation
+    // inspect Array calls once and select their complete observation
     for expression in module.call_expressions() {
         let expression = expression?;
         let Some(call) = module.member_call(expression) else {
@@ -141,7 +141,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Select the direct operation for one checked Array call.
+/// Select the direct operation for one Array call.
 fn array_search<'a>(
     module: &DirModule<'_>,
     call: MemberCall<'a>,
@@ -1001,7 +1001,7 @@ function locate(values: int32[]): isize | undefined {
             &PREFER_ARRAY_SEARCH,
             r#"
 function containsBefore(values: int32[], target: int32, end: isize): boolean {
-    return values.lastIndexOf(target, end) !== undefined;
+    return values.lastIndexOf(target, end) !== -1;
 }
 "#,
         );
