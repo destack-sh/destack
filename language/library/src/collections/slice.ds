@@ -90,9 +90,8 @@ export extension<T> of Slice<T> implements Default {
 
     /// Store one element without bounds checks.
     @unsafe
-    unsafeSet(&this, index: usize, value: T): void {
-        sliceSet<T>(this, index, value);
-    }
+    @intrinsic("collections.slice.set")
+    declare unsafeSet(&this, index: usize, value: T): void;
 
     /// Borrow a contiguous range as a view.
     subslice<const R: Region, const A: Access>(
@@ -353,11 +352,6 @@ export declare function sliceLength<T>(slice: &readonly [T]): usize;
 @unsafe
 @intrinsic("collections.slice.get")
 export declare function sliceGet<T: Copy>(slice: &readonly [T], index: usize): T;
-
-/// Store one element without bounds checks.
-@unsafe
-@intrinsic("collections.slice.set")
-export declare function sliceSet<T>(slice: &[T], index: usize, value: T): void;
 
 /// Borrow a contiguous range of one slice as a view.
 @unsafe

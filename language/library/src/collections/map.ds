@@ -424,7 +424,7 @@ export extension<K, V, E> of ^Map<K, V, E>
     }
 }
 
-export extension<K, V, E> of Map<K, V, E> implements Index<K> where K: Copy, V: Copy, E: Equate<K> {
+export extension<K, V, E> of Map<K, V, E> implements Index<&immutable K> where V: Copy, E: Equate<K> {
     /// The copied indexed value.
     type Output<const R: Region> = V;
 
@@ -432,13 +432,13 @@ export extension<K, V, E> of Map<K, V, E> implements Index<K> where K: Copy, V: 
     type Missing = undefined;
 
     /// Copy the indexed value.
-    index<const R: Region>(this: Borrowed<Map<K, V, E>, R, "readonly">, key: K): V | undefined {
+    index<const R: Region>(this: Borrowed<Map<K, V, E>, R, "readonly">, key: &immutable K): V | undefined {
         todo("Map.index")
     }
 }
 
 export extension<K, V, const A: "immutable" | "exclusive", E> of Map<K, V, E>
-    implements Index<K, A>
+    implements Index<&immutable K, A>
     where E: Equate<K>
 {
     /// The protected element storage.
@@ -450,7 +450,7 @@ export extension<K, V, const A: "immutable" | "exclusive", E> of Map<K, V, E>
     /// Borrow the indexed storage.
     index<const R: Region>(
         this: Borrowed<Map<K, V, E>, R, A>,
-        key: K,
+        key: &immutable K,
     ): Borrowed<V, R, A> | undefined {
         todo("Map.index")
     }

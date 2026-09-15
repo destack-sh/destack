@@ -124,7 +124,7 @@ export class Span {
 
 /// Trace span starter.
 @languageItem("telemetry.Tracer")
-export class Tracer {
+export local class Tracer {
     /// Optional sink for spans created by this tracer.
     private readonly sink: readonly TraceSink | undefined;
 

@@ -30,7 +30,7 @@ export function flush<T>(body: ^Function<(), T, "once">): T {
 }
 
 /// Reevaluate a refreshable signal source.
-export function refresh<T: Refreshable>(source: &readonly T): void {
+export function refresh<T: Refreshable>(source: &readonly local T): void {
     T.refresh(source);
 }
 

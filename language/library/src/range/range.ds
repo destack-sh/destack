@@ -25,7 +25,7 @@ export extension<T: Step<T>> of Range<T> implements Iterable<T> {
     }
 }
 
-export extension<T> of Range<T> implements RangeBounds<T> {
+export extension<T: Copy> of Range<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(&immutable this): Bound<&immutable T> {
         Bound.included(&immutable this.start)
@@ -57,7 +57,7 @@ export extension<T: Step<T>> of RangeInclusive<T> implements Iterable<T> {
     }
 }
 
-export extension<T> of RangeInclusive<T> implements RangeBounds<T> {
+export extension<T: Copy> of RangeInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(&immutable this): Bound<&immutable T> {
         Bound.included(&immutable this.start)
@@ -86,7 +86,7 @@ export extension<T: Step<T>> of RangeFrom<T> implements Iterable<T> {
     }
 }
 
-export extension<T> of RangeFrom<T> implements RangeBounds<T> {
+export extension<T: Copy> of RangeFrom<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(&immutable this): Bound<&immutable T> {
         Bound.included(&immutable this.start)
@@ -105,7 +105,7 @@ export struct RangeTo<T> {
     end: T;
 }
 
-export extension<T> of RangeTo<T> implements RangeBounds<T> {
+export extension<T: Copy> of RangeTo<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(&immutable this): Bound<&immutable T> {
         Bound.unbounded()
@@ -124,7 +124,7 @@ export struct RangeToInclusive<T> {
     end: T;
 }
 
-export extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
+export extension<T: Copy> of RangeToInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(&immutable this): Bound<&immutable T> {
         Bound.unbounded()

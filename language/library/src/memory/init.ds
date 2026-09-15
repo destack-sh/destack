@@ -19,13 +19,6 @@ export declare function initUninit<T>(): MaybeUninit<T>;
 @intrinsic("memory.init.zeroed")
 export declare function initZeroed<T: Zeroable>(): MaybeUninit<T>;
 
-/// Initialize one storage with `value`.
-@intrinsic("memory.init.write")
-export declare function initWrite<T>(
-    storage: &exclusive MaybeUninit<T>,
-    value: T,
-): &exclusive T;
-
 /// Return a raw pointer to one storage borrowed at any access.
 @intrinsic("memory.init.asPointer")
 export declare function initAsPointer<T, const A: Access = "mutable">(
@@ -77,9 +70,8 @@ export extension<T> of MaybeUninit<T> implements Default {
     }
 
     /// Initialize this storage with `value`.
-    write(&exclusive this, value: T): &exclusive T {
-        return initWrite<T>(this, value);
-    }
+    @intrinsic("memory.init.write")
+    declare write(&exclusive this, value: T): &exclusive T;
 
     /// Return a raw pointer to the storage.
     asPointer(&this): *T {

@@ -363,7 +363,7 @@ export extension<K: Compare<K>, V> of ^SortedMap<K, V>
     }
 }
 
-export extension<K: Compare<K>, V> of SortedMap<K, V> implements Index<K> where K: Copy, V: Copy {
+export extension<K: Compare<K>, V> of SortedMap<K, V> implements Index<&immutable K> where V: Copy {
     /// The copied indexed value.
     type Output<const R: Region> = V;
 
@@ -371,13 +371,13 @@ export extension<K: Compare<K>, V> of SortedMap<K, V> implements Index<K> where 
     type Missing = undefined;
 
     /// Copy the indexed value.
-    index<const R: Region>(this: Borrowed<SortedMap<K, V>, R, "readonly">, key: K): V | undefined {
+    index<const R: Region>(this: Borrowed<SortedMap<K, V>, R, "readonly">, key: &immutable K): V | undefined {
         todo("SortedMap.index")
     }
 }
 
 export extension<K: Compare<K>, V, const A: "immutable" | "exclusive"> of SortedMap<K, V>
-    implements Index<K, A>
+    implements Index<&immutable K, A>
 {
     /// The protected element storage.
     type Output<const R: Region> = Borrowed<V, R, A>;
@@ -388,7 +388,7 @@ export extension<K: Compare<K>, V, const A: "immutable" | "exclusive"> of Sorted
     /// Borrow the indexed storage.
     index<const R: Region>(
         this: Borrowed<SortedMap<K, V>, R, A>,
-        key: K,
+        key: &immutable K,
     ): Borrowed<V, R, A> | undefined {
         todo("SortedMap.index")
     }

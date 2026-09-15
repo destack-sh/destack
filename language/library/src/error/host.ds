@@ -492,7 +492,7 @@ export newtype HostErrorContext =
 
 /// Error returned by host bindings.
 @languageItem("error.HostError")
-export newtype HostError = {
+export local newtype HostError = {
     code: HostErrorCode;
     op?: string;
     systemSource?: HostSystemSource;
