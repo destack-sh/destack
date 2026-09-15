@@ -2,7 +2,7 @@ use std::fmt;
 
 use destack_heap::{
     AllocationCache, AllocationPlan, AllocationShape, DropPlan, Heap, HeapEdge, HeapError,
-    HeapReference, HeapResult, Payload, SharedHeap, SharedHeapReference, SharedMarkWorker,
+    HeapReference, HeapResult, Payload, Release, SharedHeap, SharedHeapReference, SharedMarkWorker,
     TraceView,
 };
 use destack_mir::Space;
@@ -76,7 +76,7 @@ impl Memory<'_> {
         match space {
             Space::Local => self.local_heap.options().allocation_plan(shape),
             Space::Shared => self.shared_heap.options().allocation_plan(shape),
-            Space::Constant | Space::Parameter(_) | Space::Bound(_) | Space::Join(_) => {
+            Space::Constant | Space::Parameter(_) | Space::Join(_) => {
                 unreachable!("constant and open spaces never allocate")
             }
         }
@@ -93,9 +93,9 @@ impl Memory<'_> {
         match space {
             Space::Local => self.allocate_local(plan, payload, trace_view),
             Space::Shared => self.allocate_shared(plan, payload, trace_view),
-            Space::Constant | Space::Parameter(_) | Space::Bound(_) | Space::Join(_) => Err(
-                HeapError::internal("constant and open spaces never allocate"),
-            ),
+            Space::Constant | Space::Parameter(_) | Space::Join(_) => Err(HeapError::internal(
+                "constant and open spaces never allocate",
+            )),
         }
     }
 
@@ -138,10 +138,18 @@ impl Memory<'_> {
         address.checked_sub(self.base_address())
     }
 
-    /// Return one uniquely owned heap allocation, freed unless managed storage referenced it.
-    pub fn release(&mut self, edge: HeapEdge) -> HeapResult<()> {
+    /// Release one uniquely owned allocation.
+    pub fn release(&mut self, edge: HeapEdge) -> HeapResult<Release> {
         match edge {
             HeapEdge::Local(reference) => self.local_heap.release(reference),
+            HeapEdge::Shared(reference) => self.shared_heap.release(self.shared_cache, reference),
+        }
+    }
+
+    /// Free one uniquely owned allocation holding no live values.
+    pub fn free(&mut self, edge: HeapEdge) -> HeapResult<()> {
+        match edge {
+            HeapEdge::Local(reference) => self.local_heap.free(reference),
             HeapEdge::Shared(reference) => self.shared_heap.free(self.shared_cache, reference),
         }
     }
