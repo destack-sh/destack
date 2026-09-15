@@ -87,7 +87,7 @@ impl<'a> TypeTable<'a> {
         table
     }
 
-    /// Iterate effective checked types keyed by DIR node.
+    /// Iterate effective types keyed by DIR node.
     pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalTypeId)> + '_ {
         let mut entries = IndexMap::default();
 
@@ -115,7 +115,7 @@ impl<'a> TypeTable<'a> {
         entries.into_iter()
     }
 
-    /// Get the effective checked type id for a node.
+    /// Get the effective type id for a node.
     pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
         for segment in self.segments.iter().rev() {
             if let Some(type_id) = segment.get_node_type_id(node_id) {
@@ -389,7 +389,6 @@ impl<'a> TypeTable<'a> {
             }
             Type::Dynamic(dynamic) => {
                 visit(dynamic.constraint);
-                visit(dynamic.place);
             }
 
             // type operations resolve their interned payload
@@ -439,9 +438,9 @@ impl<'a> TypeTable<'a> {
                 TypeOperation::KeyOf(unary) => visit(unary.target),
                 TypeOperation::NoInfer(unary) => visit(unary.target),
                 TypeOperation::Awaited(unary) => visit(unary.target),
-                TypeOperation::TryOutput { value } | TypeOperation::TryResidual { value } => {
-                    visit(*value)
-                }
+                TypeOperation::TryOutput { value }
+                | TypeOperation::TryResidual { value }
+                | TypeOperation::TryFailure { value } => visit(*value),
                 TypeOperation::StaticBinary(binary) => {
                     visit(binary.left);
                     visit(binary.right);
@@ -456,7 +455,6 @@ impl<'a> TypeTable<'a> {
             }
             Type::Slice(slice) => {
                 visit(slice.element);
-                visit(slice.place);
             }
             Type::Tuple(tuple) => {
                 for element in self.elements(tuple.elements) {
@@ -503,7 +501,6 @@ impl<'a> TypeTable<'a> {
             Type::Function(function) => {
                 visit(function.signature);
                 visit(function.receiver);
-                visit(function.place);
             }
             Type::FunctionPointer(function) => {
                 visit(function.signature);
@@ -607,7 +604,7 @@ pool_id!(MemberTypeId);
 pool_id!(RefinedTypeId);
 pool_id!(BorrowFormId);
 
-/// One module's layer of checked types over the committed base.
+/// One module's layer of types over the committed base.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TypeSegment {
     /// The module id of the type segment.
@@ -645,7 +642,7 @@ pub struct TypeSegment {
     /// The interned borrow form payloads.
     pub(crate) borrows: ValuePool<BorrowForm>,
 
-    /// Effective checked type by node.
+    /// Effective type by node.
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
@@ -812,7 +809,7 @@ impl TypeSegment {
         self.borrows.get(id)
     }
 
-    /// Iterate effective checked types keyed by DIR node.
+    /// Iterate effective types keyed by DIR node.
     pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalTypeId)> + '_ {
         self.node_types
             .iter()
@@ -826,12 +823,12 @@ impl TypeSegment {
             .map(|(symbol_id, type_id)| (*symbol_id, *type_id))
     }
 
-    /// Set the effective checked type for a node.
+    /// Set the effective type for a node.
     pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, type_id: GlobalTypeId) {
         self.node_types.insert(node_id, type_id);
     }
 
-    /// Get the effective checked type id for a node.
+    /// Get the effective type id for a node.
     pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
         self.node_types.get(&node_id).copied()
     }

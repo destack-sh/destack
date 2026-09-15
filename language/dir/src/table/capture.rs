@@ -430,7 +430,7 @@ pub struct CapturedReceiver {
     pub symbol: GlobalSymbolId,
     /// The capture mode for the receiver.
     pub mode: CaptureMode,
-    /// The checked receiver type.
+    /// The receiver type.
     pub ty: GlobalTypeId,
 }
 

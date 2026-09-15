@@ -719,7 +719,7 @@ impl LocalTypeId {
     }
 }
 
-/// One open inference variable inside a checked component.
+/// One open inference variable inside a component.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
@@ -772,16 +772,17 @@ pub enum Access {
 }
 
 impl Access {
+    /// Every rung, weakest first.
+    pub const ALL: [Self; 4] = [
+        Self::Readonly,
+        Self::Mutable,
+        Self::Immutable,
+        Self::Exclusive,
+    ];
+
     /// Parse one canonical access name.
     pub fn from_text(value: &str) -> Option<Self> {
-        [
-            Self::Readonly,
-            Self::Mutable,
-            Self::Immutable,
-            Self::Exclusive,
-        ]
-        .into_iter()
-        .find(|access| access.text() == value)
+        Self::ALL.into_iter().find(|access| access.text() == value)
     }
 
     /// Return whether this access grants the requested access.
@@ -1087,8 +1088,6 @@ impl Form {
 pub struct DynamicType {
     /// The `Dynamic<T>` constraint.
     pub constraint: GlobalTypeId,
-    /// The place of the erased referent.
-    pub place: GlobalTypeId,
 }
 
 /// Type-level operation preserved by check.
@@ -1130,6 +1129,11 @@ pub enum TypeOperation {
     },
     /// Try failure projection like `value?` propagating its residual.
     TryResidual {
+        /// The tried value type.
+        value: GlobalTypeId,
+    },
+    /// Try failure projection a `catch` binds, the error the residual carries.
+    TryFailure {
         /// The tried value type.
         value: GlobalTypeId,
     },
@@ -1184,7 +1188,7 @@ impl TypeOperation {
                 collect(unary.target.module_id);
             }
             Self::TryOutput { value } => collect(value.module_id),
-            Self::TryResidual { value } => collect(value.module_id),
+            Self::TryResidual { value } | Self::TryFailure { value } => collect(value.module_id),
             Self::StaticBinary(binary) => {
                 collect(binary.left.module_id);
                 collect(binary.right.module_id);
@@ -2213,8 +2217,6 @@ impl RangeType {
 pub struct SliceType {
     /// The element type.
     pub element: GlobalTypeId,
-    /// The place of the sliced elements.
-    pub place: GlobalTypeId,
 }
 
 /// A tuple type.
@@ -2501,8 +2503,6 @@ pub struct FunctionType {
     pub signature: GlobalTypeId,
     /// The mode a call takes the callable in, a receiver mode literal or an open access term.
     pub receiver: GlobalTypeId,
-    /// The place of the captured environment.
-    pub place: GlobalTypeId,
 }
 
 /// The ownership, access, and exclusion required to call a receiver.

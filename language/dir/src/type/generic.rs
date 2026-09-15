@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Coercion, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey,
-    InstanceKeyVisit, IterationDecision, LanguageItem, LocalScopeId, StaticKey,
-    TypeFlags, TypeFold, VarianceModifier, WhereRelation,
+    InstanceKeyVisit, IterationDecision, LanguageItem, LocalScopeId, StaticKey, TypeFlags,
+    TypeFold, VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -134,6 +134,15 @@ pub enum GenericParameterKind {
     Type,
     /// A const parameter of one well-known memory kind.
     Memory(MemoryParameter),
+}
+
+/// How a declaration uses one type parameter's argument.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum GenericParameterUse {
+    /// The argument's value, a handle for a managed type.
+    Value,
+    /// The argument's object behind references alone.
+    Referent,
 }
 
 impl GenericParameterKind {
@@ -295,6 +304,8 @@ pub struct GenericParameterBinding {
     pub origin: GenericParameterOrigin,
     /// The representation used to solve the parameter.
     pub kind: GenericParameterKind,
+    /// The place a declared lifetime carries as its space coordinate.
+    pub place: Option<GlobalTypeId>,
     /// Whether the parameter captures remaining arguments.
     pub is_variadic: bool,
     /// Whether type inference preserves exact argument literals.
@@ -370,7 +381,7 @@ pub struct Instance {
 /// One source introducing a generic instance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum InstanceOrigin {
-    /// An instantiation a checked body performs, generating code.
+    /// An instantiation a body performs, generating code.
     Instantiation,
     /// A type application a materialized type mentions, carrying its own arguments.
     Application,
@@ -402,6 +413,17 @@ pub struct WitnessFunction {
     pub member: GlobalSymbolId,
     /// The implementing instance, its own parameters open on a generic member.
     pub function: InstanceKey,
+    /// Where the implementation comes from.
+    pub source: WitnessSource,
+}
+
+/// Where one witness function's implementation comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum WitnessSource {
+    /// A declared member of the conforming declaration or the receiver.
+    Declared,
+    /// A member the compiler derives for the receiver.
+    Derived,
 }
 
 /// One associated type implemented by one type.
@@ -422,7 +444,7 @@ pub struct WitnessConst {
     pub value: GlobalSymbolId,
 }
 
-/// One instantiation a checked body performs, open while it mentions parameters.
+/// One instantiation a body performs, open while it mentions parameters.
 ///
 /// Examples:
 /// ```ds
@@ -441,7 +463,6 @@ pub struct Instantiation {
     /// The source node performing the instantiation.
     pub source: GlobalNodeIdAny,
 }
-
 
 impl GenericParameterBinding {
     /// Return the parameter's well-known memory kind.
@@ -494,12 +515,12 @@ impl GenericParameterBinding {
         self.is_instance_parameter() || self.memory_parameter() == Some(MemoryParameter::Region)
     }
 
-    /// Return whether this parameter demands instances.
+    /// Return whether this parameter demands instances, places and spaces among them.
     pub fn is_instance_parameter(&self) -> bool {
         match self.kind {
             GenericParameterKind::Type => true,
             GenericParameterKind::Memory(MemoryParameter::Region) => false,
-            GenericParameterKind::Memory(_) => self.origin != GenericParameterOrigin::Induced,
+            GenericParameterKind::Memory(_) => true,
         }
     }
 }
@@ -539,7 +560,7 @@ pub struct ArgumentBinding {
     pub argument_type: GlobalTypeId,
     /// The runtime argument source bound to this parameter.
     pub source: ArgumentSource,
-    /// The checked conversion of a generated value; authored values use the coercion table.
+    /// The conversion of a generated value; authored values use the coercion table.
     pub coercion: Option<Box<Coercion>>,
 }
 
@@ -569,7 +590,7 @@ pub enum ArgumentSource {
     Omitted,
     /// Remaining source arguments were supplied to a rest parameter.
     Rest {
-        /// The checked elements in call order.
+        /// The elements in call order.
         elements: Vec<ArgumentBinding>,
         /// The selected pack constructor, absent for slice parameters.
         pack: Option<InstanceKey>,
@@ -590,7 +611,7 @@ impl ArgumentSource {
     }
 }
 
-/// The checked iteration supplying a spread argument's elements.
+/// The iteration supplying a spread argument's elements.
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]

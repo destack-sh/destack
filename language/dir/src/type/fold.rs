@@ -12,6 +12,7 @@ use crate::{
     LocalScopeId, MappedTypeModifiers, MemberKind, MemberOrigin, MemberRole, MemberSlot,
     MemberSpace, MethodAbstraction, Node, PrimitiveType, RangeEnd, ScalarFamilySet, Space,
     StaticBinaryOperator, StaticKey, StaticUnaryOperator, UnaryOperator, VarianceModifier,
+    WitnessSource,
     Visibility, WhereRelation,
 };
 
@@ -318,6 +319,7 @@ type_leaves!(
     StaticUnaryOperator,
     UnaryOperator,
     VarianceModifier,
+    WitnessSource,
     Visibility,
     WhereRelation,
     AwaitTarget,

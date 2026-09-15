@@ -412,7 +412,7 @@ impl Definition {
 pub struct TypeAliasDefinition {
     /// The generic template declared by the alias.
     pub template: Option<LocalGenericTemplateId>,
-    /// The checked alias value.
+    /// The alias value.
     pub value: GlobalTypeId,
 }
 
@@ -473,7 +473,7 @@ impl ClassDefinition {
 pub struct ClassConstructorDefinition {
     /// The selected constructor.
     pub constructor: ClassConstructor,
-    /// The checked constructor signature.
+    /// The constructor signature.
     pub ty: GlobalTypeId,
 }
 
@@ -611,7 +611,7 @@ pub struct ExtensionDefinition {
     pub form: ExtensionForm,
     /// The extension's generic template.
     pub template: Option<LocalGenericTemplateId>,
-    /// The checked receiver target.
+    /// The receiver target.
     pub target: ExtensionTarget,
     /// The implemented interfaces.
     pub implements: Vec<NominalConformance>,
@@ -676,12 +676,12 @@ pub enum ExtensionTarget {
     Rooted {
         /// The root used for member lookup and conflicts.
         root: TypeRoot,
-        /// The checked receiver type.
+        /// The receiver type.
         ty: GlobalTypeId,
     },
     /// Extension over an open receiver type.
     Blanket {
-        /// The checked receiver type.
+        /// The receiver type.
         ty: GlobalTypeId,
         /// The receiver coverage the declared bound decides.
         coverage: BlanketCoverage,
@@ -700,7 +700,7 @@ pub enum BlanketCoverage {
 }
 
 impl ExtensionTarget {
-    /// Return the checked receiver type.
+    /// Return the receiver type.
     pub fn r#type(&self) -> GlobalTypeId {
         match self {
             Self::Rooted { ty, .. } | Self::Blanket { ty, .. } => *ty,
@@ -876,7 +876,7 @@ pub struct EnumVariantDefinition {
 pub struct SignatureDefinition {
     /// The source member node.
     pub source: GlobalNodeIdAny,
-    /// The checked signature type.
+    /// The signature type.
     pub ty: GlobalTypeId,
 }
 
@@ -1038,7 +1038,7 @@ impl DefinitionMember {
         }
     }
 
-    /// Return the symbol whose checked type carries this member's value.
+    /// Return the symbol whose type carries this member's value.
     pub fn type_symbol(&self) -> Option<GlobalSymbolId> {
         // associated types carry their value type directly
         match self {
@@ -1247,13 +1247,10 @@ impl Definition {
             .into_iter()
             .cloned()
             .collect::<SmallVec<[NominalHeritage; 4]>>();
-        edges.extend(
-            self.implementations()
-                .map(|conformance| NominalHeritage {
-                    source: conformance.source,
-                    ty: conformance.interface,
-                }),
-        );
+        edges.extend(self.implementations().map(|conformance| NominalHeritage {
+            source: conformance.source,
+            ty: conformance.interface,
+        }));
 
         edges
     }

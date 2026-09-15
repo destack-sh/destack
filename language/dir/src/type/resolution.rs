@@ -7,8 +7,8 @@ use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor, Coercion,
     DynamicDispatch, Expression, GenericArgumentBinding, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit, MemberReceiver, MemberSpace,
-    Predicate, Projection, ProjectionResolution, ScalarFamily, ScalarFamilySet, StaticKey,
-    StringId, TypeFold, UnaryOperator,
+    Predicate, Projection, ProjectionResolution, ReceiverAdjustment, ScalarFamily, ScalarFamilySet,
+    StaticKey, StringId, TypeFold, UnaryOperator,
 };
 
 /// One operation or the operations selected for every runtime union arm.
@@ -149,7 +149,7 @@ pub struct FieldResolution {
 pub struct IndexResolution {
     /// The receiver that exposes the selected storage.
     pub receiver: MemberReceiver,
-    /// The checked key type accepted by the selection.
+    /// The key type accepted by the selection.
     pub key_type: GlobalTypeId,
     /// The selected structural storage.
     pub target: IndexTarget,
@@ -162,7 +162,7 @@ pub struct IndexResolution {
 pub enum IndexTarget {
     /// One index signature selected by its position in the receiver shape.
     Signature(usize),
-    /// The finite structural fields reached by the checked key domain.
+    /// The finite structural fields reached by the key domain.
     Fields(Vec<StaticKey>),
 }
 
@@ -788,7 +788,7 @@ impl Subscript {
         match &self.target {
             SubscriptTarget::Member(member) => member.target.is_stored(),
             SubscriptTarget::Call(_) => false,
-            SubscriptTarget::Index(read) => read.missing.is_none(),
+            SubscriptTarget::Index(read) => read.dereference.is_some() && read.missing.is_none(),
         }
     }
 }
@@ -874,8 +874,8 @@ pub enum SubscriptTarget {
 pub struct IndexProjection {
     /// The selected protocol call.
     pub call: Call,
-    /// The dereference applied to the returned borrow arm.
-    pub dereference: Dereference,
+    /// The dereference applied to a returned borrow arm, none for a read by value.
+    pub dereference: Option<Dereference>,
     /// The non-borrowed result type, when lookup may miss.
     pub missing: Option<GlobalTypeId>,
 }
@@ -887,8 +887,8 @@ pub struct IndexProjection {
 pub struct Dereference {
     /// The value receiving the dereference operation.
     pub receiver: GlobalTypeId,
-    /// The selected dereference target.
-    pub target: DereferenceTarget,
+    /// The protocol call performing the dereference, absent for a built-in one.
+    pub protocol: Option<Box<Call>>,
     /// The projected or stored pointee type.
     pub ty: GlobalTypeId,
 }
@@ -904,17 +904,6 @@ impl OperationResolution<Dereference> {
             Self::Union { ty, .. } => *ty,
         }
     }
-}
-
-/// Target selected by one dereference.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
-)]
-pub enum DereferenceTarget {
-    /// Direct dereference of a physical reference or pointer form.
-    Direct,
-    /// Protocol-backed dereference call.
-    Call(Box<Call>),
 }
 
 /// Operator implementation selected at a usage site.
@@ -960,7 +949,7 @@ pub type OperatorDecision = OperationResolution<OperatorApplication>;
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
 )]
 pub enum OperatorTarget<T> {
-    /// Compiler-defined operation over checked operands.
+    /// Compiler-defined operation over resolved operands.
     Builtin(T),
     /// User-defined protocol operation.
     Call(Box<Call>),
@@ -1040,7 +1029,7 @@ impl OperatorApplication {
         }
     }
 
-    /// Return the checked builtin operands when check selected builtin behavior.
+    /// Return the builtin operands when check selected builtin behavior.
     pub fn builtin_operands(&self) -> Option<&[BuiltinOperand]> {
         match self {
             Self::Unary {
@@ -1062,7 +1051,7 @@ impl OperatorApplication {
         }
     }
 
-    /// Return the checked builtin unary operation.
+    /// Return the builtin unary operation.
     pub fn builtin_unary(&self) -> Option<(UnaryOperator, &BuiltinOperand)> {
         match self {
             Self::Unary {
@@ -1078,7 +1067,7 @@ impl OperatorApplication {
         }
     }
 
-    /// Return the checked builtin binary operation.
+    /// Return the builtin binary operation.
     pub fn builtin_binary(&self) -> Option<(BinaryOperator, &[BuiltinOperand; 2])> {
         match self {
             Self::Binary {
@@ -1094,7 +1083,7 @@ impl OperatorApplication {
         }
     }
 
-    /// Return the checked builtin operand supplied by one expression.
+    /// Return the builtin operand supplied by one expression.
     pub fn builtin_operand(&self, source: GlobalNodeId<Expression>) -> Option<&BuiltinOperand> {
         self.builtin_operands()?
             .iter()
@@ -1144,7 +1133,7 @@ impl OperationResolution<OperatorApplication> {
         }
     }
 
-    /// Return the checked builtin operands when check selected builtin behavior.
+    /// Return the builtin operands when check selected builtin behavior.
     pub fn builtin_operands(&self) -> Option<&[BuiltinOperand]> {
         match self {
             Self::One(application) => application.builtin_operands(),
@@ -1152,7 +1141,7 @@ impl OperationResolution<OperatorApplication> {
         }
     }
 
-    /// Return the single checked builtin unary operation.
+    /// Return the single builtin unary operation.
     pub fn builtin_unary(&self) -> Option<(UnaryOperator, &BuiltinOperand)> {
         match self {
             Self::One(application) => application.builtin_unary(),
@@ -1160,7 +1149,7 @@ impl OperationResolution<OperatorApplication> {
         }
     }
 
-    /// Return the single checked builtin binary operation.
+    /// Return the single builtin binary operation.
     pub fn builtin_binary(&self) -> Option<(BinaryOperator, &[BuiltinOperand; 2])> {
         match self {
             Self::One(application) => application.builtin_binary(),
@@ -1168,7 +1157,7 @@ impl OperationResolution<OperatorApplication> {
         }
     }
 
-    /// Return the checked builtin operand supplied by one expression.
+    /// Return the builtin operand supplied by one expression.
     pub fn builtin_operand(&self, source: GlobalNodeId<Expression>) -> Option<&BuiltinOperand> {
         self.builtin_operands()?
             .iter()
@@ -1176,7 +1165,7 @@ impl OperationResolution<OperatorApplication> {
     }
 }
 
-/// Addressable storage selected by a checked expression.
+/// Addressable storage selected by one expression.
 ///
 /// Examples:
 /// ```ds
@@ -1457,7 +1446,7 @@ pub struct FunctionTarget {
     pub key: InstanceKey,
 }
 
-/// One checked construction.
+/// One construction.
 ///
 /// Examples:
 /// ```ds
@@ -1476,7 +1465,7 @@ pub struct ConstructDecision {
     pub return_type: GlobalTypeId,
     /// The regions bound for the constructor's region parameters, the class's and its own.
     pub regions: Vec<GenericArgumentBinding>,
-    /// The checked conversion of the constructed result.
+    /// The conversion of the constructed result.
     pub coercion: Option<Box<Coercion>>,
 }
 
@@ -1508,10 +1497,12 @@ pub enum ConstructTarget {
     /// new User("ada")    // selects User and its matching constructor
     /// ```
     Class {
-        /// The selected class declaration and its generic arguments.
+        /// The selected class declaration at its own generic arguments.
         key: InstanceKey,
         /// The selected class constructor.
         constructor: ClassConstructor,
+        /// The bindings the constructor instance closes, the class's parameters then its own.
+        arguments: Vec<GenericArgumentBinding>,
     },
     /// Newtype wrapper constructor selected at compile time.
     ///
@@ -1539,7 +1530,9 @@ impl ConstructTarget {
     /// Return the callable symbol selected by construction, when this target has one.
     pub fn call_symbol(&self) -> Option<GlobalSymbolId> {
         match self {
-            Self::Class { key, constructor } => match constructor {
+            Self::Class {
+                key, constructor, ..
+            } => match constructor {
                 ClassConstructor::Declared { symbol }
                 | ClassConstructor::ForwardedDeclared { symbol, .. } => Some(*symbol),
                 ClassConstructor::Default | ClassConstructor::ForwardedDefault { .. } => {
@@ -1554,14 +1547,18 @@ impl ConstructTarget {
 impl InstanceKeyVisit for ConstructTarget {
     fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
         match self {
-            // visit the class, then its declared constructor under the same arguments
-            Self::Class { key, constructor } => {
+            // visit the class, then its declared constructor under the constructor's bindings
+            Self::Class {
+                key,
+                constructor,
+                arguments,
+            } => {
                 visit(key);
 
                 if let ClassConstructor::Declared { symbol }
                 | ClassConstructor::ForwardedDeclared { symbol, .. } = constructor
                 {
-                    visit(&InstanceKey::new(*symbol, key.arguments.clone()));
+                    visit(&InstanceKey::new(*symbol, arguments.clone()));
                 }
             }
             // visit the newtype declaration
@@ -1805,6 +1802,8 @@ pub struct PatternTupleDestructureResolution {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
 pub struct PatternObjectDestructureResolution {
+    /// The receiver adjustments projecting the scrutinee onto the destructured arm.
+    pub adjustments: Vec<ReceiverAdjustment>,
     /// The object fields in source order.
     pub fields: Vec<PatternFieldResolution>,
     /// The rest field, when present.
@@ -1819,6 +1818,8 @@ pub struct PatternObjectDestructureResolution {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
 pub struct PatternNominalDestructureResolution {
+    /// The receiver adjustments projecting the scrutinee onto the destructured arm.
+    pub adjustments: Vec<ReceiverAdjustment>,
     /// The selected nominal declaration and its generic arguments.
     pub key: InstanceKey,
     /// The nominal fields in source order.
@@ -1981,16 +1982,16 @@ pub struct AssignPatternRestResolution {
     pub pattern: Option<GlobalNodeIdAny>,
 }
 
-/// The checked resolution of one tree literal.
+/// The resolution of one tree literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
 pub struct TreeDecision {
     /// The builder type constructing this literal.
     pub builder: GlobalTypeId,
     /// The resolved literal target.
     pub target: TreeTarget,
-    /// The checked attributes in source order.
+    /// The attributes in source order.
     pub attributes: Vec<TreeAttributeBinding>,
-    /// The checked children in source order.
+    /// The children in source order.
     pub children: Vec<TreeChildBinding>,
     /// The type produced by the literal.
     pub ty: GlobalTypeId,
@@ -2011,7 +2012,7 @@ pub enum TreeTarget {
         /// The selected fragment static call.
         call: CallDecision,
     },
-    /// A lexical component value invoked with its checked props.
+    /// A lexical component value invoked with its resolved props.
     Component {
         /// The component callee node.
         callee: GlobalNodeIdAny,
@@ -2034,7 +2035,7 @@ pub enum TreeInvocation {
     },
 }
 
-/// One checked attribute of a resolved tree literal.
+/// One attribute of a resolved tree literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
 pub struct TreeAttributeBinding {
     /// The attribute key.
@@ -2043,11 +2044,11 @@ pub struct TreeAttributeBinding {
     pub value: Option<GlobalNodeIdAny>,
     /// The quoted string value for node-free attributes.
     pub text: Option<StringId>,
-    /// The checked attribute type.
+    /// The attribute type.
     pub ty: GlobalTypeId,
 }
 
-/// One checked child of a resolved tree literal.
+/// One child of a resolved tree literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
 pub enum TreeChildBinding {
     /// A raw text child typed as a string literal.
@@ -2061,14 +2062,14 @@ pub enum TreeChildBinding {
     Expression {
         /// The child value node.
         node: GlobalNodeIdAny,
-        /// The checked child type.
+        /// The child type.
         ty: GlobalTypeId,
     },
     /// A spread child splatting one tuple operand.
     Spread {
         /// The spread operand node.
         node: GlobalNodeIdAny,
-        /// The checked tuple type of the operand.
+        /// The tuple type of the operand.
         ty: GlobalTypeId,
     },
 }

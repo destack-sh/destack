@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::FxIndexMap as IndexMap;
+use destack_core::{FxIndexMap as IndexMap, FxIndexSet as IndexSet};
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
@@ -59,6 +59,13 @@ impl<'a> RepresentationTable<'a> {
             .rev()
             .find_map(|segment| segment.space(symbol))
     }
+
+    /// Return whether one class's constructor escapes `this`.
+    pub fn escapes_this(&self, symbol: GlobalSymbolId) -> bool {
+        self.segments
+            .iter()
+            .any(|segment| segment.escapes_this(symbol))
+    }
 }
 
 /// The layout policies the check pass commits for one module's nominal declarations.
@@ -72,6 +79,8 @@ pub struct RepresentationSegment {
     copies: IndexMap<GlobalTypeId, bool>,
     /// The space each placed nominal declaration's instances live in.
     spaces: IndexMap<GlobalSymbolId, Space>,
+    /// The classes whose constructors let `this` escape.
+    this_escapes: IndexSet<GlobalSymbolId>,
 }
 
 impl RepresentationSegment {
@@ -82,6 +91,7 @@ impl RepresentationSegment {
             copy_derivations: IndexMap::default(),
             copies: IndexMap::default(),
             spaces: IndexMap::default(),
+            this_escapes: IndexSet::default(),
         }
     }
 
@@ -115,8 +125,21 @@ impl RepresentationSegment {
         self.spaces.get(&symbol).copied()
     }
 
+    /// Record that one class's constructor escapes `this`.
+    pub fn set_escapes_this(&mut self, symbol: GlobalSymbolId) {
+        self.this_escapes.insert(symbol);
+    }
+
+    /// Return whether one class's constructor escapes `this`.
+    pub fn escapes_this(&self, symbol: GlobalSymbolId) -> bool {
+        self.this_escapes.contains(&symbol)
+    }
+
     /// Return whether the segment commits no policy.
     pub fn is_empty(&self) -> bool {
-        self.copy_derivations.is_empty() && self.copies.is_empty() && self.spaces.is_empty()
+        self.copy_derivations.is_empty()
+            && self.copies.is_empty()
+            && self.spaces.is_empty()
+            && self.this_escapes.is_empty()
     }
 }
