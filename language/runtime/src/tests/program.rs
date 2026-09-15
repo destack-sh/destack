@@ -38,7 +38,7 @@ impl TestProgram {
         {
             panic!("failed to parse runtime test MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
+        let (tree, target, layouts, dispatch, drops, effects, profile, strings, _) =
             parsed.into_parts();
 
         Self {
@@ -49,7 +49,6 @@ impl TestProgram {
                 dispatch,
                 drops,
                 witnesses: mir::WitnessTable::default(),
-                accesses,
                 effects,
                 profile,
                 initializer: None,
@@ -163,7 +162,6 @@ impl TestProgram {
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),
-            accesses: self.lowered.accesses.clone(),
             effects: self.lowered.effects.clone(),
             profile: self.lowered.profile.clone(),
         }

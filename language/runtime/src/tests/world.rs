@@ -622,15 +622,15 @@ global test.state: int32 = zeroinit
 export function test.init(): void {
 entry:
     v0: int32 = 7
-    v1: ref<int32, borrowed, 'static, mutable, static> = global.address test.state
-    store v1, v0
+    v1: ref<int32, borrowed, 'static & static, mutable> = address @test.state
+    store (*v1), v0
     return
 }
 
 export function read(): int32 {
 entry:
-    v0: ref<int32, borrowed, 'static, mutable, static> = global.address test.state
-    v1: int32 = load v0
+    v0: ref<int32, borrowed, 'static & static, mutable> = address @test.state
+    v1: int32 = load (*v0)
     return v1
 }
 "#,

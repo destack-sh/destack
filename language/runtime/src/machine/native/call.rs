@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::Range;
 
-use destack_heap::{DropCardinality, HeapEdge, HeapReference, Payload, SharedHeapReference};
+use destack_heap::{HeapEdge, HeapReference, Payload, Release, SharedHeapReference};
 use destack_memory::MemoryMap;
 use destack_mir::Space;
 use destack_native as native;
@@ -83,8 +83,8 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     const RUNTIME: abi::Runtime = abi::Runtime {
         allocate: Self::allocate,
         allocate_repeated: Self::allocate_repeated,
-        drop: Self::drop,
         release: Self::release,
+        free: Self::free,
         write_barrier: Self::write_barrier,
         poll: Self::poll,
         stop: Self::stop,
@@ -383,8 +383,8 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         }
     }
 
-    /// Destroy one erased unique value.
-    unsafe extern "C-unwind" fn drop(
+    /// Release one unique heap object.
+    unsafe extern "C-unwind" fn release(
         activation: *mut abi::Activation,
         owner: usize,
         frame_map: u32,
@@ -392,23 +392,16 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     ) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
-
-        // resolve the allocation's single-value drop plan
         let edge = match call.activation.memory.edge(owner) {
             Ok(Some(edge)) => edge,
             Ok(None) => return,
             Err(error) => call.fail(error),
         };
-        let plan = match call.activation.memory.drop_plan(edge) {
-            Ok(Some(plan)) => plan,
-            Ok(None) => return,
+        let (plan, byte_len) = match call.activation.memory.release(edge) {
+            Ok(Release::Destroy { plan, byte_len }) => (plan, byte_len),
+            Ok(Release::Freed | Release::Retained) => return,
             Err(error) => call.fail(error),
         };
-        if plan.cardinality != DropCardinality::One {
-            call.fail(RuntimeError::Internal {
-                message: "explicit native Drop selected a repeated allocation".to_string(),
-            });
-        }
 
         // select the placement-specific generated destructor
         let Some(entry) = call.program.drop_entry(plan.drop) else {
@@ -436,14 +429,29 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             unsafe { Self::deopt(activation, frame_map, marker) }
         };
 
-        let arguments = [program::Word::from_bits(owner as u64)];
-        let mut result = [];
-        // SAFETY: the selected canonical entry uses this activation and Word ABI
-        function.call(unsafe { &mut *activation }, &arguments, &mut result);
+        // destroy each value from the last to the first, then free the storage
+        let count = match plan.value_count(byte_len) {
+            Ok(count) => count,
+            Err(error) => call.fail(error),
+        };
+        for index in (0..count).rev() {
+            let arguments = [program::Word::from_bits(
+                (owner + index * plan.stride()) as u64,
+            )];
+            let mut result = [];
+            // SAFETY: the selected canonical entry uses this activation and Word ABI
+            function.call(unsafe { &mut *activation }, &arguments, &mut result);
+        }
+
+        // SAFETY: the destructors returned to this activation
+        let call = unsafe { Self::from_activation(activation) };
+        if let Err(error) = call.activation.memory.free(edge) {
+            call.fail(error);
+        }
     }
 
-    /// Return one unique heap object.
-    unsafe extern "C-unwind" fn release(activation: *mut abi::Activation, owner: usize) {
+    /// Free one unique heap object holding no live values.
+    unsafe extern "C-unwind" fn free(activation: *mut abi::Activation, owner: usize) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
         let edge = match call.activation.memory.edge(owner) {
@@ -452,7 +460,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             Err(error) => call.fail(error),
         };
 
-        if let Err(error) = call.activation.memory.release(edge) {
+        if let Err(error) = call.activation.memory.free(edge) {
             call.fail(error);
         }
     }
@@ -539,7 +547,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         let exit = unsafe { &mut *(*activation).exit };
         exit.stop(frame_map);
 
-        call.retain()
+        call.retain_activation()
     }
 
     /// Stop native execution at one reconstructable native frame.
@@ -560,7 +568,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         let exit = unsafe { &mut *(*activation).exit };
         exit.stop(frame_map);
 
-        call.retain()
+        call.retain_activation()
     }
 
     /// Deoptimize native execution at one reconstructable frame.
@@ -579,7 +587,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         let exit = unsafe { &mut *(*activation).exit };
         exit.deoptimize(frame_map);
 
-        call.retain()
+        call.retain_activation()
     }
 
     /// Increment one explicit profile counter when recording is active.
@@ -804,7 +812,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     }
 
     /// Return one captured activation without running native cleanup blocks.
-    fn retain(&mut self) -> ! {
+    fn retain_activation(&mut self) -> ! {
         self.transfer = Some(Transfer::Retain);
 
         Self::raise()
@@ -895,46 +903,6 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     /// Return the runtime binding operation.
     pub const fn binding_entry() -> abi::BindingCall {
         Self::binding
-    }
-
-    /// Return the fixed allocation operation.
-    pub const fn allocate_entry() -> abi::Allocate {
-        Self::allocate
-    }
-
-    /// Return the repeated allocation operation.
-    pub const fn allocate_repeated_entry() -> abi::AllocateRepeated {
-        Self::allocate_repeated
-    }
-
-    /// Return the erased destruction operation.
-    pub const fn drop_entry() -> abi::Drop {
-        Self::drop
-    }
-
-    /// Return the unique release operation.
-    pub const fn release_entry() -> abi::Release {
-        Self::release
-    }
-
-    /// Return the managed write-barrier operation.
-    pub const fn write_barrier_entry() -> abi::WriteBarrier {
-        Self::write_barrier
-    }
-
-    /// Return the runtime poll operation.
-    pub const fn poll_entry() -> abi::Poll {
-        Self::poll
-    }
-
-    /// Return the debugger stop operation.
-    pub const fn stop_entry() -> abi::Stop {
-        Self::stop
-    }
-
-    /// Return the native deoptimization operation.
-    pub const fn deopt_entry() -> abi::Deopt {
-        Self::deopt
     }
 }
 
