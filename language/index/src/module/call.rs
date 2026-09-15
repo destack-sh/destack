@@ -231,7 +231,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
         resolution: &dir::DereferenceResolution,
     ) {
         for dereference in resolution.arms() {
-            if let dir::DereferenceTarget::Call(call) = &dereference.target {
+            if let Some(call) = &dereference.protocol {
                 self.push_call(source, caller, span, call);
             }
         }

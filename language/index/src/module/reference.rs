@@ -911,7 +911,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         resolution: &dir::DereferenceResolution,
     ) -> ProviderResult<()> {
         for dereference in resolution.arms() {
-            if let dir::DereferenceTarget::Call(call) = &dereference.target {
+            if let Some(call) = &dereference.protocol {
                 self.index_call(source, call)?;
             }
         }
