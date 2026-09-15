@@ -49,7 +49,7 @@ New procesess, not just for studying and developing software behavior, but entir
 <!--homoiconic software-->
 <!--There is an an old joke that computer science really has nothing to do with either computers or science.-->
 If software is solved, why is there still so much bad software?
-Everybody can vibecode a database, the tests pass, but nobody dares using it.
+Everybody can vibecode a database, the tests pass, output is "byte-identical", but nobody dares using it.
 Strange.
 Something is clearly amiss.
 How do we put the "engineering" into "software engineering"?
@@ -196,9 +196,9 @@ Importantly, the question is _not_ what is the "best theortical version if we di
 <!--- basically, what is "TypeScript++"? TS that runs predictably like JVM/CLR/Go with som Rust-y bits-->
 <!--- what is the minimum set of changes / additions we need to good prior art to get what we need-->
 
-- TS++ fashions itself as a "superset of a strict subset of TS", which - if you squint - is somewhat reminiscient of the relationship between C and C++.
-- mechnically, what is the ergonomic ladder of TS++ between TS -> Rust, what are the minimal things to remove for unsoundness, and the minimum features to add to cover the whole universal language spectrum
+<!--- TS++ fashions itself as a "superset of a strict subset of TS", which - if you squint - is somewhat reminiscient of the relationship between C and C++.
+- mechnically, what is the ergonomic ladder of TS++ between TS -> Rust, what are the minimal things to remove for unsoundness, and the minimum features to add to cover the whole universal language spectrum-->
 
-- there are a lot of interesting details in making "TS++" actually work.
+<!--- there are a lot of interesting details in making "TS++" actually work.
 - like how _exactly_ do we combine as much of TS surface feel as possible, while also compiling to a strict sound languaeg? while _also_ enabling up to Rust-level control (and ideally performance)?
-- you can read all about it at [docs](/docs/language/)
+- you can read all about it at [docs](/docs/language/)-->
