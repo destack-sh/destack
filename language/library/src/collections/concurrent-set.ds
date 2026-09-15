@@ -7,10 +7,8 @@ import {
     Copy,
     Default,
     Dispose,
-    ImmutableOf,
     Region,
     SharedSafe,
-    ValueOf,
 } from "destack:memory";
 import { Dereference, Equality, Equate } from "destack:ops";
 
@@ -27,19 +25,30 @@ export local struct ConcurrentSetRead<'a, T, E = Equality<T>> {
 export shared class ConcurrentSet<T, E: SharedSafe = Equality<T>> {
     /// The backing concurrent map.
     private map: ConcurrentMap<T, void, E>;
+
+    /// Create a collection from values using its default comparer.
+    constructor(values?: Iterable<T> | null) where E: Default, E: Equate<T> {
+        todo("ConcurrentSet.constructor");
+    }
+
+    /// Create a collection from values using comparer.
+    constructor(values: Iterable<T> | null | undefined, options: { comparer: E })
+        where E: Equate<T> {
+        todo("ConcurrentSet.constructor");
+    }
 }
 
 export extension<'a, T, E> of ConcurrentSetRead<'a, T, E>
     implements Dispose, !Copy, Dereference<"readonly">
 {
     /// The pointee type.
-    type Target = shared ValueOf<T>;
+    type Target = shared T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";
 
     /// Borrow the stored value.
-    get value(&readonly this): &immutable shared ValueOf<T> {
+    get value(&readonly this): &immutable shared T {
         todo("ConcurrentSetRead.value")
     }
 
@@ -56,7 +65,7 @@ export extension<'a, T, E> of ConcurrentSetRead<'a, T, E>
     }
 }
 
-export extension<T, E> of ConcurrentSet<T, E> {
+export extension<T, E: SharedSafe> of ConcurrentSet<T, E> {
     /// Create an empty concurrent set.
     static new(comparer: E): ^ConcurrentSet<T, E> {
         todo("ConcurrentSet.new")
@@ -66,26 +75,29 @@ export extension<T, E> of ConcurrentSet<T, E> {
     static withCapacity(capacity: usize, comparer: E): ^ConcurrentSet<T, E> {
         todo("ConcurrentSet.withCapacity")
     }
-}
 
-export extension<T, E> of ConcurrentSet<T, E> implements Default where E: Default {
     /// Create an empty collection with its default comparer.
-    static new(): ^ConcurrentSet<T, E> {
+    static new(): ^ConcurrentSet<T, E> where E: Default {
         ConcurrentSet.new(E.default())
     }
 
     /// Create a collection with its default comparer and room for capacity entries.
-    static withCapacity(capacity: usize): ^ConcurrentSet<T, E> {
+    static withCapacity(capacity: usize): ^ConcurrentSet<T, E> where E: Default {
         ConcurrentSet.withCapacity(capacity, E.default())
     }
+}
 
+export extension<T, E: SharedSafe> of ConcurrentSet<T, E> implements Default where E: Default {
     /// Create the default concurrent set.
     static default(): ^ConcurrentSet<T, E> {
         ConcurrentSet.new(E.default())
     }
 }
 
-export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
+export extension<T, E: SharedSafe> of ConcurrentSet<T, E>
+    implements Extend<T, "readonly">
+    where E: Equate<T>
+{
     /// Create a concurrent set from values.
     static from(values: Iterable<T>, comparer: E): ^ConcurrentSet<T, E> where E: Equate<T> {
         todo("ConcurrentSet.from")
@@ -103,7 +115,7 @@ export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
     }
 
     /// Look up a borrowed value using the stored comparer.
-    has<Q>(&readonly this, value: ImmutableOf<Q>): boolean where E: Equate<T, Q> {
+    has<Q>(&readonly this, value: &immutable Q): boolean where E: Equate<T, Q> {
         todo("ConcurrentSet.has")
     }
 
@@ -113,7 +125,7 @@ export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
     }
 
     /// Look up a borrowed value using the stored comparer.
-    get<Q>(&readonly this, value: ImmutableOf<Q>): T | undefined where E: Equate<T, Q>, T: Copy {
+    get<Q>(&readonly this, value: &immutable Q): T | undefined where E: Equate<T, Q>, T: Copy {
         todo("ConcurrentSet.get")
     }
 
@@ -124,7 +136,7 @@ export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
     }
 
     /// Look up a borrowed value using the stored comparer.
-    read<'a, Q>(&'a readonly this, value: ImmutableOf<Q>): ConcurrentSetRead<'a, T, E> | undefined
+    read<'a, Q>(&'a readonly this, value: &immutable Q): ConcurrentSetRead<'a, T, E> | undefined
         where E: Equate<T, Q> {
         todo("ConcurrentSet.read")
     }
@@ -133,7 +145,7 @@ export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
     with<Q, R>(
         &readonly this,
         value: Q,
-        body: (value: &immutable shared ValueOf<T>) => R,
+        body: (value: &immutable shared T) => R,
     ): R | undefined where E: Equate<T, Q>, Q: Copy {
         todo("ConcurrentSet.with")
     }
@@ -141,8 +153,8 @@ export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
     /// Look up a borrowed value using the stored comparer.
     with<Q, R>(
         &readonly this,
-        value: ImmutableOf<Q>,
-        body: (value: &immutable shared ValueOf<T>) => R,
+        value: &immutable Q,
+        body: (value: &immutable shared T) => R,
     ): R | undefined where E: Equate<T, Q> {
         todo("ConcurrentSet.with")
     }
@@ -153,19 +165,19 @@ export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
     }
 
     /// Add all `values`.
-    extend<I: Iterable<T>>(&readonly this, values: I): void where E: Equate<T> {
+    extend<I: Iterable<T>>(&readonly this, values: I): void {
         todo("ConcurrentSet.extend");
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&readonly this, predicate: (value: &immutable shared ValueOf<T>) => boolean): void {
+    retain(&readonly this, predicate: (value: &immutable shared T) => boolean): void {
         todo("ConcurrentSet.retain");
     }
 
     /// Remove values accepted by `predicate` and return them.
     extractIf(
         &readonly this,
-        predicate: (value: &immutable shared ValueOf<T>) => boolean,
+        predicate: (value: &immutable shared T) => boolean,
     ): Iterator<T> {
         todo("ConcurrentSet.extractIf")
     }
@@ -176,12 +188,12 @@ export extension<T, E> of ConcurrentSet<T, E> implements Extend<T, "readonly"> {
     }
 
     /// Look up a borrowed value using the stored comparer.
-    remove<Q>(&readonly this, value: ImmutableOf<Q>): T | undefined where E: Equate<T, Q> {
+    remove<Q>(&readonly this, value: &immutable Q): T | undefined where E: Equate<T, Q> {
         todo("ConcurrentSet.remove")
     }
 }
 
-export extension<T, E> of ConcurrentSet<T, E>
+export extension<T, E: SharedSafe> of ConcurrentSet<T, E>
     implements From<Iterable<T>>, FromIterator<T>
     where E: Default, E: Equate<T>
 {
@@ -196,7 +208,7 @@ export extension<T, E> of ConcurrentSet<T, E>
     }
 }
 
-export extension<T, E> of ^ConcurrentSet<T, E>
+export extension<T, E: SharedSafe> of ^ConcurrentSet<T, E>
     implements From<Iterable<T>>, FromIterator<T>
     where E: Default, E: Equate<T>
 {
@@ -211,7 +223,7 @@ export extension<T, E> of ^ConcurrentSet<T, E>
     }
 }
 
-export extension<T, E> of ConcurrentSet<T, E> {
+export extension<T, E: SharedSafe> of ConcurrentSet<T, E> {
     /// Return the number of values.
     get size(&readonly this): usize {
         this.map.size

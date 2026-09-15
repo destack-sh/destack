@@ -11,7 +11,7 @@ export extension<T> of Phantom<T> implements Clone, Copy, Default {
     }
 
     /// Clone this phantom marker.
-    clone(&readonly this): Phantom<T> {
+    clone(this: &immutable this): Phantom<T> {
         Phantom.new()
     }
 

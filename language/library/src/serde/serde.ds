@@ -1,5 +1,5 @@
 import { Result } from "destack:error";
-import { Copy, ImmutableOf, WithAccess } from "destack:memory";
+import { Copy, WithAccess } from "destack:memory";
 
 /// Structured value serializer.
 @languageItem("serde.Serializer")
@@ -33,7 +33,7 @@ export newtype interface Serializer {
     serializeField<T>(
         &this,
         key: string,
-        value: ImmutableOf<T>,
+        value: &immutable T,
     ): Result<void, this.Error> where T: Serialize<this>;
 }
 
@@ -66,7 +66,7 @@ export newtype interface Deserializer {
 @languageItem("serde.Serialize")
 export newtype interface Serialize<S: Serializer> {
     /// Serialize this value.
-    serialize(this: ImmutableOf<this>, serializer: &S): Result<void, S.Error>;
+    serialize(this: &immutable this, serializer: &S): Result<void, S.Error>;
 }
 
 /// Value that can be deserialized through `D`.

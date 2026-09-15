@@ -3,7 +3,7 @@ import { As, Borrow, From } from "destack:convert";
 import { Result, todo } from "destack:error";
 import { CollatorOptions, IntlError, Locales } from "destack:intl";
 import { Iterator } from "destack:iter";
-import { Default, ValueOf, WithAccess } from "destack:memory";
+import { Borrowed, Default, Region, WithAccess } from "destack:memory";
 
 import { Add, DefaultEqual, Equal, Hash, Hasher, Ordering, PartialEqual } from "destack:ops";
 import { RegExp, RegExpMatch } from "destack:regexp";
@@ -92,7 +92,7 @@ export extension of string
     }
 
     /// Return whether this string equals `other`.
-    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<StringSlice>): boolean {
+    equal(this: &immutable this, other: &immutable StringSlice): boolean {
         todo("String.equalSlice")
     }
 
@@ -310,12 +310,12 @@ export extension of string
     }
 
     /// Equality comparison.
-    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<string>): boolean {
+    equal(this: &immutable this, other: &immutable string): boolean {
         todo("String.equal")
     }
 
     /// Add this string to `state`.
-    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
+    hash(this: &immutable this, state: &Hasher): void {
         todo("String.hash");
     }
 
@@ -349,16 +349,16 @@ export extension of ^string implements From<&readonly StringSlice>, From<^String
     }
 }
 
-export extension<const A: "readonly" | "immutable"> of String
+export extension<const A: Access> of String
     implements As<StringSlice, A>, Borrow<StringSlice, A>
 {
     /// Borrow this string as a string slice.
-    as(this: WithAccess<&this, A>): WithAccess<&StringSlice, A> {
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<StringSlice, R, A> {
         todo("String.as")
     }
 
     /// Borrow this string as a string slice.
-    borrow(this: WithAccess<&this, A>): WithAccess<&StringSlice, A> {
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<StringSlice, R, A> {
         this.as()
     }
 }
@@ -373,12 +373,12 @@ export function stringFromTemplate(chunks: &readonly [string], spans: &readonly 
 
 export extension<Q: Borrow<StringSlice>> of string implements DefaultEqual<Q> {
     /// Compare string contents with a stored string.
-    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+    static equal(value: &immutable Q, key: &immutable this): boolean {
         todo("string.equal");
     }
 
     /// Hash string contents using the same encoding as the stored string.
-    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+    static hash(value: &immutable Q, state: &Hasher): void {
         todo("string.hash");
     }
 }

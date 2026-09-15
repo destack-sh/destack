@@ -1,5 +1,4 @@
 import { todo } from "destack:error";
-import { ValueOf } from "destack:memory";
 
 import { MutexGuard } from "./mutex.ds";
 
@@ -20,7 +19,7 @@ export shared class Condvar {
     waitWhile<'a, T>(
         &readonly this,
         guard: MutexGuard<'a, T>,
-        condition: (value: &immutable shared ValueOf<T>) => boolean,
+        condition: (value: &immutable shared T) => boolean,
     ): MutexGuard<'a, T> {
         todo("Condvar.waitWhile")
     }

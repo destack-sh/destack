@@ -76,7 +76,7 @@ export class Span {
     }
 
     /// Add one event to this span.
-    event(&readonly this, name: &readonly string, fields?: Fields): void {
+    event<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
         writeTrace(this.sink, TraceEntry {
             kind: TraceEventKind.Event,
             traceId: this.context.traceId,

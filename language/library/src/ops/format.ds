@@ -1,15 +1,13 @@
-import { ImmutableOf } from "destack:memory";
-
 /// Interface for user-facing string representation.
 @languageItem("ops.Display")
 export newtype interface Display {
     /// Return a user-facing string representation.
-    display(this: ImmutableOf<this>): string;
+    display(this: &immutable this): string;
 }
 
 /// Interface for developer-facing string representation.
 @languageItem("ops.Debug")
 export newtype interface Debug {
     /// Return a developer-facing string representation.
-    debug(this: ImmutableOf<this>): string;
+    debug(this: &immutable this): string;
 }

@@ -14,7 +14,7 @@ export local struct Weak<T> {
 
 export extension<T> of Weak<T> implements Clone, !Copy, Drop {
     /// Clone this weak handle.
-    clone(&readonly this): Weak<T> {
+    clone(this: &immutable this): Weak<T> {
         todo("Weak.clone")
     }
 

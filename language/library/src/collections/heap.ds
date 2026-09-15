@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Borrowed, Copy, Default, ImmutableOf, ValueOf, WithAccess } from "destack:memory";
+import { Borrowed, Copy, Default, WithAccess } from "destack:memory";
 import { Compare } from "destack:ops";
 
 import { Array } from "./array.ds";
@@ -15,21 +15,21 @@ export struct BinaryHeap<T> {
 
 export extension<T> of BinaryHeap<T> implements Iterable<T> {
     /// Consume this heap into owned values.
-    iterator(this): Iterator<T> {
+    iterator(this): this.Iterator {
         todo("BinaryHeap.iterator")
     }
 }
 
 export extension<T, 'a> of Borrowed<BinaryHeap<T>, 'a, "immutable">
-    implements Iterable<Borrowed<ValueOf<T>, 'a, "immutable">>
+    implements Iterable<Borrowed<T, 'a, "immutable">>
 {
     /// Borrow the greatest element.
-    peek(this): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined {
+    peek(this): Borrowed<T, 'a, "immutable"> | undefined {
         todo("BinaryHeap.peek")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
+    iterator(this): this.Iterator {
         todo("BinaryHeap.iterator")
     }
 }
@@ -97,7 +97,7 @@ export extension<T> of BinaryHeap<T> {
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): void
+    retain(&exclusive this, predicate: (value: &immutable T) => boolean): void
         where T: Compare<T> {
         todo("BinaryHeap.retain");
     }
@@ -108,7 +108,7 @@ export extension<T> of BinaryHeap<T> {
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): Iterator<T>
+    extractIf(&exclusive this, predicate: (value: &immutable T) => boolean): Iterator<T>
         where T: Compare<T> {
         todo("BinaryHeap.extractIf")
     }

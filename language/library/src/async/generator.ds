@@ -440,7 +440,10 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     }
 
     /// Return the result of one request after producer completion.
-    private completedResult(operation: GeneratorRequest<R, N>): GeneratorResult<Y, R> {
+    private completedResult(
+        &readonly this,
+        operation: GeneratorRequest<R, N>,
+    ): GeneratorResult<Y, R> {
         return match (operation) {
             GeneratorNext {} => IteratorResult(IteratorReturn { value: undefined })
             GeneratorReturn { value } => IteratorResult(IteratorReturn { value })

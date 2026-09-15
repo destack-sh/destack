@@ -1,14 +1,14 @@
 import { Task } from "destack:async";
 import { Result, todo } from "destack:error";
-import { Access, Borrowed, Copy, Region, SharedSafe, ValueOf } from "destack:memory";
+import { Access, Borrowed, Copy, Region, SharedSafe } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { ReceiveError, SendError } from "./channel.ds";
 
 /// Stable readonly snapshot of one watched value.
-export local class WatchRef<out T> implements Dereference<"readonly"> {
+export local class WatchRef<T> implements Dereference<"readonly"> {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// The retained value.
     private readonly value: T;

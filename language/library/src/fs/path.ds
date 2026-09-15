@@ -1,7 +1,7 @@
 import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator, IteratorResult } from "destack:iter";
-import { AllocationError, Clone, Default, ValueOf, WithAccess } from "destack:memory";
+import { AllocationError, Borrowed, Clone, Default, Region, WithAccess } from "destack:memory";
 
 import { Compare, Equal, Hash, Hasher, Ordering, PartialCompare, PartialEqual } from "destack:ops";
 import { OsString, OsStringBuilder, OsStringDecodeError, OsStringSlice } from "destack:string";
@@ -154,7 +154,7 @@ export struct StripPrefixError {
     kind: "prefixMismatch" = "prefixMismatch";
 }
 
-export extension of PathSlice implements ToOwned, As<OsStringSlice>, Hash {
+export extension of PathSlice implements ToOwned, Hash {
     /// The owned value type.
     type Owned = ^Path;
 
@@ -163,24 +163,28 @@ export extension of PathSlice implements ToOwned, As<OsStringSlice>, Hash {
         todo("PathSlice.from")
     }
 
-    /// Borrow this path as native text.
-    as(&readonly this): &readonly OsStringSlice {
-        todo("PathSlice.as")
-    }
-
-    /// Borrow this path as native text.
-    borrow(&readonly this): &readonly OsStringSlice {
-        this.as()
-    }
-
     /// Copy this path into owned storage.
-    toOwned(&readonly this): ^Path {
+    toOwned(&immutable this): ^Path {
         todo("PathSlice.toOwned")
     }
 
     /// Add this path's native representation to `state`.
-    hash(&readonly this, state: &Hasher): void {
+    hash(&immutable this, state: &Hasher): void {
         this.as().hash(state);
+    }
+}
+
+export extension<const A: Access> of PathSlice
+    implements As<OsStringSlice, A>, Borrow<OsStringSlice, A>
+{
+    /// Borrow this path as native text.
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<OsStringSlice, R, A> {
+        todo("PathSlice.as")
+    }
+
+    /// Borrow this path as native text.
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<OsStringSlice, R, A> {
+        this.as()
     }
 }
 
@@ -211,12 +215,12 @@ export extension of Path implements Clone, Default, Hash {
     }
 
     /// Clone this path.
-    clone(this: &readonly ValueOf<this>): ^Path {
+    clone(this: &immutable this): ^Path {
         this.as().toOwned()
     }
 
     /// Add this path's native representation to `state`.
-    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
+    hash(this: &immutable this, state: &Hasher): void {
         this.as().hash(state);
     }
 
@@ -226,21 +230,21 @@ export extension of Path implements Clone, Default, Hash {
     }
 }
 
-export extension<const A: "readonly" | "immutable"> of Path
+export extension<const A: Access> of Path
     implements As<PathSlice, A>, Borrow<PathSlice, A>
 {
     /// Borrow this owned path as a path slice.
-    as(this: WithAccess<&this, A>): WithAccess<&PathSlice, A> {
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
         todo("Path.as")
     }
 
     /// Borrow this owned path as a path slice.
-    borrow(this: WithAccess<&this, A>): WithAccess<&PathSlice, A> {
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
         this.as()
     }
 }
 
-export extension of PathBuilder implements Default, As<PathSlice>, Borrow<PathSlice>, Hash {
+export extension of PathBuilder implements Default, Hash {
     /// Return the allocated opaque encoded byte count.
     get capacity(&readonly this): usize {
         todo("PathBuilder.capacity")
@@ -281,18 +285,8 @@ export extension of PathBuilder implements Default, As<PathSlice>, Borrow<PathSl
         todo("PathBuilder.from")
     }
 
-    /// Borrow the current path.
-    as(&readonly this): &readonly PathSlice {
-        todo("PathBuilder.as")
-    }
-
-    /// Borrow the current path.
-    borrow(&readonly this): &readonly PathSlice {
-        this.as()
-    }
-
     /// Add the current path's native representation to `state`.
-    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
+    hash(this: &immutable this, state: &Hasher): void {
         this.as().hash(state);
     }
 
@@ -359,6 +353,20 @@ export extension of PathBuilder implements Default, As<PathSlice>, Borrow<PathSl
     /// Move the native string builder out of this path builder.
     intoOsStringBuilder(^this): ^OsStringBuilder {
         todo("PathBuilder.intoOsStringBuilder")
+    }
+}
+
+export extension<const A: Access> of PathBuilder
+    implements As<PathSlice, A>, Borrow<PathSlice, A>
+{
+    /// Borrow the current path.
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
+        todo("PathBuilder.as")
+    }
+
+    /// Borrow the current path.
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
+        this.as()
     }
 }
 
@@ -477,21 +485,40 @@ export extension<P: Borrow<PathSlice>> of P {
     }
 }
 
-export extension<P: Borrow<PathSlice>, Q: Borrow<PathSlice>> of P
+export extension<Q: Borrow<PathSlice>> of PathSlice
     implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
 {
     /// Return whether this path has the same native representation as `other`.
-    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): boolean {
+    equal(this: &immutable this, other: &immutable Q): boolean {
         todo("Path.equal")
     }
 
     /// Compare this path's native representation with `other`.
-    compare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering {
+    compare(this: &immutable this, other: &immutable Q): Ordering {
         todo("Path.compare")
     }
 
     /// Partially compare this path's native representation with `other`.
-    partialCompare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering | null {
+    partialCompare(this: &immutable this, other: &immutable Q): Ordering | null {
+        this.compare(other)
+    }
+}
+
+export extension<Q: Borrow<PathSlice>> of Path
+    implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
+{
+    /// Return whether this path has the same native representation as `other`.
+    equal(this: &immutable this, other: &immutable Q): boolean {
+        todo("Path.equal")
+    }
+
+    /// Compare this path's native representation with `other`.
+    compare(this: &immutable this, other: &immutable Q): Ordering {
+        todo("Path.compare")
+    }
+
+    /// Partially compare this path's native representation with `other`.
+    partialCompare(this: &immutable this, other: &immutable Q): Ordering | null {
         this.compare(other)
     }
 }

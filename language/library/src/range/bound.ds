@@ -1,4 +1,3 @@
-import { ImmutableOf } from "destack:memory";
 import { PartialCompare } from "destack:ops";
 
 /// One endpoint of a range.
@@ -29,15 +28,15 @@ export extension<T> of Bound<T> {
 @languageItem("range.RangeBounds")
 export newtype interface RangeBounds<T> {
     /// Return the start bound.
-    startBound(&immutable this): Bound<ImmutableOf<T>>;
+    startBound(&immutable this): Bound<&immutable T>;
 
     /// Return the end bound.
-    endBound(&immutable this): Bound<ImmutableOf<T>>;
+    endBound(&immutable this): Bound<&immutable T>;
 
     /// Return whether this range contains `value`.
     contains<U: PartialCompare<T>>(
         &immutable this,
-        value: ImmutableOf<U>,
+        value: &immutable U,
     ): boolean where T: PartialCompare<U> {
         let isAfterStart = match (this.startBound()) {
             { kind: "included", value: bound } => *bound <= *value

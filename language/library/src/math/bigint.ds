@@ -1,7 +1,7 @@
 import { Slice } from "destack:collections";
 import { Result, todo } from "destack:error";
 import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "destack:intl";
-import { MaybeUninit, ValueOf } from "destack:memory";
+import { MaybeUninit } from "destack:memory";
 import {
     Add,
     And,
@@ -154,25 +154,25 @@ export extension of bigint
     }
 
     /// Return whether this integer equals `other`.
-    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<bigint>): boolean {
+    equal(this: &immutable this, other: &immutable bigint): boolean {
         todo("BigInt.equal")
     }
 
     /// Compare partially with `other`.
     partialCompare(
-        this: &readonly ValueOf<this>,
-        other: &readonly ValueOf<bigint>,
+        this: &immutable this,
+        other: &immutable bigint,
     ): Ordering | null {
         this.compare(other)
     }
 
     /// Add this integer to `state`.
-    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
+    hash(this: &immutable this, state: &Hasher): void {
         todo("BigInt.hash");
     }
 
     /// Compare with `other`.
-    compare(this: &readonly ValueOf<this>, other: &readonly ValueOf<bigint>): Ordering {
+    compare(this: &immutable this, other: &immutable bigint): Ordering {
         todo("BigInt.compare")
     }
 

@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Borrowed, Copy, Default, ImmutableOf, Region, ValueOf, WithAccess } from "destack:memory";
+import { Borrowed, Copy, Default, Region, WithAccess } from "destack:memory";
 import { Equality, Equate } from "destack:ops";
 
 import { Map } from "./map.ds";
@@ -28,7 +28,7 @@ export class Set<T, E = Equality<T>> {
 
 export extension<T, E> of ^Set<T, E> implements Iterable<T> {
     /// Consume this set into owned values.
-    iterator(this): Iterator<T> {
+    iterator(this): this.Iterator {
         todo("Set.iterator")
     }
 
@@ -55,7 +55,7 @@ export extension<T, E> of ^Set<T, E> implements Iterable<T> {
 
 export extension<T, E> of Set<T, E> implements Iterable<T> where T: Copy {
     /// Return an iterator over copied values.
-    iterator(): Iterator<T> {
+    iterator(): this.Iterator {
         todo("Set.iterator")
     }
 
@@ -65,7 +65,7 @@ export extension<T, E> of Set<T, E> implements Iterable<T> where T: Copy {
     }
 
     /// Look up a borrowed value using the stored comparer.
-    get<Q>(&readonly this, value: ImmutableOf<Q>): T | undefined where E: Equate<T, Q> {
+    get<Q>(&readonly this, value: &immutable Q): T | undefined where E: Equate<T, Q> {
         todo("Set.get")
     }
 
@@ -91,39 +91,39 @@ export extension<T, E> of Set<T, E> implements Iterable<T> where T: Copy {
 }
 
 export extension<T, 'a, E> of Borrowed<Set<T, E>, 'a, "immutable">
-    implements Iterable<Borrowed<ValueOf<T>, 'a, "immutable">>
+    implements Iterable<Borrowed<T, 'a, "immutable">>
 {
     /// Return an iterator over borrowed values.
-    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
+    iterator(this): this.Iterator {
         todo("Set.iterator")
     }
 
     /// Borrow the stored value equal to `value`.
-    get<Q>(this, value: Q): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined
+    get<Q>(this, value: Q): Borrowed<T, 'a, "immutable"> | undefined
         where E: Equate<T, Q>, Q: Copy {
         todo("Set.get")
     }
 
     /// Look up a borrowed value using the stored comparer.
-    get<Q>(this, value: ImmutableOf<Q>): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined
+    get<Q>(this, value: &immutable Q): Borrowed<T, 'a, "immutable"> | undefined
         where E: Equate<T, Q> {
         todo("Set.get")
     }
 
     /// Return borrowed values as keys.
-    keys(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
+    keys(this): Iterator<Borrowed<T, 'a, "immutable">> {
         todo("Set.keys")
     }
 
     /// Return borrowed values.
-    values(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
+    values(this): Iterator<Borrowed<T, 'a, "immutable">> {
         todo("Set.values")
     }
 
     /// Return borrowed value-value entries.
     entries(
         this,
-    ): Iterator<(Borrowed<ValueOf<T>, 'a, "immutable">, Borrowed<ValueOf<T>, 'a, "immutable">)> {
+    ): Iterator<(Borrowed<T, 'a, "immutable">, Borrowed<T, 'a, "immutable">)> {
         todo("Set.entries")
     }
 
@@ -131,8 +131,8 @@ export extension<T, 'a, E> of Borrowed<Set<T, E>, 'a, "immutable">
     forEach<R>(
         this,
         visit: (
-            value: Borrowed<ValueOf<T>, 'a, "immutable">,
-            key: Borrowed<ValueOf<T>, 'a, "immutable">,
+            value: Borrowed<T, 'a, "immutable">,
+            key: Borrowed<T, 'a, "immutable">,
             set: Borrowed<Set<T, E>, 'a, "immutable">,
         ) => R,
     ): void {
@@ -150,19 +150,19 @@ export extension<T, E> of Set<T, E> {
     static withCapacity(capacity: usize, comparer: E): ^Set<T, E> {
         todo("Set.withCapacity")
     }
-}
 
-export extension<T, E> of Set<T, E> implements Default where E: Default {
     /// Create an empty collection with its default comparer.
-    static new(): ^Set<T, E> {
+    static new(): ^Set<T, E> where E: Default {
         Set.new(E.default())
     }
 
     /// Create a collection with its default comparer and room for capacity entries.
-    static withCapacity(capacity: usize): ^Set<T, E> {
+    static withCapacity(capacity: usize): ^Set<T, E> where E: Default {
         Set.withCapacity(capacity, E.default())
     }
+}
 
+export extension<T, E> of Set<T, E> implements Default where E: Default {
     /// Create the default set.
     static default(): ^Set<T, E> {
         Set.new(E.default())
@@ -170,6 +170,11 @@ export extension<T, E> of Set<T, E> implements Default where E: Default {
 }
 
 export extension<T, E> of Set<T, E> {
+    /// Create a set from values with the default comparer.
+    static from(values: Iterable<T>): ^Set<T, E> where E: Default, E: Equate<T> {
+        Set.from(values, E.default())
+    }
+
     /// Create a set from values.
     static from(values: Iterable<T>, comparer: E): ^Set<T, E> where E: Equate<T> {
         todo("Set.from")
@@ -195,7 +200,7 @@ export extension<T, E> of Set<T, E> {
     /// Look up a borrowed value using the stored comparer.
     has<Q, const A: "readonly" | "immutable">(
         this: WithAccess<&readonly this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
     ): boolean where E: Equate<T, Q>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("Set.has")
     }
@@ -226,7 +231,7 @@ export extension<T, E> of Set<T, E> {
     /// Look up a borrowed value using the stored comparer.
     delete<Q, const A: "mutable" | "exclusive">(
         this: WithAccess<&this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
     ): boolean where E: Equate<T, Q>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("Set.delete")
     }
@@ -243,19 +248,19 @@ export extension<T, E> of Set<T, E> {
     /// Look up a borrowed value using the stored comparer.
     remove<Q, const A: "mutable" | "exclusive">(
         this: WithAccess<&this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
     ): T | undefined
         where E: Equate<T, Q>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("Set.remove")
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): void {
+    retain(&exclusive this, predicate: (value: &immutable T) => boolean): void {
         todo("Set.retain");
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: &immutable T) => boolean): Iterator<T> {
         todo("Set.extractIf")
     }
 
@@ -340,7 +345,7 @@ export extension<T, E> of ^Set<T, E>
 
 export extension<T, 'a, E> of &'a readonly Set<T, E> implements Iterable<T> where T: Copy {
     /// Iterate over copied values while retaining this borrow.
-    iterator(this): Iterator<T> {
+    iterator(this): this.Iterator {
         todo("Set.iterator")
     }
 }

@@ -4,17 +4,17 @@ import { Equal, Hash, Hasher, PartialEqual } from "destack:ops";
 /// Methods of the builtin boolean type.
 export extension Boolean of boolean implements Clone, PartialEqual<boolean>, Equal<boolean>, Hash {
     /// Return a copy of this value.
-    clone(&readonly this): boolean {
+    clone(&immutable this): boolean {
         *this
     }
 
     /// Return whether this value equals `other`.
-    equal(&readonly this, other: &readonly boolean): boolean {
+    equal(&immutable this, other: &immutable boolean): boolean {
         *this === *other
     }
 
     /// Add this value to `state`.
-    hash(&readonly this, state: &Hasher): void {
+    hash(&immutable this, state: &Hasher): void {
         state.writeUint8(if (*this) { 1 } else { 0 });
     }
 }

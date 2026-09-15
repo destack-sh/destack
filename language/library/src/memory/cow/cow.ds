@@ -1,8 +1,6 @@
 import { ToOwned } from "destack:convert";
 import { todo } from "destack:error";
 
-import { ValueOf } from "../type.ds";
-
 /// Borrowed copy-on-write value.
 export struct CowBorrowed<T> {
     /// The copy-on-write discriminator.
@@ -52,7 +50,7 @@ export extension<'a, T: ToOwned> of Cow<'a, T> {
     }
 
     /// Borrow owned storage, cloning first if needed.
-    toExclusive(&exclusive this): &exclusive ValueOf<T.Owned> {
+    toExclusive(&exclusive this): &exclusive T.Owned {
         todo("Cow.toExclusive")
     }
 

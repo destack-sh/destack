@@ -44,6 +44,9 @@ export newtype interface Try extends FromResidual<this.Residual> {
     /// The residual value propagated when evaluation breaks.
     type Residual;
 
+    /// The failure value a `catch` binds.
+    type Failure = this.Residual;
+
     /// Construct this type from an output value.
     static fromOutput(output: this.Output): this;
 

@@ -1,10 +1,10 @@
-import { Dynamic, ImmutableOf, ValueOf } from "destack:memory";
+import { Dynamic } from "destack:memory";
 
 /// Recoverable failure protocol.
 @languageItem("error.Error")
 export newtype interface Error {
     /// Format this error for users.
-    display(this: ImmutableOf<this>): string;
+    display(this: &immutable this): string;
 
     /// Return the underlying cause.
     source(&readonly this): readonly Dynamic<Error> | undefined {
@@ -24,7 +24,7 @@ export newtype RangeError = {
 
 export extension of RangeError implements Error {
     /// Format this error for users.
-    display(this: &readonly ValueOf<this>): string {
+    display(this: &readonly this): string {
         this.message
     }
 }
@@ -41,7 +41,7 @@ export newtype TypeError = {
 
 export extension of TypeError implements Error {
     /// Format this error for users.
-    display(this: &readonly ValueOf<this>): string {
+    display(this: &readonly this): string {
         this.message
     }
 }

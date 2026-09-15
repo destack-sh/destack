@@ -56,7 +56,6 @@ global {
         DynamicSafe,
         drop,
         forget,
-        ImmutableOf,
         Lifetime,
         Managed,
         ManuallyDrop,
@@ -76,7 +75,6 @@ global {
         Space,
         StaticLifetime,
         Unpin,
-        ValueOf,
         WithAccess,
         Zeroable,
     } from "destack:memory";

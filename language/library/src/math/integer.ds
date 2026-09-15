@@ -1,6 +1,6 @@
 import { todo } from "destack:error";
 import { Clone, Concrete, Copy } from "destack:memory";
-import { Equal, Hash, Hasher, PartialEqual } from "destack:ops";
+import { DefaultEqual, Equal, Hash, Hasher, PartialEqual } from "destack:ops";
 import { sizeOf } from "destack:reflect";
 
 import { One, Zero } from "./identity.ds";
@@ -18,19 +18,21 @@ export newtype interface Integer extends Concrete, Copy, IntegerDomain, Zero, On
 export type Unsigned<T: Integer> = intrinsic;
 
 /// Methods shared by every builtin integer type.
-export extension<T: Integer> of T implements Clone, PartialEqual<T>, Equal<T>, Hash {
+export extension<T: Integer> of T
+    implements Clone, PartialEqual<T>, Equal<T>, Hash, DefaultEqual<T>
+{
     /// Return a copy of this value.
-    clone(&readonly this): ^this {
+    clone(&immutable this): ^this {
         *this
     }
 
     /// Return whether this value equals `other`.
-    equal(&readonly this, other: &readonly T): boolean {
+    equal(&immutable this, other: &immutable T): boolean {
         *this === *other
     }
 
     /// Add this value to `state`.
-    hash(&readonly this, state: &Hasher): void {
+    hash(&immutable this, state: &Hasher): void {
         state.writeUsize(this.truncate<usize>());
     }
 
@@ -220,6 +222,16 @@ export extension<T: Integer> of T implements Clone, PartialEqual<T>, Equal<T>, H
     /// Return the next power of two, or `undefined` on overflow.
     nextPowerOfTwo(this): T | undefined {
         todo("Integer.nextPowerOfTwo")
+    }
+
+    /// Compare two integers by value.
+    static equal(value: &immutable T, key: &immutable T): boolean {
+        *value == *key
+    }
+
+    /// Hash an integer by value.
+    static hash(value: &immutable T, state: &Hasher): void {
+        value.hash(state);
     }
 }
 

@@ -1,5 +1,5 @@
 import { From } from "destack:convert";
-import { Default, ImmutableOf } from "destack:memory";
+import { Default } from "destack:memory";
 import { ControlFlow, FromResidual, Try } from "destack:ops";
 
 import { panic } from "./panic.ds";
@@ -144,7 +144,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Run a side effect on success and keep the original result.
-    tap(this, f: (value: ImmutableOf<T>) => void): Result<T, E> {
+    tap(this, f: (value: &immutable local T) => void): Result<T, E> {
         match (this) {
             Ok { value } => {
                 f(&immutable value);
@@ -155,7 +155,7 @@ export extension<T, E> of Result<T, E> {
     }
 
     /// Run a side effect on failure and keep the original result.
-    tapErr(this, f: (error: ImmutableOf<E>) => void): Result<T, E> {
+    tapErr(this, f: (error: &immutable local E) => void): Result<T, E> {
         match (this) {
             Ok { value } => Result.ok(value)
             Err { error } => {
@@ -166,10 +166,16 @@ export extension<T, E> of Result<T, E> {
     }
 }
 
-export extension<T, E, R> of Result<T, E> implements FromResidual<R> where E: From<R> {
+export extension<T, E, R> of Result<T, E>
+    implements FromResidual<Result<never, R>>
+    where E: From<R>
+{
     /// Rebuild a failure from a propagated residual.
-    static fromResidual(residual: R): Result<T, E> {
-        Result.err(E.from(residual))
+    static fromResidual(residual: Result<never, R>): Result<T, E> {
+        match (residual) {
+            Ok { value } => value
+            Err { error } => Result.err(E.from(error))
+        }
     }
 }
 
@@ -177,8 +183,11 @@ export extension<T, E> of Result<T, E> implements Try {
     /// The success value.
     type Output = T;
 
-    /// The failure value.
-    type Residual = E;
+    /// The failure value in its own result shape.
+    type Residual = Result<never, E>;
+
+    /// The error a `catch` binds.
+    type Failure = E;
 
     /// Create a successful result.
     static fromOutput(output: T): Result<T, E> {
@@ -186,10 +195,10 @@ export extension<T, E> of Result<T, E> implements Try {
     }
 
     /// Branch into success or failure control flow.
-    branch(this): ControlFlow<E, T> {
+    branch(this): ControlFlow<Result<never, E>, T> {
         match (this) {
             Ok { value } => ControlFlow.continue(value)
-            Err { error } => ControlFlow.break(error)
+            Err { error } => ControlFlow.break(Result.err(error))
         }
     }
 }

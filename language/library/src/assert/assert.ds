@@ -1,5 +1,5 @@
 import { panic } from "destack:error";
-import { ImmutableOf } from "destack:memory";
+
 import { Debug, PartialEqual } from "destack:ops";
 
 /// An assertion message or a function that creates one after failure.
@@ -16,8 +16,8 @@ export function assert(condition: boolean, message?: AssertionMessage): void {
 
 /// Require `actual` and `expected` to compare equal.
 export function assertEqual<T, U>(
-    actual: ImmutableOf<T>,
-    expected: ImmutableOf<U>,
+    actual: &immutable T,
+    expected: &immutable U,
     message?: AssertionMessage,
 ): void where T: Debug, T: PartialEqual<U>, U: Debug {
     // return without formatting successful operands
@@ -35,8 +35,8 @@ export function assertEqual<T, U>(
 
 /// Require `actual` and `expected` to compare unequal.
 export function assertNotEqual<T, U>(
-    actual: ImmutableOf<T>,
-    expected: ImmutableOf<U>,
+    actual: &immutable T,
+    expected: &immutable U,
     message?: AssertionMessage,
 ): void where T: Debug, T: PartialEqual<U>, U: Debug {
     // return without formatting successful operands

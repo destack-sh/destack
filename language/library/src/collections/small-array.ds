@@ -6,10 +6,8 @@ import {
     Borrowed,
     Copy,
     Default,
-    ImmutableOf,
     MaybeUninit,
     Region,
-    ValueOf,
 } from "destack:memory";
 import { Compare, Index, IndexSet, Ordering } from "destack:ops";
 import { RangeBounds } from "destack:range";
@@ -44,35 +42,35 @@ export extension<T, const N: usize> of SmallArray<T, N> implements Iterable<T>, 
     }
 
     /// Consume this small array into owned values.
-    iterator(this): Iterator<T> {
+    iterator(this): this.Iterator {
         todo("SmallArray.iterator")
     }
 }
 
 export extension<T, const N: usize, 'a, const A: "immutable" | "exclusive"> of
     Borrowed<SmallArray<T, N>, 'a, A>
-    implements Iterable<Borrowed<ValueOf<T>, 'a, A>>, Sequence
+    implements Iterable<Borrowed<T, 'a, A>>, Sequence
 {
     /// The borrowed sequence produced by a rest pattern.
-    type Rest = ^Array<Borrowed<ValueOf<T>, 'a, A>>;
+    type Rest = ^Array<Borrowed<T, 'a, A>>;
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(this, start: isize, end?: isize): ^Array<Borrowed<ValueOf<T>, 'a, A>> {
+    rest(this, start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("SmallArray.rest")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, A>> {
+    iterator(this): this.Iterator {
         todo("SmallArray.iterator")
     }
 
     /// Borrow the first element.
-    first(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
+    first(this): Borrowed<T, 'a, A> | undefined {
         todo("SmallArray.first")
     }
 
     /// Borrow the last element.
-    last(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
+    last(this): Borrowed<T, 'a, A> | undefined {
         todo("SmallArray.last")
     }
 }
@@ -188,7 +186,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Remove and return the last element when `predicate` accepts it.
-    popIf(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): T | undefined {
+    popIf(&exclusive this, predicate: (value: &immutable T) => boolean): T | undefined {
         todo("SmallArray.popIf")
     }
 
@@ -213,7 +211,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &immutable T, index: isize) => boolean): void {
         todo("SmallArray.retain");
     }
 
@@ -225,7 +223,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
         &exclusive this,
-        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
+        predicate: (value: &immutable T, index: isize) => boolean,
     ): Iterator<T> {
         todo("SmallArray.extractIf")
     }
@@ -267,7 +265,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     /// Sort this array with borrowed values.
     sort<const R: Region>(
         this: Borrowed<SmallArray<T, N>, R, "exclusive">,
-        compare: (left: ImmutableOf<T>, right: ImmutableOf<T>) => Ordering,
+        compare: (left: &immutable T, right: &immutable T) => Ordering,
     ): Borrowed<SmallArray<T, N>, R, "exclusive"> {
         todo("SmallArray.sort")
     }
@@ -282,7 +280,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     /// Sort this array without preserving equal-element order.
     sortUnstable<const R: Region>(
         this: Borrowed<SmallArray<T, N>, R, "exclusive">,
-        compare: (left: ImmutableOf<T>, right: ImmutableOf<T>) => Ordering,
+        compare: (left: &immutable T, right: &immutable T) => Ordering,
     ): Borrowed<SmallArray<T, N>, R, "exclusive"> {
         todo("SmallArray.sortUnstable")
     }
@@ -340,13 +338,13 @@ export extension<T, const N: usize, const A: "immutable" | "exclusive"> of Small
     implements Index<isize, A>
 {
     /// The protected element storage.
-    type Output<const R: Region> = Borrowed<ValueOf<T>, R, A>;
+    type Output<const R: Region> = Borrowed<T, R, A>;
 
     /// Borrow the indexed storage.
     index<const R: Region>(
         this: Borrowed<SmallArray<T, N>, R, A>,
         key: isize,
-    ): Borrowed<ValueOf<T>, R, A> {
+    ): Borrowed<T, R, A> {
         todo("SmallArray.index")
     }
 }

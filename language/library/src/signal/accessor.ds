@@ -1,12 +1,12 @@
 import { Poll } from "destack:async";
 import { todo } from "destack:error";
-import { Access, Borrowed, Copy, ImmutableOf, Region, ValueOf } from "destack:memory";
+import { Access, Borrowed, Copy, Region } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 /// Stable readonly access to one observed signal value.
-export local class SignalRef<out T> implements Dereference<"readonly"> {
+export local class SignalRef<T> implements Dereference<"readonly"> {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// The retained value.
     private readonly value: T;
@@ -28,7 +28,7 @@ export local class SignalRef<out T> implements Dereference<"readonly"> {
 }
 
 /// A copied callback value or protected access to a retained signal value.
-export type SignalArgument<T> = (T,) extends (Copy,) ? T : ImmutableOf<T>;
+export type SignalArgument<'a, T> = (T,) extends (Copy,) ? T : &'a immutable T;
 
 /// Repeatable read of an available signal value.
 export type Accessor<out T> = {

@@ -16,12 +16,12 @@ export newtype interface Float extends Concrete, Copy, FloatDomain, Zero, One {}
 /// Methods shared by every builtin float format.
 export extension<T: Float> of T implements Clone, PartialEqual<T> {
     /// Return a copy of this value.
-    clone(&readonly this): ^this {
+    clone(&immutable this): ^this {
         *this
     }
 
     /// Return whether this value equals `other`, every NaN unequal to itself.
-    equal(&readonly this, other: &readonly T): boolean {
+    equal(&immutable this, other: &immutable T): boolean {
         *this === *other
     }
 

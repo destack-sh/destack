@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Access, Borrowed, Copy, Region, ValueOf } from "destack:memory";
+import { Access, Borrowed, Copy, Region } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Dispose } from "../dispose.ds";
@@ -55,7 +55,7 @@ export extension<T> of RefCell<T> {
     }
 
     /// Borrow the stored value with mutable access.
-    getExclusive(&exclusive this): &exclusive ValueOf<T> {
+    getExclusive(&exclusive this): &exclusive T {
         todo("RefCell.getExclusive")
     }
 
@@ -73,7 +73,7 @@ export struct Ref<'a, T> {
 
 export extension<'a, T> of Ref<'a, T> implements Dispose, !Copy, Dereference<"readonly"> {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";
@@ -99,7 +99,7 @@ export struct ExclusiveRef<'a, T> {
 
 export extension<'a, T> of ExclusiveRef<'a, T> implements Dispose, !Copy, Dereference<"exclusive"> {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// Release this borrow.
     dispose(this): void {
@@ -116,7 +116,7 @@ export extension<'a, T> of ExclusiveRef<'a, T> implements Dispose, !Copy, Derefe
 
 export extension<'a, T> of ExclusiveRef<'a, T> implements Dereference<"readonly"> {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";

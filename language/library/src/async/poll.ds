@@ -64,12 +64,12 @@ export extension<T> of Poll<T> implements From<T> {
     }
 }
 
-export extension<T> of Poll<T> implements Try, FromResidual<Pending> {
+export extension<T> of Poll<T> implements Try, FromResidual<Poll<never>> {
     /// The available value.
     type Output = T;
 
-    /// The pending result.
-    type Residual = Pending;
+    /// The pending result in its own poll shape.
+    type Residual = Poll<never>;
 
     /// Create an available result.
     static fromOutput(output: T): Poll<T> {
@@ -77,15 +77,18 @@ export extension<T> of Poll<T> implements Try, FromResidual<Pending> {
     }
 
     /// Create a poll from a propagated pending result.
-    static fromResidual(residual: Pending): Poll<T> {
-        Poll(residual)
+    static fromResidual(residual: Poll<never>): Poll<T> {
+        match (residual) {
+            Ready { value } => value
+            Pending {} => Poll.pending()
+        }
     }
 
     /// Branch into available or pending control flow.
-    branch(this): ControlFlow<Pending, T> {
+    branch(this): ControlFlow<Poll<never>, T> {
         match (this) {
             Ready { value } => ControlFlow.continue(value)
-            Pending {} => ControlFlow.break(Pending {})
+            Pending {} => ControlFlow.break(Poll.pending())
         }
     }
 }
@@ -99,7 +102,9 @@ export newtype interface Pollable<T> {
     setWaiter(&exclusive this, fiber: Fiber | undefined): void;
 }
 
-export extension<T, P: Pollable<T>, 'a> of &'a exclusive P implements Awaitable<T> {
+export extension PollableAwaitable<T, P: Pollable<T>, 'a> of &'a exclusive P
+    implements Awaitable<T>
+{
     /// Hold exclusive access until the value is ready or the wait is cancelled.
     static park(pollable: &'a exclusive P): T {
         // register before checking readiness and retain exclusion through suspension

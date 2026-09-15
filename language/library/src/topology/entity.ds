@@ -73,7 +73,7 @@ export struct EntityChooseOne {
     /// Selector discriminator.
     kind: "chooseOne";
     /// Source selector, managed to break the recursive layout.
-    selector: Managed<EntitySelector>;
+    selector: Managed<EntitySelector, "local">;
 }
 
 /// Topology entity selector.

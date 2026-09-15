@@ -7,7 +7,7 @@ export { Managed } from "./managed.ds";
 export { Owned } from "./owned.ds";
 export { Borrowed, MutableBorrowed, ReadonlyBorrowed } from "./borrow.ds";
 export { Dynamic } from "./dynamic.ds";
-export { AccessOf, ImmutableOf, Ownership, PlaceOf, ValueOf, WithAccess } from "./type.ds";
+export { AccessOf, Ownership, PlaceOf, WithAccess } from "./type.ds";
 export { Box } from "./box.ds";
 export {
     AllocationCapacityOverflow,

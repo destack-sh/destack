@@ -2,7 +2,7 @@ import { Slice } from "destack:collections";
 import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator } from "destack:iter";
-import { Clone, Default, ValueOf, WithAccess } from "destack:memory";
+import { Borrowed, Clone, Default, Region, WithAccess } from "destack:memory";
 
 import {
     Compare,
@@ -69,7 +69,7 @@ export struct CStringIntoStringError {
     error: Utf8DecodeError;
 }
 
-export extension of CStringSlice implements ToOwned, As<[uint8], "readonly">, Hash {
+export extension of CStringSlice implements ToOwned, Hash {
     /// The owned value type.
     type Owned = ^CString;
 
@@ -99,19 +99,21 @@ export extension of CStringSlice implements ToOwned, As<[uint8], "readonly">, Ha
         todo("CStringSlice.fromPointer")
     }
 
-    /// Borrow the bytes before the final zero byte.
-    as(&readonly this): &readonly [uint8] {
-        todo("CStringSlice.as")
-    }
-
     /// Copy this C string into owned storage.
-    toOwned(&readonly this): ^CString {
+    toOwned(&immutable this): ^CString {
         todo("CStringSlice.toOwned")
     }
 
     /// Add this C string to `state` without its final zero byte.
-    hash(&readonly this, state: &Hasher): void {
+    hash(&immutable this, state: &Hasher): void {
         todo("CStringSlice.hash");
+    }
+}
+
+export extension<const A: Access> of CStringSlice implements As<[uint8], A> {
+    /// Borrow the bytes before the final zero byte.
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<[uint8], R, A> {
+        todo("CStringSlice.as")
     }
 }
 
@@ -182,12 +184,12 @@ export extension of CString implements Clone, Default, Hash {
     }
 
     /// Clone this C string.
-    clone(this: &readonly ValueOf<this>): ^CString {
+    clone(this: &immutable this): ^CString {
         this.as().toOwned()
     }
 
     /// Add this C string to `state` without its final zero byte.
-    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
+    hash(this: &immutable this, state: &Hasher): void {
         this.as().hash(state);
     }
 
@@ -212,16 +214,16 @@ export extension of CString implements Clone, Default, Hash {
     }
 }
 
-export extension<const A: "readonly" | "immutable"> of CString
+export extension<const A: Access> of CString
     implements As<CStringSlice, A>, Borrow<CStringSlice, A>
 {
     /// Borrow this owned C string as a C string slice.
-    as(this: WithAccess<&this, A>): WithAccess<&CStringSlice, A> {
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<CStringSlice, R, A> {
         todo("CString.as")
     }
 
     /// Borrow this owned C string as a C string slice.
-    borrow(this: WithAccess<&this, A>): WithAccess<&CStringSlice, A> {
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<CStringSlice, R, A> {
         this.as()
     }
 }
@@ -268,21 +270,40 @@ export extension<S: Borrow<CStringSlice>> of S {
     }
 }
 
-export extension<S: Borrow<CStringSlice>, Q: Borrow<CStringSlice>> of S
+export extension<Q: Borrow<CStringSlice>> of CStringSlice
     implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
 {
     /// Return whether this C string equals `other` byte for byte.
-    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): boolean {
+    equal(this: &immutable this, other: &immutable Q): boolean {
         todo("CString.equal")
     }
 
     /// Compare this C string with `other` byte for byte.
-    compare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering {
+    compare(this: &immutable this, other: &immutable Q): Ordering {
         todo("CString.compare")
     }
 
     /// Partially compare this C string with `other` byte for byte.
-    partialCompare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering | null {
+    partialCompare(this: &immutable this, other: &immutable Q): Ordering | null {
+        this.compare(other)
+    }
+}
+
+export extension<Q: Borrow<CStringSlice>> of CString
+    implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
+{
+    /// Return whether this C string equals `other` byte for byte.
+    equal(this: &immutable this, other: &immutable Q): boolean {
+        todo("CString.equal")
+    }
+
+    /// Compare this C string with `other` byte for byte.
+    compare(this: &immutable this, other: &immutable Q): Ordering {
+        todo("CString.compare")
+    }
+
+    /// Partially compare this C string with `other` byte for byte.
+    partialCompare(this: &immutable this, other: &immutable Q): Ordering | null {
         this.compare(other)
     }
 }
@@ -317,24 +338,24 @@ export extension of CStringIntoStringError implements Error {
 
 export extension<Q: Borrow<CStringSlice>> of CString implements DefaultEqual<Q> {
     /// Compare string contents with a stored string.
-    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+    static equal(value: &immutable Q, key: &immutable this): boolean {
         todo("CString.equal");
     }
 
     /// Hash string contents using the same encoding as the stored string.
-    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+    static hash(value: &immutable Q, state: &Hasher): void {
         todo("CString.hash");
     }
 }
 
 export extension<Q: Borrow<CStringSlice>> of CStringSlice implements DefaultEqual<Q> {
     /// Compare string contents with a stored string.
-    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+    static equal(value: &immutable Q, key: &immutable this): boolean {
         todo("CStringSlice.equal");
     }
 
     /// Hash string contents using the same encoding as the stored string.
-    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+    static hash(value: &immutable Q, state: &Hasher): void {
         todo("CStringSlice.hash");
     }
 }

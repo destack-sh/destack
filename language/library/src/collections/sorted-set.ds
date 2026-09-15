@@ -1,7 +1,7 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Borrowed, Copy, Default, ImmutableOf, ValueOf, WithAccess } from "destack:memory";
+import { Borrowed, Copy, Default, WithAccess } from "destack:memory";
 import { Compare } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
@@ -16,7 +16,7 @@ export class SortedSet<T> {
 
 export extension<T> of ^SortedSet<T> implements Iterable<T> {
     /// Consume this set into owned values.
-    iterator(this): Iterator<T> {
+    iterator(this): this.Iterator {
         todo("SortedSet.iterator")
     }
 
@@ -43,14 +43,14 @@ export extension<T> of ^SortedSet<T> implements Iterable<T> {
 
 export extension<T> of SortedSet<T> implements Iterable<T> where T: Copy {
     /// Return an iterator over copied values.
-    iterator(): Iterator<T> {
+    iterator(): this.Iterator {
         todo("SortedSet.iterator")
     }
 
     /// Return the copied stored value equal to `value`.
     get<Q, const A: "readonly" | "immutable">(
         this: WithAccess<&readonly this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
     ): T | undefined
         where T: Compare<Q>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("SortedSet.get")
@@ -73,36 +73,36 @@ export extension<T> of SortedSet<T> implements Iterable<T> where T: Copy {
 }
 
 export extension<T, 'a> of Borrowed<SortedSet<T>, 'a, "immutable">
-    implements Iterable<Borrowed<ValueOf<T>, 'a, "immutable">>
+    implements Iterable<Borrowed<T, 'a, "immutable">>
 {
     /// Return an iterator over borrowed values.
-    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">> {
+    iterator(this): this.Iterator {
         todo("SortedSet.iterator")
     }
 
     /// Borrow the stored value equal to `value`.
-    get<Q>(this, value: ImmutableOf<Q>): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined
+    get<Q>(this, value: &immutable Q): Borrowed<T, 'a, "immutable"> | undefined
         where T: Compare<Q> {
         todo("SortedSet.get")
     }
 
     /// Return whether `value` is present.
-    has<Q>(this, value: ImmutableOf<Q>): boolean where T: Compare<Q> {
+    has<Q>(this, value: &immutable Q): boolean where T: Compare<Q> {
         todo("SortedSet.has")
     }
 
     /// Borrow the first value.
-    first(this): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined {
+    first(this): Borrowed<T, 'a, "immutable"> | undefined {
         todo("SortedSet.first")
     }
 
     /// Borrow the last value.
-    last(this): Borrowed<ValueOf<T>, 'a, "immutable"> | undefined {
+    last(this): Borrowed<T, 'a, "immutable"> | undefined {
         todo("SortedSet.last")
     }
 
     /// Return borrowed values in `range`.
-    range<Q, R: RangeBounds<Q>>(this, range: R): Iterator<Borrowed<ValueOf<T>, 'a, "immutable">>
+    range<Q, R: RangeBounds<Q>>(this, range: R): Iterator<Borrowed<T, 'a, "immutable">>
         where T: Compare<Q> {
         todo("SortedSet.range")
     }
@@ -149,7 +149,7 @@ export extension<T> of SortedSet<T> {
     /// Return whether `value` is present.
     has<Q, const A: "readonly" | "immutable">(
         this: WithAccess<&readonly this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
     ): boolean where T: Compare<Q>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("SortedSet.has")
     }
@@ -163,7 +163,7 @@ export extension<T> of SortedSet<T> {
     /// Remove `value`.
     remove<Q, const A: "mutable" | "exclusive">(
         this: WithAccess<&this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
     ): T | undefined
         where T: Compare<Q>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("SortedSet.remove")
@@ -175,7 +175,7 @@ export extension<T> of SortedSet<T> {
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): void {
+    retain(&exclusive this, predicate: (value: &immutable T) => boolean): void {
         todo("SortedSet.retain");
     }
 
@@ -185,7 +185,7 @@ export extension<T> of SortedSet<T> {
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: &immutable T) => boolean): Iterator<T> {
         todo("SortedSet.extractIf")
     }
 

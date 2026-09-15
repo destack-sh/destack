@@ -86,7 +86,7 @@ export class Collator {
     }
 
     /// Compare two strings using this collation.
-    compare(&readonly this, left: &readonly string, right: &readonly string): Ordering {
+    compare(&immutable this, left: &immutable string, right: &immutable string): Ordering {
         todo("Collator.compare")
     }
 

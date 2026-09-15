@@ -1,6 +1,6 @@
 import { Borrow, ToOwned } from "destack:convert";
 import { todo } from "destack:error";
-import { ValueOf } from "destack:memory";
+
 import { DefaultEqual, Equal, Hash, Hasher, PartialEqual } from "destack:ops";
 
 /// Borrowed sequence of ECMAScript UTF-16 code units.
@@ -45,22 +45,22 @@ export extension of StringSlice
     }
 
     /// Copy this slice into an owned string.
-    toOwned(&readonly this): ^string {
+    toOwned(&immutable this): ^string {
         todo("StringSlice.toOwned")
     }
 
     /// Return whether this string slice equals `other`.
-    equal(&readonly this, other: &readonly StringSlice): boolean {
+    equal(&immutable this, other: &immutable StringSlice): boolean {
         todo("StringSlice.equal")
     }
 
     /// Return whether this string slice equals `other`.
-    equal(&readonly this, other: &readonly ValueOf<string>): boolean {
+    equal(&immutable this, other: &immutable string): boolean {
         todo("StringSlice.equalString")
     }
 
     /// Add this string slice to `state`.
-    hash(&readonly this, state: &Hasher): void {
+    hash(&immutable this, state: &Hasher): void {
         todo("StringSlice.hash");
     }
 }
@@ -138,12 +138,12 @@ export extension<S: Borrow<StringSlice>> of S {
 
 export extension<Q: Borrow<StringSlice>> of StringSlice implements DefaultEqual<Q> {
     /// Compare string contents with a stored string.
-    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+    static equal(value: &immutable Q, key: &immutable this): boolean {
         todo("StringSlice.equal");
     }
 
     /// Hash string contents using the same encoding as the stored string.
-    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+    static hash(value: &immutable Q, state: &Hasher): void {
         todo("StringSlice.hash");
     }
 }

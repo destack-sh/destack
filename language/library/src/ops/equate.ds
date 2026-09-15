@@ -1,4 +1,4 @@
-import { Default, ImmutableOf } from "destack:memory";
+import { Default, Phantom } from "destack:memory";
 
 import { Equal } from "./equality.ds";
 import { Hash, Hasher } from "./hash.ds";
@@ -6,26 +6,32 @@ import { Hash, Hasher } from "./hash.ds";
 /// Equality and hashing for stored keys K and lookup values Q.
 export newtype interface Equate<K, Q = K> {
     /// Compare a lookup value with a stored key.
-    equal(&readonly this, value: ImmutableOf<Q>, key: ImmutableOf<K>): boolean;
+    equal(&immutable this, value: &immutable Q, key: &immutable K): boolean;
 
     /// Add the lookup value to the hash state.
-    hash(&readonly this, value: ImmutableOf<Q>, state: &Hasher): void;
+    hash(&immutable this, value: &immutable Q, state: &Hasher): void;
 }
 
 /// Default equality for T.
-export struct Equality<T> {}
+export struct Equality<T> {
+    /// The compared type.
+    private phantom: Phantom<T> = Phantom.new();
+}
 
 /// Semantic equality and hashing for T.
-export struct ValueEquality<T> {}
+export struct ValueEquality<T> {
+    /// The compared type.
+    private phantom: Phantom<T> = Phantom.new();
+}
 
 /// Default key equality and hashing for stored values and lookup values.
 @languageItem("ops.DefaultEqual")
 export newtype interface DefaultEqual<Q = this> {
     /// Compare a lookup value with a stored value.
-    static equal(value: ImmutableOf<Q>, key: ImmutableOf<this>): boolean;
+    static equal(value: &immutable Q, key: &immutable this): boolean;
 
     /// Hash a lookup value using the stored value's equality.
-    static hash(value: ImmutableOf<Q>, state: &Hasher): void;
+    static hash(value: &immutable Q, state: &Hasher): void;
 }
 
 export extension<T> of Equality<T> implements Default {
@@ -44,24 +50,24 @@ export extension<T> of ValueEquality<T> implements Default {
 
 export extension<T: DefaultEqual<Q>, Q> of Equality<T> implements Equate<T, Q> {
     /// Compare values using their default key equality.
-    equal(&readonly this, value: ImmutableOf<Q>, key: ImmutableOf<T>): boolean {
+    equal(&immutable this, value: &immutable Q, key: &immutable T): boolean {
         T.equal(value, key)
     }
 
     /// Hash a value using its default key equality.
-    hash(&readonly this, value: ImmutableOf<Q>, state: &Hasher): void {
+    hash(&immutable this, value: &immutable Q, state: &Hasher): void {
         T.hash(value, state);
     }
 }
 
 export extension<T: Equal<Q> & Hash, Q: Hash> of ValueEquality<T> implements Equate<T, Q> {
     /// Compare the stored value with the lookup value.
-    equal(&readonly this, value: ImmutableOf<Q>, key: ImmutableOf<T>): boolean {
+    equal(&immutable this, value: &immutable Q, key: &immutable T): boolean {
         key.equal(value)
     }
 
     /// Hash the lookup value using semantic equality.
-    hash(&readonly this, value: ImmutableOf<Q>, state: &Hasher): void {
+    hash(&immutable this, value: &immutable Q, state: &Hasher): void {
         value.hash(state);
     }
 }

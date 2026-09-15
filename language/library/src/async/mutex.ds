@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Access, Borrowed, Copy, Default, Dispose, Region, ValueOf } from "destack:memory";
+import { Access, Borrowed, Copy, Default, Dispose, Region } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Task } from "./task.ds";
@@ -26,7 +26,7 @@ export local class AsyncMutex<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(&exclusive this): &exclusive ValueOf<T> {
+    getExclusive(&exclusive this): &exclusive T {
         todo("AsyncMutex.getExclusive")
     }
 
@@ -53,7 +53,7 @@ export extension<'a, T> of AsyncMutexGuard<'a, T>
     implements Dispose, !Copy, Dereference<"exclusive">
 {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// Unlock this guard.
     dispose(this): void {
@@ -70,7 +70,7 @@ export extension<'a, T> of AsyncMutexGuard<'a, T>
 
 export extension<'a, T> of AsyncMutexGuard<'a, T> implements Dereference<"readonly"> {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";

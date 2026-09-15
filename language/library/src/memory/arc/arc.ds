@@ -101,7 +101,7 @@ export extension<T> of Arc<T>
     }
 
     /// Clone this strong handle.
-    clone(&readonly this): Arc<T> {
+    clone(this: &immutable this): Arc<T> {
         todo("Arc.clone")
     }
 

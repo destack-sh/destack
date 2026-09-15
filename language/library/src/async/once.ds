@@ -1,5 +1,5 @@
 import { Result, todo } from "destack:error";
-import { MaybeUninit, ValueOf } from "destack:memory";
+import { MaybeUninit } from "destack:memory";
 
 import { Promise } from "./promise.ds";
 import { Task } from "./task.ds";
@@ -25,7 +25,7 @@ export local class AsyncOnceCell<T> {
     private value: MaybeUninit<T> = MaybeUninit.uninit();
 
     /// Get the initialized value.
-    get<'a>(&'a readonly this): &'a immutable ValueOf<T> | undefined {
+    get<'a>(&'a readonly this): &'a immutable T | undefined {
         todo("AsyncOnceCell.get")
     }
 
@@ -35,7 +35,7 @@ export local class AsyncOnceCell<T> {
     }
 
     /// Get the value or initialize it.
-    getOrInit<'a>(&'a readonly this, init: () => Task<T>): Task<&'a immutable ValueOf<T>> {
+    getOrInit<'a>(&'a readonly this, init: () => Task<T>): Task<&'a immutable T> {
         todo("AsyncOnceCell.getOrInit")
     }
 

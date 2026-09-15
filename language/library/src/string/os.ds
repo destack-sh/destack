@@ -2,7 +2,15 @@ import { Slice } from "destack:collections";
 import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator } from "destack:iter";
-import { AllocationError, Clone, Default, MaybeUninit, ValueOf, WithAccess } from "destack:memory";
+import {
+    AllocationError,
+    Borrowed,
+    Clone,
+    Default,
+    MaybeUninit,
+    Region,
+    WithAccess,
+} from "destack:memory";
 
 import {
     Compare,
@@ -66,7 +74,7 @@ export struct OsStringIntoStringError {
     error: OsStringDecodeError;
 }
 
-export extension of OsStringSlice implements ToOwned, As<[uint8], "readonly">, Hash {
+export extension of OsStringSlice implements ToOwned, Hash {
     /// The owned value type.
     type Owned = ^OsString;
 
@@ -80,11 +88,6 @@ export extension of OsStringSlice implements ToOwned, As<[uint8], "readonly">, H
     @if(import.meta.target.family == "unix")
     static fromBytes(value: &readonly [uint8]): &readonly OsStringSlice {
         todo("OsStringSlice.fromBytes")
-    }
-
-    /// Borrow the opaque encoded bytes.
-    as(&readonly this): &readonly [uint8] {
-        todo("OsStringSlice.as")
     }
 
     /// Borrow the opaque encoded bytes.
@@ -105,13 +108,20 @@ export extension of OsStringSlice implements ToOwned, As<[uint8], "readonly">, H
     }
 
     /// Copy this native string into owned storage.
-    toOwned(&readonly this): ^OsString {
+    toOwned(&immutable this): ^OsString {
         todo("OsStringSlice.toOwned")
     }
 
     /// Add the opaque encoded bytes to `state`.
-    hash(&readonly this, state: &Hasher): void {
+    hash(&immutable this, state: &Hasher): void {
         todo("OsStringSlice.hash");
+    }
+}
+
+export extension<const A: Access> of OsStringSlice implements As<[uint8], A> {
+    /// Borrow the opaque encoded bytes.
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<[uint8], R, A> {
+        todo("OsStringSlice.as")
     }
 }
 
@@ -168,12 +178,12 @@ export extension of OsString implements Clone, Default, Hash {
     }
 
     /// Clone this native string.
-    clone(this: &readonly ValueOf<this>): ^OsString {
+    clone(this: &immutable this): ^OsString {
         this.as().toOwned()
     }
 
     /// Add the opaque encoded bytes to `state`.
-    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
+    hash(this: &immutable this, state: &Hasher): void {
         this.as().hash(state);
     }
 
@@ -200,23 +210,21 @@ export extension of OsString implements Clone, Default, Hash {
     }
 }
 
-export extension<const A: "readonly" | "immutable"> of OsString
+export extension<const A: Access> of OsString
     implements As<OsStringSlice, A>, Borrow<OsStringSlice, A>
 {
     /// Borrow this owned native string as a native string slice.
-    as(this: WithAccess<&this, A>): WithAccess<&OsStringSlice, A> {
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<OsStringSlice, R, A> {
         todo("OsString.as")
     }
 
     /// Borrow this owned native string as a native string slice.
-    borrow(this: WithAccess<&this, A>): WithAccess<&OsStringSlice, A> {
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<OsStringSlice, R, A> {
         this.as()
     }
 }
 
-export extension of OsStringBuilder
-    implements Default, As<OsStringSlice>, Borrow<OsStringSlice>, Hash
-{
+export extension of OsStringBuilder implements Default, Hash {
     /// Return the allocated encoded byte count.
     get capacity(&readonly this): usize {
         todo("OsStringBuilder.capacity")
@@ -252,18 +260,8 @@ export extension of OsStringBuilder
         todo("OsStringBuilder.from")
     }
 
-    /// Borrow the initialized native string.
-    as(&readonly this): &readonly OsStringSlice {
-        todo("OsStringBuilder.as")
-    }
-
-    /// Borrow the initialized native string.
-    borrow(&readonly this): &readonly OsStringSlice {
-        this.as()
-    }
-
     /// Add the initialized native string to `state`.
-    hash(this: &readonly ValueOf<this>, state: &Hasher): void {
+    hash(this: &immutable this, state: &Hasher): void {
         this.as().hash(state);
     }
 
@@ -323,6 +321,20 @@ export extension of OsStringBuilder
     }
 }
 
+export extension<const A: Access> of OsStringBuilder
+    implements As<OsStringSlice, A>, Borrow<OsStringSlice, A>
+{
+    /// Borrow the initialized native string.
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<OsStringSlice, R, A> {
+        todo("OsStringBuilder.as")
+    }
+
+    /// Borrow the initialized native string.
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<OsStringSlice, R, A> {
+        this.as()
+    }
+}
+
 export extension<S: Borrow<OsStringSlice>> of S {
     /// Return the opaque encoded byte length.
     get encodedLength(&readonly this): usize {
@@ -365,21 +377,40 @@ export extension<S: Borrow<OsStringSlice>> of S {
     }
 }
 
-export extension<S: Borrow<OsStringSlice>, Q: Borrow<OsStringSlice>> of S
+export extension<Q: Borrow<OsStringSlice>> of OsStringSlice
     implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
 {
     /// Return whether this native string has the same encoded bytes as `other`.
-    equal(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): boolean {
+    equal(this: &immutable this, other: &immutable Q): boolean {
+        todo("OsStringSlice.equal")
+    }
+
+    /// Compare this native string's encoded bytes with `other`.
+    compare(this: &immutable this, other: &immutable Q): Ordering {
+        todo("OsStringSlice.compare")
+    }
+
+    /// Partially compare this native string's encoded bytes with `other`.
+    partialCompare(this: &immutable this, other: &immutable Q): Ordering | null {
+        this.compare(other)
+    }
+}
+
+export extension<Q: Borrow<OsStringSlice>> of OsString
+    implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
+{
+    /// Return whether this native string has the same encoded bytes as `other`.
+    equal(this: &immutable this, other: &immutable Q): boolean {
         todo("OsString.equal")
     }
 
     /// Compare this native string's encoded bytes with `other`.
-    compare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering {
+    compare(this: &immutable this, other: &immutable Q): Ordering {
         todo("OsString.compare")
     }
 
     /// Partially compare this native string's encoded bytes with `other`.
-    partialCompare(this: &readonly ValueOf<this>, other: &readonly ValueOf<Q>): Ordering | null {
+    partialCompare(this: &immutable this, other: &immutable Q): Ordering | null {
         this.compare(other)
     }
 }
@@ -400,24 +431,24 @@ export extension of OsStringIntoStringError implements Error {
 
 export extension<Q: Borrow<OsStringSlice>> of OsString implements DefaultEqual<Q> {
     /// Compare string contents with a stored string.
-    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+    static equal(value: &immutable Q, key: &immutable this): boolean {
         todo("OsString.equal");
     }
 
     /// Hash string contents using the same encoding as the stored string.
-    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+    static hash(value: &immutable Q, state: &Hasher): void {
         todo("OsString.hash");
     }
 }
 
 export extension<Q: Borrow<OsStringSlice>> of OsStringSlice implements DefaultEqual<Q> {
     /// Compare string contents with a stored string.
-    static equal(value: &readonly ValueOf<Q>, key: &readonly ValueOf<this>): boolean {
+    static equal(value: &immutable Q, key: &immutable this): boolean {
         todo("OsStringSlice.equal");
     }
 
     /// Hash string contents using the same encoding as the stored string.
-    static hash(value: &readonly ValueOf<Q>, state: &Hasher): void {
+    static hash(value: &immutable Q, state: &Hasher): void {
         todo("OsStringSlice.hash");
     }
 }

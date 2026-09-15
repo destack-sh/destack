@@ -55,23 +55,6 @@ export extension<P, T, const O: "readonly" | "immutable", const A: "readonly" | 
     }
 }
 
-export extension<P, T, const O: "readonly" | "immutable"> of Pin<P>
-    implements As<T>, Borrow<T>
-    where P: Dereference<type Target = T, const OutputAccess = O>
-{
-    /// Borrow the pointee through its readonly view.
-    as<const R: Region>(this: Borrowed<this, R, "readonly">): Borrowed<this.Target, R, "readonly"> {
-        this.dereference()
-    }
-
-    /// Borrow the pointee through its equivalent readonly view.
-    borrow<const R: Region>(
-        this: Borrowed<this, R, "readonly">,
-    ): Borrowed<this.Target, R, "readonly"> {
-        this.dereference()
-    }
-}
-
 export extension<P: Dereference> of Pin<P> where ^P.Target: Unpin {
     /// Pin a pointer to a movable pointee.
     static new(pointer: P): Pin<P> {

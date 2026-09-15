@@ -1,5 +1,5 @@
 import { Result, todo } from "destack:error";
-import { Copy, ImmutableOf, WithAccess } from "destack:memory";
+import { Copy, WithAccess } from "destack:memory";
 
 import { Deserialize, Deserializer, Serialize, Serializer } from "destack:serde";
 
@@ -48,7 +48,7 @@ export class JsonSerializer implements Serializer {
     }
 
     /// Serialize an object field.
-    serializeField<T>(&this, key: string, value: ImmutableOf<T>): Result<void, JsonError>
+    serializeField<T>(&this, key: string, value: &immutable T): Result<void, JsonError>
         where T: Serialize<this> {
         todo("JsonSerializer.serializeField")
     }

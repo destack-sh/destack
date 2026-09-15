@@ -1,7 +1,7 @@
 import { Sequence } from "destack:collections";
 import { catchUnwind, Panic, Result, todo, UnwindSafe } from "destack:error";
 import { Iterable } from "destack:iter";
-import { Borrowed, ImmutableOf, ValueOf } from "destack:memory";
+import { Borrowed } from "destack:memory";
 import { Ordering, PartialCompare, PartialEqual, StrictEqual } from "destack:ops";
 import { RegExp } from "destack:regexp";
 
@@ -19,7 +19,7 @@ export newtype interface Expect {
     <R>(body: ^Function<(), R, "once"> & UnwindSafe, message?: ^string): PanicExpectation<R>;
 
     /// Create an expectation over `value`.
-    <T, 'a>(value: Borrowed<ValueOf<T>, 'a, "immutable">, message?: ^string): Expectation<'a, T>;
+    <T, 'a>(value: Borrowed<T, 'a, "immutable">, message?: ^string): Expectation<'a, T>;
 
     /// Create soft expectations that record failures and continue.
     readonly soft: Expect;
@@ -41,7 +41,7 @@ export newtype interface Expect {
 @languageItem("test.Expectation")
 export struct Expectation<'a, T> {
     /// The observed value.
-    private value: Borrowed<ValueOf<T>, 'a, "immutable">;
+    private value: Borrowed<T, 'a, "immutable">;
 
     /// Whether the next matcher is negated.
     private isNegated: boolean;
@@ -63,14 +63,14 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to compare equal to `expected`.
-    toEqual<U>(this, expected: ImmutableOf<U>): void where T: PartialEqual<U> {
+    toEqual<U>(this, expected: &immutable U): void where T: PartialEqual<U> {
         const condition = this.value.equal(expected);
 
         this.check(condition, "expected values to be equal", "expected values to be different");
     }
 
     /// Require the value to have the same strict identity as `expected`.
-    toBe(this, expected: ImmutableOf<T>): void where T: StrictEqual<T> {
+    toBe(this, expected: &immutable T): void where T: StrictEqual<T> {
         const condition = *this.value === *expected;
 
         this.check(
@@ -92,8 +92,8 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the iterable value to contain `expected`.
-    toContain<U>(this, expected: ImmutableOf<U>): void
-        where Borrowed<ValueOf<T>, 'a, "immutable">: Iterable<U>, U: StrictEqual<U> {
+    toContain<U>(this, expected: &immutable U): void
+        where Borrowed<T, 'a, "immutable">: Iterable<U>, U: StrictEqual<U> {
         const contains = this.value.iterator().some((value) => value === *expected);
 
         const condition = contains;
@@ -106,8 +106,8 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the iterable value to contain one value equal to `expected`.
-    toContainEqual<U>(this, expected: ImmutableOf<U>): void
-        where Borrowed<ValueOf<T>, 'a, "immutable">: Iterable<U>, U: PartialEqual<U> {
+    toContainEqual<U>(this, expected: &immutable U): void
+        where Borrowed<T, 'a, "immutable">: Iterable<U>, U: PartialEqual<U> {
         const contains = this.value.iterator().some((value) => value.equal(expected));
 
         const condition = contains;
@@ -203,7 +203,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to satisfy `predicate`.
-    toSatisfy(this, predicate: (value: ImmutableOf<T>) => boolean): void {
+    toSatisfy(this, predicate: (value: &immutable T) => boolean): void {
         const condition = predicate(this.value);
 
         this.check(
@@ -226,7 +226,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to compare greater than `expected`.
-    toBeGreaterThan<U>(this, expected: ImmutableOf<U>): void where T: PartialCompare<U> {
+    toBeGreaterThan<U>(this, expected: &immutable U): void where T: PartialCompare<U> {
         const ordering = this.value.partialCompare(expected);
 
         const condition = ordering === Ordering.Greater;
@@ -235,7 +235,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to compare greater than or equal to `expected`.
-    toBeGreaterThanOrEqual<U>(this, expected: ImmutableOf<U>): void where T: PartialCompare<U> {
+    toBeGreaterThanOrEqual<U>(this, expected: &immutable U): void where T: PartialCompare<U> {
         const ordering = this.value.partialCompare(expected);
 
         const condition = ordering === Ordering.Greater || ordering === Ordering.Equal;
@@ -248,7 +248,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to compare less than `expected`.
-    toBeLessThan<U>(this, expected: ImmutableOf<U>): void where T: PartialCompare<U> {
+    toBeLessThan<U>(this, expected: &immutable U): void where T: PartialCompare<U> {
         const ordering = this.value.partialCompare(expected);
 
         const condition = ordering === Ordering.Less;
@@ -257,7 +257,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to compare less than or equal to `expected`.
-    toBeLessThanOrEqual<U>(this, expected: ImmutableOf<U>): void where T: PartialCompare<U> {
+    toBeLessThanOrEqual<U>(this, expected: &immutable U): void where T: PartialCompare<U> {
         const ordering = this.value.partialCompare(expected);
 
         const condition = ordering === Ordering.Less || ordering === Ordering.Equal;

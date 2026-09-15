@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Access, Borrowed, Copy, Default, Dispose, Region, ValueOf } from "destack:memory";
+import { Access, Borrowed, Copy, Default, Dispose, Region } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Task } from "./task.ds";
@@ -36,7 +36,7 @@ export local class AsyncRwLock<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(&exclusive this): &exclusive ValueOf<T> {
+    getExclusive(&exclusive this): &exclusive T {
         todo("AsyncRwLock.getExclusive")
     }
 
@@ -63,7 +63,7 @@ export extension<'a, T> of AsyncRwLockReadGuard<'a, T>
     implements Dispose, !Copy, Dereference<"readonly">
 {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";
@@ -91,7 +91,7 @@ export extension<'a, T> of AsyncRwLockWriteGuard<'a, T>
     implements Dispose, !Copy, Dereference<"exclusive">
 {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// Release this guard.
     dispose(this): void {
@@ -113,7 +113,7 @@ export extension<'a, T> of AsyncRwLockWriteGuard<'a, T>
 
 export extension<'a, T> of AsyncRwLockWriteGuard<'a, T> implements Dereference<"readonly"> {
     /// The pointee type.
-    type Target = ValueOf<T>;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";

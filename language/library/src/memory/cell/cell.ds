@@ -1,7 +1,6 @@
 import { todo } from "destack:error";
 
 import { Copy, SharedSafe } from "../capability.ds";
-import { ValueOf } from "../type.ds";
 
 /// Unsafe interior mutable storage.
 @languageItem("memory.UnsafeCell")
@@ -14,12 +13,12 @@ export extension<T> of UnsafeCell<T> implements !Copy, !SharedSafe {
     }
 
     /// Return a raw pointer to the stored value.
-    get(&readonly this): *ValueOf<T> {
+    get(&readonly this): *T {
         todo("UnsafeCell.get")
     }
 
     /// Borrow the stored value with mutable access.
-    getExclusive(&exclusive this): &exclusive ValueOf<T> {
+    getExclusive(&exclusive this): &exclusive T {
         todo("UnsafeCell.getExclusive")
     }
 
@@ -48,12 +47,12 @@ export extension<T> of Cell<T> {
     }
 
     /// Return a raw pointer to the stored value.
-    asPointer(&readonly this): *ValueOf<T> {
+    asPointer(&readonly this): *T {
         todo("Cell.asPointer")
     }
 
     /// Borrow the stored value with mutable access.
-    getExclusive(&exclusive this): &exclusive ValueOf<T> {
+    getExclusive(&exclusive this): &exclusive T {
         todo("Cell.getExclusive")
     }
 

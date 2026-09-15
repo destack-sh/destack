@@ -9,10 +9,8 @@ import {
     Copy,
     Default,
     Drop,
-    ImmutableOf,
     MaybeUninit,
     Region,
-    ValueOf,
     WithAccess,
 } from "destack:memory";
 import {
@@ -55,16 +53,9 @@ export class Array<T> {
     private allocated: usize = 0;
 }
 
-export extension<T: Copy & Clone> of Array<T> implements Clone {
+export extension<T: Clone> of Array<T> implements Clone {
     /// Clone this array and its elements.
-    clone(this: &readonly ValueOf<this>): ^this {
-        todo("Array.clone")
-    }
-}
-
-export extension<T: Clone> of ^Array<T> implements Clone {
-    /// Clone this array and its elements.
-    clone(this: ImmutableOf<this>): ^this {
+    clone(this: &immutable this): ^this {
         todo("Array.clone")
     }
 }
@@ -86,7 +77,7 @@ export extension<T> of ^Array<T> implements Iterable<T>, Sequence {
     }
 
     /// Consume this array into owned values.
-    iterator(this): Iterator<T> {
+    iterator(this): this.Iterator {
         todo("Array.iterator")
     }
 
@@ -96,7 +87,7 @@ export extension<T> of ^Array<T> implements Iterable<T>, Sequence {
     }
 
     /// Consume this array and retain elements accepted by `predicate`.
-    filter(this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): ^Array<T> {
+    filter(this, predicate: (value: &immutable T, index: isize) => boolean): ^Array<T> {
         todo("Array.filter")
     }
 
@@ -116,12 +107,12 @@ export extension<T> of ^Array<T> implements Iterable<T>, Sequence {
     }
 
     /// Consume this array and return the first accepted element.
-    find(this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): T | undefined {
+    find(this, predicate: (value: &immutable T, index: isize) => boolean): T | undefined {
         todo("Array.find")
     }
 
     /// Consume this array and return the last accepted element.
-    findLast(this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): T | undefined {
+    findLast(this, predicate: (value: &immutable T, index: isize) => boolean): T | undefined {
         todo("Array.findLast")
     }
 
@@ -146,12 +137,12 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
     type Rest = ^Array<T>;
 
     /// Copy the elements from `start..end` for a rest pattern.
-    rest(start: isize, end?: isize): ^Array<T> {
+    rest(&readonly this, start: isize, end?: isize): ^Array<T> {
         todo("Array.rest")
     }
 
     /// Return an iterator over copied values.
-    iterator(): Iterator<T> {
+    iterator(): this.Iterator {
         todo("Array.iterator")
     }
 
@@ -290,16 +281,16 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
 }
 
 export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Array<T>, 'a, A>
-    implements Iterable<Borrowed<ValueOf<T>, 'a, A>>, Sequence
+    implements Iterable<Borrowed<T, 'a, A>>, Sequence
 {
     /// The borrowed sequence produced by a rest pattern.
-    type Rest = ^Array<Borrowed<ValueOf<T>, 'a, A>>;
+    type Rest = ^Array<Borrowed<T, 'a, A>>;
 
     /// The iterator over borrowed elements.
     type Iterator = ArrayIterator<T, 'a, A>;
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(this, start: isize, end?: isize): ^Array<Borrowed<ValueOf<T>, 'a, A>> {
+    rest(this, start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("Array.rest")
     }
 
@@ -309,24 +300,24 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Array<T>
     }
 
     /// Borrow the element at `index`, counting from the end when negative.
-    at(this, index: isize): Borrowed<ValueOf<T>, 'a, A> | undefined {
+    at(this, index: isize): Borrowed<T, 'a, A> | undefined {
         todo("Array.at")
     }
 
     /// Borrow the first element.
-    first(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
+    first(this): Borrowed<T, 'a, A> | undefined {
         todo("Array.first")
     }
 
     /// Borrow the last element.
-    last(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
+    last(this): Borrowed<T, 'a, A> | undefined {
         todo("Array.last")
     }
 
     /// Map borrowed elements into a new array.
     map<U>(
         this,
-        map: (value: Borrowed<ValueOf<T>, 'a, "immutable">, index: isize) => U,
+        map: (value: Borrowed<T, 'a, "immutable">, index: isize) => U,
     ): ^Array<U> {
         todo("Array.map")
     }
@@ -334,15 +325,15 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Array<T>
     /// Filter borrowed elements into a new array.
     filter(
         this,
-        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
-    ): ^Array<Borrowed<ValueOf<T>, 'a, A>> {
+        predicate: (value: &immutable T, index: isize) => boolean,
+    ): ^Array<Borrowed<T, 'a, A>> {
         todo("Array.filter")
     }
 
     /// Map borrowed elements and keep defined values.
     filterMap<U>(
         this,
-        map: (value: Borrowed<ValueOf<T>, 'a, "immutable">, index: isize) => U | undefined,
+        map: (value: Borrowed<T, 'a, "immutable">, index: isize) => U | undefined,
     ): ^Array<U> {
         todo("Array.filterMap")
     }
@@ -350,7 +341,7 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Array<T>
     /// Reduce borrowed elements from left to right.
     reduce<U>(
         this,
-        reduce: (accumulator: U, value: Borrowed<ValueOf<T>, 'a, "immutable">, index: isize) => U,
+        reduce: (accumulator: U, value: Borrowed<T, 'a, "immutable">, index: isize) => U,
         initial: U,
     ): U {
         todo("Array.reduce")
@@ -359,7 +350,7 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Array<T>
     /// Reduce borrowed elements from right to left.
     reduceRight<U>(
         this,
-        reduce: (accumulator: U, value: Borrowed<ValueOf<T>, 'a, "immutable">, index: isize) => U,
+        reduce: (accumulator: U, value: Borrowed<T, 'a, "immutable">, index: isize) => U,
         initial: U,
     ): U {
         todo("Array.reduceRight")
@@ -368,54 +359,54 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Array<T>
     /// Borrow the first element accepted by `predicate`.
     find(
         this,
-        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
-    ): Borrowed<ValueOf<T>, 'a, A> | undefined {
+        predicate: (value: &immutable T, index: isize) => boolean,
+    ): Borrowed<T, 'a, A> | undefined {
         todo("Array.find")
     }
 
     /// Return the first accepted borrowed element's index, or -1 when absent.
-    findIndex(this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): isize {
+    findIndex(this, predicate: (value: &immutable T, index: isize) => boolean): isize {
         todo("Array.findIndex")
     }
 
     /// Borrow the last element accepted by `predicate`.
     findLast(
         this,
-        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
-    ): Borrowed<ValueOf<T>, 'a, A> | undefined {
+        predicate: (value: &immutable T, index: isize) => boolean,
+    ): Borrowed<T, 'a, A> | undefined {
         todo("Array.findLast")
     }
 
     /// Return the last accepted borrowed element's index, or -1 when absent.
-    findLastIndex(this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): isize {
+    findLastIndex(this, predicate: (value: &immutable T, index: isize) => boolean): isize {
         todo("Array.findLastIndex")
     }
 
     /// Return whether any borrowed element is accepted by `predicate`.
-    some(this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): boolean {
+    some(this, predicate: (value: &immutable T, index: isize) => boolean): boolean {
         todo("Array.some")
     }
 
     /// Return whether every borrowed element is accepted by `predicate`.
-    every(this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): boolean {
+    every(this, predicate: (value: &immutable T, index: isize) => boolean): boolean {
         todo("Array.every")
     }
 
     /// Map borrowed elements and flatten the results.
     flatMap<U: Copy>(
         this,
-        map: (value: Borrowed<ValueOf<T>, 'a, "immutable">, index: isize) => U | ReadonlyArray<U>,
+        map: (value: Borrowed<T, 'a, "immutable">, index: isize) => U | ReadonlyArray<U>,
     ): ^Array<U> {
         todo("Array.flatMap")
     }
 
     /// Return an iterator over borrowed values.
-    values(this): Iterator<Borrowed<ValueOf<T>, 'a, A>> {
+    values(this): Iterator<Borrowed<T, 'a, A>> {
         todo("Array.values")
     }
 
     /// Return an iterator over borrowed index-value entries.
-    entries(this): Iterator<(isize, Borrowed<ValueOf<T>, 'a, A>)> {
+    entries(this): Iterator<(isize, Borrowed<T, 'a, A>)> {
         todo("Array.entries")
     }
 
@@ -423,7 +414,7 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Array<T>
     forEach<R>(
         this,
         visit: (
-            value: Borrowed<ValueOf<T>, 'a, "immutable">,
+            value: Borrowed<T, 'a, "immutable">,
             index: isize,
             array: Borrowed<Array<T>, 'a, "immutable">,
         ) => R,
@@ -539,7 +530,7 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
     }
 
     /// Remove and return the last element when `predicate` accepts it.
-    popIf(&exclusive this, predicate: (value: ImmutableOf<T>) => boolean): T | undefined {
+    popIf(&this, predicate: (value: &immutable T) => boolean): T | undefined {
         todo("Array.popIf")
     }
 
@@ -614,7 +605,7 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): void {
+    retain(&this, predicate: (value: &immutable T, index: isize) => boolean): void {
         todo("Array.retain");
     }
 
@@ -625,8 +616,8 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
 
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
-        &exclusive this,
-        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
+        &this,
+        predicate: (value: &immutable T, index: isize) => boolean,
     ): Iterator<T> {
         todo("Array.extractIf")
     }
@@ -673,7 +664,7 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
     /// Use SameValueZero for StrictEqual elements; otherwise use PartialEqual.
     includes<Q, const A: "readonly" | "immutable">(
         this: WithAccess<&this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
         fromIndex?: isize,
     ): boolean
         where
@@ -687,7 +678,7 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
     /// Use strict equality for StrictEqual elements; otherwise use PartialEqual.
     indexOf<Q, const A: "readonly" | "immutable">(
         this: WithAccess<&this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
         fromIndex?: isize,
     ): isize
         where
@@ -701,7 +692,7 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
     /// Use strict equality for StrictEqual elements; otherwise use PartialEqual.
     lastIndexOf<Q, const A: "readonly" | "immutable">(
         this: WithAccess<&this, A>,
-        value: ImmutableOf<Q>,
+        value: &immutable Q,
         fromIndex?: isize,
     ): isize
         where
@@ -723,32 +714,32 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
     }
 
     /// Sort this array by ascending string conversion, placing undefined last.
-    sort<const R: Region>(
-        this: Borrowed<Array<T>, R, "exclusive">,
-    ): Borrowed<Array<T>, R, "exclusive"> {
+    sort<const R: Region, const A: "mutable" | "exclusive">(
+        this: Borrowed<Array<T>, R, A>,
+    ): Borrowed<Array<T>, R, A> {
         todo("Array.sort")
     }
 
     /// Sort this array with borrowed values.
-    sort<const R: Region>(
-        this: Borrowed<Array<T>, R, "exclusive">,
-        compare: (left: ImmutableOf<T>, right: ImmutableOf<T>) => number,
-    ): Borrowed<Array<T>, R, "exclusive"> {
+    sort<const R: Region, const A: "mutable" | "exclusive">(
+        this: Borrowed<Array<T>, R, A>,
+        compare: (left: &immutable T, right: &immutable T) => number,
+    ): Borrowed<Array<T>, R, A> {
         todo("Array.sort")
     }
 
     /// Sort this array without preserving the order of equal elements.
-    sortUnstable<const R: Region>(
-        this: Borrowed<Array<T>, R, "exclusive">,
-    ): Borrowed<Array<T>, R, "exclusive"> where T: Compare<T> {
+    sortUnstable<const R: Region, const A: "mutable" | "exclusive">(
+        this: Borrowed<Array<T>, R, A>,
+    ): Borrowed<Array<T>, R, A> where T: Compare<T> {
         todo("Array.sortUnstable")
     }
 
     /// Sort this array without preserving the order of equal elements.
-    sortUnstable<const R: Region>(
-        this: Borrowed<Array<T>, R, "exclusive">,
-        compare: (left: ImmutableOf<T>, right: ImmutableOf<T>) => Ordering,
-    ): Borrowed<Array<T>, R, "exclusive"> {
+    sortUnstable<const R: Region, const A: "mutable" | "exclusive">(
+        this: Borrowed<Array<T>, R, A>,
+        compare: (left: &immutable T, right: &immutable T) => Ordering,
+    ): Borrowed<Array<T>, R, A> {
         todo("Array.sortUnstable")
     }
 
@@ -856,14 +847,24 @@ export struct ArrayIterator<T, 'a, const A: "immutable" | "exclusive"> {
 }
 
 export extension<T, 'a, const A: "immutable" | "exclusive"> of ArrayIterator<T, 'a, A>
-    implements Iterator<Borrowed<ValueOf<T>, 'a, A>>
+    implements Iterator<Borrowed<T, 'a, A>>
 {
-    /// The access required to transfer the remaining range.
-    const NextAccess = "exclusive";
-
     /// Advance to the next borrowed element.
-    next(&exclusive this): IteratorResult<Borrowed<ValueOf<T>, 'a, A>> {
+    next(&this): IteratorResult<Borrowed<T, 'a, A>> {
         todo("ArrayIterator.next")
+    }
+}
+
+/// Iterator over the copied values of a readonly borrowed array.
+export struct ArrayValueIterator<T, 'a> {
+    /// The disjoint range not yet yielded.
+    private remaining: Borrowed<[T], 'a, "readonly">;
+}
+
+export extension<T: Copy, 'a> of ArrayValueIterator<T, 'a> implements Iterator<T> {
+    /// Advance to the next copied value.
+    next(&this): IteratorResult<T> {
+        todo("ArrayValueIterator.next")
     }
 }
 
@@ -885,17 +886,20 @@ export extension<T> of Array<T> implements Index<isize> where T: Copy {
 
 export extension<T, const A: "immutable" | "exclusive"> of Array<T> implements Index<isize, A> {
     /// The protected element storage.
-    type Output<const R: Region> = Borrowed<ValueOf<T>, R, A>;
+    type Output<const R: Region> = Borrowed<T, R, A>;
 
     /// Borrow the indexed storage.
-    index<const R: Region>(this: Borrowed<Array<T>, R, A>, key: isize): Borrowed<ValueOf<T>, R, A> {
+    index<const R: Region>(this: Borrowed<Array<T>, R, A>, key: isize): Borrowed<T, R, A> {
         todo("Array.index")
     }
 }
 
 export extension<T, 'a> of &'a readonly Array<T> implements Iterable<T> where T: Copy {
+    /// The iterator over copied values retaining this borrow.
+    type Iterator = ArrayValueIterator<T, 'a>;
+
     /// Iterate over copied values while retaining this borrow.
-    iterator(this): Iterator<T> {
+    iterator(this): ArrayValueIterator<T, 'a> {
         todo("Array.iterator")
     }
 }

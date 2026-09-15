@@ -1,5 +1,4 @@
 import { Error, RangeError, TypeError } from "destack:error";
-import { ValueOf } from "destack:memory";
 
 /// Date, time, calendar, or time-zone failure.
 @languageItem("time.TimeError")
@@ -7,7 +6,7 @@ export newtype TimeError = RangeError | TypeError;
 
 export extension of TimeError implements Error {
     /// Format this error for users.
-    display(this: &readonly ValueOf<this>): string {
+    display(this: &readonly this): string {
         this.message
     }
 }

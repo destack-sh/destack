@@ -1,5 +1,4 @@
 import { Error, RangeError, TypeError } from "destack:error";
-import { ValueOf } from "destack:memory";
 
 /// Locale, formatting, collation, or segmentation failure.
 @languageItem("intl.IntlError")
@@ -7,7 +6,7 @@ export newtype IntlError = RangeError | TypeError;
 
 export extension of IntlError implements Error {
     /// Format this error for users.
-    display(this: &readonly ValueOf<this>): string {
+    display(this: &readonly this): string {
         this.message
     }
 }

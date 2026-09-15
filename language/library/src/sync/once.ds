@@ -1,5 +1,5 @@
 import { Result, todo } from "destack:error";
-import { MaybeUninit, ValueOf } from "destack:memory";
+import { MaybeUninit } from "destack:memory";
 
 import { Atomic } from "./atomic.ds";
 
@@ -30,7 +30,7 @@ export shared class OnceCell<T> {
     private value: MaybeUninit<T> = MaybeUninit.uninit();
 
     /// Get the initialized value.
-    get<'a>(&'a readonly this): &'a immutable shared ValueOf<T> | undefined {
+    get<'a>(&'a readonly this): &'a immutable shared T | undefined {
         todo("OnceCell.get")
     }
 
@@ -40,7 +40,7 @@ export shared class OnceCell<T> {
     }
 
     /// Get the value or initialize it.
-    getOrInit<'a>(&'a readonly this, init: () => T): &'a immutable shared ValueOf<T> {
+    getOrInit<'a>(&'a readonly this, init: () => T): &'a immutable shared T {
         todo("OnceCell.getOrInit")
     }
 

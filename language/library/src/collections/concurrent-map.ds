@@ -7,11 +7,9 @@ import {
     Copy,
     Default,
     Dispose,
-    ImmutableOf,
     Managed,
     Region,
     SharedSafe,
-    ValueOf,
 } from "destack:memory";
 
 import { Dereference, Equality, Equate } from "destack:ops";
@@ -53,6 +51,17 @@ export shared class ConcurrentMap<K, V, E: SharedSafe = Equality<K>> {
     /// The key comparer.
     private comparer: Managed<E, "shared">;
 
+    /// Create a collection from entries using its default comparer.
+    constructor(entries?: Iterable<(K, V)> | null) where E: Default, E: Equate<K> {
+        todo("ConcurrentMap.constructor");
+    }
+
+    /// Create a collection from entries using comparer.
+    constructor(entries: Iterable<(K, V)> | null | undefined, options: { comparer: E })
+        where E: Equate<K> {
+        todo("ConcurrentMap.constructor");
+    }
+
     /// The map shards.
     private shards: ^Array<RwLock<^Map<K, V, Managed<E, "shared">>>> = [];
 
@@ -64,18 +73,18 @@ export extension<'a, K, V, E> of ConcurrentMapRead<'a, K, V, E>
     implements Dispose, !Copy, Dereference<"readonly">
 {
     /// The pointee type.
-    type Target = shared ValueOf<V>;
+    type Target = shared V;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";
 
     /// Borrow the entry key.
-    get key(&readonly this): &immutable shared ValueOf<K> {
+    get key(&readonly this): &immutable shared K {
         todo("ConcurrentMapRead.key")
     }
 
     /// Borrow the entry value.
-    get value(&readonly this): &immutable shared ValueOf<V> {
+    get value(&readonly this): &immutable shared V {
         todo("ConcurrentMapRead.value")
     }
 
@@ -96,15 +105,15 @@ export extension<'a, K, V, E> of ConcurrentMapWrite<'a, K, V, E>
     implements Dispose, !Copy, Dereference<"exclusive">
 {
     /// The pointee type.
-    type Target = shared ValueOf<V>;
+    type Target = shared V;
 
     /// Borrow the entry key.
-    get key(&immutable this): &immutable shared ValueOf<K> {
+    get key(&immutable this): &immutable shared K {
         todo("ConcurrentMapWrite.key")
     }
 
     /// Borrow the entry value with mutable access.
-    get value(&exclusive this): &exclusive shared ValueOf<V> {
+    get value(&exclusive this): &exclusive shared V {
         todo("ConcurrentMapWrite.value")
     }
 
@@ -128,7 +137,7 @@ export extension<'a, K, V, E> of ConcurrentMapWrite<'a, K, V, E>
 
 export extension<'a, K, V, E> of ConcurrentMapEntry<'a, K, V, E> implements Dispose, !Copy {
     /// Borrow the queried key.
-    get key(&immutable this): ImmutableOf<K> {
+    get key(&immutable this): &immutable K {
         todo("ConcurrentMapEntry.key")
     }
 
@@ -138,28 +147,28 @@ export extension<'a, K, V, E> of ConcurrentMapEntry<'a, K, V, E> implements Disp
     }
 
     /// Borrow the current value.
-    get(&immutable this): &immutable shared ValueOf<V> | undefined {
+    get(&immutable this): &immutable shared V | undefined {
         todo("ConcurrentMapEntry.get")
     }
 
     /// Borrow the current value with mutable access.
-    get(&exclusive this): &exclusive shared ValueOf<V> | undefined {
+    get(&exclusive this): &exclusive shared V | undefined {
         todo("ConcurrentMapEntry.get")
     }
 
     /// Insert `value` when this entry is vacant.
-    orInsert(&exclusive this, value: V): &exclusive shared ValueOf<V> where E: Equate<K> {
+    orInsert(&exclusive this, value: V): &exclusive shared V where E: Equate<K> {
         todo("ConcurrentMapEntry.orInsert")
     }
 
     /// Insert a value produced by `makeValue` when this entry is vacant.
-    orInsertWith(&exclusive this, makeValue: () => V): &exclusive shared ValueOf<V>
+    orInsertWith(&exclusive this, makeValue: () => V): &exclusive shared V
         where E: Equate<K> {
         todo("ConcurrentMapEntry.orInsertWith")
     }
 
     /// Insert or replace the value.
-    set(&exclusive this, value: V): &exclusive shared ValueOf<V> where E: Equate<K> {
+    set(&exclusive this, value: V): &exclusive shared V where E: Equate<K> {
         todo("ConcurrentMapEntry.set")
     }
 
@@ -174,7 +183,7 @@ export extension<'a, K, V, E> of ConcurrentMapEntry<'a, K, V, E> implements Disp
     }
 }
 
-export extension<K, V, E> of ConcurrentMap<K, V, E> {
+export extension<K, V, E: SharedSafe> of ConcurrentMap<K, V, E> {
     /// Create an empty concurrent map.
     static new(comparer: E): ^ConcurrentMap<K, V, E> {
         todo("ConcurrentMap.new")
@@ -184,26 +193,32 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> {
     static withCapacity(capacity: usize, comparer: E): ^ConcurrentMap<K, V, E> {
         todo("ConcurrentMap.withCapacity")
     }
-}
 
-export extension<K, V, E> of ConcurrentMap<K, V, E> implements Default where E: Default {
     /// Create an empty collection with its default comparer.
-    static new(): ^ConcurrentMap<K, V, E> {
+    static new(): ^ConcurrentMap<K, V, E> where E: Default {
         ConcurrentMap.new(E.default())
     }
 
     /// Create a collection with its default comparer and room for capacity entries.
-    static withCapacity(capacity: usize): ^ConcurrentMap<K, V, E> {
+    static withCapacity(capacity: usize): ^ConcurrentMap<K, V, E> where E: Default {
         ConcurrentMap.withCapacity(capacity, E.default())
     }
+}
 
+export extension<K, V, E: SharedSafe> of ConcurrentMap<K, V, E>
+    implements Default
+    where E: Default
+{
     /// Create the default concurrent map.
     static default(): ^ConcurrentMap<K, V, E> {
         ConcurrentMap.new(E.default())
     }
 }
 
-export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "readonly"> {
+export extension<K, V, E: SharedSafe> of ConcurrentMap<K, V, E>
+    implements Extend<(K, V), "readonly">
+    where E: Equate<K>
+{
     /// Create a concurrent map from entries.
     static from(entries: Iterable<(K, V)>, comparer: E): ^ConcurrentMap<K, V, E>
         where E: Equate<K> {
@@ -222,7 +237,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     }
 
     /// Look up a borrowed value using the stored comparer.
-    get<Q>(&readonly this, key: ImmutableOf<Q>): V | undefined where E: Equate<K, Q>, V: Copy {
+    get<Q>(&readonly this, key: &immutable Q): V | undefined where E: Equate<K, Q>, V: Copy {
         todo("ConcurrentMap.get")
     }
 
@@ -232,7 +247,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     }
 
     /// Look up a borrowed value using the stored comparer.
-    has<Q>(&readonly this, key: ImmutableOf<Q>): boolean where E: Equate<K, Q> {
+    has<Q>(&readonly this, key: &immutable Q): boolean where E: Equate<K, Q> {
         todo("ConcurrentMap.has")
     }
 
@@ -243,7 +258,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     }
 
     /// Look up a borrowed value using the stored comparer.
-    read<'a, Q>(&'a readonly this, key: ImmutableOf<Q>): ConcurrentMapRead<'a, K, V, E> | undefined
+    read<'a, Q>(&'a readonly this, key: &immutable Q): ConcurrentMapRead<'a, K, V, E> | undefined
         where E: Equate<K, Q> {
         todo("ConcurrentMap.read")
     }
@@ -257,7 +272,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     /// Look up a borrowed value using the stored comparer.
     write<'a, Q>(
         &'a readonly this,
-        key: ImmutableOf<Q>,
+        key: &immutable Q,
     ): ConcurrentMapWrite<'a, K, V, E> | undefined where E: Equate<K, Q> {
         todo("ConcurrentMap.write")
     }
@@ -286,7 +301,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     with<Q, R>(
         &readonly this,
         key: Q,
-        body: (value: &immutable shared ValueOf<V>) => R,
+        body: (value: &immutable shared V) => R,
     ): R | undefined where E: Equate<K, Q>, Q: Copy {
         todo("ConcurrentMap.with")
     }
@@ -294,8 +309,8 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     /// Look up a borrowed value using the stored comparer.
     with<Q, R>(
         &readonly this,
-        key: ImmutableOf<Q>,
-        body: (value: &immutable shared ValueOf<V>) => R,
+        key: &immutable Q,
+        body: (value: &immutable shared V) => R,
     ): R | undefined where E: Equate<K, Q> {
         todo("ConcurrentMap.with")
     }
@@ -304,7 +319,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     update<Q, R>(
         &readonly this,
         key: Q,
-        body: (value: &exclusive shared ValueOf<V>) => R,
+        body: (value: &exclusive shared V) => R,
     ): R | undefined where E: Equate<K, Q>, Q: Copy {
         todo("ConcurrentMap.update")
     }
@@ -312,8 +327,8 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     /// Look up a borrowed value using the stored comparer.
     update<Q, R>(
         &readonly this,
-        key: ImmutableOf<Q>,
-        body: (value: &exclusive shared ValueOf<V>) => R,
+        key: &immutable Q,
+        body: (value: &exclusive shared V) => R,
     ): R | undefined where E: Equate<K, Q> {
         todo("ConcurrentMap.update")
     }
@@ -329,7 +344,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     }
 
     /// Insert or replace all entries.
-    extend<I: Iterable<(K, V)>>(&readonly this, entries: I): void where E: Equate<K> {
+    extend<I: Iterable<(K, V)>>(&readonly this, entries: I): void {
         todo("ConcurrentMap.extend");
     }
 
@@ -337,8 +352,8 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     retain(
         &readonly this,
         predicate: (
-            key: &immutable shared ValueOf<K>,
-            value: &exclusive shared ValueOf<V>,
+            key: &immutable shared K,
+            value: &exclusive shared V,
         ) => boolean,
     ): void {
         todo("ConcurrentMap.retain");
@@ -348,8 +363,8 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     extractIf(
         &readonly this,
         predicate: (
-            key: &immutable shared ValueOf<K>,
-            value: &exclusive shared ValueOf<V>,
+            key: &immutable shared K,
+            value: &exclusive shared V,
         ) => boolean,
     ): Iterator<(K, V)> {
         todo("ConcurrentMap.extractIf")
@@ -361,7 +376,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     }
 
     /// Look up a borrowed value using the stored comparer.
-    remove<Q>(&readonly this, key: ImmutableOf<Q>): V | undefined where E: Equate<K, Q> {
+    remove<Q>(&readonly this, key: &immutable Q): V | undefined where E: Equate<K, Q> {
         todo("ConcurrentMap.remove")
     }
 
@@ -371,12 +386,12 @@ export extension<K, V, E> of ConcurrentMap<K, V, E> implements Extend<(K, V), "r
     }
 
     /// Look up a borrowed value using the stored comparer.
-    removeEntry<Q>(&readonly this, key: ImmutableOf<Q>): (K, V) | undefined where E: Equate<K, Q> {
+    removeEntry<Q>(&readonly this, key: &immutable Q): (K, V) | undefined where E: Equate<K, Q> {
         todo("ConcurrentMap.removeEntry")
     }
 }
 
-export extension<K, V, E> of ConcurrentMap<K, V, E>
+export extension<K, V, E: SharedSafe> of ConcurrentMap<K, V, E>
     implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
     where E: Default, E: Equate<K>
 {
@@ -391,7 +406,7 @@ export extension<K, V, E> of ConcurrentMap<K, V, E>
     }
 }
 
-export extension<K, V, E> of ^ConcurrentMap<K, V, E>
+export extension<K, V, E: SharedSafe> of ^ConcurrentMap<K, V, E>
     implements From<Iterable<(K, V)>>, FromIterator<(K, V)>
     where E: Default, E: Equate<K>
 {
@@ -410,7 +425,7 @@ export extension<'a, K, V, E> of ConcurrentMapWrite<'a, K, V, E>
     implements Dereference<"readonly">
 {
     /// The pointee type.
-    type Target = shared ValueOf<V>;
+    type Target = shared V;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";
@@ -423,7 +438,7 @@ export extension<'a, K, V, E> of ConcurrentMapWrite<'a, K, V, E>
     }
 }
 
-export extension<K, V, E> of ConcurrentMap<K, V, E> {
+export extension<K, V, E: SharedSafe> of ConcurrentMap<K, V, E> {
     /// Return the number of entries.
     get size(&readonly this): usize {
         this.count.load(MemoryOrdering.SequentiallyConsistent)

@@ -1,7 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Borrowed, Copy, Default, MaybeUninit, Region, ValueOf } from "destack:memory";
+import { Borrowed, Copy, Default, MaybeUninit, Region } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 
 import { Array } from "./array.ds";
@@ -46,31 +46,31 @@ export struct Slab<T> {
 
 export extension<T> of Slab<T> implements Iterable<(SlabKey, T)> {
     /// Consume this slab into owned entries.
-    iterator(this): Iterator<(SlabKey, T)> {
+    iterator(this): this.Iterator {
         todo("Slab.iterator")
     }
 }
 
 export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Slab<T>, 'a, A>
-    implements Iterable<(SlabKey, Borrowed<ValueOf<T>, 'a, A>)>
+    implements Iterable<(SlabKey, Borrowed<T, 'a, A>)>
 {
     /// Borrow the value for `key`.
-    get(this, key: SlabKey): Borrowed<ValueOf<T>, 'a, A> | undefined {
+    get(this, key: SlabKey): Borrowed<T, 'a, A> | undefined {
         todo("Slab.get")
     }
 
     /// Return borrowed live values.
-    values(this): Iterator<Borrowed<ValueOf<T>, 'a, A>> {
+    values(this): Iterator<Borrowed<T, 'a, A>> {
         todo("Slab.values")
     }
 
     /// Return borrowed live entries.
-    entries(this): Iterator<(SlabKey, Borrowed<ValueOf<T>, 'a, A>)> {
+    entries(this): Iterator<(SlabKey, Borrowed<T, 'a, A>)> {
         todo("Slab.entries")
     }
 
     /// Return an iterator over borrowed live entries.
-    iterator(this): Iterator<(SlabKey, Borrowed<ValueOf<T>, 'a, A>)> {
+    iterator(this): this.Iterator {
         todo("Slab.iterator")
     }
 }
@@ -166,7 +166,7 @@ export extension<T> of Slab<T>
     /// Retain only entries accepted by `predicate`.
     retain(
         &exclusive this,
-        predicate: (key: SlabKey, value: &exclusive ValueOf<T>) => boolean,
+        predicate: (key: SlabKey, value: &exclusive T) => boolean,
     ): void {
         todo("Slab.retain");
     }
@@ -179,7 +179,7 @@ export extension<T> of Slab<T>
     /// Remove entries accepted by `predicate` and return them.
     extractIf(
         &exclusive this,
-        predicate: (key: SlabKey, value: &exclusive ValueOf<T>) => boolean,
+        predicate: (key: SlabKey, value: &exclusive T) => boolean,
     ): Iterator<(SlabKey, T)> {
         todo("Slab.extractIf")
     }
@@ -210,7 +210,7 @@ export extension<T> of Slab<T> implements Index<SlabKey> where T: Copy {
 
 export extension<T, const A: "immutable" | "exclusive"> of Slab<T> implements Index<SlabKey, A> {
     /// The protected element storage.
-    type Output<const R: Region> = Borrowed<ValueOf<T>, R, A>;
+    type Output<const R: Region> = Borrowed<T, R, A>;
 
     /// The missing index result.
     type Missing = undefined;
@@ -219,7 +219,7 @@ export extension<T, const A: "immutable" | "exclusive"> of Slab<T> implements In
     index<const R: Region>(
         this: Borrowed<Slab<T>, R, A>,
         key: SlabKey,
-    ): Borrowed<ValueOf<T>, R, A> | undefined {
+    ): Borrowed<T, R, A> | undefined {
         todo("Slab.index")
     }
 }

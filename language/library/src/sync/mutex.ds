@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Access, Borrowed, Copy, Default, Dispose, Region, ValueOf } from "destack:memory";
+import { Access, Borrowed, Copy, Default, Dispose, Region } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Atomic } from "./atomic.ds";
@@ -29,7 +29,7 @@ export shared class Mutex<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(&exclusive this): &exclusive shared ValueOf<T> {
+    getExclusive(&exclusive this): &exclusive shared T {
         todo("Mutex.getExclusive")
     }
 
@@ -54,7 +54,7 @@ export local struct MutexGuard<'a, T> {
 
 export extension<'a, T> of MutexGuard<'a, T> implements Dispose, !Copy, Dereference<"exclusive"> {
     /// The pointee type.
-    type Target = shared ValueOf<T>;
+    type Target = shared T;
 
     /// Unlock this guard.
     dispose(this): void {
@@ -71,7 +71,7 @@ export extension<'a, T> of MutexGuard<'a, T> implements Dispose, !Copy, Derefere
 
 export extension<'a, T> of MutexGuard<'a, T> implements Dereference<"readonly"> {
     /// The pointee type.
-    type Target = shared ValueOf<T>;
+    type Target = shared T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";

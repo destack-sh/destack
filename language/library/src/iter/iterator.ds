@@ -3,10 +3,8 @@ import {
     Access,
     Clone,
     Copy,
-    ImmutableOf,
     Managed,
     Owned,
-    ValueOf,
     WithAccess,
 } from "destack:memory";
 import { Try } from "destack:ops";
@@ -38,14 +36,11 @@ export struct IteratorReturn<R = void> {
 /// A protocol for producing a sequence of values.
 @languageItem("iter.Iterator")
 export newtype interface Iterator<T> {
-    /// The access required to advance this iterator.
-    const NextAccess: "mutable" | "exclusive" = "mutable";
-
     /// The completion value produced when the sequence ends.
     type Return = void;
 
     /// Advance and return the next yield or completion.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T, this.Return>;
+    next(&this): IteratorResult<T, this.Return>;
 
     /// Pair each yielded value with its index.
     enumerate(this): EnumeratedIterator<this, T> {
@@ -62,13 +57,13 @@ export newtype interface Iterator<T> {
         this,
         predicate: (value: T, index: isize) => boolean,
     ): ^FilterIterator<this, T> where T: Copy {
-        return this.filter((value: ImmutableOf<T>, index: isize) => predicate(*value, index));
+        return this.filter((value: &immutable T, index: isize) => predicate(*value, index));
     }
 
     /// Retain yielded values accepted by `predicate`.
     filter(
         this,
-        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
+        predicate: (value: &immutable T, index: isize) => boolean,
     ): ^FilterIterator<this, T> {
         todo("Iterator.filter")
     }
@@ -91,13 +86,13 @@ export newtype interface Iterator<T> {
         this,
         predicate: (value: T, index: isize) => boolean,
     ): TakeWhileIterator<this, T> where T: Copy {
-        return this.takeWhile((value: ImmutableOf<T>, index: isize) => predicate(*value, index));
+        return this.takeWhile((value: &immutable T, index: isize) => predicate(*value, index));
     }
 
     /// Yield values while `predicate` accepts them.
     takeWhile(
         this,
-        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
+        predicate: (value: &immutable T, index: isize) => boolean,
     ): TakeWhileIterator<this, T> {
         todo("Iterator.takeWhile")
     }
@@ -112,13 +107,13 @@ export newtype interface Iterator<T> {
         this,
         predicate: (value: T, index: isize) => boolean,
     ): DropWhileIterator<this, T> where T: Copy {
-        return this.dropWhile((value: ImmutableOf<T>, index: isize) => predicate(*value, index));
+        return this.dropWhile((value: &immutable T, index: isize) => predicate(*value, index));
     }
 
     /// Skip values while `predicate` accepts them.
     dropWhile(
         this,
-        predicate: (value: ImmutableOf<T>, index: isize) => boolean,
+        predicate: (value: &immutable T, index: isize) => boolean,
     ): DropWhileIterator<this, T> {
         todo("Iterator.dropWhile")
     }
@@ -158,7 +153,7 @@ export newtype interface Iterator<T> {
     scan<S, U>(
         this,
         initial: S,
-        scan: (state: &exclusive ValueOf<S>, value: T, index: isize) => U | undefined,
+        scan: (state: &exclusive S, value: T, index: isize) => U | undefined,
     ): ScanIterator<this, T, S, U> {
         todo("Iterator.scan")
     }
@@ -166,7 +161,7 @@ export newtype interface Iterator<T> {
     /// Observe each yielded value without changing the sequence.
     inspect(
         this,
-        observe: (value: ImmutableOf<T>, index: isize) => void,
+        observe: (value: &immutable T, index: isize) => void,
     ): InspectIterator<this, T> {
         todo("Iterator.inspect")
     }
@@ -175,37 +170,7 @@ export newtype interface Iterator<T> {
     peekable(this): PeekableIterator<this, T> {
         todo("Iterator.peekable")
     }
-}
 
-/// A value that can produce an iterator.
-@languageItem("iter.Iterable")
-export newtype interface Iterable<T> {
-    /// The iterator produced by this value.
-    type Iterator: Iterator<T> &
-        (Owned<this.Iterator> | Iterator<T, const NextAccess = "mutable">) = Iterator<
-        T,
-        const NextAccess = "mutable"
-    >;
-
-    /// Return an iterator over this value.
-    iterator(this): this.Iterator;
-}
-
-/// Iterators that can advance from a local value are iterable as themselves.
-export extension<T, I: Iterator<T>> of I
-    implements Iterable<T>
-    where I: Owned<I> | Iterator<T, const NextAccess = "mutable">
-{
-    /// The iterator itself.
-    type Iterator = I;
-
-    /// Return this iterator.
-    iterator(this): I {
-        this
-    }
-}
-
-export extension<T, I: Iterator<T> & Iterable<T, type Iterator = I>> of I {
     /// Reduce yielded values using the first value as the initial accumulator.
     reduce(this, reduce: (accumulator: T, value: T, index: isize) => T): T {
         todo("Iterator.reduce")
@@ -243,11 +208,11 @@ export extension<T, I: Iterator<T> & Iterable<T, type Iterator = I>> of I {
 
     /// Find yielded values using copied callback arguments.
     find(this, predicate: (value: T, index: isize) => boolean): T | undefined where T: Copy {
-        return this.find((value: ImmutableOf<T>, index: isize) => predicate(*value, index));
+        return this.find((value: &immutable T, index: isize) => predicate(*value, index));
     }
 
     /// Return the first value accepted by `predicate`.
-    find(this, predicate: (value: ImmutableOf<T>, index: isize) => boolean): T | undefined {
+    find(this, predicate: (value: &immutable T, index: isize) => boolean): T | undefined {
         todo("Iterator.find")
     }
 
@@ -294,6 +259,41 @@ export extension<T, I: Iterator<T> & Iterable<T, type Iterator = I>> of I {
     tryForEach<F: Try<type Output = void>>(this, visit: (value: T, index: isize) => F): F {
         todo("Iterator.tryForEach")
     }
+
+    /// Copy each borrowed value.
+    copied<U: Copy, 'a, const A: Access>(this): CopyIterator<this, U>
+        where this: Iterator<Borrowed<U, 'a, A>>
+    {
+        todo("Iterator.copied")
+    }
+
+    /// Clone each borrowed value.
+    cloned<U: Clone, 'a, const A: "immutable" | "exclusive">(this): CloneIterator<this, U>
+        where this: Iterator<Borrowed<U, 'a, A>>
+    {
+        todo("Iterator.cloned")
+    }
+}
+
+/// A value that can produce an iterator.
+@languageItem("iter.Iterable")
+export newtype interface Iterable<T> {
+    /// The iterator produced by this value.
+    type Iterator: Iterator<T> = Iterator<T>;
+
+    /// Return an iterator over this value.
+    iterator(this): this.Iterator;
+}
+
+/// Iterable conformance for every iterator.
+export extension<T, I: Iterator<T>> of I implements Iterable<T> {
+    /// The iterator itself.
+    type Iterator = I;
+
+    /// Return this iterator.
+    iterator(this): I {
+        this
+    }
 }
 
 /// Collection built from an iterator.
@@ -319,23 +319,20 @@ export struct EnumeratedIterator<I, out T> {
     private index: isize = 0;
 }
 
-export extension<T, I: Iterable<T, type Iterator = I>> of EnumeratedIterator<I, T>
+export extension<T, I: Iterator<T>> of EnumeratedIterator<I, T>
     implements Iterator<(isize, T)>
 {
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
     /// The source iterator's completion value.
     type Return = I.Return;
 
     /// Advance and pair the next yielded value with its index.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<(isize, T), I.Return> {
+    next(&this): IteratorResult<(isize, T), I.Return> {
         todo("EnumeratedIterator.next")
     }
 }
 
 /// Iterator that maps each yielded value.
-export class MapIterator<I, T, U> {
+export struct MapIterator<I, T, U> {
     /// The source iterator.
     private iterator: I;
 
@@ -346,7 +343,7 @@ export class MapIterator<I, T, U> {
     private index: isize = 0;
 }
 
-export extension<T, U, I: Iterator<T, const NextAccess = "mutable">> of MapIterator<I, T, U>
+export extension<T, U, I: Iterator<T>> of MapIterator<I, T, U>
     implements Iterator<U>
 {
     /// Advance and map the next yielded value.
@@ -355,47 +352,23 @@ export extension<T, U, I: Iterator<T, const NextAccess = "mutable">> of MapItera
     }
 }
 
-export extension<T, U, I: Iterable<T, type Iterator = I>> of ^MapIterator<I, T, U>
-    implements Iterator<U>
-{
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
-    /// Advance and map the next yielded value.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<U> {
-        todo("MapIterator.next")
-    }
-}
-
 /// Iterator that retains yielded values accepted by a predicate.
-export class FilterIterator<I, T> {
+export struct FilterIterator<I, T> {
     /// The source iterator.
     private iterator: I;
 
     /// The predicate applied to each yielded value.
-    private predicate: (value: ImmutableOf<T>, index: isize) => boolean;
+    private predicate: (value: &immutable T, index: isize) => boolean;
 
     /// The index of the next source value.
     private index: isize = 0;
 }
 
-export extension<T, I: Iterator<T, const NextAccess = "mutable">> of FilterIterator<I, T>
+export extension<T, I: Iterator<T>> of FilterIterator<I, T>
     implements Iterator<T>
 {
     /// Advance to the next accepted value.
     next(&this): IteratorResult<T> {
-        todo("FilterIterator.next")
-    }
-}
-
-export extension<T, I: Iterable<T, type Iterator = I>> of ^FilterIterator<I, T>
-    implements Iterator<T>
-{
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
-    /// Advance to the next accepted value.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T> {
         todo("FilterIterator.next")
     }
 }
@@ -412,20 +385,17 @@ export struct FilterMapIterator<I, T, U> {
     private index: isize = 0;
 }
 
-export extension<T, U, I: Iterable<T, type Iterator = I>> of FilterMapIterator<I, T, U>
+export extension<T, U, I: Iterator<T>> of FilterMapIterator<I, T, U>
     implements Iterator<U>
 {
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
     /// Advance to the next defined mapped value.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<U> {
+    next(&this): IteratorResult<U> {
         todo("FilterMapIterator.next")
     }
 }
 
 /// Iterator limited to an initial number of yielded values.
-export class TakeIterator<I, out T> {
+export struct TakeIterator<I, out T> {
     /// The source iterator.
     private iterator: I;
 
@@ -433,23 +403,11 @@ export class TakeIterator<I, out T> {
     private remaining: isize;
 }
 
-export extension<T, I: Iterator<T, const NextAccess = "mutable">> of TakeIterator<I, T>
+export extension<T, I: Iterator<T>> of TakeIterator<I, T>
     implements Iterator<T>
 {
     /// Advance while the configured limit remains.
     next(&this): IteratorResult<T> {
-        todo("TakeIterator.next")
-    }
-}
-
-export extension<T, I: Iterable<T, type Iterator = I>> of ^TakeIterator<I, T>
-    implements Iterator<T>
-{
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
-    /// Advance while the configured limit remains.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T> {
         todo("TakeIterator.next")
     }
 }
@@ -460,7 +418,7 @@ export struct TakeWhileIterator<I, T> {
     private iterator: I;
 
     /// The predicate applied to each yielded value.
-    private predicate: (value: ImmutableOf<T>, index: isize) => boolean;
+    private predicate: (value: &immutable T, index: isize) => boolean;
 
     /// The index of the next source value.
     private index: isize = 0;
@@ -469,20 +427,17 @@ export struct TakeWhileIterator<I, T> {
     private isDone: boolean = false;
 }
 
-export extension<T, I: Iterable<T, type Iterator = I>> of TakeWhileIterator<I, T>
+export extension<T, I: Iterator<T>> of TakeWhileIterator<I, T>
     implements Iterator<T>
 {
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
     /// Advance while the predicate accepts source values.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T> {
+    next(&this): IteratorResult<T> {
         todo("TakeWhileIterator.next")
     }
 }
 
 /// Iterator that skips an initial number of yielded values.
-export class DropIterator<I, out T> {
+export struct DropIterator<I, out T> {
     /// The source iterator.
     private iterator: I;
 
@@ -490,23 +445,11 @@ export class DropIterator<I, out T> {
     private remaining: isize;
 }
 
-export extension<T, I: Iterator<T, const NextAccess = "mutable">> of DropIterator<I, T>
+export extension<T, I: Iterator<T>> of DropIterator<I, T>
     implements Iterator<T>
 {
     /// Skip the configured prefix and advance.
     next(&this): IteratorResult<T> {
-        todo("DropIterator.next")
-    }
-}
-
-export extension<T, I: Iterable<T, type Iterator = I>> of ^DropIterator<I, T>
-    implements Iterator<T>
-{
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
-    /// Skip the configured prefix and advance.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T> {
         todo("DropIterator.next")
     }
 }
@@ -517,7 +460,7 @@ export struct DropWhileIterator<I, T> {
     private iterator: I;
 
     /// The predicate applied to each yielded value.
-    private predicate: (value: ImmutableOf<T>, index: isize) => boolean;
+    private predicate: (value: &immutable T, index: isize) => boolean;
 
     /// The index of the next source value.
     private index: isize = 0;
@@ -526,20 +469,17 @@ export struct DropWhileIterator<I, T> {
     private isDropping: boolean = true;
 }
 
-export extension<T, I: Iterable<T, type Iterator = I>> of DropWhileIterator<I, T>
+export extension<T, I: Iterator<T>> of DropWhileIterator<I, T>
     implements Iterator<T>
 {
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
     /// Skip accepted source values and advance through the remainder.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T> {
+    next(&this): IteratorResult<T> {
         todo("DropWhileIterator.next")
     }
 }
 
 /// Iterator that maps each value to an iterable and yields its values.
-export class FlatMapIterator<I, T, V, J, out U> {
+export struct FlatMapIterator<I, T, V, J, out U> {
     /// The source iterator.
     private iterator: I;
 
@@ -556,28 +496,12 @@ export class FlatMapIterator<I, T, V, J, out U> {
 export extension<T, U, I, J, V> of FlatMapIterator<I, T, V, J, U>
     implements Iterator<U>
     where
-        I: Iterator<T, const NextAccess = "mutable">,
-        J: Managed<J> & Iterator<U, const NextAccess = "mutable">,
+        I: Iterator<T>,
+        J: Iterator<U>,
         V: Iterable<U, type Iterator = J>
 {
     /// Advance through the current nested iterator or map the next source value.
     next(&this): IteratorResult<U> {
-        todo("FlatMapIterator.next")
-    }
-}
-
-export extension<T, U, I, J, V> of ^FlatMapIterator<I, T, V, J, U>
-    implements Iterator<U>
-    where
-        I: Iterable<T, type Iterator = I>,
-        J: Iterable<U, type Iterator = J>,
-        V: Iterable<U, type Iterator = J>
-{
-    /// The access required to advance the stored nested iterator.
-    const NextAccess = "exclusive";
-
-    /// Advance through the current nested iterator or map the next source value.
-    next(&exclusive this): IteratorResult<U> {
         todo("FlatMapIterator.next")
     }
 }
@@ -595,13 +519,10 @@ export extension<T, I, J> of FlattenIterator<I, J, T>
     implements Iterator<T>
     where
         I: Iterable<Iterable<T, type Iterator = J>, type Iterator = I>,
-        J: Iterable<T, type Iterator = J>
+        J: Iterator<T>
 {
-    /// The access required to advance stored values.
-    const NextAccess = "exclusive";
-
     /// Advance through the current nested iterator or the next iterable.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T> {
+    next(&this): IteratorResult<T> {
         todo("FlattenIterator.next")
     }
 }
@@ -618,17 +539,12 @@ export struct ChainIterator<I, J, out T> {
     private isFirst: boolean = true;
 }
 
-export extension<T, I: Iterable<T, type Iterator = I>, J: Iterable<T, type Iterator = J>> of
+export extension<T, I: Iterator<T>, J: Iterator<T>> of
     ChainIterator<I, J, T>
     implements Iterator<T>
 {
-    /// The access required by both source iterators.
-    const NextAccess = I.NextAccess === "exclusive" || J.NextAccess === "exclusive"
-        ? "exclusive"
-        : "mutable";
-
     /// Advance through the first source and then the second.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T> {
+    next(&this): IteratorResult<T> {
         todo("ChainIterator.next")
     }
 }
@@ -642,17 +558,12 @@ export struct ZipIterator<I, J, out T, out U> {
     private right: J;
 }
 
-export extension<T, U, I: Iterable<T, type Iterator = I>, J: Iterable<U, type Iterator = J>> of
+export extension<T, U, I: Iterator<T>, J: Iterator<U>> of
     ZipIterator<I, J, T, U>
     implements Iterator<(T, U)>
 {
-    /// The access required by both source iterators.
-    const NextAccess = I.NextAccess === "exclusive" || J.NextAccess === "exclusive"
-        ? "exclusive"
-        : "mutable";
-
     /// Advance both sources and return their next pair.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<(T, U)> {
+    next(&this): IteratorResult<(T, U)> {
         todo("ZipIterator.next")
     }
 }
@@ -672,14 +583,11 @@ export struct MapWhileIterator<I, T, U> {
     private isDone: boolean = false;
 }
 
-export extension<T, U, I: Iterable<T, type Iterator = I>> of MapWhileIterator<I, T, U>
+export extension<T, U, I: Iterator<T>> of MapWhileIterator<I, T, U>
     implements Iterator<U>
 {
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
     /// Advance until the transformation returns undefined.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<U> {
+    next(&this): IteratorResult<U> {
         todo("MapWhileIterator.next")
     }
 }
@@ -693,7 +601,7 @@ export struct ScanIterator<I, T, S, U> {
     private state: S;
 
     /// The transformation applied to each yielded value.
-    private transform: (state: &exclusive ValueOf<S>, value: T, index: isize) => U | undefined;
+    private transform: (state: &exclusive S, value: T, index: isize) => U | undefined;
 
     /// The index of the next source value.
     private index: isize = 0;
@@ -702,14 +610,11 @@ export struct ScanIterator<I, T, S, U> {
     private isDone: boolean = false;
 }
 
-export extension<T, S, U, I: Iterable<T, type Iterator = I>> of ScanIterator<I, T, S, U>
+export extension<T, S, U, I: Iterator<T>> of ScanIterator<I, T, S, U>
     implements Iterator<U>
 {
-    /// The access required to advance stored values.
-    const NextAccess = "exclusive";
-
     /// Advance with the current state until the transformation returns undefined.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<U> {
+    next(&this): IteratorResult<U> {
         todo("ScanIterator.next")
     }
 }
@@ -720,23 +625,20 @@ export struct InspectIterator<I, T> {
     private iterator: I;
 
     /// The observation performed for each yielded value.
-    private observe: (value: ImmutableOf<T>, index: isize) => void;
+    private observe: (value: &immutable T, index: isize) => void;
 
     /// The index of the next source value.
     private index: isize = 0;
 }
 
-export extension<T, I: Iterable<T, type Iterator = I>> of InspectIterator<I, T>
+export extension<T, I: Iterator<T>> of InspectIterator<I, T>
     implements Iterator<T>
 {
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
     /// The source iterator's completion value.
     type Return = I.Return;
 
     /// Advance the source after observing its next yielded value.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T, I.Return> {
+    next(&this): IteratorResult<T, I.Return> {
         todo("InspectIterator.next")
     }
 }
@@ -750,22 +652,19 @@ export struct PeekableIterator<I, T> {
     private buffered?: IteratorResult<T, I.Return>;
 }
 
-export extension<T, I: Iterable<T, type Iterator = I>> of PeekableIterator<I, T>
+export extension<T, I: Iterator<T>> of PeekableIterator<I, T>
     implements Iterator<T>
 {
-    /// The access required to advance stored values.
-    const NextAccess = "exclusive";
-
     /// The source iterator's completion value.
     type Return = I.Return;
 
     /// Borrow the next yielded value without consuming it.
-    peek(&exclusive this): ImmutableOf<T> | undefined {
+    peek(&this): &readonly T | undefined {
         todo("PeekableIterator.peek")
     }
 
     /// Return the buffered result or advance the source.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T, I.Return> {
+    next(&this): IteratorResult<T, I.Return> {
         todo("PeekableIterator.next")
     }
 }
@@ -776,18 +675,15 @@ export struct CopyIterator<I, out T> {
     private iterator: I;
 }
 
-export extension<T: Copy, I: Iterable<&readonly ValueOf<T>, type Iterator = I>> of
+export extension<T: Copy, 'a, const A: Access, I: Iterator<Borrowed<T, 'a, A>>> of
     CopyIterator<I, T>
     implements Iterator<T>
 {
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
     /// The source iterator's completion value.
     type Return = I.Return;
 
     /// Advance and copy the next yielded value.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<T, I.Return> {
+    next(&this): IteratorResult<T, I.Return> {
         todo("CopyIterator.next")
     }
 }
@@ -798,32 +694,16 @@ export struct CloneIterator<I, out T> {
     private iterator: I;
 }
 
-export extension<T, I> of CloneIterator<I, T>
+export extension<T, 'a, const A: "immutable" | "exclusive", I> of CloneIterator<I, T>
     implements Iterator<^T>
-    where T: Clone, I: Iterable<ImmutableOf<T>, type Iterator = I>
+    where T: Clone, I: Iterable<Borrowed<T, 'a, A>, type Iterator = I>
 {
-    /// The access required by the source iterator.
-    const NextAccess = I.NextAccess;
-
     /// The source iterator's completion value.
     type Return = I.Return;
 
     /// Advance and clone the next yielded value.
-    next(this: WithAccess<&this, this.NextAccess>): IteratorResult<^T, I.Return> {
+    next(&this): IteratorResult<^T, I.Return> {
         todo("CloneIterator.next")
     }
 }
 
-export extension<T: Copy, I: Iterator<&readonly ValueOf<T>>> of I {
-    /// Copy each borrowed value.
-    copied(this): CopyIterator<I, T> {
-        todo("Iterator.copied")
-    }
-}
-
-export extension<T, I> of I where T: Clone, I: Iterator<ImmutableOf<T>> {
-    /// Clone each borrowed value.
-    cloned(this): CloneIterator<I, T> {
-        todo("Iterator.cloned")
-    }
-}

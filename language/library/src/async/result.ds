@@ -1,22 +1,28 @@
 import { Err, Ok, Result } from "destack:error";
-import { Copy, Default, ImmutableOf } from "destack:memory";
+import { Copy, Default } from "destack:memory";
 import { FromResidual } from "destack:ops";
 
 import { Poll } from "./poll.ds";
 import { Promise } from "./promise.ds";
 import { Task } from "./task.ds";
 
-export extension PollResult<T, E> of Poll<Result<T, E>> implements FromResidual<E> {
+export extension PollResult<T, E> of Poll<Result<T, E>> implements FromResidual<Result<never, E>> {
     /// Create an available failed result from a propagated residual.
-    static fromResidual(residual: E): Poll<Result<T, E>> {
-        Poll.ready(Result.err(residual))
+    static fromResidual(residual: Result<never, E>): Poll<Result<T, E>> {
+        match (residual) {
+            Ok { value } => value
+            Err { error } => Poll.ready(Result.err(error))
+        }
     }
 }
 
-export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<E> {
+export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<Result<never, E>> {
     /// Create a failed result task from a propagated residual.
-    static fromResidual(residual: E): Task<Result<T, E>> {
-        Task.resolve(Result.err(residual))
+    static fromResidual(residual: Result<never, E>): Task<Result<T, E>> {
+        match (residual) {
+            Ok { value } => value
+            Err { error } => Task.resolve(Result.err(error))
+        }
     }
 
     /// Map the success value.
@@ -72,14 +78,14 @@ export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<
     }
 
     /// Run a side effect on success and keep the original result.
-    async tap(this, f: (value: ImmutableOf<T>) => void): Task<Result<T, E>> {
+    async tap(this, f: (value: &immutable local T) => void): Task<Result<T, E>> {
         const result = await this;
 
         result.tap(f)
     }
 
     /// Run a side effect on failure and keep the original result.
-    async tapErr(this, f: (error: ImmutableOf<E>) => void): Task<Result<T, E>> {
+    async tapErr(this, f: (error: &immutable local E) => void): Task<Result<T, E>> {
         const result = await this;
 
         result.tapErr(f)
@@ -115,10 +121,13 @@ export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<
 }
 
 export extension PromiseResult<T: Copy, E: Copy> of Promise<Result<T, E>>
-    implements FromResidual<E>
+    implements FromResidual<Result<never, E>>
 {
     /// Create a failed result promise from a propagated residual.
-    static fromResidual(residual: E): Promise<Result<T, E>> {
-        Promise.resolve(Result.err(residual))
+    static fromResidual(residual: Result<never, E>): Promise<Result<T, E>> {
+        match (residual) {
+            Ok { value } => value
+            Err { error } => Promise.resolve(Result.err(error))
+        }
     }
 }

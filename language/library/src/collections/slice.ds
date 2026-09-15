@@ -7,13 +7,11 @@ import {
     Clone,
     Copy,
     Default,
-    ImmutableOf,
     MaybeUninit,
     Owned,
     Raw,
     Region,
     raw,
-    ValueOf,
     WithAccess,
 } from "destack:memory";
 import { Compare, Index, IndexSet, Ordering } from "destack:ops";
@@ -65,7 +63,7 @@ export extension<T> of Slice<T> implements Default {
 
     /// Build a raw slice descriptor from raw storage.
     @unsafe
-    static fromRaw(data: *ValueOf<T>, length: usize): Raw<[T]> {
+    static fromRaw(data: *T, length: usize): Raw<[T]> {
         return sliceFromRaw<T>(data, length);
     }
 
@@ -143,10 +141,10 @@ export extension<T> of Slice<T> implements Default {
         // copy overlapping ranges without overwriting unread elements
         let length = sliceLength<T>(this);
         if (length != 0) {
-            let destination = raw.fromReference<ValueOf<T>>(sliceIndex(this, 0));
-            let origin = raw.fromReference<ValueOf<T>>(sliceIndex(source, 0));
+            let destination = raw.fromReference<T>(sliceIndex(this, 0));
+            let origin = raw.fromReference<T>(sliceIndex(source, 0));
 
-            raw.copy<ValueOf<T>>(destination, origin, length);
+            raw.copy<T>(destination, origin, length);
         }
     }
 
@@ -174,7 +172,7 @@ export extension<T> of Slice<T> implements Default {
     /// Sort this slice with borrowed values.
     sort<const A: "mutable" | "exclusive">(
         this: WithAccess<&this, A>,
-        compare: (left: ImmutableOf<T>, right: ImmutableOf<T>) => Ordering,
+        compare: (left: &immutable T, right: &immutable T) => Ordering,
     ): void where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("Slice.sort");
     }
@@ -188,7 +186,7 @@ export extension<T> of Slice<T> implements Default {
     /// Sort this slice without preserving equal-element order.
     sortUnstable<const A: "mutable" | "exclusive">(
         this: WithAccess<&this, A>,
-        compare: (left: ImmutableOf<T>, right: ImmutableOf<T>) => Ordering,
+        compare: (left: &immutable T, right: &immutable T) => Ordering,
     ): void where A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
         todo("Slice.sortUnstable");
     }
@@ -199,12 +197,12 @@ export extension<T: Copy> of Slice<T> implements Iterable<T>, Sequence {
     type Rest = ^Array<T>;
 
     /// Copy the elements from `start..end` for a rest pattern.
-    rest(this, start: isize, end?: isize): ^Array<T> {
+    rest(&readonly this, start: isize, end?: isize): ^Array<T> {
         todo("Slice.rest")
     }
 
     /// Return an iterator over copied values.
-    iterator(&readonly this): Iterator<T> {
+    iterator(&readonly this): this.Iterator {
         todo("Slice.iterator")
     }
 
@@ -242,28 +240,28 @@ export extension<T> of ^Slice<T> implements From<Iterable<T>>, FromIterator<T> {
 }
 
 export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Slice<T>, 'a, A>
-    implements Iterable<Borrowed<ValueOf<T>, 'a, A>>, Sequence
+    implements Iterable<Borrowed<T, 'a, A>>, Sequence
 {
     /// The borrowed sequence produced by a rest pattern.
-    type Rest = ^Array<Borrowed<ValueOf<T>, 'a, A>>;
+    type Rest = ^Array<Borrowed<T, 'a, A>>;
 
     /// Borrow the elements from `start..end` for a rest pattern.
-    rest(this, start: isize, end?: isize): ^Array<Borrowed<ValueOf<T>, 'a, A>> {
+    rest(this, start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("Slice.rest")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(this): Iterator<Borrowed<ValueOf<T>, 'a, A>> {
+    iterator(this): this.Iterator {
         todo("Slice.iterator")
     }
 
     /// Borrow the first element.
-    first(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
+    first(this): Borrowed<T, 'a, A> | undefined {
         todo("Slice.first")
     }
 
     /// Borrow the last element.
-    last(this): Borrowed<ValueOf<T>, 'a, A> | undefined {
+    last(this): Borrowed<T, 'a, A> | undefined {
         todo("Slice.last")
     }
 }
@@ -324,7 +322,7 @@ export extension<T: Clone> of Slice<T> implements ToOwned {
 /// Build a raw slice descriptor from raw parts.
 @unsafe
 @intrinsic("collections.slice.fromRaw")
-export declare function sliceFromRaw<T>(data: *ValueOf<T>, length: usize): Raw<[T]>;
+export declare function sliceFromRaw<T>(data: *T, length: usize): Raw<[T]>;
 
 /// Allocate one owned slice of `length` uninitialized elements.
 @intrinsic("collections.slice.uninit")
@@ -345,7 +343,7 @@ export declare function sliceIntoUninit<T>(values: ^[T]): ^[MaybeUninit<T>];
 export declare function sliceIndex<T, const R: Region, const A: Access>(
     slice: Borrowed<[T], R, A>,
     index: usize,
-): Borrowed<ValueOf<T>, R, A>;
+): Borrowed<T, R, A>;
 
 /// Return the element count of one slice view.
 @intrinsic("collections.slice.length")
@@ -382,10 +380,10 @@ export extension<T> of Slice<T> implements Index<isize> where T: Copy {
 
 export extension<T, const A: "immutable" | "exclusive"> of Slice<T> implements Index<isize, A> {
     /// The protected element storage.
-    type Output<const R: Region> = Borrowed<ValueOf<T>, R, A>;
+    type Output<const R: Region> = Borrowed<T, R, A>;
 
     /// Borrow the indexed storage.
-    index<const R: Region>(this: Borrowed<Slice<T>, R, A>, key: isize): Borrowed<ValueOf<T>, R, A> {
+    index<const R: Region>(this: Borrowed<Slice<T>, R, A>, key: isize): Borrowed<T, R, A> {
         todo("Slice.index")
     }
 }

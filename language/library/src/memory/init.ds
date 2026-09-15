@@ -1,7 +1,7 @@
 import { Access } from "./access.ds";
 import { Default, Zeroable } from "./capability.ds";
 import { dropInPlace } from "./raw.ds";
-import { ValueOf, WithAccess } from "./type.ds";
+import { WithAccess } from "./type.ds";
 
 /// Storage for `T` whose lifetime may not have started.
 @languageItem("memory.MaybeUninit")
@@ -24,20 +24,20 @@ export declare function initZeroed<T: Zeroable>(): MaybeUninit<T>;
 export declare function initWrite<T>(
     storage: &exclusive MaybeUninit<T>,
     value: T,
-): &exclusive ValueOf<T>;
+): &exclusive T;
 
 /// Return a raw pointer to one storage borrowed at any access.
 @intrinsic("memory.init.asPointer")
 export declare function initAsPointer<T, const A: Access = "mutable">(
     storage: WithAccess<&MaybeUninit<T>, A>,
-): *ValueOf<T>;
+): *T;
 
 /// Borrow initialized storage; the caller must preserve its validity for the returned borrow.
 @unsafe
 @intrinsic("memory.init.assumeInitReference")
 export declare function assumeInitReference<T, const A: Access = "mutable">(
     storage: WithAccess<&MaybeUninit<T>, A>,
-): WithAccess<&ValueOf<T>, A>;
+): WithAccess<&T, A>;
 
 /// Move initialized storage out as `T`; the caller must establish initialization.
 @unsafe
@@ -52,7 +52,7 @@ export declare function assumeInitRead<T>(storage: &MaybeUninit<T>): T;
 /// Drop one initialized storage in place.
 @unsafe
 export function assumeInitDrop<T>(storage: &MaybeUninit<T>): void {
-    dropInPlace<ValueOf<T>>(initAsPointer<T, "mutable">(storage));
+    dropInPlace<T>(initAsPointer<T, "mutable">(storage));
 }
 
 export extension<T> of MaybeUninit<T> implements Default {
@@ -77,30 +77,30 @@ export extension<T> of MaybeUninit<T> implements Default {
     }
 
     /// Initialize this storage with `value`.
-    write(&exclusive this, value: T): &exclusive ValueOf<T> {
+    write(&exclusive this, value: T): &exclusive T {
         return initWrite<T>(this, value);
     }
 
     /// Return a raw pointer to the storage.
-    asPointer(&this): *ValueOf<T> {
+    asPointer(&this): *T {
         return initAsPointer<T>(this);
     }
 
     /// Borrow initialized storage.
     @unsafe
-    assumeInitReference(&this): &ValueOf<T> {
+    assumeInitReference(&this): &T {
         return assumeInitReference<T>(this);
     }
 
     /// Borrow initialized storage with readonly access.
     @unsafe
-    assumeInitReadonlyReference(&readonly this): &readonly ValueOf<T> {
+    assumeInitReadonlyReference(&readonly this): &readonly T {
         return assumeInitReference<T, "readonly">(this);
     }
 
     /// Borrow initialized storage with mutable access.
     @unsafe
-    assumeInitExclusiveReference(&exclusive this): &exclusive ValueOf<T> {
+    assumeInitExclusiveReference(&exclusive this): &exclusive T {
         return assumeInitReference<T, "exclusive">(this);
     }
 

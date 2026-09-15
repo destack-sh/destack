@@ -1,5 +1,3 @@
-import { ImmutableOf } from "./type.ds";
-
 /// Mark a type as having a complete storage representation.
 @languageItem("memory.Concrete")
 export newtype interface Concrete {}
@@ -16,17 +14,17 @@ export newtype interface SharedSafe {}
 @languageItem("memory.Clone")
 export newtype interface Clone {
     /// Clone this value.
-    clone(this: ImmutableOf<this>): ^this;
+    clone(this: &immutable this): ^this;
 
     /// Replace this value with a clone of `source`.
-    cloneFrom(&exclusive this, source: ImmutableOf<this>): void {
+    cloneFrom(&exclusive this, source: &immutable this): void {
         *this = source.clone();
     }
 }
 
 /// Mark a type as implicitly duplicable without ownership transfer.
 @languageItem("memory.Copy")
-export newtype interface Copy {}
+export newtype interface Copy extends Clone {}
 
 /// Mark a type as safe to move out of pinned storage.
 @languageItem("memory.Unpin")

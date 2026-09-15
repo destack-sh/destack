@@ -1,5 +1,3 @@
-import { ImmutableOf } from "destack:memory";
-
 /// A stateful hash sink.
 @languageItem("ops.Hasher")
 export newtype interface Hasher {
@@ -22,5 +20,5 @@ export newtype interface Hasher {
 @languageItem("ops.Hash")
 export newtype interface Hash {
     /// Add this value to `state`.
-    hash(this: ImmutableOf<this>, state: &Hasher): void;
+    hash(this: &immutable this, state: &Hasher): void;
 }

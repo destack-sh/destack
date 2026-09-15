@@ -29,7 +29,12 @@ export class Logger {
     }
 
     /// Write one log entry.
-    log(&readonly this, level: Level, name: &readonly string, options?: LogOptions): void {
+    log<'a>(
+        &'a readonly this,
+        level: Level,
+        name: &'a readonly string,
+        options?: LogOptions<'a>,
+    ): void {
         const entry = LogEntry {
             level,
             name,
@@ -44,32 +49,42 @@ export class Logger {
     }
 
     /// Write one trace event.
-    trace(&readonly this, name: &readonly string, fields?: Fields): void {
+    trace<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
         this.log(Level.Trace, name, { fields });
     }
 
     /// Write one debug event.
-    debug(&readonly this, name: &readonly string, fields?: Fields): void {
+    debug<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
         this.log(Level.Debug, name, { fields });
     }
 
     /// Write one informational event.
-    info(&readonly this, name: &readonly string, fields?: Fields): void {
+    info<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
         this.log(Level.Info, name, { fields });
     }
 
     /// Write one warning event.
-    warn(&readonly this, name: &readonly string, fields?: Fields): void {
+    warn<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
         this.log(Level.Warn, name, { fields });
     }
 
     /// Write one error event.
-    error(&readonly this, name: &readonly string, fields?: Fields, error?: unknown): void {
+    error<'a>(
+        &'a readonly this,
+        name: &'a readonly string,
+        fields?: Fields,
+        error?: unknown,
+    ): void {
         this.log(Level.Error, name, { fields, error });
     }
 
     /// Write one fatal event.
-    fatal(&readonly this, name: &readonly string, fields?: Fields, error?: unknown): void {
+    fatal<'a>(
+        &'a readonly this,
+        name: &'a readonly string,
+        fields?: Fields,
+        error?: unknown,
+    ): void {
         this.log(Level.Fatal, name, { fields, error });
     }
 }
@@ -80,7 +95,7 @@ export function logger(name: string): Logger {
 }
 
 /// Write one log entry.
-export function log(level: Level, name: &readonly string, options?: LogOptions): void {
+export function log<'a>(level: Level, name: &'a readonly string, options?: LogOptions<'a>): void {
     const entry = LogEntry {
         level,
         name,
