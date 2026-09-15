@@ -9,10 +9,10 @@ macro_rules! runtime_operations {
             Allocate = 0x0000 => allocate: Allocate -> Pointer,
             /// Allocate one repeated heap backing.
             AllocateRepeated = 0x0001 => allocate_repeated: AllocateRepeated -> Pointer,
-            /// Destroy one erased unique value.
-            Drop = 0x0002 => drop: Drop -> Void,
-            /// Return one unique heap value.
-            Release = 0x0003 => release: Release -> Void,
+            /// Release one unique heap value.
+            Release = 0x0002 => release: Release -> Void,
+            /// Free one unique heap value holding no live values.
+            Free = 0x0003 => free: Free -> Void,
             /// Record one managed reference write.
             WriteBarrier = 0x0004 => write_barrier: WriteBarrier -> Void,
 
@@ -96,16 +96,16 @@ pub type AllocateRepeated = unsafe extern "C-unwind" fn(
     initialization: AllocationInitialization,
 ) -> usize;
 
-/// Destroy one erased unique value through the runtime.
-pub type Drop = unsafe extern "C-unwind" fn(
+/// Release one unique heap value through the runtime.
+pub type Release = unsafe extern "C-unwind" fn(
     activation: *mut Activation,
     owner: usize,
     frame_map: u32,
     marker: *const u8,
 );
 
-/// Return one unique heap value through the runtime.
-pub type Release = unsafe extern "C-unwind" fn(activation: *mut Activation, owner: usize);
+/// Free one unique heap value holding no live values through the runtime.
+pub type Free = unsafe extern "C-unwind" fn(activation: *mut Activation, owner: usize);
 
 /// Record one managed reference write through the runtime.
 pub type WriteBarrier = unsafe extern "C-unwind" fn(
