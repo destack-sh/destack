@@ -11,36 +11,46 @@ Eventually, we will arrive at some new final form, resembling the familiar old o
 
 [illustration of cambrian explosion carnage](TODO)
 
-If you need software, there are two options:
-- **Build** and take on the uncertain process of artisinal production directly, including the risk for supply chain attacks, vendor sprawl, and deployment hell, only to most likely get half baked software and an additional maintenance burden.
-- **Buy** and pay the cost and integration required to get up and running, accept somebody else's slightly suptimal process as a critical dependency, and then be stuck paying rent to some vendor for at least the next good while.
+Thus, there is a are rare opportunity to explore and establish entirely new software production processes: probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, _while simultaenously AI drastically reduces the cost of software production and migration. 
+In other words, now is the time to reconsider the entire stack.
 
-But now, suddenly, we have a rare dual opportunity: probabilistic computing enables new kinds of useful software, which drives new use cases and exploration, _and_ simultaenously AI drastically reduces the cost of software production and migration. 
-It's the perfect time to reconsider everything.
+> To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
+— Edsger Dijkstra, The Humble Programmer 1972
 
-The contemporary software stack is beginning to buckle under its own weight, and the volume and angle of its new silicon users is too much.
+It's a good moment too, as it's now clear that the contemporary software stack is buckling under its own weight; the volume, angle and speed of its new silicon users is just too much.
 Alas, the software stack built on the past was, regerettably, not built for this future.
-And it's a damn shame, because the original dream for software very much waited for this moment.
+And it's a shame, because the original dream for software very much anticipated this moment.
+
 
 # The Software We Were Promised
 
-Software wasn't meant to be like _this_.
-Software was meant to be open, hackable, remixable. 
-Hardware has advanced tremendously, incredible, and yet, a duller, fragmented version of software dreams has settled in and stayed stuck.  
-What gives?
+Software was never meant to be like _this_.
+The pioneers meant for software to be open, hackable, remixable. 
+Hardware has advanced tremendously, fat beyond the capabilities envisiaged half a century ago, and yet, a duller, fragmented version of software dreams has settled in and stayed stuck.
+Why?
 
 :::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
 :::
 
-Somewhere, deep in the terms of service of 47 different SaaS vendors with disjoint data stores, the software dream died with a whimper.
-It is insufficient to patch this problem with "connectors", the problem is a much more fundamental architecture issue, one that it is impossible to correct unless we reconsider the entire stack.
+Somewhere deep in the terms of service governing SaaS vendor #47's subprocessor's data stores, the dream of malleable software died.
+Just at the time where we _just_ got the tools to - theoretically - 
+How do you unify, customise, and evolve the software you need?
 
-Building a new stack is just on the cusp of moving from _impossible_ to _very hard_.
+Today, if you wanted to own your software suite, you would need access to enough of the sources for each vendor, then make sure they all use the same kinds of stores and interfaces and APIs, and only then could we maybe unify enough of the stack to join "reminders in Notion" with "leads in Salesforce" and "events in calendar".
+With the current stack, this is just not a serious option, so we have "connectors".
+
+[xkdc meme with the woblly stack?](TODO)
+
+But connectors are a hack. 
+Software itself is a leaky abstraciton.
+It is insufficient to patch the problem of incompatible software products with "more and better connectors", because that is solving the symptom; there is a much more fundamental architecture issue, one that it is impossible to correct unless we reconsider the entire stack.
+
+Fortunately, building a new stack just moved from _impossible_ to _very hard_.
 To get the most out of software, we need software we can _own_, no rent, no lock-in.
 Something fully hackable, debuggable, that is easy to self-host.
 Not necessarily because we want to, but because we want to want to
 
-And we're not going to get that software by merely "accelerating" old processes in "self-driving factories". 
+But we're not going to get that software by merely "accelerating" old processes in "self-driving factories". 
 To truly industrialise the precise industrialised manufacture of software, we need entirely _new_ processes.
 New procesess, not just for studying and developing software behavior, but entirely new lifecycles.
 
@@ -163,8 +173,9 @@ The Web is pretty great, TypeScript is pretty great, how far can we take that?.
 [the essence of the bull](TODO)
 
 We have long figured out that opinionated formatters are a great idea to remove silly syntax debates and just standardized the _appearence_ of code once and for all.
-Maybe not _perfectly_, but the standardization _is_ the benefit.
-Why not also standardize the _shape_ of code? Not just syntax, not just linters, but semantics: state trees, call flows, dependencies, entire architectures. 
+Maybe the syntax is not _perfect_ by your personal standards, but it removes unproductive arguments, and that's the benefit.
+ <!--and meta-frameworks serves a similar need.-->
+Why not just go all the way, and fully standardize the _shape_ of code? Not just syntax, not just linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures. 
 
 <!--- very simple product to manage personal software, personal software stack
 - comes with a default stack
@@ -177,7 +188,7 @@ Why not also standardize the _shape_ of code? Not just syntax, not just linters,
 
 # TypeScript++
 
-The univeral final stack will, eventually, require the universral final language.
+The univeral final stack will, logically, require the universral final language.
 But surprisingly, we do not quite have that universal complete language yet. 
 Of course, there are languages you could _contort_ to target all platforms and write everything from systems software to API services to web apps.
 But there is a reason nobody runs Rust rust for web apps, even though WASM has existed for a decade.
@@ -189,6 +200,7 @@ Everyone knows TypeScript, and - critically - the web runs on TypeScript (JavaSc
 
 TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language.
 Naturally, there is serious prior art in the realm of "TS ergonomics with systems performance": Static Hermes, Assembly Script, ...
+The shape of TypeScript is conveniently amendable to the (minor) modifications we need to make it analysable and simulatable, with very familiar APIs.
 
 We want, effectively, "TypeScript++".
 Kill all the soundness warts, add just enough features added to enable memory safe systems programming, and build out familiar enough serious runtime.
