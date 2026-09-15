@@ -186,9 +186,14 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                             return Ok(outcome);
                         }
                     }
+                    Opcode::RELEASE => {
+                        self.cursor.set_position(position);
+                        self.execute_release(operation_pc, instruction)?;
+                        position = self.cursor.position();
+                    }
                     Opcode::FREE => self.execute_free(instruction)?,
                     Opcode::BARRIER => self.execute_reference(instruction)?,
-                    Opcode::DROP | Opcode::DROP_INDIRECT => {
+                    Opcode::DROP => {
                         self.cursor.set_position(position);
                         self.execute_drop(operation_pc, instruction)?;
                         position = self.cursor.position();

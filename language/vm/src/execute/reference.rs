@@ -1,10 +1,10 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode, ReferenceType, RegisterId, Space};
-use destack_heap::{DropCardinality, HeapEdge, HeapReference, SharedHeapReference};
+use destack_heap::{HeapEdge, HeapReference, Release, SharedHeapReference};
 use destack_mir as mir;
 use destack_program::{FunctionId, Runtime, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
-use crate::machine::Activation;
+use crate::machine::{Activation, Released, Return};
 
 impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     /// Read one stable heap edge from a program storage space.
@@ -14,10 +14,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         match space {
             mir::Space::Local => Ok(HeapEdge::Local(HeapReference::from_bits(bits))),
             mir::Space::Shared => Ok(HeapEdge::Shared(SharedHeapReference::from_bits(bits))),
-            mir::Space::Constant
-            | mir::Space::Parameter(_)
-            | mir::Space::Slot(_)
-            | mir::Space::Join(_) => Err(self.invalid_instruction()),
+            mir::Space::Constant | mir::Space::Parameter(_) | mir::Space::Join(_) => {
+                Err(self.invalid_instruction())
+            }
         }
     }
 
@@ -36,7 +35,52 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         self.read_edge(register, space)
     }
 
-    /// Execute one unique allocation return.
+    /// Execute one release of a unique allocation.
+    pub(crate) fn execute_release(
+        &mut self,
+        pc: CodeOffset,
+        instruction: Instruction<'_>,
+    ) -> ExecutionResult<(), R::Error> {
+        let mut operands = self.operands(instruction);
+        let owner = operands.register()?;
+        let bits = self.read(owner.0).bits() as usize;
+        let Some(edge) = self.activation.memory.edge(bits).map_err(Error::heap)? else {
+            return Ok(());
+        };
+        let Release::Destroy { plan, byte_len } =
+            self.activation.memory.release(edge).map_err(Error::heap)?
+        else {
+            return Ok(());
+        };
+
+        // select the placement-specific destructor
+        let entry = self
+            .machine
+            .program
+            .drop_entry(plan.drop)
+            .ok_or_else(|| self.invalid_instruction())?;
+        let function = match edge {
+            HeapEdge::Local(_) => entry.local.get(),
+            HeapEdge::Shared(_) => entry.shared.get(),
+        }
+        .ok_or_else(|| self.invalid_instruction())?;
+        let remaining = plan.value_count(byte_len).map_err(Error::heap)?;
+        let remaining = u32::try_from(remaining).map_err(|_| self.invalid_instruction())?;
+        let stride = u32::try_from(plan.stride()).map_err(|_| self.invalid_instruction())?;
+        let caller_state = self.machine.frame_state_at(self.frame(), pc)?;
+
+        self.destroy_released(Released {
+            pc,
+            caller_state,
+            frame_count: 0,
+            owner: bits,
+            function,
+            stride,
+            remaining,
+        })
+    }
+
+    /// Execute one free of a unique allocation holding no live values.
     pub(crate) fn execute_free(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);
         let owner = operands.register()?;
@@ -45,7 +89,33 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             return Ok(());
         };
 
-        self.activation.memory.release(edge).map_err(Error::heap)
+        self.activation.memory.free(edge).map_err(Error::heap)
+    }
+
+    /// Destroy the next value of one released allocation, freeing it after the last.
+    pub(crate) fn destroy_released(&mut self, released: Released) -> ExecutionResult<(), R::Error> {
+        // free the storage once every value is destroyed
+        let Some(remaining) = released.remaining.checked_sub(1) else {
+            let edge = self
+                .activation
+                .memory
+                .edge(released.owner)
+                .map_err(Error::heap)?
+                .ok_or_else(|| self.invalid_instruction())?;
+            self.activation.memory.free(edge).map_err(Error::heap)?;
+
+            return Ok(());
+        };
+
+        // destroy the values from the last to the first
+        let offset = remaining as usize * released.stride as usize;
+        let reference = Word::from_bits((released.owner + offset) as u64);
+        let return_to = Return::Release(Released {
+            remaining,
+            ..released
+        });
+
+        self.call_destructor(released.function, reference, return_to)
     }
 
     /// Execute one heap reference lifetime or collector operation.
@@ -81,57 +151,19 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         pc: CodeOffset,
         instruction: Instruction<'_>,
     ) -> ExecutionResult<(), R::Error> {
+        // call one statically linked frame destructor
         let mut operands = self.operands(instruction);
-        let (function, reference) = match instruction.opcode() {
-            // call one statically linked frame destructor
-            Opcode::DROP => {
-                let value = operands.span()?;
-                let function = FunctionId(operands.u32()?);
-                let value = self.register_byte_range(value)?;
-                let reference = self.fiber.stack.memory_offset(value.start);
-
-                (function, Word::from_bits(reference as u64))
-            }
-            // select one erased allocation destructor from its heap metadata
-            Opcode::DROP_INDIRECT => {
-                let owner = operands.register()?;
-                let reference = self.read(owner.0);
-                let Some(edge) = self
-                    .activation
-                    .memory
-                    .edge(reference.bits() as usize)
-                    .map_err(Error::heap)?
-                else {
-                    return Ok(());
-                };
-                let Some(plan) = self
-                    .activation
-                    .memory
-                    .drop_plan(edge)
-                    .map_err(Error::heap)?
-                else {
-                    return Ok(());
-                };
-                if plan.cardinality != DropCardinality::One {
-                    return Err(self.invalid_instruction().into());
-                }
-                let entry = self
-                    .machine
-                    .program
-                    .drop_entry(plan.drop)
-                    .ok_or_else(|| self.invalid_instruction())?;
-                let function = match edge {
-                    HeapEdge::Local(_) => entry.local.get(),
-                    HeapEdge::Shared(_) => entry.shared.get(),
-                }
-                .ok_or_else(|| self.invalid_instruction())?;
-
-                (function, reference)
-            }
-            _ => unreachable!("drop dispatch selects one drop opcode"),
-        };
+        let value = operands.span()?;
+        let function = FunctionId(operands.u32()?);
+        let value = self.register_byte_range(value)?;
+        let reference = Word::from_bits(self.fiber.stack.memory_offset(value.start) as u64);
         let caller_state = self.machine.frame_state_at(self.frame(), pc)?;
+        let return_to = Return::Drop {
+            pc,
+            caller_state,
+            frame_count: 0,
+        };
 
-        self.call_destructor(function, reference, pc, caller_state, 0)
+        self.call_destructor(function, reference, return_to)
     }
 }

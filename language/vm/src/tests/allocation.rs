@@ -59,7 +59,7 @@ function f0 {
     new.zeroed r2, a0
     barrier r2, r0, r1: ref<managed, local>
     new.zeroed r3, a1
-    free r3
+    release r3
     constant.boolean r4, true
     return r4
 }

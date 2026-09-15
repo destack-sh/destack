@@ -4,8 +4,8 @@ use std::ptr;
 use destack_bytecode::{CodeOffset, Instruction, Operands, RegisterId, RegisterSpan};
 use destack_program as program;
 use destack_program::{
-    Completion, EventSet, FrameStateId, FunctionId, Outcome, Profile, ProgramPoint, ResumeSkip,
-    Runtime, StopSet, WatchSet, Word,
+    Completion, EventSet, FunctionId, Outcome, Profile, ProgramPoint, ResumeSkip, Runtime, StopSet,
+    WatchSet, Word,
 };
 
 use crate::diagnostic::{
@@ -277,7 +277,7 @@ where
             Return::Exit { .. } => {
                 return Err(self.invalid_instruction().into());
             }
-            Return::Drop { .. } => return_to,
+            Return::Drop { .. } | Return::Release(_) => return_to,
         };
         if let Callee::Binding(binding) =
             Callee::resolve(&self.machine.program, self.machine.bytecode, function)?
@@ -403,17 +403,10 @@ where
         &mut self,
         function: FunctionId,
         reference: Word,
-        pc: CodeOffset,
-        caller_state: FrameStateId,
-        frame_count: u16,
+        return_to: Return,
     ) -> ExecutionResult<(), R::Error> {
         let Some(_caller) = self.fiber.frames.last().copied() else {
             unreachable!("destructors require an active caller");
-        };
-        let return_to = Return::Drop {
-            pc,
-            caller_state,
-            frame_count,
         };
         let frame = self
             .machine
@@ -656,40 +649,62 @@ where
                 if results.word_count != 0 {
                     return Err(self.invalid_instruction().into());
                 }
-                let stack_byte_len = if frame_count == 0 {
-                    frame.byte_offset()
-                } else {
-                    let first_frame = self
-                        .fiber
-                        .frames
-                        .len()
-                        .checked_sub(frame_count as usize)
-                        .ok_or_else(|| self.invalid_instruction())?;
-                    let Some(first) = self.fiber.frames.get(first_frame).copied() else {
-                        return Err(self.invalid_instruction().into());
-                    };
+                self.finish_destructor(frame, frame_count)?;
 
-                    // publish and remove retained frames from innermost to outermost
-                    while self.fiber.frames.len() > first_frame {
-                        let Some(frame) = self.fiber.frames.pop() else {
-                            return Err(self.invalid_instruction().into());
-                        };
-                        self.observe(program::Event::Frame {
-                            event: program::FrameEvent::Exit,
-                            function: frame.function,
-                        })?;
-                    }
+                Ok(None)
+            }
 
-                    first.byte_offset()
-                };
-                self.fiber.stack.truncate(stack_byte_len);
-                if !self.fiber.frames.is_empty() {
-                    self.activate();
+            // destroy the next released value, or free the allocation after its last
+            Return::Release(released) => {
+                if results.word_count != 0 {
+                    return Err(self.invalid_instruction().into());
                 }
+                self.finish_destructor(frame, released.frame_count)?;
+                self.destroy_released(released)?;
 
                 Ok(None)
             }
         }
+    }
+
+    /// Release one completed destructor frame and its retained continuation frames.
+    fn finish_destructor(
+        &mut self,
+        frame: Frame,
+        frame_count: u16,
+    ) -> ExecutionResult<(), R::Error> {
+        let stack_byte_len = if frame_count == 0 {
+            frame.byte_offset()
+        } else {
+            let first_frame = self
+                .fiber
+                .frames
+                .len()
+                .checked_sub(frame_count as usize)
+                .ok_or_else(|| self.invalid_instruction())?;
+            let Some(first) = self.fiber.frames.get(first_frame).copied() else {
+                return Err(self.invalid_instruction().into());
+            };
+
+            // publish and remove retained frames from innermost to outermost
+            while self.fiber.frames.len() > first_frame {
+                let Some(frame) = self.fiber.frames.pop() else {
+                    return Err(self.invalid_instruction().into());
+                };
+                self.observe(program::Event::Frame {
+                    event: program::FrameEvent::Exit,
+                    function: frame.function,
+                })?;
+            }
+
+            first.byte_offset()
+        };
+        self.fiber.stack.truncate(stack_byte_len);
+        if !self.fiber.frames.is_empty() {
+            self.activate();
+        }
+
+        Ok(())
     }
 
     /// Return the active frame by value.

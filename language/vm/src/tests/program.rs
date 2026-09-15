@@ -431,7 +431,7 @@ impl TestProgram {
                 shared_offsets: Box::new([0]),
                 frame_offsets: Box::new([]),
             },
-            (Reference::Managed | Reference::Unique | Reference::Borrowed(_), Storage::Frame) => {
+            (Reference::Managed | Reference::Unique | Reference::Borrowed, Storage::Frame) => {
                 TraceMap::Fixed {
                     local_offsets: Box::new([]),
                     shared_offsets: Box::new([]),

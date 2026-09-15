@@ -47,6 +47,27 @@ pub(crate) enum Return {
         /// Retained caller frames released after this destructor returns.
         frame_count: u16,
     },
+    /// Destroy the next value of one released allocation, freeing it after the last.
+    Release(Released),
+}
+
+/// One released allocation destroyed value by value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct Released {
+    /// Caller program counter that released the allocation.
+    pub(crate) pc: CodeOffset,
+    /// Canonical caller state retained across destructor execution.
+    pub(crate) caller_state: FrameStateId,
+    /// Retained caller frames released after the last destructor returns.
+    pub(crate) frame_count: u16,
+    /// The released allocation owner.
+    pub(crate) owner: usize,
+    /// The destructor run over each value.
+    pub(crate) function: FunctionId,
+    /// The byte stride between values.
+    pub(crate) stride: u32,
+    /// The number of values still to destroy.
+    pub(crate) remaining: u32,
 }
 
 impl Return {
@@ -55,6 +76,7 @@ impl Return {
         match self {
             Self::Exit { .. } => None,
             Self::Call { pc, .. } | Self::Drop { pc, .. } => Some(pc),
+            Self::Release(released) => Some(released.pc),
         }
     }
 
@@ -62,7 +84,8 @@ impl Return {
     pub(crate) const fn state(self) -> Option<FrameStateId> {
         match self {
             Self::Drop { caller_state, .. } => Some(caller_state),
-            _ => None,
+            Self::Release(released) => Some(released.caller_state),
+            Self::Exit { .. } | Self::Call { .. } => None,
         }
     }
 }

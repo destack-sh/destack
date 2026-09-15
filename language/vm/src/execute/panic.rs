@@ -69,7 +69,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             // enter the nearest explicit unwind cleanup
             let unwind = match frame.return_to {
                 Return::Call { unwind, .. } => unwind,
-                Return::Exit { .. } | Return::Drop { .. } => None,
+                Return::Exit { .. } | Return::Drop { .. } | Return::Release(_) => None,
             };
             if let Some(unwind) = unwind {
                 self.jump(unwind);
