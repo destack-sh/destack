@@ -70,6 +70,11 @@ impl Formatter<'_, '_, '_> {
 
                 Ok(format!("TryResidual<{value}>"))
             }
+            dir::TypeOperation::TryFailure { value } => {
+                let value = self.global_type(*value)?;
+
+                Ok(format!("TryFailure<{value}>"))
+            }
             dir::TypeOperation::StaticBinary(binary) => self.static_binary(*binary),
             dir::TypeOperation::StaticUnary(unary) => self.static_unary(*unary),
             dir::TypeOperation::TemplateLiteral(template) => self.template_literal(*template),
