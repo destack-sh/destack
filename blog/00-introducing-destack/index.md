@@ -26,8 +26,8 @@ And it's a shame, because the original dream for software directly anticipated t
 
 Software was never meant to be like _this_.
 The pioneers meant for software to be open, hackable, remixable.
-Hardware has advanced tremendously, far beyond the capabilities envisiaged half a century ago, and yet, a duller, fragmented version of software has settled in and stayed stuck.
-Somewhere deep in the terms of service governing SaaS vendor #47's subprocessor's data stores, the dream of malleable software died.
+Hardware has advanced far beyond the capabilities envisiaged half a century ago, and yet, a duller, fragmented version of software has settled in.
+Somewhere deep in the terms of service governing SaaS vendor #47's subprocessor's database, the dream of malleable software died.
 
 :::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
 :::
