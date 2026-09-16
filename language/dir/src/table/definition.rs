@@ -448,8 +448,6 @@ pub struct ClassDefinition {
     pub implements: Vec<NominalConformance>,
     /// The written derive list replacing the auto set, if any.
     pub derives: Option<Vec<AutoInterface>>,
-    /// The class's direct construct candidates.
-    pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }

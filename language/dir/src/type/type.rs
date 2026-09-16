@@ -757,13 +757,14 @@ impl TypeListId {
 }
 
 /// Access to borrowed storage.
-#[derive(
+#[derive(Default, 
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum Access {
     /// Read access while aliases may write.
     Readonly,
-    /// Read and write access while aliases may access the storage.
+    /// Read and write access while aliases may access the storage, the written default.
+    #[default]
     Mutable,
     /// Read access that excludes conflicting writes.
     Immutable,

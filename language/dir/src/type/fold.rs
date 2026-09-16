@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 
 use crate::{
     Access, AutoInterface, AwaitTarget, BinaryOperator, CaptureMode, CastOrigin, EnumBackingType,
-    EnumVariantValue, FunctionRole, FunctionSignature, GenericParameterKey, GenericParameterKind,
-    GenericParameterOrigin, GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId,
+    EnumVariantValue, FunctionRole, FunctionSignature, GenericParameterKey, GenericParameterOrigin,
+    MemoryParameter, GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId,
     GlobalStaticId, GlobalSymbolId, GlobalTypeId, InstanceOrigin, IntegerType, LanguageItem,
     Literal, LocalCaptureFrameId, LocalGenericParameterId, LocalGenericTemplateId, LocalNodeId,
     LocalScopeId, MappedTypeModifiers, MemberKind, MemberOrigin, MemberRole, MemberSlot,
@@ -298,8 +298,8 @@ type_leaves!(
     EnumVariantValue,
     FunctionRole,
     GenericParameterKey,
-    GenericParameterKind,
     GenericParameterOrigin,
+    MemoryParameter,
     IntegerType,
     LanguageItem,
     MemberKind,

@@ -128,10 +128,15 @@ pub enum GenericParameterOrigin {
 }
 
 /// Representation used to solve one generic parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum GenericParameterKind {
     /// A regular type parameter.
     Type,
+    /// An extent parameter, paired with the place its declaration elides.
+    Extent {
+        /// The paired place.
+        place: GlobalTypeId,
+    },
     /// A const parameter of one well-known memory kind.
     Memory(MemoryParameter),
 }
@@ -146,10 +151,19 @@ pub enum GenericParameterUse {
 }
 
 impl GenericParameterKind {
+    /// Return the memory kind this parameter ranges over.
+    pub fn memory_parameter(self) -> Option<MemoryParameter> {
+        match self {
+            Self::Type => None,
+            Self::Extent { .. } => Some(MemoryParameter::Region),
+            Self::Memory(memory) => Some(memory),
+        }
+    }
+
     /// Return the flags a parameter of this kind contributes to the types mentioning it.
     pub fn parameter_flags(self) -> TypeFlags {
         match self {
-            Self::Memory(MemoryParameter::Region) => TypeFlags::EMPTY,
+            Self::Extent { .. } | Self::Memory(MemoryParameter::Region) => TypeFlags::EMPTY,
             Self::Type | Self::Memory(_) => TypeFlags::HAS_TYPE_PARAMETER,
         }
     }
@@ -171,12 +185,8 @@ impl GenericParameterKind {
 pub enum MemoryParameter {
     /// Borrow access.
     Access,
-    /// Ownership form.
-    Ownership,
     /// Relative or concrete placement.
     Place,
-    /// Concrete storage space.
-    Space,
     /// Borrow region.
     Region,
 }
@@ -186,9 +196,7 @@ impl MemoryParameter {
     pub const fn language_item(self) -> LanguageItem {
         match self {
             Self::Access => LanguageItem::Access,
-            Self::Ownership => LanguageItem::Ownership,
             Self::Place => LanguageItem::Place,
-            Self::Space => LanguageItem::Space,
             Self::Region => LanguageItem::Region,
         }
     }
@@ -197,9 +205,7 @@ impl MemoryParameter {
     pub fn from_language_item(item: LanguageItem) -> Option<Self> {
         match item {
             LanguageItem::Access => Some(Self::Access),
-            LanguageItem::Ownership => Some(Self::Ownership),
-            LanguageItem::Place => Some(Self::Place),
-            LanguageItem::Space => Some(Self::Space),
+            LanguageItem::Place | LanguageItem::Space => Some(Self::Place),
             LanguageItem::Lifetime => Some(Self::Region),
             LanguageItem::Region => Some(Self::Region),
             _ => None,
@@ -304,8 +310,6 @@ pub struct GenericParameterBinding {
     pub origin: GenericParameterOrigin,
     /// The representation used to solve the parameter.
     pub kind: GenericParameterKind,
-    /// The place a declared lifetime carries as its space coordinate.
-    pub place: Option<GlobalTypeId>,
     /// Whether the parameter captures remaining arguments.
     pub is_variadic: bool,
     /// Whether type inference preserves exact argument literals.
@@ -467,10 +471,7 @@ pub struct Instantiation {
 impl GenericParameterBinding {
     /// Return the parameter's well-known memory kind.
     pub fn memory_parameter(&self) -> Option<MemoryParameter> {
-        match self.kind {
-            GenericParameterKind::Memory(parameter) => Some(parameter),
-            GenericParameterKind::Type => None,
-        }
+        self.kind.memory_parameter()
     }
 
     /// Return the canonical name of one anonymous parameter.
@@ -483,9 +484,7 @@ impl GenericParameterBinding {
             (GenericParameterOrigin::Receiver, _) => "this".to_string(),
             (_, Some(MemoryParameter::Region)) => free_region_name(regions_in_scope),
             (_, Some(MemoryParameter::Access)) => format!("A{position}"),
-            (_, Some(MemoryParameter::Ownership)) => format!("O{position}"),
             (_, Some(MemoryParameter::Place)) => format!("P{position}"),
-            (_, Some(MemoryParameter::Space)) => format!("S{position}"),
             (_, None) => format!("T{position}"),
         }
     }
@@ -498,6 +497,9 @@ impl GenericParameterBinding {
     /// Return the kind of an induced memory parameter.
     pub fn induced_memory_parameter(&self) -> Option<MemoryParameter> {
         match (self.origin, self.kind) {
+            (GenericParameterOrigin::Induced, GenericParameterKind::Extent { .. }) => {
+                Some(MemoryParameter::Region)
+            }
             (GenericParameterOrigin::Induced, GenericParameterKind::Memory(parameter)) => {
                 Some(parameter)
             }
@@ -519,7 +521,7 @@ impl GenericParameterBinding {
     pub fn is_instance_parameter(&self) -> bool {
         match self.kind {
             GenericParameterKind::Type => true,
-            GenericParameterKind::Memory(MemoryParameter::Region) => false,
+            GenericParameterKind::Extent { .. } | GenericParameterKind::Memory(MemoryParameter::Region) => false,
             GenericParameterKind::Memory(_) => true,
         }
     }
