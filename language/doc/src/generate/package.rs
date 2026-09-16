@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use destack_artifact::{IndexKind, ModuleIndex};
@@ -6,8 +7,8 @@ use destack_repository::{ArtifactReader, Package};
 use destack_source::ModuleId;
 
 use crate::{
-    DocError, DocResult, ExportReference, ModuleReference, PACKAGE_REFERENCE_SCHEMA_VERSION,
-    PackageIdentity, PackageReference,
+    DocError, DocResult, ExportReference, ModuleReference, NamespaceReference,
+    PACKAGE_REFERENCE_SCHEMA_VERSION, PackageIdentity, PackageReference,
 };
 
 use super::Generator;
@@ -25,14 +26,33 @@ impl Generator<'_> {
             .ok_or_else(|| DocError::invalid("missing documented package name"))?;
         let configuration = package.configuration.as_deref();
         let mut references = Vec::new();
+        let mut pending = Vec::new();
+        let mut visited = HashSet::new();
 
         // project public modules in manifest order
         for (specifier, module_id) in modules {
+            visited.insert(module_id);
             references.push(self.module_reference(
                 specifier,
                 module_id,
                 package.path.as_deref(),
+                &mut pending,
             )?);
+        }
+
+        // visit each exported namespace once, including cyclic and shared exports
+        let mut namespaces = Vec::new();
+        let mut cursor = 0;
+        while cursor < pending.len() {
+            let module_id = pending[cursor];
+            cursor += 1;
+            if visited.insert(module_id) {
+                namespaces.push(self.namespace_reference(
+                    module_id,
+                    package.path.as_deref(),
+                    &mut pending,
+                )?);
+            }
         }
 
         Ok(PackageReference {
@@ -45,6 +65,7 @@ impl Generator<'_> {
                 license: configuration.and_then(|config| config.license.clone()),
             },
             modules: references,
+            namespaces,
         })
     }
 
@@ -54,7 +75,25 @@ impl Generator<'_> {
         specifier: String,
         module_id: ModuleId,
         package_path: Option<&Path>,
+        pending: &mut Vec<ModuleId>,
     ) -> DocResult<ModuleReference> {
+        let namespace = self.namespace_reference(module_id, package_path, pending)?;
+
+        Ok(ModuleReference {
+            module: namespace.module,
+            specifier,
+            path: namespace.path,
+            exports: namespace.exports,
+        })
+    }
+
+    /// Read a module's exports and enqueue the namespaces they expose.
+    fn namespace_reference(
+        &self,
+        module_id: ModuleId,
+        package_path: Option<&Path>,
+        pending: &mut Vec<ModuleId>,
+    ) -> DocResult<NamespaceReference> {
         let module = self
             .repository()
             .module(self.revision(), module_id)?
@@ -72,14 +111,25 @@ impl Generator<'_> {
                 index.kind()
             )));
         };
+        pending.extend(
+            index
+                .entries()
+                .iter()
+                .filter_map(|entry| entry.target.namespace()),
+        );
         let exports = index
             .entries()
             .iter()
             .map(|entry| self.export_reference(entry, package_path))
             .collect::<DocResult<Vec<_>>>()?;
 
-        Ok(ModuleReference {
-            specifier,
+        let identity = self
+            .repository()
+            .module_display(self.revision(), module_id)?
+            .ok_or_else(|| DocError::invalid("missing namespace module identity"))?;
+
+        Ok(NamespaceReference {
+            module: identity,
             path,
             exports,
         })

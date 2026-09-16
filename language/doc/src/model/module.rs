@@ -7,11 +7,25 @@ use super::DeclarationReference;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleReference {
+    /// The resolved module identity used by namespace exports.
+    pub module: String,
     /// The public import specifier.
     pub specifier: String,
     /// The package-relative source path.
     pub path: Option<String>,
     /// The module's public exports.
+    pub exports: Vec<ExportReference>,
+}
+
+/// A module reached through an exported namespace, rather than an import specifier.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[serde(rename_all = "camelCase")]
+pub struct NamespaceReference {
+    /// The resolved module identity used by namespace exports.
+    pub module: String,
+    /// The package-relative source path.
+    pub path: Option<String>,
+    /// The namespace's public exports.
     pub exports: Vec<ExportReference>,
 }
 

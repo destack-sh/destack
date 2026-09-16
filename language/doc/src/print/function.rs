@@ -109,6 +109,43 @@ impl Printer<'_, '_, '_> {
         Ok(FormattedSignature::named(prefix, name, suffix))
     }
 
+    /// Format an anonymous call or construct signature from its authored type member.
+    pub(super) fn type_member_signature(
+        &self,
+        member: &dir::TypeMember,
+    ) -> DocResult<FormattedSignature> {
+        let (prefix, generics, receiver, parameters, return_type) = match member {
+            dir::TypeMember::CallSignature { signature } => (
+                "",
+                &signature.generic_parameters,
+                signature.this_parameter,
+                &signature.parameters,
+                signature.return_type,
+            ),
+            dir::TypeMember::ConstructSignature { signature } => (
+                if signature.is_abstract {
+                    "abstract new "
+                } else {
+                    "new "
+                },
+                &signature.generic_parameters,
+                None,
+                &signature.parameters,
+                signature.return_type,
+            ),
+            _ => return Err(DocError::invalid("callable type member")),
+        };
+
+        // retain authored generic parameters, receiver, and argument names
+        let generics = self.generics(generics)?;
+        let parameters = self.parameter_labels(receiver, parameters)?.join(", ");
+        let return_type = self.return_type(return_type)?;
+
+        Ok(FormattedSignature::plain(format!(
+            "{prefix}{generics}({parameters}){return_type}"
+        )))
+    }
+
     /// Format one optional return type.
     fn return_type(
         &self,

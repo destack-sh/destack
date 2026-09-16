@@ -242,9 +242,15 @@ impl Printer<'_, '_, '_> {
             }
             dir::DefinitionMember::CallSignature(_)
             | dir::DefinitionMember::ConstructSignature(_) => {
-                let signature = self.authored_member_signature(member.source())?;
+                let source = member.source();
+                if source.local_id.ty != dir::NodeType::TypeMember {
+                    return Err(DocError::invalid(format!(
+                        "callable type member source: {source:?}"
+                    )));
+                }
+                let member_id = dir::LocalNodeId::<dir::TypeMember>::new(source.local_id.id);
 
-                self.named_call_signature(name, signature, false)?
+                self.type_member_signature(self.module.view().get(member_id))?
             }
             dir::DefinitionMember::IndexSignature(_) => {
                 let type_text = self.member_type(member)?;

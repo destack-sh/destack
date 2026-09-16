@@ -1,10 +1,10 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::ModuleReference;
+use super::{ModuleReference, NamespaceReference};
 
 /// The current package reference schema version.
-pub const PACKAGE_REFERENCE_SCHEMA_VERSION: u32 = 5;
+pub const PACKAGE_REFERENCE_SCHEMA_VERSION: u32 = 8;
 
 /// Checked public documentation for one package.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -18,6 +18,8 @@ pub struct PackageReference {
     pub package: PackageIdentity,
     /// The package's public modules.
     pub modules: Vec<ModuleReference>,
+    /// Modules reachable through public namespace exports.
+    pub namespaces: Vec<NamespaceReference>,
 }
 
 /// Public package identity and authored catalog metadata.
