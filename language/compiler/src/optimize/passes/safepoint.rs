@@ -22,8 +22,8 @@ impl FunctionPass for InsertSafepoints {
 
         // derive loop headers and reachable blocks before inserting polls
         let body = module.tree.get(function);
-        let dominator = analyses.dominator(body, &module.tree);
-        let loops = analyses.loops(body, &module.tree);
+        let dominator = analyses.dominator(function, &module.tree);
+        let loops = analyses.loops(function, &module.tree);
         let blocks = body.blocks().to_vec();
         let mut mutation = Mutation::NONE;
 

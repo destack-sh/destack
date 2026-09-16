@@ -19,7 +19,6 @@ pub(crate) fn optimize(elaborated: &MirElaborated) -> CompilerResult<MirOptimize
         layouts: elaborated.layouts.clone(),
         dispatch: elaborated.dispatch.clone(),
         drops: elaborated.drops.clone(),
-        accesses: elaborated.accesses.clone(),
         effects: elaborated.effects.clone(),
         profile: elaborated.profile.clone(),
     };
