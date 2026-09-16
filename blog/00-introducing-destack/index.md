@@ -1,6 +1,6 @@
 ---
 title: "Introducing Destack"
-subtitle: "TypeScript++, the final stack, and software you can own."
+subtitle: "TypeScript, the final stack, and software you can finally own."
 date: "2026-09-21"
 author: "Florian"
 ---
@@ -9,38 +9,47 @@ Software is entering a Cambrian Explosion, and, it is worth remembering, that me
 Both products and processes will undergo intense evolutionary pressure, with fast migrations enabling an exhaustive exploration of the hitherto underexplored space of all possible software.
 Eventually, we will arrive at some new final form, resembling the familiar old only in name.
 
-[illustration of cambrian explosion carnage](TODO)
+<!-- Publication license pending: Christian Jégou / Science Source. -->
+:::figure width="600" src="./cambrian-sea.jpg" alt="Illustration of Cambrian marine life, with Opabinia swimming above trilobites, spiny animals, and sponges."
+[Cambrian marine life](https://es.knowablemagazine.org/content/articulo/alimentos-ambiente/2026/como-los-herbivoros-obtienen-aminoacidos-esenciales) — Christian Jégou, Science Source.
+:::
 
-Thus, there is a are rare opportunity to explore and establish entirely new software production processes: probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, _while simultaenously AI drastically reduces the cost of software production and migration.
+Thus, there is a are rare opportunity to explore and establish entirely new software production processes: probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, simultaenously, AI drastically reduces the cost of software production and migration.
 In other words, now is the time to reconsider the entire stack.
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
 > — Edsger Dijkstra, *The Humble Programmer* (1972)
 
-The existing software stack is buckling under its own weight; the volume, angle and speed of its new silicon users is just too much.
-Alas, the software stack built on the past was, regerettably, not built for this future.
+The existing software stack is already buckling under its own weight; the volume, angle and speed of its new silicon users is just too much.
+Somewhat bizzarely, the computing stack we have was built for the speed of humans, _not_ the speed of computers.
+<!--The software stack built on the past was, regerettably, not built for this future.-->
 And it's a shame, because the original dream for software directly anticipated this moment.
 
 # The Software That Could Be
 
 Software was never meant to be like _this_.
-The pioneers meant for software to be open, hackable, remixable.
+The pioneers meant for software to be open, hackable, remixable, and fast.
 Hardware has advanced far beyond the capabilities envisiaged half a century ago, and yet, a duller, fragmented version of software has settled in.
 Somewhere deep in the terms of service governing SaaS vendor #47's subprocessor's database, the dream of malleable software died.
 
 :::figure width="600" src="./tiny-glade.gif" alt="In Tiny Glade, drawing a path through a wall creates an archway automatically."
-Path editing in Tiny Glade. Gameplay by [Pounce Light](https://store.steampowered.com/app/2198150/Tiny_Glade/). [Full trailer](https://www.youtube.com/watch?v=CdWpq2efN8Y).
+[Path editing in Tiny Glade](https://www.youtube.com/watch?v=CdWpq2efN8Y) — Pounce Light, trailer excerpt.
 :::
 
-Just at the time where we _just_ got the tools to - theoretically -
-How do you unify, customise, and evolve the software you need?
+Sure, "malleable software" and "end-user programming" have been valiantly resurrected again and again, and each time it failed.
+Basically, the economics of production and distribution just favored a mostly universal stack made of mostly distributed components too much.
+
+But! Now that we have a moment to, consider what could be. 
+Malleable software does exist, sort of, we just call it Excel and Notion on the one end and Unreal Engine Editor for Fortnite on the other. 
+If that is not malleable, what is?
+However, although Excel goes very far, it definitely does not _not_ extend to "general purpose software".
 
 Today, if you wanted to own your software suite, you would need access to enough of the sources for each vendor, then make sure they all use the same kinds of stores and interfaces and APIs, and only then could we maybe unify enough of the stack to join "reminders in Notion" with "leads in Salesforce" and "events in calendar".
 With the current stack, this is just not a serious option, so we have "connectors".
 
-:::figure width="384" src="./dependency.png" alt="Modern digital infrastructure balances precariously on a small project maintained by one person."
-[Dependency](https://xkcd.com/2347/) — Randall Munroe, xkcd. [CC BY-NC 2.5](https://creativecommons.org/licenses/by-nc/2.5/).
+:::figure width="640" src="./tower-of-babel.jpg" alt="Bruegel’s Tower of Babel under construction, with tiers of arches, exposed rock, scaffolding, and workers above a crowded city."
+[The Tower of Babel, 1563](https://bruegel.at/en/the-tower-of-babel/) — Pieter Bruegel the Elder, Kunsthistorisches Museum, Vienna.
 :::
 
 But connectors are a hack.
@@ -56,8 +65,8 @@ The brute "acceleration" of old processes with "self-driving factories" is not l
 To truly industrialise the precise industrialised manufacture of software, we need entirely _new_ processes.
 New procesess, not just for studying and developing software behavior, but entirely new lifecycles.
 
-:::figure src="./wind-tunnel.svg" alt="Diagram of a closed-circuit wind tunnel, with arrows showing airflow through the test section and around the return duct."
-Closed-circuit wind tunnel. [Tomia and Liftarn](https://commons.wikimedia.org/wiki/File:Windtunnel3-en.svg), [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/). White background added.
+:::figure width="640" src="./wright-flyer-wind-tunnel.jpg" alt="A full-size Wright Flyer replica mounted on a test stand inside the Ames wind tunnel, with two engineers standing beside it."
+[Wright Flyer replica in the Ames wind tunnel](https://www.nasa.gov/image-article/wright-flyer/) — NASA, public domain.
 :::
 
 <!--homoiconic software-->
@@ -80,13 +89,13 @@ Climbing the ladder of abstraction yields more output for every bit of input.
 We gradually remove ourselves from the cumbersome burden of having to actually spell out _exactly_ what we want the machine to be doing: which electrons? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
 
 :::figure width="440" src="./babbage-engine.jpg" alt="The 1832 demonstration portion of Babbage’s Difference Engine No. 1, with its columns of brass gears and hand crank."
-The 1832 demonstration portion of Babbage’s Difference Engine No. 1. Photograph by [Sebastian Wallroth](https://commons.wikimedia.org/wiki/File:Babbages_difference_engine_1832.jpg), public domain. [Watch the later No. 2 engine in operation](https://www.youtube.com/watch?v=XSkGY6LchJs).
+[Difference Engine No. 1, 1832](https://commons.wikimedia.org/wiki/File:Babbages_difference_engine_1832.jpg) — Sebastian Wallroth, public domain.
 :::
 
 Historically, whenever some more accessible form of programming becomes too common, the "real" programmers no longer consider it programming.
 Thus, Excel is not "programming", just like image classification is no longer "AI" - and soon, presumably, voice recognition, chatbots, and agentiveness will blend into boring software like the magic of the internet did.
 
-In whatever form, "Programming" is just problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
+In whatever form, "programming" is just problem solving: iterating, thinking, working to understand the shape of a problem and then specifying its solution in some repeatable form.
 We used to solve software-shaped problems with artisinal human-directed next-character-prediction of symbolic code, but really, it doesn't even have to be any formal language at all - recipe writing is programming, too.
 <!--All that really matters is repeatable specification, in any useful form.-->
 
@@ -110,7 +119,7 @@ Spreadsheets kicked off the first personal computer revolution in earnest, there
 (And thereby also giving those people higher level jobs.)
 
 :::figure width="480" src="./ibm-extra-engineers.jpg" alt="IBM’s 1951 advertisement, 150 Extra Engineers, showing rows of engineers doing calculations."
-IBM, [150 Extra Engineers](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg), 1951. An advertisement for the IBM 604 Electronic Calculating Punch.
+[150 Extra Engineers, 1951](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg) — IBM.
 :::
 
 To this day, the humble spreadsheet is _still_ the most popular application platform and surprisingly hard to displace.
@@ -124,7 +133,7 @@ To get a game started, everyone had to write their own graphics, networking, scr
 Then, eventually, we figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine".
 
 :::figure width="640" src="./ubiart.gif" alt="An artist assembles and poses a hand-drawn character directly in UbiArt, with the artwork and animation rig side by side."
-Character editing in UbiArt. Excerpt from [Ubisoft’s framework demonstration](https://www.youtube.com/watch?v=B_QhZYTukac&t=35s). [Raysman Legends design talk](https://www.youtube.com/watch?v=WFu1utKAZ18).
+[Character editing in UbiArt](https://www.youtube.com/watch?v=B_QhZYTukac&t=35s) — Ubisoft, demonstration excerpt.
 :::
 
 Initially, when using a game engine, developers didn't get quite the same level of control, or even hit _quite_ the same high notes as the best engineers could without.
@@ -151,7 +160,7 @@ The only way to judge correctness - i.e., does it do what I want - is to see jus
 Notable, this is not an intelligence problem, it's not even an AI problem - I just don't know what I want until I see it, and I also don't know what I _don't_ want until I see that, too.
 
 :::figure width="480" src="./vault-centering.png" alt="Cutaway drawing of a masonry vault under construction, with curved timber frames supporting the unfinished vault."
-Timber centering supporting a masonry vault. Viollet-le-Duc, [Dictionary of French Architecture](https://commons.wikimedia.org/wiki/File:Construction.voute.romaine.png), 1856.
+[Timber centering supporting a masonry vault, 1856](https://commons.wikimedia.org/wiki/File:Construction.voute.romaine.png) — Eugène Viollet-le-Duc, public domain.
 :::
 
 The "correctness" of a system is an iterative process; its alignment must be continuous, because the shape of the problem and solution must shift in tandem.
@@ -172,8 +181,8 @@ And in any case, most serious programming languages have a way of accumulating m
 Thus, _minimality_ in isolation is not _quite_ enough, because we do actually need to perform a wide variety of tasks in software, and the less "the system" provides, the more we need to do in diverging ways in userland.
 By now, he space of general purpose software architecture is well explored, which is why we have so many frameworks and meta-frameworks solving largely the same problems in largely the same ways
 
-:::figure src="./carcinisation.jpg" alt="Crustacean family tree showing the separate evolution of crab-like forms in several lineages."
-Carcinisation in crustaceans. Courtesy of [Joanna M. Wolfe](https://www.eurekalert.org/multimedia/556561).
+:::figure width="440" src="./decapoda.jpg" alt="Ernst Haeckel’s illustration of ten crustaceans, including crabs and shrimp, arranged against a black background."
+[Decapoda, 1904](https://commons.wikimedia.org/wiki/File:Haeckel_Decapoda.jpg) — Ernst Haeckel, public domain.
 :::
 
 Indeed, there is a tremendous advantage to using one language for *everything*, as evidenced by the popularity of single language monorepos (suboptimal though they are in many respects).
@@ -184,7 +193,7 @@ Like, I don't want to learn a new and totally different stack, I already know th
 The Web is pretty great, TypeScript is pretty great, how far can we take that?.
 
 :::figure src="./picasso-bull.jpg" alt="Eleven versions of Picasso’s bull, progressing from a detailed animal to a few essential lines."
-Pablo Picasso, *The Bull*, 1945–46. [Image source](https://drawpaintacademy.com/the-bull/).
+[The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
 :::
 
 We have long figured out that opinionated formatters are a great idea to remove silly syntax debates and just standardized the _appearence_ of code once and for all.
@@ -193,13 +202,13 @@ Maybe the syntax is not _perfect_ by your personal standards, but it removes unp
 Why not just go all the way, and fully standardize the _shape_ of code? Not just syntax, not just linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures.
 
 <!-- TODO -->
-<!--But how to get from here to fully standardized? 
+But how to get from here to fully standardized? 
 - place to manage personal software with the best modern web stack, standardized
 The Destack app supports two types of packages, to bridge from the present into the future:
  - ruthlessly standardized open TypeScript / Web thing with existing NPM stuff
- - absurdly fully integrated TypeScript++ language runtime with its complete own closed stack-->
-
-# TypeScript++
+ - absurdly fully integrated TypeScript++ language runtime with its complete own closed stack
+ 
+<!--# TypeScript++
 
 The univeral final stack will, eventually, require the universal final language.
 Surprisingly, we do not quite have that universal complete language yet.
@@ -217,7 +226,7 @@ The shape of TypeScript is conveniently amendable to the (minor) modifications w
 
 We want, effectively, "TypeScript++".
 Kill all the soundness warts, add just enough features added to enable memory safe systems programming, and build out familiar enough serious runtime.
-Importantly, the question is _not_ what is the "best theortical version if we did TypeScript all over again", but: "what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed?
+Importantly, the question is _not_ what is the "best theortical version if we did TypeScript all over again", but: "what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed?-->
 
 <!-- TODO #Incomplete-->
 <!--- TS++ fashions itself as a "superset of a strict subset of TS", which - if you squint - is somewhat reminiscient of the relationship between C and C++.

@@ -39,22 +39,22 @@ export type TableOfContentsEntry = {
 };
 
 /// Portable formats for the blog directory.
-export const blogIndex = {"markdownRoute":"/blog/index.md","textRoute":"/blog/index.txt","tokens":24};
+export const blogIndex = {"markdownRoute":"/blog/index.md","textRoute":"/blog/index.txt","tokens":26};
 
 /// The generated blog posts.
 export const posts = [
     {
         author: "Florian",
-        contentRoute: "/_content/html/461a215da92e5dcebc98bf550c4cb45138ec0ec24c0e6e5871926fa50993fd6d.html",
+        contentRoute: "/_content/html/c009f5c01924d0e6e0a1f795878abaab813496d9e467dd8f0d32a28424131824.html",
         date: "2026-09-21",
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",
         slug: "introducing-destack",
-        subtitle: "TypeScript++, the final stack, and software you can own.",
-        tableOfContents: [{"depth":1,"id":"the-software-that-could-be","text":"The Software That Could Be"},{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"the-system-and-the-meta-system","text":"The System and The Meta System"},{"depth":1,"id":"destack","text":"Destack"},{"depth":1,"id":"typescript","text":"TypeScript++"}],
+        subtitle: "TypeScript, the final stack, and software you can finally own.",
+        tableOfContents: [{"depth":1,"id":"the-software-that-could-be","text":"The Software That Could Be"},{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"the-system-and-the-meta-system","text":"The System and The Meta System"},{"depth":1,"id":"destack","text":"Destack"}],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 3683,
+        tokens: 3740,
     }
 ] as const satisfies readonly Post[];
 

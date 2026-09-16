@@ -363,14 +363,21 @@ function renderDirective(name: string, attributes: Record<string, string>, body:
         return `<aside class="markdown-callout" data-kind="${escapeAttribute(kind)}"><strong>${escapeHtml(kind)}</strong>${html}</aside>`;
     }
 
+    // constrain authored media widths to positive pixel values
+    const width = attributes.width;
+    if (width != undefined && !/^[1-9][0-9]*$/.test(width)) {
+        throw new Error(`invalid media width in ${context.slug}: ${width}`);
+    }
+    const sizing = width == undefined ? "" : ` style="--figure-width: ${width}px"`;
+
     if (name === "figure") {
         const src = requireAttribute(attributes, "src", context.slug, name);
         const alt = requireAttribute(attributes, "alt", context.slug, name);
         const caption = attributes.caption ?? body.trim();
         const url = resolveLink(src, context);
-        const label = nextFigureLabel(counters, "figure");
+        const label = nextFigureLabel(counters);
 
-        return `<figure class="markdown-figure"><div class="markdown-figure__frame"><img alt="${escapeAttribute(alt)}" src="${escapeAttribute(url)}" loading="lazy" decoding="async"></div><figcaption><span>${label}</span><span>${parser.parseInline(caption)}</span></figcaption></figure>`;
+        return `<figure class="markdown-figure"${sizing}><div class="markdown-figure__frame"><img alt="${escapeAttribute(alt)}" src="${escapeAttribute(url)}" loading="lazy" decoding="async"></div><figcaption><span>${label}</span><span>${parser.parseInline(caption)}</span></figcaption></figure>`;
     }
 
     if (name === "video") {
@@ -399,7 +406,7 @@ function renderDirective(name: string, attributes: Record<string, string>, body:
 
         const source = youtube == undefined ? "Open video" : "YouTube";
 
-        return `<figure class="markdown-figure markdown-video"><div class="markdown-figure__frame">${player}</div><figcaption><span>${escapeHtml(title)}${caption === "" ? "" : `<br>${parser.parseInline(caption)}`}</span><a href="${escapeAttribute(url)}" aria-label="${escapeAttribute(`Open ${title}${youtube == undefined ? "" : " on YouTube"}`)}">${source} ↗</a></figcaption></figure>`;
+        return `<figure class="markdown-figure markdown-video"${sizing}><div class="markdown-figure__frame">${player}</div><figcaption><span>${escapeHtml(title)}${caption === "" ? "" : `<br>${parser.parseInline(caption)}`}</span><a href="${escapeAttribute(url)}" aria-label="${escapeAttribute(`Open ${title}${youtube == undefined ? "" : " on YouTube"}`)}">${source} ↗</a></figcaption></figure>`;
     }
 
     throw new Error(`unknown directive in ${context.slug}: ${name}`);
@@ -466,7 +473,7 @@ function renderCode(token: Tokens.Code, counters: { figure: number; }) {
     const language = fence.language;
 
     if (language === "diagram") {
-        const label = nextFigureLabel(counters, "figure");
+        const label = nextFigureLabel(counters);
         const caption = fence.caption ?? fence.title ?? "diagram";
 
         return `<figure class="markdown-diagram"><figcaption><span>${label}</span>${escapeHtml(caption)}</figcaption><pre tabindex="0"><code>${escapeHtml(token.text)}</code></pre></figure>`;
@@ -486,10 +493,10 @@ function codeFormat(language: string) {
 }
 
 /// Allocate the next figure label.
-function nextFigureLabel(counters: { figure: number; }, kind: string) {
+function nextFigureLabel(counters: { figure: number; }) {
     counters.figure += 1;
 
-    return `${kind} ${counters.figure}`;
+    return `Figure ${counters.figure}`;
 }
 
 /// Parse the language and attributes from a code fence.
