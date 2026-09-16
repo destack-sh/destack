@@ -1,4 +1,6 @@
-import { buildNavigation } from "./navigation.mjs";
+import type { DocumentationPage, RenderedPage } from "./page";
+import type { MarkdownContext } from "./markdown";
+import { buildNavigation } from "./navigation.ts";
 import { collections } from "../content.ts";
 import { createHash } from "node:crypto";
 import {
@@ -21,20 +23,21 @@ import {
     renderMarkdown,
     requireString,
     searchSectionsFor,
-} from "./markdown.mjs";
-import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.mjs";
-import { writePageSources } from "./sources.mjs";
+} from "./markdown.ts";
+import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.ts";
+import { writePageSources } from "./sources.ts";
 import {
     moduleCatalogRoute,
     readLibraryReference,
-    renderLibraryDocuments,
-} from "./reference.mjs";
+    renderPackageDocuments,
+    parseReadme,
+} from "./reference.ts";
 import {
     ruleCatalogRoute,
     readLintReference,
     renderLintDocuments,
-} from "./lint.mjs";
-import { withLock } from "./lock.mjs";
+} from "./lint.ts";
+import { withLock } from "./lock.ts";
 
 const repositoryDirectory = resolve(
     dirname(fileURLToPath(import.meta.url)),
@@ -43,7 +46,7 @@ const repositoryDirectory = resolve(
 const siteDirectory = join(repositoryDirectory, "platform/site");
 const contentDirectory = join(
     repositoryDirectory,
-    collections.find((collection) => collection.route === "/blog/").sources[0]
+    collections.find((collection) => collection.route === "/blog/")!.sources[0]
         .directory,
 );
 const documentDirectories = collections
@@ -69,8 +72,14 @@ const documentPathPattern =
     /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const documentSegmentPattern = /^(\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
+// refresh compiler references when package sources change during development
+if (process.argv.includes("--reference")) {
+    await import("./generate-reference.ts");
+}
+
 mkdirSync(generatedDirectory, { recursive: true });
 await withLock(join(generatedDirectory, ".content-lock"), async () => {
+    const libraryReference = readLibraryReference();
     const documentSources = readDocumentSources();
     const renderedDocuments = renderDocuments(documentSources);
     const libraryIndex = renderedDocuments.find(
@@ -79,8 +88,11 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
     if (libraryIndex == undefined) {
         throw new Error("missing standard library documentation index");
     }
-    const libraryReference = readLibraryReference();
-    const library = renderLibraryDocuments(libraryReference, libraryIndex);
+    const library = renderPackageDocuments(libraryReference, libraryIndex, {
+        directory: join(repositoryDirectory, "language/library"),
+        referenceFile: join(siteDirectory, ".generated/library-reference.json"),
+        sourceUrl: "https://github.com/destack-sh/destack/blob/main/language/library/",
+    });
     const lintIndex = renderedDocuments.find(
         (document) => document.route === ruleCatalogRoute,
     );
@@ -101,7 +113,8 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
     );
     const postSources = readPostSources();
     const posts = renderPosts(postSources);
-    const references = [...library.items, ...lint.items];
+    const blogIndex = renderBlogIndex(posts);
+    const references: DocumentationPage[] = [...library.items, ...lint.items];
     // resolve navigation once for authored chapters and generated references
     const modules = new Set(
         library.documents
@@ -114,7 +127,7 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
     }
     buildNavigation(documents, references);
     appendChapterContents(documents);
-    const pages = [...documents, ...references, ...posts];
+    const pages = [...documents, ...references, ...posts, blogIndex];
     const searchEntries = searchEntriesFor(posts, documents, references);
     if (!isCheck) {
         await writePageSources(pages, publicDirectory);
@@ -126,7 +139,7 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
         );
     }
     generateDocumentMetadata([...documents, ...references]);
-    const postSource = renderPostModule(posts);
+    const postSource = renderPostModule(posts, blogIndex);
     const routeSource = renderRouteModule(posts, documents, references);
 
     if (isCheck) {
@@ -140,7 +153,7 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
 });
 
 /// Append immediate child chapters to each authored index.
-function appendChapterContents(documents) {
+function appendChapterContents(documents: DocumentationPage[]) {
     const chapters = documents.filter((page) => page.kind === "chapter");
 
     // preserve the resolved navigation order and specialized catalogs
@@ -154,7 +167,9 @@ function appendChapterContents(documents) {
             continue;
         }
 
-        const children = chapters.filter((page) => page.parent === chapter);
+        const children = documents.filter((page) =>
+            (page.kind === "chapter" || page.kind === "catalog") && page.parent === chapter
+        );
         if (children.length === 0) {
             continue;
         }
@@ -164,21 +179,22 @@ function appendChapterContents(documents) {
             .map((page) => {
                 const title = page.title.replace(/[\\`*_[\]<>]/g, "\\$&");
 
-                return `- [${title}](${page.route})`;
+                const summary = page.lead ?? page.description;
+
+                return `- [${title}](${page.route})${summary && summary !== page.title ? ` — ${summary}` : ""}`;
             })
             .join("\n");
         const contents = `---\n\n${links}`;
         chapter.markdown = `${chapter.markdown.trimEnd()}\n\n${contents}\n`;
-        chapter.html += renderMarkdown(contents, {
-            assets: [],
-            documentDirectory: chapter.directory,
-            kind: "document",
-            markdownDirectory: dirname(chapter.file),
-            ownHeadings: new Set(),
-            route: chapter.route,
-            slug: chapter.path,
-            sourceRoutes: new Map(),
-        });
+        chapter.entries = children.map((page) => ({
+            title: page.title,
+            href: page.route,
+            summary: (page.lead ?? page.description) !== page.title ? page.lead ?? page.description : undefined,
+        }));
+
+        // generated indexes use directory presentation rather than article introductions
+        chapter.kind = "catalog";
+        chapter.lead = undefined;
 
         // keep search text and token counts consistent with the published body
         chapter.searchSections = searchSectionsFor(chapter.markdown);
@@ -188,9 +204,9 @@ function appendChapterContents(documents) {
 }
 
 /// Write rendered page bodies and their content-addressed assets.
-function writePageContent(pages) {
+function writePageContent(pages: RenderedPage[]) {
     mkdirSync(publicContentDirectory, { recursive: true });
-    const assetRoutes = new Map();
+    const assetRoutes = new Map<string, string>();
 
     // resolve every page against one deduplicated asset collection
     for (const page of pages) {
@@ -226,12 +242,13 @@ function writePageContent(pages) {
 }
 
 /// Generate or check the metadata for every documentation page.
-function generateDocumentMetadata(documents) {
+function generateDocumentMetadata(documents: DocumentationPage[]) {
     for (const document of documents) {
         const metadata = {
             contentRoute: contentRouteFor(document),
             description: document.description,
             lead: document.lead,
+            entries: document.entries,
             markdownRoute: document.markdownRoute,
             kind: document.kind,
             navigation: document.navigation,
@@ -256,7 +273,7 @@ function generateDocumentMetadata(documents) {
 }
 
 /// Remove portable sources and metadata for pages that are no longer published.
-function removeObsoletePages(pages) {
+function removeObsoletePages(pages: RenderedPage[]) {
     const routes = pages.flatMap((page) => [
         page.markdownRoute,
         page.textRoute,
@@ -286,12 +303,12 @@ function removeObsoletePages(pages) {
 }
 
 /// Return the static metadata route for one documentation page.
-function documentMetadataRoute(route) {
+function documentMetadataRoute(route: string) {
     return `/_content${route}index.json`;
 }
 
 /// Return the static rendered-body route for one content page.
-function contentRouteFor(page) {
+function contentRouteFor(page: Pick<RenderedPage, "html" | "assets">) {
     const hash = createHash("sha256").update(page.html);
     for (const asset of page.assets) {
         hash.update(readFileSync(asset.path));
@@ -301,7 +318,7 @@ function contentRouteFor(page) {
 }
 
 /// Replace content asset placeholders with their public routes.
-function resolveAssets(html, assets) {
+function resolveAssets(html: string, assets: Record<string, string>) {
     let resolved = html;
 
     // replace every placeholder emitted by the Markdown renderer
@@ -324,9 +341,14 @@ function readDocumentSources() {
             }
 
             // map files into the documentation tree
-            return markdownFiles(collection.directory).map((file) => {
+            const files = collection.readme
+                ? [join(collection.directory, "README.md")]
+                : markdownFiles(collection.directory);
+            return files.map((file) => {
                 const source = readFileSync(file, "utf8");
-                const { markdown, metadata } = parseFrontmatter(source, file);
+                const { markdown, metadata } = collection.readme
+                    ? parseReadme(source, file)
+                    : parseFrontmatter(source, file);
                 requireString(metadata, "title", file);
                 requireString(metadata, "description", file);
 
@@ -342,7 +364,7 @@ function readDocumentSources() {
                     file,
                 ).replaceAll("\\", "/");
                 const { hierarchy, path: publicPath } = parseDocumentPath(
-                    sourcePath,
+                    collection.readme ? "index.md" : sourcePath,
                     file,
                 );
                 const path =
@@ -353,12 +375,13 @@ function readDocumentSources() {
                 const headings = headingsFor(markdown);
 
                 return {
+                    isPackage: collection.readme === true,
                     description: metadata.description,
                     directory: collection.directory,
                     file,
                     headings,
                     hierarchy: [...collection.hierarchy, ...hierarchy],
-                    lead: metadata.description,
+                    lead: collection.readme ? undefined : metadata.description,
                     markdownRoute: `/${join("docs", path).replaceAll("\\", "/")}`,
                     markdown,
                     path,
@@ -380,7 +403,7 @@ function readDocumentSources() {
 }
 
 /// Parse a numbered source path into its public path and hierarchy.
-function parseDocumentPath(path, file) {
+function parseDocumentPath(path: string, file: string) {
     const segments = path.split("/");
     const names = [];
     const hierarchy = [];
@@ -411,7 +434,7 @@ function parseDocumentPath(path, file) {
 }
 
 /// Compare documentation sources by their numeric hierarchy.
-function compareDocuments(left, right) {
+function compareDocuments(left: { hierarchy: number[]; path: string; route: string; }, right: { hierarchy: number[]; path: string; route: string; }) {
     const depthCount = Math.min(left.hierarchy.length, right.hierarchy.length);
 
     // compare every shared level
@@ -428,7 +451,7 @@ function compareDocuments(left, right) {
 }
 
 /// Validate the path, hierarchy, and title invariants of the manual.
-function validateDocuments(documents) {
+function validateDocuments(documents: { route: string; headings: ReturnType<typeof headingsFor>; file: string; path: string; title: string; hierarchy: number[]; }[]) {
     const hierarchies = new Set();
     const paths = new Set(documents.map((document) => document.path));
 
@@ -463,7 +486,7 @@ function validateDocuments(documents) {
 }
 
 /// Recursively collect Markdown files below one directory.
-function markdownFiles(directory) {
+function markdownFiles(directory: string): string[] {
     return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
         const path = join(directory, entry.name);
 
@@ -476,20 +499,20 @@ function markdownFiles(directory) {
 }
 
 /// Convert a documentation source path into its public route.
-function documentRoute(path) {
+function documentRoute(path: string) {
     const withoutExtension = path.slice(0, -3);
     const routePath =
         withoutExtension === "index"
             ? ""
             : withoutExtension.endsWith("/index")
-              ? withoutExtension.slice(0, -6)
-              : withoutExtension;
+                ? withoutExtension.slice(0, -6)
+                : withoutExtension;
 
     return `/docs/${routePath === "" ? "" : `${routePath}/`}`;
 }
 
 /// Render documentation sources against the complete manual graph.
-function renderDocuments(sources) {
+function renderDocuments(sources: ReturnType<typeof readDocumentSources>): DocumentationPage[] {
     const sourceRoutes = new Map(
         sources.map((source) => [
             resolve(source.file),
@@ -501,7 +524,7 @@ function renderDocuments(sources) {
     );
 
     return sources.map((source) => {
-        const context = {
+        const context: MarkdownContext = {
             assets: [],
             documentDirectory: source.directory,
             kind: "document",
@@ -515,7 +538,7 @@ function renderDocuments(sources) {
         return {
             ...source,
             assets: context.assets,
-            html: renderMarkdown(source.markdown, context),
+            html: source.isPackage ? "" : renderMarkdown(source.markdown, context),
             searchSections: searchSectionsFor(source.markdown),
             searchText: searchTextFor(source.markdown),
             tableOfContents: source.headings.filter(
@@ -581,7 +604,7 @@ function readPostSources() {
 }
 
 /// Render blog sources against the complete post graph.
-function renderPosts(sources) {
+function renderPosts(sources: ReturnType<typeof readPostSources>) {
     const sourceRoutes = new Map(
         sources.map((source) => [
             resolve(source.file),
@@ -593,7 +616,7 @@ function renderPosts(sources) {
     );
 
     return sources.map((source) => {
-        const context = {
+        const context: MarkdownContext = {
             assets: [],
             kind: "blog",
             markdownDirectory: dirname(source.file),
@@ -614,8 +637,23 @@ function renderPosts(sources) {
     });
 }
 
+/// Publish the blog directory in the same portable formats as documentation indexes.
+function renderBlogIndex(posts: ReturnType<typeof renderPosts>): RenderedPage {
+    const markdown = "# Blog\n\n" + posts.map((post) =>
+        `## [${post.title}](${post.route})\n\n${post.subtitle}\n\n${post.date}\n`
+    ).join("\n");
+
+    return {
+        route: "/blog/", title: "Blog", file: contentDirectory,
+        markdown, markdownRoute: "/blog/index.md", textRoute: "/blog/index.txt",
+        html: renderMarkdown(markdown, { assets: [], route: "/blog/", kind: "blog" }), assets: [], tokens: tokenEstimateFor(plainTextFor(markdown)),
+        headings: headingsFor(markdown), tableOfContents: [],
+        searchSections: searchSectionsFor(markdown), searchText: searchTextFor(markdown),
+    };
+}
+
 /// Generate the blog metadata and rendered-body loader.
-function renderPostModule(posts) {
+function renderPostModule(posts: ReturnType<typeof renderPosts>, index: RenderedPage) {
     const records = posts.map((post) => renderPostRecord(post)).join(",\n");
 
     return `import { loadContent, type RenderedContent } from "../content/load";
@@ -658,6 +696,9 @@ export type TableOfContentsEntry = {
     text: string;
 };
 
+/// Portable formats for the blog directory.
+export const blogIndex = ${JSON.stringify({ markdownRoute: index.markdownRoute, textRoute: index.textRoute, tokens: index.tokens })};
+
 /// The generated blog posts.
 export const posts = [
 ${records}
@@ -678,7 +719,7 @@ export async function loadPost(slug: string): Promise<PostContent | undefined> {
 }
 
 /// Generate one blog metadata record.
-function renderPostRecord(post) {
+function renderPostRecord(post: ReturnType<typeof renderPosts>[number]) {
     return `    {
         author: ${JSON.stringify(post.author)},
         contentRoute: ${JSON.stringify(contentRouteFor(post))},
@@ -695,7 +736,7 @@ function renderPostRecord(post) {
 }
 
 /// Generate the complete prerender route list.
-function renderRouteModule(posts, documents, references) {
+function renderRouteModule(posts: RenderedPage[], documents: DocumentationPage[], references: DocumentationPage[]) {
     const routes = [
         "/",
         "/blog/",
@@ -708,7 +749,7 @@ function renderRouteModule(posts, documents, references) {
 }
 
 /// Return the complete full-text search index.
-function searchEntriesFor(posts, documents, references) {
+function searchEntriesFor(posts: ReturnType<typeof renderPosts>, documents: DocumentationPage[], references: DocumentationPage[]) {
     return [
         ...documents.flatMap((document) => [
             {
@@ -760,7 +801,7 @@ function searchEntriesFor(posts, documents, references) {
 }
 
 /// Require one generated file to match its expected contents.
-function checkGeneratedFile(file, source) {
+function checkGeneratedFile(file: string, source: string) {
     if (!existsSync(file)) {
         throw new Error(`missing generated content file: ${file}`);
     }
@@ -774,7 +815,7 @@ function checkGeneratedFile(file, source) {
 }
 
 /// Atomically replace one generated file.
-function writeGeneratedFile(file, source) {
+function writeGeneratedFile(file: string, source: string) {
     const temporaryFile = `${file}.${process.pid}.tmp`;
 
     writeFileSync(temporaryFile, source);

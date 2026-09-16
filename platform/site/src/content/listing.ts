@@ -1,0 +1,24 @@
+import { escapeAttribute } from "./html";
+
+/// Captions and accessible labels for a highlighted code listing.
+export type ListingOptions = {
+    title?: string;
+    href?: string;
+    detail?: string;
+    label?: string;
+};
+
+/// Render highlighted code with shared captions, line numbers, and scrolling.
+export function renderListing(highlighted: string, { title, href, detail, label = "Code" }: ListingOptions = {}): string {
+    // preserve empty lines without including gutters in copied code
+    const rows = highlighted.split("\n").map((line, index) =>
+        `<span class="markdown-code-line" data-publication-line><span class="markdown-code-gutter" data-publication-gutter aria-hidden="true">${index + 1}</span><span class="markdown-code-text" data-publication-code>${line || " "}</span></span>`
+    ).join("");
+
+    // captions describe either authored examples or linked source locations
+    const name = title == undefined ? "" : escapeAttribute(title);
+    const heading = href == undefined ? name : `<a href="${escapeAttribute(href)}" rel="external noopener noreferrer" target="_blank">${name}</a>`;
+    const caption = title == undefined ? "" : `<figcaption data-publication-caption><span data-publication-caption-title>${heading}</span>${detail == undefined ? "" : `<span data-publication-caption-detail>${escapeAttribute(detail)}</span>`}</figcaption>`;
+
+    return `<figure class="markdown-code" data-publication-listing>${caption}<pre data-publication-body tabindex="0" aria-label="${escapeAttribute(title ?? label)}"><code class="markdown-code-lines" data-publication-lines>${rows}</code></pre></figure>`;
+}

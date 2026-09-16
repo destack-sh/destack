@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { highlightCode, highlightCodeFragments } from "./highlight.mjs";
+import { highlightCode, highlightCodeFragments } from "./highlight.ts";
 
 const destackSource = `const port: uint8 = 300;
 console.log(port);`;
@@ -68,3 +68,18 @@ assert.deepEqual(
     }),
     [expectedLinked],
 );
+
+// incomplete snippets must not change the highlighting of neighboring declarations
+const independent = ["export class Notify", "export enum BindingKind { Parameter = 1 }", "readonly value: string"];
+assert.deepEqual(highlightCodeFragments(independent, "ds"), independent.map((source) => highlightCode(source, "ds")));
+
+// isolated inventory names retain semantic colors without declaration syntax
+assert.deepEqual(highlightCodeFragments(["Atomic", "atomicCas", "Contract"], "ds", [
+    [{ start: 0, end: 6, kind: "struct" }],
+    [{ start: 0, end: 9, kind: "function" }],
+    [{ start: 0, end: 8, kind: "newtype_interface" }],
+]), [
+    '<span data-k="type" data-s="struct">Atomic</span>',
+    '<span data-k="function" data-s="function">atomicCas</span>',
+    '<span data-k="type" data-s="newtype_interface">Contract</span>',
+]);

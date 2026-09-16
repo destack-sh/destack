@@ -176,7 +176,7 @@ export function Cover() {
                             {...stylex.attrs(posterStyles.action)}
                             href="/docs/setup/"
                         >
-                            start building <span aria-hidden="true">→</span>
+                            Start Building <span aria-hidden="true">→</span>
                         </a>
                     </div>
 

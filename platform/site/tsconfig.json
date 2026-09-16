@@ -11,7 +11,13 @@
         "isolatedModules": true,
         "noEmit": true,
         "skipLibCheck": true,
-        "strict": true
+        "strict": true,
+        "allowImportingTsExtensions": true
     },
-    "include": ["src/**/*", "app.config.ts"]
+    "include": [
+        "src/**/*",
+        "app.config.ts",
+        "scripts/**/*.ts",
+        "build/**/*.ts"
+    ]
 }

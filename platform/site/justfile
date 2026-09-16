@@ -6,12 +6,12 @@ _default:
 
 # build production output
 build:
-    bun scripts/sync-assets.mjs
-    bun scripts/generate-release.mjs
-    bun scripts/generate-reference.mjs
-    bun scripts/generate-content.mjs
+    bun scripts/sync-assets.ts
+    bun scripts/generate-release.ts
+    bun scripts/generate-reference.ts
+    bun scripts/generate-content.ts
     bun x vinxi build
-    bun scripts/postbuild.mjs
+    bun scripts/postbuild.ts
 
 # format source
 format:
@@ -23,15 +23,15 @@ format-check:
 
 # regenerate generated files
 generate:
-    bun scripts/generate-release.mjs
-    bun scripts/generate-reference.mjs
-    bun scripts/generate-content.mjs
+    bun scripts/generate-release.ts
+    bun scripts/generate-reference.ts
+    bun scripts/generate-content.ts
 
 # check generated files
 generate-check:
-    bun scripts/generate-release.mjs --check
-    bun scripts/generate-reference.mjs
-    bun scripts/generate-content.mjs --check
+    bun scripts/generate-release.ts --check
+    bun scripts/generate-reference.ts
+    bun scripts/generate-content.ts --check
 
 # type check source
 typecheck:
@@ -44,7 +44,11 @@ lint:
 
 # run tests
 test:
-    bun scripts/test-highlighting.mjs
+    bun scripts/test-highlighting.ts
+    bun scripts/test-reference.ts
+    bun scripts/test-listing.ts
+    bun scripts/test-rules.ts
+    bun scripts/test-presentation.ts
 
 # default check
 check:
@@ -61,10 +65,10 @@ check-full:
 
 # run dev server
 dev:
-    bun scripts/sync-assets.mjs
-    bun scripts/generate-release.mjs
-    bun scripts/generate-reference.mjs
-    bun scripts/generate-content.mjs
+    bun scripts/sync-assets.ts
+    bun scripts/generate-release.ts
+    bun scripts/generate-reference.ts
+    bun scripts/generate-content.ts
     bun x vinxi dev
 
 # clean build artifacts

@@ -1,0 +1,409 @@
+/* The directory has one frame, one toolbar, and aligned column filters. */
+
+.lint-catalog {
+    width: 100%;
+    min-width: 0;
+    container-type: inline-size;
+    border-block: 1px solid var(--publication-line);
+    border-radius: 0;
+    overflow: hidden;
+    font-size: 1rem;
+}
+
+.lint-catalog [hidden] {
+    display: none !important;
+}
+
+.lint-toolbar {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.75rem var(--content-row-inset);
+    min-height: 3rem;
+    border-bottom: 1px solid var(--publication-line);
+}
+
+.lint-search {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.lint-search svg {
+    width: 1rem;
+    height: 1rem;
+    align-self: center;
+    flex: none;
+    color: var(--publication-soft);
+}
+
+.lint-search input {
+    width: 100%;
+    min-width: 0;
+    height: 2.25rem;
+    padding: 0.375rem 0;
+    line-height: 1.5;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--publication-ink);
+    font: inherit;
+}
+
+.lint-search input::placeholder {
+    color: var(--publication-soft);
+    opacity: 1;
+}
+
+.lint-catalog select {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.375rem 1.125rem 0.375rem 0;
+    line-height: 1.5;
+    border: 0;
+    border-radius: 0;
+    color: var(--publication-soft);
+    background-color: transparent;
+    font: inherit;
+    font-size: var(--content-metadata-size);
+    cursor: pointer;
+}
+
+.lint-catalog select[data-active="true"] {
+    color: var(--publication-ink);
+    font-weight: 600;
+}
+
+.lint-count {
+    color: var(--publication-soft);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-size: var(--content-metadata-size);
+}
+
+.lint-toolbar button {
+    border: 0;
+    background: transparent;
+    color: var(--publication-soft);
+    padding: 0.25rem;
+    font: inherit;
+    font-size: var(--content-metadata-size);
+    cursor: pointer;
+}
+
+.lint-toolbar button:disabled {
+    display: none;
+}
+
+.lint-toolbar button:hover {
+    color: var(--publication-accent);
+}
+
+.lint-catalog :is(input, select, button, a):focus-visible {
+    outline: 2px solid var(--publication-accent);
+    outline-offset: 3px;
+}
+
+.markdown .lint-table {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.lint-table th:first-child {
+    width: 52%;
+}
+
+.lint-table th:nth-child(2) {
+    width: 17%;
+}
+
+.lint-table th:nth-child(3) {
+    width: 15%;
+}
+
+.lint-table th:last-child {
+    width: 16%;
+}
+
+.markdown .lint-table th {
+    padding: 0.75rem var(--content-cell-gutter);
+    text-align: left;
+    background: var(--publication-page-muted);
+    color: var(--publication-soft);
+    font-size: var(--content-metadata-size);
+    font-weight: 500;
+    border: 0;
+    vertical-align: baseline;
+}
+
+.markdown .lint-table td {
+    padding: var(--content-inset) var(--content-cell-gutter);
+    vertical-align: baseline;
+    border: 0;
+    border-top: 1px solid var(--publication-line);
+    font-size: var(--content-metadata-size);
+    line-height: 1.5;
+}
+
+.markdown .lint-table :is(th, td):first-child {
+    padding-left: var(--content-row-inset);
+}
+
+.markdown .lint-table :is(th, td):last-child {
+    padding-right: var(--content-row-inset);
+}
+
+.markdown .lint-name a {
+    text-decoration: none;
+    color: var(--publication-ink);
+}
+
+.markdown .lint-name a:hover {
+    color: var(--publication-accent);
+}
+
+.markdown .lint-name code {
+    font-size: var(--content-code-size);
+    font-weight: 500;
+    padding: 0;
+    background: none;
+    color: inherit;
+    overflow-wrap: anywhere;
+}
+
+.markdown .lint-name p {
+    margin: 0.375rem 0 0;
+    font-size: var(--content-summary-size);
+    line-height: 1.5;
+    color: var(--publication-ink);
+}
+
+.lint-severity {
+    color: var(--publication-soft);
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.lint-severity::before {
+    content: "";
+    display: inline-block;
+    vertical-align: 0.15em;
+    margin-right: 0.375rem;
+    width: 0.3rem;
+    height: 0.3rem;
+    border-radius: 50%;
+    background: var(--publication-soft);
+}
+
+.lint-severity-error::before {
+    background: var(--publication-rust);
+}
+
+.lint-fix {
+    color: var(--publication-soft);
+    line-height: 1.5;
+}
+
+.markdown .lint-empty {
+    padding: 2rem 1rem;
+    margin: 0;
+    text-align: center;
+    color: var(--publication-soft);
+}
+
+/* Rule details share the directory's typography and restrained metadata. */
+
+.lint-rule {
+    display: grid;
+    gap: 1.5rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.markdown .lint-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    margin: 0;
+    font-size: var(--content-metadata-size);
+}
+
+.lint-metadata > div {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.lint-metadata dt {
+    color: var(--publication-soft);
+}
+
+.lint-metadata dd {
+    margin: 0;
+    color: var(--publication-ink);
+}
+
+.lint-description {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.markdown .lint-description p {
+    margin: 0;
+}
+
+.lint-examples {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.lint-example {
+    min-width: 0;
+}
+
+.lint-example .markdown-code {
+    width: 100%;
+    min-width: 0;
+}
+
+/* Reference links have equal weight and align with the article text. */
+
+.markdown .reference-links {
+    margin: 0;
+    border-top: 1px solid var(--publication-line);
+    font-size: var(--size-navigation);
+}
+
+.reference-links > div {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 0.5rem 1rem;
+    padding-block: 1rem;
+    border-bottom: 1px solid var(--publication-line);
+    align-items: baseline;
+}
+
+.reference-links dt {
+    color: var(--publication-soft);
+}
+
+.reference-links dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.markdown .reference-links a {
+    color: var(--publication-ink);
+    text-decoration-color: var(--publication-line);
+}
+
+.markdown .reference-links a:is(:hover, :focus-visible) {
+    color: var(--publication-accent);
+    text-decoration-color: currentColor;
+}
+
+.reference-links a span {
+    display: inline-block;
+    margin-left: 0.375rem;
+}
+
+@media (max-width: 600px) {
+    .reference-links > div {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lint-metadata > div {
+        flex: 1 0 35%;
+    }
+}
+
+/* Keep the same fields readable in a narrow directory without sideways scrolling. */
+
+@container (max-width: 48rem) {
+    .lint-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.25rem 0.75rem;
+    }
+
+    .lint-search {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .lint-count {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .lint-toolbar > select {
+        grid-column: 1;
+        grid-row: 2;
+        justify-self: start;
+    }
+
+    .lint-toolbar > button {
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: end;
+    }
+
+    .markdown .lint-table, .markdown .lint-table thead, .markdown .lint-table tbody {
+        display: block;
+    }
+
+    .markdown .lint-table thead tr {
+        padding: 0.5rem var(--content-row-inset);
+        gap: 0.75rem;
+        display: flex;
+        background: var(--publication-page-muted);
+    }
+
+    .lint-table th:first-child {
+        display: none;
+    }
+
+    .markdown .lint-table th {
+        width: auto;
+        flex: 1;
+        min-width: 0;
+        padding: 0;
+    }
+
+    .markdown .lint-table tbody tr {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        padding: var(--content-inset) var(--content-row-inset);
+        gap: 0.75rem;
+        border-top: 1px solid var(--publication-line);
+    }
+
+    .markdown .lint-table td {
+        display: block;
+        padding: 0;
+        border: 0;
+    }
+
+    .markdown .lint-table :is(th, td):is(:first-child, :last-child) {
+        padding-inline: 0;
+    }
+
+    .markdown .lint-table td::before {
+        content: none;
+    }
+
+    .lint-name {
+        grid-column: 1 / -1;
+    }
+}
+
+.lint-table tbody tr:is(:hover, :focus-within) .lint-name a {
+    color: var(--publication-accent);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}

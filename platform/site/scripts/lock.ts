@@ -2,16 +2,16 @@ import { mkdirSync, rmdirSync } from "node:fs";
 import { setTimeout } from "node:timers/promises";
 
 /// Run one content generation at a time across processes.
-export async function withLock(directory, action, timeout = 30000) {
+export async function withLock<T>(directory: string, action: () => Promise<T>, timeout = 30000) {
     const deadline = Date.now() + timeout;
 
     // wait for the active writer before reading or publishing content
-    for (;;) {
+    for (; ;) {
         try {
             mkdirSync(directory);
             break;
         } catch (error) {
-            if (error.code !== "EEXIST") throw error;
+            if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error;
             if (Date.now() >= deadline) {
                 throw new Error(
                     `Timed out waiting for ${directory}. If no generator is running, remove this stale lock directory.`,

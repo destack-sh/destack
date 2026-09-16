@@ -54,7 +54,6 @@ const styles = stylex.create({
         },
     },
     root: {
-        textTransform: "lowercase",
         alignItems: "baseline",
         display: "flex",
         flexWrap: "wrap",

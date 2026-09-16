@@ -76,16 +76,13 @@ function ContentsList(props: ContentsListProps) {
         <ol {...stylex.attrs(styles.list, props.isNested && styles.nested)}>
             <For each={props.nodes}>
                 {(node) => {
-                    const isExpanded = () =>
-                        containsHeading(node, props.activeId());
-
                     return (
                         <li>
                             <a
                                 {...stylex.attrs(
                                     styles.link,
                                     props.activeId() === node.id &&
-                                        publicationStyles.active,
+                                    publicationStyles.active,
                                 )}
                                 href={`#${node.id}`}
                             >
@@ -93,7 +90,7 @@ function ContentsList(props: ContentsListProps) {
                             </a>
 
                             <Show
-                                when={node.children.length > 0 && isExpanded()}
+                                when={node.children.length > 0}
                             >
                                 <ContentsList
                                     activeId={props.activeId}
@@ -107,15 +104,6 @@ function ContentsList(props: ContentsListProps) {
             </For>
         </ol>
     );
-}
-
-/// Return whether one outline branch contains the active heading.
-function containsHeading(node: ContentsNode, activeId: string): boolean {
-    if (node.id === activeId) {
-        return true;
-    }
-
-    return node.children.some((child) => containsHeading(child, activeId));
 }
 
 /// Build the authored heading hierarchy.

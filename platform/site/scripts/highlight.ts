@@ -1,3 +1,10 @@
+/// Grammar inputs used for parser compilation and cache invalidation.
+type Grammar = { directory: string; extension: string; fingerprint: string; name: string; queries: string[] };
+/// Compiler token ranges use UTF-8 byte offsets.
+export type SemanticToken = { start: number; end: number; kind: string; modifiers?: number };
+/// Rendered highlight ranges use JavaScript character offsets.
+type HighlightRange = { start: number; end: number; kind: string; priority: number; modifiers?: number; semantic?: string; href?: string };
+
 import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import javascript from "highlight.js/lib/languages/javascript";
@@ -49,8 +56,8 @@ hljs.registerLanguage("xml", xml);
 hljs.registerLanguage("svg", xml);
 
 /// Load one checked-in Tree-sitter grammar.
-function loadGrammar(directory, name) {
-    const config = JSON.parse(readFileSync(join(directory, "tree-sitter.json"), "utf8"));
+function loadGrammar(directory: string, name: string) {
+    const config: { grammars: { name: string; highlights?: string[]; "file-types": string[]; path?: string }[] } = JSON.parse(readFileSync(join(directory, "tree-sitter.json"), "utf8"));
     const grammar = config.grammars.find((grammar) => grammar.name === name);
     if (grammar == undefined) {
         throw new Error(`missing ${name} grammar in ${directory}`);
@@ -68,7 +75,7 @@ function loadGrammar(directory, name) {
 }
 
 /// Hash every grammar input that affects highlighted output.
-function grammarFingerprint(directory, queries) {
+function grammarFingerprint(directory: string, queries: string[]) {
     const parser = join(directory, "src/parser.c");
     const scanner = join(directory, "src/scanner.c");
     const scannerHeader = join(directory, "src/javascript-scanner.h");
@@ -85,7 +92,7 @@ function grammarFingerprint(directory, queries) {
 }
 
 /// Resolve one declared highlighting query.
-function resolveQuery(directory, query) {
+function resolveQuery(directory: string, query: string) {
     const localQuery = resolve(directory, query);
     if (existsSync(localQuery)) {
         return localQuery;
@@ -95,7 +102,7 @@ function resolveQuery(directory, query) {
 }
 
 /// Highlight one source string.
-export function highlightCode(source, language) {
+export function highlightCode(source: string, language: string): string {
     const normalized = normalizeLanguage(language);
     if (normalized === "text") {
         return escapeHtml(source);
@@ -114,7 +121,7 @@ export function highlightCode(source, language) {
 }
 
 /// Highlight several independent snippets with one parser invocation.
-export function highlightCodeFragments(sources, language, semanticTokens = [], references = {}) {
+export function highlightCodeFragments(sources: string[], language: string, semanticTokens: SemanticToken[][] = [], references: Record<string, string> = {}): string[] {
     const normalized = normalizeLanguage(language);
     const grammar = grammarFor(normalized);
     if (grammar == undefined) {
@@ -134,27 +141,53 @@ export function highlightCodeFragments(sources, language, semanticTokens = [], r
         return JSON.parse(readFileSync(cached, "utf8"));
     }
 
-    // parse one synthetic file while retaining each snippet's byte interval
-    const starts = [];
-    let source = "";
-    for (const fragment of sources) {
-        starts.push(source.length);
-        source += `${fragment}\n\n`;
+    // parse snippets as separate files so incomplete declarations cannot share context
+    const directory = mkdtempSync(join(tmpdir(), "destack-highlight-"));
+    let highlighted;
+    try {
+        const files = sources.map((source, index) => {
+            const file = join(directory, `${index}.${grammar.extension}`);
+            writeFileSync(file, source);
+
+            return file;
+        });
+        const captures = sources.map((source) => diagnosticRanges(source));
+        const library = grammarLibrary(grammar);
+
+        // combine grammar captures so each snippet is parsed once
+        const query = join(directory, "highlights.scm");
+        writeFileSync(query, grammar.queries.map((path) => readFileSync(path, "utf8")).join("\n"));
+
+        // bound command size and parser execution time for each batch
+        for (let offset = 0; offset < files.length; offset += 128) {
+            const batch = files.slice(offset, offset + 128);
+            const output = execFileSync(treeSitter, [
+                "query", "--lib-path", library, "--lang-name", grammar.name,
+                query, ...batch, "--captures",
+            ], {
+                cwd: grammar.directory, encoding: "utf8", timeout: 30000, killSignal: "SIGKILL",
+                maxBuffer: maximumQueryOutputBytes, stdio: ["ignore", "pipe", "pipe"],
+            });
+            const byFile = new Map(files.map((file, index) => [file, index]));
+            const outputs: string[][] = sources.map(() => []);
+            let index: number | undefined;
+            for (const line of output.split("\n")) {
+                if (byFile.has(line)) index = byFile.get(line);
+                else if (index !== undefined) outputs[index].push(line);
+            }
+            outputs.forEach((lines, index) => captures[index].push(...parseQueryRanges(lines.join("\n"), sources[index])));
+        }
+
+        // apply semantic names and links within each snippet
+        highlighted = sources.map((fragment, index) => {
+            const ranges = captures[index].map((range) => linkReference(fragment, range, references));
+            const checked = semanticRanges(fragment, semanticTokens[index] ?? []);
+
+            return render(fragment, mergeRanges([...ranges, ...checked]));
+        });
+    } finally {
+        rmSync(directory, { force: true, recursive: true });
     }
-    const ranges = grammarSourceRanges(source, grammar);
-
-    // project global capture ranges back into each independent snippet
-    const highlighted = sources.map((fragment, index) => {
-        const start = starts[index];
-        const end = start + fragment.length;
-        const fragmentRanges = ranges
-            .filter((range) => range.start >= start && range.end <= end)
-            .map((range) => ({ ...range, start: range.start - start, end: range.end - start }))
-            .map((range) => linkReference(fragment, range, references));
-        const checkedRanges = semanticRanges(fragment, semanticTokens[index] ?? []);
-
-        return render(fragment, mergeRanges([...fragmentRanges, ...checkedRanges]));
-    });
 
     // cache the complete batch atomically
     mkdirSync(cacheDirectory, { recursive: true });
@@ -167,7 +200,7 @@ export function highlightCodeFragments(sources, language, semanticTokens = [], r
 
 /// Link one parsed type name to its unambiguous public declaration.
 /// Link one highlighted name to its generated reference page.
-function linkReference(source, range, references) {
+function linkReference(source: string, range: HighlightRange, references: Record<string, string>) {
     if (range.kind !== "type") {
         return range;
     }
@@ -179,7 +212,7 @@ function linkReference(source, range, references) {
 
 /// Convert checked UTF-8 token intervals into JavaScript string intervals.
 /// Convert compiler semantic tokens into JavaScript string ranges.
-function semanticRanges(source, tokens) {
+function semanticRanges(source: string, tokens: SemanticToken[]): HighlightRange[] {
     return tokens.map((token) => ({
         start: codeUnitOffset(source, token.start),
         end: codeUnitOffset(source, token.end),
@@ -192,8 +225,8 @@ function semanticRanges(source, tokens) {
 
 /// Return the syntax color shared by one semantic token kind.
 /// Return the stable CSS category for one compiler token kind.
-function semanticKind(kind) {
-    if (["type", "class", "enum", "interface", "struct", "type_parameter"].includes(kind)) {
+function semanticKind(kind: string) {
+    if (["type", "class", "enum", "interface", "newtype_interface", "struct", "type_parameter"].includes(kind)) {
         return "type";
     }
 
@@ -213,7 +246,7 @@ function semanticKind(kind) {
 }
 
 /// Convert one UTF-8 byte offset into a JavaScript string offset.
-function codeUnitOffset(source, byteOffset) {
+function codeUnitOffset(source: string, byteOffset: number) {
     const bytes = Buffer.from(source);
     if (!Number.isInteger(byteOffset) || byteOffset < 0 || byteOffset > bytes.length) {
         throw new Error(`invalid semantic byte offset ${byteOffset} for ${bytes.length} bytes`);
@@ -223,17 +256,17 @@ function codeUnitOffset(source, byteOffset) {
 }
 
 /// Highlight one Destack source file.
-export function highlightDestackFile(file, source) {
+export function highlightDestackFile(file: string, source: string) {
     return highlightGrammarFile(file, source, languages.destack);
 }
 
 /// Normalize one Markdown language identifier.
-function normalizeLanguage(language) {
+function normalizeLanguage(language: string) {
     return (language ?? "").trim().split(/[:\s]+/)[0].toLowerCase().replace(/^\./, "");
 }
 
 /// Select the Tree-sitter grammar for one normalized language.
-function grammarFor(language) {
+function grammarFor(language: string) {
     if (language === "ds" || language === "destack" || language === "pattern") {
         return languages.destack;
     }
@@ -250,7 +283,7 @@ function grammarFor(language) {
 }
 
 /// Highlight an in-memory source string with one grammar.
-function highlightGrammarSource(source, grammar) {
+function highlightGrammarSource(source: string, grammar: Grammar) {
     const key = createHash("sha256")
         .update(highlighterFingerprint)
         .update(grammar.fingerprint)
@@ -273,7 +306,7 @@ function highlightGrammarSource(source, grammar) {
 
 /// Parse one in-memory source and return its highlighting ranges.
 /// Parse an in-memory source string and return its capture ranges.
-function grammarSourceRanges(source, grammar) {
+function grammarSourceRanges(source: string, grammar: Grammar) {
     const directory = mkdtempSync(join(tmpdir(), "destack-highlight-"));
     const file = join(directory, `source.${grammar.extension}`);
 
@@ -287,14 +320,14 @@ function grammarSourceRanges(source, grammar) {
 }
 
 /// Highlight one existing source file with one grammar.
-function highlightGrammarFile(file, source, grammar) {
+function highlightGrammarFile(file: string, source: string, grammar: Grammar) {
     const ranges = grammarRanges(file, source, grammar);
 
     return render(source, ranges);
 }
 
 /// Query one parsed source file for highlighting captures.
-function grammarRanges(file, source, grammar) {
+function grammarRanges(file: string, source: string, grammar: Grammar) {
     const ranges = diagnosticRanges(source);
     const library = grammarLibrary(grammar);
 
@@ -321,7 +354,7 @@ function grammarRanges(file, source, grammar) {
 }
 
 /// Build or reuse one native Tree-sitter grammar library.
-function grammarLibrary(grammar) {
+function grammarLibrary(grammar: Grammar) {
     const extension = process.platform === "darwin" ? "dylib" : process.platform === "win32" ? "dll" : "so";
     const library = join(cacheDirectory, `${grammar.name}-${grammar.fingerprint}.${extension}`);
     if (existsSync(library)) {
@@ -341,7 +374,7 @@ function grammarLibrary(grammar) {
 }
 
 /// Parse Tree-sitter query captures into source ranges.
-function parseQueryRanges(output, source) {
+function parseQueryRanges(output: string, source: string): HighlightRange[] {
     const starts = lineStarts(source.split("\n"));
     const ranges = [];
     const pattern =
@@ -362,7 +395,7 @@ function parseQueryRanges(output, source) {
 }
 
 /// Return inline diagnostic ranges embedded in example source.
-function diagnosticRanges(source) {
+function diagnosticRanges(source: string): HighlightRange[] {
     const ranges = [];
     const lines = source.split("\n");
     const starts = lineStarts(lines);
@@ -370,7 +403,7 @@ function diagnosticRanges(source) {
     for (let index = 0; index < lines.length; index += 1) {
         const squiggle = lines[index].match(/~+/);
         if (squiggle != undefined) {
-            const start = starts[index] + squiggle.index;
+            const start = starts[index] + squiggle.index!;
             ranges.push({
                 start,
                 end: start + squiggle[0].length,
@@ -381,7 +414,7 @@ function diagnosticRanges(source) {
 
         const message = lines[index].match(/error:.*/);
         if (message != undefined) {
-            const start = starts[index] + message.index;
+            const start = starts[index] + message.index!;
             ranges.push({
                 start,
                 end: start + message[0].length,
@@ -395,7 +428,7 @@ function diagnosticRanges(source) {
 }
 
 /// Return the CSS category for one Tree-sitter capture name.
-function captureKind(capture) {
+function captureKind(capture: string) {
     if (capture === "keyword" || capture.startsWith("keyword.")) {
         return "keyword";
     }
@@ -445,7 +478,7 @@ function captureKind(capture) {
 }
 
 /// Return the precedence of one overlapping capture.
-function capturePriority(capture) {
+function capturePriority(capture: string) {
     if (
         capture.includes(".definition") ||
         capture.includes(".method") ||
@@ -469,7 +502,7 @@ function capturePriority(capture) {
 }
 
 /// Merge compatible adjacent highlighting ranges.
-function mergeRanges(ranges) {
+function mergeRanges(ranges: HighlightRange[]) {
     const sorted = ranges
         .filter((range) => range.end > range.start)
         .sort((a, b) => a.start - b.start || b.priority - a.priority || b.end - a.end);
@@ -488,12 +521,12 @@ function mergeRanges(ranges) {
 }
 
 /// Render highlighted source ranges as escaped HTML.
-function render(source, ranges) {
+function render(source: string, ranges: HighlightRange[]) {
     const lines = source.split("\n");
     const starts = lineStarts(lines);
     let html = "";
 
-    for (let index = 0; index < lines.length; ) {
+    for (let index = 0; index < lines.length;) {
         const line = lines[index];
         const lineStart = starts[index];
         const lineEnd = lineStart + line.length;
@@ -527,7 +560,7 @@ function render(source, ranges) {
 }
 
 /// Render one diagnostic marker and message as an inline annotation.
-function renderInlineDiagnostic(source, ranges, lines, starts, startIndex, endIndex) {
+function renderInlineDiagnostic(source: string, ranges: HighlightRange[], lines: string[], starts: number[], startIndex: number, endIndex: number) {
     const indent = commonInlineDiagnosticIndent(lines, startIndex, endIndex);
     const parts = [];
 
@@ -544,11 +577,11 @@ function renderInlineDiagnostic(source, ranges, lines, starts, startIndex, endIn
 }
 
 /// Return the shared indentation of one inline diagnostic block.
-function commonInlineDiagnosticIndent(lines, startIndex, endIndex) {
+function commonInlineDiagnosticIndent(lines: string[], startIndex: number, endIndex: number) {
     let indent = Infinity;
 
     for (let index = startIndex; index < endIndex; index += 1) {
-        const leading = lines[index].match(/^\s*/)[0].length;
+        const leading = lines[index].match(/^\s*/)![0].length;
         indent = Math.min(indent, leading);
     }
 
@@ -556,7 +589,7 @@ function commonInlineDiagnosticIndent(lines, startIndex, endIndex) {
 }
 
 /// Render one source interval with its active highlighting ranges.
-function renderSegment(source, ranges, start, end) {
+function renderSegment(source: string, ranges: HighlightRange[], start: number, end: number) {
     let html = "";
     let cursor = start;
 
@@ -587,7 +620,7 @@ function renderSegment(source, ranges, start, end) {
 }
 
 /// Return the source offset of every line.
-function lineStarts(lines) {
+function lineStarts(lines: string[]) {
     const starts = [];
     let offset = 0;
 
@@ -600,12 +633,12 @@ function lineStarts(lines) {
 }
 
 /// Return whether one line belongs to an inline diagnostic.
-function isInlineDiagnosticLine(line) {
+function isInlineDiagnosticLine(line: string) {
     return /^\s*~+\s*$/.test(line) || /^\s*error:/.test(line);
 }
 
 /// Escape one string for insertion into generated HTML.
-function escapeHtml(value) {
+function escapeHtml(value: string) {
     return value
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")

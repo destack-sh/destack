@@ -6,11 +6,11 @@
     "type": "module",
     "description": "Destack website, documentation, and blog",
     "scripts": {
-        "build": "bun scripts/sync-assets.mjs && bun scripts/generate-release.mjs && bun scripts/generate-reference.mjs && bun scripts/generate-content.mjs && vinxi build && bun scripts/postbuild.mjs",
-        "check": "bun scripts/generate-release.mjs --check && bun scripts/generate-reference.mjs && bun scripts/generate-content.mjs --check && bun x tsc -p tsconfig.json --noEmit && bun run build",
-        "dev": "bun scripts/sync-assets.mjs && bun scripts/generate-release.mjs && bun scripts/generate-reference.mjs && bun scripts/generate-content.mjs && vinxi dev",
+        "build": "bun scripts/sync-assets.ts && bun scripts/generate-release.ts && bun scripts/generate-reference.ts && bun scripts/generate-content.ts && vinxi build && bun scripts/postbuild.ts",
+        "check": "bun scripts/generate-release.ts --check && bun scripts/generate-reference.ts && bun scripts/generate-content.ts --check && bun x tsc -p tsconfig.json --noEmit && bun run build",
+        "dev": "bun scripts/sync-assets.ts && bun scripts/generate-release.ts && bun scripts/generate-reference.ts && bun scripts/generate-content.ts && vinxi dev",
         "format": "echo \"No site formatter defined\"",
-        "test": "bun scripts/test-highlighting.mjs",
+        "test": "bun scripts/test-highlighting.ts && bun scripts/test-reference.ts && bun scripts/test-listing.ts && bun scripts/test-rules.ts && bun scripts/test-presentation.ts",
         "typecheck": "bun x tsc -p tsconfig.json --noEmit"
     },
     "dependencies": {

@@ -42,7 +42,7 @@ function generateLibraryReference() {
 }
 
 /// Run one Destack CLI command and parse its JSON report.
-function runDestack(commandArguments) {
+function runDestack(commandArguments: string[]) {
     const command = spawnSync(
         "cargo",
         [
@@ -70,6 +70,7 @@ function runDestack(commandArguments) {
     // surface command failures with the CLI diagnostics
     if (command.status !== 0) {
         process.stderr.write(command.stderr);
+        process.stderr.write(command.stdout);
         throw new Error(`destack ${commandArguments[0]} failed with exit code ${command.status}`);
     }
 
@@ -77,7 +78,7 @@ function runDestack(commandArguments) {
 }
 
 /// Atomically replace one generated reference.
-function writeReference(file, reference) {
+function writeReference(file: string, reference: unknown) {
     const source = `${JSON.stringify(reference, null, 2)}\n`;
     const temporaryFile = `${file}.${process.pid}.tmp`;
     writeFileSync(temporaryFile, source);

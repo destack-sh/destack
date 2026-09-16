@@ -46,7 +46,7 @@ if (isCheck) {
 }
 
 /// Require one generated file to match its expected contents.
-function requireGeneratedFile(file, source) {
+function requireGeneratedFile(file: string, source: string) {
     if (!existsSync(file)) {
         throw new Error(`missing generated release file: ${file}`);
     }
@@ -60,7 +60,7 @@ function requireGeneratedFile(file, source) {
 }
 
 /// Atomically replace one generated file.
-function writeGeneratedFile(file, source) {
+function writeGeneratedFile(file: string, source: string) {
     mkdirSync(dirname(file), { recursive: true });
     const temporaryFile = `${file}.${process.pid}.tmp`;
 

@@ -10,6 +10,9 @@
 
 @layer reset {
 :root {
+    --site-width: 72rem;
+    --site-gutter-left: calc(1.5rem + env(safe-area-inset-left));
+    --site-gutter-right: calc(1.5rem + env(safe-area-inset-right));
     color-scheme: light dark;
     --publication-page: light-dark(#f8f7f4, #1b1a19);
     --publication-page-muted: light-dark(#efeeea, #292725);
@@ -27,6 +30,7 @@
     --publication-syntax-punctuation: light-dark(#6d5b45, #b8c2bf);
     --publication-hairline: 1px;
     --publication-stroke: 3px;
+    --brand-ring: light-dark(#302a25, #ffffff);
     --size-page-title: clamp(2.25rem, 3.8vw, 3.25rem);
     --size-page-description: var(--size-body);
     --size-section-title: 1.875rem;
@@ -116,8 +120,8 @@ summary::-webkit-details-marker {
 
 .markdown > :is(
     hr, .markdown-code, .markdown-figure, .markdown-diagram, .markdown-table,
-    .lint-rule, .lint-category, .reference-catalog, .reference-module,
-    .reference-module-list, .reference-item
+    .lint-rule, .lint-catalog, .reference-catalog, .document-section,
+    .reference-item
 ),
 .markdown > p:has(> img:only-child) {
     grid-column: wide;
@@ -128,7 +132,7 @@ summary::-webkit-details-marker {
 .markdown h3 {
     margin: 0;
     color: var(--publication-ink);
-    font-family: "IBM Plex Sans Condensed", "IBM Plex Sans Variable", sans-serif;
+    font-family: "IBM Plex Sans Variable", sans-serif;
 }
 
 .markdown h1 {
@@ -258,6 +262,23 @@ summary::-webkit-details-marker {
     color: var(--publication-ink);
 }
 
+/* Keep an attributed quotation and its credit together at the prose measure. */
+.markdown-quote {
+    width: 100%;
+    min-width: 0;
+    max-width: var(--width-prose);
+    margin: 0;
+}
+
+.markdown-quote figcaption {
+    margin-top: 0.75rem;
+    padding-left: calc(1.25rem + 2px);
+    color: var(--publication-soft);
+    font-size: var(--content-metadata-size);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
 .markdown blockquote > * + * {
     margin-top: 0.75rem;
 }
@@ -274,7 +295,7 @@ summary::-webkit-details-marker {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    border-block: var(--publication-hairline) solid var(--publication-line);
+    border: var(--publication-hairline) solid var(--publication-line);
     outline: 0;
     overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
@@ -285,9 +306,10 @@ summary::-webkit-details-marker {
     outline-offset: 2px;
 }
 
+.markdown-table table { min-width: 42rem; }
+
 .markdown table {
     width: 100%;
-    min-width: 42rem;
     border-collapse: collapse;
     font-size: 0.875rem;
     line-height: 1.4;
@@ -296,7 +318,7 @@ summary::-webkit-details-marker {
 .markdown th,
 .markdown td {
     border-bottom: var(--publication-hairline) solid var(--publication-line);
-    padding: 0.625rem 0.75rem;
+    padding: 0.625rem var(--content-cell-gutter);
     text-align: left;
     vertical-align: top;
 }
@@ -401,9 +423,7 @@ summary::-webkit-details-marker {
 .markdown-diagram,
 .markdown-figure,
 [data-publication-listing] {
-    border-top: var(--publication-hairline) solid var(--publication-line);
-    border-right: 0;
-    border-left: 0;
+    border: var(--publication-hairline) solid var(--publication-line);
 }
 
 .markdown-diagram figcaption,
@@ -431,19 +451,6 @@ summary::-webkit-details-marker {
 .markdown-diagram figcaption,
 .markdown-figure figcaption {
     font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
-}
-
-.markdown-code figcaption .markdown-code__title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.markdown-code figcaption .markdown-code__format {
-    align-self: center;
-    color: var(--publication-ink);
-    grid-column: 3;
-    padding-right: 0.75rem;
 }
 
 .markdown-code pre {
@@ -510,15 +517,6 @@ summary::-webkit-details-marker {
     overflow: visible;
 }
 
-/* size examples to their code, with prose width as the minimum */
-.markdown-code {
-    width: fit-content;
-    min-width: min(100%, var(--width-prose));
-    max-width: 100%;
-    justify-self: start;
-    margin-inline: 0;
-}
-
 [data-publication-caption],
 .markdown-code figcaption {
     display: grid;
@@ -550,6 +548,28 @@ summary::-webkit-details-marker {
     grid-column: 2;
     grid-row: 1;
     padding-inline: 1rem;
+    padding-block: 0.25rem;
+    font-family: "IBM Plex Mono", monospace;
+    overflow-wrap: anywhere;
+}
+
+[data-publication-caption-title] a {
+    color: inherit;
+    text-decoration: none;
+}
+
+[data-publication-caption-title] a:hover {
+    color: var(--publication-accent);
+}
+
+[data-publication-caption-detail] {
+    grid-column: 3;
+    align-self: center;
+    color: var(--publication-soft);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: var(--size-label);
+    padding-inline: 0.75rem;
+    white-space: nowrap;
 }
 
 [data-publication-body],
@@ -607,6 +627,26 @@ summary::-webkit-details-marker {
 .markdown-code-line:last-child > .markdown-code-gutter,
 .markdown-code-line:last-child > .markdown-code-text {
     padding-bottom: 0.375rem;
+}
+
+
+/* Recover the line-number column on narrow phones while preserving code spacing. */
+@media (width < 400px) {
+    [data-publication-gutter],
+    .markdown-code-gutter,
+    [data-publication-caption]::before,
+    .markdown-code figcaption::before { display: none; }
+
+    [data-publication-line],
+    .markdown-code-line { grid-template-columns: minmax(max-content, 1fr); }
+
+    [data-publication-caption],
+    .markdown-code figcaption { grid-template-columns: minmax(0, 1fr) auto; }
+
+    [data-publication-caption-title],
+    .markdown-code__title { grid-column: 1; }
+
+    [data-publication-caption-detail] { grid-column: 2; }
 }
 
 .markdown-diagram {
@@ -721,16 +761,16 @@ summary::-webkit-details-marker {
 }
 
 /* publication-specific generated copy */
-[data-publication="journal"] .markdown {
-    padding-top: 2rem;
+[data-publication="journal"] article > .markdown {
+    padding-top: 1.25rem;
 }
 
 [data-publication="manual"] .markdown > h1:first-child {
     display: none;
 }
 
-[data-publication="manual"] .markdown {
-    padding-top: 2rem;
+[data-publication="manual"] article > .markdown {
+    padding-top: 1.25rem;
 }
 
 /* start chapter content directly after its hidden source title */
@@ -739,17 +779,12 @@ summary::-webkit-details-marker {
 }
 
 /* generated standard library reference */
-.reference-catalog > p,
-.reference-import {
-    max-width: 42rem;
-    margin: 0;
-}
 
 .reference-catalog dl {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     margin: 0 0 2rem;
-    border-block: var(--publication-hairline) solid var(--publication-line);
+    border: var(--publication-hairline) solid var(--publication-line);
 }
 
 .reference-catalog dl > div {
@@ -775,51 +810,7 @@ summary::-webkit-details-marker {
     font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
 }
 
-.markdown .reference-module-list {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    margin: 0;
-    padding: 0;
-    border-top: var(--publication-hairline) solid var(--publication-line);
-    list-style: none;
-}
-
-.markdown .reference-module-list li {
-    padding: 0;
-    min-width: 0;
-    border-bottom: var(--publication-hairline) solid var(--publication-line);
-}
-
-.markdown .reference-module-list a {
-    display: flex;
-    min-width: 0;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.65rem 0;
-    text-decoration: none;
-}
-
-.reference-module-list a:hover {
-    color: var(--publication-accent);
-}
-
-.markdown .reference-module-list code {
-    background: transparent;
-    padding: 0;
-    color: inherit;
-    overflow-wrap: anywhere;
-}
-
-.reference-module-list span {
-    flex: none;
-    color: var(--publication-ink);
-    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
-    font-size: var(--size-label);
-}
-
-.reference-module,
+.document-section,
 .reference-item {
     display: grid;
     gap: 1.25rem;
@@ -831,9 +822,7 @@ summary::-webkit-details-marker {
     scroll-margin-top: 5rem;
 }
 
-.reference-group > h2,
 .reference-member-section > h2 {
-    border-bottom: var(--publication-hairline) solid var(--publication-line);
     margin-top: 0;
     padding-bottom: 0.5rem;
 }
@@ -851,12 +840,15 @@ summary::-webkit-details-marker {
     border-bottom: var(--publication-hairline) solid var(--publication-line);
 }
 
-.reference-item-list li > div {
+.reference-item-list li > :is(a, div) {
+    text-decoration: none;
+    color: var(--publication-ink);
     align-items: baseline;
     display: grid;
-    gap: 1.5rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding: 0.65rem 0;
+    gap: var(--content-gap);
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--content-inset) calc(var(--content-row-inset) + 2rem) var(--content-inset) 0;
+    position: relative;
 }
 
 .reference-item-list code,
@@ -873,218 +865,27 @@ summary::-webkit-details-marker {
     padding: 0;
 }
 
-.reference-item-list span {
+.reference-item-list .reference-summary {
     color: var(--publication-ink);
+    max-width: 72ch;
+    font-size: var(--content-summary-size);
+    line-height: 1.5;
 }
 
-.lint-rule {
-    display: grid;
-    gap: 1.5rem;
-    min-width: 0;
-    width: 100%;
-}
-
-.lint-category {
-    display: grid;
-    gap: 0;
-    min-width: 0;
-}
-
-.lint-category > h2 {
-    align-items: baseline;
-    border-bottom: var(--publication-hairline) solid var(--publication-line);
-    display: flex;
-    justify-content: space-between;
-    margin: 2rem 0 0;
-    padding-bottom: 0.5rem;
-}
-
-.lint-category > h2 span:last-child {
-    color: var(--publication-ink);
-    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
-    font-size: var(--size-label);
-    font-weight: 400;
-}
-
-.markdown .lint-rule-list {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.markdown .lint-rule-list li {
-    min-width: 0;
-    border-bottom: var(--publication-hairline) solid var(--publication-line);
-    padding: 0;
-}
-
-.lint-rule-list a {
-    align-items: baseline;
-    display: flex;
-    gap: 0;
-    min-width: 0;
-    overflow: hidden;
-    padding: 0.55rem 0;
-    text-decoration: none;
-    white-space: nowrap;
-    width: 100%;
-}
-
-.lint-rule-list a:hover {
-    color: var(--publication-accent);
-}
-
-.markdown .lint-rule-list code {
-    background: transparent;
-    color: inherit;
-    flex: none;
-    font-size: var(--size-label);
-    padding: 0;
-}
-
-.lint-rule-list span {
-    color: var(--publication-ink);
-    flex: 1;
-    font-size: var(--size-label);
-    min-width: 0;
-    overflow: hidden;
-    text-align: right;
-    text-overflow: ellipsis;
-}
-
-.lint-rule-list span::before {
-    color: var(--publication-line);
-    content: " — ";
-}
-
-.lint-metadata {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-    margin: 0;
-    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
-    font-size: var(--size-label);
-}
-
-.lint-tag {
-    border: var(--publication-hairline) solid var(--publication-line);
-    color: var(--publication-ink);
-    line-height: 1;
-    padding: 0.35rem 0.5rem;
-}
-
-.lint-tag-category {
-    background: color-mix(in srgb, var(--publication-syntax-type) 9%, transparent);
-    color: var(--publication-syntax-type);
-}
-
-.lint-tag-level {
-    background: color-mix(in srgb, var(--publication-accent) 10%, transparent);
-    color: var(--publication-accent);
-}
-
-.lint-tag-error {
-    background: color-mix(in srgb, var(--publication-rust) 11%, transparent);
-    color: var(--publication-rust);
-}
-
-.lint-tag-automatic {
-    background: color-mix(in srgb, var(--publication-syntax-string) 9%, transparent);
-    color: var(--publication-syntax-string);
-}
-
-.lint-tag-suggestion {
-    background: color-mix(in srgb, var(--publication-syntax-function) 9%, transparent);
-    color: var(--publication-syntax-function);
-}
-
-.lint-examples {
-    display: grid;
-    gap: 1.5rem;
-    max-width: 100%;
-    min-width: min(100%, var(--width-prose));
-    width: fit-content;
-    justify-self: start;
-}
-
-.lint-metadata,
-.lint-example > h2,
-.lint-references {
-    width: 100%;
-    max-width: var(--width-prose);
-    margin-inline: 0;
-}
-
-.lint-example {
-    display: grid;
-    gap: 0.625rem;
-    min-width: 0;
-}
-
-/* align both examples to the longer listing */
-.lint-example .markdown-code {
-    min-width: 0;
-    width: 100%;
-}
-
-.lint-example > h2 {
-    font-size: var(--size-subsection-title);
-    font-weight: 500;
-    margin: 0;
-}
-
-.lint-references {
-    align-items: baseline;
-    border-top: var(--publication-hairline) solid var(--publication-line);
-    color: var(--publication-ink);
-    display: flex;
-    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
-    font-size: var(--size-label);
-    flex-wrap: wrap;
-    gap: 0.5rem 1.25rem;
-    padding-top: 0.75rem;
+.reference-item-list .reference-name { font-size: var(--content-code-size); line-height: 1.5; }
+.reference-item-list a::after {
+    content: "→"; position: absolute; top: var(--content-inset); right: var(--content-row-inset);
+    color: var(--publication-soft); line-height: 1.5;
 }
 
 .reference-declaration {
     display: grid;
 }
 
-.reference-item > :not(.reference-signature, .reference-declaration, .reference-member-section) {
+.reference-item > :not([data-publication-listing], .reference-declaration, .reference-member-section) {
     max-width: var(--width-prose);
     width: 100%;
     margin-inline: 0;
-}
-
-.reference-signature [data-publication-caption] {
-    grid-template-columns: 2.75rem minmax(0, 1fr);
-    min-height: 1.75rem;
-}
-
-.reference-signature {
-    margin: 0;
-}
-
-.reference-signature figcaption .reference-source {
-    align-self: center;
-    color: var(--publication-ink);
-    font-size: var(--size-label);
-    font-weight: 400;
-    letter-spacing: 0;
-    overflow-wrap: anywhere;
-    padding-block: 0.2rem;
-    white-space: normal;
-}
-
-.reference-signature .reference-source a {
-    color: inherit;
-    text-decoration: none;
-}
-
-.reference-signature .reference-source a:hover {
-    color: var(--publication-accent);
 }
 
 .reference-member-section {
@@ -1092,18 +893,26 @@ summary::-webkit-details-marker {
     gap: 0;
 }
 
+.reference-members { border-block: var(--publication-hairline) solid var(--publication-line); }
+.markdown .reference-item-list { border-block: var(--publication-hairline) solid var(--publication-line); }
+
 .reference-members {
     display: grid;
     margin: 0;
 }
 
 .reference-members > div {
-    align-items: start;
+    align-items: baseline;
     border-bottom: var(--publication-hairline) solid var(--publication-line);
     display: grid;
     column-gap: 2rem;
-    grid-template-columns: minmax(15rem, 0.8fr) minmax(18rem, 1fr);
-    padding: 0.75rem 0;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+    padding: var(--content-inset) 0;
+}
+
+.reference-members > div:last-child,
+.markdown .reference-item-list > li:last-child {
+    border-bottom: 0;
 }
 
 .reference-members dt {
@@ -1124,8 +933,8 @@ summary::-webkit-details-marker {
 .reference-members dt code {
     background: transparent;
     display: block;
-    font-size: 0.8125rem;
-    line-height: 1.5rem;
+    font-size: var(--content-code-size);
+    line-height: 1.5;
     overflow-wrap: anywhere;
     padding: 0;
 }
@@ -1149,63 +958,41 @@ summary::-webkit-details-marker {
 }
 
 @media (max-width: 767px) {
-    /* keep each rule within the mobile reading column */
-    .lint-rule-list span {
-        display: none;
-    }
-
-    .markdown .lint-rule-list code {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .lint-metadata {
-        gap: 0.35rem;
-    }
-
-    .lint-references {
-        align-items: start;
-        gap: 0.5rem;
-    }
-
     .markdown-table {
         overflow-x: visible;
     }
 
-    .markdown table,
-    .markdown tbody,
-    .markdown tr,
-    .markdown td {
+    .markdown-table table,
+    .markdown-table tbody,
+    .markdown-table tr,
+    .markdown-table td {
         display: block;
         min-width: 0;
     }
 
-    .markdown thead {
+    .markdown-table thead {
         display: none;
     }
 
-    .markdown tr {
+    .markdown-table tr {
         border-bottom: var(--publication-hairline) solid var(--publication-line);
         padding-block: 0.5rem;
     }
 
-    .markdown tr:last-child {
+    .markdown-table tr:last-child {
         border-bottom: 0;
     }
 
-    .markdown td {
+    .markdown-table td {
         display: grid;
         grid-template-columns: minmax(6.5rem, 0.4fr) minmax(0, 1fr);
         gap: 0.75rem;
         border-bottom: 0;
-        padding: 0.35rem 0;
+        padding: 0.35rem 0.75rem;
         overflow-wrap: anywhere;
     }
 
-    .markdown td::before {
+    .markdown-table td::before {
         content: attr(data-label);
         color: var(--publication-ink);
         font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
@@ -1213,8 +1000,7 @@ summary::-webkit-details-marker {
         font-weight: 600;
     }
 
-    .reference-catalog dl,
-    .reference-module-list {
+    .reference-catalog dl {
         grid-template-columns: 1fr;
     }
 
@@ -1222,10 +1008,9 @@ summary::-webkit-details-marker {
         border-right: 0;
     }
 
-    .reference-item-list li > div,
     .reference-members > div {
         grid-template-columns: 1fr;
-        gap: 0.35rem;
+        gap: var(--content-gap);
     }
 
     .reference-members dt,
@@ -1236,48 +1021,48 @@ summary::-webkit-details-marker {
 }
 
 /* generated syntax spans */
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-keyword, [data-k="keyword"]) {
     color: var(--publication-accent);
 }
 
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
     color: var(--publication-syntax-type);
 }
 
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
     color: var(--publication-syntax-function);
     font-weight: 600;
 }
 
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-attr, .hljs-property, [data-k="property"]) {
     color: var(--publication-syntax-property);
 }
 
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
     color: var(--publication-syntax-literal);
 }
 
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-string, [data-k="string"]) {
     color: var(--publication-syntax-string);
 }
 
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
     color: var(--publication-ink);
 }
 
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
     color: var(--publication-soft);
 }
 
-:is(.markdown-code, [data-publication-listing], .reference-members)
+:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
     :is(.hljs-params, [data-k="punct"]) {
     color: var(--publication-syntax-punctuation);
 }
@@ -1289,3 +1074,30 @@ summary::-webkit-details-marker {
         width: 100%;
     }
 }
+
+/* size the shared SVG while retaining its theme colors */
+.brand-icon,
+.brand-icon > svg {
+    display: block;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+/* keep the compact reader location on the same row as its controls */
+@media (width < 52rem) {
+    [aria-label="Breadcrumb"] {
+        flex-wrap: nowrap;
+        overflow: hidden;
+    }
+    [aria-label="Breadcrumb"] > :not(:last-child) { display: none; }
+    [aria-label="Breadcrumb"] > :last-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* Let section spacing come from its parent instead of stacking heading margins. */
+.markdown :is(.document-section, .reference-group, .reference-item) > :is(h2, h3):first-child { margin-top: 0; }

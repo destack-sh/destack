@@ -1,6 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { useLocation } from "@solidjs/router";
-import { createMemo } from "solid-js";
+import { createMemo, createSignal, onMount, onCleanup } from "solid-js";
+import { Portal } from "solid-js/web";
 
 import { CommandPalette } from "../command/palette";
 import { tokens } from "../style/tokens.stylex";
@@ -8,11 +9,23 @@ import { SiteLink } from "./link";
 import { primaryLinks } from "./navigation";
 import { ThemeToggle } from "./theme";
 
+import brandIcon from "../../../brand/mark.svg?raw";
+
 const mobile = "@media (max-width: 767px)";
 
 /// Render the global site navigation.
 export function TopBar() {
     const location = useLocation();
+    let menu: HTMLDialogElement | undefined;
+    const [menuOpen, setMenuOpen] = createSignal(false);
+
+    // dismiss mobile navigation when the desktop navigation becomes available
+    onMount(() => {
+        const desktop = window.matchMedia("(min-width: 768px)");
+        const closeMenu = () => { if (desktop.matches) menu?.close(); };
+        desktop.addEventListener("change", closeMenu);
+        onCleanup(() => desktop.removeEventListener("change", closeMenu));
+    });
 
     // select the most specific navigation destination for the current route
     const activeLink = createMemo(
@@ -32,13 +45,12 @@ export function TopBar() {
                         style={styles.brand}
                         title="Alt+H: Home"
                     >
-                        <img
-                            alt=""
-                            width="28"
-                            height="28"
-                            src="/brand/favicon/favicon.svg"
+                        <span
+                            aria-hidden="true"
+                            class="brand-icon"
+                            innerHTML={brandIcon}
                         />
-                        destack
+                        Destack
                     </SiteLink>
 
                     <nav
@@ -52,18 +64,38 @@ export function TopBar() {
                                 style={[
                                     styles.link,
                                     activeLink()?.href === href &&
-                                        styles.active,
+                                    styles.active,
                                 ]}
                                 title={`Alt+${shortcut.toUpperCase()}: ${label}`}
                             >
-                                {label.toLowerCase()}
+                                {label}
                             </SiteLink>
                         ))}
-                        <CommandPalette />
                     </nav>
-                    <ThemeToggle />
+                    <div {...stylex.attrs(styles.controls)}>
+                        <CommandPalette />
+                        <ThemeToggle />
+                        <button aria-label="Menu" title="Menu" aria-haspopup="dialog" aria-expanded={menuOpen()} aria-controls="site-menu" type="button" {...stylex.attrs(styles.mobileControl)} onClick={() => { menu?.showModal(); setMenuOpen(true); }}>
+                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
+            <Portal>
+                <dialog ref={menu} id="site-menu" aria-label="Site navigation" onClose={() => setMenuOpen(false)} {...stylex.attrs(styles.menu)} onClick={(event) => { if (event.target === menu) menu.close(); }}>
+                    <div {...stylex.attrs(styles.menuHeader)}>
+                        <a href="/" {...stylex.attrs(styles.brand)} onClick={() => menu?.close()}><span aria-hidden="true" class="brand-icon" innerHTML={brandIcon} />Destack</a>
+                        <button type="button" aria-label="Close menu" {...stylex.attrs(styles.menuClose)} onClick={() => menu?.close()}>
+                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M6 18 18 6" /></svg>
+                        </button>
+                    </div>
+                    <nav aria-label="Site navigation" {...stylex.attrs(styles.menuLinks)} onClick={(event) => { if (event.target instanceof Element && event.target.closest("a")) menu?.close(); }}>
+                        {primaryLinks.map(({ label, href, shortcut }) => (
+                            <SiteLink href={href} shortcut={shortcut} style={[styles.menuLink, activeLink()?.href === href && styles.active]}>{label}<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></SiteLink>
+                        ))}
+                    </nav>
+                </dialog>
+            </Portal>
         </header>
     );
 }
@@ -81,14 +113,15 @@ const styles = stylex.create({
         fontSize: "var(--size-navigation)",
         fontWeight: 400,
         gridTemplateColumns: "auto minmax(0, 1fr) auto",
-        columnGap: "1.5rem",
+        columnGap: "0.75rem",
         minHeight: "4rem",
         minWidth: 0,
         width: "100%",
         [mobile]: {
-            gap: "0.75rem",
+            columnGap: "0.25rem",
             gridTemplateColumns: "minmax(0, 1fr) auto",
-            paddingBlock: "0.75rem",
+            minHeight: "3.5rem",
+            paddingBlock: 0,
         },
     },
     brand: {
@@ -122,12 +155,7 @@ const styles = stylex.create({
         gridColumn: 2,
         justifyContent: "flex-end",
         minWidth: 0,
-        [mobile]: {
-            gap: "0.875rem",
-            gridColumn: "1 / -1",
-            gridRow: 2,
-            justifyContent: "space-between",
-        },
+        [mobile]: { display: "none" },
     },
     link: {
         color: tokens.ink,
@@ -140,6 +168,73 @@ const styles = stylex.create({
         textDecorationColor: tokens.accent,
         textDecorationThickness: "1px",
         textUnderlineOffset: "0.5em",
+    },
+    mobileControl: {
+        alignItems: "center",
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: tokens.ink,
+        cursor: "pointer",
+        display: "none",
+        justifyContent: "center",
+        height: "2.75rem",
+        padding: 0,
+        width: "2.75rem",
+        [mobile]: { display: "inline-flex" },
+    },
+    controls: { display: "flex", alignItems: "center", gap: 0 },
+    menu: {
+        backgroundColor: tokens.page,
+        borderWidth: 0,
+        color: tokens.ink,
+        fontFamily: tokens.textFont,
+        inset: 0,
+        margin: 0,
+        maxHeight: "100dvh",
+        maxWidth: "100vw",
+        height: "100dvh",
+        padding: `0 ${tokens.gutterRight} 2rem ${tokens.gutterLeft}`,
+        width: "100vw",
+        overscrollBehavior: "contain",
+        "::backdrop": { backgroundColor: tokens.page },
+    },
+    menuHeader: {
+        alignItems: "center",
+        borderBottomColor: tokens.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        display: "flex",
+        justifyContent: "space-between",
+        minHeight: "3.5rem",
+    },
+    menuClose: {
+        alignItems: "center",
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: tokens.ink,
+        cursor: "pointer",
+        display: "inline-flex",
+        justifyContent: "center",
+        height: "2.75rem",
+        width: "2.75rem",
+        ":hover": hover,
+        ":focus-visible": { outline: `2px solid ${tokens.accent}`, outlineOffset: "-2px" },
+    },
+    menuLinks: { display: "grid", paddingTop: "var(--content-section-gap)" },
+    menuLink: {
+        alignItems: "baseline",
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "1rem",
+        borderBottomColor: tokens.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        color: tokens.ink,
+        fontSize: "var(--content-title-size)",
+        lineHeight: "1.5",
+        paddingBlock: "var(--content-inset)",
+        ":hover": { color: tokens.accent },
+        ":focus-visible": { outline: `2px solid ${tokens.accent}`, outlineOffset: "-2px" },
     },
     root: {
         backgroundColor: tokens.page,

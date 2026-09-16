@@ -10,6 +10,9 @@ type SiteLinkProps = {
     /// The link destination.
     href: string;
 
+    /// The accessible name for an icon-only link.
+    ariaLabel?: string;
+
     /// The optional compiled presentation.
     style?: StyleXStyles;
 
@@ -22,22 +25,24 @@ type SiteLinkProps = {
 
 /// Render internal navigation or a safely isolated external link.
 export function SiteLink(props: SiteLinkProps) {
-    const attributes = {
+    // evaluate attributes in the rendered spread so route-driven styles stay reactive
+    const attributes = () => ({
+        "aria-label": props.ariaLabel,
         "data-shortcut": props.shortcut,
         href: props.href,
         title: props.title,
         ...stylex.attrs(props.style),
-    };
+    });
 
     if (isExternalLink(props.href)) {
         return (
-            <a {...attributes} rel="external noopener noreferrer" target="_blank">
+            <a {...attributes()} rel="external noopener noreferrer" target="_blank">
                 {props.children}
             </a>
         );
     }
 
-    return <A {...attributes}>{props.children}</A>;
+    return <A {...attributes()}>{props.children}</A>;
 }
 
 /// Return whether a destination leaves the current site.

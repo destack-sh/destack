@@ -1,10 +1,10 @@
-import { mapDirectives } from "./directives.mjs";
+import { mapDirectives } from "./directives.ts";
 
 /// Normalize Markdown into compact full-text search content.
-export function searchTextFor(markdown) {
+export function searchTextFor(markdown: string) {
     return mapDirectives(
         withoutComments(markdown),
-        (name, attributes, body) =>
+        (_name, attributes, body) =>
             `${attributes.title ?? attributes.alt ?? ""}\n${attributes.caption ?? body}`,
     )
         .replace(/```[\s\S]*?```/g, (block) => block.replace(/^```[^\n]*|```$/g, ""))
@@ -16,8 +16,8 @@ export function searchTextFor(markdown) {
 }
 
 /// Convert Markdown into readable text while preserving code exactly.
-export function plainTextFor(markdown) {
-    const code = [];
+export function plainTextFor(markdown: string) {
+    const code: string[] = [];
     const protectedMarkdown = withoutComments(markdown)
         .replace(/^```[^\n]*\n([\s\S]*?)^```\s*$/gm, (_, source) => protect(source.trimEnd(), code))
         .replace(/`([^`\n]+)`/g, (_, source) => protect(source, code));
@@ -48,14 +48,14 @@ export function plainTextFor(markdown) {
 }
 
 /// Remove HTML comments from rendered text.
-function withoutComments(markdown) {
+function withoutComments(markdown: string) {
     return markdown.replace(/```[\s\S]*?```|`[^`\n]*`|<!--[\s\S]*?-->/g, (source) =>
         source.startsWith("<!--") ? "" : source,
     );
 }
 
 /// Protect code during prose cleanup.
-function protect(source, code) {
+function protect(source: string, code: string[]) {
     const index = code.length;
     code.push(source);
 
@@ -63,6 +63,6 @@ function protect(source, code) {
 }
 
 /// Estimate language-model tokens from plain-text length.
-export function tokenEstimateFor(text) {
+export function tokenEstimateFor(text: string) {
     return Math.ceil(text.length / 4);
 }

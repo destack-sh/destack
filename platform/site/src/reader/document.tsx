@@ -1,14 +1,17 @@
 import { A } from "@solidjs/router";
-import { type Accessor, For, Show } from "solid-js";
+import { For, Show, Switch, Match, onMount, onCleanup } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
 import { publicationStyles } from "./publication.stylex";
 
 import { type Document, type DocumentContent } from "../content/document";
 import { Breadcrumbs } from "./breadcrumbs";
-import { ContentsTree, type ContentsEntry } from "./contents";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
+import { enhanceRuleCatalog } from "./rules";
+import "./rules.css";
+import { PageHeader } from "./header";
+import { createDirectory, DirectoryContent, DirectorySection } from "./directory";
 
 /// Properties for one rendered manual chapter.
 type DocumentArticleProps = {
@@ -19,44 +22,48 @@ type DocumentArticleProps = {
     document: Document;
 };
 
-/// Render one manual chapter with book and heading navigation.
+/// Render a document with its collection navigation.
 export function DocumentArticle(props: DocumentArticleProps) {
+    let body: HTMLDivElement | undefined;
+    const directory = createDirectory(() => props.document.entries ?? []);
+
+    // activate controls only after the complete static directory is mounted
+    onMount(() => { if (body) onCleanup(enhanceRuleCatalog(body)); });
+
     const tokenCount =
         props.document.kind === "chapter" ? props.document.tokens : undefined;
 
     return (
         <Reader
-            contents={props.document.tableOfContents}
             location={() => <DocumentLocation document={props.document} />}
-            navigation={(activeHeading) => (
-                <DocumentNavigation
-                    activeHeading={activeHeading}
-                    contents={props.document.tableOfContents}
-                    current={props.document}
-                />
-            )}
+            navigation={() => <DocumentNavigation current={props.document} />}
             publication="manual"
             source={props.document}
             tokenCount={tokenCount}
         >
-            <header {...stylex.attrs(publicationStyles.header)}>
-                <h1
-                    {...stylex.attrs(
-                        publicationStyles.title,
-                        props.document.kind === "rule" && styles.lintRuleTitle,
-                    )}
-                >
-                    {props.document.title}
-                </h1>
-                <Show when={props.document.lead}>
-                    {(lead) => (
-                        <p {...stylex.attrs(publicationStyles.description)}>
-                            {lead()}
-                        </p>
-                    )}
-                </Show>
-            </header>
-            <div class="markdown" innerHTML={props.content.html} />
+            <Switch>
+                <Match when={props.document.entries}>
+                    <DirectoryContent title={props.document.title} directory={directory}>
+                        <div class="directory-intro"><div class="markdown" innerHTML={props.content.html} /></div>
+                    </DirectoryContent>
+                </Match>
+                <Match when={props.document.kind === "catalog"}>
+                    <DirectorySection title={props.document.title}>
+                        <div ref={body} data-document-kind="catalog" class="markdown directory-body" innerHTML={props.content.html} />
+                    </DirectorySection>
+                </Match>
+                <Match when={true}>
+                    <PageHeader
+                        title={props.document.title}
+                        variant={props.document.kind === "chapter" ? "chapter" : "reference"}
+                        description={props.document.kind === "chapter" ? props.document.lead : undefined}
+                    />
+                    <Show when={props.document.kind !== "chapter" && props.document.lead}>
+                        <p class="content-description">{props.document.lead}</p>
+                    </Show>
+                    <div ref={body} data-document-kind={props.document.kind} class="markdown" innerHTML={props.content.html} />
+                </Match>
+            </Switch>
             <DocumentPagination current={props.document} />
         </Reader>
     );
@@ -64,63 +71,46 @@ export function DocumentArticle(props: DocumentArticleProps) {
 
 /// Properties for the manual chapter navigation.
 type DocumentNavigationProps = {
-    /// The currently active heading identifier.
-    activeHeading: Accessor<string>;
-
-    /// The headings in the current document.
-    contents: readonly ContentsEntry[];
-
     /// The current document.
     current: Document;
 };
 
-/// Render the manual chapters and current article headings.
+/// Render the collection pages independently of the current article outline.
 function DocumentNavigation(props: DocumentNavigationProps) {
     const navigation = () => props.current.navigation;
+    // reference items highlight their containing page without changing the page list
+    const activeRoute = () => [props.current, ...navigation().ancestors.toReversed()]
+        .find((page) => navigation().entries.some((entry) => entry.route === page.route))?.route;
+
+    const parent = () => {
+        const ancestors = navigation().ancestors;
+        const rootIndex = ancestors.findIndex((entry) => entry.route === navigation().root.route);
+        return ancestors[rootIndex < 0 ? ancestors.length - 1 : rootIndex - 1];
+    };
 
     return (
         <nav aria-label="manual" {...stylex.attrs(styles.book)}>
-            <A
-                {...stylex.attrs(publicationStyles.collectionTitle)}
-                href={navigation().root.route}
-            >
-                {navigation().root.title}
-            </A>
+            <div class="collection-context">
+                <A href={navigation().root.route}>{navigation().root.title}</A>
+                <Show when={parent()}>{(parent) => <A class="collection-back" href={parent().route}>← {parent().title}</A>}</Show>
+            </div>
             <ol {...stylex.attrs(publicationStyles.collectionList)}>
                 <For each={navigation().entries}>
                     {(entry) => (
                         <li>
                             <A
                                 {...stylex.attrs(
-                                    styles.bookLink,
+                                    publicationStyles.collectionLink,
                                     documentIndent(entry.depth),
                                     entry.depth === 0 && styles.section,
-                                    entry.route === props.current.route &&
-                                        publicationStyles.active,
+                                    entry.route === activeRoute() &&
+                                    publicationStyles.active,
                                 )}
                                 end
                                 href={entry.route}
                             >
                                 {entry.title}
                             </A>
-                            <Show
-                                when={
-                                    entry.route === props.current.route &&
-                                    props.contents.length > 0
-                                }
-                            >
-                                <div
-                                    {...stylex.attrs(
-                                        documentIndent(entry.depth),
-                                    )}
-                                >
-                                    <ContentsTree
-                                        activeId={props.activeHeading}
-                                        entries={props.contents}
-                                        isNested
-                                    />
-                                </div>
-                            </Show>
                         </li>
                     )}
                 </For>
@@ -137,7 +127,7 @@ function documentIndent(depth: number) {
 }
 
 /// Render the generated document ancestors.
-function DocumentLocation(props: { document: Document }) {
+function DocumentLocation(props: { document: Document; }) {
     return (
         <Breadcrumbs
             items={props.document.navigation.ancestors.map((link) => ({
@@ -149,12 +139,12 @@ function DocumentLocation(props: { document: Document }) {
 }
 
 /// Render the generated adjacent chapter links.
-function DocumentPagination(props: { current: Document }) {
+function DocumentPagination(props: { current: Document; }) {
     const previous = () => props.current.navigation.previous;
     const next = () => props.current.navigation.next;
 
     return (
-        <Show when={previous() || next()}>
+        <Show when={props.current.kind !== "catalog" && (previous() || next())}>
             <nav
                 aria-label="chapter navigation"
                 {...stylex.attrs(styles.pagination)}
@@ -192,16 +182,7 @@ const styles = stylex.create({
         display: "grid",
         gap: 0,
     },
-    bookLink: {
-        color: tokens.soft,
-        display: "block",
-        fontSize: "var(--size-navigation)",
-        lineHeight: 1.3,
-        paddingBlock: "0.25rem",
-        ":hover": {
-            color: tokens.accent,
-        },
-    },
+
 
     depth0: {
         paddingLeft: 0,
@@ -226,11 +207,10 @@ const styles = stylex.create({
         fontWeight: 600,
         gap: "1rem 2rem",
         justifyContent: "space-between",
-        marginTop: `calc(${tokens.publicationSpace} * 4)`,
-        paddingTop: `calc(${tokens.publicationSpace} * 2)`,
+        marginTop: "2rem",
+        paddingTop: "var(--content-section-gap)",
     },
     paginationLink: {
-        textTransform: "lowercase",
         color: tokens.ink,
         ":hover": {
             color: tokens.accent,
@@ -240,9 +220,5 @@ const styles = stylex.create({
         color: tokens.ink,
         fontWeight: 500,
         paddingTop: `calc(${tokens.publicationSpace} * 1.5)`,
-    },
-    lintRuleTitle: {
-        fontSize: "clamp(2rem, 3.5vw, 2.75rem)",
-        overflowWrap: "anywhere",
     },
 });

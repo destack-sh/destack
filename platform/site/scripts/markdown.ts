@@ -1,12 +1,32 @@
+import { escapeHtml, escapeAttribute } from "../src/content/html.ts";
+import type { Tokens, Renderer } from "marked";
+import { renderListing } from "../src/content/listing.ts";
 import { Marked, marked } from "marked";
 import { existsSync } from "node:fs";
 import { extname, relative, resolve } from "node:path";
+import { highlightCode } from "./highlight.ts";
+import { parseDirective, parseAttributes } from "./directives.ts";
+import { searchTextFor } from "./text.ts";
 
-import { highlightCode } from "./highlight.mjs";
-import { parseDirective, parseAttributes } from "./directives.mjs";
-import { searchTextFor } from "./text.mjs";
+/// An asset collected while rendering a content page.
+export type ContentAsset = { importName: string; path: string; placeholder: string; };
+/// Link and asset resolution for one Markdown source.
+export type MarkdownContext = {
+    assets: ContentAsset[];
+    documentDirectory?: string;
+    markdownDirectory?: string;
+    kind?: string;
+    ownHeadings?: Set<string>;
+    route?: string;
+    slug?: string;
+    sourceRoutes?: Map<string, { route: string; headings: Set<string>; }>;
+};
+/// An authored footnote and its collected backlinks.
+type Footnote = { text: string; references: string[]; number?: number; };
+/// A heading and the Markdown accumulated beneath it.
+type SearchSectionSource = { depth: number; id: string; source: string[]; title: string; };
 
-const codeExtensions = {
+const codeExtensions: Record<string, string> = {
     bash: "sh",
     bytecode: "dsa",
     javascript: "js",
@@ -18,7 +38,7 @@ const codeExtensions = {
 };
 
 /// Split one content source into metadata and Markdown.
-export function parseFrontmatter(source, file) {
+export function parseFrontmatter(source: string, file: string) {
     const match = source.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
     if (match == undefined) {
         throw new Error(`missing frontmatter: ${file}`);
@@ -33,8 +53,8 @@ export function parseFrontmatter(source, file) {
 }
 
 /// Parse the supported frontmatter subset.
-function parseMetadata(source, file) {
-    const metadata = {};
+function parseMetadata(source: string, file: string) {
+    const metadata: Record<string, unknown> = {};
     const lines = source.split("\n");
 
     for (const line of lines) {
@@ -54,7 +74,7 @@ function parseMetadata(source, file) {
 }
 
 /// Parse one scalar or array frontmatter value.
-function parseMetadataValue(value) {
+function parseMetadataValue(value: string) {
     const trimmed = value.trim();
 
     if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
@@ -70,7 +90,7 @@ function parseMetadataValue(value) {
 }
 
 /// Remove matching quotes from one metadata scalar.
-function parseQuotedString(value) {
+function parseQuotedString(value: string) {
     if (
         (value.startsWith('"') && value.endsWith('"')) ||
         (value.startsWith("'") && value.endsWith("'"))
@@ -82,14 +102,14 @@ function parseQuotedString(value) {
 }
 
 /// Require one non-empty string metadata field.
-export function requireString(metadata, field, file) {
+export function requireString<K extends string>(metadata: Record<string, unknown>, field: K, file: string): asserts metadata is Record<string, unknown> & Record<K, string> {
     if (typeof metadata[field] !== "string" || metadata[field] === "") {
         throw new Error(`missing ${field} in ${file}`);
     }
 }
 
 /// Render trusted Markdown with collection-aware links and assets.
-export function renderMarkdown(markdown, context) {
+export function renderMarkdown(markdown: string, context: MarkdownContext) {
     const renderer = new marked.Renderer();
     const parser = new Marked({ gfm: true });
     const headingSlugs = new Map();
@@ -130,6 +150,15 @@ export function renderMarkdown(markdown, context) {
             return `<aside class="markdown-callout" data-kind="${kind}"><strong>${kind}</strong>${body}</aside>`;
         }
 
+        // a final, separate attribution paragraph belongs outside the quoted words
+        const attribution = /^([\s\S]+)\n\n—[ \t]+([^\n]+)\n?$/.exec(token.text);
+        if (attribution != null) {
+            const body = parser.parse(attribution[1]);
+            const credit = parser.parseInline(attribution[2]);
+
+            return `<figure class="markdown-quote"><blockquote>\n${body}</blockquote><figcaption>— ${credit}</figcaption></figure>\n`;
+        }
+
         return `<blockquote>\n${parser.parse(token.text)}</blockquote>\n`;
     };
 
@@ -147,10 +176,10 @@ export function renderMarkdown(markdown, context) {
                     return directive == undefined
                         ? undefined
                         : {
-                              type: "directive",
-                              ...directive,
-                              tokens: this.lexer.blockTokens(directive.body),
-                          };
+                            type: "directive",
+                            ...directive,
+                            tokens: this.lexer.blockTokens(directive.body),
+                        };
                 },
                 renderer(token) {
                     return renderDirective(
@@ -173,7 +202,7 @@ export function renderMarkdown(markdown, context) {
 }
 
 /// Render one responsive GFM table.
-function renderTable(token, renderer, parser) {
+function renderTable(token: Tokens.Table, renderer: Renderer, parser: Marked) {
     const labels = token.header.map((cell) => searchTextFor(cell.text));
     const header = token.header
         .map((cell) => {
@@ -205,9 +234,9 @@ function renderTable(token, renderer, parser) {
 }
 
 /// Register footnote definitions and references with the page parser.
-function configureFootnotes(markdown, parser, context) {
-    const definitions = new Map();
-    const notes = [];
+function configureFootnotes(markdown: string, parser: Marked, context: MarkdownContext) {
+    const definitions = new Map<string, Footnote>();
+    const notes: Footnote[] = [];
     let isCollecting = true;
 
     // let Markdown distinguish notes from code, comments, escapes, and link destinations
@@ -261,10 +290,10 @@ function configureFootnotes(markdown, parser, context) {
                     return match == null
                         ? undefined
                         : {
-                              type: "footnoteReference",
-                              raw: match[0],
-                              id: match[1].toLowerCase(),
-                          };
+                            type: "footnoteReference",
+                            raw: match[0],
+                            id: match[1].toLowerCase(),
+                        };
                 },
                 renderer(token) {
                     const note = definitions.get(token.id);
@@ -296,13 +325,13 @@ function configureFootnotes(markdown, parser, context) {
 }
 
 /// Render collected footnotes below the article.
-function renderFootnotes(notes, parser) {
+function renderFootnotes(notes: Footnote[], parser: Marked) {
     if (notes.length === 0) {
         return "";
     }
 
     // render note bodies before backlinks so citations inside notes are included
-    const bodies = [];
+    const bodies: (string | Promise<string>)[] = [];
     for (let index = 0; index < notes.length; index++) {
         bodies.push(parser.parse(notes[index].text));
     }
@@ -326,7 +355,7 @@ function renderFootnotes(notes, parser) {
 }
 
 /// Render one supported Markdown directive.
-function renderDirective(name, attributes, body, context, parser, counters) {
+function renderDirective(name: string, attributes: Record<string, string>, body: string, context: MarkdownContext, parser: Marked, counters: { figure: number; }) {
     if (name === "callout") {
         const kind = attributes.kind ?? "note";
         const html = parser.parse(body);
@@ -377,7 +406,7 @@ function renderDirective(name, attributes, body, context, parser, counters) {
 }
 
 /// Resolve supported YouTube URLs into a privacy-enhanced player URL.
-function youtubeVideo(source) {
+function youtubeVideo(source: string) {
     if (!/^https?:\/\//i.test(source)) {
         return;
     }
@@ -393,10 +422,10 @@ function youtubeVideo(source) {
         host === "youtu.be"
             ? segments[0]
             : url.pathname === "/watch"
-              ? url.searchParams.get("v")
-              : ["embed", "shorts"].includes(segments[0])
-                ? segments[1]
-                : undefined;
+                ? url.searchParams.get("v")
+                : ["embed", "shorts"].includes(segments[0])
+                    ? segments[1]
+                    : undefined;
     if (id == undefined || !/^[\w-]{11}$/.test(id)) {
         throw new Error(`invalid YouTube video: ${source}`);
     }
@@ -411,9 +440,9 @@ function youtubeVideo(source) {
         }
         const seconds = /^\d+$/.test(start)
             ? Number(start)
-            : Number(duration[1] ?? 0) * 3600 +
-              Number(duration[2] ?? 0) * 60 +
-              Number(duration[3] ?? 0);
+            : Number(duration![1] ?? 0) * 3600 +
+            Number(duration![2] ?? 0) * 60 +
+            Number(duration![3] ?? 0);
         embed.searchParams.set("start", String(seconds));
     }
     embed.searchParams.set("autoplay", "1");
@@ -422,7 +451,7 @@ function youtubeVideo(source) {
 }
 
 /// Require one non-empty directive attribute.
-function requireAttribute(attributes, attribute, slug, directive) {
+function requireAttribute(attributes: Record<string, string>, attribute: string, slug: string | undefined, directive: string) {
     const value = attributes[attribute];
     if (value == undefined || value === "") {
         throw new Error(`missing ${attribute} in ${slug} ${directive} directive`);
@@ -432,7 +461,7 @@ function requireAttribute(attributes, attribute, slug, directive) {
 }
 
 /// Render one titled and highlighted code listing.
-function renderCode(token, counters) {
+function renderCode(token: Tokens.Code, counters: { figure: number; }) {
     const fence = parseCodeFence(token.lang ?? "");
     const language = fence.language;
 
@@ -446,32 +475,25 @@ function renderCode(token, counters) {
     const highlighted = highlightCode(token.text, language);
     const caption = fence.caption ?? fence.title;
     const format = codeFormat(language);
-    const code = renderCodeBody(highlighted);
-
-    const heading =
-        caption == undefined
-            ? ""
-            : `<figcaption data-publication-caption><span class="markdown-code__title" data-publication-caption-title>${escapeHtml(caption)}</span><span class="markdown-code__format">${escapeHtml(format)}</span></figcaption>`;
-
-    return `<figure class="markdown-code" data-publication-listing>${heading}<pre data-publication-body tabindex="0" aria-label="${escapeAttribute(caption ?? (language || "Code"))}">${code}</pre></figure>`;
+    return renderListing(highlighted, { title: caption, detail: format, label: language || "Code" });
 }
 
 /// Convert a fence language into its visible file format.
-function codeFormat(language) {
+function codeFormat(language: string) {
     const extension = codeExtensions[language] ?? language;
 
     return extension === "" || extension === "text" ? "text" : `.${extension}`;
 }
 
 /// Allocate the next figure label.
-function nextFigureLabel(counters, kind) {
+function nextFigureLabel(counters: { figure: number; }, kind: string) {
     counters.figure += 1;
 
     return `${kind} ${counters.figure}`;
 }
 
 /// Parse the language and attributes from a code fence.
-function parseCodeFence(language) {
+function parseCodeFence(language: string) {
     const [head, ...tail] = language.trim().split(/\s+/);
     const attributes = parseAttributes(tail.join(" "));
     const [name, qualifier] = (head ?? "").replace(/^\./, "").split(":", 2);
@@ -484,22 +506,8 @@ function parseCodeFence(language) {
     };
 }
 
-/// Add stable line structure and gutters to highlighted code.
-function renderCodeBody(highlighted) {
-    const lines = highlighted.split("\n");
-    const rows = lines
-        .map((line, index) => {
-            const text = line === "" ? " " : line;
-
-            return `<span class="markdown-code-line" data-publication-line><span class="markdown-code-gutter" data-publication-gutter>${index + 1}</span><span class="markdown-code-text" data-publication-code>${text}</span></span>`;
-        })
-        .join("");
-
-    return `<code class="markdown-code-lines" data-publication-lines>${rows}</code>`;
-}
-
 /// Resolve and validate one content link.
-function resolveLink(href, context) {
+function resolveLink(href: string, context: MarkdownContext) {
     if (isExternalLink(href)) {
         return href;
     }
@@ -510,13 +518,9 @@ function resolveLink(href, context) {
 
     const markdownLink = href.match(/^(.+\.md)(#[a-z0-9-]+)?$/);
     if (markdownLink != undefined) {
-        const target = resolve(context.markdownDirectory, markdownLink[1]);
+        const target = resolve(context.markdownDirectory!, markdownLink[1]);
 
-        if (!existsSync(target)) {
-            throw new Error(`missing markdown link in ${context.slug}: ${href}`);
-        }
-
-        const content = context.sourceRoutes.get(target);
+        const content = context.sourceRoutes!.get(target);
         if (content == undefined) {
             throw new Error(
                 `markdown link leaves its content collection in ${context.slug}: ${href}`,
@@ -540,8 +544,8 @@ function resolveLink(href, context) {
 }
 
 /// Validate one local heading link.
-function resolveHeadingLink(href, context) {
-    if (!context.ownHeadings.has(href.slice(1))) {
+function resolveHeadingLink(href: string, context: MarkdownContext) {
+    if (!context.ownHeadings!.has(href.slice(1))) {
         throw new Error(`missing local heading in ${context.slug}: ${href}`);
     }
 
@@ -549,12 +553,12 @@ function resolveHeadingLink(href, context) {
 }
 
 /// Return whether a link carries an absolute URI scheme.
-function isExternalLink(href) {
+function isExternalLink(href: string) {
     return /^[a-z][a-z0-9+.-]*:/i.test(href);
 }
 
 /// Return whether a relative link looks like an asset path.
-function isBareAssetLink(href) {
+function isBareAssetLink(href: string) {
     if (href.startsWith("/") || href.startsWith("#")) {
         return false;
     }
@@ -565,11 +569,11 @@ function isBareAssetLink(href) {
 }
 
 /// Resolve one content asset into a build-time placeholder.
-function resolveAsset(href, context) {
-    const target = resolve(context.markdownDirectory, href);
+function resolveAsset(href: string, context: MarkdownContext) {
+    const target = resolve(context.markdownDirectory!, href);
     const contentDirectory =
         context.kind === "document" ? context.documentDirectory : context.markdownDirectory;
-    const relativeTarget = relative(contentDirectory, target);
+    const relativeTarget = relative(contentDirectory!, target);
 
     if (relativeTarget.startsWith("..") || relativeTarget === "") {
         throw new Error(`asset escapes content directory in ${context.slug}: ${href}`);
@@ -600,7 +604,7 @@ function resolveAsset(href, context) {
 }
 
 /// Extract real headings while ignoring fenced examples.
-export function headingsFor(markdown) {
+export function headingsFor(markdown: string) {
     const slugs = new Map();
     const headings = [];
 
@@ -620,7 +624,7 @@ export function headingsFor(markdown) {
 }
 
 /// Allocate one stable GitHub-style heading identifier.
-function uniqueSlug(text, slugs) {
+function uniqueSlug(text: string, slugs: Map<string, number>) {
     const base = text
         .toLowerCase()
         .replace(/`([^`]+)`/g, "$1")
@@ -633,10 +637,10 @@ function uniqueSlug(text, slugs) {
 }
 
 /// Split Markdown into independently searchable heading sections.
-export function searchSectionsFor(markdown) {
+export function searchSectionsFor(markdown: string) {
     const sections = [];
     const slugs = new Map();
-    let section;
+    let section: SearchSectionSource | undefined;
 
     for (const token of marked.lexer(markdown, { gfm: true })) {
         if (token.type === "heading" && token.depth <= 3) {
@@ -664,25 +668,11 @@ export function searchSectionsFor(markdown) {
 }
 
 /// Normalize one accumulated search section.
-function renderSearchSection(section) {
+function renderSearchSection(section: SearchSectionSource) {
     return {
         depth: section.depth,
         id: section.id,
         text: searchTextFor(section.source.join("")),
         title: section.title,
     };
-}
-
-/// Escape text for an HTML text node.
-function escapeHtml(value) {
-    return value
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;");
-}
-
-/// Escape text for an HTML attribute.
-function escapeAttribute(value) {
-    return escapeHtml(value).replaceAll("'", "&#39;");
 }

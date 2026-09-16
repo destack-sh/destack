@@ -6,6 +6,7 @@ import * as stylex from "@stylexjs/stylex";
 import { Suspense } from "solid-js";
 
 import "./style/site.css";
+import "./style/content.css";
 import { tokens } from "./style/tokens.stylex";
 
 /// Render the site router and shared document providers.

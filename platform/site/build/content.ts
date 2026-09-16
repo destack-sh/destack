@@ -20,6 +20,9 @@ type ContentTask = {
     /// The generator path relative to the site directory.
     script: string;
 
+    /// Additional generator arguments.
+    arguments?: readonly string[];
+
     /// The pending debounce timer.
     timeout?: ReturnType<typeof setTimeout>;
 
@@ -34,10 +37,22 @@ type ContentTask = {
 export function contentPlugin(siteDirectory: string): Plugin {
     const tasks: ContentTask[] = [
         {
+            name: "package documentation",
+            outputDirectory: join(siteDirectory, "src/generated"),
+            workingDirectory: siteDirectory,
+            script: "scripts/generate-content.ts",
+            arguments: ["--reference"],
+            triggers: collections.flatMap((collection) =>
+                collection.sources.filter((source) => source.readme).map((source) =>
+                    resolve(siteDirectory, "../..", source.directory),
+                ),
+            ),
+        },
+        {
             name: "content",
             outputDirectory: join(siteDirectory, "src/generated"),
             workingDirectory: siteDirectory,
-            script: "scripts/generate-content.mjs",
+            script: "scripts/generate-content.ts",
             triggers: collections.flatMap((collection) =>
                 collection.sources.map((source) =>
                     resolve(siteDirectory, "../..", source.directory),
@@ -92,7 +107,7 @@ function run(task: ContentTask, server: ViteDevServer) {
         return;
     }
 
-    task.process = spawn("bun", [task.script], {
+    task.process = spawn("bun", [task.script, ...(task.arguments ?? [])], {
         cwd: task.workingDirectory,
         stdio: "inherit",
     });

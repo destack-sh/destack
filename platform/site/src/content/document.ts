@@ -1,7 +1,10 @@
+import type { ContentEntry } from "./presentation";
 import { loadContent, type RenderedContent } from "./load";
 
 /// One published documentation page.
 export type Document = {
+    /// Immediate collection entries.
+    entries?: readonly ContentEntry[];
     /// The static rendered HTML route.
     contentRoute: string;
     /// The concise chapter description.
@@ -11,12 +14,12 @@ export type Document = {
     /// The authored Markdown route.
     markdownRoute: string;
     /// The document category.
-    kind: "chapter" | "module" | "symbol" | "rule";
+    kind: "chapter" | "module" | "symbol" | "rule" | "catalog";
     /// The generated chapter links.
     navigation: {
         root: DocumentLink;
         ancestors: readonly DocumentLink[];
-        entries: readonly (DocumentLink & { depth: number })[];
+        entries: readonly (DocumentLink & { depth: number; })[];
         previous?: DocumentLink;
         next?: DocumentLink;
     };
@@ -141,7 +144,7 @@ function isDocument(value: unknown): value is Document {
         typeof document.description === "string" &&
         (document.lead == undefined || typeof document.lead === "string") &&
         typeof document.markdownRoute === "string" &&
-        ["chapter", "module", "symbol", "rule"].includes(
+        ["chapter", "module", "symbol", "rule", "catalog"].includes(
             String(document.kind),
         ) &&
         typeof document.navigation === "object" &&

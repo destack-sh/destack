@@ -1,8 +1,8 @@
-import { type Accessor, type JSX, onCleanup, onMount } from "solid-js";
+import { formatReadTime } from "../content/presentation";
+import { type JSX, onCleanup, onMount } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
 import type { PageSource } from "../content/source";
-import { type ContentsEntry, trackActiveHeading } from "./contents";
 import {
     createPageSourceCommands,
     type PageSourceCommands,
@@ -17,14 +17,11 @@ type ReaderProps = {
     /// The rendered article.
     children: JSX.Element;
 
-    /// The current article headings.
-    contents: readonly ContentsEntry[];
-
     /// The publication treatment applied to the reader.
     publication: "journal" | "manual";
 
     /// The collection navigation shown beside the article.
-    navigation: (activeHeading: Accessor<string>) => JSX.Element;
+    navigation: () => JSX.Element;
 
     /// The current location rendered in the article toolbar.
     location: () => JSX.Element;
@@ -32,23 +29,26 @@ type ReaderProps = {
     /// The portable source files for the current page.
     source: PageSource;
 
+    /// Publication metadata displayed above the page title.
+    metadata?: () => JSX.Element;
+
     /// The approximate token count shown for authored pages.
     tokenCount?: number;
 };
 
 /// Properties for one responsive reader toolbar.
 type ReaderToolbarProps = {
-    /// The currently active heading identifier.
-    activeHeading: Accessor<string>;
-
     /// The current location rendered in the article toolbar.
     location: () => JSX.Element;
 
     /// The collection navigation shown beside the article.
-    navigation: (activeHeading: Accessor<string>) => JSX.Element;
+    navigation: () => JSX.Element;
 
     /// The shared page source commands.
     sourceCommands: PageSourceCommands;
+
+    /// Publication metadata displayed above the page title.
+    metadata?: () => JSX.Element;
 
     /// The approximate token count shown for authored pages.
     tokenCount?: number;
@@ -56,7 +56,6 @@ type ReaderToolbarProps = {
 
 /// Render the common blog and documentation reading frame.
 export function Reader(props: ReaderProps) {
-    const activeHeading = trackActiveHeading(props.contents);
     const sourceCommands = createPageSourceCommands(props.source);
 
     // align direct links after responsive layout and webfonts settle
@@ -92,7 +91,7 @@ export function Reader(props: ReaderProps) {
             data-publication={props.publication}
         >
             <aside {...stylex.attrs(publicationStyles.sidebar)}>
-                {props.navigation(activeHeading)}
+                {props.navigation()}
             </aside>
 
             <article
@@ -103,7 +102,7 @@ export function Reader(props: ReaderProps) {
                 onClick={playVideo}
             >
                 <ReaderToolbar
-                    activeHeading={activeHeading}
+                    metadata={props.metadata}
                     location={props.location}
                     navigation={props.navigation}
                     sourceCommands={sourceCommands}
@@ -119,17 +118,35 @@ export function Reader(props: ReaderProps) {
 /// Render one toolbar at its responsive DOM position.
 function ReaderToolbar(props: ReaderToolbarProps) {
     return (
-        <header {...stylex.attrs(styles.toolbar, styles.toolbarPublication)}>
-            <details {...stylex.attrs(styles.menu)} name="reader-tools">
-                <summary {...stylex.attrs(styles.menuSummary)}>
+        <header {...stylex.attrs(styles.toolbar, styles.toolbarPublication, props.metadata !== undefined && styles.toolbarWithMetadata)}>
+            <details
+                {...stylex.attrs(styles.menu)}
+                name="reader-tools"
+                onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                        event.currentTarget.open = false;
+                        event.currentTarget.querySelector("summary")?.focus();
+                    }
+                }}
+            >
+                <summary aria-label="Contents" title="Contents" {...stylex.attrs(styles.menuSummary)}>
                     Contents
+                    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="m6 9 6 6 6-6" /></svg>
                 </summary>
-                <div {...stylex.attrs(styles.menuBody)}>
-                    {props.navigation(props.activeHeading)}
+                <div
+                    {...stylex.attrs(styles.menuBody)}
+                    onClick={(event) => {
+                        if (event.target instanceof Element && event.target.closest("a")) {
+                            event.currentTarget.closest("details")?.removeAttribute("open");
+                        }
+                    }}
+                >
+                    {props.navigation()}
                 </div>
             </details>
 
             <div {...stylex.attrs(styles.location)}>{props.location()}</div>
+            {props.metadata && <div {...stylex.attrs(styles.metadata)}>{props.metadata()}</div>}
             <div {...stylex.attrs(styles.toolbarTools)}>
                 {props.tokenCount !== undefined && (
                     <>
@@ -155,13 +172,6 @@ function ReaderToolbar(props: ReaderToolbarProps) {
     );
 }
 
-/// Estimate reading time at roughly 300 tokens (200 words) per minute.
-function formatReadTime(tokenCount: number) {
-    const minutes = Math.max(1, Math.ceil(tokenCount / 300));
-
-    return `${minutes} min`;
-}
-
 /// Format an approximate token count for the compact article toolbar.
 function formatTokenCount(tokenCount: number) {
     // keep exact counts legible for short pages
@@ -182,43 +192,43 @@ const compact = "@media (width < 52rem)";
 const styles = stylex.create({
     location: {
         minWidth: 0,
-        [narrow]: {
-            gridColumn: "1 / -1",
-            gridRow: 2,
-        },
+        overflow: "hidden",
     },
     menu: {
         minWidth: 0,
-        "@media (min-width: 80rem)": {
-            display: "none",
-        },
-        [narrow]: {
-            gridColumn: "1 / -1",
-            gridRow: 1,
-        },
+        "@media (min-width: 80rem)": { display: "none" },
     },
     menuBody: {
-        alignContent: "start",
+        backgroundColor: tokens.page,
+        borderColor: tokens.line,
+        borderStyle: "solid",
+        borderWidth: tokens.hairline,
+        boxShadow: "0 12px 32px rgb(0 0 0 / 12%)",
         display: "grid",
         fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
-        gap: "2rem",
-        maxHeight: "min(32rem, calc(100svh - 10rem))",
+        gap: "1.25rem",
+        left: 0,
+        right: 0,
+        maxHeight: "min(32rem, 65svh)",
         overflowY: "auto",
-        padding: "1rem 0 0.5rem",
+        overscrollBehavior: "contain",
+        padding: "1rem",
+        position: "absolute",
+        top: "100%",
+        zIndex: 20,
     },
     menuSummary: {
         alignItems: "center",
         color: tokens.text,
         cursor: "pointer",
         display: "flex",
-        fontFamily: tokens.textFont,
-        fontSize: "var(--size-label)",
-        fontWeight: 500,
-        gap: "0.75rem",
-        justifyContent: "flex-start",
+        justifyContent: "center",
         listStyle: "none",
-        minHeight: tokens.siteControlHeight,
+        height: "2.75rem",
+        width: "auto",
+        gap: "0.375rem",
+        fontSize: "var(--size-label)",
     },
     toolbar: {
         alignItems: "center",
@@ -226,34 +236,37 @@ const styles = stylex.create({
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         color: tokens.ink,
+        display: "grid",
+        gap: "0.75rem",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+        minHeight: "var(--content-context-height)",
+        position: "relative",
+        [narrow]: { gridTemplateColumns: "auto minmax(0, 1fr) auto" },
+    },
+    toolbarWithMetadata: {
+        gridTemplateColumns: "minmax(0, 1fr) auto auto",
+        [narrow]: { gridTemplateColumns: "auto minmax(0, 1fr) auto auto" },
+        "@media (max-width: 600px)": { gridTemplateColumns: "auto minmax(0, 1fr) auto", rowGap: 0 },
+    },
+    metadata: {
         display: "flex",
+        alignItems: "baseline",
         flexWrap: "wrap",
-        fontSize: tokens.siteFontSize,
-        gap: "0.5rem",
-        justifyContent: "space-between",
-        minHeight: tokens.publicationRow,
-        paddingBlock: 0,
-        [narrow]: {
-            alignItems: "start",
-            display: "grid",
-            gap: "0.25rem 0.75rem",
-            gridTemplateColumns: "minmax(0, 1fr) auto",
-            justifyContent: "stretch",
-        },
+        gap: "0.5rem 1rem",
+        color: tokens.soft,
+        "@media (max-width: 600px)": { gridColumn: "1 / -1", gridRow: 2, paddingBottom: "0.75rem" },
     },
     toolbarPublication: {
         fontFamily: tokens.textFont,
         fontSize: "var(--size-label)",
     },
     toolbarTools: {
+        gridColumn: "-2 / -1",
+        gridRow: 1,
         alignItems: "center",
         display: "flex",
         gap: "0.75rem",
         minWidth: 0,
-        [narrow]: {
-            gridColumn: 2,
-            gridRow: 1,
-        },
     },
     statistic: {
         color: tokens.ink,

@@ -9,6 +9,7 @@ export type Collection = {
     /// The repository directories published in this collection.
     sources: readonly {
         directory: string;
+        readme?: boolean;
         path: string;
         hierarchy: readonly number[];
     }[];
@@ -29,7 +30,8 @@ export const collections: readonly Collection[] = [
         sources: [
             { directory: "language/docs", path: "language", hierarchy: [10] },
             {
-                directory: "language/library/docs",
+                directory: "language/library",
+                readme: true,
                 path: "language/standard-library",
                 hierarchy: [10, 30],
             },

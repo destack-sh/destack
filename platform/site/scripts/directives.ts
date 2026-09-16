@@ -1,8 +1,8 @@
 /// Transform block directives while preserving code and HTML comments.
-export function mapDirectives(markdown, render) {
+export function mapDirectives(markdown: string, render: (name: string, attributes: Record<string, string>, body: string) => string) {
     const lines = markdown.split("\n");
     const output = [];
-    let fence;
+    let fence: string | undefined;
     let comment = false;
 
     for (let index = 0; index < lines.length; index += 1) {
@@ -49,7 +49,7 @@ export function mapDirectives(markdown, render) {
 }
 
 /// Parse a directive at the beginning of a Markdown block.
-export function parseDirective(source) {
+export function parseDirective(source: string) {
     const opening = /^:::(\w+)(?:[ \t]+([^\n]*))?(?:\n|$)/.exec(source);
     if (opening == null) {
         return;
@@ -67,7 +67,7 @@ export function parseDirective(source) {
     }
 
     let length = opening[0].length;
-    let fence;
+    let fence: string | undefined;
     for (const line of source.slice(length).split("\n")) {
         const delimiter = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
         if (fence != undefined) {
@@ -96,8 +96,8 @@ export function parseDirective(source) {
 }
 
 /// Parse quoted and unquoted directive or fence attributes.
-export function parseAttributes(source) {
-    const attributes = {};
+export function parseAttributes(source: string) {
+    const attributes: Record<string, string> = {};
     for (const match of source.matchAll(/(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g)) {
         attributes[match[1]] = match[2] ?? match[3] ?? match[4];
     }
