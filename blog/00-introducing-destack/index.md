@@ -29,7 +29,8 @@ The pioneers meant for software to be open, hackable, remixable.
 Hardware has advanced far beyond the capabilities envisiaged half a century ago, and yet, a duller, fragmented version of software has settled in.
 Somewhere deep in the terms of service governing SaaS vendor #47's subprocessor's database, the dream of malleable software died.
 
-:::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
+:::figure width="600" src="./tiny-glade.gif" alt="In Tiny Glade, drawing a path through a wall creates an archway automatically."
+Path editing in Tiny Glade. Gameplay by [Pounce Light](https://store.steampowered.com/app/2198150/Tiny_Glade/). [Full trailer](https://www.youtube.com/watch?v=CdWpq2efN8Y).
 :::
 
 Just at the time where we _just_ got the tools to - theoretically -
@@ -38,7 +39,9 @@ How do you unify, customise, and evolve the software you need?
 Today, if you wanted to own your software suite, you would need access to enough of the sources for each vendor, then make sure they all use the same kinds of stores and interfaces and APIs, and only then could we maybe unify enough of the stack to join "reminders in Notion" with "leads in Salesforce" and "events in calendar".
 With the current stack, this is just not a serious option, so we have "connectors".
 
-[xkdc meme with the woblly stack?](TODO)
+:::figure width="384" src="./dependency.png" alt="Modern digital infrastructure balances precariously on a small project maintained by one person."
+[Dependency](https://xkcd.com/2347/) — Randall Munroe, xkcd. [CC BY-NC 2.5](https://creativecommons.org/licenses/by-nc/2.5/).
+:::
 
 But connectors are a hack.
 Software itself is a leaky abstraciton.
@@ -53,7 +56,9 @@ The brute "acceleration" of old processes with "self-driving factories" is not l
 To truly industrialise the precise industrialised manufacture of software, we need entirely _new_ processes.
 New procesess, not just for studying and developing software behavior, but entirely new lifecycles.
 
-[wind tunnel simulation thingy..? or the wind tunel of the wright brothers? what is the wind tunnel for software?](TODO)
+:::figure src="./wind-tunnel.svg" alt="Diagram of a closed-circuit wind tunnel, with arrows showing airflow through the test section and around the return duct."
+Closed-circuit wind tunnel. [Tomia and Liftarn](https://commons.wikimedia.org/wiki/File:Windtunnel3-en.svg), [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/). White background added.
+:::
 
 <!--homoiconic software-->
 <!--There is an an old joke that computer science really has nothing to do with either computers or science.-->
@@ -74,7 +79,9 @@ And that's great.
 Climbing the ladder of abstraction yields more output for every bit of input.
 We gradually remove ourselves from the cumbersome burden of having to actually spell out _exactly_ what we want the machine to be doing: which electrons? which bits? which registers? what memory? what computer? _where_ computer? _when_ computer?
 
-[mechanically crafted gear computer thingy](TODO)
+:::figure width="440" src="./babbage-engine.jpg" alt="The 1832 demonstration portion of Babbage’s Difference Engine No. 1, with its columns of brass gears and hand crank."
+The 1832 demonstration portion of Babbage’s Difference Engine No. 1. Photograph by [Sebastian Wallroth](https://commons.wikimedia.org/wiki/File:Babbages_difference_engine_1832.jpg), public domain. [Watch the later No. 2 engine in operation](https://www.youtube.com/watch?v=XSkGY6LchJs).
+:::
 
 Historically, whenever some more accessible form of programming becomes too common, the "real" programmers no longer consider it programming.
 Thus, Excel is not "programming", just like image classification is no longer "AI" - and soon, presumably, voice recognition, chatbots, and agentiveness will blend into boring software like the magic of the internet did.
@@ -102,7 +109,9 @@ Right from the very start, the computing pioneers dreamed of interacting with th
 Spreadsheets kicked off the first personal computer revolution in earnest, thereby replacing entire rooms of people performing menial tabulations by hand with a much more approachable and programmable interface.
 (And thereby also giving those people higher level jobs.)
 
-[that old IBM ad about replacing 50 engineers or something?](TODO)
+:::figure width="480" src="./ibm-extra-engineers.jpg" alt="IBM’s 1951 advertisement, 150 Extra Engineers, showing rows of engineers doing calculations."
+IBM, [150 Extra Engineers](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg), 1951. An advertisement for the IBM 604 Electronic Calculating Punch.
+:::
 
 To this day, the humble spreadsheet is _still_ the most popular application platform and surprisingly hard to displace.
 But, of course, we generaly do not buy professional software that comprises purely a spreadsheet, in much the same way that we don't buy software purely made of "connectors".
@@ -114,9 +123,9 @@ Early on, game development was also a complete schlep, and only a tiny guild of 
 To get a game started, everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
 Then, eventually, we figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine".
 
-[the first version of unreal engine or something?](TODO)
-<!--:::video src="https://www.youtube.com/watch?v=WFu1utKAZ18" title="Rayman Legends: The Design Process Within the UbiArt Framework" poster="https://i.ytimg.com/vi/WFu1utKAZ18/maxresdefault.jpg"
-:::-->
+:::figure width="640" src="./ubiart.gif" alt="An artist assembles and poses a hand-drawn character directly in UbiArt, with the artwork and animation rig side by side."
+Character editing in UbiArt. Excerpt from [Ubisoft’s framework demonstration](https://www.youtube.com/watch?v=B_QhZYTukac&t=35s). [Raysman Legends design talk](https://www.youtube.com/watch?v=WFu1utKAZ18).
+:::
 
 Initially, when using a game engine, developers didn't get quite the same level of control, or even hit _quite_ the same high notes as the best engineers could without.
 But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before as designers, writers, and artists, could now contribute _directly_ to the product, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
@@ -127,19 +136,23 @@ Now, when building a game, sometimes you "play" the game, sometimes you edit the
 # The System and The Meta System
 
 Fundamentally, there is not a test, suite of tests, certificate, proof, or _any_ single "definitive" gate that you can run to convince me that some non-trivial software program is correct.
-Complex software systems span many granuliarities, and human written or not, misalignment can hide in any of them.
-Mathematical proo, passing tests, and green gates all mean nothing if it's not what I actually wanted.
+The correctness of any complex software systems span many granuliarities, and, human written or not, misalignment can hide in any of them.
+Mathematical proof, passing tests, and green gates all mean nothing if it's not what I actually wanted.
 
-At the same time, there is a lot of excitement around "agent native" software and "software factories" - the ideas that we need new more hackable software, and the idea to build them auto semi-autonomously with software that writes software (i.e., agents).
-Where, exactly, are we accelerating to?
+Yet, there is a lot of excitement around "agent native" software and "software factories", which mostly serve to _remove_ myself from the details, attaining, supposedly, an ever higher level of abstraction until 
+<!--Where, exactly, are we accelerating to?-->
 
-The temptation to let agents swarm out on a hunch adds a whole new dimension of yak shaving, and yet it's almost never rewarded with anything useful.
-Eventually, even my most well intentioned unconstrained production ends in potemkin software where everything _looks_ right but nothing quite works, nothing really fits together, and actually it's not what I wanted at all when I finally _see_ it.
+<!--T the ideas that we need new more hackable software, and the idea to build them auto semi-autonomously with software that writes software (i.e., agents).-->
+
+<!--The temptation to let agents swarm out on a hunch adds a whole new dimension of yak shaving, and yet it's almost never rewarded with anything useful.
+Eventually, even my most well intentioned unconstrained production ends in potemkin software where everything _looks_ right but nothing quite works, nothing really fits together, and actually it's not what I wanted at all when I finally _see_ it.-->
 
 The only way to judge correctness - i.e., does it do what I want - is to see just see the software in motion under many different angles and granularities, inside out.
 Notable, this is not an intelligence problem, it's not even an AI problem - I just don't know what I want until I see it, and I also don't know what I _don't_ want until I see that, too.
 
-[a building under construction with scaffolding](TODO)
+:::figure width="480" src="./vault-centering.png" alt="Cutaway drawing of a masonry vault under construction, with curved timber frames supporting the unfinished vault."
+Timber centering supporting a masonry vault. Viollet-le-Duc, [Dictionary of French Architecture](https://commons.wikimedia.org/wiki/File:Construction.voute.romaine.png), 1856.
+:::
 
 The "correctness" of a system is an iterative process; its alignment must be continuous, because the shape of the problem and solution must shift in tandem.
 This has always been true for any real symbolic software, but it is especially true for probabilstic software.
@@ -159,7 +172,9 @@ And in any case, most serious programming languages have a way of accumulating m
 Thus, _minimality_ in isolation is not _quite_ enough, because we do actually need to perform a wide variety of tasks in software, and the less "the system" provides, the more we need to do in diverging ways in userland.
 By now, he space of general purpose software architecture is well explored, which is why we have so many frameworks and meta-frameworks solving largely the same problems in largely the same ways
 
-[carcinicisation](TODO)
+:::figure src="./carcinisation.jpg" alt="Crustacean family tree showing the separate evolution of crab-like forms in several lineages."
+Carcinisation in crustaceans. Courtesy of [Joanna M. Wolfe](https://www.eurekalert.org/multimedia/556561).
+:::
 
 Indeed, there is a tremendous advantage to using one language for *everything*, as evidenced by the popularity of single language monorepos (suboptimal though they are in many respects).
 With a universal language, we would get to use the same domain models, libraries, and build systems across the entire application and lifecycle!
@@ -168,16 +183,25 @@ What is the most boring universal stack we can build?
 Like, I don't want to learn a new and totally different stack, I already know the modern ones pretty well, and I have better things to do.
 The Web is pretty great, TypeScript is pretty great, how far can we take that?.
 
-[the essence of the bull](TODO)
+:::figure src="./picasso-bull.jpg" alt="Eleven versions of Picasso’s bull, progressing from a detailed animal to a few essential lines."
+Pablo Picasso, *The Bull*, 1945–46. [Image source](https://drawpaintacademy.com/the-bull/).
+:::
 
 We have long figured out that opinionated formatters are a great idea to remove silly syntax debates and just standardized the _appearence_ of code once and for all.
 Maybe the syntax is not _perfect_ by your personal standards, but it removes unproductive arguments, and that's the benefit.
  <!--and meta-frameworks serves a similar need.-->
 Why not just go all the way, and fully standardize the _shape_ of code? Not just syntax, not just linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures.
 
+<!-- TODO -->
+<!--But how to get from here to fully standardized? 
+- place to manage personal software with the best modern web stack, standardized
+The Destack app supports two types of packages, to bridge from the present into the future:
+ - ruthlessly standardized open TypeScript / Web thing with existing NPM stuff
+ - absurdly fully integrated TypeScript++ language runtime with its complete own closed stack-->
+
 # TypeScript++
 
-The univeral final stack requires the universal final language.
+The univeral final stack will, eventually, require the universal final language.
 Surprisingly, we do not quite have that universal complete language yet.
 Of course, there are languages you could _contort_ to target all platforms and write everything from systems software to API services to web apps.
 But there is a reason nobody runs Rust rust for web apps, even though WASM has existed for a decade.
