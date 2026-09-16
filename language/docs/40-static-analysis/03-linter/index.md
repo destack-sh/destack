@@ -1,6 +1,6 @@
 ---
-title: Linter
-description: Linter
+title: Lint
+description: Lint
 ---
 
-# Linter
+# Lint

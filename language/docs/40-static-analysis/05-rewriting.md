@@ -1,9 +1,9 @@
 ---
-title: Rewriting
-description: Rewriting
+title: Rewrite
+description: Rewrite
 ---
 
-# Rewriting
+# Rewrite
 
 ```sh
 destack rewrite 'fetch($URL)' 'client.fetch($URL)' .

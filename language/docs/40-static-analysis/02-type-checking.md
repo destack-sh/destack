@@ -1,9 +1,9 @@
 ---
-title: Type Checking
+title: Check
 description: Strict, sound TypeScript with predictable module boundaries and type behavior.
 ---
 
-# Type Checking
+# Check
 
 ```sh
 destack check .

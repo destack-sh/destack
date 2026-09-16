@@ -1,9 +1,9 @@
 ---
-title: Testing
+title: Test
 description: Jest/Vitest style tests.
 ---
 
-# Testing
+# Test
 
 - jest/vitest style tests
 

@@ -1,9 +1,9 @@
 ---
-title: Documentation
+title: Document
 description: documentations on all expressions (like decorators)
 ---
 
-# Documentation
+# Document
 
 - builtin ish?
 - jsdoc?

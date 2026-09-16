@@ -1,9 +1,9 @@
 ---
-title: Queries
+title: Query
 description: Queryable.
 ---
 
-# Queries
+# Query
 
 ```sh
 destack query 'fetch($URL)' .

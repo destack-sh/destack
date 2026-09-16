@@ -1,9 +1,9 @@
 ---
-title: Formatting
+title: Format
 description: Source formatting.
 ---
 
-# Formatting
+# Format
 
 ```sh
 destack format src/
