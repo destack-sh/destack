@@ -433,6 +433,7 @@ fn test_replace_embedded_module() {
 
     // reopen the same host with an authored replacement and the retained parse
     for (path, content) in [
+        ("README.md", "# Destack\n"),
         (
             "destack.json",
             r#"{ "name": "destack" }
