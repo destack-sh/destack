@@ -126,7 +126,7 @@ impl<'a> ObjectTypes<'a> {
     }
 
     /// Project one MIR type into a program type descriptor.
-    pub(crate) fn descriptor(&self, type_id: mir::LocalNodeId<mir::Type>) -> TypeDescriptorBuilder {
+    pub(crate) fn descriptor(&self, type_id: mir::TypeId) -> TypeDescriptorBuilder {
         let storage_type = self.storage_type(type_id);
         let layout = self.program.layout_id(self.module, storage_type);
         let supertypes = self.supertypes(type_id);
@@ -141,7 +141,7 @@ impl<'a> ObjectTypes<'a> {
     }
 
     /// Return the scalar format for one MIR type id.
-    pub(crate) fn scalar_format(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<ScalarFormat> {
+    pub(crate) fn scalar_format(&self, ty: mir::TypeId) -> Option<ScalarFormat> {
         let ty = self.storage_type(ty);
 
         self.scalar_layout_node(self.get(ty))
@@ -150,7 +150,7 @@ impl<'a> ObjectTypes<'a> {
     /// Project one MIR layout shape into a program layout shape.
     pub(crate) fn layout_shape(
         &self,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         shape: &mir::LayoutShape,
     ) -> Option<LayoutShapeBuilder> {
         let repr = self.storage_type(ty);
@@ -217,12 +217,12 @@ impl<'a> ObjectTypes<'a> {
     }
 
     /// Return the program type id for one MIR type.
-    pub(crate) fn type_id(&self, ty: mir::LocalNodeId<mir::Type>) -> TypeId {
+    pub(crate) fn type_id(&self, ty: mir::TypeId) -> TypeId {
         self.program.type_id(self.module, ty)
     }
 
     /// Return flattened program supertypes for one MIR type.
-    fn supertypes(&self, ty: mir::LocalNodeId<mir::Type>) -> Vec<TypeId> {
+    fn supertypes(&self, ty: mir::TypeId) -> Vec<TypeId> {
         let mut supertypes = Vec::new();
         self.append_supertypes(ty, ty, &mut supertypes);
 
@@ -258,15 +258,11 @@ impl<'a> ObjectTypes<'a> {
     }
 
     /// Return the program storage type for one MIR type.
-    pub(crate) fn storage_type(
-        &self,
-        mut ty: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
+    pub(crate) fn storage_type(&self, mut ty: mir::TypeId) -> mir::TypeId {
         loop {
             match self.get(ty) {
                 mir::Type::Application { base, .. }
                 | mir::Type::Uninit { value: base }
-                | mir::Type::Atomic { value: base }
                 | mir::Type::ManuallyDrop { value: base } => {
                     ty = *base;
                 }
@@ -297,20 +293,18 @@ impl<'a> ObjectTypes<'a> {
     /// Project one scalar-like MIR type into a program layout shape.
     fn scalar_layout_shape(
         &self,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         type_shape: &mir::Type,
     ) -> Option<LayoutShapeBuilder> {
         match type_shape {
             mir::Type::Reference {
                 kind,
-                storage,
                 access,
                 pointee,
                 ..
             } => Some(LayoutShapeBuilder::Reference(ReferenceLayout::new(
                 self.type_id(*pointee),
                 *kind,
-                *storage,
                 *access,
             ))),
             mir::Type::Pointer { pointee, access } => Some(LayoutShapeBuilder::Pointer(
@@ -327,7 +321,6 @@ impl<'a> ObjectTypes<'a> {
     fn slice_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
         let mir::Type::Slice {
             kind,
-            storage,
             access,
             element,
             ..
@@ -337,7 +330,7 @@ impl<'a> ObjectTypes<'a> {
         };
 
         // build the slice's element reference
-        let reference = ReferenceLayout::new(self.type_id(*element), *kind, *storage, *access);
+        let reference = ReferenceLayout::new(self.type_id(*element), *kind, *access);
 
         Some(LayoutShapeBuilder::Slice(SliceLayout { reference }))
     }
@@ -387,7 +380,7 @@ impl<'a> ObjectTypes<'a> {
     }
 
     /// Return one program function signature.
-    pub(crate) fn signature(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<SignatureId> {
+    pub(crate) fn signature(&self, ty: mir::TypeId) -> Option<SignatureId> {
         let ty = self.storage_type(ty);
 
         self.program.type_signature_id(self.module, ty)

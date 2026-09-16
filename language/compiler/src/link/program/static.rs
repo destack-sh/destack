@@ -191,7 +191,9 @@ impl<'a> GlobalLinker<'a> {
             mir::Space::Constant => (constants, false),
             mir::Space::Shared => (shared, global.is_mutable()),
             mir::Space::Local => (local, global.is_mutable()),
-            mir::Space::Parameter(_) => unreachable!("linked globals close every space"),
+            mir::Space::Parameter(_) | mir::Space::Join(_) | mir::Space::Of(_) => {
+                unreachable!("a linked global in an open space")
+            }
         };
         let offset = allocator.reserve(alignment, byte_len);
 
@@ -205,7 +207,6 @@ impl<'a> GlobalLinker<'a> {
     }
 
     /// Render one placed global's initializer bytes into its region.
-    #[allow(clippy::too_many_arguments)]
     fn render_global(
         &self,
         global: &program::object::Global,
@@ -242,7 +243,9 @@ impl<'a> GlobalLinker<'a> {
             mir::Space::Constant => constants,
             mir::Space::Shared => shared,
             mir::Space::Local => local,
-            mir::Space::Parameter(_) => unreachable!("linked globals close every space"),
+            mir::Space::Parameter(_) | mir::Space::Join(_) | mir::Space::Of(_) => {
+                unreachable!("a linked global in an open space")
+            }
         };
         allocator.write(placed.offset(), &bytes);
 
@@ -553,7 +556,9 @@ impl<'a> GlobalLinker<'a> {
             mir::Space::Constant => GlobalLocation::Constant,
             mir::Space::Shared => GlobalLocation::SharedStatic,
             mir::Space::Local => GlobalLocation::LocalStatic,
-            mir::Space::Parameter(_) => unreachable!(),
+            mir::Space::Parameter(_) | mir::Space::Join(_) | mir::Space::Of(_) => {
+                panic!("a linked global in an open space")
+            }
         }
     }
 

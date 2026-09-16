@@ -93,7 +93,7 @@ impl TestModule {
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("test MIR should be text");
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
-        let (tree, target, mut layouts, dispatch, drops, accesses, effects, profile, strings, _) =
+        let (tree, target, mut layouts, dispatch, drops, effects, profile, strings, _) =
             parsed.into_parts();
 
         // compute target layouts required by object emission
@@ -108,7 +108,6 @@ impl TestModule {
             layouts,
             dispatch,
             drops,
-            accesses,
             effects,
             profile,
         };

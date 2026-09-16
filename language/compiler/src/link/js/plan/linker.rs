@@ -206,7 +206,7 @@ impl<'a> JsLinker<'a> {
                 continue;
             }
 
-            // code modules link from emitted output and the checked dir
+            // link a code module from its emitted output and the dir
             let output_key = ArtifactKey::script(module_id, *self.target_id);
             dependencies.require(output_key);
             dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));

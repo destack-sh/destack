@@ -137,7 +137,7 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
     ) -> LinkResult<u64> {
         match index {
             native::Index::Type { ty } => {
-                let ty = mir::TypeId::new(ty);
+                let ty = mir::TypeId(ty);
                 object
                     .ty(ty)
                     .ok_or_else(|| self.program.invalid_input("native type is absent"))?;
@@ -145,7 +145,7 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
                 Ok(u64::from(self.program.type_id(module, ty).0))
             }
             native::Index::Layout { ty } => {
-                let ty = mir::TypeId::new(ty);
+                let ty = mir::TypeId(ty);
                 object
                     .layouts()
                     .type_layout(ty)
