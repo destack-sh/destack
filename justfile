@@ -175,7 +175,7 @@ next-version:
 sync-version:
     cargo metadata --format-version 1 > /dev/null
     just client/generate
-    bun platform/site/scripts/generate-release.mjs
+    bun platform/site/scripts/generate-release.ts
 
 # validate release version and tracked file versions
 validate-release tag="":
