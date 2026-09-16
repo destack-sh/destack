@@ -13,10 +13,14 @@
     --content-context-height: 2.75rem;
 }
 
+.content-header,
+.directory-heading {
+    padding-top: var(--content-section-gap);
+}
+
 .content-header {
     display: grid;
     gap: 0.875rem;
-    padding-top: var(--content-section-gap);
 }
 
 .content-header h1,
@@ -220,7 +224,8 @@
 /* Give mobile page identity and metadata room without loosening the navigation. */
 
 @media (max-width: 767px) {
-    .content-header {
+    .content-header,
+    .directory-heading {
         padding-top: 2rem;
     }
 

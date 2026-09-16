@@ -8,7 +8,7 @@
     align-items: baseline;
     flex-wrap: wrap;
     gap: 0.75rem 1.5rem;
-    padding: 0 0 var(--content-section-gap);
+    padding-bottom: var(--content-section-gap);
 }
 
 .directory-intro {
