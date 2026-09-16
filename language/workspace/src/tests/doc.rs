@@ -23,7 +23,10 @@ fn test_doc_command_builds_checked_package_reference() {
   "exports": {
     ".": {
       "path": "./src/index.ds"
-    }
+    },
+    "./direct": { "path": "./src/direct.ds" },
+    "./empty": { "path": "./src/empty.ds" },
+    "./nested/binding": { "path": "./src/nested/binding/index.ds" }
   }
 }
 "#;
@@ -61,10 +64,37 @@ export interface AsyncWriter {
 
     /** Flush buffered writes. */
     flush(): void;
+
+    /** Call with one value. */
+    <T>(value: T): T;
+
+    /** Construct from one value. */
+    new <T>(value: T): AsyncWriter;
 }
 "#;
     let source_path = test.write_text("src/index.ds", source);
     test.apply_text(&source_path, source);
+
+    for (path, source) in [
+        ("src/empty.ds", ""),
+        ("src/nested/binding/index.ds", "export const value = 1;\n"),
+    ] {
+        let file = test.write_text(path, source);
+        test.apply_text(&file, source);
+    }
+
+    // document namespace-only modules without inventing public import paths
+    for (path, source) in [
+        ("src/direct.ds", "export * as tools from \"./tools.ds\";"),
+        (
+            "src/tools.ds",
+            "export * as nested from \"./nested-tool.ds\"; export * as parent from \"./direct.ds\"; export const answer = 42;",
+        ),
+        ("src/nested-tool.ds", "export const value = 1;"),
+    ] {
+        let file = test.write_text(path, source);
+        test.apply_text(&file, source);
+    }
 
     // generate the package artifact through the normal workspace command
     let input = DocInput::from((
@@ -82,9 +112,35 @@ export interface AsyncWriter {
     assert_eq!(reference.toolchain_version, env!("CARGO_PKG_VERSION"));
     assert_eq!(reference.package.name, "relay");
     assert_eq!(reference.package.version.as_deref(), Some("1.2.3"));
-    assert_eq!(reference.modules.len(), 1);
+    assert_eq!(reference.modules.len(), 4);
+    assert!(reference.modules[2].exports.is_empty());
     assert_eq!(reference.modules[0].specifier, "relay");
     assert_eq!(reference.modules[0].path.as_deref(), Some("src/index.ds"));
+
+    assert_eq!(reference.namespaces.len(), 2);
+    let tools = reference
+        .namespaces
+        .iter()
+        .find(|namespace| namespace.path.as_deref() == Some("src/tools.ds"))
+        .expect("exported namespace");
+    assert_eq!(
+        tools
+            .exports
+            .iter()
+            .map(|export| export.name.as_str())
+            .collect::<Vec<_>>(),
+        ["answer", "nested", "parent"]
+    );
+    assert_eq!(
+        reference.modules[1].exports[0].namespace.as_deref(),
+        Some(tools.module.as_str())
+    );
+
+    // reuse public module records when a namespace points back to its parent
+    assert_eq!(
+        tools.exports[2].namespace.as_deref(),
+        Some(reference.modules[1].module.as_str())
+    );
 
     // retain canonical checked signatures, documentation, and source positions
     let exports = &reference.modules[0].exports;
@@ -135,7 +191,7 @@ export interface AsyncWriter {
 
     // retain public members with checked signatures and authored documentation
     let members = &exports[0].declarations[0].members;
-    assert_eq!(members.len(), 2);
+    assert_eq!(members.len(), 4);
     assert_eq!(members[0].name.as_deref(), Some("write"));
     assert_eq!(members[0].kind, DeclarationKind::Method);
     assert_eq!(
@@ -147,6 +203,20 @@ export interface AsyncWriter {
         Some("Write one buffer.")
     );
     assert_eq!(members[1].signature.text, "flush(): void");
+
+    // preserve anonymous callable syntax without inventing a declared name
+    assert_eq!(members[2].signature.text, "<T>(value: T): T");
+    assert_eq!(members[2].signature.name, None);
+    assert_eq!(
+        members[2].documentation.as_deref(),
+        Some("Call with one value.")
+    );
+    assert_eq!(members[3].signature.text, "new <T>(value: T): AsyncWriter");
+    assert_eq!(members[3].signature.name, None);
+    assert_eq!(
+        members[3].documentation.as_deref(),
+        Some("Construct from one value.")
+    );
 
     // represent enum variants as authored variants rather than singleton properties
     let variants = &exports[2].declarations[0].members;

@@ -176,13 +176,18 @@ impl CommandContext<'_> {
             .collect::<Vec<_>>();
         self.provide(revision, &keys).await?;
 
-        // complete member indexes used while printing referenced member types
-        let member_keys = modules
+        // complete member and export indexes for referenced types and namespaces
+        let index_keys = modules
             .iter()
-            .map(|module| ArtifactKey::module_index(*module, profile, IndexKind::Members))
+            .flat_map(|module| {
+                [
+                    ArtifactKey::module_index(*module, profile, IndexKind::Members),
+                    ArtifactKey::module_index(*module, profile, IndexKind::Exports),
+                ]
+            })
             .collect::<Vec<_>>();
-        self.complete(revision, &member_keys).await?;
-        keys.extend(member_keys);
+        self.complete(revision, &index_keys).await?;
+        keys.extend(index_keys);
         keys.extend(graph_keys);
 
         Ok((modules, keys))
