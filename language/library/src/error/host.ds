@@ -502,7 +502,7 @@ export local newtype HostError = {
 
 export extension of HostError implements Error {
     /// Format this error for users.
-    display(this: &readonly this): string {
+    display(this: &immutable this): string {
         if (this.message == undefined) {
             "host error"
         } else {

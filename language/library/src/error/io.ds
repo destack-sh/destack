@@ -68,7 +68,7 @@ export struct IoError {
 
 export extension of IoError implements Error {
     /// Format this error for users.
-    display(&readonly this): string {
+    display(&immutable this): string {
         if (this.message == undefined) {
             "I/O error"
         } else {
@@ -97,7 +97,7 @@ export struct PathError {
 
 export extension of PathError implements Error {
     /// Format this error for users.
-    display(&readonly this): string {
+    display(&immutable this): string {
         todo("PathError.display")
     }
 

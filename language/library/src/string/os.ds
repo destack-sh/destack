@@ -417,14 +417,14 @@ export extension<Q: Borrow<OsStringSlice>> of OsString
 
 export extension of OsStringDecodeError implements Error {
     /// Format this error for users.
-    display(&readonly this): string {
+    display(&immutable this): string {
         todo("OsStringDecodeError.display")
     }
 }
 
 export extension of OsStringIntoStringError implements Error {
     /// Format this error for users.
-    display(&readonly this): string {
+    display(&immutable this): string {
         todo("OsStringIntoStringError.display")
     }
 }

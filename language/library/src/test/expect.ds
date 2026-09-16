@@ -355,7 +355,19 @@ export struct PanicExpectation<R> {
         // catch the callable's panic
         const result = catchUnwind(this.body);
 
-        checkPanic(result.err(), expected, isNegated, isSoft, message);
+        this.checkPanic(result.err(), expected, isNegated, isSoft, message);
+    }
+
+    /// Record whether the callable produced the expected panic.
+    private checkPanic(
+        this,
+        panic: Panic | undefined,
+        expected: string | RegExp | undefined,
+        isNegated: boolean,
+        isSoft: boolean,
+        message: ^string | undefined,
+    ): void {
+        todo("test.checkPanic");
     }
 }
 
@@ -374,13 +386,3 @@ function report(issue: Issue): void {
     todo("test.report");
 }
 
-/// Record whether one callable produced the expected panic.
-function checkPanic(
-    panic: Panic | undefined,
-    expected: string | RegExp | undefined,
-    isNegated: boolean,
-    isSoft: boolean,
-    message: ^string | undefined,
-): void {
-    todo("test.checkPanic");
-}
