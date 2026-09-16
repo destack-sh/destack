@@ -222,7 +222,9 @@ impl Repository {
     ) -> Result<Module, RepositoryError> {
         let language_type = LanguageType::try_from(candidate.file_type).ok();
         let (module_id, uri) = match candidate.package_root.as_deref() {
-            Some(package_root) if self.is_builtin_package(candidate.package_id) => {
+            Some(package_root)
+                if self.is_builtin_package(candidate.package_id) && language_type.is_some() =>
+            {
                 let module_id = self.embedded_builtin().module_id_for_path(
                     &candidate.path,
                     package_root,
@@ -265,9 +267,12 @@ impl Repository {
     ) -> Result<ModuleFile, RepositoryError> {
         let language_type = LanguageType::try_from(candidate.file_type).ok();
         let uri = match candidate.package_root.as_deref() {
-            Some(package_root) if self.is_builtin_package(candidate.package_id) => self
-                .embedded_builtin()
-                .module_uri_for_path(&candidate.path, package_root)?,
+            Some(package_root)
+                if self.is_builtin_package(candidate.package_id) && language_type.is_some() =>
+            {
+                self.embedded_builtin()
+                    .module_uri_for_path(&candidate.path, package_root)?
+            }
             _ => Uri::logical(candidate.path.to_string_lossy()),
         };
         let aliases = candidate
