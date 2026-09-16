@@ -1,39 +1,39 @@
 ---
 title: "Introducing Destack"
-subtitle: "TypeScript++, the last programming language, and the final stack."
+subtitle: "TypeScript++, the final stack, and software you can own."
 date: "2026-09-21"
 author: "Florian"
+tags: [Language, Runtime]
 ---
 
 Software is entering a Cambrian Explosion, and, it is worth remembering, that means most specimen will go extinct, and the survivors will look very different.
-Both products and processes will undergo intense evolutionary pressure, with fast migrations enabling an exhaustive exploration of the hitherto underexplored space of all possible software. 
-Eventually, we will arrive at some new final form, resembling the familiar old only in name. 
+Both products and processes will undergo intense evolutionary pressure, with fast migrations enabling an exhaustive exploration of the hitherto underexplored space of all possible software.
+Eventually, we will arrive at some new final form, resembling the familiar old only in name.
 
 [illustration of cambrian explosion carnage](TODO)
 
-Thus, there is a are rare opportunity to explore and establish entirely new software production processes: probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, _while simultaenously AI drastically reduces the cost of software production and migration. 
+Thus, there is a are rare opportunity to explore and establish entirely new software production processes: probabilistic computing enables new kinds of useful software, which drives demand for new use cases and approaches, _while simultaenously AI drastically reduces the cost of software production and migration.
 In other words, now is the time to reconsider the entire stack.
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
-— Edsger Dijkstra, The Humble Programmer 1972
+>
+> — Edsger Dijkstra, *The Humble Programmer* (1972)
 
-It's a good moment too, as it's now clear that the contemporary software stack is buckling under its own weight; the volume, angle and speed of its new silicon users is just too much.
+The existing software stack is buckling under its own weight; the volume, angle and speed of its new silicon users is just too much.
 Alas, the software stack built on the past was, regerettably, not built for this future.
-And it's a shame, because the original dream for software very much anticipated this moment.
+And it's a shame, because the original dream for software directly anticipated this moment.
 
-
-# The Software We Were Promised
+# The Software That Could Be
 
 Software was never meant to be like _this_.
-The pioneers meant for software to be open, hackable, remixable. 
-Hardware has advanced tremendously, fat beyond the capabilities envisiaged half a century ago, and yet, a duller, fragmented version of software dreams has settled in and stayed stuck.
-Why?
+The pioneers meant for software to be open, hackable, remixable.
+Hardware has advanced tremendously, far beyond the capabilities envisiaged half a century ago, and yet, a duller, fragmented version of software has settled in and stayed stuck.
+Somewhere deep in the terms of service governing SaaS vendor #47's subprocessor's data stores, the dream of malleable software died.
 
 :::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
 :::
 
-Somewhere deep in the terms of service governing SaaS vendor #47's subprocessor's data stores, the dream of malleable software died.
-Just at the time where we _just_ got the tools to - theoretically - 
+Just at the time where we _just_ got the tools to - theoretically -
 How do you unify, customise, and evolve the software you need?
 
 Today, if you wanted to own your software suite, you would need access to enough of the sources for each vendor, then make sure they all use the same kinds of stores and interfaces and APIs, and only then could we maybe unify enough of the stack to join "reminders in Notion" with "leads in Salesforce" and "events in calendar".
@@ -41,7 +41,7 @@ With the current stack, this is just not a serious option, so we have "connector
 
 [xkdc meme with the woblly stack?](TODO)
 
-But connectors are a hack. 
+But connectors are a hack.
 Software itself is a leaky abstraciton.
 It is insufficient to patch the problem of incompatible software products with "more and better connectors", because that is solving the symptom; there is a much more fundamental architecture issue, one that it is impossible to correct unless we reconsider the entire stack.
 
@@ -50,7 +50,7 @@ To get the most out of software, we need software we can _own_, no rent, no lock
 Something fully hackable, debuggable, that is easy to self-host.
 Not necessarily because we want to, but because we want to want to
 
-But we're not going to get that software by merely "accelerating" old processes in "self-driving factories". 
+The brute "acceleration" of old processes with "self-driving factories" is not leading to better software.
 To truly industrialise the precise industrialised manufacture of software, we need entirely _new_ processes.
 New procesess, not just for studying and developing software behavior, but entirely new lifecycles.
 
@@ -65,7 +65,7 @@ Something is clearly amiss.
 How do we put the "engineering" into "software engineering"?
 
 The production of software has many issues, mostly rooted in the inscrutable complexity of the monster we've made: it takes >50M LoC to get anything on screen, too many fragmented tools and services, too hard to simulate accurately (what are bugs, after all).
-Our inability to accurately simulate software behavior is ironic considering our medium is purely digital, and thus, if the stack actually worked like it should, there is no excuse for software being _less_ than perfectly reliably and maximally fast, seven nines, picture perfect. 
+Our inability to accurately simulate software behavior is ironic considering our medium is purely digital, and thus, if the stack actually worked like it should, there is no excuse for software being _less_ than perfectly reliably and maximally fast, seven nines, picture perfect.
 
 # Higher Order Programming
 
@@ -95,7 +95,7 @@ Unlike the jump from machine code to Python, the jump from hand-directing edits 
 It feels a lot like the invention of the rich text editor with spellchecks abstracts over handwriting with pencil on parchment.
 Editing becomes easier, the specification remains.
 
-<!--The observant programmer may now note the obvious reality that we're _already_ not writing most code ourselves, even when we still used to hand-write code, because of the massive stack separating bits from atoms - all those millions upon millions of lines between the "raw" code and the actual hardware. 
+<!--The observant programmer may now note the obvious reality that we're _already_ not writing most code ourselves, even when we still used to hand-write code, because of the massive stack separating bits from atoms - all those millions upon millions of lines between the "raw" code and the actual hardware.
 But we don't talk about that, and code _is_ programming.-->
 
 <!--Yet, the idea of programming beyond code almost as old as code itself.-->
@@ -106,24 +106,23 @@ Spreadsheets kicked off the first personal computer revolution in earnest, there
 [that old IBM ad about replacing 50 engineers or something?](TODO)
 
 To this day, the humble spreadsheet is _still_ the most popular application platform and surprisingly hard to displace.
-But, of course, we generaly do not buy professional software that comprises purely a spreadsheet, in much the same way that we don't buy software purely made of connectors
+But, of course, we generaly do not buy professional software that comprises purely a spreadsheet, in much the same way that we don't buy software purely made of "connectors".
 There is a little more to "real" higher level software.
 
-The history of game development parallels and often previsages the history of software development, simply because games face even tighter constraints on everything, and even more competitive pressure to get the most out of hardware, all the while working with multidiscplinary teams. 
+The history of game development parallels and often previsages the history of software development, mostly because games faced even tighter constraints on everything, and even more competitive pressure to get the most out of hardware, all the while working with multidiscplinary teams.
 Early on, game development was also a complete schlep, and only a tiny guild of brilliant nerds could pull off presentable commercial games.
 
-To get a game started, everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game! 
-Then, eventually, we figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine". 
+To get a game started, everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
+Then, eventually, we figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine".
 
 [the first version of unreal engine or something?](TODO)
 <!--:::video src="https://www.youtube.com/watch?v=WFu1utKAZ18" title="Rayman Legends: The Design Process Within the UbiArt Framework" poster="https://i.ytimg.com/vi/WFu1utKAZ18/maxresdefault.jpg"
 :::-->
 
-Initially, when using an engine, maybe you didn't always get exactly the same level of control, or even hit _quite_ the same high notes as the best hardcore engineers could without. 
-But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before.
-Non-programmer people like designers, writers, and artists, could now contribute _directly_ to the product, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
+Initially, when using a game engine, developers didn't get quite the same level of control, or even hit _quite_ the same high notes as the best engineers could without.
+But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before as designers, writers, and artists, could now contribute _directly_ to the product, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
 
-The history of game development never "removed" code, even as a lot of it was abstracted for many development use cases that previously required it, and you can now get very far (and sometimes even to the end!) into building a real game without never looking at any "real" code at all.
+The history of game development never "superseded" code, even as a lot of code was abstracted away for many use cases that previously required it, and you can now get very far building real games without looking at any "real" code at all.
 Now, when building a game, sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game, sometimes you watch others play the game, and so it goes.
 
 # The System and The Meta System
@@ -168,28 +167,19 @@ With a universal language, we would get to use the same domain models, libraries
 
 What is the most boring universal stack we can build?
 Like, I don't want to learn a new and totally different stack, I already know the modern ones pretty well, and I have better things to do.
-The Web is pretty great, TypeScript is pretty great, how far can we take that?. 
+The Web is pretty great, TypeScript is pretty great, how far can we take that?.
 
 [the essence of the bull](TODO)
 
 We have long figured out that opinionated formatters are a great idea to remove silly syntax debates and just standardized the _appearence_ of code once and for all.
 Maybe the syntax is not _perfect_ by your personal standards, but it removes unproductive arguments, and that's the benefit.
  <!--and meta-frameworks serves a similar need.-->
-Why not just go all the way, and fully standardize the _shape_ of code? Not just syntax, not just linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures. 
-
-<!--- very simple product to manage personal software, personal software stack
-- comes with a default stack
-- entire familiar web / npm ecosystem at your disposal
-- personal package manager
-- personal git / jj (including remote) somehow..?
-
-- manage whatever stack you want, but with strong defaults (?)
-- best approximation of final Destack we could manage in the existing ecosystem, to get as close as possible and get started immediately-->
+Why not just go all the way, and fully standardize the _shape_ of code? Not just syntax, not just linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures.
 
 # TypeScript++
 
-The univeral final stack will, logically, require the universral final language.
-But surprisingly, we do not quite have that universal complete language yet. 
+The univeral final stack requires the universal final language.
+Surprisingly, we do not quite have that universal complete language yet.
 Of course, there are languages you could _contort_ to target all platforms and write everything from systems software to API services to web apps.
 But there is a reason nobody runs Rust rust for web apps, even though WASM has existed for a decade.
 
@@ -204,13 +194,10 @@ The shape of TypeScript is conveniently amendable to the (minor) modifications w
 
 We want, effectively, "TypeScript++".
 Kill all the soundness warts, add just enough features added to enable memory safe systems programming, and build out familiar enough serious runtime.
-Importantly, the question is _not_ what is the "best theortical version if we did TypeScript all over again", but: "what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed? 
-<!--- basically, what is "TypeScript++"? TS that runs predictably like JVM/CLR/Go with som Rust-y bits-->
-<!--- what is the minimum set of changes / additions we need to good prior art to get what we need-->
+Importantly, the question is _not_ what is the "best theortical version if we did TypeScript all over again", but: "what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed?
 
+<!-- TODO #Incomplete-->
 <!--- TS++ fashions itself as a "superset of a strict subset of TS", which - if you squint - is somewhat reminiscient of the relationship between C and C++.
-- mechnically, what is the ergonomic ladder of TS++ between TS -> Rust, what are the minimal things to remove for unsoundness, and the minimum features to add to cover the whole universal language spectrum-->
-
 <!--- there are a lot of interesting details in making "TS++" actually work.
 - like how _exactly_ do we combine as much of TS surface feel as possible, while also compiling to a strict sound languaeg? while _also_ enabling up to Rust-level control (and ideally performance)?
 - you can read all about it at [docs](/docs/language/)-->
