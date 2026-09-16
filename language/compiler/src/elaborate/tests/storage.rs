@@ -64,7 +64,7 @@ type Item {
     value: ref<int32, unique, mutable, local>;
 }
 
-external function dropItem<'a>(ref<Item, borrowed, 'a, mutable, local>): void
+external function dropItem<'a>(ref<Item, borrowed, 'a & local, mutable>): void
 
 function test(): ref<Item, managed, mutable, local> {
 entry:
@@ -72,12 +72,13 @@ entry:
     return v0
 }
 
-function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<Item, borrowed, 'a, mutable, local>):
-    call dropItem(v0): <'a>(ref<Item, borrowed, 'a, mutable, local>) => void
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, local> = field.project v0, 0
-    v2: ref<int32, unique, mutable, local> = load v1
-    release v2
+function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a & local, exclusive>): void {
+entry(v0: ref<Item, borrowed, 'a & local, exclusive>):
+    v1: ref<Item, borrowed, 'a & local, mutable> = address (*v0)
+    call dropItem(v1): <'a_1>(ref<Item, borrowed, 'a_1 & local, mutable>) => void
+    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'a & local, exclusive> = address (*v0).0
+    v3: ref<int32, unique, mutable, local> = load (*v2)
+    release v3
     return
 }
 "#,
@@ -110,7 +111,7 @@ type Item {
     value: ref<int32, unique, mutable, local>;
 }
 
-external function dropItem<'a>(ref<Item, borrowed, 'a, mutable, local>): void
+external function dropItem<'a>(ref<Item, borrowed, 'a & local, mutable>): void
 
 function test(): uninit<ref<Item, managed, mutable, local>> {
 entry:
@@ -118,12 +119,13 @@ entry:
     return v0
 }
 
-function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<Item, borrowed, 'a, mutable, local>):
-    call dropItem(v0): <'a>(ref<Item, borrowed, 'a, mutable, local>) => void
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, local> = field.project v0, 0
-    v2: ref<int32, unique, mutable, local> = load v1
-    release v2
+function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a & local, exclusive>): void {
+entry(v0: ref<Item, borrowed, 'a & local, exclusive>):
+    v1: ref<Item, borrowed, 'a & local, mutable> = address (*v0)
+    call dropItem(v1): <'a_1>(ref<Item, borrowed, 'a_1 & local, mutable>) => void
+    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'a & local, exclusive> = address (*v0).0
+    v3: ref<int32, unique, mutable, local> = load (*v2)
+    release v3
     return
 }
 "#,

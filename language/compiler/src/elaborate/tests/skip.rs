@@ -80,8 +80,8 @@ type User {
 
 function test(v0: ref<User, managed, mutable, local>): int32 {
 entry(v0: ref<User, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -96,8 +96,8 @@ type User {
 
 function test(v0: ref<User, managed, mutable, local>): int32 {
 entry(v0: ref<User, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -111,8 +111,8 @@ fn test_skip_drop_for_borrow_into_managed_slice() {
 function test(v0: slice<int32, managed, mutable, local>): int32 {
 entry(v0: slice<int32, managed, mutable, local>):
     v1: int64 = 0
-    v2: ref<int32, borrowed, 'managed, readonly, local> = element.address v0, v1
-    v3: int32 = load v2
+    v2: ref<int32, borrowed, 'managed, readonly, local> = address (*v0)[v1]
+    v3: int32 = load (*v2)
     return v3
 }
 "#,
@@ -123,8 +123,8 @@ entry(v0: slice<int32, managed, mutable, local>):
 function test(v0: slice<int32, managed, mutable, local>): int32 {
 entry(v0: slice<int32, managed, mutable, local>):
     v1: int64 = 0
-    v2: ref<int32, borrowed, 'managed, readonly, local> = element.address v0, v1
-    v3: int32 = load v2
+    v2: ref<int32, borrowed, 'managed & local, readonly> = address (*v0)[v1]
+    v3: int32 = load (*v2)
     return v3
 }
 "#,

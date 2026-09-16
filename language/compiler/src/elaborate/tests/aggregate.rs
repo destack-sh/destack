@@ -32,13 +32,13 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
     return
 }
 
-function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a, mutable, frame>): void {
-entry(v0: ref<Pair, borrowed, 'a, mutable, frame>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 1
-    v2: ref<int32, unique, mutable, local> = load v1
+function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a & frame, exclusive>): void {
+entry(v0: ref<Pair, borrowed, 'a & frame, exclusive>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).1
+    v2: ref<int32, unique, mutable, local> = load (*v1)
     release v2
-    v3: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
-    v4: ref<int32, unique, mutable, local> = load v3
+    v3: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).0
+    v4: ref<int32, unique, mutable, local> = load (*v3)
     release v4
     return
 }
@@ -118,10 +118,10 @@ entry(v0: slice<int32, unique, mutable, local>):
     return
 }
 
-function drop.frame<Buffer, 'a>(v0: ref<Buffer, borrowed, 'a, mutable, frame>): void {
-entry(v0: ref<Buffer, borrowed, 'a, mutable, frame>):
-    v1: ref<slice<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
-    v2: slice<int32, unique, mutable, local> = load v1
+function drop.frame<Buffer, 'a>(v0: ref<Buffer, borrowed, 'a & frame, exclusive>): void {
+entry(v0: ref<Buffer, borrowed, 'a & frame, exclusive>):
+    v1: ref<slice<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).0
+    v2: slice<int32, unique, mutable, local> = load (*v1)
     release v2
     return
 }

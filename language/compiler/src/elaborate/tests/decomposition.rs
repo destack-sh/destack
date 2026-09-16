@@ -130,7 +130,7 @@ type Value = variant<uint1> { 0uint1 = ref<int32, unique, mutable, local>; 1uint
 
 function test(v0: Value): void {
 entry(v0: Value):
-    v1: ref<int32, unique, mutable, local> = field.get v0, 1
+    v1: ref<int32, unique, mutable, local> = variant.payload v0, 0
     return
 }
 "#,
@@ -142,7 +142,7 @@ type Value = variant<uint1> { 0uint1 = ref<int32, unique, mutable, local>; 1uint
 
 function test(v0: Value): void {
 entry(v0: Value):
-    v1: ref<int32, unique, mutable, local> = field.get v0, 1
+    v1: ref<int32, unique, mutable, local> = variant.payload v0, 0
     release v1
     return
 }

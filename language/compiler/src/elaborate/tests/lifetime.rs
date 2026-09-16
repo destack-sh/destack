@@ -6,7 +6,7 @@ fn test_insert_drop_after_last_owned_use() {
         r#"
 function test(v0: ref<int32, unique, mutable, local>): int32 {
 entry(v0: ref<int32, unique, mutable, local>):
-    v1: int32 = load v0
+    v1: int32 = load (*v0)
     return v1
 }
 "#,
@@ -16,7 +16,7 @@ entry(v0: ref<int32, unique, mutable, local>):
         r#"
 function test(v0: ref<int32, unique, mutable, local>): int32 {
 entry(v0: ref<int32, unique, mutable, local>):
-    v1: int32 = load v0
+    v1: int32 = load (*v0)
     release v0
     return v1
 }
@@ -35,7 +35,7 @@ entry:
 
 function test(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
-    v1: int32 = load v0
+    v1: int32 = load (*v0)
     call later(): () => void
     return
 }
@@ -51,7 +51,7 @@ entry:
 
 function test(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
-    v1: int32 = load v0
+    v1: int32 = load (*v0)
     release v0
     call later(): () => void
     return
@@ -71,8 +71,8 @@ type Box {
 
 function test(v0: ref<Box, unique, mutable, local>): int32 {
 entry(v0: ref<Box, unique, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'frame, readonly, local> = address (*v0).0
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -87,8 +87,8 @@ type Box {
 
 function test(v0: ref<Box, unique, mutable, local>): int32 {
 entry(v0: ref<Box, unique, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'frame & local, readonly> = address (*v0).0
+    v2: int32 = load (*v1)
     release v0
     return v2
 }
@@ -110,9 +110,9 @@ external function park(): void
 
 function test(v0: ref<Box, unique, mutable, local>): int32 {
 entry(v0: ref<Box, unique, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'frame, readonly, local> = address (*v0).0
     call park(): () => void
-    v2: int32 = load v1
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -130,9 +130,9 @@ external function park(): void
 
 function test(v0: ref<Box, unique, mutable, local>): int32 {
 entry(v0: ref<Box, unique, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'frame & local, readonly> = address (*v0).0
     call park(): () => void
-    v2: int32 = load v1
+    v2: int32 = load (*v1)
     release v0
     return v2
 }
@@ -156,13 +156,13 @@ type Holder<'a> {
 
 function test(v0: ref<Box, unique, mutable, local>): int32 {
 entry(v0: ref<Box, unique, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'frame, readonly, local> = address (*v0).0
     v2: Holder<'frame & local> = aggregate (v1)
     jump b1(v2)
 
 b1(v3: Holder<'frame & local>):
     v4: ref<int32, borrowed, 'frame, readonly, local> = field.get v3, 0
-    v5: int32 = load v4
+    v5: int32 = load (*v4)
     return v5
 }
 "#,
@@ -182,13 +182,13 @@ type Holder<'a> {
 
 function test(v0: ref<Box, unique, mutable, local>): int32 {
 entry(v0: ref<Box, unique, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'frame & local, readonly> = address (*v0).0
     v2: Holder<'frame & local> = aggregate (v1)
     jump b1(v2)
 
 b1(v3: Holder<'frame & local>):
-    v4: ref<int32, borrowed, 'frame, readonly, local> = field.get v3, 0
-    v5: int32 = load v4
+    v4: ref<int32, borrowed, 'frame & local, readonly> = field.get v3, 0
+    v5: int32 = load (*v4)
     release v0
     return v5
 }

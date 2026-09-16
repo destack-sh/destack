@@ -3,6 +3,32 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
+/// Destruction of an initialized value or its emptied allocation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::elaborate) enum DropAction {
+    /// Destroy the initialized value and release any allocation it owns.
+    Drop(mir::MovePathId),
+    /// Release an allocation after its initialized contents have been removed.
+    Release(mir::MovePathId),
+}
+
+impl DropAction {
+    /// Return the move path selected by this action.
+    pub(in crate::elaborate) fn path(self) -> mir::MovePathId {
+        match self {
+            Self::Drop(path) | Self::Release(path) => path,
+        }
+    }
+
+    /// Map this action to another move path.
+    pub(in crate::elaborate) fn at_path(self, path: mir::MovePathId) -> Self {
+        match self {
+            Self::Drop(_) => Self::Drop(path),
+            Self::Release(_) => Self::Release(path),
+        }
+    }
+}
+
 /// Planned destruction for one function.
 pub(in crate::elaborate) struct DropPlan {
     /// The function receiving explicit drops.
@@ -13,21 +39,23 @@ pub(in crate::elaborate) struct DropPlan {
     pub(in crate::elaborate) block_drops: FxIndexMap<mir::BlockId, Vec<BlockDrop>>,
     /// Planned edge-specific drops.
     pub(in crate::elaborate) edge_drops: Vec<EdgeDrop>,
-    /// Planned drops handed to the collector inside each block.
-    pub(in crate::elaborate) deferred_drops: FxIndexMap<mir::BlockId, Vec<DeferredDrop>>,
+    /// Planned destruction of the values stores overwrite inside each block.
+    pub(in crate::elaborate) overwrite_drops: FxIndexMap<mir::BlockId, Vec<OverwriteDrop>>,
 }
 
-/// Destruction handed to the collector before one store overwrites storage through a reference.
+/// Destruction of the value one store overwrites through a reference.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::elaborate) struct DeferredDrop {
+pub(in crate::elaborate) struct OverwriteDrop {
     /// Index of the overwriting store inside the block's instructions.
     pub(in crate::elaborate) store: usize,
-    /// The pointer the store writes through.
-    pub(in crate::elaborate) pointer: mir::Value,
+    /// The storage the store overwrites.
+    pub(in crate::elaborate) place: mir::Place,
 }
 
 /// Ownership analyses used to build one drop plan.
 struct DropAnalysis<'a> {
+    /// The identity of the function being planned.
+    function_id: mir::FunctionId,
     /// The function being planned.
     function: &'a mir::Function,
     /// The MIR tree.
@@ -49,8 +77,8 @@ struct DropAnalysis<'a> {
     block_drops: FxIndexMap<mir::BlockId, Vec<BlockDrop>>,
     /// Planned edge-specific drops.
     edge_drops: Vec<EdgeDrop>,
-    /// Planned drops handed to the collector inside each block.
-    deferred_drops: FxIndexMap<mir::BlockId, Vec<DeferredDrop>>,
+    /// Planned destruction of the values stores overwrite inside each block.
+    overwrite_drops: FxIndexMap<mir::BlockId, Vec<OverwriteDrop>>,
 }
 
 /// Destruction planned at one instruction boundary.
@@ -58,8 +86,8 @@ struct DropAnalysis<'a> {
 pub(in crate::elaborate) struct BlockDrop {
     /// Instruction index where destruction is inserted.
     pub(in crate::elaborate) index: usize,
-    /// Maximal initialized path to destroy.
-    pub(in crate::elaborate) path: mir::MovePathId,
+    /// Destruction selected for this instruction position.
+    pub(in crate::elaborate) action: DropAction,
 }
 
 /// Destruction inserted on one control-flow edge.
@@ -67,18 +95,21 @@ pub(in crate::elaborate) struct BlockDrop {
 pub(in crate::elaborate) struct EdgeDrop {
     /// The control-flow edge.
     pub(in crate::elaborate) edge: mir::Edge,
-    /// Maximal initialized paths to destroy.
-    pub(in crate::elaborate) paths: Vec<mir::MovePathId>,
+    /// Destruction selected for this edge.
+    pub(in crate::elaborate) actions: Vec<DropAction>,
 }
 
 impl DropPlan {
-    /// Return the types the plan hands to the collector, whose allocations need destructors.
-    pub(in crate::elaborate) fn deferred_types(&self, tree: &mir::Tree) -> Vec<mir::TypeId> {
-        let function = tree.get(self.function);
-        self.deferred_drops
+    /// Return the types of the values planned overwrites destroy.
+    pub(in crate::elaborate) fn overwrite_types(&self, tree: &mir::Tree) -> Vec<mir::TypeId> {
+        let function = self.function;
+        self.overwrite_drops
             .values()
             .flatten()
-            .filter_map(|drop| function.pointee_type(drop.pointer, tree))
+            .map(|drop| match drop.place.ty(function, tree) {
+                Some(mir::PlaceType::Value(ty)) => ty,
+                _ => unreachable!("an overwritten place selects one value"),
+            })
             .collect()
     }
 
@@ -95,18 +126,49 @@ impl DropPlan {
 
     /// Return the stored types reached by this plan.
     pub(in crate::elaborate) fn roots(&self) -> impl Iterator<Item = mir::TypeId> + '_ {
-        let blocks = self
-            .block_drops
-            .values()
-            .flatten()
-            .map(|drop| self.paths.get(drop.path).ty);
+        let blocks = self.block_drops.values().flatten().map(|drop| drop.action);
         let edges = self
             .edge_drops
             .iter()
-            .flat_map(|drop| &drop.paths)
-            .map(|path| self.paths.get(*path).ty);
+            .flat_map(|drop| drop.actions.iter().copied());
 
-        blocks.chain(edges)
+        blocks.chain(edges).filter_map(|action| match action {
+            DropAction::Drop(path) => Some(self.paths.get(path).ty),
+            DropAction::Release(_) => None,
+        })
+    }
+
+    /// Map one source path onto its target block parameter.
+    pub(in crate::elaborate) fn map_target_path(
+        paths: &mir::MoveTable,
+        successor: mir::Successor,
+        terminator: &mir::Terminator,
+        target: &mir::BlockTarget,
+        path: mir::MovePathId,
+        tree: &mir::Tree,
+    ) -> mir::MovePathId {
+        let arguments = target.arguments(tree);
+        let parameters = terminator
+            .target_parameters(tree, successor, target)
+            .unwrap_or_else(|| unreachable!("verified block target has invalid argument count"));
+
+        // map both the owner value and its independently tracked pointee
+        for (parameter, argument) in parameters.iter().zip(arguments.iter().copied()) {
+            let bindings = [
+                (paths.value(argument), paths.value(parameter.value)),
+                (paths.pointee(argument), paths.pointee(parameter.value)),
+            ];
+            for (source, destination) in bindings {
+                let (Some(source), Some(destination)) = (source, destination) else {
+                    continue;
+                };
+                if path == source || paths.is_ancestor(source, path) {
+                    return paths.map(path, source, destination);
+                }
+            }
+        }
+
+        path
     }
 }
 
@@ -121,11 +183,12 @@ impl<'a> DropAnalysis<'a> {
     ) -> DropPlan {
         // derive the ownership analyses shared by every planning step
         let mut analyses = mir::FunctionCache::new();
-        let liveness = analyses.liveness(function, tree);
-        let places = analyses.place(function, tree);
-        let paths = analyses.moves(function, tree);
-        let initialization = analyses.initialization(function, tree);
+        let liveness = analyses.liveness(function_id, tree);
+        let places = analyses.place(function_id, tree);
+        let paths = analyses.moves(function_id, tree);
+        let initialization = analyses.initialization(function_id, tree);
         let mut analysis = Self {
+            function_id,
             function,
             tree,
             liveness,
@@ -136,7 +199,7 @@ impl<'a> DropAnalysis<'a> {
             drops,
             block_drops: FxIndexMap::default(),
             edge_drops: Vec::new(),
-            deferred_drops: FxIndexMap::default(),
+            overwrite_drops: FxIndexMap::default(),
         };
 
         // plan block-local and edge-specific destruction
@@ -149,7 +212,7 @@ impl<'a> DropAnalysis<'a> {
             paths: analysis.paths,
             block_drops: analysis.block_drops,
             edge_drops: analysis.edge_drops,
-            deferred_drops: analysis.deferred_drops,
+            overwrite_drops: analysis.overwrite_drops,
         }
     }
 
@@ -169,7 +232,7 @@ impl<'a> DropAnalysis<'a> {
             let mut live = liveness.cursor(tree, block);
 
             // destroy dead parameters or leave them to incoming edges
-            for root in self.paths.roots().collect::<Vec<_>>() {
+            for root in self.owners().collect::<Vec<_>>() {
                 if !self.is_owner_live(root, &live, self.retention.block(block)) {
                     if Some(block) == self.function.entry() {
                         self.plan_drop(block, 0, root, &mut state);
@@ -198,7 +261,7 @@ impl<'a> DropAnalysis<'a> {
         // walk instructions in execution order
         for (index, instruction_id) in block.instructions.iter().enumerate() {
             let instruction = self.tree.get(*instruction_id);
-            self.plan_overwrite(block_id, index, instruction, state);
+            self.plan_assignment(block_id, index, instruction, state);
 
             // collect roots read or defined by this instruction
             let mut candidates = instruction
@@ -219,8 +282,8 @@ impl<'a> DropAnalysis<'a> {
             {
                 candidates.push(self.paths.root(path));
             }
-            if let mir::Instruction::LocalSet { local, .. } = instruction
-                && let Some(path) = self.paths.local(*local)
+            if let mir::Instruction::Store { place, .. } = instruction
+                && let Some(path) = self.paths.place(&self.places.resolve_place(place))
             {
                 candidates.push(self.paths.root(path));
             }
@@ -248,7 +311,7 @@ impl<'a> DropAnalysis<'a> {
         // final blocks destroy every remaining owned path
         if terminator.successors(self.tree).is_empty() {
             let used = terminator.reads(self.tree);
-            let roots = self.paths.roots().rev().collect::<Vec<_>>();
+            let roots = self.owners().rev().collect::<Vec<_>>();
             for root in roots {
                 let mir::PlaceOrigin::Value(value) = self.paths.get(root).place.origin else {
                     self.plan_drop(block_id, block.instructions.len(), root, state);
@@ -261,8 +324,8 @@ impl<'a> DropAnalysis<'a> {
         }
     }
 
-    /// Plan destruction before replacing an initialized place.
-    fn plan_overwrite(
+    /// Plan destruction of the owned value one assignment replaces.
+    fn plan_assignment(
         &mut self,
         block: mir::LocalNodeId<mir::Block>,
         index: usize,
@@ -270,14 +333,12 @@ impl<'a> DropAnalysis<'a> {
         state: &mut mir::InitializationState,
     ) {
         let path = match instruction {
-            // local.set l0, v1
-            mir::Instruction::LocalSet { local, .. } => self.paths.local(*local),
             // v2: Pair = field.set v0, 1, v1
             mir::Instruction::FieldSet {
                 aggregate, field, ..
             } => {
                 let projection = mir::Projection::Field { index: *field };
-                let place = self.places.project(*aggregate, projection);
+                let place = mir::Place::value(*aggregate).with_projection(projection);
 
                 self.paths.place(&place)
             }
@@ -286,19 +347,16 @@ impl<'a> DropAnalysis<'a> {
                 aggregate, index, ..
             } => {
                 let projection = mir::Projection::Element { index: *index };
-                let place = self.places.project(*aggregate, projection);
+                let place = mir::Place::value(*aggregate).with_projection(projection);
 
                 self.paths.place(&place)
             }
-            // store v0, v1: owned storage drops here, storage reached through a reference defers
-            mir::Instruction::Store { pointer, .. } => {
-                let path = self.paths.pointee(*pointer).or_else(|| {
-                    let place = self.places.get(*pointer).clone();
-
-                    self.paths.place(&place)
-                });
+            // plan destruction at the store's selected place
+            mir::Instruction::Store { place, .. } => {
+                let selected = self.places.resolve_place(place);
+                let path = self.paths.place(&selected);
                 if path.is_none() {
-                    self.plan_deferred(block, index, *pointer);
+                    self.plan_overwrite(block, index, place);
                 }
 
                 path
@@ -312,15 +370,15 @@ impl<'a> DropAnalysis<'a> {
         self.plan_drop(block, index, path, state);
     }
 
-    /// Hand the value one store overwrites through a reference to the collector.
-    fn plan_deferred(
+    /// Destroy the value one store overwrites through a reference, ahead of the store.
+    fn plan_overwrite(
         &mut self,
         block: mir::LocalNodeId<mir::Block>,
         index: usize,
-        pointer: mir::Value,
+        place: &mir::Place,
     ) {
-        let Some(pointee) = self.function.pointee_type(pointer, self.tree) else {
-            return;
+        let Some(mir::PlaceType::Value(pointee)) = place.ty(self.function_id, self.tree) else {
+            unreachable!("a verified store selects one value");
         };
 
         // a store into uninitialized storage starts its lifetime, leaving no old value
@@ -329,7 +387,7 @@ impl<'a> DropAnalysis<'a> {
             return;
         }
 
-        // defer the old value when the pointee owns storage
+        // destroy the old value when it owns storage
         let is_owned = self
             .drops
             .requires_destructor(pointee, mir::Storage::Frame, self.tree)
@@ -338,12 +396,12 @@ impl<'a> DropAnalysis<'a> {
             return;
         }
 
-        self.deferred_drops
+        self.overwrite_drops
             .entry(block)
             .or_default()
-            .push(DeferredDrop {
+            .push(OverwriteDrop {
                 store: index,
-                pointer,
+                place: place.clone(),
             });
     }
 
@@ -355,44 +413,49 @@ impl<'a> DropAnalysis<'a> {
         root: mir::MovePathId,
         state: &mut mir::InitializationState,
     ) {
-        let paths = self.initialized_drop_paths(root, state);
+        let actions = self.initialized_drop_actions(root, state);
 
-        for path in paths {
+        for action in actions {
             self.block_drops
                 .entry(block)
                 .or_default()
-                .push(BlockDrop { index, path });
-            state.uninitialize(path, &self.paths);
+                .push(BlockDrop { index, action });
+            state.uninitialize(action.path(), &self.paths);
         }
     }
 
-    /// Return maximal initialized subtrees in destruction order.
-    fn initialized_drop_paths(
+    /// Select drops for initialized contents and releases for emptied allocations.
+    fn initialized_drop_actions(
         &self,
         root: mir::MovePathId,
         state: &mir::InitializationState,
-    ) -> Vec<mir::MovePathId> {
+    ) -> Vec<DropAction> {
         // drop a completely initialized subtree as one value
         if state.is_initialized(root, &self.paths) {
-            return vec![root];
+            return vec![DropAction::Drop(root)];
         }
 
-        // decompose partially initialized aggregates into definite children
+        // destroy the definite children of a partially initialized value
         let children = self.paths.children(root);
-        let mut initialized = Vec::new();
+        let mut actions = Vec::new();
         for child in children.iter().rev() {
-            initialized.extend(self.initialized_drop_paths(*child, state));
-        }
-        if !children.is_empty() {
-            return initialized;
+            actions.extend(self.initialized_drop_actions(*child, state));
         }
 
-        // require a definite state for every ownership leaf
-        if state.get(root) == mir::Initialization::MaybeInitialized {
-            unreachable!("verified MIR contains conditionally initialized ownership");
+        // release the allocation the emptied token still owns
+        match state.get(root) {
+            mir::Initialization::Initialized if self.paths.pointee_of(root).is_some() => {
+                actions.push(DropAction::Release(root));
+            }
+            mir::Initialization::MaybeInitialized if children.is_empty() => {
+                unreachable!("verified MIR contains conditionally initialized ownership");
+            }
+            mir::Initialization::Initialized
+            | mir::Initialization::MaybeInitialized
+            | mir::Initialization::Uninitialized => {}
         }
 
-        initialized
+        actions
     }
 
     /// Plan ownership discarded on individual successor edges.
@@ -418,22 +481,39 @@ impl<'a> DropAnalysis<'a> {
                 let mut dropped = Vec::new();
 
                 // destroy each initialized subtree not carried into this successor
-                for root in self.paths.roots().rev() {
-                    for path in self.initialized_drop_paths(root, exit) {
-                        let target_path =
-                            self.map_target_path(edge.successor, terminator, target, path);
-                        let target_root = self.paths.root(target_path);
+                for root in self.owners().rev() {
+                    let target_owner = DropPlan::map_target_path(
+                        &self.paths,
+                        edge.successor,
+                        terminator,
+                        target,
+                        root,
+                        self.tree,
+                    );
+                    let target_root = self.paths.root(target_owner);
+                    let is_live = self.is_owner_live(target_root, &live, retained);
+
+                    // compare each initialized path with its successor state
+                    for action in self.initialized_drop_actions(root, exit) {
+                        let path = action.path();
+                        let target_path = DropPlan::map_target_path(
+                            &self.paths,
+                            edge.successor,
+                            terminator,
+                            target,
+                            path,
+                            self.tree,
+                        );
                         let is_initialized = entry.is_initialized(target_path, &self.paths);
-                        let is_live = self.is_owner_live(target_root, &live, retained);
                         if !is_initialized || !is_live {
-                            dropped.push(path);
+                            dropped.push(action);
                         }
                     }
                 }
                 if !dropped.is_empty() {
                     self.edge_drops.push(EdgeDrop {
                         edge,
-                        paths: dropped,
+                        actions: dropped,
                     });
                 }
             }
@@ -443,11 +523,10 @@ impl<'a> DropAnalysis<'a> {
     /// Merge destruction shared by every outgoing edge into its source block.
     fn merge_common_edge_drops(&mut self) {
         for &predecessor in self.function.blocks() {
-            let edge_count = self
-                .tree
-                .get(self.tree.get(predecessor).terminator)
-                .targets(self.tree, predecessor)
-                .len();
+            // read ownership transferred by the terminator
+            let terminator = self.tree.get(self.tree.get(predecessor).terminator);
+            let transferred = terminator.uses(self.tree);
+            let edge_count = terminator.targets(self.tree, predecessor).len();
             if edge_count == 0 {
                 continue;
             }
@@ -456,13 +535,27 @@ impl<'a> DropAnalysis<'a> {
                 .edge_drops
                 .iter()
                 .find(|drop| drop.edge.source == predecessor)
-                .map(|edge| edge.paths.clone())
+                .map(|edge| edge.actions.clone())
                 .unwrap_or_default();
-            common.retain(|path| {
+
+            // keep transferred owners alive until their successor receives them
+            common.retain(|action| {
+                let is_transferred = transferred.iter().any(|value| {
+                    [self.paths.value(*value), self.paths.pointee(*value)]
+                        .into_iter()
+                        .flatten()
+                        .any(|root| {
+                            action.path() == root || self.paths.is_ancestor(root, action.path())
+                        })
+                });
+                if is_transferred {
+                    return false;
+                }
+
                 self.edge_drops
                     .iter()
                     .filter(|drop| drop.edge.source == predecessor)
-                    .filter(|edge| edge.paths.contains(path))
+                    .filter(|edge| edge.actions.contains(action))
                     .count()
                     == edge_count
             });
@@ -471,54 +564,32 @@ impl<'a> DropAnalysis<'a> {
             }
 
             let index = self.tree.get(predecessor).instructions.len();
-            for path in &common {
+            for action in &common {
                 self.block_drops
                     .entry(predecessor)
                     .or_default()
-                    .push(BlockDrop { index, path: *path });
+                    .push(BlockDrop {
+                        index,
+                        action: *action,
+                    });
             }
             for edge in self
                 .edge_drops
                 .iter_mut()
                 .filter(|drop| drop.edge.source == predecessor)
             {
-                edge.paths.retain(|path| !common.contains(path));
+                edge.actions.retain(|action| !common.contains(action));
             }
         }
 
-        self.edge_drops.retain(|edge| !edge.paths.is_empty());
+        self.edge_drops.retain(|edge| !edge.actions.is_empty());
     }
 
-    /// Map one source path onto its target block parameter.
-    fn map_target_path(
-        &self,
-        successor: mir::Successor,
-        terminator: &mir::Terminator,
-        target: &mir::BlockTarget,
-        path: mir::MovePathId,
-    ) -> mir::MovePathId {
-        let arguments = target.arguments(self.tree);
-        let parameters = terminator
-            .target_parameters(self.tree, successor, target)
-            .unwrap_or_else(|| unreachable!("verified block target has invalid argument count"));
-
-        // map ownership transferred through one block parameter
-        for (parameter, argument) in parameters.iter().zip(arguments.iter().copied()) {
-            let Some(argument) = self.paths.value(argument) else {
-                continue;
-            };
-            let Some(parameter) = self.paths.value(parameter.value) else {
-                continue;
-            };
-            if path != argument && !self.paths.is_ancestor(argument, path) {
-                continue;
-            }
-
-            let parameter = self.paths.map(path, argument, parameter);
-            return parameter;
-        }
-
-        path
+    /// Return independently owned values and locals in move-path order.
+    fn owners(&self) -> impl DoubleEndedIterator<Item = mir::MovePathId> + '_ {
+        self.paths
+            .roots()
+            .filter(|path| self.paths.get(*path).place.path.is_root())
     }
 
     /// Return whether one owner is live or retained at the current operation.
@@ -528,8 +599,16 @@ impl<'a> DropAnalysis<'a> {
         live: &mir::LivenessCursor<'_>,
         retained: &[mir::MovePathId],
     ) -> bool {
-        let origin = self.paths.get(owner).place.origin;
-        let is_live = live.find_representation(origin, &self.places).is_some();
+        let is_live = match self.paths.get(owner).place.origin {
+            mir::PlaceOrigin::Value(value) => {
+                live.contains_value(value)
+                    || live
+                        .find_representation(mir::PlaceOrigin::Value(value), &self.places)
+                        .is_some()
+            }
+            mir::PlaceOrigin::Local(local) => live.contains_local(local),
+            mir::PlaceOrigin::Global(_) => unreachable!("a planned drop of global storage"),
+        };
 
         is_live || retained.contains(&owner)
     }

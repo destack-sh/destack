@@ -83,13 +83,13 @@ entry(v0: Pair, v1: ref<int32, unique, mutable, local>):
     return
 }
 
-function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a, mutable, frame>): void {
-entry(v0: ref<Pair, borrowed, 'a, mutable, frame>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 1
-    v2: ref<int32, unique, mutable, local> = load v1
+function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a & frame, exclusive>): void {
+entry(v0: ref<Pair, borrowed, 'a & frame, exclusive>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).1
+    v2: ref<int32, unique, mutable, local> = load (*v1)
     release v2
-    v3: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
-    v4: ref<int32, unique, mutable, local> = load v3
+    v3: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).0
+    v4: ref<int32, unique, mutable, local> = load (*v3)
     release v4
     return
 }
@@ -109,7 +109,7 @@ entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
     branch v1 => initialize | skip
 
 initialize:
-    local.set l0, v0
+    store l0, v0
     jump done
 
 skip:
@@ -130,8 +130,8 @@ entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
     branch v1 => b1 | b2
 
 b1:
-    local.set l0, v0
-    v2: ref<int32, unique, mutable, local> = local.get l0
+    store l0, v0
+    v2: ref<int32, unique, mutable, local> = load l0
     release v2
     jump b3
 
@@ -205,14 +205,14 @@ type Owner {
 }
 
 type View<'a> {
-    value: ref<int32, borrowed, 'a, readonly, frame>;
+    value: ref<int32, borrowed, 'a, readonly, local>;
 }
 
 function test<'a>(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a, mutable, frame>): void {
 entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a, mutable, frame>):
-    v2: ref<int32, borrowed, 'frame, readonly, frame> = field.address v0, 0
-    v3: ref<ref<int32, borrowed, 'frame, readonly, frame>, borrowed, 'a, mutable, frame> = field.address v1, 0
-    store v3, v2
+    v2: ref<int32, borrowed, 'frame, readonly, local> = address (*v0).0
+    v3: ref<ref<int32, borrowed, 'frame, readonly, local>, borrowed, 'a, mutable, frame> = address (*v1).0
+    store (*v3), v2
     return
 }
 "#,
@@ -225,14 +225,14 @@ type Owner {
 }
 
 type View<'a> {
-    value: ref<int32, borrowed, 'a, readonly, frame>;
+    value: ref<int32, borrowed, 'a & local, readonly>;
 }
 
-function test<'a>(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a, mutable, frame>): void {
-entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a, mutable, frame>):
-    v2: ref<int32, borrowed, 'frame, readonly, frame> = field.address v0, 0
-    v3: ref<ref<int32, borrowed, 'frame, readonly, frame>, borrowed, 'a, mutable, frame> = field.address v1, 0
-    store v3, v2
+function test<'a>(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a & frame, mutable>): void {
+entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a & frame, mutable>):
+    v2: ref<int32, borrowed, 'frame & local, readonly> = address (*v0).0
+    v3: ref<ref<int32, borrowed, 'frame & local, readonly>, borrowed, 'a & frame, mutable> = address (*v1).0
+    store (*v3), v2
     release v0
     return
 }
@@ -242,7 +242,7 @@ entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borr
 
 /// A taken unique pointee drops with the frame while its freed allocation drops nothing.
 #[test]
-fn test_drop_a_taken_unique_pointee_after_its_free() {
+fn test_drop_a_taken_unique_pointee_after_its_storage_release() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
@@ -251,8 +251,9 @@ type Box {
 
 function test(v0: ref<Box, unique, mutable, local>): void {
 entry(v0: ref<Box, unique, mutable, local>):
-    v1: Box = load v0
-    release v0
+    v1: Box = load (*v0)
+    v2: ref<uninit<Box>, unique, mutable, local> = cast.bit v0 -> ref<uninit<Box>, unique, mutable, local>
+    release v2
     return
 }
 "#,
@@ -266,16 +267,17 @@ type Box {
 
 function test(v0: ref<Box, unique, mutable, local>): void {
 entry(v0: ref<Box, unique, mutable, local>):
-    v1: Box = load v0
+    v1: Box = load (*v0)
     drop v1
-    release v0
+    v2: ref<uninit<Box>, unique, mutable, local> = cast.bit v0 -> ref<uninit<Box>, unique, mutable, local>
+    release v2
     return
 }
 
-function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a, mutable, frame>): void {
-entry(v0: ref<Box, borrowed, 'a, mutable, frame>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
-    v2: ref<int32, unique, mutable, local> = load v1
+function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a & frame, exclusive>): void {
+entry(v0: ref<Box, borrowed, 'a & frame, exclusive>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).0
+    v2: ref<int32, unique, mutable, local> = load (*v1)
     release v2
     return
 }

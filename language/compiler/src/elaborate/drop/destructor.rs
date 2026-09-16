@@ -52,20 +52,6 @@ impl<'a> DestructorBuilder<'a> {
         }
     }
 
-    /// Build local heap destructors for the cells planned drops hand to the collector.
-    pub(in crate::elaborate) fn build_deferred(
-        &mut self,
-        roots: impl IntoIterator<Item = mir::TypeId>,
-    ) {
-        let mut roots = roots.into_iter().collect::<Vec<_>>();
-        roots.sort_unstable();
-        roots.dedup();
-
-        for ty in roots {
-            self.build_destructor(ty, mir::Storage::Heap(mir::Space::Local));
-        }
-    }
-
     /// Build frame destructors required by planned drops.
     pub(in crate::elaborate) fn build_frames(
         &mut self,
@@ -115,7 +101,11 @@ impl<'a> DestructorBuilder<'a> {
                     let Some((ty, result)) = allocation else {
                         continue;
                     };
-                    if let Some(storage) = self.tree.managed_storage(result) {
+                    if let Some(storage) = self
+                        .tree
+                        .get(self.tree.storage_type(result))
+                        .managed_storage()
+                    {
                         roots.push((ty, storage));
                     }
                 }
@@ -150,7 +140,11 @@ impl<'a> DestructorBuilder<'a> {
                     .parameters
                     .first()
                     .unwrap_or_else(|| unreachable!("fallible allocation success has no result"));
-                if let Some(storage) = self.tree.managed_storage(result.ty) {
+                if let Some(storage) = self
+                    .tree
+                    .get(self.tree.storage_type(result.ty))
+                    .managed_storage()
+                {
                     roots.push((ty, storage));
                 }
             }
@@ -158,10 +152,10 @@ impl<'a> DestructorBuilder<'a> {
     }
 
     /// Build the destructor reached through one owning type.
-    fn build_destructor(&mut self, ty: mir::LocalNodeId<mir::Type>, storage: mir::Storage) {
+    fn build_destructor(&mut self, ty: mir::TypeId, storage: mir::Storage) {
         let (ty, storage) = match self.tree.get(ty) {
             mir::Type::Reference {
-                kind: mir::ReferenceKind::Unique,
+                kind: mir::Reference::Unique,
                 pointee,
                 storage,
                 ..
@@ -191,26 +185,26 @@ impl<'a> DestructorBuilder<'a> {
     /// Declare the destructor for one type.
     fn declare_destructor(
         &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         storage: mir::Storage,
     ) -> mir::LocalNodeId<mir::Function> {
         let Some(segment) = storage.segment() else {
             unreachable!("destructors close every storage space");
         };
         let name = self.strings.intern(&format!("drop.{segment}"));
-        let arguments = vec![mir::GenericArgument::Type(mir::TypeId::from(ty))];
+        let arguments = vec![mir::GenericArgument::Type(ty)];
         let symbol = mir::Symbol::named(self.module, name).instantiate(&arguments, self.tree);
         // borrow the dropped storage for the destructor's own binder
         let binder = self.strings.intern("'a");
         let lifetimes = vec![mir::LifetimeParameter::new(Some(binder))];
         let pointer_type = mir::Type::Reference {
-            kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::slot(0),
+            kind: mir::Reference::Borrowed,
+            lifetime: mir::Lifetime::bound(0),
             storage,
-            access: mir::Access::Mutable,
+            access: mir::Access::Exclusive,
             pointee: ty,
         };
-        let pointer = self.tree.intern_type(pointer_type);
+        let pointer = self.tree.intern_type(pointer_type, mir::Copy::Yes);
         let parameters = vec![mir::FunctionParameter::new(mir::Value::new(0), pointer)];
         let void = self.tree.void_type();
 
@@ -223,7 +217,7 @@ impl<'a> DestructorBuilder<'a> {
     }
 
     /// Build nested aggregate destructors before this body.
-    fn build_child_destructors(&mut self, ty: mir::LocalNodeId<mir::Type>, storage: mir::Storage) {
+    fn build_child_destructors(&mut self, ty: mir::TypeId, storage: mir::Storage) {
         match self.tree.get(ty).clone() {
             // type Pair { left: File; right: File; }
             mir::Type::Struct { fields, .. } => {
@@ -254,7 +248,7 @@ impl<'a> DestructorBuilder<'a> {
             }
             // slice<File, unique, mutable>
             mir::Type::Slice {
-                kind: mir::ReferenceKind::Unique,
+                kind: mir::Reference::Unique,
                 element,
                 storage,
                 ..
@@ -270,7 +264,7 @@ impl<'a> DestructorBuilder<'a> {
             }
             // build the children of the type an application stands for, like Box<int32>
             mir::Type::Application { .. } => {
-                let applied = self.tree.represented(ty);
+                let applied = mir::Substitution::resolve(ty, self.tree);
                 if applied != ty {
                     self.build_child_destructors(applied, storage);
                 }
@@ -283,7 +277,7 @@ impl<'a> DestructorBuilder<'a> {
     /// Build the destructor body.
     fn build_destructor_body(
         &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         storage: mir::Storage,
         function: mir::LocalNodeId<mir::Function>,
     ) {

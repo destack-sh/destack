@@ -149,7 +149,7 @@ entry(v0: ref<int32, unique, mutable, local>):
     invoke callee(): () => int32 => b1 | cleanup
 
 b1(v1: int32):
-    v2: int32 = load v0
+    v2: int32 = load (*v0)
     return v2
 
 cleanup:
@@ -167,7 +167,7 @@ entry(v0: ref<int32, unique, mutable, local>):
     invoke callee(): () => int32 => b1 | b2
 
 b1(v1: int32):
-    v2: int32 = load v0
+    v2: int32 = load (*v0)
     release v0
     return v2
 

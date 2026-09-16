@@ -73,7 +73,6 @@ type Writer {
 
 function test(v0: dynamic<Writer, unique, mutable, local>): void {
 entry(v0: dynamic<Writer, unique, mutable, local>):
-    drop v0
     release v0
     return
 }
@@ -96,7 +95,6 @@ entry(v0: function<() => void, once, unique, mutable, local>):
         r#"
 function test(v0: function<() => void, once, unique, mutable, local>): void {
 entry(v0: function<() => void, once, unique, mutable, local>):
-    drop v0
     release v0
     return
 }

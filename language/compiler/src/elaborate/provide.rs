@@ -36,7 +36,7 @@ impl Compiler {
             .read::<MirInstantiated>((module, profile, target))
             .map_err(CompilerError::from)?;
 
-        // elaborate boxes, destruction, and physical layouts
+        // elaborate destruction and physical layouts
         let mut state = ElaborateState::new(module, &instantiated, self.strings());
         state.elaborate(&instantiated.retention)?;
 

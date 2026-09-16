@@ -55,7 +55,7 @@ type Box {
 
 function test(v0: ref<Box, managed, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<Box, managed, mutable, local>, v1: boolean):
-    v2: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v2: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
     jump next
 
 next:
@@ -65,7 +65,7 @@ again:
     jump next
 
 done:
-    v3: int32 = load v2
+    v3: int32 = load (*v2)
     return v3
 }
 "#,
@@ -80,7 +80,7 @@ type Box {
 
 function test(v0: ref<Box, managed, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<Box, managed, mutable, local>, v1: boolean):
-    v2: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v2: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
     jump b1
 
 b1:
@@ -91,7 +91,7 @@ b2:
     jump b1
 
 b3:
-    v3: int32 = load v2
+    v3: int32 = load (*v2)
     return v3
 }
 "#,
@@ -140,9 +140,9 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
     call park(): () => void
-    v2: int32 = load v1
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -160,9 +160,9 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
     call park(): () => void
-    v2: int32 = load v1
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -184,11 +184,11 @@ external function park(): int32
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
     invoke park(): () => int32 => resume | cleanup
 
 resume(v2: int32):
-    v3: int32 = load v1
+    v3: int32 = load (*v1)
     return v3
 
 cleanup:
@@ -209,11 +209,11 @@ external function park(): int32
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
     invoke park(): () => int32 => b1 | b2
 
 b1(v2: int32):
-    v3: int32 = load v1
+    v3: int32 = load (*v1)
     return v3
 
 b2:
@@ -238,8 +238,8 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
+    v2: int32 = load (*v1)
     call park(): () => void
     return v2
 }
@@ -258,8 +258,8 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
+    v2: int32 = load (*v1)
     call park(): () => void
     return v2
 }
@@ -280,7 +280,7 @@ external function park(): void
 function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, readonly, local>):
     call park(): () => void
-    v1: int32 = load v0
+    v1: int32 = load (*v0)
     return v1
 }
 "#,
@@ -291,10 +291,10 @@ entry(v0: ref<int32, borrowed, 'a, readonly, local>):
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+function test<'a>(v0: ref<int32, borrowed, 'a & local, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'a & local, readonly>):
     call park(): () => void
-    v1: int32 = load v0
+    v1: int32 = load (*v0)
     return v1
 }
 "#,

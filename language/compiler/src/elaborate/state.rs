@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use crate::{CompilerError, CompilerResult};
 
 use super::drop::{DestructorBuilder, DropPlan};
-use super::function::{BoxInserter, DropInserter};
+use super::function::DropInserter;
 
 /// State for one MIR elaboration.
 pub(crate) struct ElaborateState<'a> {
@@ -18,17 +18,15 @@ pub(crate) struct ElaborateState<'a> {
     pub(in crate::elaborate) target: mir::TargetLayout,
     /// Canonical MIR layout table.
     pub(in crate::elaborate) layouts: mir::LayoutTable,
+    /// Dispatch shapes and tables.
+    pub(in crate::elaborate) dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
     pub(in crate::elaborate) drops: mir::DropTable,
-    /// Explicit MIR memory access table.
-    pub(in crate::elaborate) accesses: mir::AccessTable,
     /// Function and call effect table.
     pub(in crate::elaborate) effects: mir::EffectTable,
 
     /// The module initializer, when one exists.
     initializer: Option<mir::FunctionId>,
-    /// Dispatch tables.
-    dispatch: mir::DispatchTable,
     /// Static profile counters.
     profile: mir::ProfileTable,
 
@@ -50,7 +48,6 @@ impl<'a> ElaborateState<'a> {
             target: instantiated.target,
             layouts: instantiated.layouts.clone(),
             drops: instantiated.drops.clone(),
-            accesses: instantiated.accesses.clone(),
             effects: instantiated.effects.clone(),
             dispatch: instantiated.dispatch.clone(),
             profile: instantiated.profile.clone(),
@@ -72,18 +69,19 @@ impl<'a> ElaborateState<'a> {
             })
             .collect::<Vec<_>>();
 
-        // make the box operations of boxed variant cases explicit
-        BoxInserter::new(&mut self.tree).insert(&functions);
-
         // plan destruction over the explicit functions
         let plans = functions
             .iter()
             .map(|&id| DropPlan::build(id, self.tree.get(id), &self.tree, retention, &self.drops))
             .collect::<Vec<_>>();
-        let frame_roots = plans.iter().flat_map(DropPlan::roots).collect::<Vec<_>>();
-        let deferred_roots = plans
+        let frame_roots = plans
             .iter()
-            .flat_map(|plan| plan.deferred_types(&self.tree))
+            .flat_map(DropPlan::roots)
+            .chain(
+                plans
+                    .iter()
+                    .flat_map(|plan| plan.overwrite_types(&self.tree)),
+            )
             .collect::<Vec<_>>();
 
         // build storage destructors required by managed allocations
@@ -97,9 +95,8 @@ impl<'a> ElaborateState<'a> {
         );
         destructors.build_allocations();
         destructors.build_frames(frame_roots);
-        destructors.build_deferred(deferred_roots);
 
-        // insert verified destruction into each source function
+        // insert verified destruction
         DropInserter::new(&mut self.tree, &self.drops).insert(plans);
 
         // complete layouts for types introduced by elaboration
@@ -120,10 +117,9 @@ impl<'a> ElaborateState<'a> {
             target: self.target,
             initializer: self.initializer,
             layouts: self.layouts,
-            drops: self.drops,
-            accesses: self.accesses,
-            effects: self.effects,
             dispatch: self.dispatch,
+            drops: self.drops,
+            effects: self.effects,
             profile: self.profile,
         }
     }
