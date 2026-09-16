@@ -3,7 +3,6 @@ title: "Introducing Destack"
 subtitle: "TypeScript++, the final stack, and software you can own."
 date: "2026-09-21"
 author: "Florian"
-tags: [Language, Runtime]
 ---
 
 Software is entering a Cambrian Explosion, and, it is worth remembering, that means most specimen will go extinct, and the survivors will look very different.
