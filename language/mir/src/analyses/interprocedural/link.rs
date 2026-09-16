@@ -194,7 +194,7 @@ impl LinkTable {
     fn instruction_edge(
         instruction: &Instruction,
         function: FunctionId,
-        tree: &mut Tree,
+        tree: &Tree,
         drops: &DropTable,
     ) -> Option<LinkEdge> {
         // retain global references made directly by memory operands
@@ -248,7 +248,7 @@ impl LinkTable {
     /// Return the destructor reference made by one fallible allocation.
     fn terminator_edge(
         terminator: &Terminator,
-        tree: &mut Tree,
+        tree: &Tree,
         drops: &DropTable,
     ) -> Option<LinkEdge> {
         let (ty, success) = match terminator {
@@ -283,10 +283,10 @@ impl LinkTable {
     fn allocation_edge(
         ty: TypeId,
         result: TypeId,
-        tree: &mut Tree,
+        tree: &Tree,
         drops: &DropTable,
     ) -> Option<LinkEdge> {
-        let storage = tree.managed_storage(result)?;
+        let storage = tree.get(tree.storage_type(result)).managed_storage()?;
 
         Self::destructor_edge(ty, storage, tree, drops)
     }
@@ -319,7 +319,7 @@ impl LinkTable {
         call_table: &CallTable,
         effects: &EffectTable,
         drops: &DropTable,
-        tree: &mut Tree,
+        tree: &Tree,
     ) -> Self {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();

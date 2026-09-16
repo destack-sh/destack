@@ -14,6 +14,24 @@ entry(v0: int32, v1: int32):
     );
 }
 
+/// Formats a constructor with the keyword naming its role.
+#[test]
+fn test_format_constructor_keyword() {
+    assert_format(
+        r#"
+type Point {
+    x: int32;
+}
+
+constructor Point.constructor<'a>(v0: ref<uninit<Point>, borrowed, 'a & local, exclusive>, v1: int32): void {
+entry(v0: ref<uninit<Point>, borrowed, 'a & local, exclusive>, v1: int32):
+    store (*v0).0, v1
+    return
+}
+"#,
+    );
+}
+
 /// Formats local declarations and local access operations canonically.
 #[test]
 fn test_format_with_locals() {
@@ -192,7 +210,7 @@ entry(v0: int32):
     return v1
 }
 
-function place<T, space S, access A, const N: usize, 'a>(v0: ref<T, borrowed, 'a & heap(S), A>, v1: [T; N]): ref<T, borrowed, 'a & static(S), A> {
+function place<T, S: Space, A: Access, const N: usize, 'a>(v0: ref<T, borrowed, 'a & heap(S), A>, v1: [T; N]): ref<T, borrowed, 'a & static(S), A> {
 entry(v0: ref<T, borrowed, 'a & heap(S), A>, v1: [T; N]):
     v2: ref<T, borrowed, 'a & static(S), A> = cast.bit v0 -> ref<T, borrowed, 'a & static(S), A>
     return v2

@@ -111,6 +111,8 @@ pub enum TokenType {
     Export,
     /// `function`
     Function,
+    /// `constructor`
+    Constructor,
     /// `global`
     Global,
     /// `shared`
@@ -202,6 +204,7 @@ impl TokenType {
                 | Self::External
                 | Self::Export
                 | Self::Function
+                | Self::Constructor
                 | Self::Global
                 | Self::Shared
                 | Self::Constant
@@ -292,6 +295,7 @@ impl TokenType {
             "external" => Self::External,
             "export" => Self::Export,
             "function" => Self::Function,
+            "constructor" => Self::Constructor,
             "global" => Self::Global,
             "shared" => Self::Shared,
             "constant" => Self::Constant,

@@ -49,6 +49,7 @@ pub use global::*;
 pub use immediate::*;
 pub use import::*;
 pub use instruction::*;
+pub use intern::*;
 pub use intrinsic::*;
 pub use language::*;
 pub use lifetime::*;

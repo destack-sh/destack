@@ -1,9 +1,9 @@
 use crate::build::{BuildError, FunctionBuilder, Variable};
-use crate::{Block, BlockParameter, BlockTarget, LocalNodeId, Terminator, Type, Value};
+use crate::{Block, BlockParameter, BlockTarget, LocalNodeId, Terminator, TypeId, Value};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
-    pub fn variable(&mut self, ty: LocalNodeId<Type>) -> Variable {
+    pub fn variable(&mut self, ty: TypeId) -> Variable {
         let variable = Variable::new(self.next_variable_id);
         self.next_variable_id += 1;
         self.variable_types.insert(variable, ty);
@@ -54,11 +54,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Add a block parameter and return its value.
-    pub fn add_block_parameter(
-        &mut self,
-        block: LocalNodeId<Block>,
-        ty: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn add_block_parameter(&mut self, block: LocalNodeId<Block>, ty: TypeId) -> Value {
         let value = self.allocate_value();
         let block_data = self.tree.get_mut(block);
         block_data.parameters.push(BlockParameter { value, ty });

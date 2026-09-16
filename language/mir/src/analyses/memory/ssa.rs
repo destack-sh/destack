@@ -434,7 +434,7 @@ mod tests {
     /// Link a load through disjoint stores to the preceding write of its local.
     #[test]
     fn test_find_local_clobber() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -445,23 +445,19 @@ entry:
     store l0, v0
     store l1, v0
     v1: ref<int32, borrowed, 'frame, mutable, frame> = address l0
-    v2: int32 = load.copy (*v1)
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let alias = analyses
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let instructions = &program
@@ -485,7 +481,7 @@ entry:
     /// Merge both branch stores before a load at their join.
     #[test]
     fn test_merge_branch_stores() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
@@ -502,23 +498,19 @@ right:
     jump join
 
 join:
-    v4: int32 = load.copy (*v0)
+    v4: int32 = load (*v0)
     return v4
 }
 "#,
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let alias = analyses
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let left = program.tree.get(function).block(1);
@@ -553,7 +545,7 @@ join:
     /// Recover the earlier clobber merge through branches that write another local.
     #[test]
     fn test_skip_disjoint_branch_stores() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
     local l0: int32
@@ -573,7 +565,7 @@ right:
     jump join
 
 join:
-    v3: int32 = load.copy l0
+    v3: int32 = load l0
     branch v0 => next_left | next_right
 
 next_left:
@@ -585,23 +577,19 @@ next_right:
     jump exit
 
 exit:
-    v4: int32 = load.copy l0
+    v4: int32 = load l0
     return v4
 }
 "#,
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let alias = analyses
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let join = memory
@@ -620,7 +608,7 @@ exit:
     /// Skip a loop's disjoint store while retaining its memory merge.
     #[test]
     fn test_find_clobber_through_loop() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
     local l0: int32
@@ -632,7 +620,7 @@ entry(v0: boolean):
     jump loop
 
 loop:
-    v2: int32 = load.copy l0
+    v2: int32 = load l0
     store l1, v2
     branch v0 => loop | exit
 
@@ -643,16 +631,12 @@ exit:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let alias = analyses
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let entry = program.tree.get(function).block(0);
@@ -686,11 +670,11 @@ exit:
     /// Include incoming function memory when control returns to the entry block.
     #[test]
     fn test_merge_entry_backedge() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
-    v2: int32 = load.copy (*v0)
+    v2: int32 = load (*v0)
     store (*v0), v2
     branch v1 => entry(v0, v1) | exit
 
@@ -701,16 +685,12 @@ exit:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let alias = analyses
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let entry = program.tree.get(function).block(0);
@@ -737,7 +717,7 @@ exit:
     /// Keep both copy regions on one definition and both comparison regions on one use.
     #[test]
     fn test_link_copy_definition_to_comparison_use() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
@@ -750,11 +730,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let instructions = &program
             .tree
             .get(program.tree.get(function).block(0))
@@ -775,29 +751,25 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     /// Stop clobber searches at fences and acquire loads across disjoint storage.
     #[test]
     fn test_stop_clobber_search_at_fences_and_acquire_loads() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, shared>): int32 {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, shared>):
     atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     v2: int32 = atomic.load (*v1), acquire, scope(device)
-    v3: int32 = load.copy (*v0)
+    v3: int32 = load (*v0)
     return v3
 }
 "#,
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let alias = analyses
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let instructions = &program
@@ -827,7 +799,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     /// Preserve loop memory when an indexed query changes between iterations.
     #[test]
     fn test_preserve_loop_address_changes() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
 entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean):
@@ -842,7 +814,7 @@ loop(v7: usize):
     v8: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v7]
     v9: ref<int32, borrowed, 'a, mutable, local> = address (*v6)[v7]
     store (*v8), v5
-    v10: int32 = load.copy (*v9)
+    v10: int32 = load (*v9)
     v11: usize = add v7, v3
     branch v1 => loop(v11) | exit
 
@@ -853,16 +825,12 @@ exit:
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let alias = analyses
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let block = program.tree.get(function).block(1);
@@ -881,7 +849,7 @@ exit:
     /// Link both invoke continuations to the call's memory definition.
     #[test]
     fn test_link_invoke_memory() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 external function change(): void
 
@@ -890,26 +858,22 @@ entry(v0: ptr<int32, readonly>):
     invoke change(): () => void => normal | unwind
 
 normal:
-    v1: int32 = load.copy (*v0)
+    v1: int32 = load (*v0)
     return v1
 
 unwind:
-    v2: int32 = load.copy (*v0)
+    v2: int32 = load (*v0)
     return v2
 
 unused:
-    v3: int32 = load.copy (*v0)
+    v3: int32 = load (*v0)
     return v3
 }
 "#,
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let memory = analyses.ssa(
-            program.entry_function_id(),
-            &mut program.tree,
-            &program.effects,
-        );
+        let memory = analyses.ssa(program.entry_function_id(), &program.tree, &program.effects);
         let invoke = memory
             .terminator_access(program.tree.get(function).block(0))
             .unwrap();

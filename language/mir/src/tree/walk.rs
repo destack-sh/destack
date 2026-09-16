@@ -37,20 +37,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
             let local = tree.get(id);
             visitor.visit_local(tree, id, local);
         }
-        NodeType::Type => {
-            let id = LocalNodeId::new(node_id);
-            let ty = tree.get(id);
-            visitor.visit_type(tree, id, ty);
-        }
         NodeType::TypeDeclaration => {
             let id = LocalNodeId::new(node_id);
             let type_declaration = tree.get(id);
             visitor.visit_type_declaration(tree, id, type_declaration);
-        }
-        NodeType::Field => {
-            let id = LocalNodeId::new(node_id);
-            let field = tree.get(id);
-            visitor.visit_field(tree, id, field);
         }
         NodeType::Global => {
             let id = LocalNodeId::new(node_id);
@@ -300,14 +290,7 @@ pub fn walk_local<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk a Type.
-pub fn walk_type<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &Tree,
-    id: LocalNodeId<Type>,
-    ty: &Type,
-) {
-    visitor.visit_any(tree, NodeType::Type, id.id);
-
+pub fn walk_type<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, ty: &Type) {
     match ty {
         Type::Declaration { declaration } => {
             visitor.visit_type_declaration(tree, *declaration, tree.get(*declaration));
@@ -336,7 +319,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 walk_type_id(visitor, tree, element_id);
             }
         }
-        Type::Struct { fields, copy: _ } => {
+        Type::Struct { fields } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_field(tree, *field_id, field);
@@ -348,7 +331,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::Variant {
             discriminant,
             cases,
-            copy: _,
         } => {
             walk_type_id(visitor, tree, discriminant);
             for case in cases {
@@ -431,13 +413,7 @@ pub fn walk_type_declaration<V: NodeVisitor + ?Sized>(
 }
 
 /// Walk a Field.
-pub fn walk_field<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &Tree,
-    id: LocalNodeId<Field>,
-    field: &Field,
-) {
-    visitor.visit_any(tree, NodeType::Field, id.id);
+pub fn walk_field<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, field: &Field) {
     let field_ty = tree.get(field.ty);
     visitor.visit_type(tree, field.ty, field_ty);
 }
@@ -502,10 +478,14 @@ fn walk_call<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, call: &Call)
         Callee::Witness {
             receiver,
             interface,
+            arguments,
             ..
         } => {
             walk_type_id(visitor, tree, receiver);
             walk_type_id(visitor, tree, interface);
+            for argument in arguments {
+                walk_argument(visitor, tree, argument);
+            }
         }
         Callee::Indirect { .. } => {}
     }

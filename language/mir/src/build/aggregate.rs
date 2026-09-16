@@ -20,6 +20,8 @@ pub(super) struct Aggregate {
     pub(super) alignment: u32,
     /// The aggregate reference trace map.
     pub(super) trace_map: TraceMap,
+    /// Whether one field admits no value.
+    pub(super) uninhabited: bool,
 }
 
 impl Aggregate {
@@ -65,8 +67,10 @@ impl Aggregate {
         let mut scalars = Vec::with_capacity(2);
         let mut is_register = true;
         let mut niche = None;
+        let mut uninhabited = false;
         for (field, layout_id) in &placed {
             let layout = layouts.layout(*layout_id);
+            uninhabited |= layout.uninhabited;
             if field.size != 0 {
                 match layout.representation {
                     Representation::Scalar(scalar) => {
@@ -112,6 +116,7 @@ impl Aggregate {
             size,
             alignment,
             trace_map,
+            uninhabited,
         })
     }
 }

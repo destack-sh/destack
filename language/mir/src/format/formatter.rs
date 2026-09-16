@@ -8,7 +8,7 @@ use super::FormatOptions;
 
 use crate::{
     Block, Function, FunctionId, GenericParameter, Global, LifetimeParameter, Local, LocalNodeId,
-    Node, RegionBound, TargetLayout, Tree, TreeImpl, Type, TypeDeclaration, TypeId, Value,
+    Node, RegionBound, TargetLayout, Tree, TreeImpl, TypeDeclaration, TypeId, Value,
     mentioned_types,
 };
 
@@ -179,7 +179,7 @@ impl<'a> Formatter<'a> {
     }
 
     /// Return one value type in the current function.
-    pub(crate) fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub(crate) fn value_type(&self, value: Value) -> Option<TypeId> {
         let function_id = self.function?;
         let function = self.tree.get(function_id);
 

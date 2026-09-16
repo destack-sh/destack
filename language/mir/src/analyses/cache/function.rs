@@ -85,7 +85,7 @@ impl FunctionCache {
         &mut self,
         function: mir::FunctionId,
         layouts: Arc<mir::LayoutTable>,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
     ) -> Result<Arc<AliasTable>, mir::LayoutError> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.alias {
@@ -113,11 +113,7 @@ impl FunctionCache {
     }
 
     /// Return known constants, analysing them when required.
-    pub fn constant(
-        &mut self,
-        function: mir::FunctionId,
-        tree: &mut mir::Tree,
-    ) -> Arc<ConstantTable> {
+    pub fn constant(&mut self, function: mir::FunctionId, tree: &mir::Tree) -> Arc<ConstantTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.constant {
             return result.clone();
@@ -238,7 +234,7 @@ impl FunctionCache {
     pub fn initialization(
         &mut self,
         function: mir::FunctionId,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
     ) -> Arc<InitializationTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.initialization {
@@ -285,7 +281,7 @@ impl FunctionCache {
     pub fn memory_effect(
         &mut self,
         function: mir::FunctionId,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         effects: &mir::EffectTable,
     ) -> Arc<MemoryEffectTable> {
         // reuse the classification while its inputs remain unchanged
@@ -308,7 +304,7 @@ impl FunctionCache {
     pub fn ssa(
         &mut self,
         function: mir::FunctionId,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         effects: &mir::EffectTable,
     ) -> Arc<MemorySsaTable> {
         // reuse the graph while its inputs remain unchanged
@@ -335,7 +331,7 @@ impl FunctionCache {
     }
 
     /// Return move paths, analysing them when required.
-    pub fn moves(&mut self, function: mir::FunctionId, tree: &mut mir::Tree) -> Arc<MoveTable> {
+    pub fn moves(&mut self, function: mir::FunctionId, tree: &mir::Tree) -> Arc<MoveTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.moves {
             return result.clone();
@@ -352,7 +348,7 @@ impl FunctionCache {
     }
 
     /// Return canonical places, analysing them when required.
-    pub fn place(&mut self, function: mir::FunctionId, tree: &mut mir::Tree) -> Arc<PlaceTable> {
+    pub fn place(&mut self, function: mir::FunctionId, tree: &mir::Tree) -> Arc<PlaceTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.place {
             return result.clone();
@@ -369,7 +365,7 @@ impl FunctionCache {
     }
 
     /// Return borrow origins, analysing them when required.
-    pub fn origin(&mut self, function: mir::FunctionId, tree: &mut mir::Tree) -> Arc<OriginTable> {
+    pub fn origin(&mut self, function: mir::FunctionId, tree: &mir::Tree) -> Arc<OriginTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.origin {
             return result.clone();
@@ -540,7 +536,7 @@ entry(v0: ref<int32, borrowed, 'a & local, readonly>):
         let block = program.tree.get(function_id).block(0);
         let instruction = program.tree.get(block).instructions[0];
         let mut analyses = FunctionCache::new();
-        let effects = analyses.memory_effect(function_id, &mut program.tree, &program.effects);
+        let effects = analyses.memory_effect(function_id, &program.tree, &program.effects);
         let mut expected = effects
             .instruction_effects(instruction)
             .cloned()
@@ -561,7 +557,7 @@ entry(v0: ref<int32, borrowed, 'a & local, readonly>):
         access.ordering = mir::MemoryOrdering::Relaxed;
         expected[0].order = mir::MemoryAccessOrder::Atomic(*access);
         analyses.invalidate(Mutation::MEMORY);
-        let updated = analyses.memory_effect(function_id, &mut program.tree, &program.effects);
+        let updated = analyses.memory_effect(function_id, &program.tree, &program.effects);
         let actual = updated
             .instruction_effects(instruction)
             .cloned()

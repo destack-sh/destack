@@ -22,6 +22,8 @@ pub struct Function {
     pub template: Option<FunctionId>,
     /// The function's persistent mangled symbol: its linkable identity.
     pub symbol: Symbol,
+    /// The role of the function.
+    pub kind: FunctionKind,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
@@ -44,6 +46,16 @@ impl Node for Function {
     const TYPE: NodeType = NodeType::Function;
 }
 
+/// The role of one MIR function.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+pub enum FunctionKind {
+    /// An ordinary function, method, getter, or setter.
+    #[default]
+    Function,
+    /// A constructor initializing the uninitialized receiver its first parameter names.
+    Constructor,
+}
+
 /// The executable body of one MIR function.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionBody {
@@ -54,7 +66,7 @@ pub struct FunctionBody {
     /// The function locals in slot order.
     locals: Vec<LocalNodeId<Local>>,
     /// SSA value types keyed by value id.
-    value_types: Vec<Option<LocalNodeId<Type>>>,
+    value_types: Vec<Option<TypeId>>,
     /// Counter for allocating unique SSA value ids.
     next_value_id: u32,
     /// Instruction locations keyed by instruction id.
@@ -202,7 +214,7 @@ impl FunctionBody {
     /// Create an empty function body.
     fn empty(
         entry: LocalNodeId<Block>,
-        value_types: Vec<Option<LocalNodeId<Type>>>,
+        value_types: Vec<Option<TypeId>>,
         next_value_id: u32,
     ) -> Self {
         Self {
@@ -220,7 +232,7 @@ impl FunctionBody {
         entry: LocalNodeId<Block>,
         blocks: Vec<LocalNodeId<Block>>,
         locals: Vec<LocalNodeId<Local>>,
-        value_types: Vec<Option<LocalNodeId<Type>>>,
+        value_types: Vec<Option<TypeId>>,
         next_value_id: u32,
         tree: &Tree,
     ) -> Self {
@@ -316,12 +328,12 @@ impl FunctionBody {
     }
 
     /// Return the type for one SSA value.
-    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub fn value_type(&self, value: Value) -> Option<TypeId> {
         self.value_types.get(value.0 as usize).copied().flatten()
     }
 
     /// Return all value type slots.
-    pub fn value_types(&self) -> &[Option<LocalNodeId<Type>>] {
+    pub fn value_types(&self) -> &[Option<TypeId>] {
         &self.value_types
     }
 
@@ -361,13 +373,13 @@ impl FunctionBody {
     }
 
     /// Replace the SSA value type table.
-    pub fn replace_value_types(&mut self, value_types: Vec<Option<LocalNodeId<Type>>>) {
+    pub fn replace_value_types(&mut self, value_types: Vec<Option<TypeId>>) {
         self.value_types = value_types;
         self.next_value_id = self.next_value_id.max(self.value_types.len() as u32);
     }
 
     /// Return the expected type for one SSA value.
-    pub fn expect_value_type(&self, value: Value) -> LocalNodeId<Type> {
+    pub fn expect_value_type(&self, value: Value) -> TypeId {
         match self.value_type(value) {
             Some(ty) => ty,
             None => unreachable!("missing type for value {value:?}"),
@@ -375,7 +387,7 @@ impl FunctionBody {
     }
 
     /// Record the type for one SSA value.
-    pub fn set_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
+    pub fn set_value_type(&mut self, value: Value, ty: TypeId) {
         let index = self.resize_value_slots(value);
 
         if let Some(existing) = self.value_types[index] {
@@ -397,7 +409,7 @@ impl FunctionBody {
     }
 
     /// Allocate a new SSA value and record its type.
-    pub fn next_typed_value(&mut self, ty: LocalNodeId<Type>) -> Value {
+    pub fn next_typed_value(&mut self, ty: TypeId) -> Value {
         let value = self.next_value();
         self.set_value_type(value, ty);
         value
@@ -476,9 +488,7 @@ impl Function {
     }
 
     /// Build parameter-derived SSA tables.
-    pub(crate) fn parameter_state(
-        parameters: &[FunctionParameter],
-    ) -> (u32, Vec<Option<LocalNodeId<Type>>>) {
+    pub(crate) fn parameter_state(parameters: &[FunctionParameter]) -> (u32, Vec<Option<TypeId>>) {
         // derive the next value id from parameters
         let next_value_id = parameters
             .iter()
@@ -523,6 +533,7 @@ impl Function {
             arguments: Vec::new(),
             template: None,
             symbol: Symbol::named(module, name),
+            kind: FunctionKind::Function,
             linkage,
             allocation: AllocationMode::Any,
             parameters,
@@ -596,12 +607,12 @@ impl Function {
     }
 
     /// Return the type for an SSA value.
-    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub fn value_type(&self, value: Value) -> Option<TypeId> {
         self.body.as_ref().and_then(|body| body.value_type(value))
     }
 
     /// Return the expected type for one SSA value.
-    pub fn expect_value_type(&self, value: Value) -> LocalNodeId<Type> {
+    pub fn expect_value_type(&self, value: Value) -> TypeId {
         match self.value_type(value) {
             Some(ty) => ty,
             None => unreachable!("missing type for value {value:?}"),
@@ -616,6 +627,13 @@ impl Function {
     /// Set the linkage and return self (builder pattern).
     pub fn with_linkage(mut self, linkage: Linkage) -> Self {
         self.linkage = linkage;
+        self
+    }
+
+    /// Set the function's role.
+    pub fn with_kind(mut self, kind: FunctionKind) -> Self {
+        self.kind = kind;
+
         self
     }
 
@@ -721,7 +739,7 @@ impl Function {
     }
 
     /// Return the value type table when this function has a body.
-    pub fn value_types(&self) -> &[Option<LocalNodeId<Type>>] {
+    pub fn value_types(&self) -> &[Option<TypeId>] {
         self.body
             .as_ref()
             .map(FunctionBody::value_types)
@@ -853,7 +871,7 @@ impl Function {
     }
 
     /// Replace the SSA value type table.
-    pub fn replace_value_types(&mut self, value_types: Vec<Option<LocalNodeId<Type>>>) {
+    pub fn replace_value_types(&mut self, value_types: Vec<Option<TypeId>>) {
         let Some(body) = self.body.as_mut() else {
             unreachable!("cannot replace value types on a function without a body");
         };
@@ -871,7 +889,7 @@ impl Function {
     }
 
     /// Allocate a new SSA value and record its type.
-    pub fn next_typed_value(&mut self, ty: LocalNodeId<Type>) -> Value {
+    pub fn next_typed_value(&mut self, ty: TypeId) -> Value {
         let Some(body) = self.body.as_mut() else {
             unreachable!("cannot allocate typed SSA value in a function without a body");
         };

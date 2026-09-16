@@ -1,6 +1,6 @@
 use crate::{
-    Block, Field, Function, Global, Instruction, Local, LocalNodeId, Terminator, Tree, Type,
-    TypeDeclaration, assert_node,
+    Block, Field, Function, Global, Instruction, Local, Terminator, Tree, Type, TypeDeclaration,
+    TypeId, assert_node,
 };
 use destack_source::DiagnosticSeverity;
 
@@ -390,7 +390,7 @@ b0:
 }
 
 /// Assert one type node recovered as the error type.
-fn assert_error_type(tree: &Tree, ty: LocalNodeId<Type>) {
+fn assert_error_type(tree: &Tree, ty: TypeId) {
     assert_node!(tree, ty, Type::Error);
 }
 

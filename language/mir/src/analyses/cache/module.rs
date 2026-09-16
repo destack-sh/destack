@@ -77,7 +77,7 @@ impl ModuleCache {
     }
 
     /// Return the call graph, analysing it when required.
-    pub fn call(&mut self, tree: &mut mir::Tree, dispatch: &mir::DispatchTable) -> Arc<CallTable> {
+    pub fn call(&mut self, tree: &mir::Tree, dispatch: &mir::DispatchTable) -> Arc<CallTable> {
         // reuse the result while its inputs remain unchanged
         if let Some(result) = &self.call {
             return result.clone();
@@ -96,7 +96,7 @@ impl ModuleCache {
     /// Return resolved callees, analysing them when required.
     pub fn resolution(
         &mut self,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         dispatch: &mir::DispatchTable,
     ) -> Arc<ResolutionTable> {
         // reuse the result while its inputs remain unchanged
@@ -114,7 +114,7 @@ impl ModuleCache {
     /// Return function effects, analysing them when required.
     pub fn effect(
         &mut self,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         effects: &mir::EffectTable,
         dispatch: &mir::DispatchTable,
     ) -> Arc<EffectTable> {
@@ -137,7 +137,7 @@ impl ModuleCache {
     /// Return symbol references, analysing them when required.
     pub fn link(
         &mut self,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         effects: &mir::EffectTable,
         dispatch: &mir::DispatchTable,
         drops: &mir::DropTable,
@@ -160,7 +160,7 @@ impl ModuleCache {
     /// Return global accesses, analysing them when required.
     pub fn globals(
         &mut self,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         effects: &mir::EffectTable,
         dispatch: &mir::DispatchTable,
     ) -> Arc<GlobalAccessTable> {
@@ -194,7 +194,7 @@ impl ModuleCache {
         &mut self,
         function: mir::FunctionId,
         layouts: Arc<mir::LayoutTable>,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
     ) -> Result<Arc<AliasTable>, mir::LayoutError> {
         self.function(function).alias(function, layouts, tree)
     }
@@ -202,7 +202,7 @@ impl ModuleCache {
     function_analysis_through_module!(
         constant,
         ConstantTable,
-        &mut mir::Tree,
+        &mir::Tree,
         "Return function constant propagation."
     );
     function_analysis_through_module!(
@@ -228,7 +228,7 @@ impl ModuleCache {
     pub fn escape(
         &mut self,
         function: mir::FunctionId,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         effects: &mir::EffectTable,
         dispatch: &mir::DispatchTable,
     ) -> Arc<EscapeTable> {
@@ -266,30 +266,25 @@ impl ModuleCache {
     );
     function_analysis_through_module!(
         ssa,
-        MemorySsaTable, &mut mir::Tree,
+        MemorySsaTable, &mir::Tree,
         "Return function memory versions.",
         effects: &mir::EffectTable
     );
     function_analysis_through_module!(
-        memory_effect, MemoryEffectTable, &mut mir::Tree, "Return function memory effects.",
+        memory_effect, MemoryEffectTable, &mir::Tree, "Return function memory effects.",
         effects: &mir::EffectTable
     );
-    function_analysis_through_module!(
-        moves,
-        MoveTable,
-        &mut mir::Tree,
-        "Return function move paths."
-    );
+    function_analysis_through_module!(moves, MoveTable, &mir::Tree, "Return function move paths.");
     function_analysis_through_module!(
         place,
         PlaceTable,
-        &mut mir::Tree,
+        &mir::Tree,
         "Return function canonical places."
     );
     function_analysis_through_module!(
         origin,
         OriginTable,
-        &mut mir::Tree,
+        &mir::Tree,
         "Return function borrow origin."
     );
     function_analysis_through_module!(
@@ -301,7 +296,7 @@ impl ModuleCache {
     function_analysis_through_module!(
         initialization,
         InitializationTable,
-        &mut mir::Tree,
+        &mir::Tree,
         "Return function move-path initialization."
     );
     function_analysis_through_module!(uses, UseTable, &mir::Tree, "Return function value uses.");
@@ -453,10 +448,10 @@ entry:
         let mut cache = ModuleCache::new();
         let first_control = cache.control(functions[0], &test.tree);
         let second_control = cache.control(functions[1], &test.tree);
-        let first_constant = cache.constant(functions[0], &mut test.tree);
-        let second_constant = cache.constant(functions[1], &mut test.tree);
-        let effects = cache.effect(&mut test.tree, &test.effects, &test.dispatch);
-        let second_memory = cache.ssa(functions[1], &mut test.tree, &effects);
+        let first_constant = cache.constant(functions[0], &test.tree);
+        let second_constant = cache.constant(functions[1], &test.tree);
+        let effects = cache.effect(&test.tree, &test.effects, &test.dispatch);
+        let second_memory = cache.ssa(functions[1], &test.tree, &effects);
 
         // replace the first function's constant before invalidating its cached answer
         let block = test.tree.get(functions[0]).entry().expect("function entry");
@@ -483,26 +478,26 @@ entry:
         ));
         assert!(!Arc::ptr_eq(
             &first_constant,
-            &cache.constant(functions[0], &mut test.tree)
+            &cache.constant(functions[0], &test.tree)
         ));
         assert!(Arc::ptr_eq(
             &second_constant,
-            &cache.constant(functions[1], &mut test.tree)
+            &cache.constant(functions[1], &test.tree)
         ));
 
         // require the rebuilt analysis to observe the rewritten constant
-        let constants = cache.constant(functions[0], &mut test.tree);
+        let constants = cache.constant(functions[0], &test.tree);
         assert_eq!(
             constants.constant(destination),
             Some(&mir::Constant::int32(3))
         );
 
         // invalidate shared effects and dependent memory analyses after an operand change
-        let new_effects = cache.effect(&mut test.tree, &test.effects, &test.dispatch);
+        let new_effects = cache.effect(&test.tree, &test.effects, &test.dispatch);
         assert!(!Arc::ptr_eq(&effects, &new_effects));
         assert!(!Arc::ptr_eq(
             &second_memory,
-            &cache.ssa(functions[1], &mut test.tree, &new_effects)
+            &cache.ssa(functions[1], &test.tree, &new_effects)
         ));
 
         // preserve the unchanged function's control graph after a branch change
@@ -517,11 +512,11 @@ entry:
         ));
 
         // invalidate memory analyses after a layout change
-        let memory = cache.ssa(functions[1], &mut test.tree, &new_effects);
+        let memory = cache.ssa(functions[1], &test.tree, &new_effects);
         cache.invalidate_function(functions[0], Mutation::LAYOUT);
         assert!(!Arc::ptr_eq(
             &memory,
-            &cache.ssa(functions[1], &mut test.tree, &new_effects),
+            &cache.ssa(functions[1], &test.tree, &new_effects),
         ));
         assert!(Arc::ptr_eq(
             &second_control,
@@ -532,7 +527,7 @@ entry:
     /// Invalidate dispatch-dependent module and function analyses together.
     #[test]
     fn test_invalidate_dispatch_dependencies() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -546,26 +541,23 @@ entry:
         // compute the analyses whose reuse is checked below
         let mut cache = ModuleCache::new();
         let control = cache.control(function, &test.tree);
-        let resolution = cache.resolution(&mut test.tree, &test.dispatch);
-        let origin = cache.origin(function, &mut test.tree);
-        let calls = cache.call(&mut test.tree, &test.dispatch);
-        let effects = cache.effect(&mut test.tree, &test.effects, &test.dispatch);
+        let resolution = cache.resolution(&test.tree, &test.dispatch);
+        let origin = cache.origin(function, &test.tree);
+        let calls = cache.call(&test.tree, &test.dispatch);
+        let effects = cache.effect(&test.tree, &test.effects, &test.dispatch);
 
         // invalidate the dispatch table and its dependent analyses
         cache.invalidate(Mutation::DISPATCH);
-        let new_resolution = cache.resolution(&mut test.tree, &test.dispatch);
+        let new_resolution = cache.resolution(&test.tree, &test.dispatch);
         assert!(!Arc::ptr_eq(&resolution, &new_resolution));
-        assert!(Arc::ptr_eq(
-            &origin,
-            &cache.origin(function, &mut test.tree)
-        ));
+        assert!(Arc::ptr_eq(&origin, &cache.origin(function, &test.tree)));
         assert!(!Arc::ptr_eq(
             &calls,
-            &cache.call(&mut test.tree, &test.dispatch)
+            &cache.call(&test.tree, &test.dispatch)
         ));
         assert!(!Arc::ptr_eq(
             &effects,
-            &cache.effect(&mut test.tree, &test.effects, &test.dispatch)
+            &cache.effect(&test.tree, &test.effects, &test.dispatch)
         ));
 
         // check that dispatch changes preserve the control graph

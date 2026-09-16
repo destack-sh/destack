@@ -16,13 +16,13 @@ use super::variant::Variant;
 #[derive(Debug)]
 pub struct LayoutBuilder<'tree> {
     /// The MIR tree whose types are laid out.
-    tree: &'tree mut Tree,
+    tree: &'tree Tree,
     /// The layouts computed so far.
     layouts: &'tree mut LayoutTable,
     /// The target ABI layout.
     target: TargetLayout,
     /// The types whose layouts are in flight.
-    computing: FxIndexSet<LocalNodeId<Type>>,
+    computing: FxIndexSet<TypeId>,
 }
 
 /// Failure to construct one physical MIR layout.
@@ -85,7 +85,7 @@ impl std::error::Error for LayoutError {}
 /// MIR types reachable from runtime roots.
 struct ReachableTypeCollector {
     /// The reachable types in discovery order.
-    types: FxIndexSet<LocalNodeId<Type>>,
+    types: FxIndexSet<TypeId>,
 }
 
 impl ReachableTypeCollector {
@@ -103,34 +103,32 @@ impl NodeVisitor for ReachableTypeCollector {
         walk_function(self, tree, id, function);
     }
 
-    fn visit_type(&mut self, tree: &Tree, id: LocalNodeId<Type>, _ty: &Type) {
+    /// Collect one type and every type its layout reaches.
+    fn visit_type(&mut self, tree: &Tree, id: TypeId, _ty: &Type) {
         // stop reference cycles at their first visited type
         if !self.types.insert(id) {
             return;
         }
 
-        // reference layouts do not require layouts for their targets
+        // leave generic declarations and their applications to their instances
+        match tree.get(id) {
+            Type::Declaration { declaration } if !tree.get(*declaration).generics.is_empty() => {
+                return;
+            }
+            Type::Application { .. } => return,
+            _ => {}
+        }
         let ty = tree.type_definition(id);
         match ty {
-            Type::Reference { .. }
-            | Type::Pointer { .. }
-            | Type::Slice { .. }
-            | Type::Dynamic { .. }
-            | Type::Function { .. }
-            | Type::FunctionPointer { .. } => {}
-            Type::Application { .. } => {}
-            _ => walk_type(self, tree, id, ty),
+            Type::Pointer { .. } => {}
+            _ => walk_type(self, tree, ty),
         }
     }
 }
 
 impl<'tree> LayoutBuilder<'tree> {
     /// Create layout construction over one MIR tree and table.
-    pub fn new(
-        tree: &'tree mut Tree,
-        layouts: &'tree mut LayoutTable,
-        target: TargetLayout,
-    ) -> Self {
+    pub fn new(tree: &'tree Tree, layouts: &'tree mut LayoutTable, target: TargetLayout) -> Self {
         Self {
             tree,
             layouts,
@@ -192,8 +190,13 @@ impl<'tree> LayoutBuilder<'tree> {
                         ty = ty
                             .project(projection, self.tree)
                             .unwrap_or_else(|| unreachable!("invalid memory place projection"));
-                        let (PlaceType::Value(layout) | PlaceType::Sequence(layout)) = ty;
-                        self.layout_reachable_type(layout)?;
+                        let storage = match ty {
+                            PlaceType::Value(ty) => Some(ty),
+                            referent => referent.element(self.tree),
+                        };
+                        if let Some(storage) = storage {
+                            self.layout_reachable_type(storage)?;
+                        }
                     }
                 }
             }
@@ -203,10 +206,16 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 
     /// Compute a layout when one reachable MIR type has a value representation.
-    fn layout_reachable_type(&mut self, ty: LocalNodeId<Type>) -> Result<(), LayoutError> {
+    fn layout_reachable_type(&mut self, ty: TypeId) -> Result<(), LayoutError> {
         match self.tree.get(ty) {
             // skip types without runtime representations
             Type::Error | Type::Never | Type::FunctionSignature { .. } | Type::Parameter { .. } => {
+                Ok(())
+            }
+            // skip generic declarations, their instances laid out through their applications
+            Type::Declaration { declaration }
+                if !self.tree.get(*declaration).generics.is_empty() =>
+            {
                 Ok(())
             }
 
@@ -244,7 +253,7 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 
     /// Return the cached or newly computed layout of one MIR type.
-    pub fn layout_type(&mut self, ty: LocalNodeId<Type>) -> Result<LayoutId, LayoutError> {
+    pub fn layout_type(&mut self, ty: TypeId) -> Result<LayoutId, LayoutError> {
         // reuse the layout already computed for this type
         if let Some(id) = self.layouts.layout_id(ty) {
             return Ok(id);
@@ -285,7 +294,7 @@ impl<'tree> LayoutBuilder<'tree> {
     }
 
     /// Compute the layout of one MIR type against the target.
-    fn compute_type(&mut self, ty: LocalNodeId<Type>) -> Result<Layout, LayoutError> {
+    fn compute_type(&mut self, ty: TypeId) -> Result<Layout, LayoutError> {
         match self.tree.get(ty).clone() {
             // scalars occupy their natural width
             Type::Void | Type::Null => Ok(Layout {
@@ -295,6 +304,7 @@ impl<'tree> LayoutBuilder<'tree> {
                 size: 0,
                 alignment: 1,
                 trace_map: TraceMap::Empty,
+                uninhabited: false,
             }),
             Type::Boolean => Ok(Layout::scalar(
                 Scalar::with_validity(Primitive::Integer { width: 8 }, Validity::new(0, 1)),
@@ -339,6 +349,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size: self.pointer_bytes(),
                     alignment: self.pointer_alignment(),
                     trace_map: TraceMap::reference(kind, storage, self.tree),
+                    uninhabited: false,
                 })
             }
 
@@ -355,6 +366,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size: self.pointer_bytes(),
                     alignment: self.pointer_alignment(),
                     trace_map: TraceMap::Empty,
+                    uninhabited: false,
                 })
             }
 
@@ -376,6 +388,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
                     trace_map: TraceMap::reference(kind, storage, self.tree),
+                    uninhabited: false,
                 })
             }
 
@@ -425,6 +438,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size,
                     alignment: element_alignment,
                     trace_map,
+                    uninhabited: count != 0 && element_layout.uninhabited,
                 })
             }
 
@@ -446,6 +460,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size: aggregate.size,
                     alignment: aggregate.alignment,
                     trace_map: aggregate.trace_map,
+                    uninhabited: aggregate.uninhabited,
                 })
             }
 
@@ -463,6 +478,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size: aggregate.size,
                     alignment: aggregate.alignment,
                     trace_map: aggregate.trace_map,
+                    uninhabited: aggregate.uninhabited,
                 })
             }
 
@@ -482,6 +498,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size: layout.size,
                     alignment: layout.alignment,
                     trace_map,
+                    uninhabited: layout.uninhabited,
                 })
             }
 
@@ -531,6 +548,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size,
                     alignment,
                     trace_map: TraceMap::Empty,
+                    uninhabited: false,
                 })
             }
 
@@ -550,6 +568,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
                     trace_map: TraceMap::reference(kind, storage, self.tree),
+                    uninhabited: false,
                 })
             }
 
@@ -573,6 +592,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
                     trace_map: TraceMap::nested(environment_offset, environment_trace),
+                    uninhabited: false,
                 })
             }
 
@@ -612,6 +632,7 @@ impl<'tree> LayoutBuilder<'tree> {
                 size: 0,
                 alignment: 1,
                 trace_map: TraceMap::Empty,
+                uninhabited: true,
             }),
         }
     }
@@ -659,6 +680,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     size,
                     alignment: self.pointer_alignment(),
                     trace_map: TraceMap::Empty,
+                    uninhabited: false,
                 });
             }
         };

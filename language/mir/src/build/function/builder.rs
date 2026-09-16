@@ -5,15 +5,10 @@ use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
     AllocationMode, Block, EffectTable, Function, FunctionBehavior, FunctionBody,
     FunctionParameter, Instruction, Linkage, Local, LocalNodeId, MemoryEffect, Node, Terminator,
-    Tree, TreeMut, Type, TypeId, Value,
+    Tree, TreeMut, TypeId, Value,
 };
 
 /// The builder for one MIR function, constructing SSA as it goes.
-///
-/// Follows "Simple and Efficient Construction of Static Single Assignment Form" (Braun et al.,
-/// 2013, <https://c9x.me/compile/bib/braun13cc.pdf>): each block tracks the value it defines per
-/// variable, a use looks the value up through the predecessors, and a join point that sees
-/// differing values takes a block parameter, added once the block is sealed.
 #[derive(Debug)]
 pub struct FunctionBuilder<'a> {
     // meta
@@ -34,7 +29,7 @@ pub struct FunctionBuilder<'a> {
     /// The locals built for this function body.
     pub(super) locals: Vec<LocalNodeId<Local>>,
     /// The SSA value types, keyed by value id.
-    pub(super) value_types: Vec<Option<LocalNodeId<Type>>>,
+    pub(super) value_types: Vec<Option<TypeId>>,
 
     // ssa construction state
     /// The next SSA value id to allocate.
@@ -50,7 +45,7 @@ pub struct FunctionBuilder<'a> {
     /// The incomplete block parameters awaiting their block's sealing.
     pub(super) incomplete_phis: IndexMap<LocalNodeId<Block>, Vec<(Variable, Value)>>,
     /// The declared type of each variable.
-    pub(super) variable_types: IndexMap<Variable, LocalNodeId<Type>>,
+    pub(super) variable_types: IndexMap<Variable, TypeId>,
     /// The blocks in creation order.
     pub(super) blocks: Vec<LocalNodeId<Block>>,
 }
@@ -73,6 +68,7 @@ impl<'a> FunctionBuilder<'a> {
             lifetimes,
             parameters,
             result,
+            kind,
         } = header;
         let module = symbol.declaring_module();
 
@@ -87,11 +83,12 @@ impl<'a> FunctionBuilder<'a> {
             arguments,
             template: None,
             symbol,
+            kind,
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             parameters,
             lifetimes,
-            return_type: TypeId::from(result),
+            return_type: result,
             environment: None,
             binding: None,
             body: None,
@@ -230,7 +227,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Record the type of one value an instruction produces.
-    pub(super) fn define_value(&mut self, value: Value, ty: LocalNodeId<Type>) {
+    pub(super) fn define_value(&mut self, value: Value, ty: TypeId) {
         let index = self.resize_value_slots(value);
 
         // keep the recorded type, requiring every definition to agree
@@ -246,12 +243,12 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Return the type of one existing SSA value.
-    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+    pub fn value_type(&self, value: Value) -> Option<TypeId> {
         self.value_types.get(value.0 as usize).copied().flatten()
     }
 
     /// Require the type of one SSA value.
-    pub(super) fn expect_value_type(&self, value: Value, context: &str) -> LocalNodeId<Type> {
+    pub(super) fn expect_value_type(&self, value: Value, context: &str) -> TypeId {
         let result = self
             .value_type(value)
             .ok_or_else(|| BuildError::MissingValueType {

@@ -10,7 +10,7 @@ global counter: int32 = zeroinit
 function increment(): void {
 entry:
     v0: ref<int32, borrowed, 'static & local, mutable> = address @counter
-    v1: int32 = load.copy (*v0)
+    v1: int32 = load (*v0)
     v2: int32 = 1
     v3: int32 = add v1, v2
     store (*v0), v3
@@ -30,7 +30,7 @@ constant MAGIC: int64 = 42
 function getMagic(): int64 {
 entry:
     v0: ref<int64, borrowed, 'static & local, readonly> = address @MAGIC
-    v1: int64 = load.copy (*v0)
+    v1: int64 = load (*v0)
     return v1
 }
 "#,
@@ -47,7 +47,7 @@ constant stringLiteralHelloWorldNl: [uint8; 11] = b"hello\nworld"
 function escapeTest(): void {
 entry:
     v0: ref<[uint8; 11], borrowed, 'static & local, readonly> = address @stringLiteralHelloWorldNl
-    v1: [uint8; 11] = load.copy (*v0)
+    v1: [uint8; 11] = load (*v0)
     return
 }
 "#,

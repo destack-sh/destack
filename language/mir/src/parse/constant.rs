@@ -1,7 +1,7 @@
 use crate::source::TokenType;
 use destack_source::Span;
 
-use crate::{Constant, FloatType, Intrinsic, LayoutMeasure, LocalNodeId, StorageSet, Type, TypeId};
+use crate::{Constant, FloatType, Intrinsic, LayoutMeasure, StorageSet, Type, TypeId};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -23,8 +23,8 @@ impl Parser {
         self.bump();
 
         Ok(Constant::Witness {
-            receiver: TypeId::from(receiver),
-            interface: TypeId::from(interface),
+            receiver,
+            interface,
             member: self.strings.intern(&member),
         })
     }
@@ -45,6 +45,10 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Null)
             }
+            TokenType::Identifier if token_text == "undefined" => {
+                self.bump();
+                Ok(Constant::Undefined)
+            }
             TokenType::Identifier if let Some((index, _)) = self.generic_parameter(&token_text) => {
                 self.bump();
                 Ok(Constant::Parameter(index))
@@ -54,10 +58,7 @@ impl Parser {
             {
                 self.bump();
                 let (ty, _) = self.parse_type_use_part()?;
-                Ok(Constant::Layout {
-                    ty: TypeId::from(ty),
-                    measure,
-                })
+                Ok(Constant::Layout { ty, measure })
             }
             TokenType::Identifier if token_text == "witness" => {
                 self.bump();
@@ -106,7 +107,7 @@ impl Parser {
     /// Parse a constant and validate it against the expected type.
     pub(super) fn parse_constant_for_type(
         &mut self,
-        expected_type: LocalNodeId<Type>,
+        expected_type: TypeId,
     ) -> ParseResult<Constant> {
         // read the next token
         let token = self
@@ -127,6 +128,10 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Null)
             }
+            TokenType::Identifier if token_text == "undefined" => {
+                self.bump();
+                Ok(Constant::Undefined)
+            }
             TokenType::Identifier if let Some((index, _)) = self.generic_parameter(&token_text) => {
                 self.bump();
                 Ok(Constant::Parameter(index))
@@ -139,10 +144,7 @@ impl Parser {
                 }
                 self.bump();
                 let (ty, _) = self.parse_type_use_part()?;
-                Ok(Constant::Layout {
-                    ty: TypeId::from(ty),
-                    measure,
-                })
+                Ok(Constant::Layout { ty, measure })
             }
             TokenType::Identifier if token_text == "witness" => {
                 self.bump();

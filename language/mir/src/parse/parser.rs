@@ -9,7 +9,7 @@ use crate::{
     Access, Block, DispatchTable, DropTable, EffectTable, Extent, Function, GenericArgument,
     GenericParameter, GenericParameterDomain, Global, LayoutTable, Lifetime, LifetimeParameter,
     Local, LocalNodeId, Node, ProfileTable, RegionBound, Space, Static, Storage, TargetLayout,
-    Tree, Type, TypeDeclaration, Value,
+    Tree, Type, TypeDeclaration, TypeId, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -154,7 +154,7 @@ pub struct Parser {
     /// The function currently being parsed.
     pub(super) current_function: Option<LocalNodeId<Function>>,
     /// SSA value types for the current function.
-    pub(super) value_types: Vec<Option<LocalNodeId<Type>>>,
+    pub(super) value_types: Vec<Option<TypeId>>,
     /// The next SSA value id for the current function.
     pub(super) next_value_id: u32,
     /// The number of blocks parsed in the current function so far.
@@ -304,13 +304,21 @@ impl Parser {
         // read a parameter in scope by its domain
         let parameter = self
             .generic_parameter(&text)
-            .map(|(index, parameter)| (index, parameter.domain.clone()));
-        if let Some((index, domain)) = parameter {
+            .map(|(index, parameter)| (index, parameter.clone()));
+        if let Some((index, parameter)) = parameter {
             self.bump();
 
-            return Ok(match domain {
+            return Ok(match parameter.domain {
                 GenericParameterDomain::Type { .. } => {
-                    GenericArgument::Type(self.intern_type(Type::Parameter { index })?)
+                    let copy = self.parameter_copy(&parameter);
+
+                    GenericArgument::Type(self.intern_type(
+                        Type::Parameter {
+                            index,
+                            referent: false,
+                        },
+                        copy,
+                    )?)
                 }
                 GenericParameterDomain::Region { .. } => GenericArgument::Region {
                     lifetime: Lifetime::new([Extent::Parameter(index)]),
@@ -523,21 +531,30 @@ impl Parser {
         let text = self.tree.source_text(token.span).to_string();
         let start = token.start();
 
-        // read the domain keyword for a space, access, or value parameter
-        let domain = match (kind, text.as_str()) {
-            (TokenType::Identifier, "space") => Some(GenericParameterDomain::Space),
-            (TokenType::Identifier, "access") => Some(GenericParameterDomain::Access),
-            (TokenType::Const, _) => None,
-            (TokenType::Identifier, _) if self.peek_declares_type_parameter(&text) => {
+        // read the domain a `Name: Space`, `Name: Access`, const, or type parameter declares
+        let memory_domain = match (kind, self.peek_memory_domain()) {
+            (TokenType::Identifier, Some(domain)) => Some(domain),
+            _ => None,
+        };
+        let domain = match (kind, text.as_str(), memory_domain) {
+            (_, _, Some(domain)) => Some(domain),
+            (TokenType::Const, _, _) => None,
+            (TokenType::Identifier, _, _) if self.peek_declares_type_parameter(&text) => {
                 Some(GenericParameterDomain::Type { bounds: Vec::new() })
             }
             _ => return Ok(None),
         };
         self.bump();
 
-        // read the parameter name
+        // read the parameter name, a memory parameter naming its domain after the colon
         let name_token = match domain {
             Some(GenericParameterDomain::Type { .. }) => token,
+            Some(GenericParameterDomain::Space | GenericParameterDomain::Access) => {
+                self.eat_token(TokenType::Colon)?;
+                self.eat_token(TokenType::Identifier)?;
+
+                token
+            }
             _ => self.eat_token(TokenType::Identifier)?,
         };
         let name = self.tree.source_text(name_token.span).to_string();
@@ -596,6 +613,20 @@ impl Parser {
             .is_some_and(|token| self.token_type(token) == TokenType::Colon);
 
         is_bound || !is_declared
+    }
+
+    /// Return the memory domain a `Name: Space` or `Name: Access` declaration ahead names.
+    fn peek_memory_domain(&self) -> Option<GenericParameterDomain> {
+        let colon = self.peek_nth_token(1)?;
+        if self.token_type(colon) != TokenType::Colon {
+            return None;
+        }
+        let domain = self.peek_nth_token(2)?;
+        match self.tree.source_text(domain.span) {
+            "Space" => Some(GenericParameterDomain::Space),
+            "Access" => Some(GenericParameterDomain::Access),
+            _ => None,
+        }
     }
 
     /// Return one generic parameter visible in the current scope with its index.
@@ -737,11 +768,7 @@ impl Parser {
     }
 
     /// Record the type for a value in the current function.
-    pub(super) fn record_value_type(
-        &mut self,
-        value: Value,
-        ty: LocalNodeId<Type>,
-    ) -> ParseResult<()> {
+    pub(super) fn record_value_type(&mut self, value: Value, ty: TypeId) -> ParseResult<()> {
         if self.current_function.is_some() {
             let existing = self.value_types.get(value.0 as usize).copied().flatten();
             if let Some(existing) = existing {

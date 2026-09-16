@@ -4,9 +4,9 @@ use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, BinaryOperator,
     Binding, Block, BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Function,
-    FunctionBody, FunctionHeaderSpans, FunctionParameter, GenericArgument, GenericParameter,
-    Instruction, LifetimeParameter, Linkage, Local, LocalNodeId, Mutability, SwitchCase,
-    Terminator, TypeId, TypedValueSpan, Value,
+    FunctionBody, FunctionHeaderSpans, FunctionKind, FunctionParameter, GenericArgument,
+    GenericParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId, Mutability,
+    SwitchCase, Terminator, TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -17,6 +17,8 @@ use super::parser::Parser;
 pub(super) struct ParsedFunctionHeader {
     /// The resolved function id.
     pub(super) function_id: LocalNodeId<Function>,
+    /// The role the keyword declares.
+    pub(super) kind: FunctionKind,
     /// The function keyword span.
     pub(super) keyword_span: Span,
     /// The parsed function name.
@@ -68,6 +70,11 @@ pub(super) enum FunctionHeaderMode {
 }
 
 impl Parser {
+    /// Return whether the next token opens a function or constructor.
+    pub(super) fn peek_is_function(&self) -> bool {
+        self.peek_is(TokenType::Function) || self.peek_is(TokenType::Constructor)
+    }
+
     /// Extract first-class function fields from parsed attributes.
     pub(super) fn extract_function_attributes(
         &mut self,
@@ -139,7 +146,14 @@ impl Parser {
         mode: FunctionHeaderMode,
     ) -> ParseResult<ParsedFunctionHeader> {
         // keyword and name
-        let keyword_token = self.eat_token(TokenType::Function)?;
+        let kind = match self.peek_is(TokenType::Constructor) {
+            true => FunctionKind::Constructor,
+            false => FunctionKind::Function,
+        };
+        let keyword_token = match kind {
+            FunctionKind::Constructor => self.eat_token(TokenType::Constructor)?,
+            FunctionKind::Function => self.eat_token(TokenType::Function)?,
+        };
         let keyword_start = keyword_token.start();
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
@@ -176,6 +190,7 @@ impl Parser {
 
         Ok(ParsedFunctionHeader {
             function_id,
+            kind,
             keyword_span,
             name,
             arguments,
@@ -230,7 +245,8 @@ impl Parser {
                 .with_linkage(Linkage::Shared),
             }
             .with_arguments(header.arguments.clone())
-            .with_symbol(symbol);
+            .with_symbol(symbol)
+            .with_kind(header.kind);
             function.generics = header.generics.clone();
             function.environment = function_attributes.environment_type;
             function.binding = function_attributes.binding.map(Box::new);
@@ -301,6 +317,7 @@ impl Parser {
         // populate signature fields
         let function = self.tree.get_mut(id);
         function.name = name_id;
+        function.kind = header.kind;
         function.arguments = header.arguments;
         function.generics = header.generics.clone();
         function.parameters = parameters;

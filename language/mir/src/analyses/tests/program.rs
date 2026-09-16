@@ -63,7 +63,7 @@ impl TestProgram {
         // extract function effects from each module's MIR
         let mut functions = Vec::new();
         for module in &mut self.modules {
-            let resolution = ResolutionTable::analyse(&module.dispatch, None, &mut module.tree);
+            let resolution = ResolutionTable::analyse(&module.dispatch, None, &module.tree);
             let ids = module
                 .tree
                 .iter_nodes::<Function>()
@@ -71,7 +71,7 @@ impl TestProgram {
                 .collect::<Vec<_>>();
             for (id, symbol) in ids {
                 let analysis =
-                    FunctionEffectBody::analyse(id, &resolution, &module.effects, &mut module.tree)
+                    FunctionEffectBody::analyse(id, &resolution, &module.effects, &module.tree)
                         .expect("MIR effects should be serializable");
 
                 functions.push((symbol, Arc::new(analysis)));

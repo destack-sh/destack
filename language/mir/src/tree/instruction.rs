@@ -7,7 +7,7 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
-    Constant, ConvertMode, Copy, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
+    Constant, ConvertMode, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
     IndexSlice, Intrinsic, MemoryOrdering, Node, NodeType, Place, SamplerId, Tree, TypeId,
     UnaryOperator, Value, ValueSlice, VectorReduceOperator,
 };
@@ -166,8 +166,6 @@ pub enum Instruction {
     // memory
     /// Read a place.
     Load {
-        /// Whether this read duplicates its source.
-        copy: Copy,
         /// The SSA value to define with the loaded value.
         destination: Value,
         /// The storage to read.
@@ -204,8 +202,6 @@ pub enum Instruction {
     // aggregate projection
     /// Extract one structural field from an aggregate value.
     FieldGet {
-        /// Whether this read duplicates its source.
-        copy: Copy,
         /// The SSA value to define with the extracted field.
         destination: Value,
         /// The aggregate value to extract from.
@@ -226,8 +222,6 @@ pub enum Instruction {
     },
     /// Extract one statically selected fixed-array element.
     ElementGet {
-        /// Whether this read duplicates its source.
-        copy: Copy,
         /// The SSA value to define with the extracted element.
         destination: Value,
         /// The fixed-array aggregate to extract from.
@@ -274,8 +268,6 @@ pub enum Instruction {
     },
     /// Extract the payload of one statically selected variant case.
     VariantPayload {
-        /// Whether this read duplicates its source.
-        copy: Copy,
         /// The SSA value to define with the extracted payload.
         destination: Value,
         /// The variant value to extract from.
@@ -978,7 +970,15 @@ impl Instruction {
         match self {
             Instruction::Store { value, .. }
             | Instruction::NewComplete { value, .. }
-            | Instruction::Release { value } => smallvec![*value],
+            | Instruction::Release { value }
+            | Instruction::Cast {
+                argument: value, ..
+            } => smallvec![*value],
+            Instruction::Intrinsic {
+                intrinsic: Intrinsic::Transmute | Intrinsic::SpaceCast,
+                arguments,
+                ..
+            } => tree.get_values(*arguments).iter().copied().collect(),
             Instruction::AtomicStore { value, .. } | Instruction::AtomicRmw { value, .. } => {
                 smallvec![*value]
             }

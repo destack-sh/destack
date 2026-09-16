@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{FunctionId, Global, LocalNodeId, TypeId};
+use crate::{FunctionId, GenericArgument, Global, LocalNodeId, TypeId};
 
 /// The witness each closed type records for each interface it implements.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -27,12 +27,31 @@ pub struct Witness {
 }
 
 /// One requirement implemented by one function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct WitnessFunction {
+    /// The member function name.
+    pub member: StringId,
     /// The requirement function.
     pub requirement: FunctionId,
-    /// The implementing function.
+    /// The implementing function, a template when it leaves a place open.
     pub function: FunctionId,
+    /// The implementer's arguments, one hole per place the requirement's own arguments fill.
+    pub arguments: Vec<Option<GenericArgument>>,
+}
+
+impl WitnessFunction {
+    /// Fill each hole with the next filler, in order.
+    pub fn fill(&self, fillers: &[GenericArgument]) -> Option<Vec<GenericArgument>> {
+        let mut fillers = fillers.iter();
+        let mut arguments = Vec::with_capacity(self.arguments.len());
+        for argument in &self.arguments {
+            arguments.push(match argument {
+                Some(argument) => argument.clone(),
+                None => fillers.next()?.clone(),
+            });
+        }
+        fillers.next().is_none().then_some(arguments)
+    }
 }
 
 /// One associated const implemented by one global.

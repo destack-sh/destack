@@ -382,27 +382,25 @@ fn test_format_synthetic_copy_marker() {
     let int32_type = tree.intern_type(Type::Int {
         width: 32,
         is_signed: true,
-    });
+    }, Copy::Yes);
     let declaration_name = strings.intern("Pair");
 
-    let left = tree.intern_field(
-        Field {
-            name: None,
-            ty: int32_type,
-        },
-        Vec::new(),
-    );
-    let right = tree.intern_field(
-        Field {
-            name: None,
-            ty: int32_type,
-        },
-        Vec::new(),
-    );
-    let struct_type = tree.intern_type(Type::Struct {
-        fields: vec![left, right],
-        copy: Copy::Yes,
+    let left = tree.intern_field(Field {
+        name: None,
+        ty: int32_type,
+        attributes: Vec::new(),
     });
+    let right = tree.intern_field(Field {
+        name: None,
+        ty: int32_type,
+        attributes: Vec::new(),
+    });
+    let struct_type = tree.intern_type(
+        Type::Struct {
+            fields: vec![left, right],
+        },
+        Copy::Yes,
+    );
     let pair = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
     let declaration = tree.get_mut(pair);
     declaration.definition = Some(struct_type);
@@ -432,26 +430,26 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     let int32_type = tree.intern_type(Type::Int {
         width: 32,
         is_signed: true,
-    });
+    }, Copy::Yes);
     let attribute_name = strings.intern("packed");
     let declaration_name = strings.intern("Point");
     let field_name = strings.intern("x");
 
-    let field_id = tree.intern_field(
-        Field {
-            name: Some(field_name),
-            ty: int32_type,
-        },
-        vec![Attribute {
+    let field_id = tree.intern_field(Field {
+        name: Some(field_name),
+        ty: int32_type,
+        attributes: vec![Attribute {
             name: AttributeIdentifier::identifier(attribute_name),
             args: AttributeArgs::None,
         }],
-    );
-
-    let struct_type = tree.intern_type(Type::Struct {
-        fields: vec![field_id],
-        copy: Copy::Yes,
     });
+
+    let struct_type = tree.intern_type(
+        Type::Struct {
+            fields: vec![field_id],
+        },
+        Copy::Yes,
+    );
     let point = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
     let declaration = tree.get_mut(point);
     declaration.definition = Some(struct_type);
@@ -477,7 +475,7 @@ type Point {
 fn test_roundtrip_joined_storage_places() {
     assert_format(
         r#"
-type Borrows<space P, space Q, 'a> {
+type Borrows<P: Space, Q: Space, 'a> {
     sharedFirst: ref<int32, borrowed, 'a & shared|heap(P), readonly>;
     parameterFirst: ref<int32, borrowed, 'a & heap(P)|local, readonly>;
     staticJoin: ref<int32, borrowed, 'a & static(Q|P), readonly>;
@@ -492,7 +490,7 @@ type Borrows<space P, space Q, 'a> {
 fn test_format_borrow_qualifiers() {
     assert_format(
         r#"
-type Borrows<T, 'a, access A> {
+type Borrows<T, 'a, A: Access> {
     mutable: ref<T, borrowed, 'a, mutable>;
     readonly: ref<T, borrowed, 'a, readonly>;
     exclusive: ref<T, borrowed, 'a, exclusive>;
@@ -529,10 +527,10 @@ type Choice = variant<uint8> { 7uint8 = ref<Node<int32>, unique, mutable, local>
 #[test]
 fn test_format_nested_lifetime_binders() {
     assert_format(
-        "type Callback = <'a>(<'b>(ref<int32, borrowed, 'a, readonly>, ref<int32, borrowed, 'b, readonly>) => ref<int32, borrowed, 'a, readonly> where 'b: 'a) => void;",
+        "type Callback = <'a>(<'b>(ref<int32, borrowed, 'a & local, readonly>, ref<int32, borrowed, 'b & local, readonly>) => ref<int32, borrowed, 'a & local, readonly> where 'b: 'a) => void;",
     );
     assert_format_eq(
-        "type Callback = <'a>(<'a>(ref<int32, borrowed, 'a, readonly>) => void) => void;",
-        "type Callback = <'a>(<'a_1>(ref<int32, borrowed, 'a_1, readonly>) => void) => void;",
+        "type Callback = <'a>(<'a>(ref<int32, borrowed, 'a & local, readonly>) => void) => void;",
+        "type Callback = <'a>(<'a_1>(ref<int32, borrowed, 'a_1 & local, readonly>) => void) => void;",
     );
 }

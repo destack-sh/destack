@@ -8,7 +8,7 @@ use super::value::{format_constant_for_type, format_function_id, format_type_id}
 
 use crate::{
     AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatNode, FunctionId,
-    Instruction, LocalNodeId, MemoryOrdering, StorageSet, Type, Value, Writer,
+    Instruction, LocalNodeId, MemoryOrdering, StorageSet, TypeId, Value, Writer,
 };
 
 impl FormatNode for Instruction {
@@ -296,22 +296,12 @@ impl FormatNode for Instruction {
                 )
             }
             Instruction::Load {
-                copy,
-                destination,
-                place,
-                ..
+                destination, place, ..
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token(if copy.is_yes() { "load.copy" } else { "load" }),
-                        space(),
-                        place
-                    ]
+                    [space(), token("="), space(), token("load"), space(), place]
                 )
             }
 
@@ -336,7 +326,6 @@ impl FormatNode for Instruction {
             }
 
             Instruction::FieldGet {
-                copy,
                 destination,
                 aggregate,
                 field,
@@ -348,11 +337,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token(if copy.is_yes() {
-                            "field.get.copy"
-                        } else {
-                            "field.get"
-                        }),
+                        token("field.get"),
                         space(),
                         aggregate,
                         token(","),
@@ -449,7 +434,6 @@ impl FormatNode for Instruction {
             }
 
             Instruction::VariantPayload {
-                copy,
                 destination,
                 variant,
                 case,
@@ -461,11 +445,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token(if copy.is_yes() {
-                            "variant.payload.copy"
-                        } else {
-                            "variant.payload"
-                        }),
+                        token("variant.payload"),
                         space(),
                         variant,
                         token(","),
@@ -476,7 +456,6 @@ impl FormatNode for Instruction {
             }
 
             Instruction::ElementGet {
-                copy,
                 destination,
                 aggregate,
                 index,
@@ -488,11 +467,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token(if copy.is_yes() {
-                            "element.get.copy"
-                        } else {
-                            "element.get"
-                        }),
+                        token("element.get"),
                         space(),
                         aggregate,
                         token(","),
@@ -1138,10 +1113,7 @@ fn format_typed_destination<'a>(destination: Value, f: &mut Writer<'a, '_>) -> F
 }
 
 /// Return the value type of one instruction destination.
-fn typed_destination_type<'a>(
-    destination: Value,
-    f: &mut Writer<'a, '_>,
-) -> FormatResult<LocalNodeId<Type>> {
+fn typed_destination_type<'a>(destination: Value, f: &mut Writer<'a, '_>) -> FormatResult<TypeId> {
     f.context()
         .value_type(destination)
         .ok_or(FormatError::SyntaxError {

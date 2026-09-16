@@ -1,7 +1,7 @@
 use super::{
     assert_format, assert_format_eq, assert_output_eq, format_tree_with_options, parse_fixture,
 };
-use crate::{Access, FormatOptions, Function, Lifetime, Reference, Space, Storage, Type};
+use crate::{Copy, Access, FormatOptions, Function, Lifetime, Reference, Space, Storage, Type};
 
 /// Preserves declaration comments while normalizing canonical separators and names.
 #[test]
@@ -20,7 +20,7 @@ readonly global Count: int32 = 1
 function use(v0: Callable): int32 {
 entry(v0: Callable):
     v1: ref<int32, borrowed, 'static & local, readonly> = address @Count
-    v2: int32 = load.copy (*v1)
+    v2: int32 = load (*v1)
     v3: int32 = call.indirect v0(v2): (int32) => int32
     return v3
 }
@@ -97,14 +97,14 @@ entry:
     let int32 = tree.intern_type(Type::Int {
         width: 32,
         is_signed: true,
-    });
+    }, Copy::Yes);
     let environment = tree.intern_type(Type::Reference {
         kind: Reference::Managed,
         lifetime: Lifetime::empty(),
         storage: Storage::Heap(Space::Local),
         access: Access::Mutable,
         pointee: int32,
-    });
+    }, Copy::Yes);
     tree.get_mut(function_id).environment = Some(environment);
 
     // // detail

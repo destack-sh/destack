@@ -21,6 +21,8 @@ destack_unicode = { workspace = true }
 
 # general
 indexmap = { workspace = true, features = ["serde"] }
+parking_lot = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 smallvec = { workspace = true, features = ["serde"] }
 

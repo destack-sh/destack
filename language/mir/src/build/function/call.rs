@@ -1,5 +1,6 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
+    Copy,
     Call, Callee, Function, FunctionBehavior, GenericArgument, Instruction, LocalNodeId, Point,
     SignatureParameter, Substitution, Type, TypeId, Value,
 };
@@ -51,18 +52,21 @@ impl<'a> FunctionBuilder<'a> {
             .collect();
         let result = declared.return_type;
         let lifetimes = declared.lifetimes.clone();
-        let signature = self.tree.intern_type(Type::FunctionSignature {
-            lifetimes,
-            parameters,
-            result,
-        });
+        let signature = self.tree.intern_type(
+            Type::FunctionSignature {
+                lifetimes,
+                parameters,
+                result,
+            },
+            Copy::Yes,
+        );
 
         self.call(
             Callee::Direct {
                 function,
                 arguments: Vec::new(),
             },
-            TypeId::from(signature),
+            signature,
             arguments,
             result,
         )
@@ -73,7 +77,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         function: LocalNodeId<Function>,
         arguments: Vec<GenericArgument>,
-        signature: LocalNodeId<Type>,
+        signature: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FunctionAddr {
@@ -90,7 +94,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         function: LocalNodeId<Function>,
         arguments: Vec<GenericArgument>,
-        signature: LocalNodeId<Type>,
+        signature: TypeId,
         environment: Value,
     ) -> Value {
         let destination = self.allocate_value();
@@ -104,26 +108,11 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Project the environment from one function value.
-    pub fn function_environment(
-        &mut self,
-        function: Value,
-        environment_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FunctionEnvironment {
-            destination,
-            function,
-        });
-        self.define_value(destination, environment_type);
-        destination
-    }
-
     /// Load the hidden environment pointer for the current function.
-    pub fn function_environment_current(&mut self, environment_type: LocalNodeId<Type>) -> Value {
+    pub fn function_environment_current(&mut self, environment_type: TypeId) -> Value {
         // record the hidden environment type on the function tables
         let existing_environment = {
-            let requested_environment = TypeId::from(environment_type);
+            let requested_environment = environment_type;
             let function = self.tree.get_mut(self.function_id);
             match &function.environment {
                 Some(existing) if existing != &requested_environment => Some(*existing),

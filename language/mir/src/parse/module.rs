@@ -103,7 +103,7 @@ impl Parser {
                 attributes,
                 attribute_spans,
             )?;
-        } else if self.peek_is(TokenType::Function) {
+        } else if self.peek_is_function() {
             if mutability == Mutability::Immutable {
                 return Err(ParseError::new("functions cannot be readonly", self.pos()));
             }
@@ -141,7 +141,7 @@ impl Parser {
                 || self.peek_is(TokenType::Type)
                 || self.peek_is(TokenType::Global)
                 || self.peek_is(TokenType::Constant)
-                || self.peek_is(TokenType::Function)
+                || self.peek_is_function()
             {
                 return;
             }
@@ -183,7 +183,7 @@ impl Parser {
                 self.bump();
             }
 
-            if self.peek_is(TokenType::Function) {
+            if self.peek_is_function() {
                 let lifetime_scope_count = self.lifetime_scopes.len();
                 let _ = self.seed_function_signature(linkage);
                 self.restore_lifetime_scopes(lifetime_scope_count);
@@ -234,7 +234,7 @@ impl Parser {
             if self.peek_is(TokenType::Shared) {
                 self.bump();
             }
-            if self.peek_is(TokenType::Function) {
+            if self.peek_is_function() {
                 self.bump();
 
                 let lifetime_scope_count = self.lifetime_scopes.len();
@@ -254,18 +254,13 @@ impl Parser {
                 }
 
                 let name_id = self.strings.intern(&name);
-                let void_type = self.tree.intern_type(Type::Void);
+                let void_type = self.tree.intern_type(Type::Void, Copy::Yes);
                 let base = Symbol::named(self.module, name_id);
                 let symbol = base.instantiate(&arguments, &self.tree);
-                let function = Function::declare(
-                    self.module,
-                    name_id,
-                    Vec::new(),
-                    Vec::new(),
-                    TypeId::from(void_type),
-                )
-                .with_arguments(arguments)
-                .with_symbol(symbol);
+                let function =
+                    Function::declare(self.module, name_id, Vec::new(), Vec::new(), void_type)
+                        .with_arguments(arguments)
+                        .with_symbol(symbol);
                 let function_id = self.tree.insert(function);
                 self.function_map.insert(key, function_id);
 
@@ -315,6 +310,7 @@ impl Parser {
         let header = self.parse_function_header(linkage, FunctionHeaderMode::Signature)?;
         let function_id = header.function_id;
         let function = self.tree.get_mut(function_id);
+        function.kind = header.kind;
         function.arguments = header.arguments;
         function.generics = header.generics.clone();
         function.parameters = header.parameters;
@@ -399,7 +395,7 @@ impl Parser {
             }
         };
 
-        let type_id = self.tree.intern_type(Type::Declaration { declaration: id });
+        let type_id = self.tree.intern_type(Type::Declaration { declaration: id }, Copy::No);
 
         // direct nominal heritage
         let heritage = self.parse_type_heritage()?;
@@ -466,11 +462,11 @@ impl Parser {
         }
 
         // define the identified representation
-        let mut resolved = self.tree.get(ty).clone();
-        if let Some(copy) = self.copy_attribute(&attributes, item_start)? {
-            set_type_copy(&mut resolved, copy, item_start)?;
-        }
-        let definition = self.tree.intern_type(resolved);
+        let resolved = self.tree.get(ty).clone();
+        let copy = self
+            .copy_attribute(&attributes, item_start)?
+            .unwrap_or(Copy::No);
+        let definition = self.tree.intern_type(resolved, copy);
         self.tree.get_mut(id).definition = Some(definition);
         self.layouts.copy_type_entries(ty, type_id);
         self.dispatch.copy_type_entries(ty, type_id);
@@ -640,10 +636,7 @@ impl Parser {
     }
 
     /// Parse a data initializer.
-    fn parse_data_init(
-        &mut self,
-        expected_type: Option<LocalNodeId<Type>>,
-    ) -> ParseResult<GlobalInitializer> {
+    fn parse_data_init(&mut self, expected_type: Option<TypeId>) -> ParseResult<GlobalInitializer> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("data initializer", self.pos()))?;
@@ -779,9 +772,9 @@ impl Parser {
     /// Return the expected type for one aggregate initializer element.
     fn data_init_element_type(
         &mut self,
-        expected_type: Option<LocalNodeId<Type>>,
+        expected_type: Option<TypeId>,
         index: usize,
-    ) -> Option<LocalNodeId<Type>> {
+    ) -> Option<TypeId> {
         let expected_type = self.tree.storage_type(expected_type?);
 
         match self.tree.get(expected_type) {
@@ -793,18 +786,3 @@ impl Parser {
     }
 }
 
-/// Set the copy property on one explicit aggregate type.
-fn set_type_copy(ty: &mut Type, copy: Copy, position: usize) -> ParseResult<()> {
-    match ty {
-        Type::Struct { copy: target, .. }
-        | Type::Newtype { copy: target, .. }
-        | Type::Variant { copy: target, .. } => {
-            *target = copy;
-            Ok(())
-        }
-        _ => Err(ParseError::new(
-            "copy attribute requires an aggregate type",
-            position,
-        )),
-    }
-}

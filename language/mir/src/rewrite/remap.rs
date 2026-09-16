@@ -55,10 +55,16 @@ impl Callee {
                 receiver,
                 interface,
                 requirement,
+                arguments,
             } => {
                 *receiver = remap.map_type(*receiver);
                 *interface = remap.map_type(*interface);
                 *requirement = remap.map_function(*requirement);
+                for argument in arguments {
+                    if let GenericArgument::Type(ty) = argument {
+                        *ty = remap.map_type(*ty);
+                    }
+                }
             }
         }
     }

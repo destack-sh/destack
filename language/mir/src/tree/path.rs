@@ -80,7 +80,7 @@ impl Place {
     }
 
     /// Return the value or sequence selected by this place.
-    pub fn ty(&self, function: FunctionId, tree: &mut Tree) -> Option<PlaceType> {
+    pub fn ty(&self, function: FunctionId, tree: &Tree) -> Option<PlaceType> {
         let root = PlaceType::Value(self.root_type(function, tree)?);
 
         self.path
@@ -90,7 +90,7 @@ impl Place {
     }
 
     /// Return the last reference type traversed by this place.
-    pub fn reference_type(&self, function: FunctionId, tree: &mut Tree) -> Option<TypeId> {
+    pub fn reference_type(&self, function: FunctionId, tree: &Tree) -> Option<TypeId> {
         let mut ty = PlaceType::Value(self.root_type(function, tree)?);
         let mut reference = None;
 
@@ -154,24 +154,35 @@ impl Place {
     }
 }
 
-/// The value or contiguous sequence selected by a place.
+/// The value or unsized referent selected by a place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlaceType {
     /// One sized value.
     Value(TypeId),
-    /// A contiguous sequence of elements.
-    Sequence(TypeId),
+    /// The unsized elements or referent one slice, array, dynamic, or function type selects.
+    Referent(TypeId),
 }
 
 impl PlaceType {
-    /// Select and substitute one component.
-    pub fn project(self, projection: &Projection, tree: &mut Tree) -> Option<Self> {
+    /// Return the element type of a slice or fixed array referent.
+    pub fn element(self, tree: &Tree) -> Option<TypeId> {
         match self {
-            Self::Sequence(element) => match projection {
+            Self::Referent(descriptor) => match tree.type_definition(descriptor) {
+                Type::Slice { element, .. } | Type::FixedArray { element, .. } => Some(*element),
+                _ => None,
+            },
+            Self::Value(_) => None,
+        }
+    }
+
+    /// Select and substitute one component.
+    pub fn project(self, projection: &Projection, tree: &Tree) -> Option<Self> {
+        match self {
+            Self::Referent(_) => match projection {
                 Projection::Element { .. } | Projection::Index { .. } | Projection::Elements => {
-                    Some(Self::Value(element))
+                    self.element(tree).map(Self::Value)
                 }
-                Projection::Slice { .. } => Some(self),
+                Projection::Slice { .. } => self.element(tree).map(|_| self),
                 _ => None,
             },
             Self::Value(ty) => {
@@ -180,6 +191,7 @@ impl PlaceType {
                     Type::Application { base, arguments } => (*base, arguments.clone()),
                     _ => (ty, Vec::new()),
                 };
+                let descriptor = ty;
                 let ty = tree.type_definition(ty);
 
                 // instantiate modified storage before projecting through it
@@ -195,9 +207,10 @@ impl PlaceType {
                         Projection::Deref,
                         Type::Reference { pointee, .. } | Type::Pointer { pointee, .. },
                     ) => Some(Self::Value(*pointee)),
-                    (Projection::Deref, Type::Slice { element, .. }) => {
-                        Some(Self::Sequence(*element))
-                    }
+                    (
+                        Projection::Deref,
+                        Type::Slice { .. } | Type::Dynamic { .. } | Type::Function { .. },
+                    ) => Some(Self::Referent(descriptor)),
                     (Projection::Field { index }, ty) => {
                         ty.field_type(*index, tree).map(Self::Value)
                     }
@@ -210,8 +223,8 @@ impl PlaceType {
                         | Projection::Index { .. },
                         Type::FixedArray { element, .. } | Type::Vector { element, .. },
                     ) => Some(Self::Value(*element)),
-                    (Projection::Slice { .. }, Type::FixedArray { element, .. }) => {
-                        Some(Self::Sequence(*element))
+                    (Projection::Slice { .. }, Type::FixedArray { .. }) => {
+                        Some(Self::Referent(descriptor))
                     }
                     _ => None,
                 }?;
@@ -220,7 +233,7 @@ impl PlaceType {
                 let mut substitution = Substitution::new(tree, &arguments);
                 let selected = match selected {
                     Self::Value(ty) => Self::Value(substitution.ty(ty)),
-                    Self::Sequence(ty) => Self::Sequence(substitution.ty(ty)),
+                    Self::Referent(ty) => Self::Referent(substitution.ty(ty)),
                 };
 
                 Some(selected)

@@ -3,7 +3,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
-    CompareExchangeAccess, ConvertMode, Copy, CounterId, DispatchSlot, ExecutionScope, FenceAccess,
+    CompareExchangeAccess, ConvertMode, CounterId, DispatchSlot, ExecutionScope, FenceAccess,
     GenericParameterDomain, Instruction, LayoutMeasure, LocalNodeId, MemoryOrdering, SamplerId,
     StorageSet, TypeId, UnaryOperator, Value, VectorReduceOperator,
 };
@@ -423,15 +423,9 @@ impl Parser {
                             result_type: destination_type,
                         }
                     }
-                    "load" | "load.copy" => {
-                        let copy = if opcode_text.ends_with(".copy") {
-                            Copy::Yes
-                        } else {
-                            Copy::No
-                        };
+                    "load" => {
                         let place = self.parse_place(&mut segment_spans)?;
                         Instruction::Load {
-                            copy,
                             destination,
                             place,
                             result_type: destination_type,
@@ -449,19 +443,13 @@ impl Parser {
                     }
 
                     // aggregate projection
-                    "field.get" | "field.get.copy" => {
-                        let copy = if opcode_text.ends_with(".copy") {
-                            Copy::Yes
-                        } else {
-                            Copy::No
-                        };
+                    "field.get" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let field = self.parse_int_segment(&mut segment_spans)?;
                         let field = u32::try_from(field)
                             .map_err(|_| ParseError::invalid("field index", self.pos()))?;
                         Instruction::FieldGet {
-                            copy,
                             destination,
                             aggregate,
                             field,
@@ -482,19 +470,13 @@ impl Parser {
                             value,
                         }
                     }
-                    "element.get" | "element.get.copy" => {
-                        let copy = if opcode_text.ends_with(".copy") {
-                            Copy::Yes
-                        } else {
-                            Copy::No
-                        };
+                    "element.get" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let index = self.parse_int_segment(&mut segment_spans)?;
                         let index = u32::try_from(index)
                             .map_err(|_| ParseError::invalid("element index", self.pos()))?;
                         Instruction::ElementGet {
-                            copy,
                             destination,
                             aggregate,
                             index,
@@ -546,19 +528,13 @@ impl Parser {
                         let place = self.parse_place(&mut segment_spans)?;
                         Instruction::VariantTagLoad { destination, place }
                     }
-                    "variant.payload" | "variant.payload.copy" => {
-                        let copy = if opcode_text.ends_with(".copy") {
-                            Copy::Yes
-                        } else {
-                            Copy::No
-                        };
+                    "variant.payload" => {
                         let variant = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let case = self.parse_int_segment(&mut segment_spans)?;
                         let case = u32::try_from(case)
                             .map_err(|_| ParseError::invalid("case index", self.pos()))?;
                         Instruction::VariantPayload {
-                            copy,
                             destination,
                             variant,
                             case,
@@ -986,21 +962,16 @@ impl Parser {
         let interface = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
         let (requirement, generic_arguments, span) = self.parse_function_reference_part()?;
-        if !generic_arguments.is_empty() {
-            return Err(ParseError::invalid(
-                "witness requirement",
-                span.start as usize,
-            ));
-        }
         segment_spans.push(span);
 
         // read the call arguments and the explicit signature
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_call_signature_segment(segment_spans)?;
         let callee = Callee::Witness {
-            receiver: TypeId::from(receiver),
-            interface: TypeId::from(interface),
+            receiver,
+            interface,
             requirement,
+            arguments: generic_arguments,
         };
 
         Ok((callee, arguments, signature))

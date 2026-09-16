@@ -39,7 +39,7 @@ impl TestModule {
         };
         let parsed = Parser::parse(&file, options).expect("MIR parser requires text content");
         let (
-            mut tree,
+            tree,
             target_layout,
             mut layouts,
             dispatch,
@@ -56,7 +56,7 @@ impl TestModule {
         }
 
         // construct the layouts supplied by lowering in compiler consumers
-        LayoutBuilder::new(&mut tree, &mut layouts, target_layout)
+        LayoutBuilder::new(&tree, &mut layouts, target_layout)
             .layout_reachable_types()
             .expect("fixture types require valid layouts");
 

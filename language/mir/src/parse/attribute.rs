@@ -3,7 +3,6 @@ use destack_source::Span;
 
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, AttributeKeyValue, AttributeValue, FloatValue,
-    TypeId,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -126,7 +125,8 @@ impl Parser {
         // type values
         if self.peek_type(kind) {
             let ty = self.parse_type()?;
-            return Ok(AttributeValue::Type(TypeId::from(ty)));
+
+            return Ok(AttributeValue::Type(ty));
         }
 
         self.parse_attribute_literal()

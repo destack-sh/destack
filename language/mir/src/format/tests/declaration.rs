@@ -20,7 +20,7 @@ entry(v0: Status):
 function checkDefault(): boolean {
 entry:
     v0: ref<Status, borrowed, 'static & local, readonly> = address @Status.Default
-    v1: Status = load.copy (*v0)
+    v1: Status = load (*v0)
     v2: boolean = call Status.isActive(v1): (Status) => boolean
     return v2
 }
@@ -41,7 +41,7 @@ entry(v0: Status):
 function checkDefault(): boolean {
 entry:
     v0: ref<Status, borrowed, 'static & local, readonly> = address @Status.Default
-    v1: Status = load.copy (*v0)
+    v1: Status = load (*v0)
     v2: boolean = call Status.isActive(v1): (Status) => boolean
     return v2
 }

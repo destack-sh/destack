@@ -1,7 +1,8 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
+    Copy,
     AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, CompareExchangeAccess, Constant,
-    FenceAccess, FloatType, Instruction, Intrinsic, LocalNodeId, Place, Type, UnaryOperator, Value,
+    FenceAccess, FloatType, Instruction, Intrinsic, Place, Type, TypeId, UnaryOperator, Value,
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -16,7 +17,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Insert one typed constant.
-    pub fn constant(&mut self, value: Constant, ty: LocalNodeId<Type>) -> Value {
+    pub fn constant(&mut self, value: Constant, ty: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Const { destination, value });
         self.define_value(destination, ty);
@@ -25,7 +26,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Insert a null pointer constant.
-    pub fn null(&mut self, pointer_type: LocalNodeId<Type>) -> Value {
+    pub fn null(&mut self, pointer_type: TypeId) -> Value {
         self.constant(Constant::Null, pointer_type)
     }
 
@@ -48,7 +49,7 @@ impl<'a> FunctionBuilder<'a> {
             width,
             is_signed: signed,
         };
-        let ty_id = self.tree.intern_type(ty);
+        let ty_id = self.tree.intern_type(ty, Copy::Yes);
         self.insert_instruction(Instruction::Const {
             destination,
             value: constant,
@@ -70,7 +71,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a pointer-sized signed integer constant.
     pub fn isize_const(&mut self, value: i128) -> Value {
         let destination = self.allocate_value();
-        let ty = self.tree.intern_type(Type::Isize);
+        let ty = self.tree.intern_type(Type::Isize, Copy::Yes);
         let width = self.pointer_bits;
         self.insert_instruction(Instruction::Const {
             destination,
@@ -87,7 +88,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a pointer-sized unsigned integer constant.
     pub fn usize_const(&mut self, value: u128) -> Value {
         let destination = self.allocate_value();
-        let ty = self.tree.intern_type(Type::Usize);
+        let ty = self.tree.intern_type(Type::Usize, Copy::Yes);
         let width = self.pointer_bits;
         self.insert_instruction(Instruction::Const {
             destination,
@@ -104,7 +105,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             value: Constant::Boolean { value },
         });
-        let ty_id = self.tree.intern_type(Type::Boolean);
+        let ty_id = self.tree.intern_type(Type::Boolean, Copy::Yes);
         self.define_value(destination, ty_id);
         destination
     }
@@ -116,7 +117,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             value: Constant::Char { value },
         });
-        let ty = self.tree.intern_type(Type::Character);
+        let ty = self.tree.intern_type(Type::Character, Copy::Yes);
         self.define_value(destination, ty);
 
         destination
@@ -133,7 +134,7 @@ impl<'a> FunctionBuilder<'a> {
                 format: float_type,
             },
         });
-        let ty_id = self.tree.intern_type(Type::Float(float_type));
+        let ty_id = self.tree.intern_type(Type::Float(float_type), Copy::Yes);
         self.define_value(destination, ty_id);
         destination
     }
@@ -175,7 +176,7 @@ impl<'a> FunctionBuilder<'a> {
             right: right_value,
         });
         if operator.is_comparison() {
-            let bool_type = self.tree.intern_type(Type::Boolean);
+            let bool_type = self.tree.intern_type(Type::Boolean, Copy::Yes);
             self.define_value(destination, bool_type);
         } else {
             self.define_value(destination, left_type_id);
@@ -201,12 +202,7 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: casts
 
     /// Cast a value to a different type.
-    pub fn cast(
-        &mut self,
-        operator: CastOperator,
-        argument: Value,
-        to_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn cast(&mut self, operator: CastOperator, argument: Value, to_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Cast {
             destination,
@@ -219,7 +215,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Bitcast (reinterpret bits, same size).
-    pub fn bitcast(&mut self, argument: Value, to_type: LocalNodeId<Type>) -> Value {
+    pub fn bitcast(&mut self, argument: Value, to_type: TypeId) -> Value {
         self.cast(CastOperator::Bitcast, argument, to_type)
     }
 
@@ -269,7 +265,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn intrinsic(
         &mut self,
         intrinsic: Intrinsic,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
         args: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
@@ -300,7 +296,7 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         place: Place,
         access: AtomicAccess,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicLoad {
@@ -330,7 +326,7 @@ impl<'a> FunctionBuilder<'a> {
         new_value: Value,
         is_weak: bool,
         access: CompareExchangeAccess,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicCompareExchange {
@@ -352,7 +348,7 @@ impl<'a> FunctionBuilder<'a> {
         place: Place,
         value: Value,
         access: AtomicAccess,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::AtomicRmw {

@@ -200,6 +200,8 @@ pub struct MemoryEffect {
     pub read: StorageSet,
     /// Storage regions this operation may write.
     pub write: StorageSet,
+    /// Storage regions whose accesses this operation orders.
+    pub barrier: StorageSet,
 }
 
 impl MemoryEffect {
@@ -208,6 +210,7 @@ impl MemoryEffect {
         Self {
             read: StorageSet::NONE,
             write: StorageSet::NONE,
+            barrier: StorageSet::NONE,
         }
     }
 
@@ -216,6 +219,7 @@ impl MemoryEffect {
         Self {
             read: storage,
             write: StorageSet::NONE,
+            barrier: StorageSet::NONE,
         }
     }
 
@@ -224,6 +228,7 @@ impl MemoryEffect {
         Self {
             read: StorageSet::NONE,
             write: storage,
+            barrier: StorageSet::NONE,
         }
     }
 
@@ -232,6 +237,16 @@ impl MemoryEffect {
         Self {
             read: storage,
             write: storage,
+            barrier: StorageSet::NONE,
+        }
+    }
+
+    /// Create an effect ordering the accesses of the provided storage without touching it.
+    pub const fn barrier(storage: StorageSet) -> Self {
+        Self {
+            read: StorageSet::NONE,
+            write: StorageSet::NONE,
+            barrier: storage,
         }
     }
 
@@ -240,7 +255,13 @@ impl MemoryEffect {
         Self {
             read: StorageSet::ANY,
             write: StorageSet::ANY,
+            barrier: StorageSet::ANY,
         }
+    }
+
+    /// Return true when this effect orders memory accesses.
+    pub fn is_barrier(&self) -> bool {
+        !self.barrier.is_empty()
     }
 
     /// Return true when this effect may read memory.
@@ -263,6 +284,7 @@ impl MemoryEffect {
         Self {
             read: self.read.union(other.read),
             write: self.write.union(other.write),
+            barrier: self.barrier.union(other.barrier),
         }
     }
 
@@ -279,6 +301,7 @@ impl MemoryEffect {
             } else {
                 StorageSet::NONE
             },
+            barrier: self.barrier,
         }
     }
 }

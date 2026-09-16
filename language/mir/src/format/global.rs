@@ -6,7 +6,8 @@ use super::attribute::{format_string_literal, write_attributes, write_attributes
 use super::value::format_constant_for_type;
 
 use crate::{
-    FormatNode, Global, GlobalInitializer, Linkage, LocalNodeId, Mutability, Space, Type, Writer,
+    FormatNode, Global, GlobalInitializer, Linkage, LocalNodeId, Mutability, Space, Type, TypeId,
+    Writer,
 };
 
 impl FormatNode for Global {
@@ -90,7 +91,7 @@ impl FormatNode for Global {
 /// Format a data initializer.
 fn format_data_init<'a>(
     init: &GlobalInitializer,
-    ty: Option<LocalNodeId<Type>>,
+    ty: Option<TypeId>,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match init {
@@ -133,10 +134,10 @@ fn format_data_init<'a>(
 
 /// Return the expected type for one aggregate initializer element.
 fn data_init_element_type<'a>(
-    ty: Option<LocalNodeId<Type>>,
+    ty: Option<TypeId>,
     index: usize,
     f: &mut Writer<'a, '_>,
-) -> Option<LocalNodeId<Type>> {
+) -> Option<TypeId> {
     let ty = ty?;
 
     match f.context().tree.type_definition(ty) {

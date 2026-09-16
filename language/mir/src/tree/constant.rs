@@ -12,6 +12,8 @@ pub enum Constant {
     Parameter(u32),
     /// Null reference constant.
     Null,
+    /// Undefined constant at a polymorphic representation, specialized at instantiation.
+    Undefined,
     /// A measure of one type's layout.
     Layout {
         /// The measured type.

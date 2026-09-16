@@ -2,8 +2,8 @@ use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{
-    BlockId, BlockParameter, FunctionId, GenericArgument, GlobalId, LocalId, LocalNodeId, Place,
-    Projection, Type, TypedValueSpan, Value,
+    BlockId, BlockParameter, FunctionId, GenericArgument, GlobalId, LocalId, Place, Projection,
+    TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -102,7 +102,7 @@ impl Parser {
     /// Parse a typed destination value reference.
     pub(super) fn parse_typed_destination_parts(
         &mut self,
-    ) -> ParseResult<(Value, LocalNodeId<Type>, Span, Span)> {
+    ) -> ParseResult<(Value, TypeId, Span, Span)> {
         let (value, value_span) = self.parse_value_definition_part()?;
         self.eat_token(TokenType::Colon)?;
         let (ty, type_span) = self.parse_type_use_part()?;

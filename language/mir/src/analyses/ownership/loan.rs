@@ -1,7 +1,9 @@
 use destack_core::BitSet;
 use smallvec::SmallVec;
 
-use crate::{Access, ConstantTable, FunctionId, LocalNodeIdAny, Path, Place, Tree, Value};
+use crate::{
+    Access, ConstantTable, FunctionId, LocalNodeIdAny, Path, Place, PlaceTable, Tree, Value,
+};
 
 /// Dense identity of one borrow loan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -155,8 +157,9 @@ impl LoanTable {
         loan: &Loan,
         active: &[LoanId],
         constants: &ConstantTable,
+        places: &PlaceTable,
         function: FunctionId,
-        tree: &mut Tree,
+        tree: &Tree,
     ) -> Option<LoanId> {
         // authorize reborrows through every ancestor loan, including cyclic loop origins
         let mut parents = BitSet::new(self.len());
@@ -166,7 +169,7 @@ impl LoanTable {
         active.iter().copied().find(|&current| {
             let current_loan = self.get(current);
             !parents.contains(current.index())
-                && current_loan.conflicts(loan, constants, function, tree)
+                && current_loan.conflicts(loan, constants, places, function, tree)
         })
     }
 
@@ -288,16 +291,21 @@ impl Loan {
         &self,
         other: &Self,
         constants: &ConstantTable,
+        places: &PlaceTable,
         function: FunctionId,
-        tree: &mut Tree,
+        tree: &Tree,
     ) -> bool {
         match (&self.target, &other.target) {
             // preserve access guarantees and the validity of selected cases
             (LoanTarget::Place { place: left, .. }, LoanTarget::Place { place: right, .. }) => {
                 (self.access.conflicts(other.access)
-                    && left.may_overlap(right, constants, function, tree))
-                    || (self.writes() && left.may_replace_case(right, constants, function, tree))
-                    || (other.writes() && right.may_replace_case(left, constants, function, tree))
+                    && left.may_overlap(right, constants, places, function, tree))
+                    || (self.writes()
+                        && left.may_replace_case(right, constants, places, function, tree))
+                    || (other.writes()
+                        && right.may_replace_case(left, constants, places, function, tree))
+                    || (self.writes() && left.may_replace_owner(right, function, tree))
+                    || (other.writes() && right.may_replace_owner(left, function, tree))
             }
             // compare incoming loans by their parameter and structural path
             (
@@ -338,7 +346,7 @@ mod tests {
     /// Permit ancestral reborrows and reject an independent overlapping exclusive borrow.
     #[test]
     fn test_allow_ancestors_and_reject_overlapping_siblings() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 type Pair { first: int32; second: int32; }
 type Box { pair: Pair; }
@@ -365,8 +373,9 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let origins = analyses.origin(program.entry_function_id(), &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
+        let places = analyses.place(program.entry_function_id(), &program.tree);
         let loans = origins.loans();
         let [
             root,
@@ -401,8 +410,9 @@ entry:
                 loans.get(loan),
                 &active,
                 &constants,
+                &places,
                 program.entry_function_id(),
-                &mut program.tree,
+                &program.tree,
             );
 
             assert_eq!(
@@ -427,8 +437,9 @@ entry:
                     loans.get(loan),
                     &[active],
                     &constants,
+                    &places,
                     program.entry_function_id(),
-                    &mut program.tree,
+                    &program.tree,
                 )
             })
         });
@@ -439,7 +450,7 @@ entry:
     /// Permit reborrows from either selected parent and reject an overlapping sibling.
     #[test]
     fn test_allow_both_selected_reborrow_parents() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 type Pair { first: int32; second: int32; }
 
@@ -462,8 +473,9 @@ entry(v0: boolean):
 "#,
         );
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let origins = analyses.origin(program.entry_function_id(), &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
+        let places = analyses.place(program.entry_function_id(), &program.tree);
         let loans = origins.loans();
         let [left, right, first, sibling] =
             [3, 4, 6, 7].map(|value| loans.root(Value(value)).unwrap());
@@ -474,8 +486,9 @@ entry(v0: boolean):
                 loans.get(sibling),
                 &active,
                 &constants,
+                &places,
                 program.entry_function_id(),
-                &mut program.tree,
+                &program.tree,
             );
 
             assert_eq!(actual, expected);
@@ -485,7 +498,7 @@ entry(v0: boolean):
     /// Preserve borrowed inline cases while permitting payload writes and retained referents.
     #[test]
     fn test_preserve_borrowed_variant_cases() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 type Inner = variant<uint1> { 0uint1 = void; 1uint1 = int32; };
 type Packet = variant<uint1> { 0uint1 = void; 1uint1 = (int32, ref<int32, managed, mutable, local>, Inner); };
@@ -512,8 +525,9 @@ entry(v0: Packet, v1: Single):
 "#,
         );
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let origins = analyses.origin(program.entry_function_id(), &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
+        let places = analyses.place(program.entry_function_id(), &program.tree);
         let loans = origins.loans();
 
         // compare both borrowing orders for each storage relationship
@@ -539,8 +553,9 @@ entry(v0: Packet, v1: Single):
                     loans.get(borrowed),
                     &[active],
                     &constants,
+                    &places,
                     program.entry_function_id(),
-                    &mut program.tree,
+                    &program.tree,
                 )
             });
             let expected = if expected {
@@ -556,7 +571,7 @@ entry(v0: Packet, v1: Single):
     /// Permit a loop reborrow whose ancestry includes its previous iteration.
     #[test]
     fn test_allow_reborrows_through_cyclic_ancestry() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 external function identity<'a>(ref<int32, borrowed, 'a, exclusive, frame>): ref<int32, borrowed, 'a, exclusive, frame>
 
@@ -579,8 +594,9 @@ exit:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let origins = analyses.origin(program.entry_function_id(), &mut program.tree);
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let origins = analyses.origin(program.entry_function_id(), &program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
+        let places = analyses.place(program.entry_function_id(), &program.tree);
         let loans = origins.loans();
         let root = loans.root(Value(2)).unwrap();
         let reborrow = loans.root(Value(4)).unwrap();
@@ -590,8 +606,9 @@ exit:
             loans.get(reborrow),
             &[root, reborrow],
             &constants,
+            &places,
             program.entry_function_id(),
-            &mut program.tree,
+            &program.tree,
         );
 
         assert_eq!(conflict, None);

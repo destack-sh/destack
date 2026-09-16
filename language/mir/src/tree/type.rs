@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
-    Constant, Discriminant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, RegionBound,
-    SignatureParameter, Static, StaticId, StorageSet, Substitution, Symbol, Tree, TypeId,
+    Attribute, Constant, Discriminant, Extent, FieldId, Lifetime,
+    LifetimeParameter, LocalNodeId, Node, NodeType, RegionBound, SignatureParameter, Static,
+    StaticId, StorageSet, Substitution, Symbol, Tree, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -50,6 +51,17 @@ impl Access {
     /// Return whether this access grants the requested access.
     pub fn grants(self, requested: Self) -> bool {
         self == requested || self == Self::Exclusive || requested == Self::Readonly
+    }
+
+    /// Return the access one view through this access.
+    pub fn meet(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Readonly, _) | (_, Self::Readonly) => Self::Readonly,
+            (Self::Exclusive, access) | (access, Self::Exclusive) => access,
+            (Self::Immutable, _) | (_, Self::Immutable) => Self::Immutable,
+            (Self::Mutable, Self::Mutable) => Self::Mutable,
+            (Self::Parameter(_), _) | (_, Self::Parameter(_)) => Self::Readonly,
+        }
     }
 
     /// Return whether this access may permit writes through the reference.
@@ -120,10 +132,10 @@ pub enum Space {
     Constant,
     /// The space one template parameter names.
     Parameter(u32),
-    /// The space associated with a bound lifetime parameter.
-    Bound(RegionBound),
     /// One of the spaces an interned join names, a borrow's referent in any of them.
     Join(SpaceJoinId),
+    /// The space one type's storage lives in, read once the type closes.
+    Of(TypeId),
 }
 
 /// One interned space join of the tree.
@@ -184,7 +196,7 @@ impl Space {
             Space::Local => "local",
             Space::Shared => "shared",
             Space::Constant => "constant",
-            Space::Parameter(_) | Space::Bound(_) | Space::Join(_) => return None,
+            Space::Parameter(_) | Space::Join(_) | Space::Of(_) => return None,
         })
     }
 
@@ -194,7 +206,7 @@ impl Space {
             Space::Local => StorageSet::LOCAL,
             Space::Shared => StorageSet::SHARED,
             Space::Constant => StorageSet::GLOBAL,
-            Space::Parameter(_) | Space::Bound(_) => StorageSet::LOCAL
+            Space::Parameter(_) | Space::Of(_) => StorageSet::LOCAL
                 .union(StorageSet::SHARED)
                 .union(StorageSet::GLOBAL),
             Space::Join(id) => tree
@@ -232,8 +244,13 @@ pub enum Storage {
     Static(Space),
     /// The storage supplied for a template region parameter.
     Parameter(u32),
-    /// The storage supplied for a bound region parameter.
-    Bound(RegionBound),
+    /// The storage supplied for a bound region parameter, in one static space.
+    Bound {
+        /// The bound region parameter.
+        bound: RegionBound,
+        /// The space the storage lies in.
+        space: Space,
+    },
     /// One of an interned set of storage locations.
     Join(StorageJoinId),
 }
@@ -259,12 +276,12 @@ impl Storage {
     }
 
     /// Return the space or joined spaces containing this storage.
-    pub fn space(self, tree: &mut Tree) -> Space {
+    pub fn space(self, tree: &Tree) -> Space {
         match self {
             Self::Frame => Space::Local,
             Self::Heap(space) | Self::Static(space) => space,
             Self::Parameter(index) => Space::Parameter(index),
-            Self::Bound(bound) => Space::Bound(bound),
+            Self::Bound { space, .. } => space,
             Self::Join(id) => {
                 let storages = tree.storage_join(id).to_vec();
                 let spaces = storages
@@ -277,13 +294,33 @@ impl Storage {
         }
     }
 
+    /// Return the lifetime a borrow stored in this storage outlives, none for frame storage.
+    pub fn stored_lifetime(self, tree: &Tree) -> Option<Lifetime> {
+        match self {
+            Self::Frame => None,
+            Self::Heap(_) => Some(Lifetime::managed()),
+            Self::Static(_) => Some(Lifetime::static_storage()),
+            Self::Parameter(index) => Some(Lifetime::new([Extent::Parameter(index)])),
+            Self::Bound { bound, .. } => Some(Lifetime::new([Extent::Bound(bound)])),
+            Self::Join(id) => {
+                let storages = tree.storage_join(id).to_vec();
+                let extents = storages
+                    .into_iter()
+                    .filter_map(|storage| storage.stored_lifetime(tree))
+                    .flat_map(|lifetime| lifetime.extents);
+
+                Some(Lifetime::new(extents))
+            }
+        }
+    }
+
     /// Return the concrete residence, when one is specified.
     pub const fn residence(self) -> Option<Residence> {
         match self {
             Self::Frame => Some(Residence::Frame),
             Self::Heap(_) => Some(Residence::Heap),
             Self::Static(_) => Some(Residence::Static),
-            Self::Parameter(_) | Self::Bound(_) | Self::Join(_) => None,
+            Self::Parameter(_) | Self::Bound { .. } | Self::Join(_) => None,
         }
     }
 
@@ -291,9 +328,11 @@ impl Storage {
     pub const fn heap_space(self) -> Option<Space> {
         match self {
             Self::Heap(space) => Some(space),
-            Self::Frame | Self::Static(_) | Self::Parameter(_) | Self::Bound(_) | Self::Join(_) => {
-                None
-            }
+            Self::Frame
+            | Self::Static(_)
+            | Self::Parameter(_)
+            | Self::Bound { .. }
+            | Self::Join(_) => None,
         }
     }
 
@@ -306,7 +345,8 @@ impl Storage {
 
                 !members.is_empty() && members.iter().all(|storage| storage.is_shared(tree))
             }
-            Self::Frame | Self::Parameter(_) | Self::Bound(_) => false,
+            Self::Bound { space, .. } => space.space_set(tree) == StorageSet::SHARED,
+            Self::Frame | Self::Parameter(_) => false,
         }
     }
 
@@ -319,10 +359,10 @@ impl Storage {
             Self::Heap(Space::Constant) | Self::Static(Space::Constant) => "constant",
             Self::Static(Space::Local) => "static",
             Self::Static(Space::Shared) => "shared static",
-            Self::Heap(Space::Parameter(_) | Space::Bound(_) | Space::Join(_))
-            | Self::Static(Space::Parameter(_) | Space::Bound(_) | Space::Join(_))
+            Self::Heap(Space::Parameter(_) | Space::Join(_) | Space::Of(_))
+            | Self::Static(Space::Parameter(_) | Space::Join(_) | Space::Of(_))
             | Self::Parameter(_)
-            | Self::Bound(_)
+            | Self::Bound { .. }
             | Self::Join(_) => return None,
         })
     }
@@ -336,10 +376,10 @@ impl Storage {
             Self::Heap(Space::Constant) | Self::Static(Space::Constant) => "constant",
             Self::Static(Space::Local) => "static",
             Self::Static(Space::Shared) => "sharedStatic",
-            Self::Heap(Space::Parameter(_) | Space::Bound(_) | Space::Join(_))
-            | Self::Static(Space::Parameter(_) | Space::Bound(_) | Space::Join(_))
+            Self::Heap(Space::Parameter(_) | Space::Join(_) | Space::Of(_))
+            | Self::Static(Space::Parameter(_) | Space::Join(_) | Space::Of(_))
             | Self::Parameter(_)
-            | Self::Bound(_)
+            | Self::Bound { .. }
             | Self::Join(_) => return None,
         })
     }
@@ -351,7 +391,8 @@ impl Storage {
             Self::Heap(space) => space.space_set(tree),
             Self::Static(Space::Constant) => StorageSet::GLOBAL,
             Self::Static(space) => StorageSet::GLOBAL.union(space.space_set(tree)),
-            Self::Parameter(_) | Self::Bound(_) => StorageSet::ANY,
+            Self::Parameter(_) => StorageSet::ANY,
+            Self::Bound { space, .. } => StorageSet::FRAME.union(space.space_set(tree)),
             Self::Join(id) => tree
                 .storage_join(id)
                 .iter()
@@ -384,6 +425,16 @@ pub enum Reference {
     Borrowed,
     /// Unchecked reference that does not retain its target.
     Raw,
+}
+
+impl Reference {
+    /// The copy decision every reference of this kind takes: a unique reference moves.
+    pub const fn copy(self) -> Copy {
+        match self {
+            Reference::Unique => Copy::No,
+            _ => Copy::Yes,
+        }
+    }
 }
 
 impl Reference {
@@ -499,6 +550,8 @@ pub enum Type {
     Parameter {
         /// The parameter index in template order.
         index: u32,
+        /// Whether the parameter stands for the object behind references alone.
+        referent: bool,
     },
 
     /// Runtime-erased value satisfying one dynamic constraint.
@@ -573,16 +626,12 @@ pub enum Type {
     /// Struct.
     Struct {
         /// The fields of the struct.
-        fields: Vec<LocalNodeId<Field>>,
-        /// Copy of this struct type.
-        copy: Copy,
+        fields: Vec<FieldId>,
     },
     /// Nominal newtype over one wrapped type.
     Newtype {
         /// The wrapped type.
         inner: TypeId,
-        /// Copy of this newtype.
-        copy: Copy,
     },
     /// Sum value with one logical discriminant and case payloads.
     Variant {
@@ -590,8 +639,6 @@ pub enum Type {
         discriminant: TypeId,
         /// The cases keyed by discriminant value.
         cases: Vec<VariantCase>,
-        /// Copy of this variant type.
-        copy: Copy,
     },
 
     /// Fixed-width vector value.
@@ -670,10 +717,6 @@ impl VariantCase {
             (1u128 << width) - 1
         }
     }
-}
-
-impl Node for Type {
-    const TYPE: NodeType = NodeType::Type;
 }
 
 impl Type {
@@ -1036,6 +1079,19 @@ impl Type {
         }
     }
 
+    /// Return this reference-like type at another access.
+    pub fn with_reference_access(mut self, replacement: Access) -> Type {
+        match &mut self {
+            Type::Dynamic { access, .. }
+            | Type::Reference { access, .. }
+            | Type::Slice { access, .. }
+            | Type::Function { access, .. } => *access = replacement,
+            _ => {}
+        }
+
+        self
+    }
+
     /// Return the storage addressed by one reference-like value.
     pub fn reference_storage(&self) -> Option<Storage> {
         match self {
@@ -1045,6 +1101,14 @@ impl Type {
             | Type::Function { storage, .. } => Some(*storage),
             _ => None,
         }
+    }
+
+    /// Return the heap storage one managed reference addresses.
+    pub fn managed_storage(&self) -> Option<Storage> {
+        let storage = self.reference_storage()?;
+
+        (self.reference_kind() == Some(Reference::Managed) && storage.heap_space().is_some())
+            .then_some(storage)
     }
 
     /// Return the hidden storage types for one slice value.
@@ -1142,10 +1206,8 @@ pub struct Field {
     pub name: Option<StringId>,
     /// Type of the field.
     pub ty: TypeId,
-}
-
-impl Node for Field {
-    const TYPE: NodeType = NodeType::Field;
+    /// The attributes declared on the field.
+    pub attributes: Vec<Attribute>,
 }
 
 /// One generic parameter a function or type declaration takes.
@@ -1265,7 +1327,6 @@ impl Type {
             Type::Variant {
                 discriminant,
                 cases,
-                copy: _,
             } => {
                 *discriminant = map(*discriminant);
                 for case in cases {
@@ -1314,7 +1375,7 @@ impl Type {
 
 impl Tree {
     /// Return the payload type one variant stores at a case.
-    pub fn case_payload(&mut self, ty: TypeId, case: u32) -> Option<TypeId> {
+    pub fn case_payload(&self, ty: TypeId, case: u32) -> Option<TypeId> {
         let ty = Substitution::resolve(ty, self);
         let Type::Variant { cases, .. } = self.get(ty) else {
             return None;

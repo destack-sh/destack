@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FxIndexMap, SectionEntry, StringId};
 use destack_serde::Reflect;
 
-use crate::{FloatType, LocalNodeId, TraceMap, Type};
+use crate::{FloatType, TraceMap, TypeId};
 
 /// Canonical layout table for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
@@ -13,7 +13,7 @@ pub struct LayoutTable {
     /// Layout entries indexed by LayoutId.
     entries: Vec<Layout>,
     /// Layout ids keyed by type id.
-    types: FxIndexMap<LocalNodeId<Type>, LayoutId>,
+    types: FxIndexMap<TypeId, LayoutId>,
 }
 
 impl LayoutTable {
@@ -40,14 +40,14 @@ impl LayoutTable {
     }
 
     /// Return the layout entry for a type id when available.
-    pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
+    pub fn type_layout(&self, ty: TypeId) -> Option<&Layout> {
         let layout_id = self.layout_id(ty)?;
 
         Some(self.layout(layout_id))
     }
 
     /// Return the named field offsets of one laid-out struct type.
-    pub fn named_field_offsets(&self, ty: LocalNodeId<Type>) -> Vec<(StringId, u32)> {
+    pub fn named_field_offsets(&self, ty: TypeId) -> Vec<(StringId, u32)> {
         let layout = self.layout_id(ty).map(|id| self.layout(id));
         let mut fields = Vec::new();
         if let Some(LayoutShape::Struct(layout)) = layout.map(|layout| &layout.shape) {
@@ -63,26 +63,22 @@ impl LayoutTable {
     }
 
     /// Return the layout id for a type when present.
-    pub fn layout_id(&self, ty: LocalNodeId<Type>) -> Option<LayoutId> {
+    pub fn layout_id(&self, ty: TypeId) -> Option<LayoutId> {
         self.types.get(&ty).copied()
     }
 
     /// Iterate laid-out types and their layout ids.
-    pub fn types(&self) -> impl Iterator<Item = (LocalNodeId<Type>, LayoutId)> + '_ {
+    pub fn types(&self) -> impl Iterator<Item = (TypeId, LayoutId)> + '_ {
         self.types.iter().map(|(&ty, &layout)| (ty, layout))
     }
 
     /// Record the layout id for a type.
-    pub fn set_layout_id(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        layout_id: LayoutId,
-    ) -> Option<LayoutId> {
+    pub fn set_layout_id(&mut self, ty: TypeId, layout_id: LayoutId) -> Option<LayoutId> {
         self.types.insert(ty, layout_id)
     }
 
     /// Copy structural layout table entries from one type id to another.
-    pub fn copy_type_entries(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
+    pub fn copy_type_entries(&mut self, from: TypeId, to: TypeId) {
         if let Some(layout_id) = self.layout_id(from) {
             self.set_layout_id(to, layout_id);
         }
@@ -120,7 +116,7 @@ impl LayoutId {
 ///
 /// Initialized values store zero in every padding byte.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct Layout<T = LocalNodeId<Type>, L = LayoutId> {
+pub struct Layout<T = TypeId, L = LayoutId> {
     /// The layout shape.
     pub shape: LayoutShape<T, L>,
     /// The physical value representation.
@@ -133,6 +129,8 @@ pub struct Layout<T = LocalNodeId<Type>, L = LayoutId> {
     pub alignment: u32,
     /// Reference trace map for this layout.
     pub trace_map: TraceMap,
+    /// Whether no value of this layout exists.
+    pub uninhabited: bool,
 }
 
 impl Layout {
@@ -150,6 +148,7 @@ impl Layout {
             size,
             alignment,
             trace_map: TraceMap::Empty,
+            uninhabited: false,
         }
     }
 }
@@ -383,7 +382,7 @@ const fn scalar_mask(width: u16) -> u128 {
 
 /// Concrete memory layout shape.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum LayoutShape<T = LocalNodeId<Type>, L = LayoutId> {
+pub enum LayoutShape<T = TypeId, L = LayoutId> {
     /// No runtime storage.
     None,
     /// Builtin scalar storage.
@@ -461,21 +460,21 @@ impl<T, L> LayoutShape<T, L> {
 
 /// Concrete layout for a struct.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct StructLayout<T = LocalNodeId<Type>> {
+pub struct StructLayout<T = TypeId> {
     /// The fields in source order.
     pub fields: Vec<LayoutField<T>>,
 }
 
 /// Concrete layout for a tuple.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct TupleLayout<T = LocalNodeId<Type>> {
+pub struct TupleLayout<T = TypeId> {
     /// The tuple elements in source order.
     pub elements: Vec<LayoutField<T>>,
 }
 
 /// Layout for inline indexed element storage.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ElementLayout<T = LocalNodeId<Type>> {
+pub struct ElementLayout<T = TypeId> {
     /// The stored element type.
     pub element: T,
     /// The byte stride between elements.
@@ -486,7 +485,7 @@ pub struct ElementLayout<T = LocalNodeId<Type>> {
 
 /// Concrete layout for a variant value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct VariantLayout<T = LocalNodeId<Type>> {
+pub struct VariantLayout<T = TypeId> {
     /// The logical discriminant type.
     pub discriminant: T,
     /// The physical discriminant encoding.
@@ -689,7 +688,7 @@ impl VariantEncoding {
 
 /// Concrete layout for an object.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct ObjectLayout<T = LocalNodeId<Type>> {
+pub struct ObjectLayout<T = TypeId> {
     /// Byte offset of the virtual table id when present.
     pub dispatch_offset: Option<u32>,
     /// The fields in layout order.
@@ -698,7 +697,7 @@ pub struct ObjectLayout<T = LocalNodeId<Type>> {
 
 /// Concrete layout for a nominal newtype.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct NewtypeLayout<T = LocalNodeId<Type>, L = LayoutId> {
+pub struct NewtypeLayout<T = TypeId, L = LayoutId> {
     /// The backing type.
     pub backing_type: T,
     /// The backing type layout.
@@ -707,7 +706,7 @@ pub struct NewtypeLayout<T = LocalNodeId<Type>, L = LayoutId> {
 
 /// Memory layout for a single field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct LayoutField<T = LocalNodeId<Type>> {
+pub struct LayoutField<T = TypeId> {
     /// Field name for lookup and debugging.
     pub name: Option<StringId>,
     /// MIR type of the field.
@@ -724,7 +723,7 @@ pub struct LayoutField<T = LocalNodeId<Type>> {
 
 /// Concrete layout for one variant case.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct VariantCaseLayout<T = LocalNodeId<Type>> {
+pub struct VariantCaseLayout<T = TypeId> {
     /// The logical discriminant bits.
     pub discriminant: Discriminant,
     /// The logical case type.

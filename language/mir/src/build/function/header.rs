@@ -2,8 +2,8 @@ use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
 
 use crate::{
-    Function, FunctionParameter, GenericArgument, GenericParameter, Lifetime, LifetimeParameter,
-    LocalNodeId, Symbol, Type, Value,
+    Function, FunctionKind, FunctionParameter, GenericArgument, GenericParameter, Lifetime,
+    LifetimeParameter, Symbol, TypeId, Value,
 };
 
 /// Header used to declare or build one MIR function.
@@ -20,9 +20,11 @@ pub struct FunctionHeader {
     /// Lifetime parameters in function-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
     /// Parameter types in SSA parameter order.
-    pub parameters: Vec<LocalNodeId<Type>>,
+    pub parameters: Vec<TypeId>,
     /// The return type.
-    pub result: LocalNodeId<Type>,
+    pub result: TypeId,
+    /// The role of the function.
+    pub kind: FunctionKind,
 }
 
 /// Builder for one MIR function header.
@@ -41,7 +43,9 @@ pub struct FunctionHeaderBuilder<'a> {
     /// Lifetime parameters in function-local slot order.
     lifetimes: Vec<LifetimeParameter>,
     /// Parameter types in SSA parameter order.
-    parameters: Vec<LocalNodeId<Type>>,
+    parameters: Vec<TypeId>,
+    /// The role of the function.
+    kind: FunctionKind,
 }
 
 impl<'a> FunctionHeaderBuilder<'a> {
@@ -57,7 +61,15 @@ impl<'a> FunctionHeaderBuilder<'a> {
             symbol: Symbol::named(module, name),
             lifetimes: Vec::new(),
             parameters: Vec::new(),
+            kind: FunctionKind::Function,
         }
+    }
+
+    /// Set the role of the function.
+    pub fn kind(mut self, kind: FunctionKind) -> Self {
+        self.kind = kind;
+
+        self
     }
 
     /// Set the persistent function identity.
@@ -109,21 +121,21 @@ impl<'a> FunctionHeaderBuilder<'a> {
     }
 
     /// Add one parameter type.
-    pub fn parameter(mut self, ty: LocalNodeId<Type>) -> Self {
+    pub fn parameter(mut self, ty: TypeId) -> Self {
         self.parameters.push(ty);
 
         self
     }
 
     /// Add several parameter types.
-    pub fn parameters(mut self, types: impl IntoIterator<Item = LocalNodeId<Type>>) -> Self {
+    pub fn parameters(mut self, types: impl IntoIterator<Item = TypeId>) -> Self {
         self.parameters.extend(types);
 
         self
     }
 
     /// Finish the header with its return type.
-    pub fn result(self, result: LocalNodeId<Type>) -> FunctionHeader {
+    pub fn result(self, result: TypeId) -> FunctionHeader {
         FunctionHeader {
             name: self.name,
             generics: self.generics,
@@ -132,6 +144,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
             lifetimes: self.lifetimes,
             parameters: self.parameters,
             result,
+            kind: self.kind,
         }
     }
 }
@@ -143,6 +156,7 @@ impl FunctionHeader {
         let module = self.symbol.declaring_module();
 
         Function::declare(module, self.name, self.lifetimes, parameters, self.result)
+            .with_kind(self.kind)
             .with_generics(self.generics)
             .with_arguments(self.arguments)
             .with_symbol(self.symbol)
@@ -154,6 +168,7 @@ impl FunctionHeader {
         let module = self.symbol.declaring_module();
 
         Function::import(module, self.name, self.lifetimes, parameters, self.result)
+            .with_kind(self.kind)
             .with_generics(self.generics)
             .with_arguments(self.arguments)
             .with_symbol(self.symbol)
@@ -161,7 +176,7 @@ impl FunctionHeader {
 
     /// Build SSA parameters from parameter types.
     pub(in crate::build) fn parameters_from_types(
-        parameters: Vec<LocalNodeId<Type>>,
+        parameters: Vec<TypeId>,
     ) -> Vec<FunctionParameter> {
         parameters
             .into_iter()

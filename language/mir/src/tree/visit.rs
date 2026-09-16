@@ -1,9 +1,9 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Block, Field, Function, Global, Instruction, Local, LocalNodeId, NodeType, Terminator, Tree,
-    Type, TypeDeclaration, walk_block, walk_field, walk_function, walk_global, walk_instruction,
-    walk_local, walk_terminator, walk_type, walk_type_declaration,
+    Block, Field, FieldId, Function, Global, Instruction, Local, LocalNodeId, NodeType, Terminator,
+    Tree, Type, TypeDeclaration, TypeId, walk_block, walk_field, walk_function, walk_global,
+    walk_instruction, walk_local, walk_terminator, walk_type, walk_type_declaration,
 };
 
 /// A visitor for traversing MIR nodes.
@@ -50,8 +50,8 @@ pub trait NodeVisitor {
     }
 
     /// Visit a Type.
-    fn visit_type(&mut self, tree: &Tree, id: LocalNodeId<Type>, ty: &Type) {
-        walk_type(self, tree, id, ty);
+    fn visit_type(&mut self, tree: &Tree, id: TypeId, ty: &Type) {
+        walk_type(self, tree, ty);
     }
 
     /// Visit a TypeDeclaration.
@@ -65,8 +65,8 @@ pub trait NodeVisitor {
     }
 
     /// Visit a Field.
-    fn visit_field(&mut self, tree: &Tree, id: LocalNodeId<Field>, field: &Field) {
-        walk_field(self, tree, id, field);
+    fn visit_field(&mut self, tree: &Tree, id: FieldId, field: &Field) {
+        walk_field(self, tree, field);
     }
 
     /// Visit a Global.

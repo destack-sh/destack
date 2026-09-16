@@ -69,6 +69,7 @@ pub(super) fn format_call<'a>(
             receiver,
             interface,
             requirement,
+            arguments,
         } => {
             let name = formatter.context().tree.get(*requirement).name;
             let member = formatter.context().strings.get(name).to_string();
@@ -86,6 +87,7 @@ pub(super) fn format_call<'a>(
                     copied_text(&member)
                 ]
             )?;
+            format_generic_arguments(arguments, formatter)?;
         }
     }
 

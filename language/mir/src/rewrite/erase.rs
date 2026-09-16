@@ -1,7 +1,7 @@
 use crate::{Field, StaticId, Tree, Type, TypeId};
 
 /// Erase lifetimes while preserving declaration identities and memory spaces.
-pub fn erase_lifetimes(tree: &mut Tree, ty: TypeId) -> TypeId {
+pub fn erase_lifetimes(tree: &Tree, ty: TypeId) -> TypeId {
     // preserve declaration identities and terminate recursive definitions
     if tree.is_identified_type(ty) {
         return ty;
@@ -14,9 +14,8 @@ pub fn erase_lifetimes(tree: &mut Tree, ty: TypeId) -> TypeId {
     if let Type::Struct { fields, .. } = &mut erased {
         for field in fields {
             let declared = tree.get(*field).clone();
-            let attributes = tree.attributes(*field).to_vec();
             let ty = erase_lifetimes(tree, declared.ty);
-            *field = tree.intern_field(Field { ty, ..declared }, attributes);
+            *field = tree.intern_field(Field { ty, ..declared });
         }
     }
 
@@ -24,11 +23,11 @@ pub fn erase_lifetimes(tree: &mut Tree, ty: TypeId) -> TypeId {
     erased.map_values(&mut |value| erase_value(tree, value));
     erased.map_child_type_ids(&mut |child| erase_lifetimes(tree, child));
 
-    tree.intern_type(erased)
+    tree.intern_type(erased, tree.copy(ty))
 }
 
 /// Erase lifetime requirements from types reflected in a compile-time value.
-fn erase_value(tree: &mut Tree, id: StaticId) -> StaticId {
+fn erase_value(tree: &Tree, id: StaticId) -> StaticId {
     let mut value = tree.static_value(id).clone();
     value.map_values(&mut |value| erase_value(tree, value));
     value.map_types(&mut |ty| erase_lifetimes(tree, ty));

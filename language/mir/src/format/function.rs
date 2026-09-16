@@ -6,9 +6,9 @@ use super::attribute::{write_attribute, write_attributes};
 use super::r#type::{format_generic_argument, format_generic_parameter};
 
 use crate::{
-    Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, Lifetime,
-    LifetimeParameter, Linkage, Local, LocalNodeId, Mutability, RegionBound, Tree, Writer,
-    write_comments_after, write_comments_before, write_inline_comment_after,
+    Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, FunctionKind,
+    Lifetime, LifetimeParameter, Linkage, Local, LocalNodeId, Mutability, RegionBound, Tree,
+    Writer, write_comments_after, write_comments_before, write_inline_comment_after,
     write_node_leading_comments, write_node_leading_comments_after_separator,
 };
 
@@ -108,8 +108,11 @@ pub(super) fn format_lifetime_where<'a>(
 }
 
 /// Format the function keyword.
-fn format_function_keyword<'a>(_function: &Function, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    write!(f, [token("function")])
+fn format_function_keyword<'a>(function: &Function, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    match function.kind {
+        FunctionKind::Function => write!(f, [token("function")]),
+        FunctionKind::Constructor => write!(f, [token("constructor")]),
+    }
 }
 
 /// Format one function's name with its generic arguments, generic parameters, and lifetimes.

@@ -1,19 +1,17 @@
 use destack_serde::Reflect;
 use std::fmt::{Debug, Formatter};
 
-use destack_core::{Arena, FxIndexMap, FxIndexSet, StringId};
+use destack_core::{Arena, FxIndexMap, StringId};
 use destack_source::{FileId, NodeSpanType, SourceIndex, Span};
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
-    FloatType, Function, FunctionHeaderSpans, GenericArgument, Global, IndexSlice, Instruction,
-    Lifetime, Local, LocalNodeId, Node, NodeIndexEntry, NodeType, Path, Projection, Provenance,
-    ProvenanceTable, Reference, Space, Static, StaticId, Storage, Substitution, SwitchCase,
+    Copy, Attribute, Block, CommentSpan, ExtentSlice, Field, FieldId, FieldSpan, FlagSlice,
+    FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Local, LocalNodeId,
+    Node, NodeIndexEntry, NodeType, Provenance, ProvenanceTable, Substitution, SwitchCase,
     SwitchCaseSlice, Symbol, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
-    TypedValueSpan, Value, ValueSlice,
+    TypeTable, TypedValueSpan, Value, ValueSlice,
 };
 
 /// MIR tree for a single unit.
@@ -60,25 +58,13 @@ pub struct Tree {
     pub(crate) instructions: Arena<Instruction>,
     pub(crate) terminators: Arena<Terminator>,
     pub(crate) locals: Arena<Local>,
-    pub(crate) types: Arena<Type>,
     pub(crate) type_declarations: Arena<TypeDeclaration>,
-    pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
-    /// Interned compile-time values.
-    pub(crate) statics: Arena<Static>,
-    /// Interned space join expressions.
-    pub(crate) space_joins: Vec<Vec<Space>>,
-    /// Interned storage join expressions.
-    pub(crate) storage_joins: Vec<Vec<Storage>>,
+    /// The interned types and compile-time values.
+    pub(crate) types: TypeTable,
 
-    /// Interned type ids grouped by structural hash.
-    pub(crate) type_index: FxIndexMap<u64, SmallVec<[TypeId; 1]>>,
     /// Type declarations indexed by persistent symbol.
     pub(crate) declared_types: FxIndexMap<Symbol, LocalNodeId<TypeDeclaration>>,
-    /// Structural field ids grouped by hash.
-    pub(crate) field_index: FxIndexMap<u64, SmallVec<[LocalNodeId<Field>; 1]>>,
-    /// Canonical compile-time values grouped by structural hash.
-    pub(crate) static_index: FxIndexMap<u64, SmallVec<[StaticId; 1]>>,
 
     // externalized instruction payloads
     /// Flat buffer of MIR values.
@@ -101,11 +87,9 @@ impl Debug for Tree {
             .field("instructions", &self.instructions.len())
             .field("terminators", &self.terminators.len())
             .field("locals", &self.locals.len())
-            .field("types", &self.types.len())
+            .field("types", &self.type_count())
             .field("type_declarations", &self.type_declarations.len())
-            .field("fields", &self.fields.len())
             .field("globals", &self.globals.len())
-            .field("statics", &self.statics.len())
             .field("tokens", &self.tokens.len())
             .finish()
     }
@@ -151,17 +135,10 @@ impl Tree {
             instructions: Arena::new(),
             terminators: Arena::new(),
             locals: Arena::new(),
-            types: Arena::new(),
             type_declarations: Arena::new(),
-            fields: Arena::new(),
             globals: Arena::new(),
-            statics: Arena::new(),
-            space_joins: Vec::new(),
-            storage_joins: Vec::new(),
-            type_index: FxIndexMap::default(),
+            types: TypeTable::default(),
             declared_types: FxIndexMap::default(),
-            field_index: FxIndexMap::default(),
-            static_index: FxIndexMap::default(),
 
             values: Vec::new(),
             indices: Vec::new(),
@@ -179,30 +156,20 @@ impl Tree {
         tree
     }
 
-    /// Return the declared representation or the type itself.
+    /// Return the declared representation of one type, or the type itself.
     pub fn type_definition(&self, ty: TypeId) -> &Type {
         match self.get(ty) {
             Type::Declaration { declaration } => match self.get(*declaration).definition {
                 Some(definition) => self.get(definition),
                 None => self.get(ty),
             },
+            Type::Application { base, .. } => self.type_definition(*base),
             definition => definition,
         }
     }
 
-    /// Return the transparent representation type.
-    pub fn repr_type(&mut self, mut ty: TypeId) -> TypeId {
-        loop {
-            ty = Substitution::resolve(ty, self);
-            match self.get(ty) {
-                Type::Newtype { inner, .. } => ty = *inner,
-                _ => return ty,
-            }
-        }
-    }
-
     /// Return the initialized storage type beneath transparent forms.
-    pub fn storage_type(&mut self, mut ty: TypeId) -> TypeId {
+    pub fn storage_type(&self, mut ty: TypeId) -> TypeId {
         loop {
             ty = Substitution::resolve(ty, self);
             match self.get(ty) {
@@ -213,333 +180,12 @@ impl Tree {
         }
     }
 
-    /// Return the heap storage carried by one managed allocation result.
-    pub fn managed_storage(&mut self, ty: TypeId) -> Option<Storage> {
-        let ty = self.storage_type(ty);
-        let ty = self.get(ty);
-        let storage = ty.reference_storage()?;
 
-        (ty.reference_kind() == Some(Reference::Managed) && storage.heap_space().is_some())
-            .then_some(storage)
-    }
 
-    /// Return the extents one type stores across its regions.
-    pub fn type_lifetime(&self, ty: TypeId) -> Option<Lifetime> {
-        let mut visited = FxIndexSet::default();
 
-        self.type_lifetime_inner(ty, &mut visited)
-    }
 
-    /// Return the explicit lifetime carried by a type.
-    fn type_lifetime_inner(
-        &self,
-        ty: TypeId,
-        visited: &mut FxIndexSet<LocalNodeId<Type>>,
-    ) -> Option<Lifetime> {
-        if !visited.insert(ty) {
-            return None;
-        }
 
-        // inspect nominal arguments without expanding recursive definitions
-        let lifetime = match self.type_definition(ty) {
-            Type::Application { arguments, .. } => {
-                let lifetimes = arguments.iter().filter_map(|argument| match argument {
-                    GenericArgument::Type(ty) => self.type_lifetime_inner(*ty, visited),
-                    GenericArgument::Region { lifetime, .. } => Some(lifetime.clone()),
-                    _ => None,
-                });
 
-                Some(Lifetime::new(
-                    lifetimes.flat_map(|lifetime| lifetime.extents),
-                ))
-                .filter(|lifetime| !lifetime.is_empty())
-            }
-            Type::Dynamic {
-                kind: Reference::Borrowed,
-                lifetime,
-                ..
-            }
-            | Type::Function {
-                kind: Reference::Borrowed,
-                lifetime,
-                ..
-            } if !lifetime.is_empty() => Some(lifetime.clone()),
-            Type::Reference {
-                kind,
-                lifetime,
-                pointee,
-                ..
-            } => {
-                let own = (matches!(kind, Reference::Borrowed)).then(|| lifetime.clone());
-                let nested = self.type_lifetime_inner(*pointee, visited);
-                let terms = own
-                    .into_iter()
-                    .chain(nested)
-                    .flat_map(|lifetime| lifetime.extents);
-
-                Some(Lifetime::new(terms)).filter(|lifetime| !lifetime.is_empty())
-            }
-            Type::Slice {
-                kind,
-                lifetime,
-                element,
-                ..
-            } => {
-                let own = (matches!(kind, Reference::Borrowed)).then(|| lifetime.clone());
-                let nested = self.type_lifetime_inner(*element, visited);
-                let terms = own
-                    .into_iter()
-                    .chain(nested)
-                    .flat_map(|lifetime| lifetime.extents);
-
-                Some(Lifetime::new(terms)).filter(|lifetime| !lifetime.is_empty())
-            }
-            Type::Struct { fields, .. } => {
-                let nested_lifetimes = fields.iter().filter_map(|field| {
-                    let field = self.get(*field);
-                    self.type_lifetime_inner(field.ty, visited)
-                });
-
-                Some(Lifetime::new(
-                    nested_lifetimes.flat_map(|lifetime| lifetime.extents.into_iter()),
-                ))
-                .filter(|lifetime| !lifetime.is_empty())
-            }
-            Type::Newtype { inner, .. } => self.type_lifetime_inner(*inner, visited),
-            Type::Uninit { value } | Type::ManuallyDrop { value } => {
-                self.type_lifetime_inner(*value, visited)
-            }
-            Type::Variant {
-                discriminant,
-                cases,
-                ..
-            } => {
-                let discriminant = self.type_lifetime_inner(*discriminant, visited);
-                let nested_lifetimes = cases
-                    .iter()
-                    .filter_map(|case| self.type_lifetime_inner(case.ty, visited));
-
-                Some(Lifetime::new(
-                    discriminant
-                        .into_iter()
-                        .chain(nested_lifetimes)
-                        .flat_map(|lifetime| lifetime.extents.into_iter()),
-                ))
-                .filter(|lifetime| !lifetime.is_empty())
-            }
-            Type::Tuple { elements, .. } => {
-                let nested_lifetimes = elements
-                    .iter()
-                    .filter_map(|element| self.type_lifetime_inner(*element, visited));
-
-                Some(Lifetime::new(
-                    nested_lifetimes.flat_map(|lifetime| lifetime.extents.into_iter()),
-                ))
-                .filter(|lifetime| !lifetime.is_empty())
-            }
-            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
-                self.type_lifetime_inner(*element, visited)
-            }
-            _ => None,
-        };
-        visited.swap_remove(&ty);
-
-        lifetime
-    }
-
-    /// Return whether a type may contain borrowed references.
-    pub fn type_contains_borrowed_refs(&self, ty: TypeId) -> bool {
-        let mut visited = FxIndexSet::default();
-
-        self.type_contains_borrowed_refs_inner(ty, &mut visited)
-    }
-
-    /// Return whether a type path contains borrowed references.
-    fn type_contains_borrowed_refs_inner(
-        &self,
-        ty: TypeId,
-        visited: &mut FxIndexSet<LocalNodeId<Type>>,
-    ) -> bool {
-        if !visited.insert(ty) {
-            return false;
-        }
-
-        let type_id = ty;
-        let ty = self.type_definition(ty);
-        if ty.is_borrowed_reference() {
-            visited.swap_remove(&type_id);
-
-            return true;
-        }
-
-        // inspect nominal arguments without expanding recursive definitions
-        let contains = match ty {
-            Type::Application { arguments, .. } => {
-                arguments.iter().any(|argument| match argument {
-                    GenericArgument::Type(ty) => {
-                        self.type_contains_borrowed_refs_inner(*ty, visited)
-                    }
-                    GenericArgument::Region { .. } => true,
-                    _ => false,
-                })
-            }
-            Type::Struct { fields, .. } => fields.iter().any(|field| {
-                let field = self.get(*field);
-                self.type_contains_borrowed_refs_inner(field.ty, visited)
-            }),
-            Type::Newtype { inner, .. } => self.type_contains_borrowed_refs_inner(*inner, visited),
-            Type::Uninit { value } | Type::ManuallyDrop { value } => {
-                self.type_contains_borrowed_refs_inner(*value, visited)
-            }
-            Type::Variant {
-                discriminant,
-                cases,
-                ..
-            } => {
-                self.type_contains_borrowed_refs_inner(*discriminant, visited)
-                    || cases
-                        .iter()
-                        .any(|case| self.type_contains_borrowed_refs_inner(case.ty, visited))
-            }
-            Type::Tuple { elements, .. } => elements
-                .iter()
-                .any(|element| self.type_contains_borrowed_refs_inner(*element, visited)),
-            Type::Reference {
-                pointee: element, ..
-            }
-            | Type::FixedArray { element, .. }
-            | Type::Slice { element, .. }
-            | Type::Vector { element, .. } => {
-                self.type_contains_borrowed_refs_inner(*element, visited)
-            }
-            _ => false,
-        };
-        visited.swap_remove(&type_id);
-
-        contains
-    }
-
-    /// Return borrowed reference-like paths carried by one type.
-    pub fn type_borrowed_paths(&mut self, ty: TypeId) -> Vec<BorrowedPath> {
-        self.collect_borrowed_paths(ty, false)
-    }
-
-    /// Return borrowed paths used for origin tracking.
-    pub fn type_origin_paths(&mut self, ty: TypeId) -> Vec<BorrowedPath> {
-        self.collect_borrowed_paths(ty, true)
-    }
-
-    /// Return borrowed reference-like paths carried by one type.
-    fn collect_borrowed_paths(&mut self, ty: TypeId, is_tracking: bool) -> Vec<BorrowedPath> {
-        let mut borrowed_paths = Vec::new();
-
-        self.collect_type_borrowed_paths(ty, is_tracking, Path::root(), &mut borrowed_paths);
-
-        borrowed_paths
-    }
-
-    /// Collect borrowed paths carried by one type into an output vector.
-    fn collect_type_borrowed_paths(
-        &mut self,
-        ty: TypeId,
-        is_tracking: bool,
-        path: Path,
-        borrowed_paths: &mut Vec<BorrowedPath>,
-    ) {
-        let resolved = Substitution::resolve(ty, self);
-        let definition = self.get(resolved).clone();
-
-        match &definition {
-            // record reference-like leaves
-            Type::Dynamic {
-                kind,
-                lifetime,
-                access,
-                ..
-            }
-            | Type::Reference {
-                kind,
-                lifetime,
-                access,
-                ..
-            }
-            | Type::Slice {
-                kind,
-                lifetime,
-                access,
-                ..
-            }
-            | Type::Function {
-                kind,
-                lifetime,
-                access,
-                ..
-            } => {
-                let lifetime = lifetime.clone();
-                // track managed handles and empty borrows only for origin
-                let is_included = match kind {
-                    Reference::Borrowed => is_tracking || !lifetime.is_empty(),
-                    Reference::Managed => is_tracking,
-                    Reference::Unique | Reference::Raw => false,
-                };
-                if is_included {
-                    borrowed_paths.push(BorrowedPath {
-                        path,
-                        lifetime,
-                        access: *access,
-                        kind: *kind,
-                    });
-                }
-            }
-            // descend into named fields
-            Type::Struct { fields, .. } => {
-                for (index, field) in fields.iter().enumerate() {
-                    let ty = self.get(*field).ty;
-                    let path = path.clone().with_projection(Projection::Field {
-                        index: index as u32,
-                    });
-
-                    self.collect_type_borrowed_paths(ty, is_tracking, path, borrowed_paths);
-                }
-            }
-            // descend into positional fields
-            Type::Tuple { elements, .. } => {
-                for (index, element) in elements.iter().enumerate() {
-                    let path = path.clone().with_projection(Projection::Field {
-                        index: index as u32,
-                    });
-
-                    self.collect_type_borrowed_paths(*element, is_tracking, path, borrowed_paths);
-                }
-            }
-            // select the stored field of a newtype
-            Type::Newtype { inner, .. } => {
-                let path = path.with_projection(Projection::Field { index: 0 });
-
-                self.collect_type_borrowed_paths(*inner, is_tracking, path, borrowed_paths);
-            }
-            // preserve paths through initialization and destruction modifiers
-            Type::Uninit { value: inner } | Type::ManuallyDrop { value: inner } => {
-                self.collect_type_borrowed_paths(*inner, is_tracking, path, borrowed_paths);
-            }
-            // descend into each possible storage shape
-            Type::Variant { cases, .. } => {
-                for (index, case) in cases.iter().enumerate() {
-                    let path = path
-                        .clone()
-                        .with_projection(Projection::Variant { case: index as u32 });
-
-                    self.collect_type_borrowed_paths(case.ty, is_tracking, path, borrowed_paths);
-                }
-            }
-            // retain each reference path within repeated elements
-            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
-                let path = path.with_projection(Projection::Elements);
-                self.collect_type_borrowed_paths(*element, is_tracking, path, borrowed_paths);
-            }
-            _ => {}
-        }
-    }
 
     /// Return the first global node id stored in this tree.
     #[inline]
@@ -633,8 +279,7 @@ impl Tree {
 
     /// Get the DIR source for a node, walking MIR derivation parents.
     pub fn dir_source(&self, id: u32) -> Option<u32> {
-        // follow primary parents until a lowered node carries the DIR edge,
-        // stopping at segment-foreign ids this tree cannot resolve
+        // follow primary parents until a lowered node carries the DIR edge
         let mut current = id;
         while self.has_node_id(current) {
             if let Some(source) = self.source_id_by_node_id[self.node_index(current)] {
@@ -649,80 +294,45 @@ impl Tree {
     }
 
     /// Return the boolean type id.
-    pub fn boolean_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type(&Type::Boolean) {
-            return type_id;
-        }
-
-        unreachable!("missing boolean type id in MIR tree");
+    pub fn boolean_type(&self) -> TypeId {
+        self.intern_type(Type::Boolean, Copy::Yes)
     }
 
     /// Return the character type id.
-    pub fn character_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type(&Type::Character) {
-            return type_id;
-        }
-
-        unreachable!("missing character type id in MIR tree");
+    pub fn character_type(&self) -> TypeId {
+        self.intern_type(Type::Character, Copy::Yes)
     }
 
     /// Return the void type id.
-    pub fn void_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type(&Type::Void) {
-            return type_id;
-        }
-
-        unreachable!("missing void type id in MIR tree");
-    }
-
-    /// Return the isize type id.
-    pub fn isize_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type(&Type::Isize) {
-            return type_id;
-        }
-
-        unreachable!("missing isize type id in MIR tree");
+    pub fn void_type(&self) -> TypeId {
+        self.intern_type(Type::Void, Copy::Yes)
     }
 
     /// Return the usize type id.
-    pub fn usize_type(&self) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type(&Type::Usize) {
-            return type_id;
-        }
-
-        unreachable!("missing usize type id in MIR tree");
+    pub fn usize_type(&self) -> TypeId {
+        self.intern_type(Type::Usize, Copy::Yes)
     }
 
     /// Return an integer type id for width and signedness.
-    pub fn int_type(&self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type(&Type::Int {
-            width,
-            is_signed: signed,
-        }) {
-            return type_id;
-        }
-
-        unreachable!("missing int type id for width {width} signed {signed}");
+    pub fn int_type(&self, width: u16, signed: bool) -> TypeId {
+        self.intern_type(
+            Type::Int {
+                width,
+                is_signed: signed,
+            },
+            Copy::Yes,
+        )
     }
 
     /// Return a float type id for format.
-    pub fn float_type(&self, format: FloatType) -> LocalNodeId<Type> {
-        if let Some(type_id) = self.find_type(&Type::Float(format)) {
-            return type_id;
-        }
-
-        unreachable!("missing float type id for {}", format.label());
+    pub fn float_type(&self, format: FloatType) -> TypeId {
+        self.intern_type(Type::Float(format), Copy::Yes)
     }
 
-    /// Get a reference to a node by id.
+    /// Get a node or interned value by id.
     #[inline]
-    pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
-    where
-        T: Node,
-        Self: TreeImpl<T>,
-    {
-        let local_id = self.node_local_id(id.id);
-        <Self as TreeImpl<T>>::get(self, local_id)
+    pub fn get<I: TreeId>(&self, id: I) -> &I::Value {
+        id.resolve(self)
     }
 
     /// Get a mutable reference to a node by id.
@@ -1323,6 +933,45 @@ impl Tree {
     }
 }
 
+/// One id the tree resolves to a stored value.
+pub trait TreeId: std::marker::Copy {
+    /// The stored value.
+    type Value;
+
+    /// Resolve this id in one tree.
+    fn resolve(self, tree: &Tree) -> &Self::Value;
+}
+
+impl<T: Node> TreeId for LocalNodeId<T>
+where
+    Tree: TreeImpl<T>,
+{
+    type Value = T;
+
+    #[inline]
+    fn resolve(self, tree: &Tree) -> &T {
+        <Tree as TreeImpl<T>>::get(tree, tree.node_local_id(self.id))
+    }
+}
+
+impl TreeId for TypeId {
+    type Value = Type;
+
+    #[inline]
+    fn resolve(self, tree: &Tree) -> &Type {
+        tree.type_at(self)
+    }
+}
+
+impl TreeId for FieldId {
+    type Value = Field;
+
+    #[inline]
+    fn resolve(self, tree: &Tree) -> &Field {
+        tree.field_at(self)
+    }
+}
+
 /// Trait for mapping node types to arenas.
 pub trait TreeImpl<T: Node> {
     /// Get a node from the arena by local index.
@@ -1368,17 +1017,3 @@ impl_tree!(Local, locals);
 impl_tree!(Global, globals);
 
 impl_tree!(TypeDeclaration, type_declarations);
-
-impl TreeImpl<Type> for Tree {
-    #[inline]
-    fn get(tree: &Tree, idx: u32) -> &Type {
-        tree.types.get(idx)
-    }
-}
-
-impl TreeImpl<Field> for Tree {
-    #[inline]
-    fn get(tree: &Tree, idx: u32) -> &Field {
-        tree.fields.get(idx)
-    }
-}

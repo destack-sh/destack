@@ -140,6 +140,11 @@ impl Lifetime {
         self.extents.contains(&Extent::Static)
     }
 
+    /// Return whether this lifetime includes managed storage.
+    pub fn includes_managed(&self) -> bool {
+        self.extents.contains(&Extent::Managed)
+    }
+
     /// Return whether this lifetime includes the current activation.
     pub fn includes_frame(&self) -> bool {
         self.extents.contains(&Extent::Frame)

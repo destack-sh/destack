@@ -1,22 +1,25 @@
 use destack_core::StringId;
 
 use crate::build::FunctionBuilder;
-use crate::{Block, Copy, Global, Instruction, Local, LocalNodeId, Mutability, Place, Type, Value};
+use crate::{
+    Copy,
+    Block, Global, Instruction, Local, LocalNodeId, Mutability, Place, Type, TypeId, Value,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Create a local variable (stack slot).
-    pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
+    pub fn local(&mut self, ty: TypeId, mutability: Mutability) -> LocalNodeId<Local> {
         let local = self.insert(Local::new(ty, mutability));
         self.locals.push(local);
         local
     }
 
     /// Load from a local variable.
-    pub fn local_get(&mut self, local: LocalNodeId<Local>, copy: Copy) -> Value {
+    pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
         let ty = self.tree.get(local).ty;
 
-        self.load(Place::local(local), ty, copy)
+        self.load(Place::local(local), ty)
     }
 
     /// Store to a local variable.
@@ -42,17 +45,17 @@ impl<'a> FunctionBuilder<'a> {
     pub fn external_global(
         &mut self,
         name: StringId,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
         self.insert(Global::import(self.module, name, ty, mutability))
     }
 
     /// Read a global value.
-    pub fn load_global(&mut self, global: LocalNodeId<Global>, copy: Copy) -> Value {
+    pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
         let ty = self.tree.get(global).ty;
 
-        self.load(Place::global(global), ty, copy)
+        self.load(Place::global(global), ty)
     }
 
     /// Write a global value.
@@ -61,10 +64,9 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Read a place.
-    pub fn load(&mut self, place: Place, result_type: LocalNodeId<Type>, copy: Copy) -> Value {
+    pub fn load(&mut self, place: Place, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Load {
-            copy,
             destination,
             place,
             result_type,
@@ -74,7 +76,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Take the address of a place.
-    pub fn address(&mut self, place: Place, result_type: LocalNodeId<Type>) -> Value {
+    pub fn address(&mut self, place: Place, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Address {
             destination,
@@ -92,16 +94,12 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Create a linear uninitialized allocation token type.
-    pub fn type_uninit(&mut self, value: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::Uninit { value })
+    pub fn type_uninit(&mut self, value: TypeId) -> TypeId {
+        self.tree.intern_type(Type::Uninit { value }, Copy::No)
     }
 
     /// Allocate zeroed heap storage.
-    pub fn new_zeroed(
-        &mut self,
-        storage_type: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
+    pub fn new_zeroed(&mut self, storage_type: TypeId, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewZeroed {
             destination,
@@ -112,24 +110,8 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Allocate uninitialized heap storage.
-    pub fn new_uninit(
-        &mut self,
-        storage_type: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::NewUninit {
-            destination,
-            storage_type,
-            result_type,
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
-
     /// Complete initialization of one allocation.
-    pub fn new_complete(&mut self, value: Value, result_type: LocalNodeId<Type>) -> Value {
+    pub fn new_complete(&mut self, value: Value, result_type: TypeId) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewComplete {
             destination,
@@ -143,9 +125,9 @@ impl<'a> FunctionBuilder<'a> {
     /// Allocate zeroed repeated heap storage.
     pub fn new_slice_zeroed(
         &mut self,
-        element: LocalNodeId<Type>,
+        element: TypeId,
         length: Value,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewSliceZeroed {
@@ -161,9 +143,9 @@ impl<'a> FunctionBuilder<'a> {
     /// Allocate uninitialized repeated heap storage.
     pub fn new_slice_uninit(
         &mut self,
-        element: LocalNodeId<Type>,
+        element: TypeId,
         length: Value,
-        result_type: LocalNodeId<Type>,
+        result_type: TypeId,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewSliceUninit {

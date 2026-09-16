@@ -353,7 +353,7 @@ mod tests {
     /// Direct calls create edges in the call graph.
     #[test]
     fn test_record_direct_calls() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function callee(): int32 {
 entry:
@@ -373,7 +373,7 @@ entry:
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let calls = analyses.call(&mut test.tree, &test.dispatch);
+        let calls = analyses.call(&test.tree, &test.dispatch);
 
         let entry = test.tree.get(test.tree.get(test_id).block(0));
         let edge = CallEdge {
@@ -401,7 +401,7 @@ entry:
     /// Call graph components detect recursive functions.
     #[test]
     fn test_identify_recursive_components() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function alpha(): void {
 entry:
@@ -434,7 +434,7 @@ entry:
         let delta = test.function_id_by_name("delta");
 
         let mut analyses = test.module_analyses();
-        let calls = analyses.call(&mut test.tree, &test.dispatch);
+        let calls = analyses.call(&test.tree, &test.dispatch);
 
         let components = calls
             .components()
@@ -461,7 +461,7 @@ entry:
     /// Indirect calls without tables stay open.
     #[test]
     fn test_record_open_indirect_calls() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
@@ -474,7 +474,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let calls = analyses.call(&mut test.tree, &test.dispatch);
+        let calls = analyses.call(&test.tree, &test.dispatch);
 
         let entry = test.tree.get(test.tree.get(test_id).block(0));
 
@@ -492,7 +492,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Tail calls are tracked as call edges.
     #[test]
     fn test_record_direct_tail_calls() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -510,7 +510,7 @@ entry(v0: int32):
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let calls = analyses.call(&mut test.tree, &test.dispatch);
+        let calls = analyses.call(&test.tree, &test.dispatch);
 
         let entry = test.tree.get(test_id).block(0);
 
@@ -528,7 +528,7 @@ entry(v0: int32):
     /// Preserve unresolved targets for indirect tail calls.
     #[test]
     fn test_record_open_indirect_tail_calls() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
@@ -540,7 +540,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let calls = analyses.call(&mut test.tree, &test.dispatch);
+        let calls = analyses.call(&test.tree, &test.dispatch);
 
         let entry = test.tree.get(test_id).block(0);
 
@@ -557,7 +557,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Preserve unresolved targets beside unreferenced functions.
     #[test]
     fn test_preserve_open_calls_beside_unreferenced_functions() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -575,7 +575,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let calls = analyses.call(&mut test.tree, &test.dispatch);
+        let calls = analyses.call(&test.tree, &test.dispatch);
 
         let entry = test.tree.get(test.tree.get(test_id).block(0));
 
@@ -596,7 +596,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Direct invokes produce precise call edges.
     #[test]
     fn test_record_direct_invokes() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function callee(v0: int32): int32 {
 entry(v0: int32):
@@ -620,7 +620,7 @@ b2:
         let test_id = test.function_id_by_name("test");
 
         let mut analyses = test.module_analyses();
-        let calls = analyses.call(&mut test.tree, &test.dispatch);
+        let calls = analyses.call(&test.tree, &test.dispatch);
 
         let entry = test.tree.get(test_id).block(0);
 

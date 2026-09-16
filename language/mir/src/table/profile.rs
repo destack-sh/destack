@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{Edge, FunctionId, Instruction, LocalNodeId, Point, Symbol, Type, Value};
+use crate::{Edge, FunctionId, Instruction, LocalNodeId, Point, Symbol, TypeId, Value};
 
 /// Loaded profile-guided optimization data for a program.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
@@ -204,7 +204,7 @@ pub enum ValueProfile {
     /// Indirect and virtual call target distribution.
     Calls(Histogram<Symbol>),
     /// Observed exact runtime type distribution at a dynamic site.
-    Types(Histogram<LocalNodeId<Type>>),
+    Types(Histogram<TypeId>),
     /// Scalar value or size distribution.
     Scalars(Histogram<i64>),
     /// Allocation size and survival behavior.

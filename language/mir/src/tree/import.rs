@@ -4,6 +4,7 @@ use destack_core::FxIndexSet;
 use destack_source::ModuleId;
 
 use crate::{
+    Copy,
     Field, Function, FunctionId, FunctionParameter, GenericArgument, GenericParameter,
     GenericParameterDomain, Global, GlobalId, Linkage, Space, Static, StaticId, Storage, Symbol,
     Tree, Type, TypeHeritage, TypeId,
@@ -45,12 +46,12 @@ impl<'t, 'd> Importer<'t, 'd> {
         let Some(symbol) = source.type_symbol(ty) else {
             let definition = self.import_type_content(source, ty);
 
-            return TypeId::from(self.tree.intern_type(definition));
+            return self.tree.intern_type(definition, source.copy(ty));
         };
 
         // reserve the identity once per import, its definition and declaration naming it again
         let id = self.tree.reserve_type(symbol);
-        let reserved = self.tree.intern_type(Type::Declaration { declaration: id });
+        let reserved = self.tree.intern_type(Type::Declaration { declaration: id }, Copy::No);
         if !self.defining.insert(symbol) {
             return reserved;
         }
@@ -59,7 +60,7 @@ impl<'t, 'd> Importer<'t, 'd> {
         if self.tree.get(id).definition.is_none() {
             if source.is_defined_type(ty) {
                 let definition = self.import_type_content(source, ty);
-                let definition = self.tree.intern_type(definition);
+                let definition = self.tree.intern_type(definition, source.copy(ty));
                 self.tree.get_mut(id).definition = Some(definition);
             } else if let Some(declared) = symbol
                 .module()
@@ -191,15 +192,11 @@ impl<'t, 'd> Importer<'t, 'd> {
         if let Type::Struct { fields, .. } = &mut definition {
             for field in fields.iter_mut() {
                 let declared = source.get(*field).clone();
-                let attributes = source.attributes(*field).to_vec();
                 let imported = self.import_type(source, declared.ty);
-                *field = self.tree.intern_field(
-                    Field {
-                        ty: imported,
-                        ..declared
-                    },
-                    attributes,
-                );
+                *field = self.tree.intern_field(Field {
+                    ty: imported,
+                    ..declared
+                });
             }
         }
 
@@ -219,6 +216,7 @@ impl<'t, 'd> Importer<'t, 'd> {
     /// Intern one space of the source tree here, a join through its spaces.
     fn import_space(&mut self, source: &Tree, space: Space) -> Space {
         match space {
+            Space::Of(ty) => Space::Of(self.import_type(source, ty)),
             Space::Join(id) => {
                 let spaces: Vec<_> = source
                     .space_join(id)

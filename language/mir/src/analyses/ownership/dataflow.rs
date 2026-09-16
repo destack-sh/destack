@@ -83,13 +83,13 @@ where
     /// Run a forward dataflow analysis using a worklist algorithm.
     pub fn forward<F>(
         function: mir::FunctionId,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         cfg: &ControlTable,
         entry_state: S,
         mut transfer: F,
     ) -> Self
     where
-        F: for<'a> FnMut(ForwardTransfer<'a>, S, &mut mir::Tree) -> S,
+        F: for<'a> FnMut(ForwardTransfer<'a>, S, &mir::Tree) -> S,
     {
         let entry = match tree.get(function).entry() {
             Some(entry) => entry,

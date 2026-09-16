@@ -3,11 +3,12 @@ use destack_core::StringPool;
 use crate::build::ModuleBuilder;
 use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{
+    type_lifetime, type_contains_borrowed_refs, type_borrowed_paths, 
     Access, BinaryOperator, Callee, Copy, ExecutionScope, Extent, FenceAccess, FloatType,
     FormatOptions, Formatter, GenericArgument, GenericParameter, GenericParameterDomain, Importer,
     LayoutBuilder, LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability, Place,
     Projection, Reference, Space, Storage, StorageSet, Substitution, Symbol, TargetLayout,
-    TraceMap, Tree, Type, TypeDeclaration, TypeId,
+    TraceMap, Tree, Type, TypeDeclaration,
 };
 
 /// Format one test MIR tree.
@@ -100,7 +101,7 @@ fn test_build_function_with_locals() {
     let local = builder.local(i64_type, Mutability::Mutable);
     let constant_value = builder.iconst_i64(42);
     builder.local_set(local, constant_value);
-    let loaded_value = builder.local_get(local, Copy::No);
+    let loaded_value = builder.local_get(local);
     builder.return_(Some(loaded_value));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -221,7 +222,7 @@ fn test_build_function_with_invoke() {
             function: callee,
             arguments: Vec::new(),
         },
-        TypeId::from(signature),
+        signature,
         vec![argument],
         target_block,
         Vec::new(),
@@ -295,9 +296,9 @@ fn test_build_calls_from_callee_and_signature() {
                 function: identity,
                 arguments: Vec::new(),
             },
-            TypeId::from(identity_signature),
+            identity_signature,
             vec![argument],
-            TypeId::from(i32_type),
+            i32_type,
         )
         .expect("identity returns a value");
     let void_result = builder.call(
@@ -305,9 +306,9 @@ fn test_build_calls_from_callee_and_signature() {
             function: sink,
             arguments: Vec::new(),
         },
-        TypeId::from(sink_signature),
+        sink_signature,
         vec![result],
-        TypeId::from(void_type),
+        void_type,
     );
     assert_eq!(void_result, None);
     builder.return_(Some(result));
@@ -762,7 +763,7 @@ fn test_type_construction() {
     let f64_type = module.type_float(FloatType::Float64);
     let pointer_type = module.type_pointer(i32_type, Access::Readonly);
     let array_type = module.type_fixed_array(i32_type, 10);
-    let tuple_type = module.type_tuple(vec![i32_type, i64_type]);
+    let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let function_pointer_type = module.type_function_pointer(signature);
     let callable_type = module.type_function(
@@ -1172,7 +1173,7 @@ fn test_build_tuple_aggregate() {
     let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
-    let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
 
     // build function that constructs a tuple
     let header = module
@@ -1260,7 +1261,7 @@ fn test_build_field_get_struct() {
     builder.switch_to_block(entry_block);
 
     let point = builder.function_parameter(0);
-    let y = builder.field_get(point, 1, Copy::No);
+    let y = builder.field_get(point, 1);
     builder.return_(Some(y));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1284,7 +1285,7 @@ fn test_build_field_get_tuple() {
     let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
-    let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
 
     // build function that extracts the first element
     let header = module
@@ -1296,7 +1297,7 @@ fn test_build_field_get_tuple() {
     builder.switch_to_block(entry_block);
 
     let pair = builder.function_parameter(0);
-    let first = builder.field_get(pair, 0, Copy::No);
+    let first = builder.field_get(pair, 0);
     builder.return_(Some(first));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1325,16 +1326,18 @@ fn test_build_field_get_from_region_applied_type() {
     let user_declaration = module
         .tree_mut()
         .reserve_type(Symbol::named(crate::TEST_MODULE, user_name));
-    let definition = module.tree_mut().intern_type(Type::Struct {
-        fields: vec![user_field],
-        copy: Copy::Yes,
-    });
+    let definition = module.tree_mut().intern_type(
+        Type::Struct {
+            fields: vec![user_field],
+        },
+        Copy::Yes,
+    );
     let declaration = module.tree_mut().get_mut(user_declaration);
     declaration.definition = Some(definition);
     declaration.name = Some(user_name);
     let user = module.tree_mut().intern_type(Type::Declaration {
         declaration: user_declaration,
-    });
+    }, Copy::No);
 
     // define a region-polymorphic aggregate borrowing the user
     let borrowed_user = module.type_reference(
@@ -1357,17 +1360,19 @@ fn test_build_field_get_from_region_applied_type() {
     let view_declaration = module
         .tree_mut()
         .reserve_type(Symbol::named(crate::TEST_MODULE, view_name));
-    let definition = module.tree_mut().intern_type(Type::Struct {
-        fields: vec![view_field],
-        copy: Copy::Yes,
-    });
+    let definition = module.tree_mut().intern_type(
+        Type::Struct {
+            fields: vec![view_field],
+        },
+        Copy::Yes,
+    );
     let declaration = module.tree_mut().get_mut(view_declaration);
     declaration.definition = Some(definition);
     declaration.name = Some(view_name);
     declaration.generics = vec![region];
     let view = module.tree_mut().intern_type(Type::Declaration {
         declaration: view_declaration,
-    });
+    }, Copy::No);
 
     // project the field from one concrete region application
     let frame_view = module.tree_mut().intern_type(Type::Application {
@@ -1376,7 +1381,7 @@ fn test_build_field_get_from_region_applied_type() {
             lifetime: Lifetime::frame(),
             storage: Storage::Frame,
         }],
-    });
+    }, Copy::No);
     let frame_user = module.type_reference(
         Reference::Borrowed,
         Lifetime::frame(),
@@ -1392,7 +1397,7 @@ fn test_build_field_get_from_region_applied_type() {
     let entry = builder.block();
     builder.switch_to_block(entry);
     let value = builder.function_parameter(0);
-    let user = builder.field_get(value, 0, Copy::No);
+    let user = builder.field_get(value, 0);
     builder.return_(Some(user));
     builder.seal_block(entry);
     builder.finish().unwrap();
@@ -1438,7 +1443,7 @@ fn test_build_element_get_array() {
     builder.switch_to_block(entry_block);
 
     let arr = builder.function_parameter(0);
-    let element = builder.element_get(arr, 1, Copy::No);
+    let element = builder.element_get(arr, 1);
     builder.return_(Some(element));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1671,7 +1676,7 @@ fn test_import_specialized_function_places() {
         storage,
         access: Access::Readonly,
         pointee: integer,
-    });
+    }, Copy::Yes);
     let header = module
         .function_header("selected")
         .arguments([
@@ -1705,7 +1710,7 @@ fn test_import_specialized_function_places() {
         destination.type_fingerprint(parameter)
     );
     let mut layouts = LayoutTable::new();
-    let layout = LayoutBuilder::new(&mut destination, &mut layouts, TargetLayout::default())
+    let layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
         .layout_type(parameter)
         .unwrap();
     assert_eq!(
@@ -1723,8 +1728,8 @@ fn test_import_specialized_function_places() {
         panic!("expected the imported reference");
     };
     *kind = Reference::Raw;
-    let raw = destination.intern_type(raw);
-    let raw_layout = LayoutBuilder::new(&mut destination, &mut layouts, TargetLayout::default())
+    let raw = destination.intern_type(raw, Copy::Yes);
+    let raw_layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
         .layout_type(raw)
         .unwrap();
     assert_eq!(layouts.layout(raw_layout).trace_map, TraceMap::Empty);
@@ -1781,7 +1786,7 @@ type Indirect = newtype<Identity<Wrap<int32>>>;";
 
     // shift the destination's node ids and import every named declaration
     let mut destination = Tree::new();
-    destination.intern_type(Type::Boolean);
+    destination.intern_type(Type::Boolean, Copy::Yes);
     let mut declared = |_| None;
     let mut importer = Importer::new(&mut destination, &mut declared);
     for (_, declaration) in source_tree.iter_nodes::<TypeDeclaration>() {
@@ -1804,10 +1809,10 @@ type Indirect = newtype<Identity<Wrap<int32>>>;";
             .find(|declaration| declaration.name.is_some_and(|id| strings.get(id) == name))
             .unwrap();
         let ty = destination.identified_type(declaration.symbol).unwrap();
-        assert_eq!(destination.type_lifetime(ty), lifetime);
-        assert_eq!(destination.type_contains_borrowed_refs(ty), contains);
+        assert_eq!(type_lifetime(&destination, ty), lifetime);
+        assert_eq!(type_contains_borrowed_refs(&destination, ty), contains);
         if name == "Retained" {
-            assert_eq!(destination.type_borrowed_paths(ty), Vec::new());
+            assert_eq!(type_borrowed_paths(&destination, ty), Vec::new());
         }
     }
 
@@ -1824,7 +1829,7 @@ type Indirect = newtype<Identity<Wrap<int32>>>;";
     let Type::Newtype { inner, .. } = *destination.get(handle.definition.unwrap()) else {
         panic!("expected the declared newtype");
     };
-    assert_eq!(Substitution::resolve(inner, &mut destination), inner);
+    assert_eq!(Substitution::resolve(inner, &destination), inner);
 
     // lay out the finite values while keeping recursive reference targets symbolic
     let mut layouts = LayoutTable::new();
@@ -1835,7 +1840,7 @@ type Indirect = newtype<Identity<Wrap<int32>>>;";
             .find(|declaration| declaration.name.is_some_and(|id| strings.get(id) == name))
             .unwrap();
         let ty = destination.identified_type(declaration.symbol).unwrap();
-        let layout = LayoutBuilder::new(&mut destination, &mut layouts, TargetLayout::default())
+        let layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
             .layout_type(ty)
             .unwrap();
         assert_eq!(layouts.layout(layout).size, size);
@@ -1870,12 +1875,12 @@ entry:
 }
 "#,
     );
-    let (mut tree, strings) = Parser::parse(&file, ParseOptions::default())
+    let (tree, strings) = Parser::parse(&file, ParseOptions::default())
         .unwrap()
         .finish()
         .unwrap();
     let mut layouts = LayoutTable::new();
-    LayoutBuilder::new(&mut tree, &mut layouts, TargetLayout::default())
+    LayoutBuilder::new(&tree, &mut layouts, TargetLayout::default())
         .layout_reachable_types()
         .unwrap();
 
@@ -1896,7 +1901,7 @@ entry:
         sizes,
         [
             ("Opaque", None),
-            ("Unused", None),
+            ("Unused", Some(8)),
             ("Record", Some(16)),
             ("Element", Some(16)),
             ("Choice", Some(8)),

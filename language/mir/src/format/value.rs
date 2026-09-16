@@ -6,8 +6,8 @@ use destack_fir::write;
 use super::r#type::{format_generic_arguments, format_parameter, format_type_expanded};
 
 use crate::{
-    BlockId, Constant, Formatter, FunctionId, GlobalId, LocalNodeId, Place, PlaceOrigin,
-    Projection, Type, TypeId, Value, Writer,
+    BlockId, Constant, Formatter, FunctionId, GlobalId, Place, PlaceOrigin, Projection, Type,
+    TypeId, Value, Writer,
 };
 
 impl<'a> Format<'a, Formatter<'a>> for Place {
@@ -105,6 +105,7 @@ impl<'a> Format<'a, Formatter<'a>> for Constant {
         match self {
             Constant::Parameter(index) => format_parameter(*index, f),
             Constant::Null => write!(f, [token("null")]),
+            Constant::Undefined => write!(f, [token("undefined")]),
             Constant::Layout { ty, measure } => {
                 write!(f, [token(measure.keyword()), space(), *ty])
             }
@@ -165,7 +166,7 @@ impl<'a> Format<'a, Formatter<'a>> for Constant {
 pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     // name an anonymous type met again inside its own expansion
     if f.context().expanding.contains(&ty) {
-        return write!(f, [copied_text(&format!("type@{}", ty.id))]);
+        return write!(f, [copied_text(&format!("type@{}", ty.0))]);
     }
 
     // expand the type while marking it as in progress
@@ -207,7 +208,7 @@ pub(crate) fn format_global_id<'a>(global: GlobalId, f: &mut Writer<'a, '_>) -> 
 /// Format one constant with an expected MIR type.
 pub(super) fn format_constant_for_type<'a>(
     constant: &Constant,
-    ty: LocalNodeId<Type>,
+    ty: TypeId,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let ty = constant_storage_type(ty, f);
@@ -258,7 +259,7 @@ pub(super) fn format_constant_for_type<'a>(
 }
 
 /// Return the storage type used to format one typed constant.
-fn constant_storage_type<'a>(ty: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> LocalNodeId<Type> {
+fn constant_storage_type<'a>(ty: TypeId, f: &mut Writer<'a, '_>) -> TypeId {
     let expected = f.context().tree.type_definition(ty);
     if let Type::Newtype { inner, .. } = expected {
         *inner

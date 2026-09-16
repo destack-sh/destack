@@ -81,6 +81,8 @@ pub enum Callee {
         interface: TypeId,
         /// The requirement the witness answers.
         requirement: FunctionId,
+        /// The generic arguments applied to the requirement's own parameters.
+        arguments: Vec<GenericArgument>,
     },
 }
 

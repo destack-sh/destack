@@ -38,7 +38,7 @@ impl EffectBody {
         graph: &mir::ControlTable,
         resolution: &mir::ResolutionTable,
         effects: &mir::EffectTable,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
     ) -> Self {
         // use declared effects for functions without bodies
         let declaration = tree.get(function);
@@ -216,7 +216,7 @@ impl mir::EffectTable {
         resolution: &mir::ResolutionTable,
         calls: &mir::CallTable,
         declared: &mir::EffectTable,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
     ) -> Self {
         let mut bodies = FxIndexMap::default();
         let mut effects = FxIndexMap::default();
@@ -356,7 +356,7 @@ impl Analysis for mir::EffectTable {
 /// Extract operation effects and call dependencies from one function body.
 struct FunctionEffectBuilder<'a> {
     /// The MIR tree.
-    tree: &'a mut mir::Tree,
+    tree: &'a mir::Tree,
     /// The function being analysed.
     function: mir::FunctionId,
 
@@ -434,9 +434,11 @@ impl FunctionEffectBuilder<'_> {
     fn instruction_effect(&mut self, instruction: &mir::Instruction) -> mir::FunctionEffect {
         // map MIR operations to local effects
         let mut effect = match instruction {
-            mir::Instruction::Load { place, copy, .. } => {
+            mir::Instruction::Load {
+                place, result_type, ..
+            } => {
                 let storage = self.place_storage(place);
-                let memory = match copy {
+                let memory = match self.tree.copy(*result_type) {
                     mir::Copy::Yes => mir::MemoryEffect::read_only(storage),
                     mir::Copy::No => mir::MemoryEffect::read_write(storage),
                 };
@@ -461,8 +463,8 @@ impl FunctionEffectBuilder<'_> {
             | mir::Instruction::AtomicRmw { place, .. } => mir::FunctionEffect::memory(
                 mir::MemoryEffect::read_write(self.place_storage(place)),
             ),
-            mir::Instruction::AtomicFence { .. } => {
-                mir::FunctionEffect::memory(mir::MemoryEffect::read_write(mir::StorageSet::ANY))
+            mir::Instruction::AtomicFence { access } => {
+                mir::FunctionEffect::memory(mir::MemoryEffect::barrier(access.storage))
             }
             mir::Instruction::BarrierWrite { .. } => mir::FunctionEffect::none(),
             mir::Instruction::NewZeroed { result_type, .. }
@@ -649,7 +651,7 @@ mod tests {
     /// Pure arithmetic functions have no memory or behavioral effects.
     #[test]
     fn test_classify_pure_function() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function pure(v0: int32): int32 {
 entry(v0: int32):
@@ -660,7 +662,7 @@ entry(v0: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("pure");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -671,10 +673,35 @@ entry(v0: int32):
         );
     }
 
+    /// A fence orders the storage it names without reading or writing it.
+    #[test]
+    fn test_summarize_fence_as_barrier() {
+        let program = TestModule::new(
+            r#"
+function fence(): void {
+entry:
+    atomic.fence sequentiallyConsistent, scope(device), storage(shared)
+    return
+}
+"#,
+        );
+
+        let mut analyses = program.module_analyses();
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
+        let function = program.function_id_by_name("fence");
+        let effect = effects.function(function).expect("missing function effect");
+
+        assert_eq!(
+            effect.memory,
+            mir::MemoryEffect::barrier(mir::StorageSet::SHARED)
+        );
+        assert!(!effect.memory.reads() && !effect.memory.writes());
+    }
+
     /// Allocation and free instructions are surfaced in function behavior.
     #[test]
     fn test_record_allocation_effects() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function allocate(): void {
 entry:
@@ -686,7 +713,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("allocate");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -702,7 +729,7 @@ entry:
     /// Preserve execution of spin hints, black boxes, and breakpoints.
     #[test]
     fn test_preserve_execution_effects() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function backoff(): void {
 entry:
@@ -724,7 +751,7 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let expected = mir::FunctionEffect {
             memory: mir::MemoryEffect::none(),
             behavior: mir::FunctionBehavior::none().with_preserved_execution(),
@@ -741,7 +768,7 @@ entry:
     /// Direct calls propagate callee effects to callers.
     #[test]
     fn test_propagate_direct_calls() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function allocate(): ref<int32, unique, mutable, local> {
 entry:
@@ -758,7 +785,7 @@ entry:
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("root");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -798,7 +825,7 @@ entry(v0: int32):
         });
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let effect = effects.function(root).expect("missing function effect");
 
         assert_eq!(
@@ -831,7 +858,7 @@ entry:
         };
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let root = program.function_id_by_name("root");
         let effect = effects.function(root).expect("missing function effect");
 
@@ -865,7 +892,7 @@ entry:
         };
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let root = program.function_id_by_name("root");
         let effect = effects.function(root).expect("missing function effect");
 
@@ -881,7 +908,7 @@ entry:
     /// Preserve possible parking when a call can select an unknown internal function.
     #[test]
     fn test_preserve_unknown_callee_parking() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
 entry(v0: fn(int32) => int32, v1: int32):
@@ -892,7 +919,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("test");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -906,7 +933,7 @@ entry(v0: fn(int32) => int32, v1: int32):
     /// Panic terminators are may-panic and no-return.
     #[test]
     fn test_record_panics_without_returns() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function fail(v0: ref<int32, managed, readonly, local>): void {
 entry(v0: ref<int32, managed, readonly, local>):
@@ -916,7 +943,7 @@ entry(v0: ref<int32, managed, readonly, local>):
         );
 
         let mut analyses = program.module_analyses();
-        let effects = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let effects = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let function = program.function_id_by_name("fail");
         let effect = effects.function(function).expect("missing function effect");
 
@@ -932,7 +959,7 @@ entry(v0: ref<int32, managed, readonly, local>):
     /// Infer guaranteed return through acyclic callees while preserving possible divergence.
     #[test]
     fn test_propagate_return_behavior() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function leaf(): void {
 entry:
@@ -974,7 +1001,7 @@ entry:
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let table = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let returns = ["leaf", "caller", "tail", "recursive", "cycle", "endless"].map(|name| {
             table
                 .function(program.function_id_by_name(name))
@@ -999,11 +1026,11 @@ entry:
     /// Distinguish ordinary memory accesses from observable atomic accesses.
     #[test]
     fn test_classify_memory_accesses() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function read<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
 entry(v0: ref<int32, borrowed, 'a, readonly, local>):
-    v1: int32 = load.copy (*v0)
+    v1: int32 = load (*v0)
     return v1
 
 dead:
@@ -1026,7 +1053,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly, local>):
 "#,
         );
         let mut analyses = program.module_analyses();
-        let table = analyses.effect(&mut program.tree, &program.effects, &program.dispatch);
+        let table = analyses.effect(&program.tree, &program.effects, &program.dispatch);
         let actual = ["read", "write", "synchronize"].map(|name| {
             table
                 .function(program.function_id_by_name(name))

@@ -102,7 +102,7 @@ impl FunctionEffectBody {
         function: FunctionId,
         resolution: &ResolutionTable,
         effects: &EffectTable,
-        tree: &mut Tree,
+        tree: &Tree,
     ) -> Result<Self, Error> {
         // extract both analyses using the same control flow graph
         let declaration = tree.get(function);

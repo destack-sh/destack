@@ -750,7 +750,7 @@ function test(v0: int32): int32 {
 entry(v0: int32):
     store l0, v0
     v3: int32 = 99
-    v1: int32 = load.copy l0
+    v1: int32 = load l0
     v2: int32 = add v0, v1
     return v2
 }

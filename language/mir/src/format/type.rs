@@ -7,25 +7,16 @@ use super::r#static::format_static;
 use super::value::{format_function_id, format_type_id};
 
 use crate::{
-    Access, Attribute, AttributeIdentifier, Copy, Extent, Field, FieldSpan, FormatNode, Formatter,
-    FunctionId, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
+    Access, Attribute, AttributeIdentifier, Copy, Extent, Field, FieldId, FieldSpan, FormatNode,
+    Formatter, FunctionId, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
     LifetimeParameter, LocalNodeId, Reference, RegionBound, SignatureParameter, Space, SpaceJoinId,
     Storage, Type, TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId, Writer,
     write_comments_before,
 };
 
-impl FormatNode for Type {
-    fn format_node<'a>(&self, id: LocalNodeId<Type>, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-        format_type_id(id, f)
-    }
-}
-
-/// Formatter adapter for one nested type reference.
-struct FormatTypeId(TypeId);
-
-impl<'a> Format<'a, Formatter<'a>> for FormatTypeId {
+impl<'a> Format<'a, Formatter<'a>> for TypeId {
     fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-        format_type_id(self.0, f)
+        format_type_id(*self, f)
     }
 }
 
@@ -39,10 +30,12 @@ impl<'a> Format<'a, Formatter<'a>> for FormatFunctionId {
 }
 
 impl Formatter<'_> {
-    /// Format one function reference, its name with its instance arguments.
+    /// Format one function reference with its instance arguments.
     pub fn format_function(&self, function: FunctionId) -> FormatResult<String> {
         let allocator = Allocator::default();
-        let formatter = Formatter::new(self.tree, self.target_layout, self.strings, self.options);
+        let mut formatter =
+            Formatter::new(self.tree, self.target_layout, self.strings, self.options);
+        formatter.enter_function(function);
 
         // build the FIR document from the reference
         let document = destack_fir::format!(&allocator, formatter, [FormatFunctionId(function)])?;
@@ -59,7 +52,7 @@ impl Formatter<'_> {
         let formatter = Formatter::new(self.tree, self.target_layout, self.strings, self.options);
 
         // build the FIR document from the type
-        let document = destack_fir::format!(&allocator, formatter, [FormatTypeId(ty)])?;
+        let document = destack_fir::format!(&allocator, formatter, [ty])?;
 
         // print the complete type reference
         let printed = document.print()?;
@@ -75,7 +68,7 @@ impl Formatter<'_> {
         formatter.enter_function(function);
 
         // build the FIR document from the type
-        let document = destack_fir::format!(&allocator, formatter, [FormatTypeId(ty)])?;
+        let document = destack_fir::format!(&allocator, formatter, [ty])?;
 
         // print the complete type reference
         let printed = document.print()?;
@@ -89,7 +82,7 @@ pub(super) fn format_type_declaration<'a>(
     name: &str,
     attributes: &[Attribute],
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
-    type_id: LocalNodeId<Type>,
+    type_id: TypeId,
     ty: &Type,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
@@ -104,7 +97,7 @@ pub(super) fn format_type_declaration<'a>(
         .unwrap_or_default();
 
     // synthetic copy marker
-    if type_copy(ty) == Some(Copy::Yes) && !has_copy_attribute(attributes, f) {
+    if f.context().tree.copy(type_id) == Copy::Yes && !has_copy_attribute(attributes, f) {
         write!(f, [token("@copy"), hard_line_break()])?;
     }
 
@@ -135,7 +128,7 @@ pub(super) fn format_type_declaration<'a>(
         .context()
         .selection()
         .is_some_and(|selection| declaration_id.is_some_and(|id| selection.imported.contains(&id)));
-    let is_opaque = is_imported || !f.context().tree.is_defined_type(TypeId::from(type_id));
+    let is_opaque = is_imported || !f.context().tree.is_defined_type(type_id);
     let result = match ty {
         // print an opaque declaration without a definition
         _ if is_opaque => {
@@ -160,16 +153,6 @@ pub(super) fn format_type_declaration<'a>(
     result
 }
 
-/// Return the explicit copy property carried by one aggregate type.
-fn type_copy(ty: &Type) -> Option<Copy> {
-    match ty {
-        Type::Struct { copy, .. } | Type::Newtype { copy, .. } | Type::Variant { copy, .. } => {
-            Some(*copy)
-        }
-        _ => None,
-    }
-}
-
 /// Return whether attributes already include an explicit copy attribute.
 fn has_copy_attribute(attributes: &[Attribute], f: &Writer<'_, '_>) -> bool {
     attributes.iter().any(|attribute| {
@@ -187,7 +170,7 @@ fn format_struct_type_declaration<'a>(
     generics: &[GenericParameter],
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     heritage: &TypeHeritage,
-    fields: &[LocalNodeId<Field>],
+    fields: &[FieldId],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("type"), space()])?;
@@ -245,7 +228,7 @@ fn format_type_heritage<'a>(heritage: &TypeHeritage, f: &mut Writer<'a, '_>) -> 
 
 /// Format the fields of one struct type declaration.
 fn format_struct_fields<'a>(
-    field_ids: &[LocalNodeId<Field>],
+    field_ids: &[FieldId],
     field_spans: &[FieldSpan],
     declaration_spans: Option<&TypeDeclarationSpans>,
     f: &mut Writer<'a, '_>,
@@ -290,13 +273,13 @@ fn format_struct_fields<'a>(
 
 /// Format one struct field entry.
 fn format_struct_field_entry<'a>(
-    field_id: LocalNodeId<Field>,
+    field_id: FieldId,
     field_span: Option<&FieldSpan>,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let field = tree.get(field_id);
-    let field_attributes = tree.attributes(field_id);
+    let field_attributes = &field.attributes;
 
     // field attributes
     if !field_attributes.is_empty() {
@@ -322,7 +305,7 @@ fn format_struct_field_entry<'a>(
 /// Format one structural type or declared reference.
 pub(super) fn format_type_expanded<'a>(
     f: &mut Writer<'a, '_>,
-    id: LocalNodeId<Type>,
+    id: TypeId,
     ty: &Type,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -336,7 +319,7 @@ pub(super) fn format_type_expanded<'a>(
             } else if let Some(definition) = declaration.definition {
                 format_type_id(definition, f)
             } else {
-                write!(f, [copied_text(&format!("type@{}", id.id))])
+                write!(f, [copied_text(&format!("type@{}", id.0))])
             }
         }
         Type::Error => write!(f, [token("<error>")]),
@@ -355,7 +338,14 @@ pub(super) fn format_type_expanded<'a>(
         Type::Isize => write!(f, [token("isize")]),
         Type::Usize => write!(f, [token("usize")]),
         Type::Float(float_type) => write!(f, [token(float_type.label())]),
-        Type::Parameter { index } => format_parameter(*index, f),
+        // mark a parameter standing for the object behind references alone
+        Type::Parameter { index, referent } => {
+            if *referent {
+                write!(f, [text("?")])?;
+            }
+
+            format_parameter(*index, f)
+        }
         Type::TypeId => write!(f, [token("typeId")]),
         Type::Dynamic {
             kind,
@@ -401,7 +391,7 @@ pub(super) fn format_type_expanded<'a>(
                 f,
                 [
                     token("["),
-                    FormatTypeId(*element),
+                    *element,
                     token(";"),
                     space(),
                     format_with(|f| format_static(*length, f)),
@@ -431,16 +421,15 @@ pub(super) fn format_type_expanded<'a>(
             }
             write!(f, [token(")")])
         }
-        Type::Struct { fields, copy: _ } => {
+        Type::Struct { fields } => {
             write!(f, [token("{"), space()])?;
             for (i, field_id) in fields.iter().enumerate() {
                 if i > 0 {
                     write!(f, [token(","), space()])?;
                 }
                 let field = f.context().tree.get(*field_id);
-                let attributes = f.context().tree.attributes(*field_id);
-                if !attributes.is_empty() {
-                    write_inline_attributes(attributes, f)?;
+                if !field.attributes.is_empty() {
+                    write_inline_attributes(&field.attributes, f)?;
                     write!(f, [space()])?;
                 }
                 if let Some(name) = field.name {
@@ -453,7 +442,7 @@ pub(super) fn format_type_expanded<'a>(
             }
             write!(f, [space(), token("}")])
         }
-        Type::Newtype { inner, copy: _ } => {
+        Type::Newtype { inner } => {
             write!(f, [token("newtype"), token("<")])?;
             format_type_id(*inner, f)?;
             write!(f, [token(">")])
@@ -461,12 +450,8 @@ pub(super) fn format_type_expanded<'a>(
         Type::Variant {
             discriminant,
             cases,
-            copy: _,
         } => {
-            write!(
-                f,
-                [token("variant"), token("<"), FormatTypeId(*discriminant)]
-            )?;
+            write!(f, [token("variant"), token("<"), *discriminant])?;
             write!(f, [token(">"), space(), token("{")])?;
             if !cases.is_empty() {
                 write!(f, [space()])?;
@@ -476,7 +461,7 @@ pub(super) fn format_type_expanded<'a>(
                     write!(f, [space()])?;
                 }
                 write!(f, [&case.discriminant, space(), token("="), space()])?;
-                write!(f, [FormatTypeId(case.ty), token(";")])?;
+                write!(f, [case.ty, token(";")])?;
             }
             if !cases.is_empty() {
                 write!(f, [space()])?;
@@ -489,7 +474,7 @@ pub(super) fn format_type_expanded<'a>(
                 [
                     token("vector"),
                     token("<"),
-                    FormatTypeId(*element),
+                    *element,
                     token(","),
                     space(),
                     format_with(|f| format_static(*lanes, f)),
@@ -587,7 +572,14 @@ pub(super) fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> Fo
     match storage {
         Storage::Frame => write!(f, [token("frame")]),
         Storage::Parameter(index) => format_parameter(index, f),
-        Storage::Bound(bound) => format_extents(&Lifetime::new([Extent::Bound(bound)]), f),
+        Storage::Bound {
+            bound,
+            space: bound_space,
+        } => {
+            format_extents(&Lifetime::new([Extent::Bound(bound)]), f)?;
+            write!(f, [space(), token("&"), space()])?;
+            format_space(bound_space, f)
+        }
         Storage::Join(id) => {
             let members = f.context().tree.storage_join(id).to_vec();
             for (index, storage) in members.into_iter().enumerate() {
@@ -599,7 +591,7 @@ pub(super) fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> Fo
 
             Ok(())
         }
-        Storage::Heap(storage_space @ (Space::Parameter(_) | Space::Bound(_) | Space::Join(_))) => {
+        Storage::Heap(storage_space @ (Space::Parameter(_) | Space::Join(_) | Space::Of(_))) => {
             write!(f, [token("heap"), token("(")])?;
             format_space(storage_space, f)?;
             write!(f, [token(")")])
@@ -622,8 +614,12 @@ pub(super) fn format_space<'a>(space: Space, f: &mut Writer<'a, '_>) -> FormatRe
         Some(label) => write!(f, [token(label)]),
         None => match space {
             Space::Parameter(index) => format_parameter(index, f),
-            Space::Bound(slot) => format_extents(&Lifetime::new([Extent::Bound(slot)]), f),
             Space::Join(id) => format_space_join(id, f),
+            Space::Of(ty) => {
+                write!(f, [token("PlaceOf"), token("<")])?;
+                format_type_id(ty, f)?;
+                write!(f, [token(">")])
+            }
             space => unreachable!("closed space {space:?} without a label"),
         },
     }
@@ -678,10 +674,14 @@ fn format_region_argument<'a>(
     {
         return Ok(());
     }
-    if let ([Extent::Bound(slot)], Storage::Bound(space)) = (lifetime.extents.as_slice(), storage)
-        && *slot == space
+    if let ([Extent::Bound(slot)], Storage::Bound { bound, space }) =
+        (lifetime.extents.as_slice(), storage)
+        && *slot == bound
     {
-        return Ok(());
+        write!(f, [token("(")])?;
+        format_space(space, f)?;
+
+        return write!(f, [token(")")]);
     }
 
     write!(f, [space(), token("&"), space()])?;
@@ -891,8 +891,12 @@ pub(super) fn format_generic_parameter<'a>(
 
             Ok(())
         }
-        GenericParameterDomain::Space => write!(f, [token("space"), space(), copied_text(&name)]),
-        GenericParameterDomain::Access => write!(f, [token("access"), space(), copied_text(&name)]),
+        GenericParameterDomain::Space => {
+            write!(f, [copied_text(&name), token(":"), space(), token("Space")])
+        }
+        GenericParameterDomain::Access => {
+            write!(f, [copied_text(&name), token(":"), space(), token("Access")])
+        }
         GenericParameterDomain::Value { ty } => {
             write!(
                 f,

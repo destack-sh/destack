@@ -95,7 +95,7 @@ impl ConstantTable {
         function: mir::FunctionId,
         uses: &UseTable,
         target: TargetLayout,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
     ) -> Self {
         ConstantSolver::new(function, uses, target, tree).solve(&FxIndexMap::default())
     }
@@ -103,7 +103,7 @@ impl ConstantTable {
     /// Analyse a function with explicitly supplied parameter constants.
     pub fn with_parameter_constants(
         function: mir::FunctionId,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         target: TargetLayout,
         constants: &FxIndexMap<mir::Value, mir::Constant>,
     ) -> Self {
@@ -151,7 +151,7 @@ struct ConstantSolver<'a> {
     /// The function whose constants are being solved.
     function: mir::FunctionId,
     /// The MIR definitions and operands.
-    tree: &'a mut mir::Tree,
+    tree: &'a mir::Tree,
     /// The target's scalar widths.
     target: TargetLayout,
     /// Dependent operations grouped by their used values.
@@ -168,7 +168,7 @@ impl<'a> ConstantSolver<'a> {
         function: mir::FunctionId,
         uses: &'a UseTable,
         target: TargetLayout,
-        tree: &'a mut mir::Tree,
+        tree: &'a mir::Tree,
     ) -> Self {
         // allocate executable block states and the initial operation worklist
         let blocks = NodeTable::from_nodes(tree.get(function).blocks(), || false);
@@ -673,6 +673,8 @@ pub enum ConstantType {
     Parameter,
     /// Null pointer constant type.
     Null,
+    /// Undefined constant type at a polymorphic representation.
+    Undefined,
     /// Boolean constant type.
     Boolean,
     /// Integer constant type.
@@ -715,6 +717,7 @@ pub fn constant_type_of(constant: &mir::Constant) -> ConstantType {
     match constant {
         mir::Constant::Parameter(_) => ConstantType::Parameter,
         mir::Constant::Null => ConstantType::Null,
+        mir::Constant::Undefined => ConstantType::Undefined,
         mir::Constant::Boolean { .. } => ConstantType::Boolean,
         mir::Constant::Int {
             width, is_signed, ..
@@ -747,6 +750,7 @@ pub fn constant_matches_type(
     match (constant_type, tree.get(destination_type)) {
         (ConstantType::Parameter, _) => true,
         (ConstantType::Null, mir::Type::Pointer { .. }) => true,
+        (ConstantType::Null | ConstantType::Undefined, mir::Type::Parameter { .. }) => true,
         (ConstantType::Boolean, mir::Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
             let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)
@@ -2085,7 +2089,7 @@ pub fn fold_binary_bool(
 pub fn fold_cast(
     operator: mir::CastOperator,
     value: mir::Constant,
-    to_type: mir::LocalNodeId<mir::Type>,
+    to_type: mir::TypeId,
     pointer_width_bits: u16,
     tree: &mir::Tree,
 ) -> Option<mir::Constant> {
@@ -2276,7 +2280,7 @@ mod tests {
     /// Fold numeric casts at signed, unsigned, floating, and bit-pattern boundaries.
     #[test]
     fn test_fold_cast_boundaries() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2299,7 +2303,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let actual = [1, 3, 4, 6, 7, 9, 11, 12, 13]
             .map(|index| constants.constant(mir::Value(index)).cloned());
 
@@ -2325,14 +2329,14 @@ entry:
     /// Mutable globals are not treated as constants.
     #[test]
     fn test_keep_mutable_global_loads_unknown() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 global flag: boolean = true
 
 function test(): boolean {
 entry:
     v0: ref<boolean, borrowed, 'static, mutable, local> = address @flag
-    v1: boolean = load.copy (*v0)
+    v1: boolean = load (*v0)
     return v1
 }
 "#,
@@ -2340,7 +2344,7 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function_id, &mut test.tree);
+        let analysis = analyses.constant(function_id, &test.tree);
 
         let constant = analysis.constant(mir::Value::new(1)).cloned();
         assert_eq!(constant, None);
@@ -2349,7 +2353,7 @@ entry:
     /// Constant results of binary operations are propagated.
     #[test]
     fn test_fold_constant_addition() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -2363,7 +2367,7 @@ entry:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function_id, &mut test.tree);
+        let analysis = analyses.constant(function_id, &test.tree);
 
         let constant = analysis.constant(mir::Value::new(2)).cloned();
         assert_eq!(
@@ -2379,7 +2383,7 @@ entry:
     /// Preserve agreeing parameters while widening conflicting parameters at the same join.
     #[test]
     fn test_join_agreeing_and_conflicting_arguments() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
@@ -2399,7 +2403,7 @@ join(v3: boolean, v4: boolean):
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
 
         assert_eq!(
             constants.value(mir::Value(3)),
@@ -2411,7 +2415,7 @@ join(v3: boolean, v4: boolean):
     /// Fallible allocation result parameters do not consume edge arguments.
     #[test]
     fn test_preserve_arguments_after_allocation_results() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function test(v0: int64): boolean {
 entry(v0: int64):
@@ -2430,7 +2434,7 @@ b2:
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function_id, &mut test.tree);
+        let analysis = analyses.constant(function_id, &test.tree);
 
         let success = test.tree.get(function_id).block(1);
         let success_block = test.tree.get(success);
@@ -2443,7 +2447,7 @@ b2:
     /// Conflicting arguments to a single target are not treated as constants.
     #[test]
     fn test_distinguish_arguments_on_repeated_edges() {
-        let mut test = TestModule::new(
+        let test = TestModule::new(
             r#"
 function test(v0: boolean): boolean {
 entry(v0: boolean):
@@ -2459,7 +2463,7 @@ b1(v3: boolean):
 
         let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let mut analyses = test.function_analyses();
-        let analysis = analyses.constant(function_id, &mut test.tree);
+        let analysis = analyses.constant(function_id, &test.tree);
 
         let constant = analysis.constant(mir::Value::new(3)).cloned();
         assert_eq!(constant, None);
@@ -2468,7 +2472,7 @@ b1(v3: boolean):
     /// Follow only the selected edge when two branch arms pass different values to one block.
     #[test]
     fn test_select_branch_arguments() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -2483,7 +2487,7 @@ join(v3: int32):
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let edge = mir::Edge::new(
             program.tree.get(program.entry_function_id()).block(0),
             mir::Successor::BranchThen,
@@ -2500,7 +2504,7 @@ join(v3: int32):
     /// Widen a loop recurrence after its executable backedge supplies a different value.
     #[test]
     fn test_widen_constants_changed_by_loop_backedges() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
 entry(v0: boolean):
@@ -2518,7 +2522,7 @@ exit(v5: int32):
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let actual = (0..6)
             .map(|value| constants.value(mir::Value(value)).clone())
             .collect::<Vec<_>>();
@@ -2539,7 +2543,7 @@ exit(v5: int32):
     /// Preserve constant fields when another field remains dynamic.
     #[test]
     fn test_preserve_constant_fields_beside_dynamic_fields() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -2552,7 +2556,7 @@ entry(v0: int32):
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
 
         assert_eq!(
             constants.constant(mir::Value(3)),
@@ -2564,7 +2568,7 @@ entry(v0: int32):
     /// Fold integer bit operations in the operand width.
     #[test]
     fn test_fold_bit_operations_in_the_declared_width() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): uint32 {
 entry:
@@ -2582,7 +2586,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let actual = (3..9)
             .map(|value| constants.constant(mir::Value(value)).cloned())
             .collect::<Vec<_>>();
@@ -2595,7 +2599,7 @@ entry:
     /// Select a failed division check before evaluating the guarded arithmetic.
     #[test]
     fn test_select_check_failure() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -2614,7 +2618,7 @@ failure:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let executable = program
             .tree
             .get(program.entry_function_id())
@@ -2630,7 +2634,7 @@ failure:
     /// Round a fused multiply-add once at binary32 precision.
     #[test]
     fn test_round_float32_fma() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): float32 {
 entry:
@@ -2642,7 +2646,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
 
         assert_eq!(
             constants.constant(mir::Value(2)),
@@ -2656,7 +2660,7 @@ entry:
     /// Preserve declared rounding and integer limits during scalar conversion.
     #[test]
     fn test_convert_float_limits() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2674,7 +2678,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let actual = [2, 3, 5, 6, 8].map(|value| constants.constant(mir::Value(value)).cloned());
 
         assert_eq!(
@@ -2706,7 +2710,7 @@ entry:
     /// Clamp overflowing signed addition and subtraction to their respective limits.
     #[test]
     fn test_saturate_signed_addition_and_subtraction() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2720,7 +2724,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         for (value, expected) in [
             (3, mir::Constant::int8(127)),
             (4, mir::Constant::int8(-128)),
@@ -2736,7 +2740,7 @@ entry:
     /// Produce both the wrapped integer and overflow flag from overflowing addition.
     #[test]
     fn test_fold_wrapped_value_and_overflow_flag() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2750,7 +2754,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         for (value, expected) in [
             (3, mir::Constant::int8(-128)),
             (4, mir::Constant::Boolean { value: true }),
@@ -2774,7 +2778,7 @@ entry:
     /// Round the midpoint of signed minimum and maximum toward zero.
     #[test]
     fn test_round_signed_midpoint_toward_zero() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2786,7 +2790,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let expected = mir::Constant::int8(0);
         assert_eq!(constants.constant(mir::Value(2)), Some(&expected));
     }
@@ -2794,7 +2798,7 @@ entry:
     /// Round a negative quotient upward and return a nonnegative Euclidean remainder.
     #[test]
     fn test_fold_signed_division_rounding() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2807,7 +2811,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         for (value, expected) in [(2, mir::Constant::int8(-42)), (3, mir::Constant::int8(1))] {
             assert_eq!(
                 constants.constant(mir::Value(value)),
@@ -2820,7 +2824,7 @@ entry:
     /// Represent the full distance between signed limits in the unsigned result type.
     #[test]
     fn test_fold_unsigned_distance_between_signed_limits() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2832,7 +2836,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let expected = mir::Constant::UInt {
             value: 255,
             width: 8,
@@ -2843,7 +2847,7 @@ entry:
     /// Recognize that the signed minimum is divisible by minus one.
     #[test]
     fn test_fold_divisibility_by_minus_one() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2855,7 +2859,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let expected = mir::Constant::Boolean { value: true };
         assert_eq!(constants.constant(mir::Value(2)), Some(&expected));
     }
@@ -2863,7 +2867,7 @@ entry:
     /// Clamp values below, within, and above the declared integer interval.
     #[test]
     fn test_fold_clamp_endpoints() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2882,7 +2886,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         for (value, expected) in [(4, 1), (5, 1), (6, 3), (8, 2), (9, 3)] {
             assert_eq!(
                 constants.constant(mir::Value(value)),
@@ -2895,7 +2899,7 @@ entry:
     /// Fold unchecked addition within the signed range, including its maximum.
     #[test]
     fn test_fold_unchecked_addition_within_integer_limits() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
 entry:
@@ -2910,7 +2914,7 @@ entry:
 "#,
         );
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
 
         assert_eq!(
             constants.constant(mir::Value(3)),
@@ -2925,7 +2929,7 @@ entry:
     /// Select a switch case without merging default arguments sent to the same target.
     #[test]
     fn test_select_switch_arguments_on_repeated_targets() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): int32 {
 entry:
@@ -2944,7 +2948,7 @@ unused(v4: int32):
         );
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
-        let constants = analyses.constant(program.entry_function_id(), &mut program.tree);
+        let constants = analyses.constant(program.entry_function_id(), &program.tree);
         let edge = mir::Edge::new(
             program.tree.get(function).block(0),
             mir::Successor::SwitchCase { value: 1 },

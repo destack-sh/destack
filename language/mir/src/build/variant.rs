@@ -46,6 +46,8 @@ struct Case {
     alignment: u32,
     /// The payload reference trace map.
     trace_map: TraceMap,
+    /// Whether the payload admits no value.
+    uninhabited: bool,
 }
 
 impl Variant {
@@ -85,6 +87,7 @@ impl Variant {
                 size: layout.size,
                 alignment: layout.alignment,
                 trace_map: layout.trace_map.clone(),
+                uninhabited: layout.uninhabited,
             });
         }
 
@@ -111,11 +114,12 @@ impl Variant {
         if self.cases.len() < 2 {
             return Ok(None);
         }
+        let inhabited = self.cases.iter().filter(|case| !case.uninhabited).count();
 
-        // require exactly one case containing physical bytes
+        // require exactly one inhabited case containing physical bytes
         let mut untagged = None;
         for (index, case) in self.cases.iter().enumerate() {
-            if case.size == 0 {
+            if case.size == 0 || case.uninhabited {
                 continue;
             }
             if untagged.is_some() {
@@ -126,7 +130,7 @@ impl Variant {
         let Some((untagged_case, payload)) = untagged else {
             return Ok(None);
         };
-        let required = (self.cases.len() - 1) as u128;
+        let required = inhabited.saturating_sub(1) as u128;
         let Some(field) = payload.niche else {
             return Ok(None);
         };
@@ -198,6 +202,7 @@ impl Variant {
             size: payload.size,
             alignment: payload.alignment,
             trace_map,
+            uninhabited: false,
         }))
     }
 
@@ -211,11 +216,12 @@ impl Variant {
         let tag_size = self.tag.size;
         let tag_alignment = self.tag.alignment;
 
-        // retain the tightest wrapping validity range covering every case tag
+        // retain the tightest wrapping validity range covering every inhabited case tag
         let mask = tag_scalar.bit_mask();
         let mut values = self
             .cases
             .iter()
+            .filter(|case| !case.uninhabited)
             .map(|case| case.discriminant.bits() & mask)
             .collect::<Vec<_>>();
         values.sort_unstable();
@@ -289,6 +295,7 @@ impl Variant {
             size,
             alignment,
             trace_map,
+            uninhabited: self.cases.iter().all(|case| case.uninhabited),
         })
     }
 

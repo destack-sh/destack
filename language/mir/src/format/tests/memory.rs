@@ -72,13 +72,13 @@ function memory<'a>(v0: ref<int32, borrowed, 'a & local, mutable>): int32 {
 entry(v0: ref<int32, borrowed, 'a & local, mutable>):
     v1: ref<int32, borrowed, 'static & local, mutable> = address @counter
     v2: ref<int32, borrowed, 'frame & frame, mutable> = address l0
-    v3: int32 = load.copy (*v0)
+    v3: int32 = load (*v0)
     v4: int32 = copy v3
     store (*v0), v3
     store l0, v4
-    v5: int32 = load.copy l0
+    v5: int32 = load l0
     v6: int32 = load l0
-    v7: int32 = load.copy (*v1)
+    v7: int32 = load (*v1)
     store (*v2), v7
     v8: int32 = load (*v2)
     return v8
@@ -111,9 +111,9 @@ type Packet = variant<uint1> { 0uint1 = void; 1uint1 = (int32, [int32; 4]); };
 
 function project<'a>(v0: ref<Packet, borrowed, 'a & local, immutable>, v1: usize, v2: usize): int32 {
 entry(v0: ref<Packet, borrowed, 'a & local, immutable>, v1: usize, v2: usize):
-    v3: int32 = load.copy ((*v0) as 1).0
-    v4: int32 = load.copy ((*v0) as 1).1[0]
-    v5: int32 = load.copy ((*v0) as 1).1[v1]
+    v3: int32 = load ((*v0) as 1).0
+    v4: int32 = load ((*v0) as 1).1[0]
+    v5: int32 = load ((*v0) as 1).1[v1]
     v6: slice<int32, borrowed, 'a & local, immutable> = address ((*v0) as 1).1[v1; v2]
     return v3
 }

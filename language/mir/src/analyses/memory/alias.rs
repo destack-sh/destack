@@ -45,7 +45,7 @@ impl AliasTable {
         layouts: Arc<LayoutTable>,
         constants: &ConstantTable,
         target: TargetLayout,
-        tree: &mut Tree,
+        tree: &Tree,
     ) -> Result<Self, LayoutError> {
         let (regions, operands) = Self::build_regions(
             function,
@@ -418,7 +418,7 @@ impl AliasTable {
         layouts: &LayoutTable,
         constants: &ConstantTable,
         target: TargetLayout,
-        tree: &mut Tree,
+        tree: &Tree,
     ) -> Result<(Vec<Option<MemoryRegion>>, FxIndexMap<Place, MemoryRegion>), LayoutError> {
         let mut builder = MemoryRegionBuilder::new(
             function,
@@ -717,7 +717,7 @@ mod tests {
     /// Independent local slots do not alias.
     #[test]
     fn test_separate_distinct_local_storage() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): int32 {
     local l0: int32
@@ -735,7 +735,7 @@ entry:
         let function_id = program.entry_function_id();
         let mut analyses = program.function_analyses();
         let alias = analyses
-            .alias(function_id, program.layouts.clone(), &mut program.tree)
+            .alias(function_id, program.layouts.clone(), &program.tree)
             .unwrap();
         let addresses = program.local_address_destinations_in_entry(function_id);
 
@@ -749,7 +749,7 @@ entry:
     /// Classify equal addresses independently of their access widths.
     #[test]
     fn test_match_equal_addresses_and_exclude_empty_accesses() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
     local l0: int64
@@ -765,7 +765,7 @@ entry:
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let address = Value::new(0);
@@ -793,7 +793,7 @@ entry:
     /// Preserve possible aliasing between independent borrowed parameters.
     #[test]
     fn test_allow_aliasing_between_borrowed_parameters() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): void {
 entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
@@ -806,7 +806,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let left = MemoryLocation::with_size(Value::new(0), 4);
@@ -818,7 +818,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     /// Preserve possible aliasing after storing a selected reference in two locals.
     #[test]
     fn test_allow_aliasing_between_reloaded_references() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, mutable, local>, v2: ref<int32, borrowed, 'a, mutable, local>): void {
     local l0: ref<int32, borrowed, 'a, mutable, local>
@@ -828,8 +828,8 @@ entry(v0: boolean, v1: ref<int32, borrowed, 'a, mutable, local>, v2: ref<int32, 
     v3: ref<int32, borrowed, 'a, mutable, local> = select v0, v1, v2
     store l0, v3
     store l1, v3
-    v4: ref<int32, borrowed, 'a, mutable, local> = load.copy l0
-    v5: ref<int32, borrowed, 'a, mutable, local> = load.copy l1
+    v4: ref<int32, borrowed, 'a, mutable, local> = load l0
+    v5: ref<int32, borrowed, 'a, mutable, local> = load l1
     return
 }
 "#,
@@ -839,7 +839,7 @@ entry(v0: boolean, v1: ref<int32, borrowed, 'a, mutable, local>, v2: ref<int32, 
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let left = MemoryLocation::with_size(Value::new(4), 4);
@@ -851,7 +851,7 @@ entry(v0: boolean, v1: ref<int32, borrowed, 'a, mutable, local>, v2: ref<int32, 
     /// Preserve pointer bitcasts and widen addresses reconstructed from integers.
     #[test]
     fn test_preserve_pointer_casts_and_widen_integer_reconstruction() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(): void {
     local l0: int32
@@ -873,7 +873,7 @@ entry:
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
 
@@ -894,7 +894,7 @@ entry:
     /// Compare accessed bytes across adjacent aggregate fields.
     #[test]
     fn test_compare_field_extents() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 type Pair {
     first: int32;
@@ -905,8 +905,8 @@ function test<'a>(v0: ref<Pair, borrowed, 'a, mutable, local>): void {
 entry(v0: ref<Pair, borrowed, 'a, mutable, local>):
     v1: ref<int32, borrowed, 'a, mutable, local> = address (*v0).0
     v2: ref<int32, borrowed, 'a, mutable, local> = address (*v0).1
-    v3: int32 = load.copy (*v0).0
-    v4: int32 = load.copy (*v0).1
+    v3: int32 = load (*v0).0
+    v4: int32 = load (*v0).1
     return
 }
 "#,
@@ -916,7 +916,7 @@ entry(v0: ref<Pair, borrowed, 'a, mutable, local>):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let addresses: [(MemoryAddress, MemoryAddress); 2] = [
@@ -954,7 +954,7 @@ entry(v0: ref<Pair, borrowed, 'a, mutable, local>):
     /// Preserve overlap between alternative variant payloads stored at the same offset.
     #[test]
     fn test_match_variant_payloads_at_the_same_offset() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 type Choice = variant<uint1> { 0uint1 = int32; 1uint1 = uint32; };
 
@@ -971,7 +971,7 @@ entry(v0: ref<Choice, borrowed, 'a, mutable, local>):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let first = MemoryLocation::with_size(Value::new(1), 4);
@@ -986,7 +986,7 @@ entry(v0: ref<Choice, borrowed, 'a, mutable, local>):
     /// Resolve constant element indices and their canonical strides.
     #[test]
     fn test_distinguish_adjacent_and_overlapping_elements() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable, local>): void {
 entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
@@ -1003,7 +1003,7 @@ entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let first = MemoryLocation::with_size(Value::new(3), 4);
@@ -1020,7 +1020,7 @@ entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
     /// Preserve stable addresses through selected values and block parameters.
     #[test]
     fn test_match_common_addresses_after_merges() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): void {
     local l0: int32
@@ -1041,7 +1041,7 @@ join(v4: ptr<int32, mutable>):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let original = MemoryLocation::with_size(Value(1), 4);
@@ -1056,7 +1056,7 @@ join(v4: ptr<int32, mutable>):
     /// Treat both fresh loop allocations and incoming allocation parameters as varying addresses.
     #[test]
     fn test_detect_allocations_that_change_between_iterations() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
 entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
@@ -1076,7 +1076,7 @@ exit:
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let block = program.tree.get(program.entry_function_id()).block(1);
@@ -1087,7 +1087,7 @@ exit:
     /// Require the canonical layout when projecting a field address.
     #[test]
     fn test_require_field_layout() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 type Pair {
     first: int32;
@@ -1105,14 +1105,14 @@ entry(v0: ptr<Pair, mutable>):
             .tree
             .get(program.entry_function_id())
             .expect_value_type(Value(0));
-        let ty = Substitution::resolve(ty, &mut program.tree);
+        let ty = Substitution::resolve(ty, &program.tree);
         let ty = program.tree.get(ty).pointee_type().unwrap();
         let mut analyses = program.function_analyses();
         let error = analyses
             .alias(
                 program.entry_function_id(),
                 Arc::new(LayoutTable::new()),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap_err();
 
@@ -1122,7 +1122,7 @@ entry(v0: ptr<Pair, mutable>):
     /// Keep changing entry parameters distinct from invariant incoming addresses.
     #[test]
     fn test_track_entry_backedge_addresses() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, borrowed, 'static, readonly, local>, v2: boolean): void {
 entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, borrowed, 'static, readonly, local>, v2: boolean):
@@ -1139,7 +1139,7 @@ done:
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let actual = [Value(0), Value(1)].map(|value| {
@@ -1157,7 +1157,7 @@ done:
     /// Compare matching select arms while preserving independent conditions.
     #[test]
     fn test_correlate_addresses_selected_by_the_same_condition() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean, v1: boolean): void {
     local l0: int32
@@ -1179,7 +1179,7 @@ entry(v0: boolean, v1: boolean):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let left = MemoryLocation::with_size(Value(4), 4);
@@ -1202,7 +1202,7 @@ entry(v0: boolean, v1: boolean):
     /// Preserve disjointness and access widths when loop parameters exchange addresses.
     #[test]
     fn test_preserve_disjoint_ranges_when_loop_arguments_swap() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: boolean): void {
     local l0: int64
@@ -1248,7 +1248,7 @@ done:
                 .alias(
                     program.function_id_by_name(name),
                     program.layouts.clone(),
-                    &mut program.tree,
+                    &program.tree,
                 )
                 .unwrap();
             let actual = alias
@@ -1265,7 +1265,7 @@ done:
     /// Retain field offsets through loaded pointers without separating their allocations.
     #[test]
     fn test_compare_fields_of_loaded_addresses() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 type Pair {
     first: int32;
@@ -1274,8 +1274,8 @@ type Pair {
 
 function test(v0: ptr<ptr<Pair, mutable>, mutable>): void {
 entry(v0: ptr<ptr<Pair, mutable>, mutable>):
-    v1: ptr<Pair, mutable> = load.copy (*v0)
-    v2: ptr<Pair, mutable> = load.copy (*v0)
+    v1: ptr<Pair, mutable> = load (*v0)
+    v2: ptr<Pair, mutable> = load (*v0)
     v3: ptr<int32, mutable> = address (*v1).0
     v4: ptr<int32, mutable> = address (*v1).1
     v5: ptr<int32, mutable> = address (*v2).1
@@ -1288,7 +1288,7 @@ entry(v0: ptr<ptr<Pair, mutable>, mutable>):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let actual = [(3, 4), (3, 5), (4, 5)].map(|(left, right)| {
@@ -1313,7 +1313,7 @@ entry(v0: ptr<ptr<Pair, mutable>, mutable>):
     /// Separate adjacent bounded indices while retaining potentially wrapping expressions.
     #[test]
     fn test_separate_bounded_indices_and_allow_wrapping_overlap() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8): void {
 entry(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8):
@@ -1336,7 +1336,7 @@ entry(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let actual = [(6, 7), (7, 11), (6, 9)].map(|(left, right)| {
@@ -1361,7 +1361,7 @@ entry(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8):
     /// Separate fields at different residues across arbitrary array elements.
     #[test]
     fn test_separate_fields_across_arbitrary_array_indices() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 type Pair {
     first: int32;
@@ -1384,7 +1384,7 @@ entry(v0: ref<[Pair; 16], borrowed, 'a, mutable, local>, v1: uint64, v2: uint64)
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let actual = [(5, 6, 4), (5, 7, 4), (5, 6, 8)].map(|(left, right, width)| {
@@ -1409,7 +1409,7 @@ entry(v0: ref<[Pair; 16], borrowed, 'a, mutable, local>, v1: uint64, v2: uint64)
     /// Compare byte displacements modulo the target pointer width.
     #[test]
     fn test_compare_offsets_modulo_pointer_width() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test(v0: ptr<[uint8; 1], mutable>): void {
 entry(v0: ptr<[uint8; 1], mutable>):
@@ -1426,7 +1426,7 @@ entry(v0: ptr<[uint8; 1], mutable>):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let result = alias
@@ -1442,7 +1442,7 @@ entry(v0: ptr<[uint8; 1], mutable>):
     /// Separate bounded index intervals and cancel multiplication with equivalent shifts.
     #[test]
     fn test_separate_index_intervals_and_cancel_equivalent_scaling() {
-        let mut program = TestModule::new(
+        let program = TestModule::new(
             r#"
 function test<'a>(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8): void {
 entry(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8):
@@ -1469,7 +1469,7 @@ entry(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8):
             .alias(
                 program.entry_function_id(),
                 program.layouts.clone(),
-                &mut program.tree,
+                &program.tree,
             )
             .unwrap();
         let actual = [(10, 11), (12, 13), (11, 15), (10, 15)].map(|(left, right)| {

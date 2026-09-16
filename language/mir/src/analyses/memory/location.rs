@@ -552,7 +552,7 @@ pub(super) struct MemoryRegionBuilder<'a> {
     /// Value definitions for address origin.
     definitions: &'a DefinitionTable,
     /// The MIR tree.
-    pub(super) tree: &'a mut mir::Tree,
+    pub(super) tree: &'a mir::Tree,
     /// The MIR function.
     function: mir::FunctionId,
     /// Dominance used to distinguish values from different loop iterations.
@@ -571,7 +571,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         function: mir::FunctionId,
         definitions: &'a DefinitionTable,
         dominators: &'a DominatorTable,
-        tree: &'a mut mir::Tree,
+        tree: &'a mir::Tree,
         layouts: &'a mir::LayoutTable,
         constants: &'a mir::ConstantTable,
         target: mir::TargetLayout,
@@ -680,8 +680,12 @@ impl<'a> MemoryRegionBuilder<'a> {
                     }
                 }
                 mir::Projection::Index { index } | mir::Projection::Slice { start: index, .. } => {
-                    let (mir::PlaceType::Value(element) | mir::PlaceType::Sequence(element)) =
-                        selected;
+                    let element = match selected {
+                        mir::PlaceType::Value(element) => element,
+                        referent => referent
+                            .element(self.tree)
+                            .unwrap_or_else(|| unreachable!("indexed referent has no element")),
+                    };
                     let stride = self.layout(element)?.stride();
                     self.add_index(&mut region, *index, stride as u64);
                 }
@@ -972,7 +976,7 @@ impl<'a> MemoryRegionBuilder<'a> {
     }
 
     /// Return the value type for an SSA value.
-    fn value_type(&mut self, value: mir::Value) -> mir::LocalNodeId<mir::Type> {
+    fn value_type(&mut self, value: mir::Value) -> mir::TypeId {
         let mut ty = mir::Substitution::resolve(
             self.tree.get(self.function).expect_value_type(value),
             self.tree,

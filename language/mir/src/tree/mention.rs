@@ -1,6 +1,6 @@
 use destack_core::FxIndexSet;
 
-use crate::{FunctionId, LocalNodeId, NodeVisitor, Tree, Type, TypeId, walk_type};
+use crate::{FunctionId, NodeVisitor, Tree, Type, TypeId, walk_type};
 
 /// Return the types some functions mention, through anonymous types up to declared ones.
 pub fn mentioned_types(tree: &Tree, functions: &[FunctionId]) -> FxIndexSet<TypeId> {
@@ -22,9 +22,9 @@ struct TypeMentions {
 }
 
 impl NodeVisitor for TypeMentions {
-    fn visit_type(&mut self, tree: &Tree, id: LocalNodeId<Type>, ty: &Type) {
+    fn visit_type(&mut self, tree: &Tree, id: TypeId, ty: &Type) {
         if self.types.insert(id) && tree.type_declaration(id).is_none() {
-            walk_type(self, tree, id, ty);
+            walk_type(self, tree, ty);
         }
     }
 }

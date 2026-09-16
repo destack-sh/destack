@@ -5,9 +5,9 @@ use destack_source::ModuleId;
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Extent,
-    Field, FloatType, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
-    LifetimeParameter, LocalNodeId, Multiplicity, Reference, SignatureParameter, Space, Static,
-    StaticField, StaticId, StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint, TypeId,
+    FieldId, FloatType, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
+    LifetimeParameter, Multiplicity, Reference, SignatureParameter, Space, Static, StaticField,
+    StaticId, StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint, TypeId,
 };
 
 impl Tree {
@@ -228,6 +228,8 @@ impl TypeHasher {
 
     /// Hash one type through structural or identified identity.
     fn hash_type(&mut self, id: TypeId, tree: &Tree) {
+        // a type's copy decision is part of its identity
+        self.hash_copy(tree.copy(id));
         match tree.get(id) {
             Type::Declaration { declaration } => {
                 self.hasher.write_u8(0xff);
@@ -315,23 +317,20 @@ impl TypeHasher {
                 self.hasher.write_u8(18);
                 self.hash_types(elements, tree);
             }
-            Type::Struct { fields, copy } => {
+            Type::Struct { fields } => {
                 self.hasher.write_u8(19);
                 self.hash_length(fields.len());
                 for field in fields {
                     self.hash_field(*field, tree);
                 }
-                self.hash_copy(*copy);
             }
-            Type::Newtype { inner, copy } => {
+            Type::Newtype { inner } => {
                 self.hasher.write_u8(20);
                 self.hash_type(*inner, tree);
-                self.hash_copy(*copy);
             }
             Type::Variant {
                 discriminant,
                 cases,
-                copy,
             } => {
                 self.hasher.write_u8(21);
                 self.hash_type(*discriminant, tree);
@@ -340,7 +339,6 @@ impl TypeHasher {
                     self.hash_constant(&case.discriminant, tree);
                     self.hash_type(case.ty, tree);
                 }
-                self.hash_copy(*copy);
             }
             Type::Vector { element, lanes } => {
                 self.hasher.write_u8(22);
@@ -391,9 +389,10 @@ impl TypeHasher {
                     self.hash_argument(argument, tree);
                 }
             }
-            Type::Parameter { index } => {
+            Type::Parameter { index, referent } => {
                 self.hasher.write_u8(32);
                 self.hasher.write_u32(*index);
+                self.hasher.write_u8(*referent as u8);
             }
         }
     }
@@ -457,12 +456,12 @@ impl TypeHasher {
     }
 
     /// Hash one structural field declaration.
-    fn hash_field(&mut self, id: LocalNodeId<Field>, tree: &Tree) {
+    fn hash_field(&mut self, id: FieldId, tree: &Tree) {
         let field = tree.get(id);
         self.hash_string_maybe(field.name);
         self.hash_type(field.ty, tree);
 
-        let attributes = tree.attributes(id);
+        let attributes = &field.attributes;
         self.hash_length(attributes.len());
         for attribute in attributes {
             self.hash_attribute(attribute, tree);
@@ -568,10 +567,9 @@ impl TypeHasher {
                 self.hasher.write_u8(3);
                 self.hasher.write_u32(index);
             }
-            Space::Bound(slot) => {
+            Space::Of(ty) => {
                 self.hasher.write_u8(4);
-                self.hasher.write_u32(slot.depth);
-                self.hasher.write_u32(slot.index);
+                self.hash_type(ty, tree);
             }
             Space::Join(id) => {
                 self.hasher.write_u8(5);
@@ -617,10 +615,11 @@ impl TypeHasher {
                 self.hasher.write_u8(3);
                 self.hasher.write_u32(index);
             }
-            Storage::Bound(bound) => {
+            Storage::Bound { bound, space } => {
                 self.hasher.write_u8(4);
                 self.hasher.write_u32(bound.depth);
                 self.hasher.write_u32(bound.index);
+                self.hash_space(space, tree);
             }
             Storage::Join(id) => {
                 self.hasher.write_u8(5);
@@ -706,6 +705,7 @@ impl TypeHasher {
                 self.hasher.write_u32(*index);
             }
             Constant::Null => self.hasher.write_u8(0),
+            Constant::Undefined => self.hasher.write_u8(12),
             Constant::Boolean { value } => {
                 self.hasher.write_u8(2);
                 self.hash_boolean(*value);

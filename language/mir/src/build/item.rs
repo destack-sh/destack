@@ -1,12 +1,12 @@
 use crate::build::{BuildResult, FunctionBuilder, FunctionHeader, ModuleBuilder};
-use crate::{Binding, Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type};
+use crate::{Binding, Function, Global, GlobalInitializer, LocalNodeId, Mutability, TypeId};
 
 impl ModuleBuilder {
     /// Create one mutable global variable.
     pub fn global_variable(
         &mut self,
         name: &str,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         initializer: GlobalInitializer,
     ) -> LocalNodeId<Global> {
         let name = self.strings.intern(name);
@@ -23,7 +23,7 @@ impl ModuleBuilder {
     pub fn constant(
         &mut self,
         name: &str,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         initializer: GlobalInitializer,
     ) -> LocalNodeId<Global> {
         let name = self.strings.intern(name);
@@ -35,7 +35,7 @@ impl ModuleBuilder {
     pub fn global(
         &mut self,
         name: &str,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         mutability: Mutability,
         initializer: GlobalInitializer,
     ) -> LocalNodeId<Global> {
@@ -48,7 +48,7 @@ impl ModuleBuilder {
     pub fn external_global(
         &mut self,
         name: &str,
-        ty: LocalNodeId<Type>,
+        ty: TypeId,
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
         let name = self.strings.intern(name);

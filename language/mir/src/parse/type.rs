@@ -2,9 +2,10 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Copy, Extent, Field, FieldSpan, GenericArgument, GenericParameterDomain, Lifetime,
-    LifetimeParameter, LocalNodeId, Multiplicity, Reference, SignatureParameter, Space, Static,
-    StaticId, Storage, Type, TypeDeclarationSpans, TypeId, VariantCase,
+    Access, Copy, Extent, Field, FieldSpan, GenericArgument, GenericParameter,
+    GenericParameterDomain, LanguageItem, Lifetime, LifetimeParameter, Multiplicity, Reference,
+    SignatureParameter, Space, Static, StaticId, Storage, Type, TypeDeclarationSpans, TypeId,
+    VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -57,7 +58,6 @@ impl ReferenceQualifiers {
         let storage = match (self.storage, self.lifetime.extents.as_slice()) {
             (Some(storage), _) => storage,
             (None, [Extent::Parameter(index)]) => Storage::Parameter(*index),
-            (None, [Extent::Bound(slot)]) => Storage::Bound(*slot),
             (None, _) => return Err(ParseError::invalid("reference storage", pos)),
         };
 
@@ -87,7 +87,7 @@ struct ResolvedReferenceQualifiers {
 
 impl Parser {
     /// Parse a type expression and return its enclosing span.
-    pub(super) fn parse_type_part(&mut self) -> ParseResult<(LocalNodeId<Type>, Span)> {
+    pub(super) fn parse_type_part(&mut self) -> ParseResult<(TypeId, Span)> {
         let type_start = self.pos();
         let ty = self.parse_type()?;
         let span = self.span_from_parse_start(type_start);
@@ -172,14 +172,16 @@ impl Parser {
             return Ok(base);
         }
 
-        self.intern_type(Type::Application { base, arguments })
+        let copy = self.tree.copy(base);
+
+        self.intern_type(Type::Application { base, arguments }, copy)
     }
 
     /// Parse a type expression and append its span as one source segment.
     pub(super) fn parse_type_segment(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<LocalNodeId<Type>> {
+    ) -> ParseResult<TypeId> {
         let (ty, span) = self.parse_type_use_part()?;
         segment_spans.push(span);
 
@@ -308,7 +310,7 @@ impl Parser {
     }
 
     /// Parse a type expression.
-    pub(super) fn parse_type(&mut self) -> ParseResult<LocalNodeId<Type>> {
+    pub(super) fn parse_type(&mut self) -> ParseResult<TypeId> {
         let (kind, token_start, token_text) = {
             let token = self
                 .peek()
@@ -351,16 +353,17 @@ impl Parser {
                 return Err(ParseError::unexpected("type", kind, token_start));
             }
         };
+        let copy = self.parsed_copy(&ty);
 
-        self.intern_type(ty)
+        self.intern_type(ty, copy)
     }
 
     /// Parse a named type form.
-    fn parse_named_type(&mut self, name: &str, start: usize) -> ParseResult<LocalNodeId<Type>> {
+    fn parse_named_type(&mut self, name: &str, start: usize) -> ParseResult<TypeId> {
         if let Some(primitive) = Type::from_primitive_name(name) {
             self.bump();
 
-            return self.intern_type(primitive);
+            return self.intern_type(primitive, Copy::Yes);
         }
 
         // a type parameter in scope
@@ -368,9 +371,16 @@ impl Parser {
             let GenericParameterDomain::Type { .. } = parameter.domain else {
                 return Err(ParseError::invalid("type parameter", start));
             };
+            let copy = self.parameter_copy(parameter);
             self.bump();
 
-            return self.intern_type(Type::Parameter { index });
+            return self.intern_type(
+                Type::Parameter {
+                    index,
+                    referent: false,
+                },
+                copy,
+            );
         }
 
         let ty = match name {
@@ -394,13 +404,14 @@ impl Parser {
 
                 let base = self
                     .tree
-                    .intern_type(Type::Declaration { declaration: base });
+                    .intern_type(Type::Declaration { declaration: base }, Copy::No);
 
                 return self.apply_type_arguments(base, arguments);
             }
         };
+        let copy = self.parsed_copy(&ty);
 
-        self.intern_type(ty)
+        self.intern_type(ty, copy)
     }
 
     /// Parse the generic arguments on an identified type.
@@ -433,7 +444,6 @@ impl Parser {
         } else {
             match lifetime.extents.as_slice() {
                 [Extent::Parameter(index)] => Storage::Parameter(*index),
-                [Extent::Bound(bound)] => Storage::Bound(*bound),
                 _ => {
                     return Err(ParseError::invalid(
                         "region argument without storage",
@@ -469,7 +479,6 @@ impl Parser {
         if self.token_type(token) == TokenType::Lifetime {
             return match self.parse_extent()? {
                 Extent::Parameter(index) => Ok(Space::Parameter(index)),
-                Extent::Bound(bound) => Ok(Space::Bound(bound)),
                 _ => Err(ParseError::invalid("region space", start)),
             };
         }
@@ -477,6 +486,16 @@ impl Parser {
             self.bump();
 
             return Ok(space);
+        }
+
+        // read the space of one type's storage
+        if text == "PlaceOf" {
+            self.bump();
+            self.eat_token(TokenType::LessThan)?;
+            let (ty, _) = self.parse_type_use_part()?;
+            self.eat_token(TokenType::GreaterThan)?;
+
+            return Ok(Space::Of(ty));
         }
         if let Some((index, parameter)) = self.generic_parameter(&text)
             && matches!(
@@ -613,10 +632,7 @@ impl Parser {
         let (inner, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Newtype {
-            inner,
-            copy: Copy::No,
-        })
+        Ok(Type::Newtype { inner })
     }
 
     /// Parse a tuple or function signature type.
@@ -644,7 +660,7 @@ impl Parser {
     }
 
     /// Parse an explicitly lifetime-polymorphic function signature type.
-    fn parse_lifetime_signature_type(&mut self) -> ParseResult<LocalNodeId<Type>> {
+    fn parse_lifetime_signature_type(&mut self) -> ParseResult<TypeId> {
         self.parse_lifetime_scope(|parser, lifetimes| parser.parse_signature(lifetimes))
     }
 
@@ -673,7 +689,7 @@ impl Parser {
     pub(super) fn parse_signature(
         &mut self,
         lifetimes: Vec<LifetimeParameter>,
-    ) -> ParseResult<LocalNodeId<Type>> {
+    ) -> ParseResult<TypeId> {
         let parameters = self.parse_parenthesized_type_parameters()?;
         self.eat_token(TokenType::FatArrow)?;
 
@@ -685,14 +701,17 @@ impl Parser {
         &mut self,
         mut lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<SignatureParameter>,
-    ) -> ParseResult<LocalNodeId<Type>> {
+    ) -> ParseResult<TypeId> {
         let (result, _) = self.parse_type_use_part()?;
         self.parse_lifetime_where(&mut lifetimes)?;
-        self.intern_type(Type::FunctionSignature {
-            lifetimes,
-            parameters,
-            result,
-        })
+        self.intern_type(
+            Type::FunctionSignature {
+                lifetimes,
+                parameters,
+                result,
+            },
+            Copy::Yes,
+        )
     }
 
     /// Parse a fixed array type.
@@ -711,7 +730,7 @@ impl Parser {
     /// Parse one struct type and retain field declaration spans.
     pub(super) fn parse_struct_type(
         &mut self,
-    ) -> ParseResult<(LocalNodeId<Type>, Vec<FieldSpan>, TypeDeclarationSpans)> {
+    ) -> ParseResult<(TypeId, Vec<FieldSpan>, TypeDeclarationSpans)> {
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
         let open_brace_start = open_brace_token.start();
         let open_brace_length = self.tree.source_text(open_brace_token.span).len();
@@ -763,8 +782,12 @@ impl Parser {
             };
 
             // field node
-            let field = Field { name, ty };
-            fields.push(self.tree.intern_field(field, attributes));
+            let field = Field {
+                name,
+                ty,
+                attributes,
+            };
+            fields.push(self.tree.intern_field(field));
 
             // field delimiter
             if self.eat_token_if(TokenType::Semicolon) || self.eat_token_if(TokenType::Comma) {
@@ -808,11 +831,8 @@ impl Parser {
         let close_brace_length = self.tree.source_text(close_brace_token.span).len();
         let close_brace_span = self.span_at(close_brace_start, close_brace_length);
 
-        let struct_type = Type::Struct {
-            fields,
-            copy: Copy::No,
-        };
-        let type_id = self.intern_type(struct_type)?;
+        let struct_type = Type::Struct { fields };
+        let type_id = self.intern_type(struct_type, Copy::No)?;
 
         Ok((
             type_id,
@@ -872,7 +892,6 @@ impl Parser {
         Ok(Type::Variant {
             discriminant,
             cases,
-            copy: Copy::No,
         })
     }
 
@@ -1102,11 +1121,16 @@ impl Parser {
             return Ok(Storage::heap(space));
         }
 
-        // read the complete storage supplied for a region parameter
+        // read the complete storage supplied for a region parameter, a bound one in its space
         if self.peek_is(TokenType::Lifetime) {
             return match self.parse_extent()? {
                 Extent::Parameter(index) => Ok(Storage::Parameter(index)),
-                Extent::Bound(bound) => Ok(Storage::Bound(bound)),
+                Extent::Bound(bound) => {
+                    self.eat_token(TokenType::Ampersand)?;
+                    let space = self.parse_space_argument()?;
+
+                    Ok(Storage::Bound { bound, space })
+                }
                 _ => Err(ParseError::invalid("storage parameter", self.pos())),
             };
         }
@@ -1176,13 +1200,49 @@ impl Parser {
         Ok(term)
     }
 
+    /// Return the copy decision one parsed shape takes, a declaration's set by its attribute.
+    fn parsed_copy(&self, ty: &Type) -> Copy {
+        match ty {
+            Type::Reference { kind, .. }
+            | Type::Slice { kind, .. }
+            | Type::Dynamic { kind, .. }
+            | Type::Function { kind, .. } => kind.copy(),
+            Type::Uninit { .. } | Type::Struct { .. } | Type::Newtype { .. } | Type::Variant { .. } => {
+                Copy::No
+            }
+            Type::ManuallyDrop { value } => self.tree.copy(*value),
+            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
+                self.tree.copy(*element)
+            }
+            Type::Tuple { elements } => match elements.iter().all(|element| self.tree.copy(*element).is_yes()) {
+                true => Copy::Yes,
+                false => Copy::No,
+            },
+            _ => Copy::Yes,
+        }
+    }
+
+    /// Return the copy decision one type parameter's bounds write.
+    pub(super) fn parameter_copy(&self, parameter: &GenericParameter) -> Copy {
+        match &parameter.domain {
+            GenericParameterDomain::Type { bounds }
+                if bounds
+                    .iter()
+                    .any(|bound| LanguageItem::Copy.is_bound_by(&self.tree, *bound)) =>
+            {
+                Copy::Yes
+            }
+            _ => Copy::No,
+        }
+    }
+
     /// Return a canonical type id for the provided type shape.
-    pub(super) fn intern_type(&mut self, ty: Type) -> ParseResult<LocalNodeId<Type>> {
-        Ok(self.tree.intern_type(ty))
+    pub(super) fn intern_type(&mut self, ty: Type, copy: Copy) -> ParseResult<TypeId> {
+        Ok(self.tree.intern_type(ty, copy))
     }
 
     /// Return the canonical parse-recovery type.
-    pub(super) fn error_type(&mut self) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::Error)
+    pub(super) fn error_type(&mut self) -> TypeId {
+        self.tree.intern_type(Type::Error, Copy::Yes)
     }
 }

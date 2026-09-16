@@ -3,8 +3,9 @@ use destack_source::ModuleId;
 
 use crate::build::FunctionHeaderBuilder;
 use crate::{
-    DispatchTable, DropTable, EffectTable, Layout, LayoutId, LayoutTable, LocalNodeId,
-    ProfileTable, TargetLayout, Tree, Type, WitnessTable,
+    Copy,
+    DispatchTable, DropTable, EffectTable, Layout, LayoutId, LayoutTable, ProfileTable,
+    TargetLayout, Tree, Type, TypeId, WitnessTable,
 };
 
 /// The builder for one MIR module.
@@ -141,8 +142,8 @@ impl ModuleBuilder {
     }
 
     /// Insert one type node directly.
-    pub fn intern_type(&mut self, ty: Type) -> LocalNodeId<Type> {
-        self.tree.intern_type(ty)
+    pub fn intern_type(&mut self, ty: Type, copy: Copy) -> TypeId {
+        self.tree.intern_type(ty, copy)
     }
 
     /// Return the mutable tree and effect table together.
@@ -156,7 +157,7 @@ impl ModuleBuilder {
     }
 
     /// Record one computed layout for a type.
-    pub fn insert_layout(&mut self, ty: LocalNodeId<Type>, layout: Layout) -> LayoutId {
+    pub fn insert_layout(&mut self, ty: TypeId, layout: Layout) -> LayoutId {
         let id = self.layouts.insert(layout);
         self.layouts.set_layout_id(ty, id);
 

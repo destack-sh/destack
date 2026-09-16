@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Space, SpaceJoinId, Storage, StorageJoinId, Tree, TypeId};
+use crate::{Space, TypeId};
 
 /// Compact identity of one interned compile-time value.
 #[repr(transparent)]
@@ -88,67 +88,6 @@ pub enum StaticKey {
     Name(StringId),
     /// A positional index key.
     Index(u64),
-}
-
-impl Tree {
-    /// Intern one compile-time value.
-    pub fn intern_static(&mut self, value: Static) -> StaticId {
-        let hash = Self::intern_hash(&value);
-        if let Some(ids) = self.static_index.get(&hash) {
-            for id in ids {
-                if self.static_value(*id) == &value {
-                    return *id;
-                }
-            }
-        }
-
-        // retain one canonical value for subsequent identities
-        let id = StaticId(self.statics.allocate(value));
-        self.static_index.entry(hash).or_default().push(id);
-
-        id
-    }
-
-    /// Intern one space join expression in the supplied order.
-    pub fn intern_space_join(&mut self, spaces: impl IntoIterator<Item = Space>) -> Space {
-        let spaces: Vec<_> = spaces.into_iter().collect();
-        if let Some(index) = self.space_joins.iter().position(|join| *join == spaces) {
-            return Space::Join(SpaceJoinId(index as u32));
-        }
-
-        let id = SpaceJoinId(self.space_joins.len() as u32);
-        self.space_joins.push(spaces);
-
-        Space::Join(id)
-    }
-
-    /// Return the spaces one interned join names.
-    pub fn space_join(&self, id: SpaceJoinId) -> &[Space] {
-        &self.space_joins[id.0 as usize]
-    }
-
-    /// Intern one storage join expression in the supplied order.
-    pub fn intern_storage_join(&mut self, storages: impl IntoIterator<Item = Storage>) -> Storage {
-        let storages: Vec<_> = storages.into_iter().collect();
-        if let Some(index) = self.storage_joins.iter().position(|join| *join == storages) {
-            return Storage::Join(StorageJoinId(index as u32));
-        }
-
-        let id = StorageJoinId(self.storage_joins.len() as u32);
-        self.storage_joins.push(storages);
-
-        Storage::Join(id)
-    }
-
-    /// Return the possible locations in a storage join.
-    pub fn storage_join(&self, id: StorageJoinId) -> &[Storage] {
-        &self.storage_joins[id.0 as usize]
-    }
-
-    /// Return one interned compile-time value.
-    pub fn static_value(&self, id: StaticId) -> &Static {
-        self.statics.get(id.0)
-    }
 }
 
 impl Static {
