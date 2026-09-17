@@ -41,3 +41,4 @@ function label(value: Named): string {
 - closed: aliases, newtypes, and object shapes have one concrete representation
 - open: bare structural interfaces and indexed shapes are open and store through `Dynamic<T>`
 - indexed structural fields are readonly and return `T | undefined`; represented collections such as `Map` implement `IndexSet` for writes
+- keyed lookups borrow their keys: `Map<K, V>` and `SortedMap<K, V>` implement `Index<&immutable K>`, so `map[key]` borrows `key` and a `Copy` key passes by value

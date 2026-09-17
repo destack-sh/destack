@@ -20,11 +20,10 @@ description: Stay the same basically.
 -
 any (trivially) statically decidable predicate
 - `foo<const T: isize>() where T > 5`
-- measured cardinality (like measured variance)
+- `const N: Domain` works like in Rust, *not* const like in TS (just use `as const`)
 
-- generalised `const` parameter for value generics (literal types with a fixed cardinality of one, measured by usage like with variance)
-
-- mutable arrays are invariant, readonly array views are covariant, and explicit copies may widen element values
+- mutable arrays are invariant, which is the only sound option (via the general variance measurement rules)
+- readonly array views are covariant, and explicit copies may widen element values
 - managed values follow derived variance under aliasing; owned and readonly storage may be covariant; mutable borrows and raw pointers are exact
 
 ```ds:src/generics.ds

@@ -1,25 +1,22 @@
 ---
 title: Primitives
-description: Number, int32, uint32, int64, float32, character too.
+description: Number, yes, and int32, uint32, int64, float32, character.
 ---
 
 # Primitives
 
-- number, yes, but int32, uint32, int64, float32, character too
-- no real symbol use case left, so no `symbol` or `unique symbol`
-- string and bigint are just regular classes (String, BigInt)
-- variable sized integers
-- isize / usize
-- (sequence collections default to isize instead of number)
-- keep null and undefined, no strong reason not to
+TS++ has `number`, and adds explicit `float64`, `float32`, variable sized integers (`i<n>` for signed, `u<n>` for unsigned), pointer sized integers (`isize` / `usize`).
+And of course we keep `string` and `bigint` with identical behavior, and additionally add `character`.
 
-- keep freshness and widening
-- keep literal freshness
-- const / as const
+There was no real `symbol` use case left since we have nominality, so TS++ has no `symbol` or `unique symbol`.
 
-- integer overflow / underflow traps in all build models
-- explicit wrapping / saturating / checked arithmetic
-- only upcasts are allowed via `as`
+## Numbers
+
+Integer overflow and underflow traps (i.e. errors hard) in all build modes, and explicit wrapping / saturating / checked arithmetic is provided.
+
+## Bigint
+...
+
 
 ```ds:src/primitives.ds
 const enabled: boolean = true;
@@ -31,7 +28,7 @@ const name: string = "Destack";
 
 ## Conversions
 
-Conversions follow the same explicitness rule as the rest of Destack: `as` between numeric types is allowed only when every value of the source type is representable in the destination (lossless), and lossy conversions must pick their behavior explicitly:
+Conversions follow the same explicitness rule as the rest of TypeScript++: `as` between numeric types is allowed only when every value of the source type is representable in the destination (lossless), and lossy conversions must pick their behavior explicitly:
 
 ```ds
 declare const wide: int32;
@@ -63,7 +60,7 @@ port satisfies int;
 
 ## String
 
-Destack wants to be "TypeScript++", and thus we also follow JavaScript's string behavior: `string` length and positional access are _defined_ in terms of UTF-16 code units, and - just like TS's own string iterator - iteration yields Unicode code points (mapping to `char`).
+TS++ strings, like TS strings, follow JS `string` behavior: length and positional access are _defined_ in terms of UTF-16 code units, and - just like TS's own string iterator - iteration yields Unicode code points (mapping to `char`).
 
 ```ds
 const text = "héllo";
@@ -75,5 +72,5 @@ for (const c of text) {
 }
 ```
 
-Destack is stricter than TS for `string` indexing: `text[i]` gives a `char`, and indexing into a lone surrogate [traps](/docs/language/runtime/panics/).
+TS++ is stricter than TS for `string` indexing: `text[i]` gives a `char`, and indexing into a lone surrogate [traps](/docs/language/runtime/panics/).
 On native targets, `string` is the library's `String` with owned UTF-16 code units; on JS/TS targets, strings use the host engine's representation.

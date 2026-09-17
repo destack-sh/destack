@@ -11,7 +11,7 @@ description: Control Flow
 
 ## Loops
 
-For convenience and clarity, Destack supports `loop` as the explicit infinite loop form, and like other expressions, loops can produce a value through `break`.
+For convenience and clarity, TypeScript++ supports `loop` as the explicit infinite loop form, and like other expressions, loops can produce a value through `break`.
 
 ```ds
 declare function readInput(): string;

@@ -5,7 +5,8 @@ description: Expressions as values.
 
 # Expressions
 
-- keep all the ergonomics and muscle memory
+TS++ keeps all TS expressions forms - okay, removing some legacy weirdness like `with`, `delete`, and sequence expressions - but supports new ones in a more modern expression-oriented style.
+
 - remove some legacy weirdness
 - "expressions as values"
 - errors as values (Result)
@@ -36,13 +37,13 @@ deliveries += 1;
 
 ## Operators
 
-Destack extends TypeScript operators with typed overloads and some additional precision.
+TypeScript++ extends TypeScript operators with typed overloads and some additional precision.
 Logical operators (`&&`, `||`, `??`), optional chaining, assignment, and strict identity (`===`, `!==`) are not (directly) overloadable, as usual, and same for increment (`++`) and decrement (`--`).
 Compound assignment operators like `+=` are desugared into their component operations (`+` and `=`), and are thus indirectly overloadable.
 
 ## Block Expressions
 
-Destack supports "expressions as values" where (almost) all statements are expressions that produce values, and the last expression (no trailing `;`) becomes the value of the overall expression.
+TS++ supports "expressions as values" where (almost) all statements are expressions that produce values, and the last expression (no trailing `;`) becomes the value of the overall expression.
 
 ```ds
 declare const condition: boolean;

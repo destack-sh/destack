@@ -1,6 +1,6 @@
 ---
 title: Functions
-description: Functions, lambdas and captures.
+description: Functions and lambdas.
 ---
 
 # Functions
@@ -22,5 +22,9 @@ const double = (value: int32) => value * 2;
 
 - dispatch and coherence
 - need some .. coherent model
-- first-match wins
+- first-match wins, receiver access and exclusivity requirements included
 - function overloading *only* within same declaration scope (single struct, class, extension, ..)
+
+- an elided `this` uses the declaring type's default form: class receivers are managed, value-type receivers are `&readonly this`
+- dual-use methods declare their receiver: `this` takes its selected form, `&this` borrows it
+- borrow qualifiers default to mutable and aliasable; a borrow can only weaken its permissions

@@ -1,6 +1,6 @@
 ---
 title: Captures
-description: Functions, lambdas and captures.
+description: Control captures.
 ---
 
 # Captures
@@ -41,3 +41,4 @@ return (message) => {
 - repeatable calls require `&Function` or stronger access and preserve the environment
 - `&readonly Function` cannot be called; `&Function` grants the required mutable access
 - only `^Function<Parameters, Return, "once">` is valid; its call consumes the callable
+- a closure / coroutine carries the lifetime of every borrow it captures on its type (like a Rust closure or `Future + 'a`)
