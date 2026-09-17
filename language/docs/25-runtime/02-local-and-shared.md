@@ -20,10 +20,12 @@ description: local isolated heap per worker
 - worker-local stuff is .. local (Promise, Task, etc.)
 - no need for Send and Sync, basically the 90 degree rotated version of that classic pair
 
-- local borrowing managed is sound except across suspension
+- local borrowing of managed storage is sound, across suspension too: frames live in world memory and borrows are checked across calls and parks
 - how to keep local / shared safe
 - proper managed object types on shared
 
 - borrows are place polymorphic by default
 - reference types are local by default unless otherwise specified
 - `SharedSafe`
+- ordinary shared access is readonly; interior mutation types encapsulate synchronized access, and a guard's borrows end before it unlocks
+- shared publication must not retain unsynchronized writable aliases
