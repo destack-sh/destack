@@ -54,6 +54,7 @@ export function buildNavigation(documents: NavigationPage[], references: Navigat
         const section = chain[chain.indexOf(root) + 1];
         const visible: NavigationPage[] = [];
         function visit(document: NavigationPage) {
+            if (document.collection?.isListed === false && document.collection !== collection) return;
             visible.push(document);
             if (document === section || document.ancestors!.includes(section)) {
                 for (const child of children.get(document) ?? []) visit(child);

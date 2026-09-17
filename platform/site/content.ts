@@ -2,6 +2,8 @@
 export type Collection = {
     /// The visible collection name.
     title: string;
+    /// Whether this collection appears in navigation and discovery.
+    isListed?: boolean;
     /// The canonical collection root.
     route: string;
     /// The header keyboard shortcut.
@@ -25,6 +27,7 @@ export const collections: readonly Collection[] = [
     },
     {
         title: "Language",
+        isListed: false,
         route: "/docs/language/",
         shortcut: "l",
         sources: [

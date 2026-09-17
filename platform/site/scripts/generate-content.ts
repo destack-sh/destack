@@ -127,6 +127,7 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
     }
     buildNavigation(documents, references);
     appendChapterContents(documents);
+    applyWarnings([...documents, ...references]);
     const pages = [...documents, ...references, ...posts, blogIndex];
     const searchEntries = searchEntriesFor(posts, documents, references);
     if (!isCheck) {
@@ -152,6 +153,24 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
     }
 });
 
+/// Add the nearest inherited warning to HTML and portable page formats.
+function applyWarnings(pages: DocumentationPage[]) {
+    for (const page of pages) {
+        const warning = [page, ...(page.ancestors ?? []).toReversed()]
+            .find((ancestor) => ancestor.warning !== undefined)?.warning;
+        if (warning === undefined) continue;
+
+        // reuse GitHub alert rendering and keep the notice immediately below the title
+        const markdown = `> [!WARNING]\n${warning.split("\n").map((line) => `> ${line}`).join("\n")}\n`;
+        const html = renderMarkdown(markdown, { assets: [], route: page.route });
+        page.html = /<h1\b[^>]*>[\s\S]*?<\/h1>/.test(page.html)
+            ? page.html.replace(/<h1\b[^>]*>[\s\S]*?<\/h1>/, (title) => `${title}\n${html}`)
+            : html + page.html;
+        page.markdown = page.markdown.replace(/^(# [^\n]+)(?:\n|$)/m, (_match, title) => `${title}\n\n${markdown}\n`);
+        page.tokens = tokenEstimateFor(plainTextFor(page.markdown));
+    }
+}
+
 /// Append immediate child chapters to each authored index.
 function appendChapterContents(documents: DocumentationPage[]) {
     const chapters = documents.filter((page) => page.kind === "chapter");
@@ -169,6 +188,7 @@ function appendChapterContents(documents: DocumentationPage[]) {
 
         const children = documents.filter((page) =>
             (page.kind === "chapter" || page.kind === "catalog") && page.parent === chapter
+            && (page.collection?.isListed !== false || page.collection === chapter.collection)
         );
         if (children.length === 0) {
             continue;
@@ -351,6 +371,7 @@ function readDocumentSources() {
                     : parseFrontmatter(source, file);
                 requireString(metadata, "title", file);
                 requireString(metadata, "description", file);
+                if (metadata.warning !== undefined) requireString(metadata, "warning", file);
 
                 // reject frontmatter ordering
                 if (Object.hasOwn(metadata, "order")) {
@@ -376,6 +397,7 @@ function readDocumentSources() {
 
                 return {
                     isPackage: collection.readme === true,
+                    warning: metadata.warning as string | undefined,
                     description: metadata.description,
                     directory: collection.directory,
                     file,
@@ -751,7 +773,7 @@ function renderRouteModule(posts: RenderedPage[], documents: DocumentationPage[]
 /// Return the complete full-text search index.
 function searchEntriesFor(posts: ReturnType<typeof renderPosts>, documents: DocumentationPage[], references: DocumentationPage[]) {
     return [
-        ...documents.flatMap((document) => [
+        ...documents.filter((document) => document.collection?.isListed !== false).flatMap((document) => [
             {
                 context:
                     document.path === "index.md"
@@ -790,7 +812,7 @@ function searchEntriesFor(posts: ReturnType<typeof renderPosts>, documents: Docu
                     title: section.title,
                 })),
         ]),
-        ...references.map((reference) => ({
+        ...references.filter((reference) => reference.collection?.isListed !== false).map((reference) => ({
             context: reference.searchContext,
             kind: reference.searchKind,
             route: reference.route,

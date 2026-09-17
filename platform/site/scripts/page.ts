@@ -8,6 +8,8 @@ export type NavigationPage = {
     route: string;
     title: string;
     kind?: string;
+    /// A warning inherited by descendant pages.
+    warning?: string;
     parentRoute?: string;
     moduleRoute?: string;
     parent?: NavigationPage;

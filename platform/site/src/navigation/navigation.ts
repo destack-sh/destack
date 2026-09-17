@@ -18,7 +18,7 @@ export type NavigationLink = {
 /// The primary internal site destinations.
 export const primaryLinks: readonly NavigationLink[] = collections.flatMap(
     (collection) =>
-        collection.shortcut == undefined
+        collection.isListed === false || collection.shortcut == undefined
             ? []
             : [
                 {

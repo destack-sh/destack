@@ -6,7 +6,7 @@ import { navigationLinks } from "../navigation/navigation";
 /// The collections available in site search.
 export const searchScopes = [
     "All",
-    ...collections.map((collection) => collection.title),
+    ...collections.filter((collection) => collection.isListed !== false).map((collection) => collection.title),
     "Commands",
 ];
 
