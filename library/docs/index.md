@@ -1,11 +1,9 @@
 ---
 title: Libraries
-description: Reusable Destack packages.
+description: Destack first party packages.
 ---
 
 # Libraries
 
 > [!NOTE]
-> TODO: coming soon.
-
-The language's built-in APIs are documented in [Standard Library](/docs/language/standard-library/).
+> TODO.

@@ -1,6 +1,6 @@
 {
     "name": "@destack/test",
-    "version": "2026.8.3",
+    "version": "2026.9.0",
     "license": "MIT",
     "type": "module",
     "sideEffects": false,

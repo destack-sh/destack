@@ -1,0 +1,8 @@
+{
+    "name": "@destack/db",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "description": "Interact with SQL databases in Destack."
+}

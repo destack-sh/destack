@@ -1,0 +1,21 @@
+{
+    "name": "@destack/service",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "description": "Define Destack HTTP services.",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts",
+        "./client": "./src/client/index.ts",
+        "./server": "./src/server/index.ts"
+    },
+    "dependencies": {
+        "@orpc/client": "1.15.1",
+        "@orpc/contract": "1.15.1",
+        "@orpc/openapi": "1.15.1",
+        "@orpc/openapi-client": "1.15.1",
+        "@orpc/server": "1.15.1"
+    }
+}
