@@ -1,5 +1,6 @@
 ---
 title: Language
+warning: TypeScript++ is experimental and not generally available.
 description: Safe, sound, predictable, and above all familiar.
 ---
 

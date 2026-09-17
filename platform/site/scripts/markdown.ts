@@ -147,7 +147,11 @@ export function renderMarkdown(markdown: string, context: MarkdownContext) {
             const kind = alert[1].toLowerCase();
             const body = parser.parse(token.text.slice(alert[0].length));
 
-            return `<aside class="markdown-callout" data-kind="${kind}"><strong>${kind}</strong>${body}</aside>`;
+            const icon = kind === "warning" || kind === "caution"
+                ? '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5m0 3v.01"/></svg>'
+                : "";
+
+            return `<aside class="markdown-callout" data-kind="${kind}"><strong>${icon}${kind}</strong>${body}</aside>`;
         }
 
         // a final, separate attribution paragraph belongs outside the quoted words

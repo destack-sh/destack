@@ -404,7 +404,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown-callout {
-    padding: 1rem 1.25rem;
+    padding: 0.75rem 1rem;
     border: 0;
     border-left: 2px solid var(--publication-accent);
     background: var(--publication-page-muted);
@@ -416,6 +416,23 @@ summary::-webkit-details-marker {
 
 .markdown-callout > p:first-of-type {
     display: inline;
+}
+
+.markdown-callout > p + p {
+    margin-top: 0.75rem;
+}
+
+.markdown-callout[data-kind="warning"],
+.markdown-callout[data-kind="caution"] {
+    --callout-color: light-dark(#875600, #f2be59);
+    border: 1px solid light-dark(#d5ad57, #80632c);
+    border-left: 4px solid var(--callout-color);
+    background: light-dark(#fff3d6, #332a19);
+}
+
+.markdown-callout[data-kind="warning"] > strong,
+.markdown-callout[data-kind="caution"] > strong {
+    color: var(--callout-color);
 }
 
 /* frame examples with the shared publication rule */
@@ -441,10 +458,16 @@ summary::-webkit-details-marker {
 }
 
 .markdown-callout > strong {
-    margin-right: 0.5em;
+    margin-right: 0.5rem;
     font: inherit;
     font-weight: 600;
     text-transform: capitalize;
+}
+
+.markdown-callout > strong > svg {
+    display: inline;
+    margin-right: 0.5rem;
+    vertical-align: -0.15em;
 }
 
 .markdown-code figcaption,
