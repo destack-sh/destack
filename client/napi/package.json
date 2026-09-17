@@ -1,6 +1,6 @@
 {
     "name": "@destack/language-napi",
-    "version": "2026.8.3",
+    "version": "2026.9.0",
     "description": "Node-API language bindings for Destack",
     "license": "MIT",
     "type": "module",

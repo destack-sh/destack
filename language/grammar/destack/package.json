@@ -1,7 +1,7 @@
 {
   "name": "tree-sitter-destack",
   "private": true,
-  "version": "2026.8.3",
+  "version": "2026.9.0",
   "description": "Destack grammar for tree-sitter",
   "repository": "https://github.com/destack-sh/destack",
   "license": "MIT",

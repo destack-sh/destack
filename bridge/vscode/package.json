@@ -3,7 +3,7 @@
     "displayName": "Destack",
     "description": "Destack language and toolchain support for VS Code",
     "icon": "icon.png",
-    "version": "2026.8.3",
+    "version": "2026.9.0",
     "license": "MIT",
     "engines": {
         "vscode": "^1.125.0"

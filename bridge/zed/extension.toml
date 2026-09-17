@@ -1,7 +1,7 @@
 id = "destack"
 name = "Destack"
 description = "Destack language and toolchain support."
-version = "2026.8.3"
+version = "2026.9.0"
 schema_version = 1
 authors = ["Florian Cäsar <florian@symbol.industries>"]
 repository = "https://github.com/destack-sh/destack"

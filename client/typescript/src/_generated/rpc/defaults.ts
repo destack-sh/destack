@@ -17,6 +17,6 @@ export const limits: Limits = {
 /** Default TypeScript RPC peer description. */
 export const peer: Peer = {
     name: "destack-typescript",
-    version: "2026.8.3",
+    version: "2026.9.0",
     buildId: undefined,
 };

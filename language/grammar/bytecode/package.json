@@ -1,7 +1,7 @@
 {
   "name": "tree-sitter-destack-bytecode",
   "private": true,
-  "version": "2026.8.3",
+  "version": "2026.9.0",
   "description": "Destack Bytecode Assembly grammar for Tree-sitter",
   "license": "MIT",
   "type": "commonjs"
