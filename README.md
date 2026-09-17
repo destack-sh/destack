@@ -14,13 +14,12 @@
 
 **Destack is an absurdly integrated fully hackable open source computing stack.**
 
-The _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale.
-To standardize software and its production, we must first make all software systems fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
+Destack lets you own, manage and run your personal software stack with a beautifully integrated model, simple customisation and extension, and without any lock-in - all built around established TypeScript / Web standards.
+You can run Destack apps yourself, extend existing ones, build new ones, let the Destack platform host them for you, or do anything you want. 
+It's all yours.
 
-The centrepiece of any integrated software system must be a programming language.
-Destack is built around TypeScript++, our universal programming language evolved from TypeScript to serve *all* computing needs within one modern, familiar Web-shaped ecosystem.
-Basically: what if TypeScript were strict, sound, and also capable of being a serious systems language?
-That's TypeScript++.
+Ultimately, the _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale, which enables 
+To standardize software and its production, we must first make all software systems fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
 
 Destack is currently in alpha, but you can get a feel for it at: TODO
 
