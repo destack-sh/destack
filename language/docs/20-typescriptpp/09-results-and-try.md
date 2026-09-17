@@ -5,7 +5,7 @@ description: Errors as values.
 
 # Results and Try
 
-- Most subtractions and additions between from TS++ to TS are about soundness, but there is nothing intrinsically unsound about exceptions.
+Most changes from TS to TS++ are about soundness and completeness, but there is nothing intrinsically unsound about exceptions.
 - if there is one really bad error in modern managed languages, it's exceptions
 - this one is a little more subjective, but given the pain caused.. exceptions most die. we cannot have an invisible side channel infecting everything in the last computing stack
 - checked exceptions are even worse

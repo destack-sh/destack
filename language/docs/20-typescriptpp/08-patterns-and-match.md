@@ -32,3 +32,6 @@ const label = match (state) {
     State.Complete => "complete",
 };
 ```
+
+- enums keep their type under every narrowing
+- testing for `null` or `undefined` are just tag reads (no borrow needed)

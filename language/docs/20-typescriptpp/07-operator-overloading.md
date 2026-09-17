@@ -15,10 +15,14 @@ description: Serious math-y applications want operator overloading.
 ```ds:src/vector.ds
 import { Add } from "destack:ops";
 
-struct Vector2 { x: float64; y: float64; }
+struct Vector2 {
+    x: float64;
+    y: float64;
+}
 
 extension of Vector2 implements Add<Vector2> {
     type Output = Vector2;
+
     add(this, other: Vector2): Vector2 {
         Vector2 { x: this.x + other.x, y: this.y + other.y }
     }
