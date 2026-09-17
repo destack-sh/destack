@@ -45,7 +45,7 @@ export const blogIndex = {"markdownRoute":"/blog/index.md","textRoute":"/blog/in
 export const posts = [
     {
         author: "Florian",
-        contentRoute: "/_content/html/89e9a202c2944b21da690a39f0d523d9567bccdb4153a60253b6957a77b5de23.html",
+        contentRoute: "/_content/html/c009f5c01924d0e6e0a1f795878abaab813496d9e467dd8f0d32a28424131824.html",
         date: "2026-09-21",
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",
@@ -54,7 +54,7 @@ export const posts = [
         tableOfContents: [{"depth":1,"id":"the-software-that-could-be","text":"The Software That Could Be"},{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"the-system-and-the-meta-system","text":"The System and The Meta System"},{"depth":1,"id":"destack","text":"Destack"}],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 3799,
+        tokens: 3740,
     }
 ] as const satisfies readonly Post[];
 

@@ -690,6 +690,28 @@ summary::-webkit-details-marker {
     line-height: 1.5rem;
 }
 
+.markdown-mermaid [data-mermaid] {
+    padding: 1.5rem;
+}
+
+.markdown-mermaid [data-publication-caption] {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.markdown-mermaid [data-publication-caption]::before {
+    display: none;
+}
+
+.markdown-mermaid [data-publication-caption-title] {
+    grid-column: 1;
+}
+
+.markdown-mermaid svg {
+    display: block;
+    margin-inline: auto;
+    height: auto;
+}
+
 .markdown img {
     max-width: 100%;
     height: auto;

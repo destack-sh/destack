@@ -1,6 +1,6 @@
 import { escapeHtml, escapeAttribute } from "../src/content/html.ts";
 import type { Tokens, Renderer } from "marked";
-import { renderListing } from "../src/content/listing.ts";
+import { renderDiagram, renderListing } from "../src/content/listing.ts";
 import { Marked, marked } from "marked";
 import { existsSync } from "node:fs";
 import { extname, relative, resolve } from "node:path";
@@ -475,6 +475,13 @@ function requireAttribute(attributes: Record<string, string>, attribute: string,
 function renderCode(token: Tokens.Code, counters: { figure: number; }) {
     const fence = parseCodeFence(token.lang ?? "");
     const language = fence.language;
+
+    // retain diagram source until the reader loads Mermaid
+    if (language === "mermaid") {
+        const caption = fence.caption ?? fence.title;
+
+        return renderDiagram(token.text, { title: caption });
+    }
 
     if (language === "diagram") {
         const label = nextFigureLabel(counters);

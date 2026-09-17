@@ -10,6 +10,7 @@ import {
 } from "./source";
 import { tokens } from "../style/tokens.stylex";
 import { playVideo } from "./media";
+import { renderDiagrams } from "./diagram";
 import { publicationStyles } from "./publication.stylex";
 
 /// Properties for the shared reading frame.
@@ -56,7 +57,11 @@ type ReaderToolbarProps = {
 
 /// Render the common blog and documentation reading frame.
 export function Reader(props: ReaderProps) {
+    let article!: HTMLElement;
     const sourceCommands = createPageSourceCommands(props.source);
+
+    // render diagrams after the article mounts
+    onMount(() => onCleanup(renderDiagrams(article)));
 
     // align direct links after responsive layout and webfonts settle
     onMount(() => {
@@ -95,6 +100,7 @@ export function Reader(props: ReaderProps) {
             </aside>
 
             <article
+                ref={article}
                 {...stylex.attrs(publicationStyles.article)}
                 data-markdown-route={props.source.markdownRoute}
                 data-page-source
