@@ -5,6 +5,7 @@ export const prerenderRoutes = [
     "/blog/introducing-destack/",
     "/docs/",
     "/docs/setup/",
+    "/docs/architecture/",
     "/docs/language/",
     "/docs/language/setup/",
     "/docs/language/typescript/",

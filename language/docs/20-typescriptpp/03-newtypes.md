@@ -5,7 +5,7 @@ description: Proper nominality and newtypes.
 
 # Newtypes
 
-- usually use symbol branding in TS, which is kinda icky
+In TS land, we don't really have nominality of type aliases, so we're forced to use branding hacks with unique symbols to express nominal types:
 
 ```ts
 const BrandTypeId: unique symbol = Symbol.for("effect/Brand")
@@ -17,8 +17,7 @@ type ProductId = number & {
 }
 ```
 
-- proper nominality and newtypes
-- newtype, newtype interfaces (traits)
+TS++ adds proper newtypes with the `newtype` keyword, which functions much like `type`, except that the alias is nominal and must be explicitly cast into and out of:
 
 ```ds
 newtype UserId = string;
