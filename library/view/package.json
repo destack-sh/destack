@@ -1,0 +1,23 @@
+{
+    "name": "@destack/view",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts",
+        "./render": "./src/render/index.ts",
+        "./runtime": "./src/runtime.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./jsx-runtime": "./src/jsx-runtime.ts",
+        "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
+    },
+    "scripts": {
+        "check": "deno check ./src/index.ts ./src/render/index.ts ./src/runtime.ts ./src/inspect/index.ts ./src/jsx-runtime.ts ./src/jsx-dev-runtime.ts"
+    },
+    "dependencies": {
+        "@destack/signals": "workspace:*",
+        "solid-js": "2.0.0-rc.8",
+        "@solidjs/web": "2.0.0-rc.8"
+    }
+}
