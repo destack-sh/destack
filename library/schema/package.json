@@ -4,19 +4,19 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
+    "description": "Define portable validation schemas for Destack.",
     "scripts": {
-        "dev": "bun --hot src/index.ds",
-        "start": "NODE_ENV=production bun src/index.ds",
+        "check": "deno check src/index.ts src/validate/index.ts src/inspect/index.ts src/identifier/index.ts",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"
     },
     "exports": {
-        ".": "./src/index.ts"
+        ".": "./src/index.ts",
+        "./validate": "./src/validate/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./identifier": "./src/identifier/index.ts"
     },
     "dependencies": {
         "zod": "4.6.5"
-    },
-    "devDependencies": {
-        "@types/bun": "1.2.18"
     }
 }
