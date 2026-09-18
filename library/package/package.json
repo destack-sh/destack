@@ -1,0 +1,23 @@
+{
+    "name": "@destack/package",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Describe Destack packages, builds, and source code.",
+    "exports": {
+        "./error": "./src/error/index.ts",
+        ".": "./src/index.ts",
+        "./package": "./src/package/index.ts",
+        "./manifest": "./src/manifest/index.ts",
+        "./code": "./src/code/index.ts",
+        "./source": "./src/source/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./file": "./src/file/index.ts",
+        "./import-meta": { "types": "./src/package/import-meta.d.ts" }
+    },
+    "scripts": {
+        "check": "deno check src/index.ts src/code/index.ts src/source/index.ts src/inspect/index.ts src/file/index.ts src/package/import-meta.d.ts"
+    },
+    "dependencies": { "@destack/schema": "workspace:*" }
+}

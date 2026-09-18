@@ -7,6 +7,6 @@
     ],
     "inspect": {
         "module": "src/inspect/index.ts",
-        "export": "inspector"
+        "export": "inspectPackage"
     }
 }
