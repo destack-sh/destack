@@ -218,7 +218,7 @@ fn bench_compile(criterion: &mut Criterion) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
-        .find(|p| p.join("destack.json").exists())
+        .find(|p| p.join("Cargo.toml").exists() && p.join("package.json").exists())
         .unwrap_or(&manifest_dir)
         .to_path_buf();
 

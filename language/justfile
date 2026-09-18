@@ -10,70 +10,70 @@ _default:
 
 # --- build ---
 
-# run static checks
+# lint
 lint:
     cargo clippy --release {{ packages }} --no-deps
 
-# run privileged runtime platform tests for process, fs, and net
+# test runtime privileged
 test-runtime-privileged:
     bash scripts/test-runtime-privileged.sh
 
-# install runtime target toolchains and host prerequisites where possible
+# install toolchain
 install-toolchain:
     bash ../dev/toolchain/runtime-toolchain.sh install
 
-# inspect runtime target toolchain readiness on this host
+# doctor toolchain
 doctor-toolchain:
     bash ../dev/toolchain/runtime-toolchain.sh doctor
 
-# ensure runtime target toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
+# ensure toolchain
 ensure-toolchain:
     bash ../dev/toolchain/runtime-toolchain.sh ensure
 
-# lint runtime toolchain shell scripts
+# lint toolchain
 lint-toolchain:
     bash ../dev/toolchain/runtime-toolchain.sh lint
 
-# check runtime on linux host
+# check runtime linux
 check-runtime-linux:
     bash ../dev/toolchain/check-runtime-linux.sh
 
-# check runtime x11 backend against one headless x server on linux host
+# check runtime linux x11
 check-runtime-linux-x11:
     bash ../dev/toolchain/check-runtime-linux-x11.sh
 
-# check runtime for linux aarch64 target using one configured cross toolchain
+# check runtime linux aarch64
 check-runtime-linux-aarch64:
     bash ../dev/toolchain/check-runtime-linux-aarch64.sh
 
-# check runtime for windows gnu target using one configured mingw or zig cross toolchain
+# check runtime windows gnu
 check-runtime-windows-gnu:
     bash ../dev/toolchain/check-runtime-windows-gnu.sh
 
-# check runtime wayland backend against one real compositor on linux host
+# check runtime linux wayland
 check-runtime-linux-wayland:
     bash ../dev/toolchain/check-runtime-linux-wayland.sh
 
-# check runtime on macos host
+# check runtime macos rust
 check-runtime-macos-rust:
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --all-targets -- -D warnings
     LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo test -p destack_runtime -- --nocapture
 
-# check runtime on macos host
+# check runtime macos
 check-runtime-macos:
     just check-runtime-macos-rust
 
-# check runtime on windows host
+# check runtime windows msvc
 check-runtime-windows-msvc:
     bash ../dev/toolchain/check-runtime-windows-msvc.sh
 
-# build packages
+# build
 build:
     cargo build --release {{ packages }}
     just generate-schema
 
-# format code
+# format
 format:
     cargo fmt {{ packages }}
 
@@ -81,164 +81,164 @@ format:
 format-check:
     cargo fmt --check {{ packages }}
 
-# alias for format
+# format
 alias fmt := format
 
-# build docs
+# doc
 doc:
     cargo doc --release {{ packages }} --no-deps
 
-# clean build artifacts
+# clean
 clean:
     cargo clean
 
 # --- generate ---
 
-# regenerate all generated code
+# generate
 generate:
     just generate-unicode
     just generate-schema
 
-# regenerate unicode tables
+# generate unicode
 generate-unicode:
     cd unicode && python3 src/generate.py
 
-# generate JSON schema
+# generate schema
 generate-schema:
     cargo run -p destack_repository --features schema --bin generate-schema --release > ../bridge/vscode/destack.schema.json
     @echo "generated ../bridge/vscode/destack.schema.json"
 
 # --- test ---
 
-# run crate unit tests
+# test unit
 test-unit:
     cargo test --release --lib {{ packages-no-linter }}
     cargo test --release --lib -p destack_linter
 
-# bless compiler inline snapshots selected by a test filter
+# bless compiler
 bless-compiler filter="":
     DESTACK_BLESS=1 cargo test -p destack_compiler {{filter}} -- --test-threads=1
 
-# run tests
+# test
 test:
     just test-unit
     just test-query
     just test-formatter
     just test-grammar
 
-# default check
+# check
 check:
     just check-quick
 
-# normal check
+# check quick
 check-quick:
     just format-check
     just lint
     just test
 
-# check with slow suites
+# check full
 check-full:
     just format-check
     just lint
     just test-all
     just test-grammar
 
-# run all crate tests
+# test all
 test-all:
     cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
     cargo test --release --all-targets --no-fail-fast -p destack_linter
 
-# report heap allocation and side-metadata overhead
+# report heap overhead
 report-heap-overhead:
     cargo run -p destack_heap --example overhead --quiet
 
-# run linter tests
+# test linter
 test-linter:
     cargo test --release --all-targets --no-fail-fast -p destack_linter
 
-# run formatter tests
+# test formatter
 test-formatter:
     cargo test --release -p destack_formatter --test fixture
 
-# run Destack Tree-sitter corpus tests
+# test grammar destack
 test-grammar-destack:
     bash grammar/scripts/test-grammar.sh destack
 
-# run MIR Tree-sitter corpus tests
+# test grammar mir
 test-grammar-mir:
     bash grammar/scripts/test-grammar.sh mir
 
-# run Destack Bytecode Assembly Tree-sitter corpus tests
+# test grammar bytecode
 test-grammar-bytecode:
     bash grammar/scripts/test-grammar.sh bytecode
 
-# run the grammar validation stack
+# test grammar
 test-grammar:
     just test-grammar-destack
     just test-grammar-bytecode
     just test-grammar-mir
 
-# run query tests
+# test query
 test-query:
     cargo test --release -p destack_query --test fixture
 
 # --- bench ---
 
-# run the bench suite
+# bench
 bench:
     just bench-parser
     just bench-lexer
     just bench-compiler
 
-# run compiler benches
+# bench compiler
 bench-compiler:
     cargo bench -p destack_compiler -- destack_compile
 
-# run runtime footprint benches
+# bench runtime footprint
 bench-runtime-footprint:
     cargo bench -p destack_runtime --bench footprint
 
-# run compiler bench stats
+# bench compiler stats
 bench-compiler-stats args="--help":
     cargo run -p destack_compiler --example bench_stats --features bench -- {{args}}
 
-# run linter bench stats
+# bench linter stats
 bench-linter-stats args="--help":
     cargo run -p destack_linter --example bench_stats -- {{args}}
 
-# run lexer benches
+# bench lexer
 bench-lexer:
     cargo bench -p destack_parser --bench destack_lex
 
-# run parser benches
+# bench parser
 bench-parser:
     cargo bench -p destack_parser --bench destack_parse
 
-# run parser benches for one or more named corpora
+# bench parser corpus
 bench-parser-corpus corpus="library" trivia="documentation" stage="parse":
     DESTACK_PARSE_CORPUS={{corpus}} DESTACK_PARSE_TRIVIA={{trivia}} DESTACK_PARSE_STAGE={{stage}} cargo bench -p destack_parser --bench destack_parse
 
 # --- fuzz ---
 
-# run all fuzzers
+# fuzz
 fuzz duration="60":
     just fuzz-lexer {{duration}}
     just fuzz-parser {{duration}}
     just fuzz-formatter {{duration}}
 
-# run lexer fuzzer
+# fuzz lexer
 fuzz-lexer duration="300":
     cd parser/fuzz && cargo +nightly fuzz run lexer -- -max_total_time={{duration}}
 
-# run parser fuzzer
+# fuzz parser
 fuzz-parser duration="300":
     cd parser/fuzz && cargo +nightly fuzz run parser -- -max_total_time={{duration}}
 
-# run formatter fuzzer
+# fuzz formatter
 fuzz-formatter duration="300":
     cd formatter/fuzz && cargo +nightly fuzz run formatter -- -max_total_time={{duration}}
 
-# list fuzz targets
+# fuzz list
 fuzz-list:
     @echo "parser/fuzz:"
     @cd parser/fuzz && cargo +nightly fuzz list

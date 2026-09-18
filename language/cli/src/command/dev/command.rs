@@ -1,6 +1,6 @@
 use clap::Subcommand;
 
-use super::{ReleaseArgs, StatsArgs, VersionCommand};
+use super::{StatsArgs, VersionCommand};
 
 /// Developer subcommands for compiler development and release management.
 #[derive(Subcommand, Debug, Clone)]
@@ -8,8 +8,6 @@ use super::{ReleaseArgs, StatsArgs, VersionCommand};
 pub enum DevCommand {
     /// Codebase statistics (lines of code and tokens).
     Stats(StatsArgs),
-    /// Integrated release flow for preflight and publish.
-    Release(ReleaseArgs),
     /// Version management commands.
     #[command(subcommand)]
     Version(VersionCommand),

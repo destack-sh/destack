@@ -6,17 +6,14 @@ use clap::Subcommand;
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
-use destack_repository::{Destack, parse_jsonc_text};
 use destack_source::glob;
 
 use crate::console;
 
 const FILE_GLOBS_TO_UPDATE: &[&str] = &[
-    "destack.json",
     "README.md",
     "Cargo.toml",
     "package.json",
-    "bun.lock",
     "language/library/destack.json",
     "language/grammar/destack/tree-sitter.json",
     "language/grammar/bytecode/tree-sitter.json",
@@ -34,9 +31,7 @@ const FILE_GLOBS_TO_IGNORE: &[&str] = &[
     "bridge/fixture/",
     "bridge/zed/grammars/",
 ];
-const MANIFEST_PATH: &str = "destack.json";
-const BUN_LOCK_PATH: &str = "bun.lock";
-const BUN_PACKAGES_HEADER: &str = "\n  \"packages\": {";
+const MANIFEST_PATH: &str = "package.json";
 
 /// Calendar version with `year.month.micro` format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -248,15 +243,14 @@ fn show_version() -> Result<(), String> {
 fn read_version() -> Result<String, String> {
     let text = fs::read_to_string(MANIFEST_PATH)
         .map_err(|error| format!("failed to read {MANIFEST_PATH}: {error}"))?;
-    let source = parse_jsonc_text(&text)
+    let manifest: serde_json::Value = serde_json::from_str(&text)
         .map_err(|error| format!("failed to parse {MANIFEST_PATH}: {error}"))?;
-    let manifest = serde_json::from_value::<Destack>(source)
-        .map_err(|error| format!("failed to decode {MANIFEST_PATH}: {error}"))?;
     let version = manifest
-        .version
-        .ok_or_else(|| format!("{MANIFEST_PATH} does not declare a version"))?;
+        .get("version")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| format!("{MANIFEST_PATH} does not declare a string version"))?;
 
-    Ok(version)
+    Ok(version.to_string())
 }
 
 /// Collect tracked version paths without duplicates.
@@ -305,24 +299,6 @@ fn replace_version(
     current: &str,
     version: Version,
 ) -> Result<String, String> {
-    if path == Path::new(BUN_LOCK_PATH) {
-        let Some((workspaces, packages)) = text.split_once(BUN_PACKAGES_HEADER) else {
-            return Err(format!("{} has no packages table", path.display()));
-        };
-
-        // require the lockfile workspace table to match the repository
-        if !workspaces.contains(current) {
-            return Err(format!(
-                "{} workspaces do not contain canonical version {current}",
-                path.display()
-            ));
-        }
-
-        let workspaces = workspaces.replace(current, &version.to_string());
-
-        return Ok(format!("{workspaces}{BUN_PACKAGES_HEADER}{packages}"));
-    }
-
     // require ordinary tracked files to contain the repository version
     if !text.contains(current) {
         return Err(format!(

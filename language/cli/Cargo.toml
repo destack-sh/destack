@@ -6,6 +6,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
+default-run = "destack"
 
 [features]
 default = ["dev"]
@@ -15,6 +16,11 @@ schema = ["schemars"]
 [lib]
 path = "src/lib.rs"
 doctest = false
+
+[[bin]]
+name = "generate-cli-schema"
+path = "src/bin/generate-cli-schema.rs"
+required-features = ["schema"]
 
 [dependencies]
 # language

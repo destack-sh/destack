@@ -10,7 +10,7 @@ use crate::{
 #[cfg(feature = "dev")]
 use crate::command::DevCommand;
 #[cfg(feature = "dev")]
-use crate::command::dev::{release, stats};
+use crate::command::dev::stats;
 use crate::command::{
     BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs, DoctorArgs,
     ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs, RewriteArgs, RunArgs,
@@ -201,7 +201,6 @@ impl Command {
             #[cfg(feature = "dev")]
             Self::Dev(subcommand) => match subcommand {
                 DevCommand::Stats(args) => stats::run(&args),
-                DevCommand::Release(args) => release::run(&args),
                 DevCommand::Version(command) => command.run(),
             },
         }

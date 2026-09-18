@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CommandReport",
+  "description": "Report output for a command invocation.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "description": "Report schema version.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "command": {
+      "description": "Command name.",
+      "type": "string"
+    },
+    "status": {
+      "description": "Result status.",
+      "$ref": "#/$defs/CommandStatus"
+    },
+    "exit_code": {
+      "description": "Exit code returned by the command.",
+      "type": "integer",
+      "format": "int32"
+    },
+    "summary": {
+      "description": "Short summary for text output.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "diagnostics": {
+      "description": "Diagnostics payload for tooling.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DiagnosticOutputJson"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "error": {
+      "description": "Structured error payload when diagnostics are not available.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CommandError"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "data": {
+      "description": "Command-specific payload."
+    }
+  },
+  "required": [
+    "schema_version",
+    "command",
+    "status",
+    "exit_code"
+  ],
+  "$defs": {
+    "CommandStatus": {
+      "description": "Result status for a command report.",
+      "oneOf": [
+        {
+          "description": "Command completed successfully.",
+          "type": "string",
+          "const": "success"
+        },
+        {
+          "description": "Command failed.",
+          "type": "string",
+          "const": "failure"
+        }
+      ]
+    },
+    "DiagnosticOutputJson": {
+      "description": "Diagnostic output payload for JSON output.",
+      "type": "object",
+      "properties": {
+        "diagnostics": {
+          "description": "The diagnostics list.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DiagnosticJson"
+          }
+        },
+        "summary": {
+          "description": "Summary counts by severity.",
+          "$ref": "#/$defs/DiagnosticSummaryJson"
+        },
+        "statistics": {
+          "description": "Optional statistics grouped by diagnostic id.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/DiagnosticStatistic"
+          }
+        }
+      },
+      "required": [
+        "diagnostics",
+        "summary"
+      ]
+    },
+    "DiagnosticJson": {
+      "description": "Diagnostic entry serialized in JSON output.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The canonical diagnostic id.",
+          "type": "string"
+        },
+        "severity": {
+          "description": "The severity label.",
+          "type": "string"
+        },
+        "message": {
+          "description": "The diagnostic message.",
+          "type": "string"
+        },
+        "file": {
+          "description": "The file path or label.",
+          "type": "string"
+        },
+        "line": {
+          "description": "The 1-based starting line.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "column": {
+          "description": "The 1-based starting column.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "end_line": {
+          "description": "The 1-based ending line.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "end_column": {
+          "description": "The 1-based ending column.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "severity",
+        "message",
+        "file",
+        "line",
+        "column",
+        "end_line",
+        "end_column"
+      ]
+    },
+    "DiagnosticSummaryJson": {
+      "description": "Summary counts for diagnostics.",
+      "type": "object",
+      "properties": {
+        "errors": {
+          "description": "Total error count.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "warnings": {
+          "description": "Total warning count.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "notes": {
+          "description": "Total note count.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "errors",
+        "warnings",
+        "notes"
+      ]
+    },
+    "DiagnosticStatistic": {
+      "description": "Diagnostic statistic counts.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The canonical diagnostic id.",
+          "type": "string"
+        },
+        "count": {
+          "description": "The count of the diagnostic.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "severity": {
+          "description": "The severity of the diagnostic.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "count",
+        "severity"
+      ]
+    },
+    "CommandError": {
+      "description": "Structured error payload for command failures.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "Machine-readable error code.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Error category for tooling.",
+          "type": "string"
+        },
+        "message": {
+          "description": "Human-readable error message.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "kind",
+        "message"
+      ]
+    }
+  }
+}

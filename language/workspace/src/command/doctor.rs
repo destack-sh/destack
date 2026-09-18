@@ -184,7 +184,7 @@ impl CommandContext<'_> {
             vec![
                 probe_tool("rustc", &["--version"]),
                 probe_tool("cargo", &["--version"]),
-                probe_tool("bun", &["--version"]),
+                probe_tool("deno", &["--version"]),
                 probe_tool("node", &["--version"]),
             ]
         } else {

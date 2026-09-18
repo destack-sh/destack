@@ -18,9 +18,6 @@ const RELEASE_REPOSITORY_ENV: &str = "DESTACK_REPOSITORY";
 /// Environment variable that marks npm managed launches.
 const MANAGED_BY_NPM_ENV: &str = "DESTACK_MANAGED_BY_NPM";
 
-/// Environment variable that marks bun managed launches.
-const MANAGED_BY_BUN_ENV: &str = "DESTACK_MANAGED_BY_BUN";
-
 /// Install script file name for unix hosts.
 #[cfg(not(windows))]
 const INSTALL_SCRIPT_NAME: &str = "install.sh";
@@ -49,7 +46,7 @@ const RELEASE_MANIFEST_SIGNATURE_FILE_NAME: &str = "manifest.json.asc";
 
 /// Embedded release signing public key file.
 const RELEASE_SIGNING_PUBLIC_KEY_TEXT: &str =
-    include_str!("../../../../app/cli/install/release-signing-public.asc");
+    include_str!("../../install/release-signing-public.asc");
 
 /// Expected release signing subkey fingerprint.
 const RELEASE_SIGNING_KEY_FINGERPRINT: &str = "78B0620AADBEB54BF9430FA03F5F022683F8CF27";
@@ -176,13 +173,7 @@ pub fn run(args: &UpdateArgs) -> i32 {
     let requested_version = normalize_requested_version(&args.version);
     let release_repository = resolve_release_repository();
     let managed_by_npm = std::env::var_os(MANAGED_BY_NPM_ENV).is_some();
-    let managed_by_bun = std::env::var_os(MANAGED_BY_BUN_ENV).is_some();
-    let action = detect_update_action(
-        managed_by_npm,
-        managed_by_bun,
-        &release_repository,
-        &requested_version,
-    );
+    let action = detect_update_action(managed_by_npm, &release_repository, &requested_version);
 
     // verify signed release metadata when required
     let mut verified_release_metadata = None;
@@ -299,7 +290,6 @@ fn should_verify_release_metadata(args: &UpdateArgs, action: &UpdateAction) -> b
 /// Detect the update action from installation context.
 fn detect_update_action(
     managed_by_npm: bool,
-    managed_by_bun: bool,
     release_repository: &str,
     requested_version: &str,
 ) -> UpdateAction {
@@ -308,19 +298,6 @@ fn detect_update_action(
         return UpdateAction::PackageManager {
             channel: "npm",
             command: "npm",
-            args: vec![
-                "install".to_string(),
-                "-g".to_string(),
-                resolve_npm_package_spec(requested_version),
-            ],
-        };
-    }
-
-    // select bun when explicitly marked
-    if managed_by_bun {
-        return UpdateAction::PackageManager {
-            channel: "bun",
-            command: "bun",
             args: vec![
                 "install".to_string(),
                 "-g".to_string(),
@@ -1062,7 +1039,7 @@ mod tests {
 
     #[test]
     fn test_detect_update_action_for_npm_env() {
-        let action = detect_update_action(true, false, "destack-sh/destack", "latest");
+        let action = detect_update_action(true, "destack-sh/destack", "latest");
 
         assert!(matches!(
             action,
@@ -1076,7 +1053,7 @@ mod tests {
 
     #[test]
     fn test_detect_update_action_for_standalone_path() {
-        let action = detect_update_action(false, false, "destack-sh/destack", "latest");
+        let action = detect_update_action(false, "destack-sh/destack", "latest");
 
         assert!(matches!(action, UpdateAction::StandaloneInstaller { .. }));
     }

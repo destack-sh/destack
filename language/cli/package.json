@@ -1,0 +1,42 @@
+{
+    "name": "@destack/language-cli",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "description": "Destack command-line interface",
+    "bin": {
+        "destack": "npm/dist/bin/destack.js",
+        "ds": "npm/dist/bin/ds.js",
+        "dsc": "npm/dist/bin/dsc.js"
+    },
+    "exports": {
+        "./launcher": "./npm/dist/index.js"
+    },
+    "files": [
+        "npm/dist"
+    ],
+    "scripts": {
+        "build": "deno run -A npm:typescript/tsc -p ./npm/tsconfig.build.json",
+        "stage:binaries": "deno run -A ./npm/stage-binaries.ts",
+        "stage:artifacts": "bash ./install/stage-npm-binaries-from-artifacts.sh",
+        "prepublishOnly": "deno task build && deno run -A ./npm/validate-main-package.ts",
+        "publish:dry": "npm publish --dry-run --access public",
+        "publish:live": "npm publish --access public"
+    },
+    "optionalDependencies": {
+        "@destack/language-cli-darwin-arm64": "2026.9.0",
+        "@destack/language-cli-darwin-x64": "2026.9.0",
+        "@destack/language-cli-linux-arm64-gnu": "2026.9.0",
+        "@destack/language-cli-linux-x64-gnu": "2026.9.0",
+        "@destack/language-cli-win32-x64-msvc": "2026.9.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "devDependencies": {
+        "typescript": "5.8.3"
+    }
+}

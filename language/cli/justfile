@@ -1,0 +1,117 @@
+set shell := ["bash", "-cu"]
+set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+set dotenv-load := true
+set dotenv-filename := "../../.env.local"
+
+# selected crates
+packages := "-p destack_language_cli"
+format-packages := "-p destack_language_cli"
+test-packages := "-p destack_language_cli"
+
+_default:
+    @just --list --unsorted
+
+# --- build ---
+
+# lint
+lint:
+    cargo clippy --release {{ packages }}
+
+# build
+build:
+    cargo build --release {{ packages }}
+
+# format
+format:
+    cargo fmt {{ format-packages }}
+
+# check formatting
+format-check:
+    cargo fmt --check {{ format-packages }}
+
+# format
+alias fmt := format
+
+# clean
+clean:
+    cargo clean
+
+# --- test ---
+
+# test
+test:
+    cargo test --release --all-targets {{ test-packages }}
+
+# check
+check:
+    just check-quick
+
+# check quick
+check-quick:
+    just format-check
+    just lint
+    just test
+
+# check full
+check-full:
+    just check-quick
+
+# --- schema ---
+
+# generate schema
+generate-schema:
+    cargo run -p destack_language_cli --features schema --bin generate-cli-schema --release > generated/cli-report.schema.json
+
+# --- release ---
+
+# build cli binaries
+build-cli-binaries:
+    bash scripts/build-binaries.sh
+
+# package cli release
+package-cli-release version="" artifacts="install/artifacts":
+    bash install/package-release-artifacts.sh "{{version}}" "{{artifacts}}"
+
+# validate cli release
+validate-cli-release version="" artifacts="install/artifacts":
+    bash install/validate-release-artifacts.sh "{{version}}" "{{artifacts}}"
+
+# test cli install
+test-cli-install version="" artifacts="install/artifacts":
+    bash install/test-install.sh "{{version}}" "{{artifacts}}"
+
+# stage cli binaries from artifacts
+stage-cli-binaries-from-artifacts version="" artifacts="install/artifacts":
+    bash install/validate-release-artifacts.sh "{{version}}" "{{artifacts}}"
+    bash install/stage-npm-binaries-from-artifacts.sh "{{version}}" "{{artifacts}}"
+    npm run stage:binaries
+
+# preflight cli publish
+preflight-cli-publish version="" artifacts="install/artifacts":
+    just validate-cli-release "{{version}}" "{{artifacts}}"
+    just test-cli-install "{{version}}" "{{artifacts}}"
+    just stage-cli-binaries-from-artifacts "{{version}}" "{{artifacts}}"
+    just validate-cli-publish
+
+# validate cli publish
+validate-cli-publish:
+    just publish-cli-targets --dry-run
+    npm publish --dry-run --access public
+
+# publish cli targets
+publish-cli-targets dry="--dry-run":
+    bash scripts/publish-targets.sh "{{dry}}"
+
+# publish cli
+publish-cli dry="--dry-run":
+    just validate-cli-publish
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: validated npm publish payloads"; \
+    else \
+        just publish-cli-targets ""; \
+        npm publish --access public; \
+    fi
+
+# publish
+publish dry="--dry-run":
+    just publish-cli "{{dry}}"

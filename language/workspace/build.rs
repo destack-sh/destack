@@ -5,11 +5,10 @@ use std::{env, fs};
 
 const BUILD_ID_BYTES: usize = 16;
 const BUILD_ID_ENVIRONMENT: &str = "DESTACK_BUILD_ID";
-const BUILD_PATHS: [&str; 6] = [
+const BUILD_PATHS: [&str; 5] = [
     ".cargo/config.toml",
     "Cargo.lock",
     "Cargo.toml",
-    "destack.json",
     "language",
     "rust-toolchain.toml",
 ];
