@@ -62,14 +62,14 @@ To industrialise the precise manufacture of quality software, we need entirely _
 :::
 
 If software is solved, why is there still so much bad software?
-Everybody can vibecode a database, the tests pass, output is "byte-identical", but nobody dares using it.
+Perhaps "coding is solved", maybe everyone can vibecode a database, and the tests pass, the output is "byte-identical", but - nobody dares using it.
 Strange.
 Something is clearly amiss.
 How do we put the "engineering" into "software engineering"?
 
 # Higher Order Programming
 
-The history of programming is one of increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script whatever.
+The history of programming is one of increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script however it likes.
 And that's great.
 
 Climbing the ladder of abstraction yields more output for every bit of input.
@@ -90,10 +90,10 @@ We used to solve software-shaped problems with artisinal human-directed next-cha
 :::
 
 The idea of programming beyond code is almost as old as code itself.
-From the onset, the pioneers dreamed of natural, multimodal human computer interaction, to be able to "program".
-We have, roughly, two very successful approaches to this branch of higher order programming: the humble spreadsheet (still the most popular application platform), and games.
+From the onset, the pioneers dreamed of natural, multimodal human computer interaction, to be able to "program" by conversation.
+In some ways, the current mode is unprecedented, but fundamentally, we already _have_ established examples of "higher order multimodal programming": the humble spreadsheet, and game engines.
 
-The history of game development parallels and previsages the history of software development, mostly because games faced even tighter constraints on everything, and even more competitive pressure to get the most out of hardware, all the while working with multidiscplinary teams.
+The history of game development often precedes general software development, mostly because games faced even tighter constraints on everything, and even more competitive pressure to get the most out of hardware, all the while working with multidiscplinary teams.
 Early on, game development was also a complete schlep, and only a tiny guild of brilliant nerds could pull off presentable commercial games.
 
 In the early days, to get a game started, everyone had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
@@ -103,10 +103,11 @@ Then, eventually, we figured out how to package the hard bits into reusable comp
 [Character editing in UbiArt](https://www.youtube.com/watch?v=B_QhZYTukac&t=35s) — Ubisoft, demonstration excerpt.
 :::
 
-Initially, when using a game engine, developers didn't get quite the same level of control, or even hit _quite_ the same high notes as the best engineers could without.
-But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before as designers, writers, and artists, could now contribute _directly_ to the product, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
+Initially, developers using game engines didn't get quite the same level of control, or hit _quite_ the same high notes as those without.
+But it was a lot more productive, and it enabled a scale of project and a type of contributor that was impossible before - designers, writers, and artists, could now contribute _directly_, be it via Lua, visual scripting, material editors, or more advanced in-game level designers.
 
-Game developers never "superseded" code, even as a lot of code was abstracted away for many use cases that previously required it, and you can now get very far building real games without looking at any "real" code at all.
+Games never superseded code, even as a lot of code was abstracted away for use cases that previously required it.
+It's still there, and it's still important, but, thanks to rich game engines, you can now build commercial games without thinking in code.
 Now, when building a game, sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game, sometimes you watch others play the game, and so it goes.
 
 # The System and The Scaffolding
@@ -131,26 +132,19 @@ This has always been true for any real symbolic software, but it is especially t
 
 Our tools for building, interacting with, understanding software are astoundingly primitive.
 I want to understand shape of software and the space of all possible software that solves all the problems I'm interested in, and then navigate that efficiently.
-If software is going to run _everything_, how do we make sure it's the right software?
-What is the ideal, final stack?
+If software is going to run _everything_, faster than anyone can verify, how do we make sure it's the right software, built the right way?
 
 # Destack
 
-TODO
+Software should be open, hackable, and fast.
+Pick two?
 
-In programming, a more constrained language like C or Go is generally considered more "elegant" than C++ or Rust.
-Minimal languages and the "Unix philosophy" are a great idea in a world of heterogenous stacks with humans doing most of the work.
 
-What is the most boring universal stack we can build?
-Like, I don't want to learn a new and totally different stack, I already know the modern ones pretty well, and I have better things to do.
-The Web is pretty great, TypeScript is pretty great, how far can we take that?
+The Web and TypeScript are pretty great.
+Everybody knows TypeScript, everybody knows the Web, Web standards have been refined over decades, the Web already happens to be the largest application platform ever.
+And while TypeScript is not a serious systems language _yet_, it definitely could be, and that would complete the set.
 
-By now, he space of general purpose software architecture is well explored, which is why we have so many frameworks and meta-frameworks solving largely the same problems in largely the same ways
-
-:::figure width="440" src="./decapoda.jpg" alt="Ernst Haeckel’s illustration of ten crustaceans, including crabs and shrimp, arranged against a black background."
-[Decapoda, 1904](https://commons.wikimedia.org/wiki/File:Haeckel_Decapoda.jpg) — Ernst Haeckel, public domain.
-:::
-
+<!--Of course, the "Web as a platform" has been tried before-->
 
 :::figure src="./picasso-bull.jpg" alt="Eleven versions of Picasso’s bull, progressing from a detailed animal to a few essential lines."
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
@@ -159,7 +153,8 @@ By now, he space of general purpose software architecture is well explored, whic
 We have long figured out that opinionated formatters are a great idea to remove silly syntax debates and just standardized the _appearence_ of code once and for all.
 Maybe the syntax is not _perfect_ by your personal standards, but it removes unproductive arguments, and that's the benefit.
  <!--and meta-frameworks serves a similar need.-->
-Why not just go all the way, and fully standardize the _shape_ of code? Not just syntax, not just linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures.
+Why not just go all the way, and fully standardize the _shape_ of code? 
+Beyond syntax and linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures.
 
 <!-- TODO -->
 But how to get from here to fully standardized? 
