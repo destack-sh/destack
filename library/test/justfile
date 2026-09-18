@@ -1,0 +1,9 @@
+set shell := ["bash", "-cu"]
+
+# check
+check:
+    deno task check
+
+# format
+format:
+    deno fmt src package.json destack.json tsconfig.json

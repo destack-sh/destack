@@ -4,14 +4,26 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
+    "description": "Write, run, and inspect Destack tests.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./config": "./src/config/index.ts",
+        "./runner": "./src/runner/index.ts",
+        "./inspect": "./src/inspect/index.ts"
+    },
     "scripts": {
-        "dev": "bun --hot src/index.ds",
-        "start": "NODE_ENV=production bun src/index.ds",
+        "check": "deno check ./src/index.ts ./src/config/index.ts ./src/runner/index.ts ./src/inspect/index.ts",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"
     },
-    "dependencies": {},
-    "devDependencies": {
-        "@types/bun": "1.2.18"
+    "dependencies": {
+        "@destack/schema": "workspace:*",
+        "vite": "8.3.0",
+        "vitest": "5.0.1",
+        "@vitest/coverage-v8": "5.0.1",
+        "@vitest/ui": "5.0.1"
+    },
+    "engines": {
+        "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
     }
 }
