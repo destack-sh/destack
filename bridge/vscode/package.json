@@ -185,11 +185,11 @@
     },
     "scripts": {
         "compile": "tsc --noEmit",
-        "bundle": "bun x esbuild src/extension/index.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
-        "vscode:prepublish": "bun run compile && bun run bundle",
-        "package": "bun x vsce package --no-dependencies",
-        "publish:live": "bun x vsce publish --no-dependencies",
-        "test:grammar": "bun x vscode-tmgrammar-test --grammar destack-ds.tmLanguage.json \"../fixture/highlight/destack/**/*.txt\" && bun x vscode-tmgrammar-test --grammar destack-dsm.tmLanguage.json \"../fixture/highlight/mir/*.txt\" && bun x vscode-tmgrammar-test --grammar destack-dsa.tmLanguage.json \"../fixture/highlight/bytecode/*.txt\""
+        "bundle": "deno run -A npm:esbuild src/extension/index.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
+        "vscode:prepublish": "deno task compile && deno task bundle",
+        "package": "deno run -A npm:@vscode/vsce package --no-dependencies",
+        "publish:live": "deno run -A npm:@vscode/vsce publish --no-dependencies",
+        "test:grammar": "deno run -A npm:vscode-tmgrammar-test --grammar destack-ds.tmLanguage.json \"../fixture/highlight/destack/**/*.txt\" && deno run -A npm:vscode-tmgrammar-test --grammar destack-dsm.tmLanguage.json \"../fixture/highlight/mir/*.txt\" && deno run -A npm:vscode-tmgrammar-test --grammar destack-dsa.tmLanguage.json \"../fixture/highlight/bytecode/*.txt\""
     },
     "dependencies": {
         "extract-zip": "^2.0.1",

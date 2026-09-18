@@ -8,95 +8,81 @@ packages := "-p destack_zed"
 _default:
     @just --list --unsorted
 
-# --- setup ---
-
-# validate supported bridge toolchains
-install-toolchain:
-    bash ../client/scripts/client-toolchain.sh install
-
-# inspect supported bridge toolchains
-doctor-toolchain:
-    bash ../client/scripts/client-toolchain.sh doctor
-
-# ensure supported bridge toolchains
-ensure-toolchain:
-    bash ../client/scripts/client-toolchain.sh ensure
-
 # --- build ---
 
-# build editor bridges
+# build
 build:
     just build-vscode
     just build-zed
 
-# build vscode extension
+# build vscode
 build-vscode:
-    cd vscode && bun run package
+    cd vscode && deno task package
 
-# build zed extension
+# build zed
 build-zed:
     cargo build --release --target wasm32-wasip2 {{ packages }}
 
-# format code
+# format
 format:
     cargo fmt {{ packages }}
-    bun x biome format --write vscode
+    deno run -A npm:@biomejs/biome format --write vscode
 
 # check formatting
 format-check:
     cargo fmt --check {{ packages }}
-    bun x biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false vscode
+    deno run -A npm:@biomejs/biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false vscode
 
-# alias for format
+# format
 alias fmt := format
 
-# run static checks
+# lint
 lint:
     cargo clippy --release --target wasm32-wasip2 {{ packages }}
-    bun run --cwd vscode compile
+    deno task --cwd vscode compile
 
-# clean build artifacts
+# clean
 clean:
     rm -rf vscode/out vscode/*.vsix
 
 # --- test ---
 
-# run tests
+# test
 test:
     just test-vscode
     just test-zed
 
-# test vscode grammar
+# test vscode
 test-vscode:
-    cd vscode && bun run test:grammar
+    cd vscode && deno task test:grammar
 
-# compile zed tree-sitter queries
+# test zed
 test-zed:
-    for query in zed/languages/ds/*.scm; do (cd ../language/grammar/destack && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../formatter/fixture/roundtrip/tree-idempotent-basic.ds") >/dev/null || exit 1; done
-    for query in zed/languages/dsm/*.scm; do (cd ../language/grammar/mir && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/mir/mir.txt") >/dev/null || exit 1; done
-    for query in zed/languages/dsa/*.scm; do (cd ../language/grammar/bytecode && bun x tree-sitter query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/bytecode/bytecode.txt") >/dev/null || exit 1; done
+    for query in zed/languages/ds/*.scm; do (cd ../language/grammar/destack && deno run -A npm:tree-sitter-cli query --quiet "../../../bridge/${query}" "../../formatter/fixture/roundtrip/tree-idempotent-basic.ds") >/dev/null || exit 1; done
+    for query in zed/languages/dsm/*.scm; do (cd ../language/grammar/mir && deno run -A npm:tree-sitter-cli query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/mir/mir.txt") >/dev/null || exit 1; done
+    for query in zed/languages/dsa/*.scm; do (cd ../language/grammar/bytecode && deno run -A npm:tree-sitter-cli query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/bytecode/bytecode.txt") >/dev/null || exit 1; done
 
-# default check
+# check
 check:
     just check-quick
 
-# normal check
+# check quick
 check-quick:
     just format-check
     just lint
     just test
 
-# check distributable bridge artifacts
+# check full
 check-full:
     just check-quick
     just build
 
 # --- release ---
 
-# publish vscode extension dry by default
+# publish vscode
 publish-vscode dry="--dry-run" prerelease="":
     @if [ "{{dry}}" = "--dry-run" ]; then \
-        cd vscode && bun run package; \
+        cd vscode && deno task package; \
         echo "Dry run: would publish vscode extension"; \
     else \
         if [ -z "${VSCE_PAT:-}" ]; then \
@@ -104,18 +90,18 @@ publish-vscode dry="--dry-run" prerelease="":
             exit 1; \
         fi; \
         prerelease="{{prerelease}}"; \
-        stability="$(node -p 'JSON.parse(require("node:fs").readFileSync("../destack.json", "utf8")).products.destack.stability')"; \
+        stability="$(node -p 'JSON.parse(require("node:fs").readFileSync("../dev/release/config.json", "utf8")).stability')"; \
         if [ -z "${prerelease}" ] && [ "${stability}" != "stable" ]; then \
             prerelease="--pre-release"; \
         fi; \
-        cd vscode && bun x vsce publish --no-dependencies ${prerelease}; \
+        cd vscode && deno run -A npm:@vscode/vsce publish --no-dependencies ${prerelease}; \
     fi
 
-# publish zed extension registry update dry by default
+# publish zed
 publish-zed dry="--dry-run" version="":
     bash zed/scripts/create-registry-pr.sh "{{dry}}" "{{version}}"
 
-# publish bridges dry by default
+# publish
 publish dry="--dry-run" prerelease="":
     just publish-vscode "{{dry}}" "{{prerelease}}"
     just publish-zed "{{dry}}"

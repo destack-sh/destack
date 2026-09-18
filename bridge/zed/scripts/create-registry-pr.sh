@@ -55,7 +55,7 @@ resolve_version() {
 		return
 	fi
 
-	local manifest_path="${DESTACK_REPOSITORY_ROOT}/destack.json"
+	local manifest_path="${DESTACK_REPOSITORY_ROOT}/package.json"
 	if [ -f "${manifest_path}" ]; then
 		local version_file
 		version_file="$(node -e 'const fs = require("node:fs"); const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); console.log(manifest.version);' "${manifest_path}")"
@@ -65,7 +65,7 @@ resolve_version() {
 		fi
 	fi
 
-	fail "release version not provided and destack.json is missing"
+	fail "release version not provided and package.json is missing"
 }
 
 # resolve the version in bridge/zed/extension.toml
@@ -234,7 +234,7 @@ validate_semver "${DESTACK_RELEASE_VERSION}"
 
 DESTACK_MANIFEST_VERSION="$(resolve_manifest_version)"
 if [ "${DESTACK_MANIFEST_VERSION}" != "${DESTACK_RELEASE_VERSION}" ]; then
-	fail "version mismatch: destack.json=${DESTACK_RELEASE_VERSION}, bridge/zed/extension.toml=${DESTACK_MANIFEST_VERSION}"
+	fail "version mismatch: package.json=${DESTACK_RELEASE_VERSION}, bridge/zed/extension.toml=${DESTACK_MANIFEST_VERSION}"
 fi
 
 # resolve the source commit for the zed registry submodule pointer
