@@ -1,0 +1,19 @@
+{
+    "name": "@destack/signals",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Define reactive state for Destack.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./error": "./src/error/index.ts",
+        "./inspect": "./src/inspect/index.ts"
+    },
+    "scripts": {
+        "check": "deno check ./src/index.ts ./src/error/index.ts ./src/inspect/index.ts"
+    },
+    "dependencies": {
+        "@solidjs/signals": "2.0.0-rc.8"
+    }
+}
