@@ -1,0 +1,29 @@
+{
+    "name": "@destack/model",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Define standard Destack records and relationships.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./account": "./src/account/index.ts",
+        "./package": "./src/package/index.ts",
+        "./space": "./src/space/index.ts",
+        "./host": "./src/host/index.ts",
+        "./resource": "./src/resource/index.ts"
+    },
+    "scripts": {
+        "check": "deno check ./src/index.ts ./src/inspect/index.ts ./src/account/index.ts ./src/package/index.ts ./src/space/index.ts ./src/host/index.ts ./src/resource/index.ts"
+    },
+    "devDependencies": {
+        "drizzle-kit": "1.0.0-rc.4"
+    },
+    "dependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/schema": "workspace:*"
+    }
+}

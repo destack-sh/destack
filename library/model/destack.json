@@ -1,0 +1,12 @@
+{
+    "language": "typescript",
+    "targets": [
+        "browser",
+        "worker",
+        "host"
+    ],
+    "inspect": {
+        "module": "src/inspect/index.ts",
+        "export": "inspector"
+    }
+}
