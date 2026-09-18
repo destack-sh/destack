@@ -7,11 +7,12 @@
     "description": "Define reactive state for Destack.",
     "exports": {
         ".": "./src/index.ts",
+        "./store": "./src/store/index.ts",
         "./error": "./src/error/index.ts",
         "./inspect": "./src/inspect/index.ts"
     },
     "scripts": {
-        "check": "deno check ./src/index.ts ./src/error/index.ts ./src/inspect/index.ts"
+        "check": "deno check ./src/index.ts ./src/store/index.ts ./src/error/index.ts ./src/inspect/index.ts"
     },
     "dependencies": {
         "@solidjs/signals": "2.0.0-rc.8"

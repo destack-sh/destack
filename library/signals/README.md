@@ -14,3 +14,11 @@ createRoot(() => {
     console.log(doubled());
 });
 ```
+
+## Store
+
+Import structured reactive state separately or from the package root.
+
+```ts
+import { createStore, reconcile } from "@destack/signals/store";
+```
