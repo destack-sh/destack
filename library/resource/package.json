@@ -1,0 +1,13 @@
+{
+    "name": "@destack/resource",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Declare, bind, and inspect Destack resources.",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": { "check": "deno check src/index.ts" },
+    "dependencies": { "@destack/schema": "workspace:*" }
+}
