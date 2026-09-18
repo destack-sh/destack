@@ -1,0 +1,9 @@
+{
+    "language": "typescript",
+    "targets": ["browser", "worker", "host"],
+    "exports": {
+        "./browser": { "targets": ["browser"] },
+        "./worker": { "targets": ["worker"] },
+        "./host": { "targets": ["host"] }
+    }
+}

@@ -4,5 +4,45 @@
     "private": true,
     "license": "MIT",
     "type": "module",
-    "description": "Instrument Destack packages with traces, metrics, and logs."
+    "description": "Instrument Destack packages with traces, metrics, and logs.",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts",
+        "./context": "./src/context/index.ts",
+        "./trace": "./src/trace/index.ts",
+        "./metric": "./src/metric/index.ts",
+        "./log": "./src/log/index.ts",
+        "./resource": "./src/resource/index.ts",
+        "./convention": "./src/convention/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./sdk": "./src/sdk/index.ts",
+        "./host": "./src/host/index.ts",
+        "./browser": "./src/browser/index.ts",
+        "./worker": "./src/worker/index.ts",
+        "./otlp": "./src/otlp/index.ts"
+    },
+    "scripts": {
+        "check": "deno check ./src/index.ts ./src/context/index.ts ./src/trace/index.ts ./src/metric/index.ts ./src/log/index.ts ./src/resource/index.ts ./src/convention/index.ts ./src/inspect/index.ts ./src/sdk/index.ts ./src/host/index.ts ./src/browser/index.ts ./src/worker/index.ts ./src/otlp/index.ts",
+        "test": "vitest run"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
+    },
+    "dependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@opentelemetry/semantic-conventions": "1.43.0",
+        "@opentelemetry/api": "1.9.1",
+        "@opentelemetry/api-logs": "0.222.0",
+        "@opentelemetry/sdk-trace": "2.11.0",
+        "@opentelemetry/sdk-trace-web": "2.11.0",
+        "@opentelemetry/sdk-metrics": "2.11.0",
+        "@opentelemetry/sdk-logs": "0.222.0",
+        "@opentelemetry/resources": "2.11.0",
+        "@opentelemetry/context-async-hooks": "2.11.0",
+        "@opentelemetry/core": "2.11.0",
+        "@opentelemetry/exporter-trace-otlp-http": "0.222.0",
+        "@opentelemetry/exporter-metrics-otlp-http": "0.222.0",
+        "@opentelemetry/exporter-logs-otlp-http": "0.222.0"
+    }
 }
