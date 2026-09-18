@@ -1,23 +1,20 @@
 export {
+    action,
+    affects,
     createEffect,
     createErrorBoundary,
     createLoadingBoundary,
     createMemo,
     createOptimistic,
     createOptimisticStore,
+    createOwner,
     createProjection,
+    createReaction,
     createRenderEffect,
     createRevealOrder,
+    createRoot,
     createSignal,
     createStore,
-} from "solid-js";
-export {
-    action,
-    affects,
-    ContextNotFoundError,
-    createOwner,
-    createReaction,
-    createRoot,
     createTrackedEffect,
     deep,
     enableExternalSource,
@@ -32,7 +29,6 @@ export {
     mapArray,
     merge,
     mergeSources,
-    NoOwnerError,
     NotReadyError,
     omit,
     onCleanup,
@@ -47,7 +43,8 @@ export {
     TimeoutError,
     until,
     untrack,
-} from "@destack/signals";
+} from "solid-js";
+export { ContextNotFoundError, NoOwnerError } from "@destack/signals";
 export type {
     Accessor,
     ArrayFilterFn,

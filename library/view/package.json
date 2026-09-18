@@ -6,6 +6,8 @@
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
+        "./router": "./src/router/index.ts",
+        "./document": "./src/document/index.ts",
         "./render": "./src/render/index.ts",
         "./runtime": "./src/runtime.ts",
         "./inspect": "./src/inspect/index.ts",
@@ -13,10 +15,12 @@
         "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
     },
     "scripts": {
-        "check": "deno check ./src/index.ts ./src/render/index.ts ./src/runtime.ts ./src/inspect/index.ts ./src/jsx-runtime.ts ./src/jsx-dev-runtime.ts"
+        "check": "deno check ./src/index.ts ./src/router/index.ts ./src/document/index.ts ./src/render/index.ts ./src/runtime.ts ./src/inspect/index.ts ./src/jsx-runtime.ts ./src/jsx-dev-runtime.ts"
     },
     "dependencies": {
         "@destack/signals": "workspace:*",
+        "@solidjs/router": "2.0.0-next.24",
+        "@solidjs/meta": "1.0.0-next.2",
         "solid-js": "2.0.0-rc.8",
         "@solidjs/web": "2.0.0-rc.8"
     }
