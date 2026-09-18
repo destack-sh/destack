@@ -1,0 +1,11 @@
+{
+    "language": "typescript",
+    "targets": ["browser", "worker", "host"],
+    "exports": {
+        "./migration": { "targets": ["host"] },
+        "./sqlite/node": { "targets": ["host"] },
+        "./turso": { "targets": ["host"] },
+        "./turso/serverless": { "targets": ["worker", "host"] },
+        "./turso/serverless/migration": { "targets": ["host"] }
+    }
+}

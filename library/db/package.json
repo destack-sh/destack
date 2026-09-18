@@ -4,5 +4,27 @@
     "private": true,
     "license": "MIT",
     "type": "module",
-    "description": "Interact with SQL databases in Destack."
+    "description": "Interact with SQL databases in Destack.",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./sqlite/inspect": "./src/sqlite/inspect/index.ts",
+        "./sqlite": "./src/sqlite/index.ts",
+        "./sqlite/node": "./src/sqlite/node/index.ts",
+        "./migration": "./src/migration/index.ts",
+        "./turso": "./src/turso/index.ts",
+        "./turso/serverless": "./src/turso/serverless/index.ts",
+        "./turso/serverless/migration": "./src/turso/serverless/migration.ts"
+    },
+    "scripts": {
+        "check": "deno check src/index.ts src/inspect/index.ts src/sqlite/index.ts src/sqlite/inspect/index.ts src/sqlite/node/index.ts src/migration/index.ts src/turso/index.ts src/turso/serverless/index.ts src/turso/serverless/migration.ts"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@tursodatabase/database": "0.7.2",
+        "@tursodatabase/serverless": "1.4.0",
+        "drizzle-orm": "1.0.0-rc.4"
+    }
 }
