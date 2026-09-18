@@ -1,4 +1,5 @@
-import * as stylex from "@stylexjs/stylex";
+import { color } from "@destack/theme/tokens.stylex";
+import * as stylex from "@destack/style";
 
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
@@ -20,7 +21,11 @@ export function Footer() {
                                 style={styles.link}
                                 title={`${label} (Alt+${shortcut.toUpperCase()})`}
                             >
-                                <span aria-hidden="true" {...stylex.attrs(styles.icon)} innerHTML={icon} />
+                                <span
+                                    aria-hidden="true"
+                                    {...stylex.attrs(styles.icon)}
+                                    innerHTML={icon}
+                                />
                             </SiteLink>
                         ))}
                     </nav>
@@ -44,12 +49,12 @@ const styles = stylex.create({
         flexWrap: "wrap",
         gap: "0.5rem 1rem",
         paddingBlock: "0.75rem",
-        borderTopColor: tokens.line,
+        borderTopColor: color.border,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
     },
     publisher: {
-        color: tokens.ink,
+        color: color.foreground,
         fontSize: "var(--size-navigation)",
     },
     navigation: {
@@ -64,9 +69,9 @@ const styles = stylex.create({
         justifyContent: "center",
         width: "2.75rem",
         height: "2.75rem",
-        color: tokens.ink,
-        ":hover": { color: tokens.accent },
-        ":focus-visible": { outline: `2px solid ${tokens.accent}`, outlineOffset: "2px" },
+        color: color.foreground,
+        ":hover": { color: color.primary },
+        ":focus-visible": { outline: `2px solid ${color.primary}`, outlineOffset: "2px" },
     },
     icon: {
         display: "block",
@@ -75,8 +80,8 @@ const styles = stylex.create({
         fill: "currentColor",
     },
     root: {
-        backgroundColor: tokens.page,
-        color: tokens.ink,
+        backgroundColor: color.background,
+        color: color.foreground,
         maxWidth: "100vw",
     },
 });

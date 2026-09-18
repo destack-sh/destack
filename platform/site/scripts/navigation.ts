@@ -1,4 +1,4 @@
-import type { NavigationPage } from "./page";
+import type { NavigationPage } from "./page.ts";
 import { collectionAt } from "../content.ts";
 
 /// Generate chapter navigation and reference ancestry.
@@ -9,10 +9,9 @@ export function buildNavigation(documents: NavigationPage[], references: Navigat
 
     // resolve each parent from published routes, including symbol module parents
     for (const page of pages) {
-        const parentRoute =
-            page.parentRoute ?? page.moduleRoute ?? page.route.replace(/[^/]+\/$/, "");
-        const parent =
-            page.route === "/docs/" ? undefined : byRoute.get(parentRoute);
+        const parentRoute = page.parentRoute ?? page.moduleRoute ??
+            page.route.replace(/[^/]+\/$/, "");
+        const parent = page.route === "/docs/" ? undefined : byRoute.get(parentRoute);
         if (page.route !== "/docs/" && parent == undefined) {
             throw new Error(`missing parent ${parentRoute} for ${page.route}`);
         }
@@ -54,7 +53,9 @@ export function buildNavigation(documents: NavigationPage[], references: Navigat
         const section = chain[chain.indexOf(root) + 1];
         const visible: NavigationPage[] = [];
         function visit(document: NavigationPage) {
-            if (document.collection?.isListed === false && document.collection !== collection) return;
+            if (document.collection?.isListed === false && document.collection !== collection) {
+                return;
+            }
             visible.push(document);
             if (document === section || document.ancestors!.includes(section)) {
                 for (const child of children.get(document) ?? []) visit(child);
@@ -75,10 +76,7 @@ export function buildNavigation(documents: NavigationPage[], references: Navigat
                 depth: chapter.ancestors!.length - root.ancestors!.length - 1,
             })),
             previous: index > 0 ? link(sequence[index - 1]) : undefined,
-            next:
-                index >= 0 && index + 1 < sequence.length
-                    ? link(sequence[index + 1])
-                    : undefined,
+            next: index >= 0 && index + 1 < sequence.length ? link(sequence[index + 1]) : undefined,
         };
     }
 }

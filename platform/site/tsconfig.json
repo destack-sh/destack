@@ -4,8 +4,8 @@
         "module": "ESNext",
         "moduleResolution": "bundler",
         "jsx": "preserve",
-        "jsxImportSource": "solid-js",
-        "types": ["vinxi/types/client"],
+        "jsxImportSource": "@destack/view",
+        "types": ["vite/client"],
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
         "isolatedModules": true,
@@ -16,7 +16,6 @@
     },
     "include": [
         "src/**/*",
-        "app.config.ts",
         "scripts/**/*.ts",
         "build/**/*.ts"
     ]

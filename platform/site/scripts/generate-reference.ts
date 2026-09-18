@@ -49,7 +49,7 @@ function runDestack(commandArguments: string[]) {
             "run",
             "--quiet",
             "--package",
-            "destack_cli",
+            "destack_language_cli",
             "--bin",
             "destack",
             "--",

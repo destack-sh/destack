@@ -1,23 +1,17 @@
-import {
-    createMemo,
-    createSignal,
-    For,
-    onCleanup,
-    onMount,
-    Show,
-} from "solid-js";
-import { Portal } from "solid-js/web";
-import * as stylex from "@stylexjs/stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { createMemo, createSignal, For, onSettled, Show } from "@destack/view";
+import { Portal } from "@destack/view";
+import * as stylex from "@destack/style";
 
 import {
     type Command,
-    type CommandMatch,
     commandEvents,
+    type CommandMatch,
     commandsFor,
     highlightParts,
     matchCommands,
-    searchScopes,
     type SearchScope,
+    searchScopes,
 } from "./command";
 import { loadSearchEntries, type SearchEntry } from "../content/search";
 import { siteSearchEntries } from "../content/site";
@@ -39,18 +33,13 @@ export function CommandPalette() {
     const [query, setQuery] = createSignal("");
     const [selected, setSelected] = createSignal(0);
     const [scope, setScope] = createSignal<SearchScope>("All");
-    const commands = createMemo(() =>
-        commandsFor([...siteSearchEntries, ...entries()], source()),
-    );
-    const results = createMemo(() =>
-        matchCommands(commands(), query(), resultLimit, scope()),
-    );
+    const commands = createMemo(() => commandsFor([...siteSearchEntries, ...entries()], source()));
+    const results = createMemo(() => matchCommands(commands(), query(), resultLimit, scope()));
 
     // open the palette from anywhere outside an editable control
-    onMount(() => {
+    onSettled(() => {
         const handleKey = (event: KeyboardEvent) => {
-            const isCommand =
-                (event.metaKey || event.ctrlKey) &&
+            const isCommand = (event.metaKey || event.ctrlKey) &&
                 event.key.toLowerCase() === "k";
             const isSlash = event.key === "/" && !isEditable(event.target);
             if (!isCommand && !isSlash) {
@@ -64,10 +53,10 @@ export function CommandPalette() {
 
         document.addEventListener("keydown", handleKey);
         document.addEventListener(commandEvents.open, handleOpen);
-        onCleanup(() => {
+        return () => {
             document.removeEventListener("keydown", handleKey);
             document.removeEventListener(commandEvents.open, handleOpen);
-        });
+        };
     });
 
     // load search content only when somebody asks for it
@@ -125,7 +114,7 @@ export function CommandPalette() {
             event.preventDefault();
             moveSelection(
                 (selected() - 1 + Math.max(results().length, 1)) %
-                Math.max(results().length, 1),
+                    Math.max(results().length, 1),
             );
         } else if (event.key === "Enter") {
             const match = results()[selected()];
@@ -154,7 +143,18 @@ export function CommandPalette() {
                 title="Search"
                 type="button"
             >
-                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="6" /><path d="m15 15 5 5" /></svg>
+                <svg
+                    aria-hidden="true"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                >
+                    <circle cx="10" cy="10" r="6" />
+                    <path d="m15 15 5 5" />
+                </svg>
             </button>
 
             <Portal>
@@ -184,11 +184,9 @@ export function CommandPalette() {
                             </svg>
                             <input
                                 {...stylex.attrs(styles.input)}
-                                aria-activedescendant={
-                                    results().length === 0
-                                        ? undefined
-                                        : `search-result-${selected()}`
-                                }
+                                aria-activedescendant={results().length === 0
+                                    ? undefined
+                                    : `search-result-${selected()}`}
                                 aria-autocomplete="list"
                                 aria-controls="search-results"
                                 aria-expanded="true"
@@ -199,11 +197,9 @@ export function CommandPalette() {
                                     setSelected(0);
                                 }}
                                 onKeyDown={handleInputKey}
-                                placeholder={
-                                    scope() === "All"
-                                        ? "Search Destack…"
-                                        : `Search ${scope().toLowerCase()}…`
-                                }
+                                placeholder={scope() === "All"
+                                    ? "Search Destack…"
+                                    : `Search ${scope().toLowerCase()}…`}
                                 ref={input}
                                 role="combobox"
                                 type="search"
@@ -215,17 +211,34 @@ export function CommandPalette() {
                                 onClick={() => dialog?.close()}
                                 type="button"
                             >
-                                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M6 18 18 6" /></svg>
+                                <svg
+                                    aria-hidden="true"
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
+                                >
+                                    <path d="m6 6 12 12M6 18 18 6" />
+                                </svg>
                             </button>
                         </div>
 
                         {/* keep the selected collection visible while searching */}
-                        <div {...stylex.attrs(styles.scopes)} role="group" aria-label="Search scope">
+                        <div
+                            {...stylex.attrs(styles.scopes)}
+                            role="group"
+                            aria-label="Search scope"
+                        >
                             <For each={searchScopes}>
                                 {(name) => (
                                     <button
-                                        {...stylex.attrs(styles.scope, scope() === name && styles.scopeSelected)}
-                                        aria-pressed={scope() === name}
+                                        {...stylex.attrs(
+                                            styles.scope,
+                                            scope() === name && styles.scopeSelected,
+                                        )}
+                                        aria-pressed={scope() === name ? "true" : "false"}
                                         onClick={() => {
                                             setScope(name);
                                             setSelected(0);
@@ -246,32 +259,47 @@ export function CommandPalette() {
                         >
                             <For each={results()}>
                                 {(match, index) => (
-                                    <li
-                                        role="none"
-                                    >
+                                    <li role="none">
                                         <button
                                             {...stylex.attrs(
                                                 styles.resultButton,
                                                 selected() === index() &&
-                                                styles.selected,
+                                                    styles.selected,
                                             )}
-                                            aria-selected={
-                                                selected() === index()
-                                            }
+                                            aria-selected={selected() === index()
+                                                ? "true"
+                                                : "false"}
                                             id={`search-result-${index()}`}
                                             onClick={(event) => {
                                                 event.preventDefault();
                                                 choose(match.command);
                                             }}
-                                            onMouseMove={() =>
-                                                setSelected(index())
-                                            }
+                                            onMouseMove={() => setSelected(index())}
                                             role="option"
-                                            tabIndex={-1}
+                                            tabindex={-1}
                                             type="button"
                                         >
-                                            <svg aria-hidden="true" {...stylex.attrs(styles.resultIcon)} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                <Show when={match.command.kind === "action"} fallback={<><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z" /><path d="M14 3v5h5M9 12h6M9 16h4" /></>}>
+                                            <svg
+                                                aria-hidden="true"
+                                                {...stylex.attrs(styles.resultIcon)}
+                                                width="18"
+                                                height="18"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="1.5"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                            >
+                                                <Show
+                                                    when={match.command.kind === "action"}
+                                                    fallback={
+                                                        <>
+                                                            <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8Z" />
+                                                            <path d="M14 3v5h5M9 12h6M9 16h4" />
+                                                        </>
+                                                    }
+                                                >
                                                     <path d="m5 7 5 5-5 5m8 0h6" />
                                                 </Show>
                                             </svg>
@@ -285,9 +313,7 @@ export function CommandPalette() {
                                                 >
                                                     <Highlight
                                                         match={match}
-                                                        text={
-                                                            match.command.label
-                                                        }
+                                                        text={match.command.label}
                                                     />
                                                 </strong>
                                                 <Show
@@ -300,10 +326,8 @@ export function CommandPalette() {
                                                     >
                                                         <Highlight
                                                             match={match}
-                                                            text={
-                                                                match.command
-                                                                    .context
-                                                            }
+                                                            text={match.command
+                                                                .context}
                                                         />
                                                     </span>
                                                 </Show>
@@ -322,8 +346,19 @@ export function CommandPalette() {
                                                     </span>
                                                 </Show>
                                             </span>
-                                            <span {...stylex.attrs(styles.resultAction)} aria-hidden="true">
-                                                <Show when={selected() === index()} fallback={match.command.shortcut && <kbd {...stylex.attrs(styles.shortcut)}>Alt {match.command.shortcut?.toUpperCase()}</kbd>}>
+                                            <span
+                                                {...stylex.attrs(styles.resultAction)}
+                                                aria-hidden="true"
+                                            >
+                                                <Show
+                                                    when={selected() === index()}
+                                                    fallback={match.command.shortcut && (
+                                                        <kbd {...stylex.attrs(styles.shortcut)}>
+                                                            Alt{" "}
+                                                            {match.command.shortcut?.toUpperCase()}
+                                                        </kbd>
+                                                    )}
+                                                >
                                                     <kbd {...stylex.attrs(styles.shortcut)}>↵</kbd>
                                                 </Show>
                                             </span>
@@ -346,16 +381,21 @@ export function CommandPalette() {
                             )}
                         </Show>
                         <Show
-                            when={
-                                !loading() && !error() && results().length === 0
-                            }
+                            when={!loading() && !error() && results().length === 0}
                         >
                             <p {...stylex.attrs(styles.empty)} role="status">No results found.</p>
                         </Show>
                         <footer {...stylex.attrs(styles.help)}>
-                            <span {...stylex.attrs(styles.helpKeys)}><kbd {...stylex.attrs(styles.shortcut)}>↑</kbd><kbd {...stylex.attrs(styles.shortcut)}>↓</kbd> Navigate</span>
-                            <span {...stylex.attrs(styles.helpKeys)}><kbd {...stylex.attrs(styles.shortcut)}>↵</kbd> Open</span>
-                            <span {...stylex.attrs(styles.helpKeys)}><kbd {...stylex.attrs(styles.shortcut)}>Esc</kbd> Close</span>
+                            <span {...stylex.attrs(styles.helpKeys)}>
+                                <kbd {...stylex.attrs(styles.shortcut)}>↑</kbd>
+                                <kbd {...stylex.attrs(styles.shortcut)}>↓</kbd> Navigate
+                            </span>
+                            <span {...stylex.attrs(styles.helpKeys)}>
+                                <kbd {...stylex.attrs(styles.shortcut)}>↵</kbd> Open
+                            </span>
+                            <span {...stylex.attrs(styles.helpKeys)}>
+                                <kbd {...stylex.attrs(styles.shortcut)}>Esc</kbd> Close
+                            </span>
                         </footer>
                     </div>
                 </dialog>
@@ -393,12 +433,9 @@ function Highlight(props: HighlightProps) {
     return (
         <For each={highlightParts(props.text, props.match.terms)}>
             {(part) =>
-                part.isMatch ? (
-                    <mark {...stylex.attrs(styles.mark)}>{part.text}</mark>
-                ) : (
+                part.isMatch ? <mark {...stylex.attrs(styles.mark)}>{part.text}</mark> : (
                     part.text
-                )
-            }
+                )}
         </For>
     );
 }
@@ -416,7 +453,7 @@ const styles = stylex.create({
     close: {
         backgroundColor: "transparent",
         borderWidth: 0,
-        color: tokens.soft,
+        color: color.mutedForeground,
         cursor: "pointer",
         display: "flex",
         alignItems: "center",
@@ -426,11 +463,11 @@ const styles = stylex.create({
         height: "2.75rem",
         marginRight: "-0.75rem",
         borderRadius: "0.25rem",
-        ":hover": { backgroundColor: tokens.creamDeep, color: tokens.ink },
-        ":focus-visible": { outline: "2px solid", outlineColor: tokens.accent },
+        ":hover": { backgroundColor: tokens.creamDeep, color: color.foreground },
+        ":focus-visible": { outline: "2px solid", outlineColor: color.primary },
     },
     context: {
-        color: tokens.soft,
+        color: color.mutedForeground,
         fontSize: "var(--size-label)",
         lineHeight: "1.5",
         overflow: "hidden",
@@ -438,14 +475,14 @@ const styles = stylex.create({
         whiteSpace: "nowrap",
     },
     empty: {
-        color: tokens.soft,
+        color: color.mutedForeground,
         fontSize: "1rem",
         margin: 0,
         padding: "2rem 1rem",
         textAlign: "center",
     },
     excerpt: {
-        color: tokens.soft,
+        color: color.mutedForeground,
         fontSize: "var(--size-label)",
         lineHeight: "1.5",
         minWidth: 0,
@@ -463,21 +500,21 @@ const styles = stylex.create({
     input: {
         backgroundColor: "transparent",
         borderWidth: 0,
-        color: tokens.ink,
+        color: color.foreground,
         font: "inherit",
         height: "2rem",
         minWidth: 0,
         outlineWidth: 0,
         padding: 0,
-        "::placeholder": { color: tokens.soft, opacity: 1 },
+        "::placeholder": { color: color.mutedForeground, opacity: 1 },
         "@media (max-width: 640px)": { fontSize: "1rem" },
     },
     inputLabel: {
         alignItems: "center",
-        borderBottomColor: tokens.line,
+        borderBottomColor: color.border,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-        color: tokens.soft,
+        color: color.mutedForeground,
         display: "grid",
         flexShrink: 0,
         gap: "0.75rem",
@@ -486,18 +523,18 @@ const styles = stylex.create({
     },
     mark: {
         backgroundColor: "transparent",
-        color: tokens.accent,
+        color: color.primary,
         fontWeight: 500,
     },
     palette: {
-        backgroundColor: tokens.page,
-        borderColor: tokens.line,
+        backgroundColor: color.background,
+        borderColor: color.border,
         borderRadius: "0.25rem",
         borderStyle: "solid",
         borderWidth: tokens.hairline,
         boxShadow: "0 24px 80px rgb(0 0 0 / 20%)",
-        color: tokens.ink,
-        fontFamily: tokens.textFont,
+        color: color.foreground,
+        fontFamily: fontFamily.default,
         fontSize: "1rem",
         margin: "min(12svh, 6rem) auto auto",
         maxHeight: "min(40rem, 80dvh)",
@@ -517,7 +554,7 @@ const styles = stylex.create({
         minWidth: 0,
     },
     resultIcon: {
-        color: tokens.soft,
+        color: color.mutedForeground,
         alignSelf: "start",
         marginTop: "0.125rem",
     },
@@ -531,7 +568,7 @@ const styles = stylex.create({
         backgroundColor: "transparent",
         borderWidth: 0,
         borderRadius: "0.25rem",
-        color: tokens.ink,
+        color: color.foreground,
         cursor: "pointer",
         display: "grid",
         font: "inherit",
@@ -569,7 +606,7 @@ const styles = stylex.create({
         scrollbarWidth: "thin",
         padding: "0.5rem",
         "@media (max-width: 640px)": { flexWrap: "wrap" },
-        borderBottomColor: tokens.line,
+        borderBottomColor: color.border,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
     },
@@ -577,16 +614,16 @@ const styles = stylex.create({
         backgroundColor: "transparent",
         borderWidth: 0,
         borderRadius: "0.25rem",
-        color: tokens.soft,
+        color: color.mutedForeground,
         cursor: "pointer",
         flexShrink: 0,
         font: "inherit",
         fontSize: "var(--size-label)",
         padding: "0.5rem",
         whiteSpace: "nowrap",
-        ":hover": { backgroundColor: tokens.creamDeep, color: tokens.ink },
+        ":hover": { backgroundColor: tokens.creamDeep, color: color.foreground },
         ":focus-visible": {
-            outlineColor: tokens.accent,
+            outlineColor: color.primary,
             outlineStyle: "solid",
             outlineWidth: "2px",
             outlineOffset: "2px",
@@ -594,19 +631,19 @@ const styles = stylex.create({
     },
     scopeSelected: {
         backgroundColor: tokens.creamDeep,
-        color: tokens.ink,
+        color: color.foreground,
         textDecorationLine: "underline",
-        textDecorationColor: tokens.accent,
+        textDecorationColor: color.primary,
         textDecorationThickness: "1px",
         textUnderlineOffset: "0.3em",
     },
     help: {
         alignItems: "center",
-        color: tokens.soft,
+        color: color.mutedForeground,
         display: "flex",
         flexShrink: 0,
         gap: "1rem",
-        borderTopColor: tokens.line,
+        borderTopColor: color.border,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         padding: "0.75rem 1rem",
@@ -616,14 +653,14 @@ const styles = stylex.create({
     helpKeys: { display: "inline-flex", alignItems: "center", gap: "0.25rem" },
     shortcut: {
         alignItems: "center",
-        backgroundColor: tokens.page,
-        borderColor: tokens.line,
+        backgroundColor: color.background,
+        borderColor: color.border,
         borderRadius: "0.25rem",
         borderStyle: "solid",
         borderWidth: tokens.hairline,
-        color: tokens.soft,
+        color: color.mutedForeground,
         display: "inline-flex",
-        fontFamily: tokens.monoFont,
+        fontFamily: fontFamily.code,
         fontSize: "0.75rem",
         fontWeight: 400,
         height: "1.25rem",
@@ -646,6 +683,6 @@ const styles = stylex.create({
         letterSpacing: "inherit",
         padding: 0,
         textTransform: "inherit",
-        ":hover": { color: tokens.accent },
+        ":hover": { color: color.primary },
     },
 });

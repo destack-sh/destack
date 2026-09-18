@@ -6,31 +6,31 @@
     "type": "module",
     "description": "Destack website, documentation, and blog",
     "scripts": {
-        "build": "bun scripts/sync-assets.ts && bun scripts/generate-release.ts && bun scripts/generate-reference.ts && bun scripts/generate-content.ts && vinxi build && bun scripts/postbuild.ts",
-        "check": "bun scripts/generate-release.ts --check && bun scripts/generate-reference.ts && bun scripts/generate-content.ts --check && bun x tsc -p tsconfig.json --noEmit && bun run build",
-        "dev": "bun scripts/sync-assets.ts && bun scripts/generate-release.ts && bun scripts/generate-reference.ts && bun scripts/generate-content.ts && vinxi dev",
+        "build": "deno task generate && deno run -A build/main.ts build",
+        "check": "deno task typecheck && deno task test && deno task build",
+        "dev": "deno task generate && deno run -A build/main.ts dev",
         "format": "echo \"No site formatter defined\"",
-        "test": "bun scripts/test-highlighting.ts && bun scripts/test-reference.ts && bun scripts/test-listing.ts && bun scripts/test-rules.ts && bun scripts/test-presentation.ts",
-        "typecheck": "bun x tsc -p tsconfig.json --noEmit"
+        "test": "deno run -A scripts/test-highlighting.ts && deno run -A scripts/test-reference.ts && deno run -A scripts/test-listing.ts && deno run -A scripts/test-rules.ts && deno run -A scripts/test-presentation.ts",
+        "typecheck": "deno run -A npm:typescript/tsc -p tsconfig.json --noEmit",
+        "generate": "deno run -A scripts/sync-assets.ts && deno run -A scripts/generate-release.ts && deno run -A scripts/generate-content.ts"
     },
     "dependencies": {
         "@fontsource-variable/ibm-plex-sans": "5.3.0",
         "@fontsource/ibm-plex-mono": "5.3.0",
         "@fontsource/ibm-plex-sans-condensed": "5.3.0",
         "@fontsource/limelight": "5.3.0",
-        "@solidjs/meta": "^0.29.4",
-        "@solidjs/router": "^0.16.1",
-        "@solidjs/start": "1.3.2",
-        "@stylexjs/stylex": "^0.19.0",
         "marked": "^18.0.4",
         "mermaid": "12.0.0",
-        "solid-js": "1.9.13",
-        "vinxi": "0.5.11",
-        "vite": "7.2.4"
+        "@destack/view": "workspace:*",
+        "@destack/signals": "workspace:*",
+        "@destack/style": "workspace:*",
+        "@destack/theme": "workspace:*"
     },
     "devDependencies": {
-        "@stylexjs/unplugin": "^0.19.0",
+        "wrangler": "4.134.0",
         "highlight.js": "11.11.1",
-        "tree-sitter-cli": "0.26.12"
+        "tree-sitter-cli": "0.26.12",
+        "@destack/build": "workspace:*",
+        "vite": "8.3.0"
     }
 }

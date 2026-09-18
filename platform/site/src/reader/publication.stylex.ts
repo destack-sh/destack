@@ -1,4 +1,5 @@
-import * as stylex from "@stylexjs/stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import * as stylex from "@destack/style";
 
 import { tokens } from "../style/tokens.stylex";
 
@@ -9,7 +10,7 @@ const mobile = "@media (max-width: 767px)";
 export const publicationStyles = stylex.create({
     layout: {
         display: "grid",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-body)",
         columnGap: "2.5rem",
         gridTemplateColumns: "16rem minmax(0, 1fr)",
@@ -29,7 +30,7 @@ export const publicationStyles = stylex.create({
     },
     article: {
         alignContent: "start",
-        color: tokens.ink,
+        color: color.foreground,
         display: "grid",
         gridColumn: 2,
         minWidth: 0,
@@ -38,7 +39,7 @@ export const publicationStyles = stylex.create({
     sidebar: {
         alignSelf: "start",
         display: "none",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         gridColumn: 1,
         "@media (min-width: 80rem)": {
@@ -52,21 +53,21 @@ export const publicationStyles = stylex.create({
         },
     },
     active: {
-        color: tokens.ink,
+        color: color.foreground,
         fontWeight: 600,
         textDecorationLine: "underline",
-        textDecorationColor: tokens.accent,
+        textDecorationColor: color.primary,
         textDecorationThickness: "1px",
         textUnderlineOffset: "0.3em",
     },
     collectionLink: {
-        color: tokens.soft,
+        color: color.mutedForeground,
         display: "block",
         fontSize: "var(--size-navigation)",
         lineHeight: 1.3,
         paddingBlock: "0.25rem",
         ":hover": {
-            color: tokens.accent,
+            color: color.primary,
         },
     },
     collectionList: {

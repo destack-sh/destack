@@ -1,4 +1,4 @@
-import { createResource, Show, Suspense } from "solid-js";
+import { createMemo, Loading, Show } from "@destack/view";
 
 import { loadDocument } from "../content/document";
 import { DocumentArticle } from "../reader/document";
@@ -14,24 +14,22 @@ type DocumentPageProps = {
 
 /// Render an authored chapter or generated reference.
 export function DocumentPage(props: DocumentPageProps) {
-    const [item] = createResource(() => props.route, loadDocument);
+    const item = createMemo(() => loadDocument(props.route));
 
     return (
         <Shell>
-            <Suspense>
+            <Loading>
                 <Show
                     keyed
                     when={item()}
                     fallback={
-                        <Show when={!item.loading}>
-                            <MissingPage
-                                backHref="/docs/"
-                                backLabel="back to docs"
-                                description="This documentation page does not exist."
-                                label="missing document"
-                                title="this page does not exist"
-                            />
-                        </Show>
+                        <MissingPage
+                            backHref="/docs/"
+                            backLabel="back to docs"
+                            description="This documentation page does not exist."
+                            label="missing document"
+                            title="this page does not exist"
+                        />
                     }
                 >
                     {(item) => (
@@ -50,7 +48,7 @@ export function DocumentPage(props: DocumentPageProps) {
                         </>
                     )}
                 </Show>
-            </Suspense>
+            </Loading>
         </Shell>
     );
 }

@@ -1,8 +1,7 @@
-import { A } from "@solidjs/router";
-import { For } from "solid-js";
-import * as stylex from "@stylexjs/stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
 
-import { tokens } from "../style/tokens.stylex";
+import { For } from "@destack/view";
+import * as stylex from "@destack/style";
 
 export type Breadcrumb = {
     /// The breadcrumb destination when it is navigable.
@@ -25,15 +24,17 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
                 {(item, index) => (
                     <>
                         {index() > 0 && <span>/</span>}
-                        {item.href == undefined ? (
-                            <span {...stylex.attrs(styles.current)}>
-                                {item.label}
-                            </span>
-                        ) : (
-                            <A {...stylex.attrs(styles.link)} href={item.href}>
-                                {item.label}
-                            </A>
-                        )}
+                        {item.href == undefined
+                            ? (
+                                <span {...stylex.attrs(styles.current)}>
+                                    {item.label}
+                                </span>
+                            )
+                            : (
+                                <a {...stylex.attrs(styles.link)} href={item.href}>
+                                    {item.label}
+                                </a>
+                            )}
                     </>
                 )}
             </For>
@@ -43,21 +44,21 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
 
 const styles = stylex.create({
     current: {
-        color: tokens.ink,
+        color: color.foreground,
         fontWeight: 400,
     },
     link: {
-        color: tokens.text,
+        color: color.foreground,
         fontWeight: 400,
         ":hover": {
-            color: tokens.accent,
+            color: color.primary,
         },
     },
     root: {
         alignItems: "baseline",
         display: "flex",
         flexWrap: "wrap",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-label)",
         gap: "0.5rem",
         letterSpacing: "0.02em",

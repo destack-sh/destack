@@ -1,17 +1,8 @@
-import {
-    type Accessor,
-    createMemo,
-    createSignal,
-    For,
-    onCleanup,
-    onMount,
-    Show,
-} from "solid-js";
-import * as stylex from "@stylexjs/stylex";
+import { color } from "@destack/theme/tokens.stylex";
+import { type Accessor, createMemo, createSignal, For, onSettled, Show } from "@destack/view";
+import * as stylex from "@destack/style";
 
 import { publicationStyles } from "./publication.stylex";
-
-import { tokens } from "../style/tokens.stylex";
 
 /// One article heading in the rendered contents.
 export type ContentsEntry = {
@@ -82,7 +73,7 @@ function ContentsList(props: ContentsListProps) {
                                 {...stylex.attrs(
                                     styles.link,
                                     props.activeId() === node.id &&
-                                    publicationStyles.active,
+                                        publicationStyles.active,
                                 )}
                                 href={`#${node.id}`}
                             >
@@ -133,12 +124,12 @@ function outlineFor(entries: readonly ContentsEntry[]) {
 
 const styles = stylex.create({
     link: {
-        color: tokens.soft,
+        color: color.mutedForeground,
         display: "block",
         lineHeight: 1.3,
         paddingBlock: "0.25rem",
         ":hover": {
-            color: tokens.accent,
+            color: color.primary,
         },
     },
     list: {
@@ -157,7 +148,7 @@ const styles = stylex.create({
 export function trackActiveHeading(entries: readonly ContentsEntry[]) {
     const [activeId, setActiveId] = createSignal(entries[0]?.id ?? "");
 
-    onMount(() => {
+    onSettled(() => {
         // skip documents without headings
         if (entries.length === 0) {
             return;
@@ -184,14 +175,14 @@ export function trackActiveHeading(entries: readonly ContentsEntry[]) {
         window.addEventListener("resize", schedule);
 
         // cancel pending work and detach viewport tracking
-        onCleanup(() => {
+        return () => {
             if (frame !== 0) {
                 window.cancelAnimationFrame(frame);
             }
 
             window.removeEventListener("scroll", schedule);
             window.removeEventListener("resize", schedule);
-        });
+        };
     });
 
     return activeId;

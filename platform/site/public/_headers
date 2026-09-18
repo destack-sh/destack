@@ -1,0 +1,19 @@
+/*
+  X-Content-Type-Options: nosniff
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/_content/html/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/_content/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/install
+  Content-Type: text/x-shellscript; charset=utf-8
+  Cache-Control: no-store
+
+/install.ps1
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: no-store

@@ -1,4 +1,4 @@
-import { collections } from "../content";
+import { collections } from "../content.ts";
 import { spawn } from "node:child_process";
 import { isAbsolute, join, normalize, relative, resolve } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
@@ -20,9 +20,6 @@ type ContentTask = {
     /// The generator path relative to the site directory.
     script: string;
 
-    /// Additional generator arguments.
-    arguments?: readonly string[];
-
     /// The pending debounce timer.
     timeout?: ReturnType<typeof setTimeout>;
 
@@ -35,43 +32,24 @@ type ContentTask = {
 
 /// Regenerate content modules and reload the development server after source changes.
 export function contentPlugin(siteDirectory: string): Plugin {
-    const tasks: ContentTask[] = [
-        {
-            name: "package documentation",
-            outputDirectory: join(siteDirectory, "src/generated"),
-            workingDirectory: siteDirectory,
-            script: "scripts/generate-content.ts",
-            arguments: ["--reference"],
-            triggers: collections.flatMap((collection) =>
-                collection.sources.filter((source) => source.readme).map((source) =>
-                    resolve(siteDirectory, "../..", source.directory),
-                ),
-            ),
-        },
-        {
-            name: "content",
-            outputDirectory: join(siteDirectory, "src/generated"),
-            workingDirectory: siteDirectory,
-            script: "scripts/generate-content.ts",
-            triggers: collections.flatMap((collection) =>
-                collection.sources.map((source) =>
-                    resolve(siteDirectory, "../..", source.directory),
-                ),
-            ),
-        },
-    ];
+    const task: ContentTask = {
+        name: "content",
+        outputDirectory: join(siteDirectory, "src/generated"),
+        workingDirectory: siteDirectory,
+        script: "scripts/generate-content.ts",
+        triggers: collections.flatMap((collection) =>
+            collection.sources.map((source) => resolve(siteDirectory, "../..", source.directory))
+        ),
+    };
 
     return {
         name: "destack-content",
         apply: "serve",
         configureServer(server) {
-            for (const task of tasks) {
-                server.watcher.add([...task.triggers]);
-            }
+            server.watcher.add([...task.triggers]);
 
             server.watcher.on("all", (_event, path) => {
-                const task = tasks.find((task) => isTriggered(path, task));
-                if (task != undefined) {
+                if (isTriggered(path, task)) {
                     schedule(task, server);
                 }
             });
@@ -107,7 +85,7 @@ function run(task: ContentTask, server: ViteDevServer) {
         return;
     }
 
-    task.process = spawn("bun", [task.script, ...(task.arguments ?? [])], {
+    task.process = spawn("deno", ["run", "-A", task.script], {
         cwd: task.workingDirectory,
         stdio: "inherit",
     });

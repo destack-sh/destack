@@ -1,5 +1,6 @@
-import * as stylex from "@stylexjs/stylex";
-import type { JSX } from "solid-js";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import * as stylex from "@destack/style";
+import type { JSX } from "@destack/view";
 
 import { installCommand } from "../content/site";
 import { tokens } from "../style/tokens.stylex";
@@ -384,7 +385,7 @@ const posterStyles = stylex.create({
         alignSelf: "center",
         backgroundColor: "#dba07c",
         color: "#272624",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         padding: "0.75rem 1.25rem",
@@ -406,7 +407,7 @@ const posterStyles = stylex.create({
         cursor: "not-allowed",
         display: "flex",
         font: "inherit",
-        fontFamily: tokens.monoFont,
+        fontFamily: fontFamily.code,
         fontSize: "var(--size-navigation)",
         gap: "0.7rem",
         justifyContent: "center",
@@ -435,7 +436,7 @@ const posterStyles = stylex.create({
     proposition: {
         color: tokens.orangeLight,
         display: "grid",
-        fontFamily: tokens.monoFont,
+        fontFamily: fontFamily.code,
         fontSize: "clamp(0.65rem, 1.5cqw, 0.8125rem)",
         fontWeight: 700,
         gridTemplateColumns: "1fr 1fr",
@@ -476,7 +477,7 @@ const posterStyles = stylex.create({
         marginInline: "auto",
         width: "min(100%, calc((100svh - 10rem) * 1.35))",
         backgroundColor: tokens.night,
-        borderColor: tokens.ink,
+        borderColor: color.foreground,
         borderStyle: "solid",
         borderWidth: tokens.stroke,
         display: "grid",
@@ -492,7 +493,7 @@ const posterStyles = stylex.create({
     },
     fineLine: {
         color: tokens.cream,
-        fontFamily: tokens.monoFont,
+        fontFamily: fontFamily.code,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         letterSpacing: "0.22em",

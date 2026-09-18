@@ -1,9 +1,9 @@
-import { onCleanup, onMount } from "solid-js";
-import * as stylex from "@stylexjs/stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { onSettled } from "@destack/view";
+import * as stylex from "@destack/style";
 
 import { commandEvents } from "../command/command";
 import type { PageSource } from "../content/source";
-import { tokens } from "../style/tokens.stylex";
 
 /// Properties for the page source controls.
 type SourceActionsProps = {
@@ -48,7 +48,7 @@ export function createPageSourceCommands(
         });
     };
 
-    onMount(() => {
+    onSettled(() => {
         // bind command palette copy actions to this page
         const copyMarkdown = () => copy("md");
         const copyText = () => copy("txt");
@@ -57,13 +57,13 @@ export function createPageSourceCommands(
         document.addEventListener(commandEvents.copyText, copyText);
 
         // unbind page actions when the reader is replaced
-        onCleanup(() => {
+        return () => {
             document.removeEventListener(
                 commandEvents.copyMarkdown,
                 copyMarkdown,
             );
             document.removeEventListener(commandEvents.copyText, copyText);
-        });
+        };
     });
 
     return { copy, source };
@@ -99,16 +99,16 @@ export function SourceActions(props: SourceActionsProps) {
 
 const styles = stylex.create({
     action: {
-        color: tokens.text,
+        color: color.foreground,
         textDecoration: "none",
         ":hover": {
-            color: tokens.accent,
+            color: color.primary,
         },
     },
     controls: {
         alignItems: "baseline",
         display: "flex",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "1rem",

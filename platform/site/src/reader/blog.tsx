@@ -1,6 +1,7 @@
-import { A } from "@solidjs/router";
-import { Show, type Accessor } from "solid-js";
-import * as stylex from "@stylexjs/stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+
+import { type Accessor, Show } from "@destack/view";
+import * as stylex from "@destack/style";
 
 import { publicationStyles } from "./publication.stylex";
 
@@ -8,7 +9,7 @@ import { type Post, type PostContent } from "../generated/posts";
 import { Breadcrumbs } from "./breadcrumbs";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
-import { ContentsTree, trackActiveHeading, type ContentsEntry } from "./contents";
+import { type ContentsEntry, ContentsTree, trackActiveHeading } from "./contents";
 import { PageHeader } from "./header";
 import { formatDate, formatReadTime } from "../content/presentation";
 
@@ -30,15 +31,20 @@ export function BlogArticle(props: BlogArticleProps) {
 
     return (
         <Reader
-            location={() => (
-                <Breadcrumbs items={[{ href: "/blog/", label: "Blog" }]} />
+            location={() => <Breadcrumbs items={[{ href: "/blog/", label: "Blog" }]} />}
+            navigation={() => (
+                <BlogNavigation
+                    contents={props.post.tableOfContents}
+                    activeHeading={activeHeading}
+                />
             )}
-            navigation={() => <BlogNavigation contents={props.post.tableOfContents} activeHeading={activeHeading} />}
-            metadata={() => <>
-                <span>{props.post.author}</span>
-                <time dateTime={props.post.date}>{formatDate(props.post.date)}</time>
-                <span>{formatReadTime(props.post.tokens)}</span>
-            </>}
+            metadata={() => (
+                <>
+                    <span>{props.post.author}</span>
+                    <time datetime={props.post.date}>{formatDate(props.post.date)}</time>
+                    <span>{formatReadTime(props.post.tokens)}</span>
+                </>
+            )}
             publication="journal"
             source={props.post}
         >
@@ -50,10 +56,14 @@ export function BlogArticle(props: BlogArticleProps) {
 }
 
 /// Blog articles use their heading outline as the primary reading navigation.
-function BlogNavigation(props: { contents: readonly ContentsEntry[]; activeHeading: Accessor<string>; }) {
+function BlogNavigation(
+    props: { contents: readonly ContentsEntry[]; activeHeading: Accessor<string> },
+) {
     return (
         <nav aria-label="Article contents" {...stylex.attrs(styles.book)}>
-            <div class="collection-context"><A href="/blog/">← Blog</A></div>
+            <div class="collection-context">
+                <a href="/blog/">← Blog</a>
+            </div>
             <div {...stylex.attrs(publicationStyles.collectionList)}>
                 <ContentsTree entries={props.contents} activeId={props.activeHeading} />
             </div>
@@ -86,8 +96,7 @@ type PostNavigationProps = {
 /// Render adjacent posts when they exist.
 function PostNavigation(props: PostNavigationProps) {
     // resolve neighbors from the canonical post order
-    const index = () =>
-        props.posts.findIndex((post) => post.slug === props.post.slug);
+    const index = () => props.posts.findIndex((post) => post.slug === props.post.slug);
     const newer = () => props.posts[index() - 1];
     const older = () => props.posts[index() + 1];
 
@@ -98,15 +107,11 @@ function PostNavigation(props: PostNavigationProps) {
                 {...stylex.attrs(styles.pagination)}
             >
                 <Show when={newer()}>
-                    {(post) => (
-                        <PostNavigationLink direction="newer" post={post()} />
-                    )}
+                    {(post) => <PostNavigationLink direction="newer" post={post()} />}
                 </Show>
 
                 <Show when={older()}>
-                    {(post) => (
-                        <PostNavigationLink direction="older" post={post()} />
-                    )}
+                    {(post) => <PostNavigationLink direction="older" post={post()} />}
                 </Show>
             </nav>
         </Show>
@@ -127,9 +132,9 @@ function PostNavigationLink(props: PostNavigationLinkProps) {
     const isNewer = props.direction === "newer";
 
     return (
-        <A {...stylex.attrs(styles.paginationLink)} href={props.post.route}>
+        <a {...stylex.attrs(styles.paginationLink)} href={props.post.route}>
             {isNewer ? `← ${props.post.title}` : `${props.post.title} →`}
-        </A>
+        </a>
     );
 }
 
@@ -141,12 +146,12 @@ const styles = stylex.create({
         gap: 0,
     },
     pagination: {
-        borderTopColor: tokens.line,
+        borderTopColor: color.border,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         display: "flex",
         flexWrap: "wrap",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "1rem 2rem",
@@ -155,9 +160,9 @@ const styles = stylex.create({
         paddingTop: "var(--content-section-gap)",
     },
     paginationLink: {
-        color: tokens.ink,
+        color: color.foreground,
         ":hover": {
-            color: tokens.accent,
+            color: color.primary,
         },
     },
 });

@@ -1,5 +1,6 @@
-import type { ContentEntry } from "./presentation";
-import { loadContent, type RenderedContent } from "./load";
+import type { ContentEntry } from "./presentation.ts";
+import { loadContent, type RenderedContent } from "./load.ts";
+import { loadAsset } from "./asset.ts";
 
 /// One published documentation page.
 export type Document = {
@@ -19,7 +20,7 @@ export type Document = {
     navigation: {
         root: DocumentLink;
         ancestors: readonly DocumentLink[];
-        entries: readonly (DocumentLink & { depth: number; })[];
+        entries: readonly (DocumentLink & { depth: number })[];
         previous?: DocumentLink;
         next?: DocumentLink;
     };
@@ -89,48 +90,15 @@ export async function loadDocument(
 async function loadDocumentMetadata(
     route: string,
 ): Promise<Document | undefined> {
-    let value: unknown;
-
-    // read the same public artifact directly while rendering on the server
-    if (import.meta.env.SSR) {
-        const [{ readFile }, { join }] = await Promise.all([
-            import("node:fs/promises"),
-            import("node:path"),
-        ]);
-        const file = join(process.cwd(), "public", route.slice(1));
-        try {
-            value = JSON.parse(await readFile(file, "utf8"));
-        } catch (error) {
-            if (isMissingFileError(error)) {
-                return undefined;
-            }
-            throw error;
-        }
-    }
-    // fetch the independently cached artifact during browser navigation
-    else {
-        const response = await fetch(route);
-        if (response.status === 404) {
-            return undefined;
-        }
-        if (!response.ok) {
-            throw new Error(
-                `cannot load document (${response.status}): ${route}`,
-            );
-        }
-        value = await response.json();
-    }
+    const text = await loadAsset(route);
+    if (text === undefined) return undefined;
+    const value: unknown = JSON.parse(text);
 
     if (!isDocument(value)) {
         throw new Error(`invalid document metadata: ${route}`);
     }
 
     return value;
-}
-
-/// Return whether one error reports a missing filesystem path.
-function isMissingFileError(error: unknown): boolean {
-    return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 /// Return whether one value is complete generated document metadata.

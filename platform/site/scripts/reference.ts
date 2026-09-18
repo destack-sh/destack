@@ -1,5 +1,5 @@
-import { escapeHtml, escapeAttribute } from "../src/content/html.ts";
-import type { DocumentationPage } from "./page";
+import { escapeAttribute, escapeHtml } from "../src/content/html.ts";
+import type { DocumentationPage } from "./page.ts";
 import type { MarkdownContext } from "./markdown.ts";
 
 import { renderContentList } from "../src/content/presentation.ts";
@@ -104,7 +104,10 @@ export function readLibraryReference() {
     }
 
     const reference: PackageReference = JSON.parse(readFileSync(libraryReferenceFile, "utf8"));
-    if (reference.schemaVersion !== 8 || !Array.isArray(reference.modules) || !Array.isArray(reference.namespaces)) {
+    if (
+        reference.schemaVersion !== 8 || !Array.isArray(reference.modules) ||
+        !Array.isArray(reference.namespaces)
+    ) {
         throw new Error(`unsupported library reference in ${libraryReferenceFile}`);
     }
 
@@ -112,36 +115,50 @@ export function readLibraryReference() {
 }
 
 /// Render a package catalog, module indexes, and items.
-export function renderPackageDocuments(reference: PackageReference, index: PackageIndex, options: PackageOptions): { documents: DocumentationPage[]; items: (DocumentationPage & { module: PackageModule; })[]; } {
+export function renderPackageDocuments(
+    reference: PackageReference,
+    index: PackageIndex,
+    options: PackageOptions,
+): { documents: DocumentationPage[]; items: (DocumentationPage & { module: PackageModule })[] } {
     const documentDirectory = options.directory;
     const packageReferenceFile = options.referenceFile;
     const moduleCatalogRoute = index.route;
     const order = index.order;
     const namespacePages = new Map<string, string>();
     const packageModules = [...reference.modules];
-    const publicModuleRoutes = new Map(reference.modules
-        .filter((module) => module.specifier !== reference.package.name)
-        .map((module) => [module.specifier, packageModuleRoute(module.specifier)]));
+    const publicModuleRoutes = new Map(
+        reference.modules
+            .filter((module) => module.specifier !== reference.package.name)
+            .map((module) => [module.specifier, packageModuleRoute(module.specifier)]),
+    );
     const namespaceRoutes = new Map<string, string>(reference.modules.map((module) => [
         module.module,
         packageModuleRoute(module.specifier),
     ]));
-    const namespaceReferences = new Map((reference.namespaces ?? []).map((namespace) => [namespace.module, namespace]));
+    const namespaceReferences = new Map(
+        (reference.namespaces ?? []).map((namespace) => [namespace.module, namespace]),
+    );
 
     // publish each reachable namespace once; aliases and cycles link to its existing page
     for (let cursor = 0; cursor < packageModules.length; cursor += 1) {
         const parent = packageModules[cursor];
         for (const exported of parent.exports) {
-            if (exported.namespace == undefined || namespaceRoutes.has(exported.namespace)) continue;
+            if (exported.namespace == undefined || namespaceRoutes.has(exported.namespace)) {
+                continue;
+            }
             const namespace = namespaceReferences.get(exported.namespace);
-            if (namespace == undefined) throw new Error(`missing exported namespace: ${exported.namespace}`);
+            if (namespace == undefined) {
+                throw new Error(`missing exported namespace: ${exported.namespace}`);
+            }
             const specifier = `${parent.specifier}.${exported.name}`;
             const parentRoute = packageModuleRoute(parent.specifier);
             const route = `${parentRoute}namespace/${packageNameSlug(exported.name)}/`;
             namespacePages.set(specifier, route);
             namespaceRoutes.set(exported.namespace, route);
             packageModules.push({
-                ...namespace, specifier, parentRoute,
+                ...namespace,
+                specifier,
+                parentRoute,
                 importSpecifier: parent.importSpecifier ?? parent.specifier,
                 importName: parent.importName ?? exported.name,
             });
@@ -171,7 +188,9 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
     // describe namespace inventories with their actual exported-name count
     for (const items of moduleItems.values()) {
         for (const item of items.filter((item) => item.kind === "namespace")) {
-            const target = packageModules.find((module) => packageModuleRoute(module.specifier) === item.route);
+            const target = packageModules.find((module) =>
+                packageModuleRoute(module.specifier) === item.route
+            );
             if (target == undefined) throw new Error(`missing namespace document: ${item.route}`);
             item.description = exportCount(target.exports.length);
         }
@@ -182,38 +201,64 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
     const moduleReadmes = new Map(packageModules.map((module) => [
         module.specifier,
         module.path != undefined && basename(module.path) === "index.ds"
-            ? readReadme(join(dirname(module.path), "README.md")) : undefined,
+            ? readReadme(join(dirname(module.path), "README.md"))
+            : undefined,
     ]));
     const readmes: [Readme, string][] = [];
     const introductions: [Readme | undefined, string][] = [
         [packageReadme, index.route],
         ...packageModules.filter((module) => module.specifier !== reference.package.name)
-            .map((module): [Readme | undefined, string] => [moduleReadmes.get(module.specifier), packageModuleRoute(module.specifier)]),
+            .map((
+                module,
+            ): [Readme | undefined, string] => [
+                moduleReadmes.get(module.specifier),
+                packageModuleRoute(module.specifier),
+            ]),
     ];
     for (const [readme, route] of introductions) {
         if (readme != undefined) readmes.push([readme, route]);
     }
     const sourceRoutes = new Map(readmes.map(([readme, route]) => [
         resolve(documentDirectory, readme.path),
-        { route, headings: new Set(headingsFor(parseReadme(readme.markdown, readme.path).markdown).map((heading) => heading.id)) },
+        {
+            route,
+            headings: new Set(
+                headingsFor(parseReadme(readme.markdown, readme.path).markdown).map((heading) =>
+                    heading.id
+                ),
+            ),
+        },
     ]));
     // highlight inventory names together with compiler-derived declaration kinds
     const inventoryItems = [...moduleItems.values()].flat();
-    const inventoryNames = highlightCodeFragments(inventoryItems.map((item) => item.name), "ds", inventoryItems.map((item) => [
-        { start: 0, end: Buffer.byteLength(item.name), kind: packageSemanticKind(item.kind) },
-    ]));
-    const highlightedNames = new Map(inventoryItems.map((item, index) => [item, inventoryNames[index]]));
+    const inventoryNames = highlightCodeFragments(
+        inventoryItems.map((item) => item.name),
+        "ds",
+        inventoryItems.map((item) => [
+            { start: 0, end: Buffer.byteLength(item.name), kind: packageSemanticKind(item.kind) },
+        ]),
+    );
+    const highlightedNames = new Map(
+        inventoryItems.map((item, index) => [item, inventoryNames[index]]),
+    );
 
     const introduction = renderReadme(packageReadme, index.route);
-    const catalog = { ...renderPackageCatalog(reference, { ...index, ...introduction }), searchKind: "catalog", file: packageReferenceFile, markdownRoute: `/docs/${index.path}`, textRoute: `/docs/${index.path.replace(/\.md$/, ".txt")}` };
-    const modules = packageModules.filter((module) => module.specifier !== reference.package.name).map((module) => {
-        const items = moduleItems.get(module.specifier);
-        if (items == undefined) {
-            throw new Error(`missing indexed items for ${module.specifier}`);
-        }
+    const catalog = {
+        ...renderPackageCatalog(reference, { ...index, ...introduction }),
+        searchKind: "catalog",
+        file: packageReferenceFile,
+        markdownRoute: `/docs/${index.path}`,
+        textRoute: `/docs/${index.path.replace(/\.md$/, ".txt")}`,
+    };
+    const modules = packageModules.filter((module) => module.specifier !== reference.package.name)
+        .map((module) => {
+            const items = moduleItems.get(module.specifier);
+            if (items == undefined) {
+                throw new Error(`missing indexed items for ${module.specifier}`);
+            }
 
-        return renderPackageModule(module, items, order);
-    });
+            return renderPackageModule(module, items, order);
+        });
 
     // highlight definitions and members as independent snippets
     const canonical = [...canonicalItems.values()]
@@ -235,9 +280,10 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
     );
 
     // highlight complete import statements together as one valid source file
-    const imports = canonical.length === 0 ? [] : highlightCode(canonical.map((item) =>
-        packageImport(item.module, item.name)
-    ).join("\n"), "ds").split("\n");
+    const imports = canonical.length === 0 ? [] : highlightCode(
+        canonical.map((item) => packageImport(item.module, item.name)).join("\n"),
+        "ds",
+    ).split("\n");
 
     // assign each highlighted definition and member back to its canonical item
     let definitionIndex = 0;
@@ -255,7 +301,13 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
         definitionIndex += item.declarations.length;
         memberIndex += memberCount;
 
-        return renderPackageItem(item, declarationHighlights, memberHighlights, imports[index], order);
+        return renderPackageItem(
+            item,
+            declarationHighlights,
+            memberHighlights,
+            imports[index],
+            order,
+        );
     });
 
     // reject route collisions before writing any generated pages
@@ -314,23 +366,34 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
     }
 
     /// Render the package catalog.
-    function renderPackageCatalog(reference: PackageReference, index: PackageIndex & ReturnType<typeof renderReadme>) {
-        const publicModules = reference.modules.filter((module) => module.specifier !== reference.package.name);
+    function renderPackageCatalog(
+        reference: PackageReference,
+        index: PackageIndex & ReturnType<typeof renderReadme>,
+    ) {
+        const publicModules = reference.modules.filter((module) =>
+            module.specifier !== reference.package.name
+        );
         const moduleRows = renderContentList(publicModules.map((module) => ({
-            title: module.specifier, href: packageModuleRoute(module.specifier),
-            meta: exportCount(module.exports.length), code: true,
+            title: module.specifier,
+            href: packageModuleRoute(module.specifier),
+            meta: exportCount(module.exports.length),
+            code: true,
         })));
         const rootItems = moduleItems.get(reference.package.name) ?? [];
 
         return appendDocumentSections(index, [
             ...rootItems.length > 0 ? packageExportSections(rootItems) : [],
-            ...publicModules.length > 0 ? [{
-                title: "Modules",
-                html: `<div class="reference-catalog">${moduleRows}</div>`,
-                markdown: publicModules.map((module) =>
-                    `- [${module.specifier}](${packageModuleRoute(module.specifier)}) — ${exportCount(module.exports.length)}`
-                ).join("\n"),
-            }] : [],
+            ...publicModules.length > 0
+                ? [{
+                    title: "Modules",
+                    html: `<div class="reference-catalog">${moduleRows}</div>`,
+                    markdown: publicModules.map((module) =>
+                        `- [${module.specifier}](${packageModuleRoute(module.specifier)}) — ${
+                            exportCount(module.exports.length)
+                        }`
+                    ).join("\n"),
+                }]
+                : [],
         ]);
     }
 
@@ -340,18 +403,26 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
         const rows = sorted.map((item) => {
             const name = `<code class="reference-name">${highlightedNames.get(item)}</code>`;
             const description = item.description ?? packageItemDescription(item);
-            const contents = `${name}${description ? `<span class="reference-summary">${escapeHtml(description)}</span>` : ""}`;
+            const contents = `${name}${
+                description
+                    ? `<span class="reference-summary">${escapeHtml(description)}</span>`
+                    : ""
+            }`;
 
             return `<li><a href="${escapeAttribute(item.route)}">${contents}</a></li>`;
         }).join("");
 
         return [{
             title: "Exports",
-            html: rows === "" ? "" : `<div class="reference-group"><ol class="reference-item-list">${rows}</ol></div>`,
+            html: rows === ""
+                ? ""
+                : `<div class="reference-group"><ol class="reference-item-list">${rows}</ol></div>`,
             markdown: sorted.map((item) => {
                 const description = item.description ?? packageItemDescription(item);
 
-                return `- [${item.name}](${item.route})${description === "" ? "" : ` — ${description}`}`;
+                return `- [${item.name}](${item.route})${
+                    description === "" ? "" : ` — ${description}`
+                }`;
             }).join("\n"),
         }];
     }
@@ -362,8 +433,11 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
         const readme = renderReadme(moduleReadmes.get(module.specifier), route);
         if (module.importName != undefined) {
             const statement = packageImport(module, module.importName);
-            readme.html = renderListing(highlightCode(statement, "ds"), { label: "Destack import" }) + readme.html;
-            readme.markdown = `# ${module.specifier}\n\n\`\`\`ds\n${statement}\n\`\`\`\n\n${readme.markdown}`;
+            readme.html =
+                renderListing(highlightCode(statement, "ds"), { label: "Destack import" }) +
+                readme.html;
+            readme.markdown =
+                `# ${module.specifier}\n\n\`\`\`ds\n${statement}\n\`\`\`\n\n${readme.markdown}`;
         }
         const content = appendDocumentSections({
             ...readme,
@@ -396,10 +470,20 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
     }
 
     /// Render a package item.
-    function renderPackageItem(item: PackageItem, declarationHighlights: string[], memberHighlights: string[], importHighlight: string, order: number) {
-        const documentation = [...new Set(item.declarations
-            .map((declaration) => declaration.documentation)
-            .filter((value) => value != undefined))]
+    function renderPackageItem(
+        item: PackageItem,
+        declarationHighlights: string[],
+        memberHighlights: string[],
+        importHighlight: string,
+        order: number,
+    ) {
+        const documentation = [
+            ...new Set(
+                item.declarations
+                    .map((declaration) => declaration.documentation)
+                    .filter((value) => value != undefined),
+            ),
+        ]
             .map((value) => renderPackageDocumentation(value, item.route))
             .join("");
         const declarations = item.declarations.map((declaration, index) =>
@@ -415,7 +499,9 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
             memberHeading,
             memberId,
         );
-        const html = `<div class="reference-item">${renderReferenceCode(importHighlight)}${documentation}${declarations}${memberDocumentation}</div>`;
+        const html = `<div class="reference-item">${
+            renderReferenceCode(importHighlight)
+        }${documentation}${declarations}${memberDocumentation}</div>`;
         const markdown = renderPackageItemMarkdown(item);
         const description = packageItemDescription(item);
         const path = packageItemPath(item.module.specifier, item.kind, item.name);
@@ -442,7 +528,13 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
             searchSections: [{
                 depth: 1,
                 id: packageNameSlug(item.name),
-                text: `${item.name} ${description} ${item.declarations.map((declaration) => declaration.signature.text).join(" ")} ${members.map((member) => `${member.signature.text} ${member.documentation ?? ""}`).join(" ")}`,
+                text: `${item.name} ${description} ${
+                    item.declarations.map((declaration) => declaration.signature.text).join(" ")
+                } ${
+                    members.map((member) =>
+                        `${member.signature.text} ${member.documentation ?? ""}`
+                    ).join(" ")
+                }`,
                 title: item.name,
             }],
             searchText: `${item.name} ${description}`,
@@ -459,11 +551,19 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
             throw new Error(`missing declaration highlight: ${declaration.signature.text}`);
         }
 
-        return `<div class="reference-declaration">${renderReferenceCode(highlighted, declaration.source)}</div>`;
+        return `<div class="reference-declaration">${
+            renderReferenceCode(highlighted, declaration.source)
+        }</div>`;
     }
 
     /// Render public member signatures and their authored documentation.
-    function renderPackageMembers(members: Declaration[], highlighted: string[], route: string, heading: string, id: string) {
+    function renderPackageMembers(
+        members: Declaration[],
+        highlighted: string[],
+        route: string,
+        heading: string,
+        id: string,
+    ) {
         if (members.length === 0) {
             return "";
         }
@@ -477,7 +577,9 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
                 ? ""
                 : renderPackageDocumentation(member.documentation, route);
 
-            return `<div id="${escapeAttribute(id)}"><dt><code>${signature}</code></dt><dd>${documentation}</dd></div>`;
+            return `<div id="${
+                escapeAttribute(id)
+            }"><dt><code>${signature}</code></dt><dd>${documentation}</dd></div>`;
         }).join("");
 
         return `<section class="reference-member-section"><h2 id="${id}">${heading}</h2><dl class="reference-members">${rows}</dl></section>`;
@@ -503,7 +605,9 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
 
     /// Render one highlighted public definition.
     function renderReferenceCode(highlighted: string, source?: SourceLocation) {
-        const detail = source?.path == undefined ? undefined : `L${source.line}${source.endLine === source.line ? "" : `–${source.endLine}`}`;
+        const detail = source?.path == undefined
+            ? undefined
+            : `L${source.line}${source.endLine === source.line ? "" : `–${source.endLine}`}`;
 
         return renderListing(highlighted, {
             title: source?.path ?? undefined,
@@ -515,15 +619,21 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
 
     /// Render one portable Markdown item reference.
     function renderPackageItemMarkdown(item: PackageItem) {
-        const documentation = [...new Set(item.declarations
-            .map((declaration) => declaration.documentation)
-            .filter((value) => value != undefined))]
+        const documentation = [
+            ...new Set(
+                item.declarations
+                    .map((declaration) => declaration.documentation)
+                    .filter((value) => value != undefined),
+            ),
+        ]
             .join("\n\n");
         const declarations = item.declarations.map((declaration) => {
             const definition = packageDefinition(declaration);
             const location = packageSourceLocation(declaration.source);
 
-            return `\`\`\`ds title="${item.name}"\n${definition.text}\n\`\`\`\n\n[${location}](${packageSourceRoute(declaration.source)})`;
+            return `\`\`\`ds title="${item.name}"\n${definition.text}\n\`\`\`\n\n[${location}](${
+                packageSourceRoute(declaration.source)
+            })`;
         }).join("\n\n");
         const members = item.declarations
             .flatMap((declaration) => declaration.members)
@@ -532,7 +642,9 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
         const memberHeading = item.kind === "enum" ? "Variants" : "Members";
         const memberSection = members === "" ? "" : `\n\n## ${memberHeading}\n\n${members}`;
 
-        return `# ${item.name}\n\n\`\`\`ds\n${packageImport(item.module, item.name)}\n\`\`\`\n\n${documentation}\n\n${declarations}${memberSection}\n`;
+        return `# ${item.name}\n\n\`\`\`ds\n${
+            packageImport(item.module, item.name)
+        }\n\`\`\`\n\n${documentation}\n\n${declarations}${memberSection}\n`;
     }
 
     /// Return the canonical site route for one public module specifier.
@@ -541,12 +653,16 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
         if (namespaceRoute != undefined) return namespaceRoute;
         const suffix = packageModuleTitle(specifier);
 
-        return specifier === reference.package.name ? moduleCatalogRoute : `${moduleCatalogRoute}${suffix}/`;
+        return specifier === reference.package.name
+            ? moduleCatalogRoute
+            : `${moduleCatalogRoute}${suffix}/`;
     }
 
     /// Return the concise public title for one package module.
     function packageModuleTitle(specifier: string) {
-        return specifier === reference.package.name ? specifier : specifier.slice(reference.package.name.length + 1);
+        return specifier === reference.package.name
+            ? specifier
+            : specifier.slice(reference.package.name.length + 1);
     }
 
     /// Return the generated portable source path for one public module.
@@ -575,7 +691,6 @@ export function renderPackageDocuments(reference: PackageReference, index: Packa
 
         return `${options.sourceUrl}${path}#L${source.line}${end}`;
     }
-
 }
 
 /// Read optional frontmatter without requiring metadata in package READMEs.
@@ -584,7 +699,10 @@ export function parseReadme(source: string, file: string) {
         ? parseFrontmatter(source, file)
         : { markdown: source, metadata: {} };
     const title = headingsFor(parsed.markdown).find((heading) => heading.depth === 1)?.text ?? "";
-    const description = marked.lexer(parsed.markdown).find((token): token is import("marked").Tokens.Paragraph => token.type === "paragraph")?.text ?? "";
+    const description =
+        marked.lexer(parsed.markdown).find((token): token is import("marked").Tokens.Paragraph =>
+            token.type === "paragraph"
+        )?.text ?? "";
 
     return {
         markdown: parsed.markdown,
@@ -644,7 +762,9 @@ function packageModuleItems(module: PackageModule, namespaceRoutes: Map<string, 
         // link namespace exports to a documented public module when one exists
         if (exported.namespace != undefined) {
             const route = namespaceRoutes.get(exported.namespace);
-            if (route == undefined) throw new Error(`missing namespace route: ${exported.namespace}`);
+            if (route == undefined) {
+                throw new Error(`missing namespace route: ${exported.namespace}`);
+            }
             items.set(`namespace\0${exported.name}`, {
                 declarations: [],
                 kind: "namespace",
@@ -673,10 +793,13 @@ function canonicalPackageItems(modules: PackageModule[], moduleItems: Map<string
                 continue;
             }
             const current = canonical.get(packageItemIdentity(item));
-            if (current == undefined
-                || (current.module.importName != undefined && item.module.importName == undefined)
-                || ((current.module.importName == undefined) === (item.module.importName == undefined)
-                    && packageItemScore(item) > packageItemScore(current))) {
+            if (
+                current == undefined ||
+                (current.module.importName != undefined && item.module.importName == undefined) ||
+                ((current.module.importName == undefined) ===
+                        (item.module.importName == undefined) &&
+                    packageItemScore(item) > packageItemScore(current))
+            ) {
                 canonical.set(packageItemIdentity(item), item);
             }
         }
@@ -727,7 +850,9 @@ export function packageDefinition(declaration: Declaration) {
     const signature = packageSignature(declaration);
     const offset = Buffer.byteLength(comment);
     const tokens = signature.tokens.map((token) => ({
-        ...token, start: token.start + offset, end: token.end + offset,
+        ...token,
+        start: token.start + offset,
+        end: token.end + offset,
     }));
     let text = comment + signature.text;
     if (declaration.members.length === 0) {
@@ -755,7 +880,9 @@ export function packageDefinition(declaration: Declaration) {
 function documentationComment(documentation: string | null | undefined, indent = ""): string {
     if (!documentation) return "";
 
-    return documentation.split("\n").map((line) => `${indent}///${line ? ` ${line}` : ""}\n`).join("");
+    return documentation.split("\n").map((line) => `${indent}///${line ? ` ${line}` : ""}\n`).join(
+        "",
+    );
 }
 
 /// Classify the declaration name in a signature.
@@ -843,5 +970,7 @@ function exportCount(count: number) {
 
 /// Import an item directly or through its publicly exported namespace.
 function packageImport(module: PackageModule, name: string) {
-    return `import { ${module.importName ?? name} } from "${module.importSpecifier ?? module.specifier}";`;
+    return `import { ${module.importName ?? name} } from "${
+        module.importSpecifier ?? module.specifier
+    }";`;
 }

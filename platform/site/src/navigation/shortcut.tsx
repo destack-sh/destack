@@ -1,15 +1,15 @@
-import { onCleanup, onMount } from "solid-js";
+import { onSettled } from "@destack/view";
 
 /// Activate visible mnemonic controls through Alt plus their highlighted key.
 export function KeyboardShortcuts() {
-    onMount(() => {
+    onSettled(() => {
         const activate = (event: KeyboardEvent) => {
             if (
-                event.defaultPrevented
-                || !event.altKey
-                || event.ctrlKey
-                || event.metaKey
-                || isEditable(event.target)
+                event.defaultPrevented ||
+                !event.altKey ||
+                event.ctrlKey ||
+                event.metaKey ||
+                isEditable(event.target)
             ) {
                 return;
             }
@@ -41,7 +41,7 @@ export function KeyboardShortcuts() {
         };
 
         document.addEventListener("keydown", activate);
-        onCleanup(() => document.removeEventListener("keydown", activate));
+        return () => document.removeEventListener("keydown", activate);
     });
 
     return null;
@@ -83,7 +83,7 @@ function shortcutFor(event: KeyboardEvent) {
 
 /// Return whether a shortcut originated inside an editable control.
 function isEditable(target: EventTarget | null) {
-    return target instanceof HTMLInputElement
-        || target instanceof HTMLTextAreaElement
-        || (target instanceof HTMLElement && target.isContentEditable);
+    return target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
 }

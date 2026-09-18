@@ -1,6 +1,7 @@
-import { A } from "@solidjs/router";
-import { For, Show, Switch, Match, onMount, onCleanup } from "solid-js";
-import * as stylex from "@stylexjs/stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+
+import { For, Match, onSettled, Show, Switch } from "@destack/view";
+import * as stylex from "@destack/style";
 
 import { publicationStyles } from "./publication.stylex";
 
@@ -28,10 +29,11 @@ export function DocumentArticle(props: DocumentArticleProps) {
     const directory = createDirectory(() => props.document.entries ?? []);
 
     // activate controls only after the complete static directory is mounted
-    onMount(() => { if (body) onCleanup(enhanceRuleCatalog(body)); });
+    onSettled(() => {
+        if (body) return enhanceRuleCatalog(body);
+    });
 
-    const tokenCount =
-        props.document.kind === "chapter" ? props.document.tokens : undefined;
+    const tokenCount = props.document.kind === "chapter" ? props.document.tokens : undefined;
 
     return (
         <Reader
@@ -44,24 +46,38 @@ export function DocumentArticle(props: DocumentArticleProps) {
             <Switch>
                 <Match when={props.document.entries}>
                     <DirectoryContent title={props.document.title} directory={directory}>
-                        <div class="directory-intro"><div class="markdown" innerHTML={props.content.html} /></div>
+                        <div class="directory-intro">
+                            <div class="markdown" innerHTML={props.content.html} />
+                        </div>
                     </DirectoryContent>
                 </Match>
                 <Match when={props.document.kind === "catalog"}>
                     <DirectorySection title={props.document.title}>
-                        <div ref={body} data-document-kind="catalog" class="markdown directory-body" innerHTML={props.content.html} />
+                        <div
+                            ref={body}
+                            data-document-kind="catalog"
+                            class="markdown directory-body"
+                            innerHTML={props.content.html}
+                        />
                     </DirectorySection>
                 </Match>
                 <Match when={true}>
                     <PageHeader
                         title={props.document.title}
                         variant={props.document.kind === "chapter" ? "chapter" : "reference"}
-                        description={props.document.kind === "chapter" ? props.document.lead : undefined}
+                        description={props.document.kind === "chapter"
+                            ? props.document.lead
+                            : undefined}
                     />
                     <Show when={props.document.kind !== "chapter" && props.document.lead}>
                         <p class="content-description">{props.document.lead}</p>
                     </Show>
-                    <div ref={body} data-document-kind={props.document.kind} class="markdown" innerHTML={props.content.html} />
+                    <div
+                        ref={body}
+                        data-document-kind={props.document.kind}
+                        class="markdown"
+                        innerHTML={props.content.html}
+                    />
                 </Match>
             </Switch>
             <DocumentPagination current={props.document} />
@@ -79,8 +95,10 @@ type DocumentNavigationProps = {
 function DocumentNavigation(props: DocumentNavigationProps) {
     const navigation = () => props.current.navigation;
     // reference items highlight their containing page without changing the page list
-    const activeRoute = () => [props.current, ...navigation().ancestors.toReversed()]
-        .find((page) => navigation().entries.some((entry) => entry.route === page.route))?.route;
+    const activeRoute = () =>
+        [props.current, ...navigation().ancestors.toReversed()]
+            .find((page) => navigation().entries.some((entry) => entry.route === page.route))
+            ?.route;
 
     const parent = () => {
         const ancestors = navigation().ancestors;
@@ -91,26 +109,29 @@ function DocumentNavigation(props: DocumentNavigationProps) {
     return (
         <nav aria-label="manual" {...stylex.attrs(styles.book)}>
             <div class="collection-context">
-                <A href={navigation().root.route}>{navigation().root.title}</A>
-                <Show when={parent()}>{(parent) => <A class="collection-back" href={parent().route}>← {parent().title}</A>}</Show>
+                <a href={navigation().root.route}>{navigation().root.title}</a>
+                <Show when={parent()}>
+                    {(parent) => (
+                        <a class="collection-back" href={parent().route}>← {parent().title}</a>
+                    )}
+                </Show>
             </div>
             <ol {...stylex.attrs(publicationStyles.collectionList)}>
                 <For each={navigation().entries}>
                     {(entry) => (
                         <li>
-                            <A
+                            <a
                                 {...stylex.attrs(
                                     publicationStyles.collectionLink,
                                     documentIndent(entry.depth),
                                     entry.depth === 0 && styles.section,
                                     entry.route === activeRoute() &&
-                                    publicationStyles.active,
+                                        publicationStyles.active,
                                 )}
-                                end
                                 href={entry.route}
                             >
                                 {entry.title}
-                            </A>
+                            </a>
                         </li>
                     )}
                 </For>
@@ -127,7 +148,7 @@ function documentIndent(depth: number) {
 }
 
 /// Render the generated document ancestors.
-function DocumentLocation(props: { document: Document; }) {
+function DocumentLocation(props: { document: Document }) {
     return (
         <Breadcrumbs
             items={props.document.navigation.ancestors.map((link) => ({
@@ -139,7 +160,7 @@ function DocumentLocation(props: { document: Document; }) {
 }
 
 /// Render the generated adjacent chapter links.
-function DocumentPagination(props: { current: Document; }) {
+function DocumentPagination(props: { current: Document }) {
     const previous = () => props.current.navigation.previous;
     const next = () => props.current.navigation.next;
 
@@ -151,22 +172,22 @@ function DocumentPagination(props: { current: Document; }) {
             >
                 <Show when={previous()}>
                     {(link) => (
-                        <A
+                        <a
                             {...stylex.attrs(styles.paginationLink)}
                             href={link().route}
                         >
                             ← {link().title}
-                        </A>
+                        </a>
                     )}
                 </Show>
                 <Show when={next()}>
                     {(link) => (
-                        <A
+                        <a
                             {...stylex.attrs(styles.paginationLink)}
                             href={link().route}
                         >
                             {link().title} →
-                        </A>
+                        </a>
                     )}
                 </Show>
             </nav>
@@ -178,11 +199,10 @@ function DocumentPagination(props: { current: Document; }) {
 const styles = stylex.create({
     book: {
         alignContent: "start",
-        color: tokens.ink,
+        color: color.foreground,
         display: "grid",
         gap: 0,
     },
-
 
     depth0: {
         paddingLeft: 0,
@@ -197,12 +217,12 @@ const styles = stylex.create({
         paddingLeft: "3rem",
     },
     pagination: {
-        borderTopColor: tokens.line,
+        borderTopColor: color.border,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         display: "flex",
         flexWrap: "wrap",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "1rem 2rem",
@@ -211,13 +231,13 @@ const styles = stylex.create({
         paddingTop: "var(--content-section-gap)",
     },
     paginationLink: {
-        color: tokens.ink,
+        color: color.foreground,
         ":hover": {
-            color: tokens.accent,
+            color: color.primary,
         },
     },
     section: {
-        color: tokens.ink,
+        color: color.foreground,
         fontWeight: 500,
         paddingTop: `calc(${tokens.publicationSpace} * 1.5)`,
     },

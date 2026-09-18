@@ -1,4 +1,4 @@
-import { useParams } from "@solidjs/router";
+import { useParams } from "@destack/view/router";
 
 import { PostPage } from "../../page/post";
 

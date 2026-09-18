@@ -14,13 +14,13 @@
     --site-gutter-left: calc(1.5rem + env(safe-area-inset-left));
     --site-gutter-right: calc(1.5rem + env(safe-area-inset-right));
     color-scheme: light dark;
-    --publication-page: light-dark(#f8f7f4, #1b1a19);
-    --publication-page-muted: light-dark(#efeeea, #292725);
+    --publication-page: var(--destack-color-background);
+    --publication-page-muted: var(--destack-color-muted);
     --publication-listing: light-dark(#f1f0ec, #232220);
-    --publication-ink: light-dark(#272624, #d5d2cb);
-    --publication-soft: light-dark(#68655f, #a39e94);
-    --publication-line: light-dark(#dedbd5, #3d3a36);
-    --publication-accent: light-dark(#b95532, #d68b65);
+    --publication-ink: var(--destack-color-foreground);
+    --publication-soft: var(--destack-color-mutedForeground);
+    --publication-line: var(--destack-color-border);
+    --publication-accent: var(--destack-color-primary);
     --publication-rust: light-dark(#a44328, #ec9878);
     --publication-syntax-type: light-dark(#0f6470, #79c6ce);
     --publication-syntax-function: light-dark(#8a5a0e, #e4b66c);
@@ -71,6 +71,11 @@ body {
 
 body {
     background: var(--publication-page);
+}
+
+::selection {
+    background: var(--publication-accent);
+    color: var(--publication-ink);
 }
 
 a {

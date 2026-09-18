@@ -1,7 +1,7 @@
-import type { Collection } from "../content";
-import type { ContentEntry } from "../src/content/presentation";
-import type { Document } from "../src/content/document";
-import type { ContentAsset, headingsFor, searchSectionsFor } from "./markdown";
+import type { Collection } from "../content.ts";
+import type { ContentEntry } from "../src/content/presentation.ts";
+import type { Document } from "../src/content/document.ts";
+import type { ContentAsset, headingsFor, searchSectionsFor } from "./markdown.ts";
 
 /// A destination while its collection navigation is being assembled.
 export type NavigationPage = {

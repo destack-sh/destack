@@ -1,13 +1,10 @@
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
 import { formatReadTime } from "../content/presentation";
-import { type JSX, onCleanup, onMount } from "solid-js";
-import * as stylex from "@stylexjs/stylex";
+import { type JSX, onSettled } from "@destack/view";
+import * as stylex from "@destack/style";
 
 import type { PageSource } from "../content/source";
-import {
-    createPageSourceCommands,
-    type PageSourceCommands,
-    SourceActions,
-} from "./source";
+import { createPageSourceCommands, type PageSourceCommands, SourceActions } from "./source";
 import { tokens } from "../style/tokens.stylex";
 import { playVideo } from "./media";
 import { renderDiagrams } from "./diagram";
@@ -61,10 +58,10 @@ export function Reader(props: ReaderProps) {
     const sourceCommands = createPageSourceCommands(props.source);
 
     // render diagrams after the article mounts
-    onMount(() => onCleanup(renderDiagrams(article)));
+    onSettled(() => renderDiagrams(article));
 
     // align direct links after responsive layout and webfonts settle
-    onMount(() => {
+    onSettled(() => {
         const scrollToHeading = () => {
             const identifier = decodeURIComponent(
                 window.location.hash.slice(1),
@@ -85,9 +82,9 @@ export function Reader(props: ReaderProps) {
         window.addEventListener("hashchange", scrollAfterLayout);
 
         // detach the route listener with the reader
-        onCleanup(() => {
+        return () => {
             window.removeEventListener("hashchange", scrollAfterLayout);
-        });
+        };
     });
 
     return (
@@ -124,7 +121,13 @@ export function Reader(props: ReaderProps) {
 /// Render one toolbar at its responsive DOM position.
 function ReaderToolbar(props: ReaderToolbarProps) {
     return (
-        <header {...stylex.attrs(styles.toolbar, styles.toolbarPublication, props.metadata !== undefined && styles.toolbarWithMetadata)}>
+        <header
+            {...stylex.attrs(
+                styles.toolbar,
+                styles.toolbarPublication,
+                props.metadata !== undefined && styles.toolbarWithMetadata,
+            )}
+        >
             <details
                 {...stylex.attrs(styles.menu)}
                 name="reader-tools"
@@ -135,9 +138,24 @@ function ReaderToolbar(props: ReaderToolbarProps) {
                     }
                 }}
             >
-                <summary aria-label="Contents" title="Contents" {...stylex.attrs(styles.menuSummary)}>
+                <summary
+                    aria-label="Contents"
+                    title="Contents"
+                    {...stylex.attrs(styles.menuSummary)}
+                >
                     Contents
-                    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="m6 9 6 6 6-6" /></svg>
+                    <svg
+                        aria-hidden="true"
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                    >
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
                 </summary>
                 <div
                     {...stylex.attrs(styles.menuBody)}
@@ -205,13 +223,13 @@ const styles = stylex.create({
         "@media (min-width: 80rem)": { display: "none" },
     },
     menuBody: {
-        backgroundColor: tokens.page,
-        borderColor: tokens.line,
+        backgroundColor: color.background,
+        borderColor: color.border,
         borderStyle: "solid",
         borderWidth: tokens.hairline,
         boxShadow: "0 12px 32px rgb(0 0 0 / 12%)",
         display: "grid",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         gap: "1.25rem",
         left: 0,
@@ -226,7 +244,7 @@ const styles = stylex.create({
     },
     menuSummary: {
         alignItems: "center",
-        color: tokens.text,
+        color: color.foreground,
         cursor: "pointer",
         display: "flex",
         justifyContent: "center",
@@ -238,10 +256,10 @@ const styles = stylex.create({
     },
     toolbar: {
         alignItems: "center",
-        borderBottomColor: tokens.line,
+        borderBottomColor: color.border,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-        color: tokens.ink,
+        color: color.foreground,
         display: "grid",
         gap: "0.75rem",
         gridTemplateColumns: "minmax(0, 1fr) auto",
@@ -259,11 +277,11 @@ const styles = stylex.create({
         alignItems: "baseline",
         flexWrap: "wrap",
         gap: "0.5rem 1rem",
-        color: tokens.soft,
+        color: color.mutedForeground,
         "@media (max-width: 600px)": { gridColumn: "1 / -1", gridRow: 2, paddingBottom: "0.75rem" },
     },
     toolbarPublication: {
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-label)",
     },
     toolbarTools: {
@@ -275,7 +293,7 @@ const styles = stylex.create({
         minWidth: 0,
     },
     statistic: {
-        color: tokens.ink,
+        color: color.foreground,
         whiteSpace: "nowrap",
         "::after": {
             content: "·",

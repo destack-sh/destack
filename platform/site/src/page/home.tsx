@@ -1,4 +1,4 @@
-import * as stylex from "@stylexjs/stylex";
+import * as stylex from "@destack/style";
 
 import { Cover } from "../home/cover";
 import { Seo } from "../site/seo";
@@ -9,10 +9,8 @@ export function HomePage() {
     return (
         <Shell isHome>
             <Seo
-                description={
-                    "Destack is a universal software engine for building complete " +
-                    "software systems."
-                }
+                description={"Destack is a universal software engine for building complete " +
+                    "software systems."}
             />
 
             <article {...stylex.attrs(styles.article)}>

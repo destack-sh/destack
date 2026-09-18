@@ -1,10 +1,10 @@
-import * as stylex from "@stylexjs/stylex";
-import type { JSX } from "solid-js";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import * as stylex from "@destack/style";
+import type { JSX } from "@destack/view";
 
 import { Footer } from "../navigation/footer";
 import { KeyboardShortcuts } from "../navigation/shortcut";
 import { TopBar } from "../navigation/topbar";
-import { tokens } from "../style/tokens.stylex";
 
 const mobile = "@media (max-width: 767px)";
 
@@ -77,10 +77,10 @@ const styles = stylex.create({
         zIndex: 1,
     },
     root: {
-        backgroundColor: tokens.page,
-        color: tokens.text,
+        backgroundColor: color.background,
+        color: color.foreground,
         display: "grid",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         gridTemplateRows: "auto minmax(0, 1fr) auto",
         minHeight: "100svh",
         minWidth: 0,

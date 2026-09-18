@@ -1,23 +1,27 @@
-import {
-    existsSync,
-    mkdirSync,
-    readFileSync,
-    renameSync,
-    writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const generatedFile = join(repositoryDirectory, "platform/site/src/generated/release.ts");
-const publicFile = join(repositoryDirectory, "platform/site/public/release.json");
+const repositoryDirectory = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../..",
+);
+const generatedFile = join(
+    repositoryDirectory,
+    "platform/site/src/generated/release.ts",
+);
+const publicFile = join(
+    repositoryDirectory,
+    "platform/site/public/release.json",
+);
 const isCheck = process.argv.includes("--check");
 
-// read the canonical workspace manifest
-const manifestFile = join(repositoryDirectory, "destack.json");
+// read the repository version and release configuration
+const manifestFile = join(repositoryDirectory, "package.json");
 const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
 const { version } = manifest;
-const stability = manifest.products?.destack?.stability;
+const configurationFile = join(repositoryDirectory, "dev/release/config.json");
+const { stability } = JSON.parse(readFileSync(configurationFile, "utf8"));
 
 // require one canonical calendar version
 if (!/^\d{4}\.(?:[1-9]|1[0-2])\.\d+$/.test(version)) {
@@ -31,8 +35,7 @@ if (!["experimental", "alpha", "beta", "stable"].includes(stability)) {
 
 // render both generated representations
 const release = { version, stability };
-const generatedSource =
-    `/// The current Destack release.\n` +
+const generatedSource = `/// The current Destack release.\n` +
     `export const release = ${JSON.stringify(release)} as const;\n`;
 const publicSource = `${JSON.stringify(release)}\n`;
 

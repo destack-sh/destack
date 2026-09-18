@@ -1,4 +1,4 @@
-import { Link, Meta, Title } from "@solidjs/meta";
+import { Link, Meta, Title } from "@destack/view/document";
 
 /// The canonical public site origin.
 const siteUrl = "https://destack.sh";
@@ -53,7 +53,11 @@ export function Seo(props: SeoProps) {
             <Meta name="twitter:title" content={title()} />
             <Link rel="canonical" href={url()} />
             {props.markdownRoute != undefined && (
-                <Link rel="alternate" type="text/markdown" href={`${siteUrl}${props.markdownRoute}`} />
+                <Link
+                    rel="alternate"
+                    type="text/markdown"
+                    href={`${siteUrl}${props.markdownRoute}`}
+                />
             )}
             {props.textRoute != undefined && (
                 <Link rel="alternate" type="text/plain" href={`${siteUrl}${props.textRoute}`} />

@@ -1,6 +1,7 @@
-import { A } from "@solidjs/router";
-import { HttpStatusCode } from "@solidjs/start";
-import * as stylex from "@stylexjs/stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+
+import { httpStatus } from "@destack/view";
+import * as stylex from "@destack/style";
 
 import { tokens } from "../style/tokens.stylex";
 import { Seo } from "./seo";
@@ -24,17 +25,18 @@ type MissingPageProps = {
 
 /// Render a consistent not-found response inside the site shell.
 export function MissingPage(props: MissingPageProps) {
+    httpStatus(404);
+
     return (
         <>
-            <HttpStatusCode code={404} />
             <Seo title="404" description={props.description} />
 
             <section {...stylex.attrs(styles.page)}>
                 <p {...stylex.attrs(styles.label)}>{props.label}</p>
                 <h1 {...stylex.attrs(styles.title)}>{props.title}</h1>
-                <A {...stylex.attrs(styles.action)} href={props.backHref}>
+                <a {...stylex.attrs(styles.action)} href={props.backHref}>
                     ← {props.backLabel}
-                </A>
+                </a>
             </section>
         </>
     );
@@ -44,20 +46,20 @@ const styles = stylex.create({
     action: {
         alignItems: "center",
         display: "inline-flex",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontWeight: 500,
         fontSize: "var(--size-navigation)",
-        color: tokens.ink,
+        color: color.foreground,
         paddingBlock: "0.625rem",
         textTransform: "none",
         width: "max-content",
         ":hover": {
-            color: tokens.accent,
+            color: color.primary,
         },
     },
     label: {
-        color: tokens.ink,
-        fontFamily: tokens.textFont,
+        color: color.foreground,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         margin: 0,
     },
@@ -71,7 +73,7 @@ const styles = stylex.create({
         width: "100%",
     },
     title: {
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--content-title-size)",
         fontWeight: 500,
         letterSpacing: "-0.04em",

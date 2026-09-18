@@ -1,6 +1,6 @@
-import { createResource, Show, Suspense } from "solid-js";
+import { createMemo, Loading, Show } from "@destack/view";
 
-import { loadPost, postBySlug, posts, type Post } from "../generated/posts";
+import { loadPost, type Post, postBySlug, posts } from "../generated/posts";
 import { BlogArticle } from "../reader/blog";
 import { MissingPage } from "../site/missing";
 import { Seo } from "../site/seo";
@@ -15,7 +15,7 @@ type PostPageProps = {
 export function PostPage(props: PostPageProps) {
     const post = () => postBySlug.get(props.slug);
     const orderedPosts = [...posts].sort(comparePosts);
-    const [content] = createResource(() => props.slug, loadPost);
+    const content = createMemo(() => loadPost(props.slug));
 
     return (
         <Shell>
@@ -31,13 +31,17 @@ export function PostPage(props: PostPageProps) {
                             type="article"
                         />
 
-                        <Suspense>
+                        <Loading>
                             <Show when={content()}>
                                 {(content) => (
-                                    <BlogArticle content={content()} post={post} posts={orderedPosts} />
+                                    <BlogArticle
+                                        content={content()}
+                                        post={post}
+                                        posts={orderedPosts}
+                                    />
                                 )}
                             </Show>
-                        </Suspense>
+                        </Loading>
                     </>
                 )}
             </Show>

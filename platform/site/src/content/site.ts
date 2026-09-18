@@ -1,4 +1,4 @@
-import type { SearchEntry } from "./search";
+import type { SearchEntry } from "./search.ts";
 
 /// The public installation command.
 export const installCommand = "curl -fsSL https://destack.sh/install | sh";

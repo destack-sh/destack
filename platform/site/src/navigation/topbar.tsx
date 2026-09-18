@@ -1,15 +1,15 @@
-import * as stylex from "@stylexjs/stylex";
-import { useLocation } from "@solidjs/router";
-import { createMemo, createSignal, onMount, onCleanup } from "solid-js";
-import { Portal } from "solid-js/web";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import * as stylex from "@destack/style";
+import { useLocation } from "@destack/view/router";
+import { createMemo, createSignal, onSettled } from "@destack/view";
+import { Portal } from "@destack/view";
 
 import { CommandPalette } from "../command/palette";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
 import { primaryLinks } from "./navigation";
 import { ThemeToggle } from "./theme";
-
-import brandIcon from "../../../brand/mark.svg?raw";
+import brandIcon from "../../.generated/mark.svg?raw";
 
 const mobile = "@media (max-width: 767px)";
 
@@ -20,11 +20,13 @@ export function TopBar() {
     const [menuOpen, setMenuOpen] = createSignal(false);
 
     // dismiss mobile navigation when the desktop navigation becomes available
-    onMount(() => {
+    onSettled(() => {
         const desktop = window.matchMedia("(min-width: 768px)");
-        const closeMenu = () => { if (desktop.matches) menu?.close(); };
+        const closeMenu = () => {
+            if (desktop.matches) menu?.close();
+        };
         desktop.addEventListener("change", closeMenu);
-        onCleanup(() => desktop.removeEventListener("change", closeMenu));
+        return () => desktop.removeEventListener("change", closeMenu);
     });
 
     // select the most specific navigation destination for the current route
@@ -75,23 +77,105 @@ export function TopBar() {
                     <div {...stylex.attrs(styles.controls)}>
                         <CommandPalette />
                         <ThemeToggle />
-                        <button aria-label="Menu" title="Menu" aria-haspopup="dialog" aria-expanded={menuOpen()} aria-controls="site-menu" type="button" {...stylex.attrs(styles.mobileControl)} onClick={() => { menu?.showModal(); setMenuOpen(true); }}>
-                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        <button
+                            aria-label="Menu"
+                            title="Menu"
+                            aria-haspopup="dialog"
+                            aria-expanded={menuOpen() ? "true" : "false"}
+                            aria-controls="site-menu"
+                            type="button"
+                            {...stylex.attrs(styles.mobileControl)}
+                            onClick={() => {
+                                menu?.showModal();
+                                setMenuOpen(true);
+                            }}
+                        >
+                            <svg
+                                aria-hidden="true"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.75"
+                                stroke-linecap="round"
+                            >
+                                <path d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
                         </button>
                     </div>
                 </div>
             </div>
             <Portal>
-                <dialog ref={menu} id="site-menu" aria-label="Site navigation" onClose={() => setMenuOpen(false)} {...stylex.attrs(styles.menu)} onClick={(event) => { if (event.target === menu) menu.close(); }}>
+                <dialog
+                    ref={menu}
+                    id="site-menu"
+                    aria-label="Site navigation"
+                    onClose={() => setMenuOpen(false)}
+                    {...stylex.attrs(styles.menu)}
+                    onClick={(event) => {
+                        if (event.target === menu) menu.close();
+                    }}
+                >
                     <div {...stylex.attrs(styles.menuHeader)}>
-                        <a href="/" {...stylex.attrs(styles.brand)} onClick={() => menu?.close()}><span aria-hidden="true" class="brand-icon" innerHTML={brandIcon} />Destack</a>
-                        <button type="button" aria-label="Close menu" {...stylex.attrs(styles.menuClose)} onClick={() => menu?.close()}>
-                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 6 12 12M6 18 18 6" /></svg>
+                        <a href="/" {...stylex.attrs(styles.brand)} onClick={() => menu?.close()}>
+                            <span
+                                aria-hidden="true"
+                                class="brand-icon"
+                                innerHTML={brandIcon}
+                            />Destack
+                        </a>
+                        <button
+                            type="button"
+                            aria-label="Close menu"
+                            {...stylex.attrs(styles.menuClose)}
+                            onClick={() => menu?.close()}
+                        >
+                            <svg
+                                aria-hidden="true"
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            >
+                                <path d="m6 6 12 12M6 18 18 6" />
+                            </svg>
                         </button>
                     </div>
-                    <nav aria-label="Site navigation" {...stylex.attrs(styles.menuLinks)} onClick={(event) => { if (event.target instanceof Element && event.target.closest("a")) menu?.close(); }}>
+                    <nav
+                        aria-label="Site navigation"
+                        {...stylex.attrs(styles.menuLinks)}
+                        onClick={(event) => {
+                            if (event.target instanceof Element && event.target.closest("a")) {
+                                menu
+                                    ?.close();
+                            }
+                        }}
+                    >
                         {primaryLinks.map(({ label, href, shortcut }) => (
-                            <SiteLink href={href} shortcut={shortcut} style={[styles.menuLink, activeLink()?.href === href && styles.active]}>{label}<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></SiteLink>
+                            <SiteLink
+                                href={href}
+                                shortcut={shortcut}
+                                style={[
+                                    styles.menuLink,
+                                    activeLink()?.href === href && styles.active,
+                                ]}
+                            >
+                                {label}
+                                <svg
+                                    aria-hidden="true"
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
+                                >
+                                    <path d="M5 12h14m-6-6 6 6-6 6" />
+                                </svg>
+                            </SiteLink>
                         ))}
                     </nav>
                 </dialog>
@@ -100,16 +184,16 @@ export function TopBar() {
     );
 }
 
-const hover = { color: tokens.accent };
+const hover = { color: color.primary };
 
 const styles = stylex.create({
     body: {
         alignItems: "center",
-        borderBottomColor: tokens.line,
+        borderBottomColor: color.border,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "grid",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         fontWeight: 400,
         gridTemplateColumns: "auto minmax(0, 1fr) auto",
@@ -126,9 +210,9 @@ const styles = stylex.create({
     },
     brand: {
         alignItems: "center",
-        color: tokens.ink,
+        color: color.foreground,
         display: "inline-flex",
-        fontFamily: tokens.textFont,
+        fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "0.625rem",
@@ -158,14 +242,14 @@ const styles = stylex.create({
         [mobile]: { display: "none" },
     },
     link: {
-        color: tokens.ink,
+        color: color.foreground,
         paddingBlock: "0.625rem",
         ":hover": hover,
     },
     active: {
         fontWeight: 600,
         textDecorationLine: "underline",
-        textDecorationColor: tokens.accent,
+        textDecorationColor: color.primary,
         textDecorationThickness: "1px",
         textUnderlineOffset: "0.5em",
     },
@@ -173,7 +257,7 @@ const styles = stylex.create({
         alignItems: "center",
         backgroundColor: "transparent",
         borderWidth: 0,
-        color: tokens.ink,
+        color: color.foreground,
         cursor: "pointer",
         display: "none",
         justifyContent: "center",
@@ -184,10 +268,10 @@ const styles = stylex.create({
     },
     controls: { display: "flex", alignItems: "center", gap: 0 },
     menu: {
-        backgroundColor: tokens.page,
+        backgroundColor: color.background,
         borderWidth: 0,
-        color: tokens.ink,
-        fontFamily: tokens.textFont,
+        color: color.foreground,
+        fontFamily: fontFamily.default,
         inset: 0,
         margin: 0,
         maxHeight: "100dvh",
@@ -196,11 +280,11 @@ const styles = stylex.create({
         padding: `0 ${tokens.gutterRight} 2rem ${tokens.gutterLeft}`,
         width: "100vw",
         overscrollBehavior: "contain",
-        "::backdrop": { backgroundColor: tokens.page },
+        "::backdrop": { backgroundColor: color.background },
     },
     menuHeader: {
         alignItems: "center",
-        borderBottomColor: tokens.line,
+        borderBottomColor: color.border,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "flex",
@@ -211,14 +295,14 @@ const styles = stylex.create({
         alignItems: "center",
         backgroundColor: "transparent",
         borderWidth: 0,
-        color: tokens.ink,
+        color: color.foreground,
         cursor: "pointer",
         display: "inline-flex",
         justifyContent: "center",
         height: "2.75rem",
         width: "2.75rem",
         ":hover": hover,
-        ":focus-visible": { outline: `2px solid ${tokens.accent}`, outlineOffset: "-2px" },
+        ":focus-visible": { outline: `2px solid ${color.primary}`, outlineOffset: "-2px" },
     },
     menuLinks: { display: "grid", paddingTop: "var(--content-section-gap)" },
     menuLink: {
@@ -226,19 +310,19 @@ const styles = stylex.create({
         display: "flex",
         justifyContent: "space-between",
         gap: "1rem",
-        borderBottomColor: tokens.line,
+        borderBottomColor: color.border,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-        color: tokens.ink,
+        color: color.foreground,
         fontSize: "var(--content-title-size)",
         lineHeight: "1.5",
         paddingBlock: "var(--content-inset)",
-        ":hover": { color: tokens.accent },
-        ":focus-visible": { outline: `2px solid ${tokens.accent}`, outlineOffset: "-2px" },
+        ":hover": { color: color.primary },
+        ":focus-visible": { outline: `2px solid ${color.primary}`, outlineOffset: "-2px" },
     },
     root: {
-        backgroundColor: tokens.page,
-        color: tokens.text,
+        backgroundColor: color.background,
+        color: color.foreground,
         maxWidth: "100vw",
     },
 });

@@ -1,7 +1,6 @@
-import { A } from "@solidjs/router";
-import type { StyleXStyles } from "@stylexjs/stylex";
-import * as stylex from "@stylexjs/stylex";
-import type { JSX } from "solid-js";
+import type { Styles } from "@destack/style";
+import * as stylex from "@destack/style";
+import type { JSX } from "@destack/view";
 
 type SiteLinkProps = {
     /// The visible link content.
@@ -14,7 +13,7 @@ type SiteLinkProps = {
     ariaLabel?: string;
 
     /// The optional compiled presentation.
-    style?: StyleXStyles;
+    style?: Styles;
 
     /// The optional global keyboard shortcut.
     shortcut?: string;
@@ -42,7 +41,7 @@ export function SiteLink(props: SiteLinkProps) {
         );
     }
 
-    return <A {...attributes()}>{props.children}</A>;
+    return <a {...attributes()}>{props.children}</a>;
 }
 
 /// Return whether a destination leaves the current site.

@@ -4,73 +4,66 @@ set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 _default:
     @just --list --unsorted
 
-# build production output
+# build
 build:
-    bun scripts/sync-assets.ts
-    bun scripts/generate-release.ts
-    bun scripts/generate-reference.ts
-    bun scripts/generate-content.ts
-    bun x vinxi build
-    bun scripts/postbuild.ts
+    deno task build
 
-# format source
+# deploy
+deploy:
+    CLOUDFLARE_API_TOKEN="${CLOUDFLARE_COMPANY_API_TOKEN:?CLOUDFLARE_COMPANY_API_TOKEN is required}" deno run -A npm:wrangler deploy
+
+# format
 format:
     @echo "No site formatter defined"
 
-# check source formatting
+# check formatting
 format-check:
     @echo "No site formatter defined"
 
-# regenerate generated files
+# generate
 generate:
-    bun scripts/generate-release.ts
-    bun scripts/generate-reference.ts
-    bun scripts/generate-content.ts
+    deno task generate
 
-# check generated files
+# generate reference
+generate-reference:
+    deno run -A scripts/generate-release.ts
+    deno run -A scripts/generate-content.ts --reference
+
+# generate check
 generate-check:
-    bun scripts/generate-release.ts --check
-    bun scripts/generate-reference.ts
-    bun scripts/generate-content.ts --check
+    deno run -A scripts/generate-release.ts --check
+    deno run -A scripts/generate-content.ts --check
 
-# type check source
+# typecheck
 typecheck:
-    bun x tsc -p tsconfig.json --noEmit
+    deno task typecheck
 
-# run static checks
+# lint
 lint:
     just typecheck
     just build
 
-# run tests
+# test
 test:
-    bun scripts/test-highlighting.ts
-    bun scripts/test-reference.ts
-    bun scripts/test-listing.ts
-    bun scripts/test-rules.ts
-    bun scripts/test-presentation.ts
+    deno task test
 
-# default check
+# check
 check:
     just check-quick
 
-# normal check
+# check quick
 check-quick:
     just generate-check
     just lint
 
-# check with slow suites
+# check full
 check-full:
     just check-quick
 
-# run dev server
+# dev
 dev:
-    bun scripts/sync-assets.ts
-    bun scripts/generate-release.ts
-    bun scripts/generate-reference.ts
-    bun scripts/generate-content.ts
-    bun x vinxi dev
+    deno task dev
 
-# clean build artifacts
+# clean
 clean:
     rm -rf .generated .vinxi .output dist

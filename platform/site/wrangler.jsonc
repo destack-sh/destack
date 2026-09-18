@@ -1,0 +1,12 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "destack-site",
+    "account_id": "27c0d00fb3a27a4ccbf46a3cceab9301",
+    "compatibility_date": "2026-09-17",
+    "workers_dev": true,
+    "assets": {
+        "directory": ".output/public",
+        "html_handling": "auto-trailing-slash",
+        "not_found_handling": "404-page",
+    },
+}
