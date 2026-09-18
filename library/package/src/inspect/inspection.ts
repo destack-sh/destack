@@ -1,56 +1,45 @@
 import { defineSchema, schema, toJsonSchema } from "@destack/schema";
-import type { ModuleDescription } from "../code/module.ts";
 import { ModuleGraph } from "../code/graph.ts";
-import { defineInspection } from "./inspect.ts";
+import { definePackageInspection } from "./inspect.ts";
 
 /** The JSON document exchanged with package inspection entrypoints. */
-export const InspectionDocument = defineSchema(schema.object({
-    /** The inspection format name. */
-    name: schema.string().min(1),
-    /** The inspection format version. */
-    version: schema.number().int().min(1),
-    /** Source and library-defined descriptions. */
-    description: defineInspection(schema.json()),
-    /** The JSON Schema supplied by the package. */
-    schema: schema.record(schema.string(), schema.json()),
-}));
+export const PackageInspection = defineSchema(
+    definePackageInspection(schema.json()).extend({
+        /** The JSON Schema supplied by the package. */
+        schema: schema.record(schema.string(), schema.json()),
+    }),
+);
 
 /** A validated inspection and its JSON Schema. */
-export interface Inspection<Description = unknown> {
-    /** The inspection format name. */
-    name: string;
-    /** The inspection format version. */
-    version: number;
-    /** The inspected source and domain descriptions. */
-    description: {
-        /** The package's source modules. */
-        code: ModuleDescription[];
+export type PackageInspection<Description = unknown> =
+    & Omit<schema.Infer<typeof PackageInspection>, "descriptions" | "schema">
+    & {
         /** Descriptions produced by the package's libraries. */
         descriptions: Description;
+        /** JSON Schema describing the serialized inspection. */
+        schema: ReturnType<typeof toJsonSchema>;
     };
-    /** The schema used to validate the descriptions. */
-    schema: ReturnType<typeof toJsonSchema>;
-}
 
-/** Validate an inspection and its declaration references. */
-export function createInspection<Description extends schema.Schema>(
+/** Validate library descriptions and attach the inspected source modules. */
+export function createPackageInspection<Description extends schema.Schema>(
     name: string,
     version: number,
     code: ModuleGraph,
     validator: Description,
     description: schema.Input<Description>,
-): Inspection<schema.Output<Description>> {
-    // validate the description and its source references
-    schema.string().min(1).parse(name);
-    schema.number().int().min(1).parse(version);
-    const definition = defineInspection(validator);
-    const descriptions = validator.parse(description);
+): PackageInspection<schema.Output<Description>> {
+    // validate descriptions against the supplied schema
+    name = PackageInspection.shape.name.parse(name);
+    version = PackageInspection.shape.version.parse(version);
+    const definition = definePackageInspection(validator);
     const modules = [...code.modules.values()];
+    const descriptions = validator.parse(description);
 
     return {
         name,
         version,
-        description: { code: modules, descriptions },
+        code: modules,
+        descriptions,
         schema: toJsonSchema(definition),
     };
 }

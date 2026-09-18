@@ -1,9 +1,8 @@
 import { PackageError } from "../error/index.ts";
 import { defineSchema, schema } from "@destack/schema";
-import { DependencyName, Language, Package, Target } from "../package/index.ts";
-import { PackageFile, PackagePath } from "../file/file.ts";
-import { InspectionReference } from "./inspection.ts";
-import { DependencyResolution } from "../package/dependency.ts";
+import { Language, Package } from "../package/index.ts";
+import { PackageFile } from "../file/file.ts";
+import { PackageOutput } from "./output.ts";
 import { SourceMapReference } from "../source/map.ts";
 
 /** The portable structure of a package build manifest. */
@@ -14,16 +13,12 @@ export const PackageManifest = defineSchema(schema.object({
     package: Package,
     /** The package's source language. */
     language: Language,
-    /** The target supported by this build. */
-    target: Target,
-    /** Exact registry dependencies keyed by their imported package names. */
-    dependencies: schema.record(DependencyName, DependencyResolution),
+    /** Whether dynamic package inspection was enabled for this build. */
+    dynamic: schema.boolean(),
+    /** Named outputs compiled from the package. */
+    outputs: schema.record(schema.string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/), PackageOutput),
     /** Every distributed file except this manifest. */
     files: schema.array(PackageFile),
-    /** Emitted module paths relative to the build root, keyed by public export name. */
-    exports: schema.record(schema.string().min(1), PackagePath),
-    /** Inspection documents and their schemas, distributed with this build. */
-    inspections: schema.array(InspectionReference),
     /** Source maps associated with exact generated files. */
     sourceMaps: schema.array(SourceMapReference),
 }));
@@ -59,13 +54,47 @@ export function parseManifest(value: unknown): PackageManifest {
         }
     }
 
-    // resolve each public entrypoint to a distributed file
-    for (const [name, path] of Object.entries(manifest.exports)) {
-        if (!files.has(path)) {
+    // keep independently deployed outputs in separate directories
+    const directories = new Set<string>();
+    for (const output of Object.values(manifest.outputs)) {
+        if (directories.has(output.directory)) {
             throw new PackageError(
                 "INVALID_FILE",
-                `Missing export file: ${name} -> ${path}`,
+                `Duplicate output directory: ${output.directory}`,
             );
+        }
+        directories.add(output.directory);
+    }
+    for (const directory of directories) {
+        let path = directory;
+        while (path.length) {
+            if (files.has(path)) {
+                throw new PackageError("INVALID_FILE", `Output directory is a file: ${path}`);
+            }
+            if (path !== directory && directories.has(path)) {
+                throw new PackageError(
+                    "INVALID_FILE",
+                    `Overlapping output directories: ${path}, ${directory}`,
+                );
+            }
+            const separator = path.lastIndexOf("/");
+            if (separator === -1) break;
+            path = path.slice(0, separator);
+        }
+    }
+
+    // resolve each public entrypoint to a distributed file
+    for (const output of Object.values(manifest.outputs)) {
+        for (const [name, path] of Object.entries(output.exports)) {
+            if (!files.has(path)) {
+                throw new PackageError(
+                    "INVALID_FILE",
+                    `Missing export file: ${name} -> ${path}`,
+                );
+            }
+            if (!path.startsWith(`${output.directory}/`)) {
+                throw new PackageError("INVALID_FILE", `Export is outside its output: ${path}`);
+            }
         }
     }
 
@@ -90,22 +119,24 @@ export function parseManifest(value: unknown): PackageManifest {
     }
 
     // resolve inspection paths against the distributed files
-    const names = new Set<string>();
-    for (const inspection of manifest.inspections) {
-        if (names.has(inspection.name)) {
-            throw new PackageError("INVALID_FILE", `Duplicate inspection: ${inspection.name}`);
-        }
-        names.add(inspection.name);
-        for (const path of [inspection.document, inspection.schema]) {
-            if (!files.has(path)) {
-                throw new PackageError("INVALID_FILE", `Missing inspection file: ${path}`);
+    for (const output of Object.values(manifest.outputs)) {
+        const names = new Set<string>();
+        for (const inspection of output.inspections) {
+            if (names.has(inspection.name)) {
+                throw new PackageError("INVALID_FILE", `Duplicate inspection: ${inspection.name}`);
             }
-        }
-        if (inspection.document === inspection.schema) {
-            throw new PackageError(
-                "INVALID_FILE",
-                `Inspection document and schema share a path: ${inspection.document}`,
-            );
+            names.add(inspection.name);
+            for (const path of [inspection.document, inspection.schema]) {
+                if (!files.has(path)) {
+                    throw new PackageError("INVALID_FILE", `Missing inspection file: ${path}`);
+                }
+            }
+            if (inspection.document === inspection.schema) {
+                throw new PackageError(
+                    "INVALID_FILE",
+                    `Inspection document and schema share a path: ${inspection.document}`,
+                );
+            }
         }
     }
 

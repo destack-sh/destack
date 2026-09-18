@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { PackagePath } from "../file/file.ts";
 
 /** An inspection document and schema included in a package build. */
-export const InspectionReference = defineSchema(schema.object({
+export const PackageInspectionReference = defineSchema(schema.object({
     /** The name of the inspection format. */
     name: schema.string().min(1),
     /** The inspection format version. */
@@ -13,4 +13,4 @@ export const InspectionReference = defineSchema(schema.object({
     schema: PackagePath,
 }));
 /** An inspection document and its schema paths. */
-export type InspectionReference = schema.Infer<typeof InspectionReference>;
+export type PackageInspectionReference = schema.Infer<typeof PackageInspectionReference>;

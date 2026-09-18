@@ -1,6 +1,6 @@
 import { describeTable } from "@destack/db";
 import { TableDescription } from "@destack/db/inspect";
-import { createInspection } from "@destack/package/inspect";
+import { createPackageInspection } from "@destack/package/inspect";
 import { ModuleGraph, SymbolReference } from "@destack/package/code";
 import { schema } from "@destack/schema";
 import { tables } from "./tables.ts";
@@ -26,7 +26,7 @@ export function inspectPackage(code: ModuleGraph) {
         })),
     });
 
-    return createInspection(
+    return createPackageInspection(
         "@destack/model",
         1,
         code,

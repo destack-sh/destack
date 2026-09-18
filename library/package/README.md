@@ -3,12 +3,17 @@ Describe packages, source code, inspections, and built files.
 ## Usage
 
 ```ts
-import { PackageDefinition } from "@destack/package";
+import { parseDeclaration } from "@destack/package";
 
-const definition = PackageDefinition.parse({
-    language: "typescript",
-    targets: ["browser", "worker", "host"],
-});
+const declaration = parseDeclaration(
+    {
+        name: "@destack/schema",
+        version: "2026.9.0",
+        exports: { ".": "./src/index.ts" },
+        dependencies: { zod: "4.6.5" },
+    },
+    { language: "typescript", targets: ["browser", "worker", "host"] },
+);
 ```
 
 ```ts
@@ -48,7 +53,7 @@ import { schema } from "@destack/schema";
 import { describeTable } from "@destack/db";
 import { TableDescription } from "@destack/db/inspect";
 import { ModuleGraph, SymbolReference } from "@destack/package/code";
-import { createInspection } from "@destack/package/inspect";
+import { createPackageInspection } from "@destack/package/inspect";
 import { tables } from "../db/index.ts";
 
 const description = schema.object({
@@ -59,7 +64,7 @@ const description = schema.object({
 });
 
 export function inspectPackage(code: ModuleGraph) {
-    return createInspection("@destack/model", 1, code, description, {
+    return createPackageInspection("@destack/model", 1, code, description, {
         tables: Object.entries(tables).map(([name, table]) => ({
             symbol: code.resolveExport("src/index.ts", name),
             description: describeTable(table),
