@@ -16,7 +16,7 @@ const METADATA_KEYS = new Set([
 /** Require JSON validation rules that can be described without executable callbacks. */
 export function validate(
     schema: $ZodType,
-    visited: Set<$ZodType>,
+    visited: Map<$ZodType, Set<boolean>>,
     isProperty: boolean,
 ): void {
     const definition = (schema as $ZodTypes)._zod.def;
@@ -27,8 +27,12 @@ export function validate(
             "Optional schemas are only supported as object properties.",
         );
     }
-    if (visited.has(schema)) return;
-    visited.add(schema);
+
+    // visit shared and recursive schemas in each property context
+    const contexts = visited.get(schema);
+    if (contexts?.has(isProperty)) return;
+    if (contexts) contexts.add(isProperty);
+    else visited.set(schema, new Set([isProperty]));
 
     // keep metadata from overriding validation in the generated description
     const metadata = z.globalRegistry.get(schema);
@@ -139,22 +143,22 @@ export function validate(
             validate(definition.valueType, visited, false);
             break;
         case "intersection":
-            validate(definition.left, visited, false);
-            validate(definition.right, visited, false);
+            validate(definition.left, visited, isProperty);
+            validate(definition.right, visited, isProperty);
             break;
         case "union":
             for (const option of definition.options) {
-                validate(option, visited, false);
+                validate(option, visited, isProperty);
             }
             break;
         case "nullable":
-            validate(definition.innerType, visited, false);
+            validate(definition.innerType, visited, isProperty);
             break;
         case "optional":
-            validate(definition.innerType, visited, false);
+            validate(definition.innerType, visited, isProperty);
             break;
         case "lazy":
-            validate(definition.getter(), visited, false);
+            validate(definition.getter(), visited, isProperty);
             break;
         default:
             throw new TypeError(

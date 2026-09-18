@@ -13,7 +13,7 @@ export function defineSchema<T extends z.ZodType>(schema: T): T {
 
 /** Describe the accepted JSON values using JSON Schema Draft 2020-12. */
 export function toJsonSchema(schema: z.ZodType): JsonSchema {
-    validate(schema, new Set(), false);
+    validate(schema, new Map(), false);
 
     return z.toJSONSchema(schema, {
         target: "draft-2020-12",
