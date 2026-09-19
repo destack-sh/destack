@@ -1,0 +1,20 @@
+{
+    "name": "@destack/space",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Declare Destack space configuration.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./declare": "./src/declare/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./error": "./src/error/index.ts"
+    },
+    "scripts": { "check": "deno check src/index.ts src/inspect/index.ts" },
+    "dependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*"
+    }
+}
