@@ -16,10 +16,10 @@ See [LICENSE.txt](LICENSE.txt) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSE
 ## Setup
 
 Destack is *developed* primarily using Rust and TypeScript (and Destack itself, of course).
-To contribute to Destack and build it yourself locally you will need at least `cargo`, `bun`, and `just`:
+Install the tools needed by the packages you are working on:
 
 - [Rust](https://rustup.rs/): Rust compiler (`nightly-2026-05-26`, see [rust-toolchain.toml](rust-toolchain.toml))
-- [Bun](https://bun.sh/): JavaScript runtime and package management
+- [Deno](https://deno.com/): JavaScript runtime and package management (2.9.7)
 - [just](https://github.com/casey/just): Scripts and command runner
 - [Python](https://python.org/): Project docs validation and codegen utilities
 
@@ -30,20 +30,16 @@ See the relevant directories we're working on for the relevant just recipes.
 
 ## Release
 
-The root [destack.json](destack.json) declares the complete distribution and its `YEAR.MONTH.MICRO` version.
-Packages and products declare their own stability.
-Do not edit versions directly: use `just next-version`, `just set-version`, or `just release`.
-
-Prepare and publish a release from the repository root:
+The root [package.json](package.json) declares the repository’s `YEAR.MONTH.MICRO` version.
+[Release configuration](dev/release/config.json) declares the distribution’s stability.
+Check, build, and pack the CLI and desktop from the repository root:
 
 ```sh
-just check-quick
-just check-full
-just release
-# review the release commit and vYEAR.MONTH.MICRO tag
-just release-push
+just check
+just dev/release/build
+just dev/release/pack
 ```
 
-Pushing the tag runs [.github/workflows/release.yml](.github/workflows/release.yml).
-Use `just validate-release` and `just publish --dry-run` for additional packaging checks.
-CI credentials live in the GitHub `release` environment, while local publishing reads `.env.local`.
+- [The release workflow](.github/workflows/release.yml) checks matching pull requests and pushes to main.
+- [The update metadata](.github/workflows/update.yml) renews and publishes signed metadata daily.
+- Enable `publish` on a manual run from `main` to sign and publish downloads to `download.destack.sh`.
