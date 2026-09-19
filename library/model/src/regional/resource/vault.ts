@@ -100,6 +100,8 @@ export const secretBinding = table("secret_binding", {
     spaceId: identifier("space_id", "space").notNull(),
     /** The installation receiving the binding. */
     installationId: identifier("installation_id", "installation").notNull(),
+    /** The package declaring this secret. */
+    packageId: identifier("package_id", "package").notNull(),
     /** The package-local secret declaration. */
     name: text("name").notNull(),
     /** The selected secret. */
@@ -107,7 +109,7 @@ export const secretBinding = table("secret_binding", {
     /** An exact version; null follows the current version at access time. */
     version: integer("version"),
 }, (entry) => [
-    primaryKey({ columns: [entry.installationId, entry.name] }),
+    primaryKey({ columns: [entry.installationId, entry.packageId, entry.name] }),
     foreignKey({
         columns: [entry.spaceId, entry.installationId],
         foreignColumns: [installation.spaceId, installation.id],
@@ -129,6 +131,8 @@ export const deploymentSecretBinding = table("deployment_secret_binding", {
     spaceId: identifier("space_id", "space").notNull(),
     /** The prepared deployment. */
     deploymentId: identifier("deployment_id", "deployment").notNull(),
+    /** The package declaring this secret. */
+    packageId: identifier("package_id", "package").notNull(),
     /** The package-local secret declaration. */
     name: text("name").notNull(),
     /** The selected secret. */
@@ -136,7 +140,7 @@ export const deploymentSecretBinding = table("deployment_secret_binding", {
     /** An exact version; null preserves current-version selection. */
     version: integer("version"),
 }, (entry) => [
-    primaryKey({ columns: [entry.deploymentId, entry.name] }),
+    primaryKey({ columns: [entry.deploymentId, entry.packageId, entry.name] }),
     foreignKey({
         columns: [entry.spaceId, entry.deploymentId],
         foreignColumns: [deployment.spaceId, deployment.id],

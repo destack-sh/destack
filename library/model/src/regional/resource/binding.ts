@@ -8,12 +8,16 @@ export const resourceBinding = table("resource_binding", {
     spaceId: identifier("space_id", "space").notNull(),
     /** The installation declaring the requirement. */
     installationId: identifier("installation_id", "installation").notNull(),
+    /** The package declaring this resource. */
+    packageId: identifier("package_id", "package").notNull(),
     /** The declaration name within the package. */
     name: text("name").notNull(),
     /** The provisioned resource satisfying the declaration. */
     resourceId: identifier("resource_id", "resource").notNull(),
 }, (resourceBinding) => [
-    primaryKey({ columns: [resourceBinding.installationId, resourceBinding.name] }),
+    primaryKey({
+        columns: [resourceBinding.installationId, resourceBinding.packageId, resourceBinding.name],
+    }),
     foreignKey({
         columns: [resourceBinding.spaceId, resourceBinding.installationId],
         foreignColumns: [installation.spaceId, installation.id],
