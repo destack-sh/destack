@@ -137,35 +137,45 @@ If software is going to run _everything_, faster than anyone can verify, how do 
 # Destack
 
 Software should be open, hackable, rexmiable - and fast.
-Something you can actually own, _without_ giving up on the benefits 
+Software you can actually own, _without_ giving up on the benefits of modern stacks and the "cloud".
 How? How do we get there, from here?
-Even if we could magically replace the stack, we would still need to port software and use cases.
+Even if we could magically replace the stack, replace with what?
 
 And besides, where to even begin with a "brand new stack"?
 It can't be too different, or nobody - humans nor agents - would know how to use it.
 Paradoxically, this is not the time to figure out an "ideal second system" _from scratch_; whatever follows must trace the shapes we already have.
 
-Fortunately, the web exists. 
-And the web is pretty great. TypeScript is also pretty great.
-Everybody knows TypeScript, everybody knows the Web, Web standards have been refined over decades, the Web already happens to be the largest application platform ever.
-It's not perfect, sure, but what is?
-
-<!--Of course, the "Web as a platform" has been tried before-->
+Fortunately, the web is pretty great. TypeScript is also pretty great.
+Everybody knows the web, everybody knows TypeScript, and web standards evolved over decades.
+Oh, and the internet is also the largest application platform ever.
+It's not _perfect_, sure, but what is?
 
 :::figure src="./picasso-bull.jpg" alt="Eleven versions of Picasso’s bull, progressing from a detailed animal to a few essential lines."
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
 :::
 
-We have long figured out that opinionated formatters are a great idea to remove unproductive syntax debates and standardized the _appearence_ of code.
-Yeah, maybe the syntax is not _perfect_ by your personal standards, but it is _standardised_ and who cares anyway.
+We have long figured out that opinionated formatters are a great idea as they remove unproductive syntax debates and standardize the _appearence_ of code to just one right way.
+Sure, maybe the brackets aren't _perfect_ by everyone's personal standards, but it is _standardised_ and who cares anyway, there is software to ship.
  <!--and meta-frameworks serves a similar need.-->
 
-Why not just go all the way, and fully standardize the _shape_ of code? 
-Beyond syntax and linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures.
+What formatters did to the appearance of code, we should now to do the _shape_ of code:
+fully standardize far beyond syntax, language choice, and other trivialities.
+We need exact schematics to fill in and follow for the p95 of use cases we already know to do, but that do not work well as libraries (think ShadCN, but enforcable).
+<!--we want _exact_ prescribed module and file layouts, type shapes, call trees, services, dependencies, entire architectures.-->
 
-<!-- TODO -->
-But how to get from here to fully standardized? 
-- place to manage personal software with the best modern web stack, standardized
-The Destack app supports two types of packages, to bridge from the present into the future:
- - ruthlessly standardized open TypeScript / Web thing with existing NPM stuff
- - absurdly fully integrated TypeScript++ language runtime with its complete own closed stack
+Only once the stack is sufficiently standardised can we realise truly personal software that can actually be owned.
+And the most pragmatic way to standardise is to pick the best of the modern web stack, wrap it in a common format, and then unify the relevant base models.
+Then we can fan out.
+
+<!-- TODO: demo #1 -->
+
+The first iteration of Destack launches today as an open source, hackable, personal software platform.
+It's basically just a personal Git, NPM, databases, dynamic workers, and all the bits to make it work nicely together with unified auth, styling, telemetry.
+
+<!-- TODO: demo #2 -->
+
+Of course, Destack includes plenty of tools for understanding the shape of your software, so you can actually figure out what to do by iteration.
+It's about as indescructible as one could reasonably make something like this, and we will happily let you host it yourself and tunell for you, or you could just let us take care of that.
+Or any combination thereof.
+
+<!-- TODO: CTA? -->
