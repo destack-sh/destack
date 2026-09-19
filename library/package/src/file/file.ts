@@ -4,6 +4,7 @@ import { PackageError } from "../error/index.ts";
 /** A canonical package-relative path using slash separators. */
 export const PackagePath = defineSchema(
     schema.string().regex(
+        // deno-lint-ignore no-control-regex -- reject control characters in distributed paths
         /^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/,
     ),
 );

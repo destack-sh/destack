@@ -1,4 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
+import { Digest } from "../file/file.ts";
 
 /** A scoped Destack package name. */
 export const PackageName = defineSchema(
@@ -24,3 +25,13 @@ export const Package = defineSchema(schema.object({
 
 /** A named, versioned package. */
 export type Package = Readonly<schema.Infer<typeof Package>>;
+
+/** An immutable Destack release and the manifest identifying its distributed contents. */
+export const PackageRelease = defineSchema(schema.object({
+    /** The released package name and version. */
+    package: Package,
+    /** The digest of its immutable build manifest. */
+    manifest: Digest,
+}));
+/** An immutable Destack package release. */
+export type PackageRelease = schema.Infer<typeof PackageRelease>;

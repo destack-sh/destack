@@ -1,16 +1,12 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DependencyName, Package } from "../package/package.ts";
-import { Digest } from "../file/file.ts";
+import { DependencyName, Package, PackageRelease } from "../package/package.ts";
+import { PackageFile } from "../file/file.ts";
 
-/** An exact dependency selected during package resolution. */
-export const DependencyResolution = defineSchema(schema.union([
-    schema.object({
+/** An immutable dependency release available from a registry. */
+export const DependencyRelease = defineSchema(schema.union([
+    PackageRelease.extend({
         /** The Destack registry format. */
         kind: schema.literal("destack"),
-        /** The resolved package and release. */
-        package: Package,
-        /** The digest of its immutable build manifest. */
-        manifest: Digest,
     }),
     schema.object({
         /** The npm registry format. */
@@ -23,5 +19,22 @@ export const DependencyResolution = defineSchema(schema.union([
         integrity: schema.string().min(1),
     }),
 ]));
-/** An exact dependency selected during package resolution. */
+
+/** An immutable dependency release available from a registry. */
+export type DependencyRelease = schema.Infer<typeof DependencyRelease>;
+
+/** A registry release or source snapshot selected during package resolution. */
+export const DependencyResolution = defineSchema(schema.union([
+    DependencyRelease,
+    schema.object({
+        /** Source compiled directly from a local Destack package. */
+        kind: schema.literal("source"),
+        /** The source package's declared name and version. */
+        package: Package,
+        /** Package declarations and source files consumed by the bundler. */
+        files: schema.array(PackageFile),
+    }),
+]));
+
+/** A registry release or source snapshot selected during package resolution. */
 export type DependencyResolution = schema.Infer<typeof DependencyResolution>;

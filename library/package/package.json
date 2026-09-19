@@ -14,10 +14,17 @@
         "./source": "./src/source/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./file": "./src/file/index.ts",
-        "./import-meta": { "types": "./src/package/import-meta.d.ts" }
+        "./import-meta": {
+            "types": "./src/package/import-meta.d.ts"
+        },
+        "./workload": "./src/workload/index.ts",
+        "./runtime": "./src/runtime/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/code/index.ts src/source/index.ts src/inspect/index.ts src/file/index.ts src/package/import-meta.d.ts"
+        "check": "deno check src/index.ts src/code/index.ts src/source/index.ts src/inspect/index.ts src/file/index.ts src/workload/index.ts src/runtime/index.ts src/package/import-meta.d.ts"
     },
-    "dependencies": { "@destack/schema": "workspace:*" }
+    "dependencies": {
+        "@destack/schema": "workspace:*",
+        "@destack/resource": "workspace:*"
+    }
 }
