@@ -1,3 +1,4 @@
+import { ResourceName } from "../resource/index.ts";
 import { defineSchema, identifier, schema } from "@destack/schema";
 
 /** A provisioned resource in a space. */
@@ -14,8 +15,10 @@ export type ResourceReference = schema.Infer<typeof ResourceReference>;
 export const Binding = defineSchema(schema.object({
     /** The installation containing the declaration. */
     installation: identifier("installation"),
+    /** The package declaring the resource, including imported stack packages. */
+    package: identifier("package"),
     /** The declaration name in its package. */
-    name: schema.string().min(1),
+    name: ResourceName,
     /** The resource selected by the host. */
     target: ResourceReference,
 }));

@@ -6,8 +6,10 @@
     "sideEffects": false,
     "description": "Declare, bind, and inspect Destack resources.",
     "exports": {
-        ".": "./src/index.ts"
+        ".": "./src/index.ts",
+        "./context": "./src/context/index.ts",
+        "./error": "./src/error/index.ts"
     },
-    "scripts": { "check": "deno check src/index.ts" },
+    "scripts": { "check": "deno check src/index.ts src/context/index.ts src/error/index.ts" },
     "dependencies": { "@destack/schema": "workspace:*" }
 }

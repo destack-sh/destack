@@ -3,10 +3,10 @@ Declare Destack resources and bind them to resources in a space.
 ## Usage
 
 ```ts
-import { Binding, defineResource } from "@destack/resource";
+import { Binding, defineResourceSchema } from "@destack/resource";
 import { schema } from "@destack/schema";
 
-const Bucket = defineResource(
+const Bucket = defineResourceSchema(
     "bucket",
     1,
     schema.object({
@@ -22,8 +22,21 @@ const files = Bucket.parse({
 });
 
 const binding = Binding.parse({
-    installation: "notes",
+    installation: installation.id,
+    package: stack.id,
     name: "files",
-    target: { space: "personal", resource: "documents" },
+    target: { space: space.id, resource: documents.id },
 });
+```
+
+## Context
+
+The host supplies authorised clients for an invocation.
+
+```ts
+import { ResourceContext } from "@destack/resource/context";
+import { database } from "@florian/stack";
+
+const context = new ResourceContext().bind(database, connection);
+await database.get(context).select().from(note);
 ```
