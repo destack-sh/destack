@@ -6,45 +6,57 @@ set dotenv-filename := "../.env.local"
 _default:
     @just --list --unsorted
 
-# run static checks
+# lint
 lint:
-    bun x biome lint .
+    deno run -A npm:@biomejs/biome lint .
 
-# run tests
+# test
 test:
-    @echo "No library tests defined"
+    just build/test
 
-# default check
+# check
 check:
     just check-quick
 
-# normal check
+# check quick
 check-quick:
-    just format-check
-    just lint
-    just test
+    just schema/check
+    just resource/check
+    just vault/check
+    just storage/check
+    just package/check
+    just space/check
+    just build/check
+    just db/check
+    just model/check
+    just service/check
+    just telemetry/check
+    just signals/check
+    just view/check
+    just style/check
+    just theme/check
 
-# check with slow suites
+# check full
 check-full:
     just check-quick
 
-# format code
+# format
 format:
-    bun x biome format --write .
+    deno run -A npm:@biomejs/biome format --write .
 
 # check formatting
 format-check:
-    bun x biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .
+    deno run -A npm:@biomejs/biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .
 
-# alias for format
+# format
 alias fmt := format
 
-# clean build artifacts
+# clean
 clean:
     rm -rf node_modules
 
 # --- release ---
 
-# publish npm packages (dry-run by default)
+# publish
 publish dry="--dry-run":
     cd schema && npm publish {{dry}} --access public

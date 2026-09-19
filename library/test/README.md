@@ -14,14 +14,3 @@ test("roundtrip a message", () => {
     expect(decode(encode(message))).toEqual(message);
 });
 ```
-
-## Conventions
-
-Destack follows Vitest with these conventions:
-
-- Test package behavior; avoid tests of dependencies or re-exports.
-- Use `@destack/test/config` for configuration and set explicit timeouts.
-- Run `vitest run` through a package script on a Node.js host.
-- Use `@destack/test/runner` to collect and run tests programmatically.
-- Use `@destack/test/inspect` for JSON descriptions of collected tests and results.
-- Mocks, spies, fake timers, and browser runners are excluded.
