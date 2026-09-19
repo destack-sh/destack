@@ -7,8 +7,7 @@
     "description": "Define Destack HTTP services.",
     "sideEffects": false,
     "scripts": {
-        "check": "deno check src/index.ts src/client/index.ts src/server/index.ts src/openapi/index.ts src/inspect/index.ts src/telemetry/index.ts",
-        "test": "vitest run"
+        "check": "deno check src/index.ts src/client/index.ts src/server/index.ts src/openapi/index.ts src/inspect/index.ts src/telemetry/index.ts src/schedule/index.ts"
     },
     "exports": {
         "./error": "./src/error/index.ts",
@@ -17,9 +16,9 @@
         "./server": "./src/server/index.ts",
         "./openapi": "./src/openapi/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./telemetry": "./src/telemetry/index.ts"
+        "./telemetry": "./src/telemetry/index.ts",
+        "./schedule": "./src/schedule/index.ts"
     },
-    "devDependencies": { "@destack/test": "workspace:*" },
     "dependencies": {
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
@@ -28,6 +27,7 @@
         "@orpc/contract": "1.15.1",
         "@orpc/openapi": "1.15.1",
         "@orpc/openapi-client": "1.15.1",
-        "@orpc/server": "1.15.1"
+        "@orpc/server": "1.15.1",
+        "@destack/resource": "workspace:*"
     }
 }

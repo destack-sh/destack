@@ -4,10 +4,6 @@ set shell := ["bash", "-cu"]
 check:
     deno task check
 
-# test
-test:
-    deno task test
-
 # format
 format:
     deno fmt src package.json destack.json

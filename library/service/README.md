@@ -31,3 +31,34 @@ if (result.isDefined && result.error.code === "CONFLICT") {
 ```
 
 Unexpected handler failures are logged through `@destack/telemetry` and returned as internal errors.
+
+## Workloads
+
+Declare the HTTP handler referenced by a workload.
+
+```ts
+import { defineService } from "@destack/service";
+
+export const web = defineService({ name: "web", version: 1, protocol: "http", handler: "fetch" });
+
+export function fetch(request: Request): Response {
+    return Response.json({ path: new URL(request.url).pathname });
+}
+```
+
+## Schedules
+
+```ts
+import { defineSchedule } from "@destack/service/schedule";
+
+export const reminders = defineSchedule({
+    name: "reminders",
+    version: 1,
+    handler: "remind",
+    timing: "cron",
+    cron: "0 9 * * *",
+    timezone: "Europe/Zurich",
+    concurrency: "forbid",
+    deadline: 60000,
+});
+```
