@@ -1,6 +1,7 @@
 import { color, fontFamily } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
-import type { JSX } from "@destack/view";
+import { createSignal, type JSX } from "@destack/view";
+import { Download } from "./download/download.tsx";
 
 import { installCommand } from "../content/site";
 import { tokens } from "../style/tokens.stylex";
@@ -171,19 +172,9 @@ export function Cover() {
                         Own your stack
                     </p>
 
-                    <div {...stylex.attrs(posterStyles.actionRow)}>
+                    <Download>
                         <Installation />
-                        <a
-                            {...stylex.attrs(posterStyles.action)}
-                            href="/docs/setup/"
-                        >
-                            Start Building <span aria-hidden="true">→</span>
-                        </a>
-                    </div>
-
-                    <p {...stylex.attrs(posterStyles.fineLine)}>
-                        TypeScript++ · Web · Native · Desktop
-                    </p>
+                    </Download>
                 </div>
             </div>
         </section>
@@ -322,14 +313,24 @@ function Ring(props: { path: string }) {
     );
 }
 
-/// Render the unavailable install command.
+/// Copy the public installation command.
 function Installation() {
+    const [message, setMessage] = createSignal("Copy install command");
+
     return (
         <button
             {...stylex.attrs(posterStyles.command)}
-            aria-disabled="true"
-            aria-label="Install Destack: coming soon"
-            title="Coming soon"
+            aria-label={message()}
+            title={message()}
+            onClick={async () => {
+                try {
+                    await navigator.clipboard.writeText(installCommand);
+                    setMessage("Copied install command");
+                } catch (error) {
+                    console.error(error);
+                    setMessage("Could not copy. Select and copy the command.");
+                }
+            }}
             type="button"
         >
             <span
@@ -341,88 +342,74 @@ function Installation() {
             <code {...stylex.attrs(posterStyles.commandCode)}>
                 {installCommand}
             </code>
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+                {...stylex.attrs(posterStyles.commandIcon)}
+            >
+                <rect x="8" y="8" width="12" height="12" rx="2" />
+                <path d="M16 8V4H4v12h4" />
+            </svg>
         </button>
     );
 }
 
 /// Cover poster styles.
 const posterStyles = stylex.create({
-    actionRow: {
-        alignItems: "center",
-        borderColor: "#45606a",
-        borderStyle: "solid",
-        borderWidth: tokens.hairline,
-        display: "flex",
-        gap: "1.5rem",
-        justifyContent: "space-between",
-        maxWidth: "40rem",
-        padding: "0.55rem 0.6rem 0.55rem 1.4rem",
-        width: "100%",
-        [mobile]: {
-            flexDirection: "column",
-            gap: "0.75rem",
-            overflow: "hidden",
-            padding: "0.75rem",
-        },
-    },
     actions: {
         backgroundColor: "#0a222c",
         display: "grid",
-        gap: "clamp(0.8rem, 1.6vw, 1.3rem)",
+        gap: "0.75rem",
         justifyItems: "center",
         padding: "1rem clamp(1rem, 3vw, 3rem) 2.5rem",
         textAlign: "center",
         [shortScreen]: {
-            gap: "0.875rem",
+            gap: "0.75rem",
             paddingBottom: "1.5rem",
         },
         [mobile]: {
-            gap: "1rem",
+            gap: "0.75rem",
             padding: "0.75rem 0.75rem 1.25rem",
         },
     },
-    action: {
-        alignSelf: "center",
-        backgroundColor: "#dba07c",
-        color: "#272624",
-        fontFamily: fontFamily.default,
-        fontSize: "var(--size-navigation)",
-        fontWeight: 600,
-        padding: "0.75rem 1.25rem",
-        textDecoration: "none",
-        whiteSpace: "nowrap",
-        ":hover": {
-            backgroundColor: "#e8b797",
-        },
-        [mobile]: {
-            textAlign: "center",
-            width: "100%",
-        },
-    },
     command: {
-        alignItems: "baseline",
+        alignItems: "center",
+        flexGrow: 1,
         backgroundColor: "transparent",
         borderWidth: 0,
-        color: "#88979c",
-        cursor: "not-allowed",
+        color: "#e4ecec",
+        cursor: "pointer",
         display: "flex",
         font: "inherit",
         fontFamily: fontFamily.code,
-        fontSize: "var(--size-navigation)",
+        fontSize: "0.875rem",
+        fontWeight: 400,
         gap: "0.7rem",
         justifyContent: "center",
         margin: 0,
         maxWidth: "100%",
         minWidth: 0,
-        padding: 0,
+        padding: "0.85rem 1rem",
+        ":hover": { backgroundColor: "#ffffff08" },
         [mobile]: {
             width: "100%",
+            fontSize: "0.75rem",
+            borderTopWidth: "1px",
+            borderTopStyle: "solid",
+            borderTopColor: "#45606a",
+            paddingTop: "0.9rem",
+            paddingBottom: "0.9rem",
         },
     },
     commandCode: {
         overflow: "hidden",
         textOverflow: "ellipsis",
-        userSelect: "none",
+        userSelect: "text",
         whiteSpace: "nowrap",
         [mobile]: {
             overflowWrap: "anywhere",
@@ -432,7 +419,9 @@ const posterStyles = stylex.create({
     },
     commandPrompt: {
         color: "inherit",
+        [mobile]: { display: "none" },
     },
+    commandIcon: { flexShrink: 0 },
     proposition: {
         color: tokens.orangeLight,
         display: "grid",
