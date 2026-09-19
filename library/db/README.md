@@ -20,8 +20,29 @@ Connections use Drizzle's SQLite query and transaction API.
 import { connect } from "@destack/db/turso";
 
 const database = connect("space.db");
+await database.$client.connect();
 await database.select().from(note);
 ```
+
+## Resources
+
+```ts
+import { defineDatabase } from "@destack/db/declare";
+
+export const main = defineDatabase({
+    name: "main",
+    spec: { dialect: "sqlite" },
+});
+
+const database = main.get(context);
+await database.select().from(note);
+await database.transaction(async (transaction) => {
+    await transaction.insert(note).values({ title: "New note" });
+});
+```
+
+Schema inspection associates tables with the database declaration's name.
+The host binds an asynchronous SQLite connection for each invocation.
 
 ## Inspection
 

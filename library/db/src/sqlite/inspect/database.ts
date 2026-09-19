@@ -18,8 +18,8 @@ export function describeDatabase(
 
     return DatabaseDescription.parse({
         name,
-        kind: "database",
         version: 1,
-        spec: { dialect: "sqlite", tables: descriptions },
+        dialect: "sqlite",
+        tables: descriptions,
     });
 }

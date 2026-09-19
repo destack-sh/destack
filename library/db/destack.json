@@ -1,11 +1,52 @@
 {
     "language": "typescript",
-    "targets": ["browser", "worker", "host"],
+    "targets": [
+        "browser",
+        "server"
+    ],
     "exports": {
-        "./migration": { "targets": ["host"] },
-        "./sqlite/node": { "targets": ["host"] },
-        "./turso": { "targets": ["host"] },
-        "./turso/serverless": { "targets": ["worker", "host"] },
-        "./turso/serverless/migration": { "targets": ["host"] }
-    }
+        "./migration": {
+            "targets": [
+                "server"
+            ]
+        },
+        "./sqlite/node": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "deno"
+            ]
+        },
+        "./turso": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "deno"
+            ]
+        },
+        "./turso/serverless": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "deno",
+                "workerd"
+            ]
+        },
+        "./turso/serverless/migration": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "deno"
+            ]
+        }
+    },
+    "runtimes": [
+        "browser",
+        "deno",
+        "workerd"
+    ]
 }

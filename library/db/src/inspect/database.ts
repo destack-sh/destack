@@ -1,16 +1,18 @@
 import { defineSchema, schema } from "@destack/schema";
-import { defineResource } from "@destack/resource";
+import { ResourceName } from "@destack/resource";
+import { DatabaseSpec } from "../declare/index.ts";
 import { TableDescription } from "./table.ts";
 
-/** The SQL dialect and declared tables required by a database. */
-export const DatabaseSpec = defineSchema(schema.object({
-    /** The SQL dialect required by these declarations. */
-    dialect: schema.enum(["sqlite", "postgresql", "mysql"]),
-    /** The tables declared by this package. */
+/** The inspected schema associated with a package database declaration. */
+export const DatabaseDescription = defineSchema(schema.object({
+    /** The package-local database declaration. */
+    name: ResourceName,
+    /** The schema description format version. */
+    version: schema.literal(1),
+    /** The SQL dialect used by these tables. */
+    dialect: DatabaseSpec.shape.dialect,
+    /** The declared tables, columns, indexes and relationships. */
     tables: schema.array(TableDescription),
 }));
-
-/** A database resource declaration. */
-export const DatabaseDescription = defineResource("database", 1, DatabaseSpec);
-/** A database resource declaration. */
+/** The inspected schema associated with a package database declaration. */
 export type DatabaseDescription = schema.Infer<typeof DatabaseDescription>;

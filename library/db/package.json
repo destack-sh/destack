@@ -7,6 +7,7 @@
     "description": "Interact with SQL databases in Destack.",
     "sideEffects": false,
     "exports": {
+        "./declare": "./src/declare/index.ts",
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./sqlite/inspect": "./src/sqlite/inspect/index.ts",
@@ -18,7 +19,7 @@
         "./turso/serverless/migration": "./src/turso/serverless/migration.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/inspect/index.ts src/sqlite/index.ts src/sqlite/inspect/index.ts src/sqlite/node/index.ts src/migration/index.ts src/turso/index.ts src/turso/serverless/index.ts src/turso/serverless/migration.ts"
+        "check": "deno check src/index.ts src/declare/index.ts src/inspect/index.ts src/sqlite/index.ts src/sqlite/inspect/index.ts src/sqlite/node/index.ts src/migration/index.ts src/turso/index.ts src/turso/serverless/index.ts src/turso/serverless/migration.ts"
     },
     "dependencies": {
         "@destack/schema": "workspace:*",
