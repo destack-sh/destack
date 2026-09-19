@@ -6,6 +6,7 @@
     "sideEffects": false,
     "description": "Describe Destack packages, builds, and source code.",
     "exports": {
+        "./template": "./src/template/index.ts",
         "./error": "./src/error/index.ts",
         ".": "./src/index.ts",
         "./package": "./src/package/index.ts",
