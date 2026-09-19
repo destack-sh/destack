@@ -1,0 +1,20 @@
+{
+    "name": "@destack/storage",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Declare object storage in Destack.",
+    "exports": {
+        "./declare": "./src/declare/index.ts",
+        ".": "./src/index.ts",
+        "./inspect": "./src/inspect/index.ts"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*",
+        "@destack/resource": "workspace:*"
+    },
+    "scripts": {
+        "check": "deno check src/index.ts src/inspect/index.ts"
+    }
+}

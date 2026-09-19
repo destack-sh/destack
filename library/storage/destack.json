@@ -1,0 +1,12 @@
+{
+    "language": "typescript",
+    "targets": [
+        "browser",
+        "server"
+    ],
+    "runtimes": [
+        "browser",
+        "deno",
+        "workerd"
+    ]
+}
