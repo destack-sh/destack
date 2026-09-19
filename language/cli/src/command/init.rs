@@ -9,27 +9,15 @@ use crate::console;
 /// Marker replaced by the resolved project name in template files.
 const PROJECT_NAME_MARKER: &str = "\"__DESTACK_PROJECT__\"";
 
-/// Files in the blank project template.
-const BLANK_FILES: &[ProjectFile] = &[
-    ProjectFile {
-        path: "destack.json",
-        contents: include_str!("../../../../template/blank/destack.json"),
-    },
-    ProjectFile {
-        path: "src/index.ds",
-        contents: include_str!("../../../../template/blank/src/index.ds"),
-    },
-];
-
 /// Files in the application project template.
 const APP_FILES: &[ProjectFile] = &[
     ProjectFile {
         path: "destack.json",
-        contents: include_str!("../../../../template/app/destack.json"),
+        contents: include_str!("../../template/app/destack.json"),
     },
     ProjectFile {
         path: "src/main.ds",
-        contents: include_str!("../../../../template/app/src/main.ds"),
+        contents: include_str!("../../template/app/src/main.ds"),
     },
 ];
 
@@ -44,10 +32,8 @@ struct ProjectFile {
 /// Project template selected during initialization.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
 pub enum Template {
-    /// Empty project with src/index.ds.
-    #[default]
-    Blank,
     /// Application project with src/main.ds.
+    #[default]
     App,
 }
 
@@ -55,7 +41,6 @@ impl Template {
     /// Return the files in this project template.
     fn files(self) -> &'static [ProjectFile] {
         match self {
-            Self::Blank => BLANK_FILES,
             Self::App => APP_FILES,
         }
     }
@@ -72,7 +57,7 @@ pub struct InitArgs {
     #[arg(long)]
     pub name: Option<String>,
 
-    /// Project template (blank|app, default: blank).
+    /// Project template.
     #[arg(long, short = 't', value_enum, default_value_t = Template::default())]
     pub template: Template,
 
