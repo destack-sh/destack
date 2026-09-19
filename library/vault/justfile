@@ -1,0 +1,7 @@
+# check
+check:
+    deno task check
+
+# format
+fmt:
+    deno fmt src
