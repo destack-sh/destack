@@ -28,6 +28,28 @@ Install the tools needed by the packages you are working on:
 We use `justfile`s as the source of truth for all commands. 
 See the relevant directories we're working on for the relevant just recipes.
 
+## Platform
+
+Select one infrastructure deployment explicitly:
+
+```sh
+just platform/stack/check
+just platform/stack/diff shared
+just platform/stack/diff production eu
+just platform/stack/deploy production eu
+```
+
+- `shared` manages domains, website routing, downloads, and state storage.
+- `development` and `production` each select `global`, `eu`, or `us`.
+- `platform/stack/deployment/` contains the deployment variables.
+- `deploy` displays a saved plan and requires confirmation before applying it.
+- `just platform/deploy` publishes the website; infrastructure deployment is separate.
+- PlanetScale databases are disabled; enabling them requires an organization and service credentials.
+- Existing EU package buckets move from shared state through non-destructive removal and regional import blocks.
+- `package_import_id` selects an existing bucket to adopt; omit it when creating a bucket.
+- Saved plans use private per-run directories under `platform/stack/.terraform/` and may contain secrets.
+- Freeze infrastructure deployments and back up state before applying the shared plan followed by both EU regional plans.
+
 ## Release
 
 The root [package.json](package.json) declares the repository’s `YEAR.MONTH.MICRO` version.
@@ -41,5 +63,5 @@ just dev/release/pack
 ```
 
 - [The release workflow](.github/workflows/release.yml) checks matching pull requests and pushes to main.
-- [The update metadata](.github/workflows/update.yml) renews and publishes signed metadata daily.
+- [The update workflow](.github/workflows/update.yml) renews signed download metadata daily; it does not build a release.
 - Enable `publish` on a manual run from `main` to sign and publish downloads to `download.destack.sh`.

@@ -6,12 +6,8 @@
     "type": "module",
     "description": "Destack operated platform stack",
     "scripts": {
-        "deploy": "sst install --print-logs && CLOUDFLARE_DEFAULT_ACCOUNT_ID=${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}} sst deploy --stage ${DESTACK_STAGE:?DESTACK_STAGE is required}",
-        "diff": "sst install --print-logs && CLOUDFLARE_DEFAULT_ACCOUNT_ID=${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}} sst diff --stage ${DESTACK_STAGE:?DESTACK_STAGE is required}",
-        "remove": "sst install --print-logs && CLOUDFLARE_DEFAULT_ACCOUNT_ID=${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}} sst remove --stage ${DESTACK_STAGE:?DESTACK_STAGE is required}"
-    },
-    "devDependencies": {
-        "@pulumi/cloudflare": "6.15.0",
-        "sst": "4.14.3"
+        "check": "just check",
+        "plan": "just diff",
+        "apply": "just deploy"
     }
 }

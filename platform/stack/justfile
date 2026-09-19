@@ -6,29 +6,25 @@ set dotenv-filename := "../../.env.local"
 _default:
     @just --list --unsorted
 
-# install provider bindings
-install:
-    bun x sst install --print-logs
+# init
+init +deployment:
+    deno run -A src/main.ts init {{deployment}}
 
-# build provider bindings
-build:
-    just install
+# check
+check:
+    deno fmt --check src/main.ts src/command src/deployment src/credential
+    deno check src/main.ts
+    deno run -A src/main.ts check
 
-# preview stage changes
-diff stage:
-    just install
-    CLOUDFLARE_DEFAULT_ACCOUNT_ID="${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}" bun x sst diff --stage {{stage}}
+# format
+format:
+    deno fmt src/main.ts src/command src/deployment src/credential
+    deno run -A src/main.ts format
 
-# deploy stage
-deploy stage:
-    just install
-    CLOUDFLARE_DEFAULT_ACCOUNT_ID="${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}" bun x sst deploy --stage {{stage}}
+# diff
+diff +deployment:
+    deno run -A src/main.ts diff {{deployment}}
 
-# remove stage
-remove stage:
-    just install
-    CLOUDFLARE_DEFAULT_ACCOUNT_ID="${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}" bun x sst remove --stage {{stage}}
-
-# clean build artifacts
-clean:
-    rm -rf .sst
+# deploy
+deploy +deployment:
+    deno run -A src/main.ts deploy {{deployment}}

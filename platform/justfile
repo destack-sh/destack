@@ -6,12 +6,12 @@ set dotenv-filename := "../.env.local"
 _default:
     @just --list --unsorted
 
-# build packages
+# build
 build:
     just site/build
-    just stack/build
+    just stack/check
 
-# format packages
+# format
 format:
     just site/format
     just stack/format
@@ -20,41 +20,38 @@ format:
 format-check:
     just site/format-check
 
-# run static checks
+# lint
 lint:
     just site/lint
 
-# run tests
+# test
 test:
     just site/test
 
-# default check
+# check
 check:
     just check-quick
 
-# normal check
+# check quick
 check-quick:
     just format-check
     just lint
     just test
+    just stack/check
 
-# check with slow suites
+# check full
 check-full:
     just check-quick
 
-# preview stage changes
-diff stage:
-    just stack/diff {{stage}}
+# diff
+diff +deployment:
+    just stack/diff {{deployment}}
 
-# deploy stage
-deploy stage:
-    just stack/deploy {{stage}}
+# deploy
+deploy:
+    just site/build
+    just site/deploy
 
-# remove stage
-remove stage:
-    just stack/remove {{stage}}
-
-# clean build artifacts
+# clean
 clean:
     just site/clean
-    just stack/clean
