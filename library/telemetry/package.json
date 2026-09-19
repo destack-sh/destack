@@ -22,11 +22,7 @@
         "./otlp": "./src/otlp/index.ts"
     },
     "scripts": {
-        "check": "deno check ./src/index.ts ./src/context/index.ts ./src/trace/index.ts ./src/metric/index.ts ./src/log/index.ts ./src/resource/index.ts ./src/convention/index.ts ./src/inspect/index.ts ./src/sdk/index.ts ./src/host/index.ts ./src/browser/index.ts ./src/worker/index.ts ./src/otlp/index.ts",
-        "test": "vitest run"
-    },
-    "devDependencies": {
-        "@destack/test": "workspace:*"
+        "check": "deno check ./src/index.ts ./src/context/index.ts ./src/trace/index.ts ./src/metric/index.ts ./src/log/index.ts ./src/resource/index.ts ./src/convention/index.ts ./src/inspect/index.ts ./src/sdk/index.ts ./src/host/index.ts ./src/browser/index.ts ./src/worker/index.ts ./src/otlp/index.ts"
     },
     "dependencies": {
         "@destack/package": "workspace:*",
