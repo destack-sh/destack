@@ -1,4 +1,7 @@
 {
     "language": "typescript",
-    "targets": ["browser", "host"]
+    "targets": [
+        "browser",
+        "server"
+    ]
 }

@@ -1,4 +1,12 @@
 {
     "language": "typescript",
-    "targets": ["browser", "worker", "host"]
+    "targets": [
+        "browser",
+        "server"
+    ],
+    "runtimes": [
+        "browser",
+        "deno",
+        "workerd"
+    ]
 }

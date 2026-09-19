@@ -1,9 +1,32 @@
 {
     "language": "typescript",
-    "targets": ["browser", "worker", "host"],
+    "targets": [
+        "browser",
+        "server"
+    ],
     "exports": {
-        "./browser": { "targets": ["browser"] },
-        "./worker": { "targets": ["worker"] },
-        "./host": { "targets": ["host"] }
-    }
+        "./browser": {
+            "targets": [
+                "browser"
+            ]
+        },
+        "./worker": {
+            "targets": [
+                "server"
+            ]
+        },
+        "./host": {
+            "targets": [
+                "server"
+            ],
+            "runtimes": [
+                "deno"
+            ]
+        }
+    },
+    "runtimes": [
+        "browser",
+        "deno",
+        "workerd"
+    ]
 }
