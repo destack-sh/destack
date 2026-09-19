@@ -1,13 +1,16 @@
-import { migrate as migrateDatabase } from "drizzle-orm/tursodatabase-serverless/migrator";
-import type { TursoDatabaseServerlessDatabase } from "drizzle-orm/tursodatabase-serverless";
+import { readMigrations } from "../../migration/read.ts";
+import type { DatabaseSchema } from "../../declare/schema.ts";
+import { applyMigrations } from "../../sqlite/migration.ts";
 import type { AnyRelations } from "drizzle-orm/relations";
-import type { MigrationConfig } from "drizzle-orm/migrator";
+import type { Database } from "./connection.ts";
 
-/** Apply generated SQL migrations to a remote Turso database. */
-export async function migrate<T extends AnyRelations>(
-    database: TursoDatabaseServerlessDatabase<T>,
-    options: MigrationConfig,
+/** Apply committed SQL and migration history in one write transaction. */
+export async function migrate<Relations extends AnyRelations>(
+    database: Database<Relations>,
+    definition: DatabaseSchema,
 ): Promise<void> {
-    const result = await migrateDatabase(database, options);
-    if (result !== undefined) throw new Error(`Database migration failed: ${result.exitCode}.`);
+    const migrations = await readMigrations(definition);
+    await database.transaction(async (transaction) => {
+        await applyMigrations(transaction, migrations, definition.name);
+    }, { behavior: "immediate" });
 }

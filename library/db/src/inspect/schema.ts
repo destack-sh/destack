@@ -3,9 +3,9 @@ import { ResourceName } from "@destack/resource";
 import { DatabaseSpec } from "../declare/index.ts";
 import { TableDescription } from "./table.ts";
 
-/** The inspected schema associated with a package database declaration. */
-export const DatabaseDescription = defineSchema(schema.object({
-    /** The package-local database declaration. */
+/** The tables managed by one named database schema. */
+export const DatabaseSchemaDescription = defineSchema(schema.object({
+    /** The stable schema name within its database. */
     name: ResourceName,
     /** The schema description format version. */
     version: schema.literal(1),
@@ -14,5 +14,5 @@ export const DatabaseDescription = defineSchema(schema.object({
     /** The declared tables, columns, indexes and relationships. */
     tables: schema.array(TableDescription),
 }));
-/** The inspected schema associated with a package database declaration. */
-export type DatabaseDescription = schema.Infer<typeof DatabaseDescription>;
+/** The tables managed by one named database schema. */
+export type DatabaseSchemaDescription = schema.Infer<typeof DatabaseSchemaDescription>;

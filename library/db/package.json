@@ -7,6 +7,7 @@
     "description": "Interact with SQL databases in Destack.",
     "sideEffects": false,
     "exports": {
+        "./error": "./src/error/index.ts",
         "./declare": "./src/declare/index.ts",
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
