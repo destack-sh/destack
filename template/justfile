@@ -1,18 +1,6 @@
 set shell := ["bash", "-cu"]
-set dotenv-load := true
-set dotenv-filename := "../.env.local"
 
-_default:
-    @just --list --unsorted
-
-# publish create-destack npm package (dry-run by default)
-publish-create-destack dry="--dry-run":
-    cd create-destack && npm publish {{dry}} --access public
-
-# publish create-destack package as dry run
-publish-create-destack-dry:
-    just publish-create-destack --dry-run
-
-# publish create-destack package live
-publish-create-destack-live:
-    just publish-create-destack ""
+# check
+check:
+    deno task --cwd stack check
+    deno task --cwd blank check

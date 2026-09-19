@@ -1,0 +1,8 @@
+{
+    "language": "typescript",
+    "template": {
+        "files": ["src", "package.json", "destack.json", "justfile"],
+        "dependencies": ["@destack/template-stack"]
+    },
+    "targets": ["browser", "server"]
+}

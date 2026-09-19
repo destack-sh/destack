@@ -1,5 +1,8 @@
 {
     "language": "typescript",
+    "template": {
+        "files": ["src", "package.json", "destack.json", "justfile"]
+    },
     "targets": ["server"],
     "runtimes": ["deno", "workerd"]
 }

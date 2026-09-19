@@ -1,0 +1,16 @@
+{
+    "name": "@destack/template-blank",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "check": "deno check src/index.ts"
+    },
+    "dependencies": {
+        "@destack/template-stack": "2026.9.0"
+    }
+}

@@ -53,11 +53,8 @@ export const collections: readonly Collection[] = [
         shortcut: "t",
         sources: [
             { directory: "template/docs", path: "template", hierarchy: [50] },
-            {
-                directory: "template/blank/docs",
-                path: "template/blank",
-                hierarchy: [50, 10],
-            },
+            { directory: "template/stack/docs", path: "template/stack", hierarchy: [50, 10] },
+            { directory: "template/blank/docs", path: "template/blank", hierarchy: [50, 20] },
         ],
     },
     {
