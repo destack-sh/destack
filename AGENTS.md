@@ -272,7 +272,7 @@ else {
 - Ideally, you should format code _before_ running it (via tests or otherwise), so we don't compile twice.
 - (Most directories have a `just fmt` or equivalent command, see the context. But only format the stuff in scope, not across other crates / packages.)
 
-## Rust-y / TS++
+## Rust-y / TS(++)
 
 - (This also applies to other Rust-like languages (like Rust side of our own Destack / TS++ language))
 - Comments/documentation goes before _all_ attributes (like `#[inline]`, `#[derive]`, etc.)
