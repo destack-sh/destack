@@ -2,8 +2,7 @@
     "language": "typescript",
     "targets": [
         "browser",
-        "worker",
-        "host"
+        "server"
     ],
     "inspect": {
         "module": "src/inspect/index.ts",

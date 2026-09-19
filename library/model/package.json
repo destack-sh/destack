@@ -9,19 +9,17 @@
     "exports": {
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./account": "./src/account/index.ts",
-        "./package": "./src/package/index.ts",
-        "./space": "./src/space/index.ts",
-        "./host": "./src/host/index.ts",
-        "./resource": "./src/resource/index.ts"
+        "./global": "./src/global/index.ts",
+        "./regional": "./src/regional/index.ts",
+        "./source": "./src/source/index.ts",
+        "./audit": "./src/audit/index.ts"
     },
     "scripts": {
-        "check": "deno check ./src/index.ts ./src/inspect/index.ts ./src/account/index.ts ./src/package/index.ts ./src/space/index.ts ./src/host/index.ts ./src/resource/index.ts"
-    },
-    "devDependencies": {
-        "drizzle-kit": "1.0.0-rc.4"
+        "check": "deno check src/index.ts src/global/index.ts src/regional/index.ts src/source/index.ts src/audit/index.ts src/inspect/index.ts"
     },
     "dependencies": {
+        "@destack/space": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/schema": "workspace:*"

@@ -5,24 +5,13 @@ Define standard Destack records and relationships.
 ```ts
 import { eq } from "@destack/db";
 import { connect } from "@destack/db/turso";
-import type { Account } from "@destack/model/account";
-import { space } from "@destack/model/space";
+import type { Account } from "@destack/model/global";
+import { relations, space } from "@destack/model/regional";
 
-const database = connect("system.db");
+const database = connect("regional.db", { relations });
+await database.$client.connect();
+
 export function listSpaces(accountId: Account["id"]) {
     return database.select().from(space).where(eq(space.accountId, accountId));
 }
-```
-
-## Relations
-
-```ts
-import { accountRelations } from "@destack/model/account";
-import { spaceRelations } from "@destack/model/space";
-import { connect } from "@destack/db/turso";
-
-const database = connect("system.db", {
-    relations: { ...accountRelations, ...spaceRelations },
-});
-const accounts = await database.query.account.findMany({ with: { spaces: true } });
 ```
