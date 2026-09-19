@@ -136,13 +136,19 @@ If software is going to run _everything_, faster than anyone can verify, how do 
 
 # Destack
 
-Software should be open, hackable, and fast.
-Pick two?
+Software should be open, hackable, rexmiable - and fast.
+Something you can actually own, _without_ giving up on the benefits 
+How? How do we get there, from here?
+Even if we could magically replace the stack, we would still need to port software and use cases.
 
+And besides, where to even begin with a "brand new stack"?
+It can't be too different, or nobody - humans nor agents - would know how to use it.
+Paradoxically, this is not the time to figure out an "ideal second system" _from scratch_; whatever follows must trace the shapes we already have.
 
-The Web and TypeScript are pretty great.
+Fortunately, the web exists. 
+And the web is pretty great. TypeScript is also pretty great.
 Everybody knows TypeScript, everybody knows the Web, Web standards have been refined over decades, the Web already happens to be the largest application platform ever.
-And while TypeScript is not a serious systems language _yet_, it definitely could be, and that would complete the set.
+It's not perfect, sure, but what is?
 
 <!--Of course, the "Web as a platform" has been tried before-->
 
@@ -150,9 +156,10 @@ And while TypeScript is not a serious systems language _yet_, it definitely coul
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
 :::
 
-We have long figured out that opinionated formatters are a great idea to remove silly syntax debates and just standardized the _appearence_ of code once and for all.
-Maybe the syntax is not _perfect_ by your personal standards, but it removes unproductive arguments, and that's the benefit.
+We have long figured out that opinionated formatters are a great idea to remove unproductive syntax debates and standardized the _appearence_ of code.
+Yeah, maybe the syntax is not _perfect_ by your personal standards, but it is _standardised_ and who cares anyway.
  <!--and meta-frameworks serves a similar need.-->
+
 Why not just go all the way, and fully standardize the _shape_ of code? 
 Beyond syntax and linters, but semantics: module and file layouts, type shapes, call trees, services, dependencies, entire architectures.
 
