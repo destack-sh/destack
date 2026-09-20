@@ -59,12 +59,7 @@ members = [
 	"language/workspace",
 	"language/wasm",
 	"language/cli",
-	# app
-	"app/cli",
 	# client
-	"client/generate",
-	"client/napi",
-	"client/wasm",
 	"bridge/zed",
 ]
 
@@ -118,12 +113,8 @@ destack_lsp_types = { path = "language/lsp/types" }
 destack_language_cli = { path = "language/cli" }
 
 # app
-destack_cli = { path = "app/cli" }
 
 # client
-destack_client_generate = { path = "client/generate" }
-destack_napi = { path = "client/napi" }
-destack_wasm = { path = "client/wasm" }
 destack_zed = { path = "bridge/zed" }
 
 # codegen
