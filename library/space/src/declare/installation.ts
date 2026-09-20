@@ -3,6 +3,7 @@ import { defineSchema, identifier, schema } from "@destack/schema";
 import { Package, PackageName } from "@destack/package";
 import { ComputeDefinition } from "@destack/package";
 import { SpaceResourceBinding, SpaceSecretBinding } from "./resource.ts";
+import { InstallationPolicies } from "../policy/index.ts";
 
 /** Select an installation by configuration key or persistent identifier in the destination space. */
 export const SpaceInstallationReference = defineSchema(schema.union([
@@ -15,6 +16,8 @@ export const SpaceInstallationReference = defineSchema(schema.union([
 
 /** A package installation declared in a configuration. */
 export const SpaceInstallation = defineSchema(schema.object({
+    /** Additional restrictions for this installation and its workloads. */
+    policies: InstallationPolicies.optional(),
     /** The package release selected by this configuration. */
     package: Package,
     /** Whether this installation should serve requests. */

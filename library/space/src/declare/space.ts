@@ -5,9 +5,12 @@ import { SpaceInstallation } from "./installation.ts";
 import { SpaceResource, SpaceSecret } from "./resource.ts";
 import { SpaceRole, SpaceRoleBinding } from "./permission.ts";
 import { SpaceRoute } from "./route.ts";
+import { SpacePolicies } from "../policy/index.ts";
 
 /** Source-managed space objects, keyed independently of display names and provider identifiers. */
 export const SpaceDefinition = defineSchema(schema.object({
+    /** Source-managed package and network policies. */
+    policies: SpacePolicies.optional(),
     /** Resources created or adopted by the configuration. */
     resources: schema.record(ResourceName, SpaceResource).optional(),
     /** Secret metadata; secret values never occur in this definition. */

@@ -1,4 +1,4 @@
-Declare resources, installations, permissions, and routes for a space.
+Declare resources, installations, policies, permissions, and routes for a space.
 
 ## Usage
 
@@ -31,6 +31,53 @@ const personal = {
 export const local = defineSpace(personal);
 export const cloud = defineSpace({ ...personal });
 ```
+
+## Policies
+
+Declare package admission and outbound connections independently.
+
+```ts
+export const restricted = defineSpace({
+    ...personal,
+    policies: {
+        packages: {
+            admission: {
+                default: "deny",
+                rules: {
+                    destack: { package: { kind: "destack" }, decision: "allow" },
+                    npm: {
+                        package: { kind: "npm", registry: "https://registry.npmjs.org/" },
+                        decision: "allow",
+                    },
+                },
+            },
+        },
+        network: {
+            default: "deny",
+            rules: {
+                api: {
+                    destination: { kind: "hostname", hostname: "api.example.com", subdomains: false },
+                    protocol: "https",
+                    decision: "allow",
+                },
+            },
+        },
+    },
+});
+```
+
+- Package rules cover the root package and every dependency, using their original registry identities.
+- Deny rules take precedence within a policy; every applicable policy must permit the operation.
+- Account and space policies apply together; installation and workload network policies add restrictions.
+- Hostnames grant access to public addresses; private addresses require explicit CIDR grants.
+- HTTPS and WSS default to port 443; HTTP and WS default to port 80.
+- Raw TCP and UDP grants permit arbitrary protocols on the selected ports.
+- Hosts check resolved addresses and redirects and reject policies they cannot enforce.
+- Resource bindings authorise database and bucket access separately.
+
+Omitted declarations leave independently managed policies unchanged.
+
+## References
 
 Independent objects remain managed through the space API. References can select configuration keys
 or existing objects in the destination space.
