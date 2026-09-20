@@ -2,7 +2,7 @@ import type { ResourceContext } from "../context/index.ts";
 import type { ResourceDeclaration } from "./resource.ts";
 
 /** An inert declaration with access to a host-bound client. */
-export class Resource<Value, Declaration extends ResourceDeclaration = ResourceDeclaration> {
+export class Resource<Handle, Declaration extends ResourceDeclaration = ResourceDeclaration> {
     /** The declaration name. */
     readonly name: Declaration["name"];
     /** The resource kind. */
@@ -21,7 +21,7 @@ export class Resource<Value, Declaration extends ResourceDeclaration = ResourceD
     }
 
     /** Get the resource client bound to the current operation. */
-    get(context: ResourceContext): Value {
+    get(context: ResourceContext): Handle {
         return context.get(this);
     }
 }
