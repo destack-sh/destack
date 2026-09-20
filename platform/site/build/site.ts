@@ -1,4 +1,5 @@
-import { buildPackage, developPackage, readDependencies } from "@destack/build";
+import { type ApplicationOptions, buildPackage } from "@destack/build";
+import { LocalServer, readDependencies } from "@destack/build/local";
 import { cp, mkdir, rm } from "node:fs/promises";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -11,26 +12,25 @@ const directory = fileURLToPath(new URL("../", import.meta.url));
 
 /** Build static pages or serve the same application with live updates. */
 export async function run(command: string | undefined): Promise<void> {
-    const options = {
-        directory,
-        dependencies: {},
-        start: {
+    const application: ApplicationOptions = {
+            kind: "web",
+            ssr: { runtime: "deno", emit: false },
+            minify: true,
             app: "src/app.tsx",
             document: "src/site/document.tsx",
             renderMode: "async" as const,
             prerender: { origin: "https://destack.sh", routes: prerenderRoutes, notFound: "/404" },
-        },
-        outputs: { client: { target: "browser" as const, minify: true } },
     };
 
     // retain the development server until the process receives a shutdown signal
     if (command === "dev") {
-        await using development = await developPackage({
-            ...options,
+        await using development = await LocalServer.start({
+            directory,
+            application,
             server: { port: 3737, strictPort: true, watch: { ignored: ["**/.output/**"] } },
             plugins: [contentPlugin(directory)],
         });
-        development.server.printUrls();
+        development.vite.printUrls();
         await new Promise<void>((resolve) => {
             process.once("SIGINT", resolve);
             process.once("SIGTERM", resolve);
@@ -38,7 +38,8 @@ export async function run(command: string | undefined): Promise<void> {
     } // publish only the browser output, keeping inspection and source files private
     else if (command === "build") {
         const build = await buildPackage({
-            ...options,
+            directory,
+            outputs: { website: application },
             dependencies: await readDependencies(directory),
         });
         const output = join(directory, ".output");
@@ -46,7 +47,8 @@ export async function run(command: string | undefined): Promise<void> {
         await mkdir(output, { recursive: true });
         await build.write(join(output, "package"));
         await mkdir(join(output, "public"), { recursive: true });
-        await cp(join(output, "package/output/client"), join(output, "public"), {
+        const browser = build.manifest.outputs["website-browser"].directory;
+        await cp(join(output, "package", browser), join(output, "public"), {
             recursive: true,
         });
     } else {
