@@ -29,6 +29,13 @@ export default function Document(props: ParentProps) {
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
+                {/* load extracted styles before rendering the document */}
+                {import.meta.env.DEV && (
+                    <>
+                        <link rel="stylesheet" href="/virtual:stylex.css" />
+                        <script type="module" src="/@id/virtual:stylex:runtime" />
+                    </>
+                )}
                 <script src="/theme.js" />
                 <link rel="icon" href="/brand/favicon/favicon.svg" type="image/svg+xml" />
                 <link

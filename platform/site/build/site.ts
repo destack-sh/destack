@@ -1,4 +1,4 @@
-import { buildPackage, developPackage } from "@destack/build";
+import { buildPackage, developPackage, readDependencies } from "@destack/build";
 import { cp, mkdir, rm } from "node:fs/promises";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -37,7 +37,10 @@ export async function run(command: string | undefined): Promise<void> {
         });
     } // publish only the browser output, keeping inspection and source files private
     else if (command === "build") {
-        const build = await buildPackage(options);
+        const build = await buildPackage({
+            ...options,
+            dependencies: await readDependencies(directory),
+        });
         const output = join(directory, ".output");
         await rm(output, { recursive: true, force: true });
         await mkdir(output, { recursive: true });

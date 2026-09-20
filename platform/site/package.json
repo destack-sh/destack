@@ -11,7 +11,7 @@
         "dev": "deno task generate && deno run -A build/main.ts dev",
         "format": "echo \"No site formatter defined\"",
         "test": "deno run -A scripts/test-highlighting.ts && deno run -A scripts/test-reference.ts && deno run -A scripts/test-listing.ts && deno run -A scripts/test-rules.ts && deno run -A scripts/test-presentation.ts",
-        "typecheck": "deno run -A npm:typescript/tsc -p tsconfig.json --noEmit",
+        "typecheck": "deno run -A npm:typescript/tsc -p tsconfig.json --noEmit && deno run -A npm:typescript/tsc -p build/tsconfig.json --noEmit",
         "generate": "deno run -A scripts/sync-assets.ts && deno run -A scripts/generate-release.ts && deno run -A scripts/generate-content.ts"
     },
     "dependencies": {
