@@ -12,8 +12,6 @@ export const PackageManifest = defineSchema(schema.object({
     package: Package,
     /** The package's source language. */
     language: Language,
-    /** Whether dynamic package inspection was enabled for this build. */
-    dynamic: schema.boolean(),
     /** Named outputs compiled from the package. */
     outputs: schema.record(schema.string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/), PackageOutput),
     /** Every distributed file except this manifest. */

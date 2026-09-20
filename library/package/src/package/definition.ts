@@ -2,7 +2,6 @@ import { defineSchema, schema } from "@destack/schema";
 import { Language } from "./language.ts";
 import { Target } from "./target.ts";
 import { ComputeDefinition } from "./compute.ts";
-import { PackagePath } from "../file/file.ts";
 import { WorkloadDefinition } from "../workload/index.ts";
 import { Runtime } from "../runtime/index.ts";
 import { ResourceName } from "@destack/resource";
@@ -17,13 +16,6 @@ export const PackageDefinition = defineSchema(schema.object({
     /** Named workloads deployed independently. */
     workloads: schema.record(ResourceName, WorkloadDefinition)
         .optional(),
-    /** The module and named export that inspect this package during a build. */
-    inspect: schema.object({
-        /** The package-relative inspection module. */
-        module: PackagePath,
-        /** The inspection export name. */
-        export: schema.string().min(1),
-    }).optional(),
     /** Supported targets inherited by package exports. */
     targets: schema.array(Target).min(1).optional(),
     /** Reviewed runtime compatibility shared by all exports. */
