@@ -1,4 +1,4 @@
-/** Query operations shared by Turso connections and transaction handles. */
+/** Query operations shared by SQLite connections and transaction handles. */
 export interface QueryClient<Result> {
     /** Prepare a statement on this connection or transaction. */
     prepare(statement: string): Promise<Statement<Result>>;
@@ -10,8 +10,12 @@ export interface QueryClient<Result> {
     get(statement: string, ...parameters: unknown[]): Promise<unknown>;
 }
 
-/** A Turso connection that provides dedicated transaction handles. */
+/** A SQLite connection that provides dedicated transaction handles. */
 export interface ConnectionClient<Result> extends QueryClient<Result> {
+    /** Execute SQL without returning rows. */
+    exec(statement: string): Promise<unknown>;
+    /** Close the physical connection. */
+    close(): Promise<void>;
     /** Execute a callback with exclusive transaction access. */
     transactionAsync<Value>(operation: (client: QueryClient<Result>) => Promise<Value>): {
         /** Begin a deferred transaction. */
@@ -25,6 +29,8 @@ export interface ConnectionClient<Result> extends QueryClient<Result> {
 
 /** A prepared statement scoped to its creating client. */
 export interface Statement<Result> {
+    /** Preserve integer precision until the column decoder selects its application type. */
+    safeIntegers(enabled: boolean): Statement<Result>;
     /** Select positional or named result rows. */
     raw(enabled: boolean): Statement<Result>;
     /** Execute the prepared statement. */

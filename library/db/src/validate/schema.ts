@@ -1,62 +1,48 @@
-import {
-    getTableColumns,
-    type InferInsertModel,
-    type InferSelectModel,
-    type Table,
-} from "drizzle-orm";
-import * as drizzle from "drizzle-orm/zod";
 import * as schema from "@destack/schema/validate";
+import { type Insert, type Select, TABLE, type Table } from "../table/table.ts";
 
-/** Validation fields matching an inferred SQL record. */
-type Shape<T> = { [Key in keyof T]-?: schema.Schema<T[Key]> };
+/** Validation fields matching an application record. */
+type Shape<Value> = { [Property in keyof Value]-?: schema.Schema<Value[Property]> };
 
-/** Validate a selected record, including declared JSON fields. */
-export function createSelectSchema<T extends Table>(
-    table: T,
-): schema.Object<Shape<InferSelectModel<T>>> {
-    return createSchema(table, "select") as schema.Object<Shape<InferSelectModel<T>>>;
+/** Validate every selected application field. */
+export function createSelectSchema<Definition extends Table>(
+    table: Definition,
+): schema.Object<Shape<Select<Definition>>> {
+    return createSchema(table, "select") as schema.Object<Shape<Select<Definition>>>;
 }
 
-/** Validate an inserted record, including defaults, generated fields, and JSON fields. */
-export function createInsertSchema<T extends Table>(
-    table: T,
-): schema.Object<Shape<InferInsertModel<T>>> {
-    return createSchema(table, "insert") as schema.Object<Shape<InferInsertModel<T>>>;
+/** Validate inserted fields, including nullable columns and defaults. */
+export function createInsertSchema<Definition extends Table>(
+    table: Definition,
+): schema.Object<Shape<Insert<Definition>>> {
+    return createSchema(table, "insert") as schema.Object<Shape<Insert<Definition>>>;
 }
 
-/** Validate a partial update while excluding generated fields. */
-export function createUpdateSchema<T extends Table>(
-    table: T,
-): schema.Object<Shape<Partial<InferInsertModel<T>>>> {
-    return createSchema(table, "update") as schema.Object<
-        Shape<Partial<InferInsertModel<T>>>
-    >;
+/** Validate a partial application record update. */
+export function createUpdateSchema<Definition extends Table>(
+    table: Definition,
+): schema.Object<Shape<Partial<Insert<Definition>>>> {
+    return createSchema(table, "update") as schema.Object<Shape<Partial<Insert<Definition>>>>;
 }
 
-/** Combine Drizzle's column validation with Destack's declared custom schemas. */
+/** Apply insertion and nullability rules to the declared field validators. */
 function createSchema(table: Table, operation: "select" | "insert" | "update") {
-    const definition = operation === "select"
-        ? drizzle.createSelectSchema(table)
-        : operation === "insert"
-        ? drizzle.createInsertSchema(table)
-        : drizzle.createUpdateSchema(table);
-    const fields: Record<string, schema.Schema> = { ...definition.shape };
+    const fields: Record<string, schema.Schema> = {};
 
-    // validate custom fields with the schema retained on the column
-    for (const [name, column] of Object.entries(getTableColumns(table))) {
-        if (!(name in fields) || column.dataType !== "custom") continue;
-        if (!("schema" in column) || !(column.schema instanceof schema.Schema)) {
-            throw new TypeError(`Missing custom column validator: ${name}.`);
-        }
-        let validator = column.schema;
-        if (!column.notNull) validator = validator.nullable();
+    // derive API values directly from logical columns without loading a database driver
+    for (const [property, column] of Object.entries(table[TABLE].columns)) {
+        const definition = column.definition;
+        if (operation !== "select" && definition.generated) continue;
+        let validator = definition.schema;
+        if (definition.nullable) validator = validator.nullable();
         if (
-            operation === "update" ||
-            (operation === "insert" && (!column.notNull || column.hasDefault))
+            operation === "update" || (operation === "insert" &&
+                (definition.nullable || definition.default !== undefined ||
+                    definition.defaultFn !== undefined || definition.onUpdateFn !== undefined))
         ) {
             validator = validator.optional();
         }
-        fields[name] = validator;
+        fields[property] = validator;
     }
 
     return schema.object(fields);

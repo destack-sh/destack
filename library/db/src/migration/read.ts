@@ -3,13 +3,17 @@ import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import type { Migration } from "./migration.ts";
-import type { DatabaseSchema } from "../declare/schema.ts";
+import type { DatabaseSchema } from "../schema/schema.ts";
 import { DatabaseError } from "../error/index.ts";
+import type { Dialect } from "../dialect/dialect.ts";
 
 /** Read committed Drizzle SQL and checksums without opening a database. */
-export async function readMigrations(definition: DatabaseSchema): Promise<Migration[]> {
+export async function readMigrations(
+    definition: Pick<DatabaseSchema, "migrations">,
+    dialect: Dialect,
+): Promise<Migration[]> {
     // order migration directories independently of filesystem enumeration
-    const directory = fileURLToPath(definition.migrations);
+    const directory = join(fileURLToPath(definition.migrations), dialect);
     const entries = await readdir(directory, { withFileTypes: true });
     const names = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
     const migrations: Migration[] = [];

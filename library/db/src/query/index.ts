@@ -1,31 +1,24 @@
 export {
-    and,
     asc,
     avg,
     between,
     count,
     countDistinct,
     desc,
-    eq,
     exists,
-    gt,
-    gte,
     inArray,
     isNotNull,
     isNull,
     like,
-    lt,
-    lte,
-    max,
-    min,
-    ne,
     not,
     notBetween,
     notExists,
     notInArray,
     notLike,
-    or,
     sql,
     sum,
 } from "drizzle-orm";
 export type { SQL, SQLWrapper } from "drizzle-orm";
+export { dialectSQL } from "../dialect/expression.ts";
+export * from "./predicate.ts";
+export * from "./aggregate.ts";

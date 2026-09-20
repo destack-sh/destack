@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { ResourceName } from "@destack/resource";
-import { DatabaseSpec } from "../declare/index.ts";
+import { Dialect } from "../dialect/dialect.ts";
 import { TableDescription } from "./table.ts";
 
 /** The tables managed by one named database schema. */
@@ -10,9 +10,11 @@ export const DatabaseSchemaDescription = defineSchema(schema.object({
     /** The schema description format version. */
     version: schema.literal(1),
     /** The SQL dialect used by these tables. */
-    dialect: DatabaseSpec.shape.dialect,
+    dialect: Dialect,
     /** The declared tables, columns, indexes and relationships. */
     tables: schema.array(TableDescription),
+    /** Schema histories that must be prepared before this one. */
+    dependencies: schema.array(ResourceName).optional(),
 }));
 /** The tables managed by one named database schema. */
 export type DatabaseSchemaDescription = schema.Infer<typeof DatabaseSchemaDescription>;

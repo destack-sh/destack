@@ -11,22 +11,34 @@
         "./declare": "./src/declare/index.ts",
         ".": "./src/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./sqlite/inspect": "./src/sqlite/inspect/index.ts",
-        "./sqlite": "./src/sqlite/index.ts",
-        "./sqlite/node": "./src/sqlite/node/index.ts",
+        "./turso/inspect": "./src/turso/inspect/index.ts",
+        "./turso/schema": "./src/turso/schema.ts",
+        "./postgres": "./src/postgres/index.ts",
+        "./postgres/schema": "./src/postgres/schema.ts",
+        "./postgres/inspect": "./src/postgres/inspect/index.ts",
         "./migration": "./src/migration/index.ts",
+        "./migration/generate": "./src/migration/generate.ts",
         "./turso": "./src/turso/index.ts",
-        "./turso/serverless": "./src/turso/serverless/index.ts",
-        "./turso/serverless/migration": "./src/turso/serverless/migration.ts"
+        "./turso/serverless": "./src/turso/serverless/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/declare/index.ts src/inspect/index.ts src/sqlite/index.ts src/sqlite/inspect/index.ts src/sqlite/node/index.ts src/migration/index.ts src/turso/index.ts src/turso/serverless/index.ts src/turso/serverless/migration.ts"
+        "check": "deno check src/index.ts src/declare/index.ts src/inspect/index.ts src/turso/schema.ts src/turso/inspect/index.ts src/postgres/index.ts src/postgres/schema.ts src/postgres/inspect/index.ts src/migration/index.ts src/migration/generate.ts src/turso/index.ts src/turso/serverless/index.ts"
     },
     "dependencies": {
         "@destack/schema": "workspace:*",
         "@destack/resource": "workspace:*",
         "@tursodatabase/database": "0.7.2",
         "@tursodatabase/serverless": "1.4.0",
-        "drizzle-orm": "1.0.0-rc.4"
+        "drizzle-orm": "1.0.0-rc.4",
+        "postgres": "3.4.9"
+    },
+    "devDependencies": {
+        "drizzle-kit": "1.0.0-rc.4"
+    },
+    "peerDependencies": {
+        "drizzle-kit": "1.0.0-rc.4"
+    },
+    "peerDependenciesMeta": {
+        "drizzle-kit": { "optional": true }
     }
 }

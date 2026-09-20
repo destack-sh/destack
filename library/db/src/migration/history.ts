@@ -40,9 +40,9 @@ export class MigrationHistory {
     }
 
     /** Record a migration in the transaction that applies its SQL. */
-    insert(migration: Migration): SQL {
-        return sql`INSERT INTO ${this.table} (name, checksum, applied_at)
-            VALUES (${migration.name}, ${migration.checksum},
+    insert(migration: Migration, position: number): SQL {
+        return sql`INSERT INTO ${this.table} (id, name, checksum, applied_at)
+            VALUES (${position}, ${migration.name}, ${migration.checksum},
                 ${new Date().toISOString()})`;
     }
 

@@ -5,12 +5,20 @@
         "server"
     ],
     "exports": {
-        "./migration": {
+        "./migration/generate": {
+            "targets": ["server"],
+            "runtimes": ["deno"]
+        },
+        "./postgres": {
             "targets": [
                 "server"
+            ],
+            "runtimes": [
+                "deno",
+                "workerd"
             ]
         },
-        "./sqlite/node": {
+        "./migration": {
             "targets": [
                 "server"
             ],
@@ -33,14 +41,6 @@
             "runtimes": [
                 "deno",
                 "workerd"
-            ]
-        },
-        "./turso/serverless/migration": {
-            "targets": [
-                "server"
-            ],
-            "runtimes": [
-                "deno"
             ]
         }
     },

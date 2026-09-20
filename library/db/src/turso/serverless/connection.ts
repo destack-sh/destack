@@ -1,35 +1,31 @@
 import * as turso from "@tursodatabase/serverless";
-import { SQLiteAsyncDatabase } from "drizzle-orm/sqlite-core";
+import type { EmptyRelations } from "drizzle-orm/relations";
 import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
-import type { AnyRelations, EmptyRelations } from "drizzle-orm/relations";
-import { ConnectionSession } from "../session/connection.ts";
+import type { TableRelations } from "../../schema/relation.ts";
+import type { DatabaseSchema } from "../../schema/schema.ts";
+import type { Table } from "../../table/table.ts";
+import { Database } from "../database.ts";
 
-export type { Transaction } from "../session/transaction.ts";
-
-/** The result of executing a Turso statement. */
-type RunResult = Awaited<ReturnType<turso.Connection["run"]>>;
-
-/** Drizzle queries backed by a Turso connection and scoped transactions. */
-export class Database<Relations extends AnyRelations = EmptyRelations>
-    extends SQLiteAsyncDatabase<"async", RunResult, Relations> {
-    /** The underlying Turso connection. */
-    readonly $client: turso.Connection;
-
-    /** Connect query builders to the physical database. */
-    constructor(client: turso.Connection, options: DrizzleSQLiteConfig<Relations> = {}) {
-        const relations = options.relations ?? {} as Relations;
-        const session = new ConnectionSession<RunResult, Relations>(client, relations, options);
-        super("async", session.dialect, session, relations);
-        this.$client = client;
-    }
-}
-
-/** Open a Turso connection with Drizzle query and relation options. */
-export function connect<Relations extends AnyRelations = EmptyRelations>(
+/** Open a hosted Turso database and bind its declared tables. */
+export async function connect<Relations extends Record<string, TableRelations> = {}>(
     connection: turso.Config | turso.Connection,
-    options: DrizzleSQLiteConfig<Relations> = {},
-): Database<Relations> {
+    schema: DatabaseSchema<Record<string, Table>, Relations> | readonly Table[] = [],
+    options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
+): Promise<Database<Relations, turso.Connection>> {
     const client = connection instanceof turso.Connection ? connection : turso.connect(connection);
 
-    return new Database(client, options);
+    try {
+        return new Database(client, schema, options);
+    } catch (error) {
+        // release only connections allocated by this call
+        if (!(connection instanceof turso.Connection)) {
+            try {
+                await client.close();
+            } catch (cleanup) {
+                throw new AggregateError([error, cleanup], "Database binding and closure failed.");
+            }
+        }
+
+        throw error;
+    }
 }

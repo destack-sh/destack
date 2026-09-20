@@ -9,7 +9,7 @@ import type { QueryClient } from "./client.ts";
 export class Transaction<Result, Relations extends AnyRelations>
     extends SQLiteAsyncTransaction<"async", Result, Relations> {}
 
-/** Queries and savepoints within one Turso transaction. */
+/** Queries and savepoints within one SQLite transaction. */
 export class TransactionSession<Result, Relations extends AnyRelations>
     extends Session<Result, Relations> {
     /** The relation definitions available to nested transactions. */
@@ -49,8 +49,17 @@ export class TransactionSession<Result, Relations extends AnyRelations>
 
             return result;
         } catch (error) {
-            await this.run(sql`ROLLBACK TO SAVEPOINT ${name}`);
-            await this.run(sql`RELEASE SAVEPOINT ${name}`);
+            // preserve both failures when the savepoint cannot be restored
+            try {
+                await this.run(sql`ROLLBACK TO SAVEPOINT ${name}`);
+                await this.run(sql`RELEASE SAVEPOINT ${name}`);
+            } catch (rollback) {
+                throw new AggregateError(
+                    [error, rollback],
+                    "SQLite savepoint and rollback failed.",
+                );
+            }
+
             throw error;
         }
     }

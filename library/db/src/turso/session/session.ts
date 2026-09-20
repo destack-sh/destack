@@ -9,7 +9,7 @@ import { DefaultLogger, type Logger, NoopLogger } from "drizzle-orm/logger";
 import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type { QueryClient, Statement } from "./client.ts";
 
-/** Execute Drizzle queries through a Turso connection or transaction handle. */
+/** Execute Drizzle queries through a SQLite connection or transaction handle. */
 export abstract class Session<Result, Relations extends AnyRelations>
     extends SQLiteAsyncSession<"async", Result, Relations> {
     /** The connection or transaction that executes statements. */
@@ -52,12 +52,14 @@ export abstract class Session<Result, Relations extends AnyRelations>
                 all: async (parameters) => {
                     if (!prepare && mode !== "arrays") return client.all(query.sql, ...parameters);
                     statement ??= client.prepare(query.sql);
-                    return (await statement).raw(mode === "arrays").all(...parameters);
+                    return (await statement).safeIntegers(mode === "arrays").raw(mode === "arrays")
+                        .all(...parameters);
                 },
                 get: async (parameters) => {
                     if (!prepare && mode !== "arrays") return client.get(query.sql, ...parameters);
                     statement ??= client.prepare(query.sql);
-                    return (await statement).raw(mode === "arrays").get(...parameters);
+                    return (await statement).safeIntegers(mode === "arrays").raw(mode === "arrays")
+                        .get(...parameters);
                 },
                 values: async (parameters) => {
                     statement ??= client.prepare(query.sql);

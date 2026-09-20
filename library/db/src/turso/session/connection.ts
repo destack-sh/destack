@@ -5,7 +5,7 @@ import { Session } from "./session.ts";
 import type { ConnectionClient } from "./client.ts";
 import { Transaction, TransactionSession } from "./transaction.ts";
 
-/** A query session that starts transactions through Turso. */
+/** A query session that starts transactions through SQLite. */
 export class ConnectionSession<Result, Relations extends AnyRelations>
     extends Session<Result, Relations> {
     /** The physical connection used to create transaction handles. */

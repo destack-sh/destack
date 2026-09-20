@@ -1,4 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
+import { Dialect } from "../dialect/dialect.ts";
+import { toJsonSchema } from "@destack/schema/inspect";
+import type { ColumnDefinition } from "../table/column.ts";
 
 /** A named constraint over table columns. */
 const Constraint = schema.object({
@@ -55,6 +58,8 @@ export type ColumnDescription = schema.Infer<typeof ColumnDescription>;
 
 /** A table's columns and SQL constraints. */
 export const TableDescription = defineSchema(schema.object({
+    /** The physical SQL dialect described by this table. */
+    dialect: Dialect,
     /** The SQL table name. */
     name: schema.string(),
     /** Columns in declaration order. */
@@ -97,3 +102,12 @@ export const TableDescription = defineSchema(schema.object({
 }));
 /** A table's columns and SQL constraints. */
 export type TableDescription = schema.Infer<typeof TableDescription>;
+
+/** Describe JSON-compatible column values; runtime-only values retain their declared dataType. */
+export function describeColumnSchema(column: ColumnDefinition) {
+    if (column.kind === "binary" || column.kind === "bigint" || column.kind === "timestamp") {
+        return undefined;
+    }
+
+    return toJsonSchema(column.schema);
+}
