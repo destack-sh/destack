@@ -1,0 +1,20 @@
+{
+    "name": "@destack/update",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Update installed Destack distributions.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./release": "./src/release/index.ts",
+        "./process": "./src/process/index.ts",
+        "./error": "./src/error/index.ts"
+    },
+    "dependencies": { "tuf-js": "6.0.0", "tar": "7.5.22" },
+    "devDependencies": { "@destack/test": "workspace:*", "@tufjs/models": "5.0.0" },
+    "scripts": {
+        "check": "deno check src/index.ts src/process/index.ts",
+        "test": "vitest run --config vitest.config.ts"
+    }
+}
