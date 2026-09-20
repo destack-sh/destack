@@ -1,4 +1,4 @@
-Declare shared resources for applications in a space.
+Declare the base configuration of a space.
 
 ## Usage
 
@@ -8,9 +8,15 @@ Set the copied package name to your account's stack package, such as `@florian/s
 import { credentials, database, files } from "@florian/stack";
 ```
 
-The `./space` export selects the resources managed from source. Applications can also be installed
-through the CLI or UI.
+## Policies
+
+Edit `src/policy/policy.ts` to change package admission or outbound connections.
 
 ```ts
-import { personal } from "@florian/stack/space";
+import { defineSpace } from "@destack/space";
+import { packages, network } from "@florian/stack";
+
+export const personal = defineSpace({
+    policies: { packages, network },
+});
 ```
