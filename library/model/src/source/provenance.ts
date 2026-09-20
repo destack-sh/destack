@@ -1,4 +1,4 @@
-import { check, type Column, integer, json, sql, uniqueIndex } from "@destack/db";
+import { check, type Column, dialectSQL, integer, json, sql, uniqueIndex } from "@destack/db";
 import { RecordSource } from "./source.ts";
 
 /** Add source provenance to a table whose records can be declared in code. */
@@ -24,9 +24,20 @@ export function provenanceChecks(name: string, columns: {
             sql`${columns.sourceDetachedAt} IS NULL OR (${columns.source} IS NOT NULL AND ${columns.sourceDetachedAt} >= 0)`,
         ),
         uniqueIndex(`${name}_source`).on(
-            sql`json_extract(${columns.source}, '$.kind')`,
-            sql`coalesce(json_extract(${columns.source}, '$.spaceId'), json_extract(${columns.source}, '$.installationId'))`,
-            sql`json_extract(${columns.source}, '$.name')`,
+            dialectSQL({
+                sqlite: sql`json_extract(${columns.source}, '$.kind')`,
+                postgresql: sql`(${columns.source}::jsonb ->> 'kind')`,
+            }),
+            dialectSQL({
+                sqlite:
+                    sql`coalesce(json_extract(${columns.source}, '$.spaceId'), json_extract(${columns.source}, '$.installationId'))`,
+                postgresql:
+                    sql`coalesce((${columns.source}::jsonb ->> 'spaceId'), (${columns.source}::jsonb ->> 'installationId'))`,
+            }),
+            dialectSQL({
+                sqlite: sql`json_extract(${columns.source}, '$.name')`,
+                postgresql: sql`(${columns.source}::jsonb ->> 'name')`,
+            }),
         ).where(sql`${columns.source} IS NOT NULL AND ${columns.sourceDetachedAt} IS NULL`),
     ];
 }

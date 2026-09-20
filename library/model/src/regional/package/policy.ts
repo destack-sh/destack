@@ -1,7 +1,9 @@
 import {
     check,
     type Column,
+    dialectSQL,
     foreignKey,
+    type Identifier,
     identifier,
     integer,
     json,
@@ -61,7 +63,9 @@ export const packagePolicyRevision = table("package_policy_revision", {
     ...recordColumns("package-policy-revision"),
     /** The policy whose scope applies to this definition. */
     policyId: identifier("policy_id", "package-policy").notNull()
-        .references((): Column => packagePolicy.id, { onDelete: "restrict" }),
+        .references((): Column<Identifier<"package-policy">> => packagePolicy.id, {
+            onDelete: "restrict",
+        }),
     /** The policy generation that produced this revision. */
     generation: integer("generation").notNull(),
     /** The complete package admission rules. */
@@ -76,9 +80,14 @@ export const packagePolicyRevision = table("package_policy_revision", {
     check("package_policy_revision_generation_positive", sql`${revision.generation} > 0`),
     check(
         "package_policy_revision_digest",
-        sql`
+        dialectSQL({
+            sqlite: sql`
         length(${revision.digest}) = 64 AND ${revision.digest} NOT GLOB '*[^a-f0-9]*'
     `,
+            postgresql: sql`
+        length(${revision.digest}) = 64 AND (${revision.digest} COLLATE "C") !~ '[^a-f0-9]'
+    `,
+        }),
     ),
 ]);
 

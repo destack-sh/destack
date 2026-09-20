@@ -1,0 +1,439 @@
+{
+    "version": "8",
+    "dialect": "postgres",
+    "id": "f18f1160-3a3a-475e-a3fc-efcf045bc6b6",
+    "prevIds": [
+        "00000000-0000-0000-0000-000000000000"
+    ],
+    "ddl": [
+        {
+            "isRlsEnabled": false,
+            "name": "audit_event",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "space_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "action",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "version",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "occurred_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "recorded_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "actor",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": "'[]'",
+            "generated": null,
+            "identity": null,
+            "name": "delegation",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "targets",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "outcome",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "error_code",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "service",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "deployment_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "device_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "session_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "service_token_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "request_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "trace_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "address",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "user_agent",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "details",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "occurred_at",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "audit_account_time",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "space_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "occurred_at",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "audit_space_time",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "request_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "audit_request",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "audit_event_pkey",
+            "schema": "public",
+            "table": "audit_event",
+            "entityType": "pks"
+        },
+        {
+            "value": "\"version\" > 0",
+            "name": "audit_version",
+            "entityType": "checks",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "value": "length(\"action\") > 0 AND strpos(\"action\", '.') > 0",
+            "name": "audit_action",
+            "entityType": "checks",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "value": "\"outcome\" IN ('success', 'failure', 'denied')",
+            "name": "audit_outcome",
+            "entityType": "checks",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "value": "\"outcome\" <> 'success' OR \"error_code\" IS NULL",
+            "name": "audit_error",
+            "entityType": "checks",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "value": "\"space_id\" IS NULL OR \"account_id\" IS NOT NULL",
+            "name": "audit_space_account",
+            "entityType": "checks",
+            "schema": "public",
+            "table": "audit_event"
+        }
+    ],
+    "renames": []
+}

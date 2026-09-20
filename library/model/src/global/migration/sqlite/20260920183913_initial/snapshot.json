@@ -1,0 +1,5103 @@
+{
+    "version": "7",
+    "dialect": "sqlite",
+    "id": "5fb888d2-1ab7-41f3-8bf1-0c54513e741d",
+    "prevIds": [
+        "00000000-0000-0000-0000-000000000000"
+    ],
+    "ddl": [
+        {
+            "name": "account",
+            "entityType": "tables"
+        },
+        {
+            "name": "identity",
+            "entityType": "tables"
+        },
+        {
+            "name": "role_permission",
+            "entityType": "tables"
+        },
+        {
+            "name": "sign_in_request",
+            "entityType": "tables"
+        },
+        {
+            "name": "user",
+            "entityType": "tables"
+        },
+        {
+            "name": "service_account",
+            "entityType": "tables"
+        },
+        {
+            "name": "service_token",
+            "entityType": "tables"
+        },
+        {
+            "name": "preference",
+            "entityType": "tables"
+        },
+        {
+            "name": "tunnel",
+            "entityType": "tables"
+        },
+        {
+            "name": "host_access",
+            "entityType": "tables"
+        },
+        {
+            "name": "region",
+            "entityType": "tables"
+        },
+        {
+            "name": "device_key",
+            "entityType": "tables"
+        },
+        {
+            "name": "account_membership",
+            "entityType": "tables"
+        },
+        {
+            "name": "device",
+            "entityType": "tables"
+        },
+        {
+            "name": "host",
+            "entityType": "tables"
+        },
+        {
+            "name": "route",
+            "entityType": "tables"
+        },
+        {
+            "name": "domain",
+            "entityType": "tables"
+        },
+        {
+            "name": "space_directory",
+            "entityType": "tables"
+        },
+        {
+            "name": "repository_directory",
+            "entityType": "tables"
+        },
+        {
+            "name": "package_directory",
+            "entityType": "tables"
+        },
+        {
+            "name": "role_binding",
+            "entityType": "tables"
+        },
+        {
+            "name": "account_invitation",
+            "entityType": "tables"
+        },
+        {
+            "name": "group",
+            "entityType": "tables"
+        },
+        {
+            "name": "group_membership",
+            "entityType": "tables"
+        },
+        {
+            "name": "connected_account",
+            "entityType": "tables"
+        },
+        {
+            "name": "role",
+            "entityType": "tables"
+        },
+        {
+            "name": "session",
+            "entityType": "tables"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "handle",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "default_residency",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "package_policy_id",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "package_policy_region_id",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "network_policy_id",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "network_policy_region_id",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "suspended_at",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "deletion_requested_at",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "kind",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "table": "account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "identity"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "identity"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "identity"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "identity"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "identity"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "table": "identity"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "issuer",
+            "entityType": "columns",
+            "table": "identity"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "subject",
+            "entityType": "columns",
+            "table": "identity"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "role_permission"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "role_id",
+            "entityType": "columns",
+            "table": "role_permission"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "resource",
+            "entityType": "columns",
+            "table": "role_permission"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "action",
+            "entityType": "columns",
+            "table": "role_permission"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "resource_id",
+            "entityType": "columns",
+            "table": "role_permission"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "client",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "token_hash",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "code_hash",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "challenge",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "approved_at",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "denied_at",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "consumed_at",
+            "entityType": "columns",
+            "table": "sign_in_request"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "user"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "user"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "user"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "user"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "user"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "user"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "service_account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "service_account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "service_account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "service_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "service_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "service_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "service_account"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "service_account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "service_account_id",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "token_hash",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "service_token"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "device_id",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "value",
+            "entityType": "columns",
+            "table": "preference"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "host_id",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "device_id",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "device_key_id",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "relay",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "connection",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "heartbeat_at",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "closed_at",
+            "entityType": "columns",
+            "table": "tunnel"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "host_id",
+            "entityType": "columns",
+            "table": "host_access"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "host_access"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "host_access"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "host_access"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "provider",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "code",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "residency",
+            "entityType": "columns",
+            "table": "region"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "device_id",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "public_key",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "device_key"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "account_membership"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "account_membership"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "account_membership"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "account_membership"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "account_membership"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "account_membership"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "table": "account_membership"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "last_seen_at",
+            "entityType": "columns",
+            "table": "device"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "kind",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "device_id",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "region_id",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'enabled'",
+            "generated": null,
+            "name": "state",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "version",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'[]'",
+            "generated": null,
+            "name": "runtimes",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "last_seen_at",
+            "entityType": "columns",
+            "table": "host"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "source",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "source_detached_at",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "domain_id",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "path",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "match",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "kind",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "space_id",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "installation_id",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "entrypoint",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "redirect",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "redirect_status",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "0",
+            "generated": null,
+            "name": "applied_generation",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "generation",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "0",
+            "generated": null,
+            "name": "observed_generation",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "conditions",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "deletion_requested_at",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'[]'",
+            "generated": null,
+            "name": "finalizers",
+            "entityType": "columns",
+            "table": "route"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "domain"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "domain"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "domain"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "domain"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "domain"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "domain"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "hostname",
+            "entityType": "columns",
+            "table": "domain"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "verified_at",
+            "entityType": "columns",
+            "table": "domain"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "generation",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "0",
+            "generated": null,
+            "name": "observed_generation",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "conditions",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "deletion_requested_at",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'[]'",
+            "generated": null,
+            "name": "finalizers",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "residency",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "region_id",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "space_directory"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "generation",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "0",
+            "generated": null,
+            "name": "observed_generation",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "conditions",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "deletion_requested_at",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'[]'",
+            "generated": null,
+            "name": "finalizers",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "residency",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "region_id",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "repository_directory"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "package_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "package_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "package_directory"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "package_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "package_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "package_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "package_directory"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "repository_id",
+            "entityType": "columns",
+            "table": "package_directory"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "source",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "source_detached_at",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "role_id",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "space_id",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_membership_id",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "group_id",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "service_account_id",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "role_binding"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "invited_by",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "email",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "token_hash",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "accepted_by",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "accepted_at",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "account_invitation"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "group"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "group"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "group"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "group"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "group"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "group"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "group"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "group_membership"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "group_id",
+            "entityType": "columns",
+            "table": "group_membership"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_membership_id",
+            "entityType": "columns",
+            "table": "group_membership"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "provider",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "issuer",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "subject",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "application_id",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "kind",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "installation_id",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scopes",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "permissions",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "secret_space_id",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "secret_id",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "connected_account"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "1",
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": "'{}'",
+            "generated": null,
+            "name": "tags",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "source",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "source_detached_at",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "description",
+            "entityType": "columns",
+            "table": "role"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "session"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "table": "session"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "device_id",
+            "entityType": "columns",
+            "table": "session"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "token_hash",
+            "entityType": "columns",
+            "table": "session"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "session"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "session"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "session"
+        },
+        {
+            "columns": [
+                "package_policy_region_id"
+            ],
+            "tableTo": "region",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_account_package_policy_region_id_region_id_fk",
+            "entityType": "fks",
+            "table": "account"
+        },
+        {
+            "columns": [
+                "network_policy_region_id"
+            ],
+            "tableTo": "region",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_account_network_policy_region_id_region_id_fk",
+            "entityType": "fks",
+            "table": "account"
+        },
+        {
+            "columns": [
+                "user_id"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_account_user_id_user_id_fk",
+            "entityType": "fks",
+            "table": "account"
+        },
+        {
+            "columns": [
+                "user_id"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_identity_user_id_user_id_fk",
+            "entityType": "fks",
+            "table": "identity"
+        },
+        {
+            "columns": [
+                "role_id"
+            ],
+            "tableTo": "role",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_role_permission_role_id_role_id_fk",
+            "entityType": "fks",
+            "table": "role_permission"
+        },
+        {
+            "columns": [
+                "user_id"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_sign_in_request_user_id_user_id_fk",
+            "entityType": "fks",
+            "table": "sign_in_request"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_service_account_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "service_account"
+        },
+        {
+            "columns": [
+                "service_account_id"
+            ],
+            "tableTo": "service_account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_service_token_service_account_id_service_account_id_fk",
+            "entityType": "fks",
+            "table": "service_token"
+        },
+        {
+            "columns": [
+                "account_id",
+                "device_id"
+            ],
+            "tableTo": "device",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_preference_account_id_device_id_device_account_id_id_fk",
+            "entityType": "fks",
+            "table": "preference"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_preference_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "preference"
+        },
+        {
+            "columns": [
+                "user_id"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_preference_user_id_user_id_fk",
+            "entityType": "fks",
+            "table": "preference"
+        },
+        {
+            "columns": [
+                "device_id"
+            ],
+            "tableTo": "device",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_preference_device_id_device_id_fk",
+            "entityType": "fks",
+            "table": "preference"
+        },
+        {
+            "columns": [
+                "device_id",
+                "host_id"
+            ],
+            "tableTo": "host",
+            "columnsTo": [
+                "device_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_tunnel_device_id_host_id_host_device_id_id_fk",
+            "entityType": "fks",
+            "table": "tunnel"
+        },
+        {
+            "columns": [
+                "device_id",
+                "device_key_id"
+            ],
+            "tableTo": "device_key",
+            "columnsTo": [
+                "device_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_tunnel_device_id_device_key_id_device_key_device_id_id_fk",
+            "entityType": "fks",
+            "table": "tunnel"
+        },
+        {
+            "columns": [
+                "host_id"
+            ],
+            "tableTo": "host",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_tunnel_host_id_host_id_fk",
+            "entityType": "fks",
+            "table": "tunnel"
+        },
+        {
+            "columns": [
+                "device_id"
+            ],
+            "tableTo": "device",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_tunnel_device_id_device_id_fk",
+            "entityType": "fks",
+            "table": "tunnel"
+        },
+        {
+            "columns": [
+                "host_id"
+            ],
+            "tableTo": "host",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_host_access_host_id_host_id_fk",
+            "entityType": "fks",
+            "table": "host_access"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_host_access_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "host_access"
+        },
+        {
+            "columns": [
+                "device_id"
+            ],
+            "tableTo": "device",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_device_key_device_id_device_id_fk",
+            "entityType": "fks",
+            "table": "device_key"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_account_membership_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "account_membership"
+        },
+        {
+            "columns": [
+                "user_id"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_account_membership_user_id_user_id_fk",
+            "entityType": "fks",
+            "table": "account_membership"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_device_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "device"
+        },
+        {
+            "columns": [
+                "account_id",
+                "device_id"
+            ],
+            "tableTo": "device",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_host_account_id_device_id_device_account_id_id_fk",
+            "entityType": "fks",
+            "table": "host"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_host_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "host"
+        },
+        {
+            "columns": [
+                "region_id"
+            ],
+            "tableTo": "region",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_host_region_id_region_id_fk",
+            "entityType": "fks",
+            "table": "host"
+        },
+        {
+            "columns": [
+                "account_id",
+                "domain_id"
+            ],
+            "tableTo": "domain",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_route_account_id_domain_id_domain_account_id_id_fk",
+            "entityType": "fks",
+            "table": "route"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_route_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "route"
+        },
+        {
+            "columns": [
+                "space_id"
+            ],
+            "tableTo": "space_directory",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_route_space_id_space_directory_id_fk",
+            "entityType": "fks",
+            "table": "route"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_domain_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "domain"
+        },
+        {
+            "columns": [
+                "region_id",
+                "residency"
+            ],
+            "tableTo": "region",
+            "columnsTo": [
+                "id",
+                "residency"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_space_directory_region_id_residency_region_id_residency_fk",
+            "entityType": "fks",
+            "table": "space_directory"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_space_directory_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "space_directory"
+        },
+        {
+            "columns": [
+                "region_id",
+                "residency"
+            ],
+            "tableTo": "region",
+            "columnsTo": [
+                "id",
+                "residency"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_repository_directory_region_id_residency_region_id_residency_fk",
+            "entityType": "fks",
+            "table": "repository_directory"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_repository_directory_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "repository_directory"
+        },
+        {
+            "columns": [
+                "account_id",
+                "repository_id"
+            ],
+            "tableTo": "repository_directory",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_package_directory_account_id_repository_id_repository_directory_account_id_id_fk",
+            "entityType": "fks",
+            "table": "package_directory"
+        },
+        {
+            "columns": [
+                "account_id",
+                "space_id"
+            ],
+            "tableTo": "space_directory",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_role_binding_account_id_space_id_space_directory_account_id_id_fk",
+            "entityType": "fks",
+            "table": "role_binding"
+        },
+        {
+            "columns": [
+                "account_id",
+                "role_id"
+            ],
+            "tableTo": "role",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_role_binding_account_id_role_id_role_account_id_id_fk",
+            "entityType": "fks",
+            "table": "role_binding"
+        },
+        {
+            "columns": [
+                "account_id",
+                "account_membership_id"
+            ],
+            "tableTo": "account_membership",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_role_binding_account_id_account_membership_id_account_membership_account_id_id_fk",
+            "entityType": "fks",
+            "table": "role_binding"
+        },
+        {
+            "columns": [
+                "account_id",
+                "group_id"
+            ],
+            "tableTo": "group",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_role_binding_account_id_group_id_group_account_id_id_fk",
+            "entityType": "fks",
+            "table": "role_binding"
+        },
+        {
+            "columns": [
+                "account_id",
+                "service_account_id"
+            ],
+            "tableTo": "service_account",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_role_binding_account_id_service_account_id_service_account_account_id_id_fk",
+            "entityType": "fks",
+            "table": "role_binding"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_account_invitation_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "account_invitation"
+        },
+        {
+            "columns": [
+                "invited_by"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_account_invitation_invited_by_user_id_fk",
+            "entityType": "fks",
+            "table": "account_invitation"
+        },
+        {
+            "columns": [
+                "accepted_by"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_account_invitation_accepted_by_user_id_fk",
+            "entityType": "fks",
+            "table": "account_invitation"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_group_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "group"
+        },
+        {
+            "columns": [
+                "account_id",
+                "group_id"
+            ],
+            "tableTo": "group",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_group_membership_account_id_group_id_group_account_id_id_fk",
+            "entityType": "fks",
+            "table": "group_membership"
+        },
+        {
+            "columns": [
+                "account_id",
+                "account_membership_id"
+            ],
+            "tableTo": "account_membership",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_group_membership_account_id_account_membership_id_account_membership_account_id_id_fk",
+            "entityType": "fks",
+            "table": "group_membership"
+        },
+        {
+            "columns": [
+                "account_id",
+                "secret_space_id"
+            ],
+            "tableTo": "space_directory",
+            "columnsTo": [
+                "account_id",
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_connected_account_account_id_secret_space_id_space_directory_account_id_id_fk",
+            "entityType": "fks",
+            "table": "connected_account"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_connected_account_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "connected_account"
+        },
+        {
+            "columns": [
+                "user_id"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_connected_account_user_id_user_id_fk",
+            "entityType": "fks",
+            "table": "connected_account"
+        },
+        {
+            "columns": [
+                "account_id"
+            ],
+            "tableTo": "account",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_role_account_id_account_id_fk",
+            "entityType": "fks",
+            "table": "role"
+        },
+        {
+            "columns": [
+                "user_id"
+            ],
+            "tableTo": "user",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "CASCADE",
+            "nameExplicit": false,
+            "name": "fk_session_user_id_user_id_fk",
+            "entityType": "fks",
+            "table": "session"
+        },
+        {
+            "columns": [
+                "device_id"
+            ],
+            "tableTo": "device",
+            "columnsTo": [
+                "id"
+            ],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_session_device_id_device_id_fk",
+            "entityType": "fks",
+            "table": "session"
+        },
+        {
+            "columns": [
+                "account_id",
+                "host_id"
+            ],
+            "nameExplicit": false,
+            "name": "host_access_pk",
+            "entityType": "pks",
+            "table": "host_access"
+        },
+        {
+            "columns": [
+                "group_id",
+                "account_membership_id"
+            ],
+            "nameExplicit": false,
+            "name": "group_membership_pk",
+            "entityType": "pks",
+            "table": "group_membership"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "account_pk",
+            "table": "account",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "identity_pk",
+            "table": "identity",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "role_permission_pk",
+            "table": "role_permission",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "sign_in_request_pk",
+            "table": "sign_in_request",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "user_pk",
+            "table": "user",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "service_account_pk",
+            "table": "service_account",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "service_token_pk",
+            "table": "service_token",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "preference_pk",
+            "table": "preference",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "tunnel_pk",
+            "table": "tunnel",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "region_pk",
+            "table": "region",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "device_key_pk",
+            "table": "device_key",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "account_membership_pk",
+            "table": "account_membership",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "device_pk",
+            "table": "device",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "host_pk",
+            "table": "host",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "route_pk",
+            "table": "route",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "domain_pk",
+            "table": "domain",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "space_directory_pk",
+            "table": "space_directory",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "repository_directory_pk",
+            "table": "repository_directory",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "package_directory_pk",
+            "table": "package_directory",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "role_binding_pk",
+            "table": "role_binding",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "account_invitation_pk",
+            "table": "account_invitation",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "group_pk",
+            "table": "group",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "connected_account_pk",
+            "table": "connected_account",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "role_pk",
+            "table": "role",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                "id"
+            ],
+            "nameExplicit": false,
+            "name": "session_pk",
+            "table": "session",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                {
+                    "value": "user_id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "identity_user",
+            "entityType": "indexes",
+            "table": "identity"
+        },
+        {
+            "columns": [
+                {
+                    "value": "role_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "resource",
+                    "isExpression": false
+                },
+                {
+                    "value": "action",
+                    "isExpression": false
+                },
+                {
+                    "value": "resource_id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": "\"role_permission\".\"resource_id\" IS NOT NULL",
+            "origin": "manual",
+            "name": "role_permission_object",
+            "entityType": "indexes",
+            "table": "role_permission"
+        },
+        {
+            "columns": [
+                {
+                    "value": "role_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "resource",
+                    "isExpression": false
+                },
+                {
+                    "value": "action",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": "\"role_permission\".\"resource_id\" IS NULL",
+            "origin": "manual",
+            "name": "role_permission_all",
+            "entityType": "indexes",
+            "table": "role_permission"
+        },
+        {
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "name",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": "\"preference\".\"user_id\" IS NULL AND \"preference\".\"device_id\" IS NULL",
+            "origin": "manual",
+            "name": "preference_account",
+            "entityType": "indexes",
+            "table": "preference"
+        },
+        {
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "user_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "name",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": "\"preference\".\"user_id\" IS NOT NULL AND \"preference\".\"device_id\" IS NULL",
+            "origin": "manual",
+            "name": "preference_user",
+            "entityType": "indexes",
+            "table": "preference"
+        },
+        {
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "user_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "device_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "name",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": "\"preference\".\"device_id\" IS NOT NULL",
+            "origin": "manual",
+            "name": "preference_device",
+            "entityType": "indexes",
+            "table": "preference"
+        },
+        {
+            "columns": [
+                {
+                    "value": "host_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "expires_at",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "tunnel_host_expiry",
+            "entityType": "indexes",
+            "table": "tunnel"
+        },
+        {
+            "columns": [
+                {
+                    "value": "user_id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "account_membership_user",
+            "entityType": "indexes",
+            "table": "account_membership"
+        },
+        {
+            "columns": [
+                {
+                    "value": "json_extract(\"source\", '$.kind')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(json_extract(\"source\", '$.spaceId'), json_extract(\"source\", '$.installationId'))",
+                    "isExpression": true
+                },
+                {
+                    "value": "json_extract(\"source\", '$.name')",
+                    "isExpression": true
+                }
+            ],
+            "isUnique": true,
+            "where": "\"route\".\"source\" IS NOT NULL AND \"route\".\"source_detached_at\" IS NULL",
+            "origin": "manual",
+            "name": "route_source",
+            "entityType": "indexes",
+            "table": "route"
+        },
+        {
+            "columns": [
+                {
+                    "value": "json_extract(\"source\", '$.kind')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(json_extract(\"source\", '$.spaceId'), json_extract(\"source\", '$.installationId'))",
+                    "isExpression": true
+                },
+                {
+                    "value": "json_extract(\"source\", '$.name')",
+                    "isExpression": true
+                }
+            ],
+            "isUnique": true,
+            "where": "\"role_binding\".\"source\" IS NOT NULL AND \"role_binding\".\"source_detached_at\" IS NULL",
+            "origin": "manual",
+            "name": "role_binding_source",
+            "entityType": "indexes",
+            "table": "role_binding"
+        },
+        {
+            "columns": [
+                {
+                    "value": "role_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "coalesce(\"space_id\", '')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(\"account_membership_id\", \"group_id\", \"service_account_id\")",
+                    "isExpression": true
+                }
+            ],
+            "isUnique": true,
+            "where": "\"role_binding\".\"revoked_at\" IS NULL",
+            "origin": "manual",
+            "name": "role_binding_active",
+            "entityType": "indexes",
+            "table": "role_binding"
+        },
+        {
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "provider",
+                    "isExpression": false
+                },
+                {
+                    "value": "issuer",
+                    "isExpression": false
+                },
+                {
+                    "value": "application_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "subject",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": "\"connected_account\".\"kind\" = 'oauth'",
+            "origin": "manual",
+            "name": "connection_oauth",
+            "entityType": "indexes",
+            "table": "connected_account"
+        },
+        {
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "provider",
+                    "isExpression": false
+                },
+                {
+                    "value": "issuer",
+                    "isExpression": false
+                },
+                {
+                    "value": "application_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "installation_id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": "\"connected_account\".\"kind\" = 'installation'",
+            "origin": "manual",
+            "name": "connection_installation",
+            "entityType": "indexes",
+            "table": "connected_account"
+        },
+        {
+            "columns": [
+                {
+                    "value": "user_id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "connection_user",
+            "entityType": "indexes",
+            "table": "connected_account"
+        },
+        {
+            "columns": [
+                {
+                    "value": "json_extract(\"source\", '$.kind')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(json_extract(\"source\", '$.spaceId'), json_extract(\"source\", '$.installationId'))",
+                    "isExpression": true
+                },
+                {
+                    "value": "json_extract(\"source\", '$.name')",
+                    "isExpression": true
+                }
+            ],
+            "isUnique": true,
+            "where": "\"role\".\"source\" IS NOT NULL AND \"role\".\"source_detached_at\" IS NULL",
+            "origin": "manual",
+            "name": "role_source",
+            "entityType": "indexes",
+            "table": "role"
+        },
+        {
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "name",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": null,
+            "origin": "manual",
+            "name": "role_scope_name",
+            "entityType": "indexes",
+            "table": "role"
+        },
+        {
+            "columns": [
+                {
+                    "value": "user_id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "session_user",
+            "entityType": "indexes",
+            "table": "session"
+        },
+        {
+            "columns": [
+                {
+                    "value": "expires_at",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "session_expiry",
+            "entityType": "indexes",
+            "table": "session"
+        },
+        {
+            "columns": [
+                "issuer",
+                "subject"
+            ],
+            "nameExplicit": true,
+            "name": "identity_issuer_subject",
+            "entityType": "uniques",
+            "table": "identity"
+        },
+        {
+            "columns": [
+                "account_id",
+                "name"
+            ],
+            "nameExplicit": true,
+            "name": "service_account_name",
+            "entityType": "uniques",
+            "table": "service_account"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "service_account_account_id",
+            "entityType": "uniques",
+            "table": "service_account"
+        },
+        {
+            "columns": [
+                "relay",
+                "connection"
+            ],
+            "nameExplicit": true,
+            "name": "tunnel_connection",
+            "entityType": "uniques",
+            "table": "tunnel"
+        },
+        {
+            "columns": [
+                "provider",
+                "code"
+            ],
+            "nameExplicit": true,
+            "name": "region_provider_code",
+            "entityType": "uniques",
+            "table": "region"
+        },
+        {
+            "columns": [
+                "provider",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "region_provider_id",
+            "entityType": "uniques",
+            "table": "region"
+        },
+        {
+            "columns": [
+                "id",
+                "residency"
+            ],
+            "nameExplicit": true,
+            "name": "region_residency_id",
+            "entityType": "uniques",
+            "table": "region"
+        },
+        {
+            "columns": [
+                "device_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "device_key_device_id",
+            "entityType": "uniques",
+            "table": "device_key"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "account_membership_account_id",
+            "entityType": "uniques",
+            "table": "account_membership"
+        },
+        {
+            "columns": [
+                "account_id",
+                "user_id"
+            ],
+            "nameExplicit": true,
+            "name": "account_membership_account_user",
+            "entityType": "uniques",
+            "table": "account_membership"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "device_account_id",
+            "entityType": "uniques",
+            "table": "device"
+        },
+        {
+            "columns": [
+                "device_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "host_device_id",
+            "entityType": "uniques",
+            "table": "host"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "host_account_id",
+            "entityType": "uniques",
+            "table": "host"
+        },
+        {
+            "columns": [
+                "domain_id",
+                "path",
+                "match"
+            ],
+            "nameExplicit": true,
+            "name": "route_domain_path_match",
+            "entityType": "uniques",
+            "table": "route"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "domain_account_id",
+            "entityType": "uniques",
+            "table": "domain"
+        },
+        {
+            "columns": [
+                "account_id",
+                "name"
+            ],
+            "nameExplicit": true,
+            "name": "space_directory_name",
+            "entityType": "uniques",
+            "table": "space_directory"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "space_directory_account",
+            "entityType": "uniques",
+            "table": "space_directory"
+        },
+        {
+            "columns": [
+                "account_id",
+                "name"
+            ],
+            "nameExplicit": true,
+            "name": "repository_directory_name",
+            "entityType": "uniques",
+            "table": "repository_directory"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "repository_directory_account",
+            "entityType": "uniques",
+            "table": "repository_directory"
+        },
+        {
+            "columns": [
+                "account_id",
+                "name"
+            ],
+            "nameExplicit": true,
+            "name": "package_directory_name",
+            "entityType": "uniques",
+            "table": "package_directory"
+        },
+        {
+            "columns": [
+                "account_id",
+                "name"
+            ],
+            "nameExplicit": true,
+            "name": "group_account_name",
+            "entityType": "uniques",
+            "table": "group"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "group_account_id",
+            "entityType": "uniques",
+            "table": "group"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "connection_account_id",
+            "entityType": "uniques",
+            "table": "connected_account"
+        },
+        {
+            "columns": [
+                "account_id",
+                "id"
+            ],
+            "nameExplicit": true,
+            "name": "role_account_id",
+            "entityType": "uniques",
+            "table": "role"
+        },
+        {
+            "columns": [
+                "handle"
+            ],
+            "nameExplicit": false,
+            "name": "account_handle_unique",
+            "entityType": "uniques",
+            "table": "account"
+        },
+        {
+            "columns": [
+                "user_id"
+            ],
+            "nameExplicit": false,
+            "name": "account_user_id_unique",
+            "entityType": "uniques",
+            "table": "account"
+        },
+        {
+            "columns": [
+                "token_hash"
+            ],
+            "nameExplicit": false,
+            "name": "sign_in_request_token_hash_unique",
+            "entityType": "uniques",
+            "table": "sign_in_request"
+        },
+        {
+            "columns": [
+                "code_hash"
+            ],
+            "nameExplicit": false,
+            "name": "sign_in_request_code_hash_unique",
+            "entityType": "uniques",
+            "table": "sign_in_request"
+        },
+        {
+            "columns": [
+                "token_hash"
+            ],
+            "nameExplicit": false,
+            "name": "service_token_token_hash_unique",
+            "entityType": "uniques",
+            "table": "service_token"
+        },
+        {
+            "columns": [
+                "public_key"
+            ],
+            "nameExplicit": false,
+            "name": "device_key_public_key_unique",
+            "entityType": "uniques",
+            "table": "device_key"
+        },
+        {
+            "columns": [
+                "hostname"
+            ],
+            "nameExplicit": false,
+            "name": "domain_hostname_unique",
+            "entityType": "uniques",
+            "table": "domain"
+        },
+        {
+            "columns": [
+                "token_hash"
+            ],
+            "nameExplicit": false,
+            "name": "account_invitation_token_hash_unique",
+            "entityType": "uniques",
+            "table": "account_invitation"
+        },
+        {
+            "columns": [
+                "token_hash"
+            ],
+            "nameExplicit": false,
+            "name": "session_token_hash_unique",
+            "entityType": "uniques",
+            "table": "session"
+        },
+        {
+            "value": "\"default_residency\" IN ('eu', 'us')",
+            "name": "account_residency",
+            "entityType": "checks",
+            "table": "account"
+        },
+        {
+            "value": "\"kind\" IN ('personal', 'organisation')",
+            "name": "account_kind",
+            "entityType": "checks",
+            "table": "account"
+        },
+        {
+            "value": "\n        (\"network_policy_id\" IS NULL AND \"network_policy_region_id\" IS NULL) OR\n        (\"network_policy_id\" IS NOT NULL AND \"network_policy_region_id\" IS NOT NULL)\n    ",
+            "name": "account_network_policy",
+            "entityType": "checks",
+            "table": "account"
+        },
+        {
+            "value": "\n        (\"package_policy_id\" IS NULL AND \"package_policy_region_id\" IS NULL) OR\n        (\"package_policy_id\" IS NOT NULL AND \"package_policy_region_id\" IS NOT NULL)\n    ",
+            "name": "account_package_policy",
+            "entityType": "checks",
+            "table": "account"
+        },
+        {
+            "value": "(\"kind\" = 'personal' AND \"user_id\" IS NOT NULL) OR (\"kind\" = 'organisation' AND \"user_id\" IS NULL)",
+            "name": "account_user",
+            "entityType": "checks",
+            "table": "account"
+        },
+        {
+            "value": "length(\"handle\") BETWEEN 1 AND 63 AND \"handle\" NOT GLOB '*[^a-z0-9-]*' AND \"handle\" NOT LIKE '-%' AND \"handle\" NOT LIKE '%-'",
+            "name": "account_handle",
+            "entityType": "checks",
+            "table": "account"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "account_id_not_null",
+            "entityType": "checks",
+            "table": "account"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "identity_id_not_null",
+            "entityType": "checks",
+            "table": "identity"
+        },
+        {
+            "value": "length(\"resource\") > 0 AND instr(\"resource\", '.') > 0 AND instr(\"resource\", '*') = 0",
+            "name": "role_permission_resource",
+            "entityType": "checks",
+            "table": "role_permission"
+        },
+        {
+            "value": "length(\"action\") > 0 AND instr(\"action\", '*') = 0",
+            "name": "role_permission_action",
+            "entityType": "checks",
+            "table": "role_permission"
+        },
+        {
+            "value": "\"resource_id\" IS NULL OR length(\"resource_id\") > 0",
+            "name": "role_permission_identifier",
+            "entityType": "checks",
+            "table": "role_permission"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "role_permission_id_not_null",
+            "entityType": "checks",
+            "table": "role_permission"
+        },
+        {
+            "value": "\"client\" IN ('desktop', 'cli')",
+            "name": "sign_in_request_client",
+            "entityType": "checks",
+            "table": "sign_in_request"
+        },
+        {
+            "value": "\"expires_at\" > \"created_at\"",
+            "name": "sign_in_request_expiry",
+            "entityType": "checks",
+            "table": "sign_in_request"
+        },
+        {
+            "value": "(\"approved_at\" IS NULL) = (\"user_id\" IS NULL) AND (\"approved_at\" IS NULL OR (\"denied_at\" IS NULL AND \"approved_at\" >= \"created_at\" AND \"approved_at\" < \"expires_at\"))",
+            "name": "sign_in_request_approval",
+            "entityType": "checks",
+            "table": "sign_in_request"
+        },
+        {
+            "value": "\"consumed_at\" IS NULL OR (\"approved_at\" IS NOT NULL AND \"consumed_at\" >= \"approved_at\" AND \"consumed_at\" < \"expires_at\")",
+            "name": "sign_in_request_exchange",
+            "entityType": "checks",
+            "table": "sign_in_request"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "sign_in_request_id_not_null",
+            "entityType": "checks",
+            "table": "sign_in_request"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "user_id_not_null",
+            "entityType": "checks",
+            "table": "user"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "service_account_id_not_null",
+            "entityType": "checks",
+            "table": "service_account"
+        },
+        {
+            "value": "\"expires_at\" > \"created_at\"",
+            "name": "service_token_expiry",
+            "entityType": "checks",
+            "table": "service_token"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "service_token_id_not_null",
+            "entityType": "checks",
+            "table": "service_token"
+        },
+        {
+            "value": "\"device_id\" IS NULL OR \"user_id\" IS NOT NULL",
+            "name": "preference_device_user",
+            "entityType": "checks",
+            "table": "preference"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "preference_id_not_null",
+            "entityType": "checks",
+            "table": "preference"
+        },
+        {
+            "value": "\"heartbeat_at\" >= \"created_at\" AND \"expires_at\" > \"heartbeat_at\"",
+            "name": "tunnel_lease",
+            "entityType": "checks",
+            "table": "tunnel"
+        },
+        {
+            "value": "\"closed_at\" IS NULL OR \"closed_at\" >= \"created_at\"",
+            "name": "tunnel_close",
+            "entityType": "checks",
+            "table": "tunnel"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "tunnel_id_not_null",
+            "entityType": "checks",
+            "table": "tunnel"
+        },
+        {
+            "value": "\"residency\" IN ('eu', 'us')",
+            "name": "region_residency",
+            "entityType": "checks",
+            "table": "region"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "region_id_not_null",
+            "entityType": "checks",
+            "table": "region"
+        },
+        {
+            "value": "\"expires_at\" > \"created_at\"",
+            "name": "device_key_expiry",
+            "entityType": "checks",
+            "table": "device_key"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "device_key_id_not_null",
+            "entityType": "checks",
+            "table": "device_key"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "account_membership_id_not_null",
+            "entityType": "checks",
+            "table": "account_membership"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "device_id_not_null",
+            "entityType": "checks",
+            "table": "device"
+        },
+        {
+            "value": "\"state\" IN ('enabled', 'draining', 'disabled')",
+            "name": "host_state",
+            "entityType": "checks",
+            "table": "host"
+        },
+        {
+            "value": "(\"kind\" = 'device' AND \"device_id\" IS NOT NULL) OR (\"kind\" = 'cloud' AND \"device_id\" IS NULL)",
+            "name": "host_kind",
+            "entityType": "checks",
+            "table": "host"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "host_id_not_null",
+            "entityType": "checks",
+            "table": "host"
+        },
+        {
+            "value": "\"source_detached_at\" IS NULL OR (\"source\" IS NOT NULL AND \"source_detached_at\" >= 0)",
+            "name": "route_source_detached",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "\"revision\" >= 1",
+            "name": "route_revision",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "\"generation\" >= 1",
+            "name": "route_generation",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "\"observed_generation\" BETWEEN 0 AND \"generation\"",
+            "name": "route_observed_generation",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "\"match\" IN ('exact', 'prefix')",
+            "name": "route_match",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "substr(\"path\", 1, 1) = '/'",
+            "name": "route_path",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "\"applied_generation\" BETWEEN 0 AND \"generation\"",
+            "name": "route_applied_generation",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "(\"kind\" = 'application' AND \"space_id\" IS NOT NULL AND \"installation_id\" IS NOT NULL AND \"entrypoint\" IS NOT NULL AND \"redirect\" IS NULL AND \"redirect_status\" IS NULL) OR (\"kind\" = 'redirect' AND \"space_id\" IS NULL AND \"installation_id\" IS NULL AND \"entrypoint\" IS NULL AND \"redirect\" IS NOT NULL AND \"redirect_status\" IN (301, 302, 303, 307, 308) AND \"redirect_status\" IS NOT NULL)",
+            "name": "route_destination",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "route_id_not_null",
+            "entityType": "checks",
+            "table": "route"
+        },
+        {
+            "value": "length(\"hostname\") BETWEEN 1 AND 253 AND \"hostname\" = lower(\"hostname\")",
+            "name": "domain_hostname",
+            "entityType": "checks",
+            "table": "domain"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "domain_id_not_null",
+            "entityType": "checks",
+            "table": "domain"
+        },
+        {
+            "value": "\"revision\" >= 1",
+            "name": "space_directory_revision",
+            "entityType": "checks",
+            "table": "space_directory"
+        },
+        {
+            "value": "\"generation\" >= 1",
+            "name": "space_directory_generation",
+            "entityType": "checks",
+            "table": "space_directory"
+        },
+        {
+            "value": "\"observed_generation\" BETWEEN 0 AND \"generation\"",
+            "name": "space_directory_observed_generation",
+            "entityType": "checks",
+            "table": "space_directory"
+        },
+        {
+            "value": "length(\"name\") BETWEEN 1 AND 63 AND \"name\" NOT GLOB '*[^a-z0-9-]*' AND \"name\" NOT LIKE '-%' AND \"name\" NOT LIKE '%-'",
+            "name": "space_directory_name_value",
+            "entityType": "checks",
+            "table": "space_directory"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "space_directory_id_not_null",
+            "entityType": "checks",
+            "table": "space_directory"
+        },
+        {
+            "value": "\"revision\" >= 1",
+            "name": "repository_directory_revision",
+            "entityType": "checks",
+            "table": "repository_directory"
+        },
+        {
+            "value": "\"generation\" >= 1",
+            "name": "repository_directory_generation",
+            "entityType": "checks",
+            "table": "repository_directory"
+        },
+        {
+            "value": "\"observed_generation\" BETWEEN 0 AND \"generation\"",
+            "name": "repository_directory_observed_generation",
+            "entityType": "checks",
+            "table": "repository_directory"
+        },
+        {
+            "value": "length(\"name\") BETWEEN 1 AND 63 AND \"name\" NOT GLOB '*[^a-z0-9-]*' AND \"name\" NOT LIKE '-%' AND \"name\" NOT LIKE '%-'",
+            "name": "repository_directory_name_value",
+            "entityType": "checks",
+            "table": "repository_directory"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "repository_directory_id_not_null",
+            "entityType": "checks",
+            "table": "repository_directory"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "package_directory_id_not_null",
+            "entityType": "checks",
+            "table": "package_directory"
+        },
+        {
+            "value": "\"source_detached_at\" IS NULL OR (\"source\" IS NOT NULL AND \"source_detached_at\" >= 0)",
+            "name": "role_binding_source_detached",
+            "entityType": "checks",
+            "table": "role_binding"
+        },
+        {
+            "value": "CAST(\"account_membership_id\" IS NOT NULL AS integer) + CAST(\"group_id\" IS NOT NULL AS integer) + CAST(\"service_account_id\" IS NOT NULL AS integer) = 1",
+            "name": "role_binding_subject",
+            "entityType": "checks",
+            "table": "role_binding"
+        },
+        {
+            "value": "\"expires_at\" IS NULL OR \"expires_at\" > \"created_at\"",
+            "name": "role_binding_expiry",
+            "entityType": "checks",
+            "table": "role_binding"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "role_binding_id_not_null",
+            "entityType": "checks",
+            "table": "role_binding"
+        },
+        {
+            "value": "\"expires_at\" > \"created_at\"",
+            "name": "account_invitation_expiry",
+            "entityType": "checks",
+            "table": "account_invitation"
+        },
+        {
+            "value": "(\"accepted_at\" IS NULL) = (\"accepted_by\" IS NULL) AND (\"accepted_at\" IS NULL OR (\"accepted_at\" >= \"created_at\" AND \"accepted_at\" < \"expires_at\" AND \"revoked_at\" IS NULL))",
+            "name": "account_invitation_acceptance",
+            "entityType": "checks",
+            "table": "account_invitation"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "account_invitation_id_not_null",
+            "entityType": "checks",
+            "table": "account_invitation"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "group_id_not_null",
+            "entityType": "checks",
+            "table": "group"
+        },
+        {
+            "value": "(\"kind\" = 'oauth' AND \"installation_id\" IS NULL AND \"secret_space_id\" IS NOT NULL AND \"secret_id\" IS NOT NULL)\n            OR (\"kind\" = 'installation' AND \"installation_id\" IS NOT NULL AND \"secret_space_id\" IS NULL AND \"secret_id\" IS NULL)",
+            "name": "connection_authorisation",
+            "entityType": "checks",
+            "table": "connected_account"
+        },
+        {
+            "value": "length(\"provider\") > 0 AND length(\"issuer\") > 0\n            AND length(\"subject\") > 0 AND length(\"application_id\") > 0\n            AND (\"installation_id\" IS NULL OR length(\"installation_id\") > 0)",
+            "name": "connection_identifiers",
+            "entityType": "checks",
+            "table": "connected_account"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "connected_account_id_not_null",
+            "entityType": "checks",
+            "table": "connected_account"
+        },
+        {
+            "value": "\"source_detached_at\" IS NULL OR (\"source\" IS NOT NULL AND \"source_detached_at\" >= 0)",
+            "name": "role_source_detached",
+            "entityType": "checks",
+            "table": "role"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "role_id_not_null",
+            "entityType": "checks",
+            "table": "role"
+        },
+        {
+            "value": "\"expires_at\" > \"created_at\"",
+            "name": "session_expiry_order",
+            "entityType": "checks",
+            "table": "session"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "session_id_not_null",
+            "entityType": "checks",
+            "table": "session"
+        }
+    ],
+    "renames": []
+}

@@ -60,7 +60,7 @@ export const roleBinding = table("role_binding", {
     }),
     check(
         "role_binding_subject",
-        sql`(${binding.accountMembershipId} IS NOT NULL) + (${binding.groupId} IS NOT NULL) + (${binding.serviceAccountId} IS NOT NULL) = 1`,
+        sql`CAST(${binding.accountMembershipId} IS NOT NULL AS integer) + CAST(${binding.groupId} IS NOT NULL AS integer) + CAST(${binding.serviceAccountId} IS NOT NULL AS integer) = 1`,
     ),
     check(
         "role_binding_expiry",

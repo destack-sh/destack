@@ -1,4 +1,13 @@
-import { check, identifier, type Select, sql, table, text, uniqueIndex } from "@destack/db";
+import {
+    check,
+    dialectSQL,
+    identifier,
+    type Select,
+    sql,
+    table,
+    text,
+    uniqueIndex,
+} from "@destack/db";
 import { role } from "./role.ts";
 
 /** A positive permission evaluated within a role binding's scope. */
@@ -30,11 +39,21 @@ export const rolePermission = table("role_permission", {
         .where(sql`${rolePermission.resourceId} IS NULL`),
     check(
         "role_permission_resource",
-        sql`length(${rolePermission.resource}) > 0 AND instr(${rolePermission.resource}, '.') > 0 AND instr(${rolePermission.resource}, '*') = 0`,
+        dialectSQL({
+            sqlite:
+                sql`length(${rolePermission.resource}) > 0 AND instr(${rolePermission.resource}, '.') > 0 AND instr(${rolePermission.resource}, '*') = 0`,
+            postgresql:
+                sql`length(${rolePermission.resource}) > 0 AND strpos(${rolePermission.resource}, '.') > 0 AND strpos(${rolePermission.resource}, '*') = 0`,
+        }),
     ),
     check(
         "role_permission_action",
-        sql`length(${rolePermission.action}) > 0 AND instr(${rolePermission.action}, '*') = 0`,
+        dialectSQL({
+            sqlite:
+                sql`length(${rolePermission.action}) > 0 AND instr(${rolePermission.action}, '*') = 0`,
+            postgresql:
+                sql`length(${rolePermission.action}) > 0 AND strpos(${rolePermission.action}, '*') = 0`,
+        }),
     ),
     check(
         "role_permission_identifier",

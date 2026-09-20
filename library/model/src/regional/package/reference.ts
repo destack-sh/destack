@@ -1,4 +1,14 @@
-import { check, identifier, integer, primaryKey, type Select, sql, table, text } from "@destack/db";
+import {
+    check,
+    dialectSQL,
+    identifier,
+    integer,
+    primaryKey,
+    type Select,
+    sql,
+    table,
+    text,
+} from "@destack/db";
 import { repository } from "./repository.ts";
 
 /** A Git ref last observed during repository reconciliation. */
@@ -25,11 +35,20 @@ export const repositoryReference = table("repository_reference", {
     check("repository_reference_name", sql`${ref.name} LIKE 'refs/%'`),
     check(
         "repository_reference_object",
-        sql`length(${ref.object}) IN (40, 64) AND ${ref.object} NOT GLOB '*[^0-9a-f]*'`,
+        dialectSQL({
+            sqlite: sql`length(${ref.object}) IN (40, 64) AND ${ref.object} NOT GLOB '*[^0-9a-f]*'`,
+            postgresql:
+                sql`length(${ref.object}) IN (40, 64) AND (${ref.object} COLLATE "C") !~ '[^0-9a-f]'`,
+        }),
     ),
     check(
         "repository_reference_commit",
-        sql`${ref.commit} IS NULL OR (length(${ref.commit}) IN (40, 64) AND ${ref.commit} NOT GLOB '*[^0-9a-f]*')`,
+        dialectSQL({
+            sqlite:
+                sql`${ref.commit} IS NULL OR (length(${ref.commit}) IN (40, 64) AND ${ref.commit} NOT GLOB '*[^0-9a-f]*')`,
+            postgresql:
+                sql`${ref.commit} IS NULL OR (length(${ref.commit}) IN (40, 64) AND (${ref.commit} COLLATE "C") !~ '[^0-9a-f]')`,
+        }),
     ),
     check("repository_reference_revision", sql`${ref.revision} >= 1`),
 ]);

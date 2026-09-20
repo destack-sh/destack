@@ -2,6 +2,7 @@ import {
     check,
     type Column,
     foreignKey,
+    type Identifier,
     identifier,
     integer,
     primaryKey,
@@ -66,9 +67,12 @@ export const secret = table("secret", {
 /** A version stored by the vault backend, without its secret value. */
 export const secretVersion = table("secret_version", {
     /** The owning secret. */
-    secretId: identifier("secret_id", "secret").notNull().references((): Column => secret.id, {
-        onDelete: "restrict",
-    }),
+    secretId: identifier("secret_id", "secret").notNull().references(
+        (): Column<Identifier<"secret">> => secret.id,
+        {
+            onDelete: "restrict",
+        },
+    ),
     /** The monotonically increasing value version. */
     version: integer("version").notNull(),
     /** Creation time in UTC epoch milliseconds. */

@@ -1,7 +1,9 @@
 import {
     check,
     type Column,
+    dialectSQL,
     foreignKey,
+    type Identifier,
     identifier,
     integer,
     json,
@@ -76,7 +78,9 @@ export const networkPolicyRevision = table("network_policy_revision", {
     ...recordColumns("network-policy-revision"),
     /** The policy whose scope applies to this definition. */
     policyId: identifier("policy_id", "network-policy").notNull()
-        .references((): Column => networkPolicy.id, { onDelete: "restrict" }),
+        .references((): Column<Identifier<"network-policy">> => networkPolicy.id, {
+            onDelete: "restrict",
+        }),
     /** The policy generation that produced this revision. */
     generation: integer("generation").notNull(),
     /** The complete outbound network rules. */
@@ -91,9 +95,14 @@ export const networkPolicyRevision = table("network_policy_revision", {
     check("network_policy_revision_generation_positive", sql`${revision.generation} > 0`),
     check(
         "network_policy_revision_digest",
-        sql`
+        dialectSQL({
+            sqlite: sql`
         length(${revision.digest}) = 64 AND ${revision.digest} NOT GLOB '*[^a-f0-9]*'
     `,
+            postgresql: sql`
+        length(${revision.digest}) = 64 AND (${revision.digest} COLLATE "C") !~ '[^a-f0-9]'
+    `,
+        }),
     ),
 ]);
 

@@ -1,7 +1,9 @@
 import {
     check,
     type Column,
+    dialectSQL,
     foreignKey,
+    type Identifier,
     identifier,
     integer,
     json,
@@ -67,7 +69,9 @@ export const stackRevision = table("stack_revision", {
     /** The immutable configuration identifier. */
     id: identifier("id", "stack-revision").primaryKey().notNull(),
     /** The destination space. */
-    spaceId: identifier("space_id", "space").notNull().references((): Column => space.id),
+    spaceId: identifier("space_id", "space").notNull().references((): Column<Identifier<"space">> =>
+        space.id
+    ),
     /** The source configuration generation evaluated by this build. */
     sourceGeneration: integer("source_generation").notNull(),
     /** The exact committed source or local checkout build. */
@@ -88,7 +92,11 @@ export const stackRevision = table("stack_revision", {
     check("stack_revision_generation", sql`${entry.sourceGeneration} > 0`),
     check(
         "stack_revision_digest",
-        sql`length(${entry.digest}) = 64 AND ${entry.digest} NOT GLOB '*[^a-f0-9]*'`,
+        dialectSQL({
+            sqlite: sql`length(${entry.digest}) = 64 AND ${entry.digest} NOT GLOB '*[^a-f0-9]*'`,
+            postgresql:
+                sql`length(${entry.digest}) = 64 AND (${entry.digest} COLLATE "C") !~ '[^a-f0-9]'`,
+        }),
     ),
 ]);
 

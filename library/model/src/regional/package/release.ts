@@ -1,5 +1,6 @@
 import {
     check,
+    dialectSQL,
     foreignKey,
     identifier,
     integer,
@@ -41,7 +42,12 @@ export const release = table("release", {
     }).onDelete("restrict"),
     check(
         "release_commit",
-        sql`length(${release.commit}) IN (40, 64) AND ${release.commit} NOT GLOB '*[^0-9a-f]*'`,
+        dialectSQL({
+            sqlite:
+                sql`length(${release.commit}) IN (40, 64) AND ${release.commit} NOT GLOB '*[^0-9a-f]*'`,
+            postgresql:
+                sql`length(${release.commit}) IN (40, 64) AND (${release.commit} COLLATE "C") !~ '[^0-9a-f]'`,
+        }),
     ),
     check(
         "release_directory",
@@ -51,7 +57,12 @@ export const release = table("release", {
     unique("release_manifest_version").on(release.packageId, release.version, release.manifest),
     check(
         "release_manifest",
-        sql`length(${release.manifest}) = 64 AND ${release.manifest} NOT GLOB '*[^0-9a-f]*'`,
+        dialectSQL({
+            sqlite:
+                sql`length(${release.manifest}) = 64 AND ${release.manifest} NOT GLOB '*[^0-9a-f]*'`,
+            postgresql:
+                sql`length(${release.manifest}) = 64 AND (${release.manifest} COLLATE "C") !~ '[^0-9a-f]'`,
+        }),
     ),
 ]);
 

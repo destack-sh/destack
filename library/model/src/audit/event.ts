@@ -1,5 +1,6 @@
 import {
     check,
+    dialectSQL,
     identifier,
     index,
     integer,
@@ -92,7 +93,13 @@ export const auditEvent = table("audit_event", {
     details: json("details", schema.record(schema.string(), schema.json())).notNull(),
 }, (event) => [
     check("audit_version", sql`${event.version} > 0`),
-    check("audit_action", sql`length(${event.action}) > 0 AND instr(${event.action}, '.') > 0`),
+    check(
+        "audit_action",
+        dialectSQL({
+            sqlite: sql`length(${event.action}) > 0 AND instr(${event.action}, '.') > 0`,
+            postgresql: sql`length(${event.action}) > 0 AND strpos(${event.action}, '.') > 0`,
+        }),
+    ),
     check("audit_outcome", sql`${event.outcome} IN ('success', 'failure', 'denied')`),
     check("audit_error", sql`${event.outcome} <> 'success' OR ${event.errorCode} IS NULL`),
     check("audit_space_account", sql`${event.spaceId} IS NULL OR ${event.accountId} IS NOT NULL`),

@@ -1,5 +1,6 @@
 import {
     check,
+    dialectSQL,
     identifier,
     integer,
     recordColumns,
@@ -64,7 +65,12 @@ export const account = table("account", {
     ),
     check(
         "account_handle",
-        sql`length(${account.handle}) BETWEEN 1 AND 63 AND ${account.handle} NOT GLOB '*[^a-z0-9-]*' AND ${account.handle} NOT LIKE '-%' AND ${account.handle} NOT LIKE '%-'`,
+        dialectSQL({
+            sqlite:
+                sql`length(${account.handle}) BETWEEN 1 AND 63 AND ${account.handle} NOT GLOB '*[^a-z0-9-]*' AND ${account.handle} NOT LIKE '-%' AND ${account.handle} NOT LIKE '%-'`,
+            postgresql:
+                sql`length(${account.handle}) BETWEEN 1 AND 63 AND (${account.handle} COLLATE "C") !~ '[^a-z0-9-]' AND ${account.handle} NOT LIKE '-%' AND ${account.handle} NOT LIKE '%-'`,
+        }),
     ),
 ]);
 

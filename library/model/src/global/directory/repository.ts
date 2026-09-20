@@ -1,5 +1,6 @@
 import {
     check,
+    dialectSQL,
     foreignKey,
     identifier,
     recordColumns,
@@ -38,7 +39,12 @@ export const repositoryDirectory = table("repository_directory", {
     ...reconciliationChecks("repository_directory", entry),
     check(
         "repository_directory_name_value",
-        sql`length(${entry.name}) BETWEEN 1 AND 63 AND ${entry.name} NOT GLOB '*[^a-z0-9-]*' AND ${entry.name} NOT LIKE '-%' AND ${entry.name} NOT LIKE '%-'`,
+        dialectSQL({
+            sqlite:
+                sql`length(${entry.name}) BETWEEN 1 AND 63 AND ${entry.name} NOT GLOB '*[^a-z0-9-]*' AND ${entry.name} NOT LIKE '-%' AND ${entry.name} NOT LIKE '%-'`,
+            postgresql:
+                sql`length(${entry.name}) BETWEEN 1 AND 63 AND (${entry.name} COLLATE "C") !~ '[^a-z0-9-]' AND ${entry.name} NOT LIKE '-%' AND ${entry.name} NOT LIKE '%-'`,
+        }),
     ),
 ]);
 

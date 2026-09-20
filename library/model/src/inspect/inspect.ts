@@ -1,41 +1,44 @@
-import { describeTable } from "@destack/db";
+import { describeTable, type Dialect } from "@destack/db";
 import { TableDescription } from "@destack/db/inspect";
 import { createPackageInspection } from "@destack/package/inspect";
 import { ModuleGraph, SymbolReference } from "@destack/package/code";
 import { schema } from "@destack/schema";
-import * as globalSchema from "../global/schema/index.ts";
-import * as regionalSchema from "../regional/schema/index.ts";
-import { auditEvent } from "../audit/index.ts";
+import { globalSchema } from "../global/schema/index.ts";
+import { regionalSchema } from "../regional/schema/index.ts";
+import { auditSchema } from "../audit/index.ts";
 
-/** Describe each administrative database without opening a connection. */
+/** SQL dialects supported by the administrative models. */
+const DIALECTS: readonly Dialect[] = ["sqlite", "postgresql"];
+
+/** Model tables and their public entrypoints. */
+const DATABASES = [
+    { database: "global", entrypoint: "src/global/index.ts", tables: globalSchema.tables },
+    { database: "regional", entrypoint: "src/regional/index.ts", tables: regionalSchema.tables },
+    { database: "audit", entrypoint: "src/audit/index.ts", tables: auditSchema.tables },
+] as const;
+
+/** Describe each administrative model in both SQL dialects. */
 export function inspect() {
-    return {
-        global: Object.values(globalSchema.tables).map(describeTable),
-        regional: Object.values(regionalSchema.tables).map(describeTable),
-        audit: [describeTable(auditEvent)],
-    };
+    return Object.fromEntries(DATABASES.map(({ database, tables }) => [
+        database,
+        Object.values(tables).flatMap((table) =>
+            DIALECTS.map((dialect) => describeTable(table, dialect))
+        ),
+    ]));
 }
 
-/** Describe database placement, tables, and their exported symbols. */
+/** Describe table placement, SQL dialects, and exported symbols. */
 export function inspectPackage(code: ModuleGraph) {
-    // associate table descriptions with their database entrypoints
-    const descriptions = [
-        ...Object.entries(globalSchema.tables).map(([name, table]) => ({
-            database: "global" as const,
-            symbol: code.resolveExport("src/global/index.ts", name),
-            description: describeTable(table),
-        })),
-        ...Object.entries(regionalSchema.tables).map(([name, table]) => ({
-            database: "regional" as const,
-            symbol: code.resolveExport("src/regional/index.ts", name),
-            description: describeTable(table),
-        })),
-        {
-            database: "audit" as const,
-            symbol: code.resolveExport("src/audit/index.ts", "auditEvent"),
-            description: describeTable(auditEvent),
-        },
-    ];
+    // associate each physical description with its exported logical table
+    const descriptions = DATABASES.flatMap(({ database, entrypoint, tables }) =>
+        Object.entries(tables).flatMap(([name, table]) =>
+            DIALECTS.map((dialect) => ({
+                database,
+                symbol: code.resolveExport(entrypoint, name),
+                description: describeTable(table, dialect),
+            }))
+        )
+    );
     const definition = schema.object({
         tables: schema.array(schema.object({
             database: schema.enum(["global", "regional", "audit"]),
@@ -44,5 +47,5 @@ export function inspectPackage(code: ModuleGraph) {
         })),
     });
 
-    return createPackageInspection("@destack/model", 2, code, definition, { tables: descriptions });
+    return createPackageInspection("@destack/model", 3, code, definition, { tables: descriptions });
 }
