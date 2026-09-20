@@ -160,22 +160,24 @@ Sure, maybe the brackets aren't _perfect_ by everyone's personal standards, but 
 
 What formatters did to the appearance of code, we should now to do the _shape_ of code:
 fully standardize far beyond syntax, language choice, and other trivialities.
-We need exact schematics to fill in and follow for the p95 of use cases we already know to do, but that do not work well as libraries (think ShadCN, but enforcable).
+We need exact schematics to fill in and follow for the p95 of solved use cases (think shadcn, but enforcable), so we can then focus on the higher order bits that actually matter.
 <!--we want _exact_ prescribed module and file layouts, type shapes, call trees, services, dependencies, entire architectures.-->
 
-Only once the stack is sufficiently standardised can we realise truly personal software that can actually be owned.
-And the most pragmatic way to standardise is to pick the best of the modern web stack, wrap it in a common format, and then unify the relevant base models.
-Then we can fan out.
+Once the stack is sufficiently standardised, we can finally have truly personal software that can actually be owned.
+And the most pragmatic way to standardise is to pick the best of the modern web stack, package that in a common format, and then integrate all the boring parts of the iceberg that don't matter anymore.
 
 <!-- TODO: demo #1 -->
 
-The first iteration of Destack launches today as an open source, hackable, personal software platform.
-It's basically just a personal Git, NPM, databases, dynamic workers, and all the bits to make it work nicely together with unified auth, styling, telemetry.
+That is Destack.
+The first part of Destack launches today: an open source, hackable, personal software platform.
+Basically, it's just a personal Git + NPM + database + compute, with all the synchronisation and boring bits to make it work nicely together with unified auth, styling, models, telemetry, and such.
 
 <!-- TODO: demo #2 -->
 
-Of course, Destack includes plenty of tools for understanding the shape of your software, so you can actually figure out what to do by iteration.
-It's about as indescructible as one could reasonably make something like this, and we will happily let you host it yourself and tunell for you, or you could just let us take care of that.
-Or any combination thereof.
+Destack includes "game engine" style tools for understanding your software, so you can actually figure out what to do, iteratively.
+It's about as indescructible as one could reasonably make it, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
+Or any combination.
+
+Destack is all yours.
 
 <!-- TODO: CTA? -->
