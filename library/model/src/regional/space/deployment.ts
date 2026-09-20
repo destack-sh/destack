@@ -17,6 +17,7 @@ import { serviceAccount } from "../access/service.ts";
 import { Conditions } from "../../record/index.ts";
 import { installation } from "./installation.ts";
 import { spaceHost } from "./host.ts";
+import { DeploymentPolicies } from "../access/deployment.ts";
 
 /** A prepared installation generation for one workload and build output. */
 export const deployment = table("deployment", {
@@ -43,6 +44,8 @@ export const deployment = table("deployment", {
     serviceAccountId: identifier("service_account_id", "service-account").notNull(),
     /** The workload description and effective compute settings captured at preparation. */
     description: json("description", WorkloadDescription).notNull(),
+    /** Exact policies checked at preparation and rechecked against current revisions at activation. */
+    policies: json("policies", DeploymentPolicies).notNull(),
     /** An explicitly selected execution host, absent for scheduling across space hosts. */
     hostId: identifier("host_id", "host"),
     /** The desired deployment availability. */

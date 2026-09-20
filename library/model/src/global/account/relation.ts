@@ -14,6 +14,7 @@ import { session } from "../authentication/session.ts";
 import { serviceAccount, serviceToken } from "./service.ts";
 import { user } from "./user.ts";
 import { device } from "../host/device.ts";
+import { region } from "../host/region.ts";
 
 /** Query relationships for account records. */
 export const accountRelations = defineRelationsPart({
@@ -34,8 +35,19 @@ export const accountRelations = defineRelationsPart({
     device,
     session,
     serviceToken,
+    region,
 }, (relation) => ({
     account: {
+        networkPolicyRegion: relation.one.region({
+            from: [relation.account.networkPolicyRegionId],
+            to: [relation.region.id],
+            optional: true,
+        }),
+        packagePolicyRegion: relation.one.region({
+            from: [relation.account.packagePolicyRegionId],
+            to: [relation.region.id],
+            optional: true,
+        }),
         user: relation.one.user({
             from: [relation.account.userId],
             to: [relation.user.id],

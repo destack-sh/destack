@@ -3,3 +3,4 @@ export * from "./reference.ts";
 export * from "./relation.ts";
 export * from "./release.ts";
 export * from "./repository.ts";
+export * from "./policy.ts";

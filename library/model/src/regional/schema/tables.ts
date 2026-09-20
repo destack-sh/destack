@@ -22,11 +22,13 @@ import { repository } from "../package/repository.ts";
 import { repositoryReference } from "../package/reference.ts";
 import { release } from "../package/release.ts";
 import { packageTable } from "../package/package.ts";
+import { packagePolicy, packagePolicyRevision } from "../package/policy.ts";
 import { role } from "../access/role.ts";
 import { roleBinding } from "../access/binding.ts";
 import { rolePermission } from "../access/permission.ts";
 import { serviceAccount, serviceToken } from "../access/service.ts";
 import { schedule } from "../space/schedule.ts";
+import { networkPolicy, networkPolicyRevision } from "../access/network.ts";
 
 /** Tables stored by regional system administration. */
 export const tables = {
@@ -53,10 +55,14 @@ export const tables = {
     repositoryReference,
     release,
     packageTable,
+    packagePolicy,
+    packagePolicyRevision,
     role,
     roleBinding,
     rolePermission,
     serviceAccount,
     serviceToken,
     schedule,
+    networkPolicy,
+    networkPolicyRevision,
 };

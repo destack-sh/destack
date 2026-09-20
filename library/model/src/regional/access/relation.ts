@@ -5,6 +5,7 @@ import { roleBinding } from "./binding.ts";
 import { serviceAccount, serviceToken } from "./service.ts";
 import { space } from "../space/space.ts";
 import { installation } from "../space/installation.ts";
+import { networkPolicy, networkPolicyRevision } from "./network.ts";
 
 /** SQL relationships within a space's administrative records. */
 export const accessRelations = defineRelationsPart({
@@ -15,7 +16,33 @@ export const accessRelations = defineRelationsPart({
     serviceToken,
     space,
     installation,
+    networkPolicy,
+    networkPolicyRevision,
 }, (relation) => ({
+    networkPolicy: {
+        space: relation.one.space({
+            from: [relation.networkPolicy.accountId, relation.networkPolicy.spaceId],
+            to: [relation.space.accountId, relation.space.id],
+            optional: true,
+        }),
+        installation: relation.one.installation({
+            from: [relation.networkPolicy.spaceId, relation.networkPolicy.installationId],
+            to: [relation.installation.spaceId, relation.installation.id],
+            optional: true,
+        }),
+        currentRevision: relation.one.networkPolicyRevision({
+            from: [relation.networkPolicy.id, relation.networkPolicy.currentRevisionId],
+            to: [relation.networkPolicyRevision.policyId, relation.networkPolicyRevision.id],
+            optional: true,
+        }),
+    },
+    networkPolicyRevision: {
+        policy: relation.one.networkPolicy({
+            from: [relation.networkPolicyRevision.policyId],
+            to: [relation.networkPolicy.id],
+            optional: false,
+        }),
+    },
     role: {
         space: relation.one.space({
             from: [relation.role.spaceId],
