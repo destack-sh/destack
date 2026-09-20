@@ -13,7 +13,7 @@ const METADATA_KEYS = new Set([
     "examples",
 ]);
 
-/** Require JSON validation rules that can be described without executable callbacks. */
+/** Require declarative schemas for JSON-compatible values. */
 export function validate(
     schema: $ZodType,
     visited: Map<$ZodType, Set<boolean>>,
@@ -39,7 +39,7 @@ export function validate(
     for (const key of Object.keys(metadata ?? {})) {
         if (!METADATA_KEYS.has(key)) {
             throw new TypeError(
-                `Unsupported portable schema metadata: ${key}.`,
+                `Unsupported schema metadata: ${key}.`,
             );
         }
     }
@@ -47,7 +47,7 @@ export function validate(
 
     // reject coercion and executable checks before exporting the schema
     if ("coerce" in definition && definition.coerce) {
-        throw new TypeError("Portable schemas cannot coerce values.");
+        throw new TypeError("Declared schemas cannot coerce values.");
     }
     const checks = [...(definition.checks ?? [])];
     if ("check" in definition) {
@@ -57,7 +57,7 @@ export function validate(
         const rule = check._zod.def;
         if (rule.when !== undefined && rule.when !== LENGTH_CHECK) {
             throw new TypeError(
-                "Portable schemas cannot use conditional checks.",
+                "Declared schemas cannot use conditional checks.",
             );
         }
         switch (rule.check) {
@@ -72,16 +72,16 @@ export function validate(
                 break;
             default:
                 throw new TypeError(
-                    `Unsupported portable schema check: ${rule.check}.`,
+                    `Unsupported schema check: ${rule.check}.`,
                 );
         }
         if (
             "pattern" in rule &&
             rule.pattern instanceof RegExp &&
-            rule.pattern.flags !== ""
+            (rule.pattern.global || rule.pattern.sticky)
         ) {
             throw new TypeError(
-                "Portable regular expressions cannot use flags.",
+                "Declared regular expressions cannot use global or sticky flags.",
             );
         }
         if (rule.check === "string_format") {
@@ -90,21 +90,47 @@ export function validate(
                 ![
                     "regex",
                     "uuid",
+                    "guid",
+                    "nanoid",
+                    "cuid2",
+                    "ulid",
+                    "xid",
+                    "ksuid",
                     "email",
+                    "url",
+                    "emoji",
+                    "hostname",
+                    "hex",
+                    "currency_code",
+                    "jwt",
+                    "credit_card",
+                    "iban",
+                    "ipv4",
+                    "ipv6",
+                    "mac",
+                    "base64",
+                    "base64url",
+                    "e164",
+                    "cidrv4",
+                    "cidrv6",
                     "datetime",
                     "date",
                     "time",
                     "duration",
-                ].includes(format)
+                ].includes(format) &&
+                !/^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/.test(format)
             ) {
                 throw new TypeError(
-                    `Unsupported portable string format: ${format}.`,
+                    `Unsupported string format: ${format}.`,
                 );
             }
         }
-        if ("fn" in rule) {
+        if ("normalize" in rule && rule.normalize) {
+            throw new TypeError("Declared schemas cannot request URL normalization.");
+        }
+        if ("fn" in rule && !(rule.check === "string_format" && "pattern" in rule)) {
             throw new TypeError(
-                "Portable schemas cannot use custom validation functions.",
+                "Declared schemas cannot use custom validation functions.",
             );
         }
     }
@@ -115,14 +141,25 @@ export function validate(
         case "number":
         case "boolean":
         case "null":
-        case "literal":
         case "enum":
         case "never":
+            break;
+        case "literal":
+            // require literal values to survive JSON serialization
+            for (const value of definition.values) z.json().parse(value);
+            break;
+        case "template_literal":
+            // inspect schema components before exporting the compiled string pattern
+            for (const part of definition.parts) {
+                if (typeof part === "object" && part !== null) {
+                    validate(part, visited, false);
+                }
+            }
             break;
         case "object":
             if (definition.catchall?._zod.def.type !== "never") {
                 throw new TypeError(
-                    "Portable object schemas must reject unknown properties.",
+                    "Declared object schemas must reject unknown properties.",
                 );
             }
             for (const property of Object.values(definition.shape)) {
@@ -162,7 +199,7 @@ export function validate(
             break;
         default:
             throw new TypeError(
-                `Unsupported portable schema type: ${definition.type}.`,
+                `Unsupported schema type: ${definition.type}.`,
             );
     }
 }

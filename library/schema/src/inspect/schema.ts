@@ -1,17 +1,20 @@
 import { z } from "zod";
 import { validate } from "../validate/schema.ts";
 
-/** JSON Schema Draft 2020-12 describing a portable Destack value. */
+/** JSON Schema Draft 2020-12 description for inspection and external tooling. */
 export type JsonSchema = z.core.JSONSchema.JSONSchema;
 
-/** Check portability and retain the schema's native validation and inference. */
+/** Check the supported declaration and retain native validation and inference. */
 export function defineSchema<T extends z.ZodType>(schema: T): T {
-    toJsonSchema(schema);
+    validate(schema, new Map(), false);
 
     return schema;
 }
 
-/** Describe the accepted JSON values using JSON Schema Draft 2020-12. */
+/**
+ * Describe a schema using JSON Schema Draft 2020-12.
+ * Use the declared validator for execution; descriptions can omit format-specific checks.
+ */
 export function toJsonSchema(schema: z.ZodType): JsonSchema {
     validate(schema, new Map(), false);
 
