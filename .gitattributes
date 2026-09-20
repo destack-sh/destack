@@ -16,7 +16,7 @@ language/grammar/destack/node_modules/** linguist-vendored
 *.generated.kt linguist-generated
 *.generated.swift linguist-generated
 language/workspace/generated/** linguist-generated
-app/cli/generated/** linguist-generated
+language/cli/generated/** linguist-generated
 bridge/vscode/destack.schema.json linguist-generated
 
 # tree sitter generated parser sources
