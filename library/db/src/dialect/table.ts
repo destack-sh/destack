@@ -32,11 +32,17 @@ export type NativeRelations<
         table: NativeTable<Driver, Definitions[Name]["table"]>;
         name: Name & string;
         relations: {
-            [Property in keyof Definitions[Name]["relations"]]:
-                Definitions[Name]["relations"][Property] extends
-                    Relation<infer Target, infer Cardinality, infer Optional>
-                    ? Cardinality extends "one" ? One<Target, Optional> : Many<Target>
-                    : never;
+            [
+                Property in keyof Definitions[Name]["relations"]
+            ]: Definitions[Name]["relations"][Property] extends Relation<
+                infer Target,
+                infer Cardinality,
+                infer Optional
+            >
+                ? Cardinality extends "one"
+                    ? One<Target, Optional>
+                    : Many<Target>
+                : never;
         };
     };
 };
@@ -50,16 +56,14 @@ type NativeColumns<Driver extends Dialect, Definition extends Table> = {
 };
 
 /** Drizzle inference fields supplied by one logical column. */
-type NativeColumn<Definition extends Column> =
-    & Omit<
-        ColumnBaseConfig<"custom">,
-        "data" | "notNull" | "hasDefault" | "tableName" | "generated" | "identity"
-    >
-    & {
-        data: Definition["_"]["value"];
-        notNull: Definition["_"]["required"];
-        hasDefault: Definition["_"]["default"];
-        tableName: Definition["table"];
-        generated: Definition["_"]["generated"] extends true ? true : undefined;
-        identity: undefined;
-    };
+type NativeColumn<Definition extends Column> = Omit<
+    ColumnBaseConfig<"custom">,
+    "data" | "notNull" | "hasDefault" | "tableName" | "generated" | "identity"
+> & {
+    data: Definition["_"]["value"];
+    notNull: Definition["_"]["required"];
+    hasDefault: Definition["_"]["default"];
+    tableName: Definition["table"];
+    generated: Definition["_"]["generated"] extends true ? true : undefined;
+    identity: undefined;
+};

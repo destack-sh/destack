@@ -31,7 +31,7 @@ export class TransactionState {
                 if (cleanup !== error) {
                     throw new AggregateError(
                         [error, cleanup],
-                        "Transaction callback and queries failed.",
+                        "transaction callback and queries failed",
                     );
                 }
             }
@@ -68,7 +68,9 @@ export class TransactionState {
             },
             (error) => {
                 this.#pending.delete(settled);
-                if (rollback) this.#failures.push(error);
+                if (rollback) {
+                    this.#failures.push(error);
+                }
             },
         );
         this.#pending.add(settled);
@@ -82,9 +84,11 @@ export class TransactionState {
         await Promise.all(this.#pending);
 
         // report failed statements before checking cancellation at commit
-        if (this.#failures.length === 1) throw this.#failures[0];
+        if (this.#failures.length === 1) {
+            throw this.#failures[0];
+        }
         if (this.#failures.length > 1) {
-            throw new AggregateError(this.#failures, "Transaction queries failed.");
+            throw new AggregateError(this.#failures, "transaction queries failed");
         }
         this.signal?.throwIfAborted();
     }

@@ -51,17 +51,19 @@ export class MutationQuery<
     /** The fields returned after mutation. */
     fields?: ReturningSelection;
     /** The conflict handling for inserts. */
-    conflict?: {
-        readonly action: "nothing";
-        readonly target?: readonly Column[];
-        readonly targetWhere?: SQL;
-    } | {
-        readonly action: "update";
-        readonly target: readonly Column[];
-        readonly targetWhere?: SQL;
-        readonly setWhere?: SQL;
-        readonly set: Partial<MutationValues<Definition>>;
-    };
+    conflict?:
+        | {
+              readonly action: "nothing";
+              readonly target?: readonly Column[];
+              readonly targetWhere?: SQL;
+          }
+        | {
+              readonly action: "update";
+              readonly target: readonly Column[];
+              readonly targetWhere?: SQL;
+              readonly setWhere?: SQL;
+              readonly set: Partial<MutationValues<Definition>>;
+          };
 
     /** Retain a mutation and its connection. */
     constructor(
@@ -98,9 +100,8 @@ export class MutationQuery<
 
     /** Filter the affected rows. */
     where(
-        this:
-            & MutationQuery<Definition, Result, Operation>
-            & (Operation extends "insert" ? never : unknown),
+        this: MutationQuery<Definition, Result, Operation> &
+            (Operation extends "insert" ? never : unknown),
         predicate: SQL | undefined,
     ): MutationQuery<Definition, Result, Operation> {
         this.predicate = predicate;
@@ -123,12 +124,15 @@ export class MutationQuery<
     }
 
     /** Update a row that conflicts with the selected unique key. */
-    onConflictDoUpdate(this: MutationQuery<Definition, Result, "insert">, options: {
-        readonly target: Column | readonly Column[];
-        readonly set: Partial<MutationValues<Definition>>;
-        readonly targetWhere?: SQL;
-        readonly setWhere?: SQL;
-    }): MutationQuery<Definition, Result, "insert"> {
+    onConflictDoUpdate(
+        this: MutationQuery<Definition, Result, "insert">,
+        options: {
+            readonly target: Column | readonly Column[];
+            readonly set: Partial<MutationValues<Definition>>;
+            readonly targetWhere?: SQL;
+            readonly setWhere?: SQL;
+        },
+    ): MutationQuery<Definition, Result, "insert"> {
         this.conflict = { action: "update", ...options, target: columnList(options.target) };
 
         return this;
@@ -199,31 +203,37 @@ export class MutationQuery<
                 let query = database.insert(table).values(this.records.map(values)).$dynamic();
                 if (conflict?.action === "nothing") {
                     query = query.onConflictDoNothing({
-                        target: conflict.target?.map((column) =>
-                            this.schema.column(column) as SQLiteColumn
+                        target: conflict.target?.map(
+                            (column) => this.schema.column(column) as SQLiteColumn,
                         ),
                         where: conflict.targetWhere && this.schema.expression(conflict.targetWhere),
                     });
                 } else if (conflict?.action === "update") {
                     query = query.onConflictDoUpdate({
-                        target: conflict.target.map((column) =>
-                            this.schema.column(column) as SQLiteColumn
+                        target: conflict.target.map(
+                            (column) => this.schema.column(column) as SQLiteColumn,
                         ),
                         set: values(conflict.set),
-                        targetWhere: conflict.targetWhere &&
-                            this.schema.expression(conflict.targetWhere),
+                        targetWhere:
+                            conflict.targetWhere && this.schema.expression(conflict.targetWhere),
                         setWhere: conflict.setWhere && this.schema.expression(conflict.setWhere),
                     });
                 }
-                if (fields) return query.returning(fields as SQLiteSelection);
+                if (fields) {
+                    return query.returning(fields as SQLiteSelection);
+                }
                 return query;
             } else if (this.operation === "update") {
                 const query = database.update(table).set(values(this.changes)).where(predicate);
-                if (fields) return query.returning(fields as SQLiteSelection);
+                if (fields) {
+                    return query.returning(fields as SQLiteSelection);
+                }
                 return query;
             } else if (this.operation === "delete") {
                 const query = database.delete(table).where(predicate);
-                if (fields) return query.returning(fields as SQLiteSelection);
+                if (fields) {
+                    return query.returning(fields as SQLiteSelection);
+                }
                 return query;
             } else {
                 return assertNever(this.operation);
@@ -237,31 +247,37 @@ export class MutationQuery<
                 let query = database.insert(table).values(this.records.map(values)).$dynamic();
                 if (conflict?.action === "nothing") {
                     query = query.onConflictDoNothing({
-                        target: conflict.target?.map((column) =>
-                            this.schema.column(column) as PgColumn
+                        target: conflict.target?.map(
+                            (column) => this.schema.column(column) as PgColumn,
                         ),
                         where: conflict.targetWhere && this.schema.expression(conflict.targetWhere),
                     });
                 } else if (conflict?.action === "update") {
                     query = query.onConflictDoUpdate({
-                        target: conflict.target.map((column) =>
-                            this.schema.column(column) as PgColumn
+                        target: conflict.target.map(
+                            (column) => this.schema.column(column) as PgColumn,
                         ),
                         set: values(conflict.set),
-                        targetWhere: conflict.targetWhere &&
-                            this.schema.expression(conflict.targetWhere),
+                        targetWhere:
+                            conflict.targetWhere && this.schema.expression(conflict.targetWhere),
                         setWhere: conflict.setWhere && this.schema.expression(conflict.setWhere),
                     });
                 }
-                if (fields) return query.returning(fields as PostgresSelection);
+                if (fields) {
+                    return query.returning(fields as PostgresSelection);
+                }
                 return query;
             } else if (this.operation === "update") {
                 const query = database.update(table).set(values(this.changes)).where(predicate);
-                if (fields) return query.returning(fields as PostgresSelection);
+                if (fields) {
+                    return query.returning(fields as PostgresSelection);
+                }
                 return query;
             } else if (this.operation === "delete") {
                 const query = database.delete(table).where(predicate);
-                if (fields) return query.returning(fields as PostgresSelection);
+                if (fields) {
+                    return query.returning(fields as PostgresSelection);
+                }
                 return query;
             } else {
                 return assertNever(this.operation);

@@ -43,24 +43,20 @@ export interface RelationColumns {
 }
 
 /** Typed table columns and relationship declarations. */
-export type RelationBuilder<Tables extends Record<string, Table>> =
-    & {
-        [Name in keyof Tables]: Tables[Name][typeof TABLE]["columns"];
-    }
-    & {
-        /** Declare a single-row relationship. */
-        one: {
-            [Name in keyof Tables]: <Optional extends boolean = true>(
-                columns: RelationColumns & { optional?: Optional },
-            ) => Relation<Name & string, "one", Optional>;
-        };
-        /** Declare a multiple-row relationship. */
-        many: {
-            [Name in keyof Tables]: (
-                columns: RelationColumns,
-            ) => Relation<Name & string, "many", true>;
-        };
+export type RelationBuilder<Tables extends Record<string, Table>> = {
+    [Name in keyof Tables]: Tables[Name][typeof TABLE]["columns"];
+} & {
+    /** Declare a single-row relationship. */
+    one: {
+        [Name in keyof Tables]: <Optional extends boolean = true>(
+            columns: RelationColumns & { optional?: Optional },
+        ) => Relation<Name & string, "one", Optional>;
     };
+    /** Declare a multiple-row relationship. */
+    many: {
+        [Name in keyof Tables]: (columns: RelationColumns) => Relation<Name & string, "many", true>;
+    };
+};
 
 /** Declare relationships while retaining all supplied tables. */
 export function defineRelations<
@@ -68,9 +64,7 @@ export function defineRelations<
     Definitions extends Partial<Record<keyof Tables, Record<string, Relation>>> = {},
 >(
     tables: Tables,
-    define?: (
-        builder: RelationBuilder<Tables>,
-    ) => Definitions,
+    define?: (builder: RelationBuilder<Tables>) => Definitions,
 ): {
     [Name in keyof Tables]: TableRelations<
         Tables[Name],
@@ -131,7 +125,7 @@ function relation(
     const from = Array.isArray(columns.from) ? columns.from : [columns.from as Column];
     const to = Array.isArray(columns.to) ? columns.to : [columns.to as Column];
     if (from.length === 0 || from.length !== to.length) {
-        throw new TypeError("A relation requires matching, nonempty column lists.");
+        throw new TypeError("a relation requires matching, nonempty column lists");
     }
 
     return { target, table, cardinality, from, to, optional: columns.optional ?? true };

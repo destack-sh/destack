@@ -56,9 +56,11 @@ export class Telemetry {
     /** Construct providers without changing process globals. */
     constructor(options: TelemetryOptions) {
         // select propagation for both isolated and globally registered providers
-        this.propagator = options.propagator ?? new CompositePropagator({
-            propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
-        });
+        this.propagator =
+            options.propagator ??
+            new CompositePropagator({
+                propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
+            });
 
         // identify every signal with the same application resource
         const resource = resourceFromAttributes({
@@ -88,17 +90,14 @@ export class Telemetry {
         try {
             telemetry.register(context.setGlobalContextManager(manager), () => context.disable());
             manager.enable();
-            telemetry.register(
-                propagation.setGlobalPropagator(telemetry.propagator),
-                () => propagation.disable(),
+            telemetry.register(propagation.setGlobalPropagator(telemetry.propagator), () =>
+                propagation.disable(),
             );
-            telemetry.register(
-                trace.setGlobalTracerProvider(telemetry.traces),
-                () => trace.disable(),
+            telemetry.register(trace.setGlobalTracerProvider(telemetry.traces), () =>
+                trace.disable(),
             );
-            telemetry.register(
-                metrics.setGlobalMeterProvider(telemetry.metrics),
-                () => metrics.disable(),
+            telemetry.register(metrics.setGlobalMeterProvider(telemetry.metrics), () =>
+                metrics.disable(),
             );
             telemetry.register(
                 logs.setGlobalLoggerProvider(telemetry.logs) === telemetry.logs,
@@ -109,7 +108,7 @@ export class Telemetry {
             try {
                 await telemetry.shutdown();
             } catch (cleanupError) {
-                throw new AggregateError([error, cleanupError], "Telemetry initialization failed.");
+                throw new AggregateError([error, cleanupError], "telemetry initialization failed");
             }
 
             throw error;
@@ -120,7 +119,9 @@ export class Telemetry {
 
     /** Export buffered signals before a request or application finishes. */
     async flush(): Promise<void> {
-        if (this.shutdownPromise) throw new Error("Telemetry is shut down.");
+        if (this.shutdownPromise) {
+            throw new Error("telemetry is shut down");
+        }
 
         await complete([
             this.traces.forceFlush(),
@@ -131,10 +132,14 @@ export class Telemetry {
 
     /** Remove global registrations, export buffered signals, and stop providers. */
     shutdown(): Promise<void> {
-        if (this.shutdownPromise) return this.shutdownPromise;
+        if (this.shutdownPromise) {
+            return this.shutdownPromise;
+        }
 
         // release registrations in reverse order
-        for (const unregister of this.unregister.splice(0).reverse()) unregister();
+        for (const unregister of this.unregister.splice(0).reverse()) {
+            unregister();
+        }
 
         this.shutdownPromise = complete([
             this.traces.shutdown(),
@@ -148,7 +153,7 @@ export class Telemetry {
     /** Track a successful registration or fail without replacing another provider. */
     private register(isRegistered: boolean, unregister: () => void): void {
         if (!isRegistered) {
-            throw new Error("OpenTelemetry is already initialized in this application.");
+            throw new Error("OpenTelemetry is already initialized in this application");
         }
         this.unregister.push(unregister);
     }
@@ -157,8 +162,10 @@ export class Telemetry {
 /** Wait for every provider and report every failure. */
 async function complete(operations: Promise<void>[]): Promise<void> {
     const results = await Promise.allSettled(operations);
-    const errors = results.filter((result) => result.status === "rejected").map((result) =>
-        result.reason
-    );
-    if (errors.length > 0) throw new AggregateError(errors, "Telemetry export failed.");
+    const errors = results
+        .filter((result) => result.status === "rejected")
+        .map((result) => result.reason);
+    if (errors.length > 0) {
+        throw new AggregateError(errors, "telemetry export failed");
+    }
 }

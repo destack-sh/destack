@@ -46,11 +46,14 @@ export class Inspector<T> {
 
     /** Wait for every outstanding delivery and report all failures. */
     async forceFlush(): Promise<void> {
-        const results = await Promise.allSettled([...this.pending]);
-        const errors = results.filter((result) => result.status === "rejected")
+        const results = await Promise.allSettled(this.pending);
+        const errors = results
+            .filter((result) => result.status === "rejected")
             .map((result) => result.reason);
 
-        if (errors.length > 0) throw new AggregateError(errors, "Telemetry inspection failed.");
+        if (errors.length > 0) {
+            throw new AggregateError(errors, "telemetry inspection failed");
+        }
     }
 
     /** Stop accepting signals and finish outstanding deliveries. */

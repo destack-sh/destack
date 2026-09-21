@@ -6,12 +6,17 @@ import { Session } from "./session.ts";
 import type { QueryClient } from "./client.ts";
 
 /** Drizzle queries scoped to one transaction or savepoint. */
-export class Transaction<Result, Relations extends AnyRelations>
-    extends SQLiteAsyncTransaction<"async", Result, Relations> {}
+export class Transaction<Result, Relations extends AnyRelations> extends SQLiteAsyncTransaction<
+    "async",
+    Result,
+    Relations
+> {}
 
 /** Queries and savepoints within one SQLite transaction. */
-export class TransactionSession<Result, Relations extends AnyRelations>
-    extends Session<Result, Relations> {
+export class TransactionSession<Result, Relations extends AnyRelations> extends Session<
+    Result,
+    Relations
+> {
     /** The relation definitions available to nested transactions. */
     readonly relations: Relations;
     /** The current savepoint depth. */
@@ -54,10 +59,7 @@ export class TransactionSession<Result, Relations extends AnyRelations>
                 await this.run(sql`ROLLBACK TO SAVEPOINT ${name}`);
                 await this.run(sql`RELEASE SAVEPOINT ${name}`);
             } catch (rollback) {
-                throw new AggregateError(
-                    [error, rollback],
-                    "SQLite savepoint and rollback failed.",
-                );
+                throw new AggregateError([error, rollback], "SQLite savepoint and rollback failed");
             }
 
             throw error;

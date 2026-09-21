@@ -19,14 +19,16 @@ export class DatabaseDriver {
 }
 
 /** The selected dialect and its native Drizzle database. */
-export type NativeDatabase = {
-    /** SQLite queries through embedded or hosted Turso. */
-    readonly dialect: "sqlite";
-    /** The native query connection. */
-    readonly database: SQLiteAsyncDatabase<"async", unknown>;
-} | {
-    /** PostgreSQL queries through a connection pool. */
-    readonly dialect: "postgresql";
-    /** The native query connection. */
-    readonly database: PostgresJsDatabase;
-};
+export type NativeDatabase =
+    | {
+          /** SQLite queries through embedded or hosted Turso. */
+          readonly dialect: "sqlite";
+          /** The native query connection. */
+          readonly database: SQLiteAsyncDatabase<"async", unknown>;
+      }
+    | {
+          /** PostgreSQL queries through a connection pool. */
+          readonly dialect: "postgresql";
+          /** The native query connection. */
+          readonly database: PostgresJsDatabase;
+      };

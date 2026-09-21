@@ -7,8 +7,10 @@ import type { Dialect } from "../dialect/dialect.ts";
 export const TABLE = Symbol("destack.table");
 
 /** The declaration and columns of one logical SQL table. */
-export class Table<Name extends string = string, Columns extends ColumnMap = ColumnMap>
-    implements SQLWrapper {
+export class Table<
+    Name extends string = string,
+    Columns extends ColumnMap = ColumnMap,
+> implements SQLWrapper {
     /** The SQL name, columns, and deferred constraints. */
     readonly [TABLE]: {
         /** The SQL table name. */
@@ -53,23 +55,29 @@ export class Table<Name extends string = string, Columns extends ColumnMap = Col
         for (const column of Object.values(this[TABLE].columns)) {
             const definition = column.definition;
             if (
-                dialect === "sqlite" && definition.primaryKey &&
+                dialect === "sqlite" &&
+                definition.primaryKey &&
                 definition.types.sqlite !== "integer"
             ) {
-                constraints.push(check(
-                    `${this[TABLE].name}_${definition.name}_not_null`,
-                    sql`${column} IS NOT NULL`,
-                ));
+                constraints.push(
+                    check(
+                        `${this[TABLE].name}_${definition.name}_not_null`,
+                        sql`${column} IS NOT NULL`,
+                    ),
+                );
             }
 
             // expand references after all table declarations have been evaluated
             const reference = definition.reference;
             if (reference) {
                 constraints.push(
-                    new ForeignKey({
-                        columns: [column],
-                        foreignColumns: [reference.column()],
-                    }, reference),
+                    new ForeignKey(
+                        {
+                            columns: [column],
+                            foreignColumns: [reference.column()],
+                        },
+                        reference,
+                    ),
                 );
             }
         }
@@ -97,30 +105,37 @@ export type TableColumns<Builders extends ColumnBuilders, Name extends string = 
 
 /** The selected application record. */
 export type Select<Definition extends Table> = {
-    [Property in keyof Definition[typeof TABLE]["columns"]]:
-        Definition[typeof TABLE]["columns"][Property]["_"]["required"] extends true
-            ? Definition[typeof TABLE]["columns"][Property]["_"]["value"]
-            : Definition[typeof TABLE]["columns"][Property]["_"]["value"] | null;
+    [
+        Property in keyof Definition[typeof TABLE]["columns"]
+    ]: Definition[typeof TABLE]["columns"][Property]["_"]["required"] extends true
+        ? Definition[typeof TABLE]["columns"][Property]["_"]["value"]
+        : Definition[typeof TABLE]["columns"][Property]["_"]["value"] | null;
 };
 
 /** Properties that an insert must supply. */
 type RequiredColumns<Definition extends Table> = {
-    [Property in keyof Definition[typeof TABLE]["columns"]]:
-        Definition[typeof TABLE]["columns"][Property]["_"] extends
-            { required: true; default: false } ? Property : never;
+    [
+        Property in keyof Definition[typeof TABLE]["columns"]
+    ]: Definition[typeof TABLE]["columns"][Property]["_"] extends { required: true; default: false }
+        ? Property
+        : never;
 }[keyof Definition[typeof TABLE]["columns"]];
 
 /** Properties computed by SQL and excluded from writes. */
 type GeneratedColumns<Definition extends Table> = {
-    [Property in keyof Definition[typeof TABLE]["columns"]]:
-        Definition[typeof TABLE]["columns"][Property]["_"]["generated"] extends true ? Property
-            : never;
+    [
+        Property in keyof Definition[typeof TABLE]["columns"]
+    ]: Definition[typeof TABLE]["columns"][Property]["_"]["generated"] extends true
+        ? Property
+        : never;
 }[keyof Definition[typeof TABLE]["columns"]];
 
 /** The application values accepted by an insert. */
-export type Insert<Definition extends Table> =
-    & Pick<Select<Definition>, Exclude<RequiredColumns<Definition>, GeneratedColumns<Definition>>>
-    & Partial<Omit<Select<Definition>, RequiredColumns<Definition> | GeneratedColumns<Definition>>>;
+export type Insert<Definition extends Table> = Pick<
+    Select<Definition>,
+    Exclude<RequiredColumns<Definition>, GeneratedColumns<Definition>>
+> &
+    Partial<Omit<Select<Definition>, RequiredColumns<Definition> | GeneratedColumns<Definition>>>;
 
 /** Declare a table with typed columns and deferred constraints. */
 export function table<Name extends string, Builders extends ColumnBuilders>(
@@ -139,7 +154,9 @@ export function table<Name extends string, Builders extends ColumnBuilders>(
             throw new TypeError(`Generated SQL column cannot define defaults: ${definition.name}.`);
         }
         const name = builder.definition.name;
-        if (names.has(name)) throw new TypeError(`Duplicate SQL column: ${name}.`);
+        if (names.has(name)) {
+            throw new TypeError(`duplicate SQL column: ${name}`);
+        }
         names.add(name);
     }
 

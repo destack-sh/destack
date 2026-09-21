@@ -27,88 +27,109 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
             unique: column.definition.unique !== undefined,
             uniqueName: column.definition.unique?.name,
             autoIncrement: false,
-            hasDefault: column.definition.default !== undefined ||
+            hasDefault:
+                column.definition.default !== undefined ||
                 column.definition.defaultFn !== undefined ||
                 column.definition.onUpdateFn !== undefined ||
                 column.definition.generated !== undefined,
-            default: column.definition.default === undefined ? undefined : expression(
-                column.definition.default instanceof SQL
-                    ? column.definition.default
-                    : column.definition.encode(column.definition.default, dialect),
-                dialect,
-            ),
+            default:
+                column.definition.default === undefined
+                    ? undefined
+                    : expression(
+                          column.definition.default instanceof SQL
+                              ? column.definition.default
+                              : column.definition.encode(column.definition.default, dialect),
+                          dialect,
+                      ),
             hasRuntimeDefault: column.definition.defaultFn !== undefined,
             hasRuntimeUpdate: column.definition.onUpdateFn !== undefined,
             generated: column.definition.generated
                 ? {
-                    mode: column.definition.generated.mode,
-                    expression: expression(
-                        typeof column.definition.generated.expression === "function"
-                            ? column.definition.generated.expression()
-                            : column.definition.generated.expression,
-                        dialect,
-                    ),
-                }
+                      mode: column.definition.generated.mode,
+                      expression: expression(
+                          typeof column.definition.generated.expression === "function"
+                              ? column.definition.generated.expression()
+                              : column.definition.generated.expression,
+                          dialect,
+                      ),
+                  }
                 : undefined,
             jsonSchema: describeColumnSchema(column.definition) as NonNullable<
                 ColumnDescription["jsonSchema"]
             >,
         })),
-        primaryKeys: constraints.filter((value) => value.kind === "primaryKey").map((key) => ({
-            name: key.name ??
-                `${definition.name}_${
-                    key.columns.map((column) => column.definition.name).join("_")
-                }_pk`,
-            columns: key.columns.map((column) => column.definition.name),
-        })),
-        uniqueConstraints: constraints.filter((value) => value.kind === "unique").map((key) => ({
-            name: key.name ??
-                `${definition.name}_${
-                    key.columns.map((column) => column.definition.name).join("_")
-                }_unique`,
-            columns: key.columns.map((column) => column.definition.name),
-        })),
-        indexes: constraints.filter((value) => value.kind === "index").map((index) => ({
-            name: index.name,
-            unique: index.unique,
-            columns: index.columns.map((column) =>
-                column instanceof Column
-                    ? { column: column.definition.name }
-                    : { expression: expression(column, dialect) }
-            ),
-            where: index.predicate && expression(index.predicate, dialect),
-        })),
-        foreignKeys: [
-            ...constraints.filter((value) => value.kind === "foreignKey").map((key) => ({
-                name: key.name ??
-                    `${definition.name}_${
-                        key.columns.map((column) => column.definition.name).join("_")
-                    }_${key.foreignColumns[0].table}_${
-                        key.foreignColumns.map((column) => column.definition.name).join("_")
-                    }_fk`,
+        primaryKeys: constraints
+            .filter((value) => value.kind === "primaryKey")
+            .map((key) => ({
+                name:
+                    key.name ??
+                    `${definition.name}_${key.columns
+                        .map((column) => column.definition.name)
+                        .join("_")}_pk`,
+                columns: key.columns.map((column) => column.definition.name),
+            })),
+        uniqueConstraints: constraints
+            .filter((value) => value.kind === "unique")
+            .map((key) => ({
+                name:
+                    key.name ??
+                    `${definition.name}_${key.columns
+                        .map((column) => column.definition.name)
+                        .join("_")}_unique`,
+                columns: key.columns.map((column) => column.definition.name),
+            })),
+        indexes: constraints
+            .filter((value) => value.kind === "index")
+            .map((index) => ({
+                name: index.name,
+                unique: index.unique,
+                columns: index.columns.map((column) =>
+                    column instanceof Column
+                        ? { column: column.definition.name }
+                        : { expression: expression(column, dialect) },
+                ),
+                where: index.predicate && expression(index.predicate, dialect),
+            })),
+        foreignKeys: constraints
+            .filter((value) => value.kind === "foreignKey")
+            .map((key) => ({
+                name:
+                    key.name ??
+                    `${definition.name}_${key.columns
+                        .map((column) => column.definition.name)
+                        .join("_")}_${key.foreignColumns[0].table}_${key.foreignColumns
+                        .map((column) => column.definition.name)
+                        .join("_")}_fk`,
                 columns: key.columns.map((column) => column.definition.name),
                 table: key.foreignColumns[0].table,
                 references: key.foreignColumns.map((column) => column.definition.name),
                 onDelete: key.actions.onDelete,
                 onUpdate: key.actions.onUpdate,
             })),
-        ],
-        checks: constraints.filter((value) => value.kind === "check").map((check) => ({
-            name: check.name,
-            expression: expression(check.expression, dialect),
-        })),
+        checks: constraints
+            .filter((value) => value.kind === "check")
+            .map((check) => ({
+                name: check.name,
+                expression: expression(check.expression, dialect),
+            })),
     };
 }
 
 /** Render a declaration expression with quoted SQL identifiers and literals. */
 function expression(value: unknown, dialect: Dialect): string {
-    if (typeof value === "bigint") return value.toString();
+    if (typeof value === "bigint") {
+        return value.toString();
+    }
     if (value instanceof Uint8Array) {
         const hexadecimal = value.toHex();
 
-        if (dialect === "sqlite") return `X'${hexadecimal}'`;
-        else if (dialect === "postgresql") return `decode('${hexadecimal}', 'hex')`;
-        else return assertNever(dialect);
+        if (dialect === "sqlite") {
+            return `X'${hexadecimal}'`;
+        } else if (dialect === "postgresql") {
+            return `decode('${hexadecimal}', 'hex')`;
+        } else {
+            return assertNever(dialect);
+        }
     }
 
     const expression = value instanceof SQL ? value : sql`${value}`;

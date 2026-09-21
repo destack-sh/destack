@@ -5,13 +5,7 @@ import type { $ZodType, $ZodTypes } from "zod/v4/core";
 const LENGTH_CHECK = z.minLength(0)._zod.def.when;
 
 /** Descriptive metadata that cannot replace exported validation rules. */
-const METADATA_KEYS = new Set([
-    "id",
-    "title",
-    "description",
-    "deprecated",
-    "examples",
-]);
+const METADATA_KEYS = new Set(["id", "title", "description", "deprecated", "examples"]);
 
 /** Require declarative schemas for JSON-compatible values. */
 export function validate(
@@ -23,31 +17,34 @@ export function validate(
 
     // permit missing values only in object properties
     if (definition.type === "optional" && !isProperty) {
-        throw new TypeError(
-            "Optional schemas are only supported as object properties.",
-        );
+        throw new TypeError("optional schemas are only supported as object properties");
     }
 
     // visit shared and recursive schemas in each property context
     const contexts = visited.get(schema);
-    if (contexts?.has(isProperty)) return;
-    if (contexts) contexts.add(isProperty);
-    else visited.set(schema, new Set([isProperty]));
+    if (contexts?.has(isProperty)) {
+        return;
+    }
+    if (contexts) {
+        contexts.add(isProperty);
+    } else {
+        visited.set(schema, new Set([isProperty]));
+    }
 
     // keep metadata from overriding validation in the generated description
     const metadata = z.globalRegistry.get(schema);
     for (const key of Object.keys(metadata ?? {})) {
         if (!METADATA_KEYS.has(key)) {
-            throw new TypeError(
-                `Unsupported schema metadata: ${key}.`,
-            );
+            throw new TypeError(`unsupported schema metadata: ${key}`);
         }
     }
-    if (metadata !== undefined) z.json().parse(metadata);
+    if (metadata !== undefined) {
+        z.json().parse(metadata);
+    }
 
     // reject coercion and executable checks before exporting the schema
     if ("coerce" in definition && definition.coerce) {
-        throw new TypeError("Declared schemas cannot coerce values.");
+        throw new TypeError("declared schemas cannot coerce values");
     }
     const checks = [...(definition.checks ?? [])];
     if ("check" in definition) {
@@ -56,9 +53,7 @@ export function validate(
     for (const check of checks) {
         const rule = check._zod.def;
         if (rule.when !== undefined && rule.when !== LENGTH_CHECK) {
-            throw new TypeError(
-                "Declared schemas cannot use conditional checks.",
-            );
+            throw new TypeError("declared schemas cannot use conditional checks");
         }
         switch (rule.check) {
             case "less_than":
@@ -71,18 +66,14 @@ export function validate(
             case "string_format":
                 break;
             default:
-                throw new TypeError(
-                    `Unsupported schema check: ${rule.check}.`,
-                );
+                throw new TypeError(`unsupported schema check: ${rule.check}`);
         }
         if (
             "pattern" in rule &&
             rule.pattern instanceof RegExp &&
             (rule.pattern.global || rule.pattern.sticky)
         ) {
-            throw new TypeError(
-                "Declared regular expressions cannot use global or sticky flags.",
-            );
+            throw new TypeError("declared regular expressions cannot use global or sticky flags");
         }
         if (rule.check === "string_format") {
             const format = (rule as z.core.$ZodCheckStringFormatDef).format;
@@ -120,18 +111,14 @@ export function validate(
                 ].includes(format) &&
                 !/^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/.test(format)
             ) {
-                throw new TypeError(
-                    `Unsupported string format: ${format}.`,
-                );
+                throw new TypeError(`unsupported string format: ${format}`);
             }
         }
         if ("normalize" in rule && rule.normalize) {
-            throw new TypeError("Declared schemas cannot request URL normalization.");
+            throw new TypeError("declared schemas cannot request URL normalization");
         }
         if ("fn" in rule && !(rule.check === "string_format" && "pattern" in rule)) {
-            throw new TypeError(
-                "Declared schemas cannot use custom validation functions.",
-            );
+            throw new TypeError("declared schemas cannot use custom validation functions");
         }
     }
 
@@ -146,7 +133,9 @@ export function validate(
             break;
         case "literal":
             // require literal values to survive JSON serialization
-            for (const value of definition.values) z.json().parse(value);
+            for (const value of definition.values) {
+                z.json().parse(value);
+            }
             break;
         case "template_literal":
             // inspect schema components before exporting the compiled string pattern
@@ -158,9 +147,7 @@ export function validate(
             break;
         case "object":
             if (definition.catchall?._zod.def.type !== "never") {
-                throw new TypeError(
-                    "Declared object schemas must reject unknown properties.",
-                );
+                throw new TypeError("declared object schemas must reject unknown properties");
             }
             for (const property of Object.values(definition.shape)) {
                 validate(property, visited, true);
@@ -173,7 +160,9 @@ export function validate(
             for (const item of definition.items) {
                 validate(item, visited, false);
             }
-            if (definition.rest) validate(definition.rest, visited, false);
+            if (definition.rest) {
+                validate(definition.rest, visited, false);
+            }
             break;
         case "record":
             validate(definition.keyType, visited, false);
@@ -198,8 +187,6 @@ export function validate(
             validate(definition.getter(), visited, isProperty);
             break;
         default:
-            throw new TypeError(
-                `Unsupported schema type: ${definition.type}.`,
-            );
+            throw new TypeError(`unsupported schema type: ${definition.type}`);
     }
 }

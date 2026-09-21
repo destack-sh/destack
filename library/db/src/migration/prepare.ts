@@ -11,7 +11,9 @@ export async function prepare<
 >(database: Database, schemas: readonly DatabaseSchema[]): Promise<Database> {
     // apply histories in dependency order before returning the connection
     try {
-        for (const schema of orderSchemas(schemas)) await migrate(database, schema);
+        for (const schema of orderSchemas(schemas)) {
+            await migrate(database, schema);
+        }
 
         return database;
     } catch (error) {
@@ -19,7 +21,7 @@ export async function prepare<
         try {
             await database.close();
         } catch (cleanup) {
-            throw new AggregateError([error, cleanup], "Database preparation and closure failed.");
+            throw new AggregateError([error, cleanup], "database preparation and closure failed");
         }
 
         throw error;

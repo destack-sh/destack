@@ -42,14 +42,12 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
                 if (definition.generated) {
                     if (definition.generated.mode !== "stored") {
                         throw new TypeError(
-                            "The PostgreSQL adapter requires stored generated columns.",
+                            "the PostgreSQL adapter requires stored generated columns",
                         );
                     }
                     const generated = definition.generated.expression;
                     builder.generatedAlwaysAs(() =>
-                        this.expression(
-                            typeof generated === "function" ? generated() : generated,
-                        )
+                        this.expression(typeof generated === "function" ? generated() : generated),
                     );
                 }
 
@@ -57,13 +55,10 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
             }),
         );
 
-        return postgres.pgTable(
-            definition.name,
-            columns,
-            () =>
-                declaration.constraints(this.dialect).map((constraint) =>
-                    this.compileConstraint(constraint)
-                ),
+        return postgres.pgTable(definition.name, columns, () =>
+            declaration
+                .constraints(this.dialect)
+                .map((constraint) => this.compileConstraint(constraint)),
         );
     }
 
@@ -85,20 +80,25 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
                     ],
                 });
             case "unique":
-                return postgres.unique(constraint.name).on(
-                    ...columns(constraint.columns) as [postgres.PgColumn, ...postgres.PgColumn[]],
-                );
+                return postgres
+                    .unique(constraint.name)
+                    .on(
+                        ...(columns(constraint.columns) as [
+                            postgres.PgColumn,
+                            ...postgres.PgColumn[],
+                        ]),
+                    );
             case "index": {
                 const builder = constraint.unique
                     ? postgres.uniqueIndex(constraint.name)
                     : postgres.index(constraint.name);
                 const indexed = constraint.columns.map((column) =>
                     column instanceof Column
-                        ? this.column(column) as postgres.PgColumn
-                        : this.expression(column)
+                        ? (this.column(column) as postgres.PgColumn)
+                        : this.expression(column),
                 );
                 const index = builder.on(
-                    ...indexed as [postgres.PgColumn | SQL, ...(postgres.PgColumn | SQL)[]],
+                    ...(indexed as [postgres.PgColumn | SQL, ...(postgres.PgColumn | SQL)[]]),
                 );
 
                 return constraint.predicate
@@ -117,8 +117,12 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
                         ...postgres.PgColumn[],
                     ],
                 });
-                if (constraint.actions.onDelete) key.onDelete(constraint.actions.onDelete);
-                if (constraint.actions.onUpdate) key.onUpdate(constraint.actions.onUpdate);
+                if (constraint.actions.onDelete) {
+                    key.onDelete(constraint.actions.onDelete);
+                }
+                if (constraint.actions.onUpdate) {
+                    key.onUpdate(constraint.actions.onUpdate);
+                }
 
                 return key;
             }

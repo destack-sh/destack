@@ -31,7 +31,9 @@ export async function generateMigrations(request: MigrationGeneration) {
     // load the declaration to determine its tables and migration directory
     const module = await import(request.module.href);
     const definition = module[request.export] as DatabaseSchema | undefined;
-    if (!definition) throw new TypeError(`Missing database schema export: ${request.export}.`);
+    if (!definition) {
+        throw new TypeError(`missing database schema export: ${request.export}`);
+    }
     const names = Object.keys(definition.tables).map((_, index) => `table${index}`);
     const directory = await mkdtemp(join(tmpdir(), "destack-migration-"));
     let result: Awaited<ReturnType<typeof generate>>;
@@ -66,7 +68,7 @@ export async function generateMigrations(request: MigrationGeneration) {
         try {
             await rm(directory, { recursive: true });
         } catch (cleanup) {
-            throw new AggregateError([error, cleanup], "Migration generation and cleanup failed.");
+            throw new AggregateError([error, cleanup], "migration generation and cleanup failed");
         }
         throw error;
     }

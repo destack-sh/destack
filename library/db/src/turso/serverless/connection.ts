@@ -22,7 +22,7 @@ export async function connect<Relations extends Record<string, TableRelations> =
             try {
                 await client.close();
             } catch (cleanup) {
-                throw new AggregateError([error, cleanup], "Database binding and closure failed.");
+                throw new AggregateError([error, cleanup], "database binding and closure failed");
             }
         }
 

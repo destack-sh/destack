@@ -13,9 +13,10 @@ export async function connect<Relations extends Record<string, TableRelations> =
     options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
 ): Promise<Database<Relations, turso.Database>> {
     // enable generated columns for connections created by Destack
-    const client = typeof connection === "string"
-        ? await turso.connect(connection, { experimental: ["generated_columns"] })
-        : connection;
+    const client =
+        typeof connection === "string"
+            ? await turso.connect(connection, { experimental: ["generated_columns"] })
+            : connection;
 
     try {
         // enable durable commits and foreign keys on connections opened here
@@ -30,7 +31,7 @@ export async function connect<Relations extends Record<string, TableRelations> =
             try {
                 await client.close();
             } catch (cleanup) {
-                throw new AggregateError([error, cleanup], "Database binding and closure failed.");
+                throw new AggregateError([error, cleanup], "database binding and closure failed");
             }
         }
 

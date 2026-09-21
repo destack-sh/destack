@@ -15,7 +15,9 @@ export class SelectQuery<
     Fields extends Selection = Selection,
     NullableTables extends string = never,
     Automatic extends boolean = false,
-> implements PromiseLike<Result[]>, SQLWrapper {
+>
+    implements PromiseLike<Result[]>, SQLWrapper
+{
     /** Drizzle's inferred selection and result types. */
     declare readonly _: { selectedFields: Selection; result: Result[] };
     /** The physical connection. */
@@ -78,7 +80,10 @@ export class SelectQuery<
     }
 
     /** Include matching rows from another table. */
-    innerJoin<Joined extends QuerySource>(table: Joined, on: SQL): SelectQuery<
+    innerJoin<Joined extends QuerySource>(
+        table: Joined,
+        on: SQL,
+    ): SelectQuery<
         SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables>,
         JoinFields<Fields, Joined, Automatic>,
         NullableTables,
@@ -95,11 +100,11 @@ export class SelectQuery<
     }
 
     /** Include matching rows or NULL values from another table. */
-    leftJoin<Joined extends QuerySource>(table: Joined, on: SQL): SelectQuery<
-        SelectionResult<
-            JoinFields<Fields, Joined, Automatic>,
-            NullableTables | SourceName<Joined>
-        >,
+    leftJoin<Joined extends QuerySource>(
+        table: Joined,
+        on: SQL,
+    ): SelectQuery<
+        SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables | SourceName<Joined>>,
         JoinFields<Fields, Joined, Automatic>,
         NullableTables | SourceName<Joined>,
         Automatic
@@ -118,7 +123,10 @@ export class SelectQuery<
     }
 
     /** Include every row from the joined table and nullable rows from preceding tables. */
-    rightJoin<Joined extends QuerySource>(table: Joined, on: SQL): SelectQuery<
+    rightJoin<Joined extends QuerySource>(
+        table: Joined,
+        on: SQL,
+    ): SelectQuery<
         SelectionResult<
             JoinFields<Fields, Joined, Automatic>,
             Exclude<FieldTables<Fields>, SourceName<Joined>>
@@ -141,7 +149,10 @@ export class SelectQuery<
     }
 
     /** Include unmatched rows from either side of the join. */
-    fullJoin<Joined extends QuerySource>(table: Joined, on: SQL): SelectQuery<
+    fullJoin<Joined extends QuerySource>(
+        table: Joined,
+        on: SQL,
+    ): SelectQuery<
         SelectionResult<
             JoinFields<Fields, Joined, Automatic>,
             FieldTables<Fields> | SourceName<Joined>
@@ -164,7 +175,9 @@ export class SelectQuery<
     }
 
     /** Include every combination of rows from both tables. */
-    crossJoin<Joined extends QuerySource>(table: Joined): SelectQuery<
+    crossJoin<Joined extends QuerySource>(
+        table: Joined,
+    ): SelectQuery<
         SelectionResult<JoinFields<Fields, Joined, Automatic>, NullableTables>,
         JoinFields<Fields, Joined, Automatic>,
         NullableTables,
@@ -236,7 +249,7 @@ export class SelectQuery<
 
     /** Execute through the selected dialect's query builder. */
     async execute(): Promise<Result[]> {
-        return await this.connection.run(() => this.compile()) as Result[];
+        return (await this.connection.run(() => this.compile())) as Result[];
     }
 
     /** Compile SQL and positional parameters without executing the query. */
@@ -257,9 +270,7 @@ export class SelectQuery<
             execute: async (parameters) => {
                 this.connection.transaction?.assertActive();
 
-                return await this.connection.run(
-                    () => query.execute(parameters),
-                ) as Result[];
+                return (await this.connection.run(() => query.execute(parameters))) as Result[];
             },
         };
     }
@@ -281,11 +292,12 @@ export class SelectQuery<
         // materialize table aliases before translating selected columns
         const table = this.table instanceof Subquery ? this.table : this.schema.table(this.table);
         for (const join of this.joins) {
-            if (!(join.table instanceof Subquery)) this.schema.table(join.table);
+            if (!(join.table instanceof Subquery)) {
+                this.schema.table(join.table);
+            }
         }
-        const selected = this.automatic && this.joins.length === 0
-            ? sourceFields(this.table)
-            : this.fields;
+        const selected =
+            this.automatic && this.joins.length === 0 ? sourceFields(this.table) : this.fields;
         const fields = selectFields(selected, this.schema);
 
         // select the native compiler once, then apply the common Drizzle operations
@@ -293,24 +305,29 @@ export class SelectQuery<
         if (this.connection.native.dialect === "sqlite") {
             const database = this.connection.native.database.with(...this.withList);
             const selection = fields as SQLiteSelection;
-            query =
-                (this.distinct ? database.selectDistinct(selection) : database.select(selection))
-                    .from(table as SQLiteTable).$dynamic() as unknown as NativeSelect;
+            query = (this.distinct
+                ? database.selectDistinct(selection)
+                : database.select(selection)
+            )
+                .from(table as SQLiteTable)
+                .$dynamic() as unknown as NativeSelect;
         } else if (this.connection.native.dialect === "postgresql") {
             const database = this.connection.native.database.with(...this.withList);
             const selection = fields as PostgresSelection;
-            query =
-                (this.distinct ? database.selectDistinct(selection) : database.select(selection))
-                    .from(table as PgTable).$dynamic() as unknown as NativeSelect;
+            query = (this.distinct
+                ? database.selectDistinct(selection)
+                : database.select(selection)
+            )
+                .from(table as PgTable)
+                .$dynamic() as unknown as NativeSelect;
         } else {
             return assertNever(this.connection.native);
         }
 
         // retain join order and native nullability decoding
         for (const join of this.joins) {
-            const table = join.table instanceof Subquery
-                ? join.table
-                : this.schema.table(join.table);
+            const table =
+                join.table instanceof Subquery ? join.table : this.schema.table(join.table);
             const on = join.on && this.schema.expression(join.on);
             switch (join.kind) {
                 case "inner":
@@ -338,15 +355,27 @@ export class SelectQuery<
             value instanceof Column
                 ? this.schema.column(value)
                 : value instanceof SQL
-                ? this.schema.expression(value)
-                : value;
-        if (this.predicate) query = query.where(this.schema.expression(this.predicate));
-        if (this.groups.length) query = query.groupBy(...this.groups.map(expression));
-        if (this.groupPredicate) query = query.having(this.schema.expression(this.groupPredicate));
-        if (this.order.length) query = query.orderBy(...this.order.map(expression));
+                  ? this.schema.expression(value)
+                  : value;
+        if (this.predicate) {
+            query = query.where(this.schema.expression(this.predicate));
+        }
+        if (this.groups.length) {
+            query = query.groupBy(...this.groups.map(expression));
+        }
+        if (this.groupPredicate) {
+            query = query.having(this.schema.expression(this.groupPredicate));
+        }
+        if (this.order.length) {
+            query = query.orderBy(...this.order.map(expression));
+        }
         const count = maximum === undefined ? this.count : Math.min(this.count ?? maximum, maximum);
-        if (count !== undefined) query = query.limit(count);
-        if (this.skip !== undefined) query = query.offset(this.skip);
+        if (count !== undefined) {
+            query = query.limit(count);
+        }
+        if (this.skip !== undefined) {
+            query = query.offset(this.skip);
+        }
 
         return query;
     }
@@ -389,9 +418,12 @@ export class SelectBuilder<Fields extends Selection | undefined = undefined> {
     }
 
     /** Select rows from a declared table. */
-    from<Definition extends QuerySource>(table: Definition): SelectQuery<
+    from<Definition extends QuerySource>(
+        table: Definition,
+    ): SelectQuery<
         Fields extends Selection ? SelectionResult<Fields> : SourceResult<Definition>,
-        Fields extends Selection ? Fields
+        Fields extends Selection
+            ? Fields
             : Record<SourceName<Definition>, SourceFields<Definition>>,
         never,
         Fields extends Selection ? false : true
@@ -402,7 +434,8 @@ export class SelectBuilder<Fields extends Selection | undefined = undefined> {
             this.connection,
             this.schema,
             table,
-            fields as Fields extends Selection ? Fields
+            fields as Fields extends Selection
+                ? Fields
                 : Record<SourceName<Definition>, SourceFields<Definition>>,
             this.distinct,
             (this.fields === undefined) as Fields extends Selection ? false : true,
@@ -412,8 +445,11 @@ export class SelectBuilder<Fields extends Selection | undefined = undefined> {
 }
 
 /** Add a joined table to an automatic selection. */
-type JoinFields<Fields extends Selection, Joined extends QuerySource, Automatic extends boolean> =
-    Automatic extends true ? Fields & Record<SourceName<Joined>, SourceFields<Joined>> : Fields;
+type JoinFields<
+    Fields extends Selection,
+    Joined extends QuerySource,
+    Automatic extends boolean,
+> = Automatic extends true ? Fields & Record<SourceName<Joined>, SourceFields<Joined>> : Fields;
 
 /** A compiled query that accepts named placeholder values. */
 export interface PreparedQuery<Result> {
@@ -423,42 +459,53 @@ export interface PreparedQuery<Result> {
 
 /** Table qualifiers referenced by selected columns and nested records. */
 type FieldTables<Fields extends Selection> = {
-    [Property in keyof Fields]: Fields[Property] extends Column ? Fields[Property]["table"]
-        : Fields[Property] extends { readonly [SOURCE]: infer Name extends string } ? Name
-        : Fields[Property] extends Table ? Fields[Property][typeof TABLE]["name"]
-        : Fields[Property] extends Selection ? FieldTables<Fields[Property]>
-        : never;
+    [Property in keyof Fields]: Fields[Property] extends Column
+        ? Fields[Property]["table"]
+        : Fields[Property] extends { readonly [SOURCE]: infer Name extends string }
+          ? Name
+          : Fields[Property] extends Table
+            ? Fields[Property][typeof TABLE]["name"]
+            : Fields[Property] extends Selection
+              ? FieldTables<Fields[Property]>
+              : never;
 }[keyof Fields];
 
 /** A declared table or a native Drizzle subquery. */
 export type QuerySource = Table | Subquery<string, Selection>;
 
 /** The selected record from a table or subquery. */
-type SourceResult<Source extends QuerySource> = Source extends Table ? Select<Source>
-    : Source extends Subquery<string, infer Fields extends Selection> ? SelectionResult<Fields>
-    : never;
+type SourceResult<Source extends QuerySource> = Source extends Table
+    ? Select<Source>
+    : Source extends Subquery<string, infer Fields extends Selection>
+      ? SelectionResult<Fields>
+      : never;
 
 /** Selected fields qualified by a source name. */
-type SourceFields<Source extends QuerySource> = Source extends Table ? Source
-    : Source extends Subquery<string, infer Fields extends Selection> ? Fields
-    : never;
+type SourceFields<Source extends QuerySource> = Source extends Table
+    ? Source
+    : Source extends Subquery<string, infer Fields extends Selection>
+      ? Fields
+      : never;
 
 /** The SQL qualifier of a table or subquery. */
-type SourceName<Source extends QuerySource> = Source extends Table ? Source[typeof TABLE]["name"]
-    : Source extends Subquery<infer Alias, Selection> ? Alias
-    : never;
+type SourceName<Source extends QuerySource> = Source extends Table
+    ? Source[typeof TABLE]["name"]
+    : Source extends Subquery<infer Alias, Selection>
+      ? Alias
+      : never;
 
 /** A named native query with its inferred result fields. */
-export type SelectedSubquery<Result, Alias extends string = string> =
-    & Subquery<Alias, SubqueryFields<Result, Alias>>
-    & SubqueryFields<Result, Alias>;
+export type SelectedSubquery<Result, Alias extends string = string> = Subquery<
+    Alias,
+    SubqueryFields<Result, Alias>
+> &
+    SubqueryFields<Result, Alias>;
 
 /** Fields exposed by a named selection. */
 type SubqueryFields<Result, Alias extends string> = {
-    [Property in keyof Result]:
-        & SQL.Aliased<Result[Property]>
-        & { readonly [SOURCE]: Alias }
-        & (NonNullable<Result[Property]> extends Record<string, unknown>
+    [Property in keyof Result]: SQL.Aliased<Result[Property]> & {
+        readonly [SOURCE]: Alias;
+    } & (NonNullable<Result[Property]> extends Record<string, unknown>
             ? SubqueryFields<NonNullable<Result[Property]>, Alias>
             : unknown);
 };
