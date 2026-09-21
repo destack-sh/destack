@@ -2,6 +2,10 @@ import type { ParentProps } from "@destack/view";
 import { HydrationScript } from "@destack/view/render";
 import { createTheme } from "@destack/theme";
 import ibmPlexMono from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2?url";
+import ibmPlexMonoSemibold from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-600-normal.woff2?url";
+import ibmPlexSans from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2?url";
+import ibmPlexSansCondensed from "@fontsource/ibm-plex-sans-condensed/files/ibm-plex-sans-condensed-latin-500-normal.woff2?url";
+import limelight from "@fontsource/limelight/files/limelight-latin-400-normal.woff2?url";
 import "@destack/theme/theme.css";
 
 /** Publication typography and neutral palette. */
@@ -38,13 +42,22 @@ export default function Document(props: ParentProps) {
                 )}
                 <script src="/theme.js" />
                 <link rel="icon" href="/brand/favicon/favicon.svg" type="image/svg+xml" />
-                <link
-                    rel="preload"
-                    as="font"
-                    type="font/woff2"
-                    crossorigin="anonymous"
-                    href={ibmPlexMono}
-                />
+                {/* start the visible heading, navigation, and reading fonts with the document */}
+                {[
+                    limelight,
+                    ibmPlexMono,
+                    ibmPlexMonoSemibold,
+                    ibmPlexSans,
+                    ibmPlexSansCondensed,
+                ].map((font) => (
+                    <link
+                        rel="preload"
+                        as="font"
+                        type="font/woff2"
+                        crossorigin="anonymous"
+                        href={font}
+                    />
+                ))}
                 <HydrationScript />
             </head>
             <body>
