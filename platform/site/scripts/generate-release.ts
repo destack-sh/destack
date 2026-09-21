@@ -1,19 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { formatSource } from "@destack/check";
 
-const repositoryDirectory = resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    "../../..",
-);
-const generatedFile = join(
-    repositoryDirectory,
-    "platform/site/src/generated/release.ts",
-);
-const publicFile = join(
-    repositoryDirectory,
-    "platform/site/public/release.json",
-);
+const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const generatedFile = join(repositoryDirectory, "platform/site/src/generated/release.ts");
+const publicFile = join(repositoryDirectory, "platform/site/public/release.json");
 const isCheck = process.argv.includes("--check");
 
 // read the repository version and release configuration
@@ -35,8 +27,11 @@ if (!["experimental", "alpha", "beta", "stable"].includes(stability)) {
 
 // render both generated representations
 const release = { version, stability };
-const generatedSource = `/// The current Destack release.\n` +
-    `export const release = ${JSON.stringify(release)} as const;\n`;
+const generatedSource = await formatSource(
+    generatedFile,
+    `/// The current Destack release.\n` +
+        `export const release = ${JSON.stringify(release)} as const;\n`,
+);
 const publicSource = `${JSON.stringify(release)}\n`;
 
 // check or replace both representations together

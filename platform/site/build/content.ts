@@ -1,7 +1,7 @@
 import { collections } from "../content.ts";
 import { spawn } from "node:child_process";
 import { isAbsolute, join, normalize, relative, resolve } from "node:path";
-import type { Plugin, ViteDevServer } from "vite";
+import type { ViteDevServer } from "vite";
 
 /// One generated content collection watched during development.
 type ContentTask = {
@@ -10,6 +10,9 @@ type ContentTask = {
 
     /// Whether another generation is required after the active process exits.
     isPending?: boolean;
+
+    /// Whether content watching has stopped.
+    isClosed?: boolean;
 
     /// The task name used in diagnostics.
     name: string;
@@ -31,28 +34,40 @@ type ContentTask = {
 };
 
 /// Regenerate content modules and reload the development server after source changes.
-export function contentPlugin(siteDirectory: string): Plugin {
+export function watchContent(siteDirectory: string, server: ViteDevServer): AsyncDisposable {
     const task: ContentTask = {
         name: "content",
         outputDirectory: join(siteDirectory, "src/generated"),
         workingDirectory: siteDirectory,
         script: "scripts/generate-content.ts",
         triggers: collections.flatMap((collection) =>
-            collection.sources.map((source) => resolve(siteDirectory, "../..", source.directory))
+            collection.sources.map((source) => resolve(siteDirectory, "../..", source.directory)),
         ),
     };
 
-    return {
-        name: "destack-content",
-        apply: "serve",
-        configureServer(server) {
-            server.watcher.add([...task.triggers]);
+    // register content generation separately from application compilation
+    const changed = (_event: string, path: string) => {
+        if (isTriggered(path, task)) {
+            schedule(task, server);
+        }
+    };
+    server.watcher.add([...task.triggers]);
+    server.watcher.on("all", changed);
 
-            server.watcher.on("all", (_event, path) => {
-                if (isTriggered(path, task)) {
-                    schedule(task, server);
-                }
-            });
+    return {
+        async [Symbol.asyncDispose]() {
+            task.isClosed = true;
+            server.watcher.off("all", changed);
+            clearTimeout(task.timeout);
+            task.isPending = false;
+            const process = task.process;
+            if (process) {
+                const closed = new Promise<void>((resolve) =>
+                    process.once("close", () => resolve()),
+                );
+                process.kill();
+                await closed;
+            }
         },
     };
 }
@@ -65,10 +80,7 @@ function isTriggered(path: string, task: ContentTask) {
         const normalizedTrigger = normalize(trigger);
         const relation = relative(normalizedTrigger, file);
 
-        return (
-            relation === "" ||
-            (!relation.startsWith("..") && !isAbsolute(relation))
-        );
+        return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
     });
 }
 
@@ -85,12 +97,18 @@ function run(task: ContentTask, server: ViteDevServer) {
         return;
     }
 
-    task.process = spawn("deno", ["run", "-A", task.script], {
+    task.process = spawn("bun", ["run", "-A", task.script], {
         cwd: task.workingDirectory,
         stdio: "inherit",
     });
-    task.process.on("exit", (code) => {
+    task.process.on("error", (error) => {
+        server.config.logger.error(`[site] ${task.name}: ${error.message}`);
+    });
+    task.process.on("close", (code) => {
         task.process = undefined;
+        if (task.isClosed) {
+            return;
+        }
 
         if (code === 0) {
             invalidate(task, server);
@@ -125,7 +143,5 @@ function invalidate(task: ContentTask, server: ViteDevServer) {
 function isWithin(path: string, directory: string) {
     const relation = relative(directory, normalize(path));
 
-    return (
-        relation === "" || (!relation.startsWith("..") && !isAbsolute(relation))
-    );
+    return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
 }

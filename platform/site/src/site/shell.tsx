@@ -6,8 +6,6 @@ import { Footer } from "../navigation/footer";
 import { KeyboardShortcuts } from "../navigation/shortcut";
 import { TopBar } from "../navigation/topbar";
 
-const mobile = "@media (max-width: 767px)";
-
 /// Properties for the persistent site frame.
 type ShellProps = {
     /// The page body.
@@ -20,16 +18,18 @@ type ShellProps = {
 /// Render the persistent site frame around one page.
 export function Shell(props: ShellProps) {
     return (
-        <div {...stylex.attrs(styles.root, props.isHome ? styles.home : styles.paper)}>
+        <div {...stylex.attrs(styles.root)} data-home={props.isHome ? "" : undefined} data-site>
             <KeyboardShortcuts />
-            {!props.isHome && <div aria-hidden="true" {...stylex.attrs(styles.paperGrain)} />}
-            <div {...stylex.attrs(styles.paperLayer)}>
+            <div {...stylex.attrs(styles.layer)}>
                 <TopBar />
             </div>
-            <main {...stylex.attrs(styles.main, !props.isHome && styles.paperLayer)}>
+            <main
+                {...stylex.attrs(styles.main, styles.layer)}
+                data-reading={props.isHome ? undefined : ""}
+            >
                 {props.children}
             </main>
-            <div {...stylex.attrs(styles.paperLayer)}>
+            <div {...stylex.attrs(styles.layer)}>
                 <Footer />
             </div>
         </div>
@@ -43,35 +43,14 @@ const styles = stylex.create({
         minWidth: 0,
         width: "100%",
     },
-    home: {
-        height: "100svh",
-        minHeight: 0,
-        [mobile]: {
-            height: "auto",
-            minHeight: "100svh",
-        },
-    },
-    paper: {
-        isolation: "isolate",
-        position: "relative",
-    },
-    paperGrain: {
-        backgroundImage: 'url("/grain.svg")',
-        backgroundRepeat: "repeat",
-        backgroundSize: "8rem 8rem",
-        inset: 0,
-        mixBlendMode: "multiply",
-        opacity: 0.24,
-        pointerEvents: "none",
-        position: "fixed",
-        zIndex: 0,
-    },
-    paperLayer: {
+    layer: {
         minWidth: 0,
         position: "relative",
         zIndex: 1,
     },
     root: {
+        isolation: "isolate",
+        position: "relative",
         backgroundColor: color.background,
         color: color.foreground,
         display: "grid",

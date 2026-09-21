@@ -6,13 +6,13 @@
     "type": "module",
     "description": "Destack website, documentation, and blog",
     "scripts": {
-        "build": "deno task generate && deno run -A build/main.ts build",
-        "check": "deno task typecheck && deno task test && deno task build",
-        "dev": "deno task generate && deno run -A build/main.ts dev",
+        "build": "bun run generate && bun run build/main.ts build",
+        "check": "bun run typecheck && bun run test && bun run build",
+        "dev": "bun run generate && bun run build/main.ts dev",
         "format": "echo \"No site formatter defined\"",
-        "test": "deno run -A scripts/test-highlighting.ts && deno run -A scripts/test-reference.ts && deno run -A scripts/test-listing.ts && deno run -A scripts/test-rules.ts && deno run -A scripts/test-presentation.ts",
-        "typecheck": "deno run -A npm:typescript/tsc -p tsconfig.json --noEmit && deno run -A npm:typescript/tsc -p build/tsconfig.json --noEmit",
-        "generate": "deno run -A scripts/sync-assets.ts && deno run -A scripts/generate-release.ts && deno run -A scripts/generate-content.ts"
+        "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-reference.ts && bun run scripts/test-listing.ts && bun run scripts/test-rules.ts && bun run scripts/test-presentation.ts",
+        "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
+        "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun run scripts/generate-content.ts"
     },
     "dependencies": {
         "@fontsource-variable/ibm-plex-sans": "5.3.0",
@@ -27,6 +27,7 @@
         "@destack/theme": "workspace:*"
     },
     "devDependencies": {
+        "@destack/check": "workspace:*",
         "wrangler": "4.134.0",
         "highlight.js": "11.11.1",
         "tree-sitter-cli": "0.26.12",

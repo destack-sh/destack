@@ -1,0 +1,181 @@
+/* give the journal and manual one palette in each reading theme */
+[data-reading] {
+    --destack-color-background: light-dark(#f8f5ee, #172b34);
+    --destack-color-foreground: light-dark(#26363c, #e8e3d8);
+    --destack-color-muted: light-dark(#eeeae0, #213841);
+    --destack-color-mutedForeground: light-dark(#626963, #a6b5b7);
+    --destack-color-border: light-dark(#d8d5ca, #38505a);
+    --destack-color-primary: light-dark(#a94e28, #f29a64);
+    --publication-page: var(--destack-color-background);
+    --publication-page-muted: var(--destack-color-muted);
+    --publication-ink: var(--destack-color-foreground);
+    --publication-soft: var(--destack-color-mutedForeground);
+    --publication-line: var(--destack-color-border);
+    --publication-accent: var(--destack-color-primary);
+    --publication-listing: var(--destack-color-muted);
+}
+
+/* span the reading background between the shared header and footer */
+main[data-reading] {
+    background: var(--destack-color-background);
+    color: var(--destack-color-foreground);
+}
+main[data-reading]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("/grain.svg") repeat;
+    background-size: 8rem 8rem;
+    mix-blend-mode: multiply;
+    opacity: 0.24;
+    pointer-events: none;
+}
+
+/* align chapter navigation and article openings on the same grid */
+[data-reading] [data-publication] {
+    padding-top: 28px;
+    column-gap: 3rem;
+}
+[data-reading] .collection-context {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+}
+[data-reading] [data-publication="manual"] .collection-context > a:first-child {
+    color: var(--publication-ink);
+    font-size: 14px;
+    font-weight: 600;
+}
+[data-reading] .content-header {
+    gap: 18px;
+    padding-top: 32px;
+    padding-bottom: 8px;
+}
+[data-reading] .content-header h1,
+[data-publication="manual"] .directory-heading h1 {
+    font-family: "IBM Plex Sans Condensed", sans-serif;
+    font-size: clamp(36px, 3.8vw, 48px);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+}
+[data-reading] .content-description {
+    max-width: 38rem;
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--publication-soft);
+}
+.article-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    padding-top: 6px;
+    font:
+        400 12px/1.6 "IBM Plex Mono",
+        monospace;
+    color: var(--publication-soft);
+}
+[data-publication="journal"] article > .content-header[data-variant="article"] + .markdown {
+    margin-top: 28px;
+    padding-top: 28px;
+    border-top: 1px solid var(--publication-line);
+}
+
+/* give the blog opening and latest entry space within the shared page width */
+[data-publication="journal"]:has(.directory) {
+    display: block;
+}
+[data-publication="journal"]:has(.directory) > aside {
+    display: none;
+}
+[data-publication="journal"]:has(.directory) > article {
+    position: relative;
+}
+[data-publication="journal"]:has(.directory) > article > header {
+    position: absolute;
+    top: 36px;
+    right: 0;
+    display: flex;
+    border: 0;
+}
+[data-publication="journal"]:has(.directory) > article > header > details {
+    display: none;
+}
+[data-publication="journal"] .directory-heading {
+    padding-right: 96px;
+    padding-top: 36px;
+    padding-bottom: 16px;
+}
+[data-publication="journal"] .directory-heading h1 {
+    font:
+        400 clamp(44px, 6vw, 68px)/1.1 "Limelight",
+        sans-serif;
+}
+.blog-description {
+    margin: 0 0 44px;
+    max-width: 40rem;
+    color: var(--publication-soft);
+    font-size: 20px;
+    line-height: 1.5;
+}
+[data-publication="journal"] .directory .content-list {
+    border-top: 2px solid var(--publication-accent);
+}
+[data-publication="journal"] .directory .content-entry {
+    padding-block: 32px;
+    gap: 12px 32px;
+}
+[data-publication="journal"] .directory .content-entry-title {
+    font-family: "IBM Plex Sans Condensed", sans-serif;
+    font-size: 28px;
+    line-height: 1.2;
+}
+[data-publication="journal"] .directory li:first-child .content-entry {
+    padding-block: 40px;
+}
+[data-publication="journal"] .directory li:first-child .content-entry-title {
+    font-size: clamp(32px, 4vw, 44px);
+}
+[data-publication="journal"] .directory .content-entry-summary {
+    font-size: 20px;
+    max-width: 42rem;
+}
+[data-publication="journal"] .directory .content-entry-meta {
+    font:
+        400 12px/1.6 "IBM Plex Mono",
+        monospace;
+    margin-top: 12px;
+}
+[data-publication="journal"] .directory .content-arrow {
+    width: 24px;
+    height: 24px;
+    color: var(--publication-accent);
+}
+[data-publication="journal"] .collection-mobile-filters {
+    display: flex;
+}
+
+/* preserve space for the title and prose on narrow reading pages */
+@media (max-width: 767px) {
+    [data-reading] [data-publication] {
+        padding-top: 12px;
+    }
+    [data-reading] .content-header {
+        padding-top: 28px;
+    }
+    [data-reading] .content-description,
+    .blog-description,
+    [data-publication="journal"] .directory .content-entry-summary {
+        font-size: 18px;
+    }
+    .article-metadata {
+        gap: 6px 16px;
+        font-size: 11px;
+    }
+    .blog-description {
+        margin-bottom: 32px;
+    }
+    [data-publication="journal"] .directory li:first-child .content-entry {
+        padding-block: 28px;
+    }
+}

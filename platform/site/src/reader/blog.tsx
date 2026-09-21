@@ -38,13 +38,6 @@ export function BlogArticle(props: BlogArticleProps) {
                     activeHeading={activeHeading}
                 />
             )}
-            metadata={() => (
-                <>
-                    <span>{props.post.author}</span>
-                    <time datetime={props.post.date}>{formatDate(props.post.date)}</time>
-                    <span>{formatReadTime(props.post.tokens)}</span>
-                </>
-            )}
             publication="journal"
             source={props.post}
         >
@@ -81,7 +74,13 @@ type BlogArticleHeaderProps = {
 /// Render the post title and subtitle.
 function BlogArticleHeader(props: BlogArticleHeaderProps) {
     return (
-        <PageHeader title={props.post.title} variant="article" description={props.post.subtitle} />
+        <PageHeader title={props.post.title} variant="article" description={props.post.subtitle}>
+            <div class="article-metadata">
+                <span>{props.post.author}</span>
+                <time datetime={props.post.date}>{formatDate(props.post.date)}</time>
+                <span>{formatReadTime(props.post.tokens)} read</span>
+            </div>
+        </PageHeader>
     );
 }
 

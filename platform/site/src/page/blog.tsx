@@ -41,7 +41,9 @@ export function BlogPage() {
                 publication="journal"
                 source={blogIndex}
             >
-                <DirectoryContent title="Blog" directory={directory} />
+                <DirectoryContent title="Blog" directory={directory}>
+                    <p class="blog-description">Design and engineering notes from Destack.</p>
+                </DirectoryContent>
             </Reader>
         </Shell>
     );

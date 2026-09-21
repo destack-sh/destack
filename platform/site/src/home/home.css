@@ -1,0 +1,232 @@
+/* compose the title and invitation within a single illustrated scene */
+.universe {
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+}
+.landing {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    max-width: var(--site-width);
+    height: calc(100svh - 128px);
+    min-height: 620px;
+    padding: 24px var(--site-gutter-right) 10px var(--site-gutter-left);
+    margin-inline: auto;
+}
+.wordmark {
+    width: 100%;
+    container-type: inline-size;
+}
+.wordmark p {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    font:
+        600 clamp(9px, 1.3vw, 14px)/1.2 "IBM Plex Mono",
+        monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #ec8854;
+}
+.wordmark p:first-child span:last-child,
+.wordmark p:last-child span:first-child {
+    color: var(--destack-color-foreground);
+}
+.wordmark h1 {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0 -3px;
+    font:
+        400 15cqw/0.82 "Limelight",
+        sans-serif;
+    color: var(--destack-color-foreground);
+}
+.wordmark h1 span:first-child {
+    margin-left: -0.06em;
+}
+.wordmark h1 span:last-child {
+    margin-right: -0.02em;
+}
+.wordmark u {
+    text-underline-offset: 5px;
+    text-decoration-thickness: 1px;
+}
+/* keep the complete planet and ring above the low foreground */
+.landscape {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+.orbit-scene {
+    position: absolute;
+    top: 142px;
+    left: 50%;
+    width: min(96%, 1100px);
+    height: calc(100% - 380px);
+    transform: translateX(-50%);
+    overflow: visible;
+}
+.invitation {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    text-align: center;
+    container-type: inline-size;
+}
+.horizon {
+    position: absolute;
+    z-index: -1;
+    top: -24px;
+    left: 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    pointer-events: none;
+}
+.invitation h2 {
+    margin: 0;
+    font:
+        400 5.9cqw/1.15 "Limelight",
+        sans-serif;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.landing-actions {
+    position: relative;
+    width: min(100%, 700px);
+    margin: 32px auto 0;
+}
+/* give the two actions a compact, consistent size */
+.download {
+    position: relative;
+    width: 100%;
+}
+.download-box {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0;
+}
+.install-command {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 12px 18px;
+    border: 1px solid var(--destack-color-primary);
+    border-right: 0;
+    border-radius: 2px 0 0 2px;
+    font-size: 13px;
+    text-align: left;
+}
+.install-command > span {
+    color: var(--destack-color-primary);
+}
+.install-command code {
+    font: inherit;
+    user-select: all;
+    overflow-wrap: anywhere;
+}
+.download-action {
+    display: flex;
+    background: var(--destack-color-primary);
+    color: var(--destack-color-background);
+    border-radius: 0 2px 2px 0;
+}
+.download-action > a,
+.download-action > button {
+    min-height: 48px;
+    padding: 10px 16px;
+    font:
+        600 14px "IBM Plex Mono",
+        monospace;
+}
+.download-action summary {
+    width: 36px;
+}
+.agent-setup {
+    grid-column: 1 / -1;
+    justify-self: center;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 10px 12px;
+    color: var(--destack-color-foreground);
+    text-decoration: none;
+    font:
+        600 14px "IBM Plex Mono",
+        monospace;
+}
+.agent-setup:hover {
+    color: var(--destack-color-primary);
+}
+/* preserve the poster hierarchy while cropping the scene for a narrow viewport */
+@media (max-width: 767px) {
+    .landing {
+        height: calc(100svh - 112px);
+        min-height: 530px;
+        padding-block: 22px 6px;
+    }
+    .wordmark p {
+        font-size: clamp(7px, 2vw, 12px);
+        letter-spacing: 0.06em;
+    }
+    .wordmark h1 {
+        margin-block: 4px 2px;
+    }
+    .orbit-scene {
+        --planet-top: clamp(92px, calc(15vw + 44px), 150px);
+        top: var(--planet-top);
+        width: 170%;
+        max-width: 850px;
+        height: calc(100% - var(--planet-top) - 196px);
+    }
+    .landing-actions {
+        margin-top: 26px;
+    }
+    .install-command {
+        gap: 7px;
+        padding: 10px;
+        font-size: 10px;
+    }
+    .download-action > a,
+    .download-action > button {
+        padding-inline: 12px;
+    }
+    .download-action summary {
+        width: 28px;
+    }
+    .download-action > a,
+    .download-action > button,
+    .agent-setup {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 380px) {
+    .install-command {
+        gap: 5px;
+        padding-inline: 8px;
+        font-size: 9px;
+    }
+    .download-action > a,
+    .download-action > button {
+        padding-inline: 8px;
+        font-size: 11px;
+    }
+    .download-action summary {
+        width: 24px;
+    }
+    .agent-setup {
+        gap: 6px;
+        padding-inline: 8px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+}

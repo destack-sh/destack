@@ -42,7 +42,7 @@ export function TopBar() {
     return (
         <header {...stylex.attrs(styles.root)}>
             <div {...stylex.attrs(styles.frame)}>
-                <div {...stylex.attrs(styles.body)}>
+                <div {...stylex.attrs(styles.body)} data-site-navigation>
                     <SiteLink href="/" shortcut="h" style={styles.brand} title="Alt+H: Home">
                         <span aria-hidden="true" class="brand-icon" innerHTML={brandIcon} />
                         Destack
@@ -96,6 +96,7 @@ export function TopBar() {
                 <dialog
                     ref={menu}
                     id="site-menu"
+                    data-site-menu
                     aria-label="Site navigation"
                     onClose={() => setMenuOpen(false)}
                     {...stylex.attrs(styles.menu)}

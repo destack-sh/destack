@@ -1,25 +1,16 @@
-import { createSignal, For, type JSX, onSettled, Show } from "@destack/view";
+import { createSignal, For, onSettled, Show } from "@destack/view";
 import * as style from "@destack/style";
 import { fontFamily } from "@destack/theme/tokens.stylex";
+import { installCommand } from "../../content/site";
 import { tokens } from "../../style/tokens.stylex";
 import { type Download as Distribution, readDownloads, selectDownload } from "./catalog.ts";
 
 /** Render the desktop download and platform choices. */
-export function Download(props: { children: JSX.Element }) {
+export function Download() {
     const [downloads, setDownloads] = createSignal<Distribution[]>([]);
     const [selected, setSelected] = createSignal<Distribution>();
     const [error, setError] = createSignal("");
     let choices: HTMLDetailsElement | undefined;
-
-    /** Show the selected version or the common release across all platforms. */
-    const version = () => {
-        if (selected()) {
-            return selected()!.version;
-        }
-        const first = downloads()[0]?.version;
-
-        return downloads().every((download) => download.version === first) ? first : undefined;
-    };
 
     // load platform choices without delaying the rest of the landing page
     onSettled(() => {
@@ -35,10 +26,14 @@ export function Download(props: { children: JSX.Element }) {
     });
 
     return (
-        <div {...style.attrs(styles.container)}>
-            <div {...style.attrs(styles.bar)}>
-                {props.children}
-                <div {...style.attrs(styles.button)}>
+        <div class="download">
+            <div class="download-box">
+                {/* keep the command and desktop download in one installation box */}
+                <div class="install-command">
+                    <span aria-hidden="true">$</span>
+                    <code>{installCommand}</code>
+                </div>
+                <div class="download-action">
                     <Show
                         when={selected()}
                         fallback={
@@ -59,7 +54,7 @@ export function Download(props: { children: JSX.Element }) {
                         {(download) => (
                             <a
                                 href={download().url}
-                                title={`Download for ${download().label}`}
+                                title={`Download for ${download().label} (${download().version})`}
                                 {...style.attrs(styles.action)}
                             >
                                 Download
@@ -111,6 +106,9 @@ export function Download(props: { children: JSX.Element }) {
                                     </a>
                                 )}
                             </For>
+                            <a href="/docs/setup/" {...style.attrs(styles.option)}>
+                                Installation instructions ↗
+                            </a>
                             <Show when={!downloads().length}>
                                 <span role="status" {...style.attrs(styles.message)}>
                                     {error() || "Loading downloads…"}
@@ -119,41 +117,16 @@ export function Download(props: { children: JSX.Element }) {
                         </div>
                     </details>
                 </div>
+                <a class="agent-setup" href="/docs/setup/#ask-your-agent">
+                    Ask your agent <span aria-hidden="true">↗</span>
+                </a>
             </div>
-            <div {...style.attrs(styles.version)}>{version()}</div>
         </div>
     );
 }
 
 /** Download button and platform menu styles. */
 const styles = style.create({
-    container: { position: "relative", zIndex: 2, width: "fit-content", maxWidth: "100%" },
-    bar: {
-        display: "flex",
-        alignItems: "stretch",
-        borderWidth: "1px",
-        borderStyle: "solid",
-        borderColor: "#45606a",
-        borderRadius: "0.2rem",
-        "@media (max-width: 767px)": { flexDirection: "column-reverse" },
-    },
-    version: {
-        minHeight: "1.2em",
-        marginTop: "0.65rem",
-        fontSize: "0.75rem",
-        fontFamily: fontFamily.code,
-        color: "#b5c6ca",
-        fontVariantNumeric: "tabular-nums",
-    },
-    button: {
-        display: "flex",
-        backgroundColor: "#ff792e",
-        color: tokens.night,
-        borderTopRightRadius: "0.15rem",
-        borderBottomRightRadius: "0.15rem",
-        flexShrink: 0,
-        "@media (max-width: 767px)": { borderTopLeftRadius: "0.15rem", borderBottomRightRadius: 0 },
-    },
     action: {
         display: "flex",
         alignItems: "center",

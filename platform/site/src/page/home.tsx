@@ -10,8 +10,7 @@ export function HomePage() {
         <Shell isHome>
             <Seo
                 description={
-                    "Destack is a universal software engine for building complete " +
-                    "software systems."
+                    "Personal software platform. Install apps, make them yours, and build something new."
                 }
             />
 

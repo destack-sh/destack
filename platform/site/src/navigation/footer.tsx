@@ -10,7 +10,7 @@ export function Footer() {
     return (
         <footer {...stylex.attrs(styles.root)}>
             <div {...stylex.attrs(styles.frame)}>
-                <div {...stylex.attrs(styles.content)}>
+                <div {...stylex.attrs(styles.content)} data-site-footer>
                     <span {...stylex.attrs(styles.publisher)}>© Symbol Industries</span>
                     <nav aria-label="Social navigation" {...stylex.attrs(styles.navigation)}>
                         {socialLinks.map(({ label, href, shortcut, icon }) => (

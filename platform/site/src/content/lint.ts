@@ -23,11 +23,9 @@ export function renderLintMetadata(rule: RuleMetadata): string {
         ["Scope", rule.scope === "module" ? "Module" : "Program"],
     ];
 
-    return `<dl class="lint-metadata">${
-        labels.map(([label, value]) =>
-            `<div><dt>${label}</dt><dd>${escapeAttribute(value)}</dd></div>`
-        ).join("")
-    }</dl>`;
+    return `<dl class="lint-metadata">${labels
+        .map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeAttribute(value)}</dd></div>`)
+        .join("")}</dl>`;
 }
 
 /// Render upstream rules and implementation as named reference entries.
@@ -46,13 +44,14 @@ export function renderLintReferences(
     ];
 
     // provenance and source links share one scale, alignment, and interaction
-    return `<dl class="reference-links">${
-        entries.map((entry) =>
-            `<div><dt>${entry.label}</dt><dd><a href="${
-                escapeAttribute(entry.href)
-            }" rel="external noopener noreferrer" target="_blank">${
-                escapeAttribute(entry.title)
-            } <span aria-hidden="true">↗</span></a></dd></div>`
-        ).join("")
-    }</dl>`;
+    return `<dl class="reference-links">${entries
+        .map(
+            (entry) =>
+                `<div><dt>${entry.label}</dt><dd><a href="${escapeAttribute(
+                    entry.href,
+                )}" rel="external noopener noreferrer" target="_blank">${escapeAttribute(
+                    entry.title,
+                )} <span aria-hidden="true">↗</span></a></dd></div>`,
+        )
+        .join("")}</dl>`;
 }
