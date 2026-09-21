@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { basename } from "node:path";
 import process from "node:process";
 import { CheckError } from "../error/index.ts";
 
@@ -19,20 +18,19 @@ export interface ToolResult {
 
 /** Run the installed tool using the current Bun runtime. */
 export function runTool(
-    tool: "oxlint" | "oxfmt",
+    executable: string,
     args: string[],
     directory: string,
     signal?: AbortSignal,
+    environment?: NodeJS.ProcessEnv,
 ): Promise<ToolResult> {
-    // resolve the pinned package without downloading tools during checks
-    const require = createRequire(import.meta.url);
-    const packagePath = require.resolve(`${tool}/package.json`);
-    const executable = resolve(dirname(packagePath), "bin", tool);
+    const tool = basename(executable);
 
     return new Promise((complete, reject) => {
         // bound the child lifetime and propagate caller cancellation
         const child = spawn(process.execPath, ["run", "--no-env-file", executable, ...args], {
             cwd: directory,
+            env: environment,
             stdio: ["ignore", "pipe", "pipe"],
             signal: AbortSignal.any([
                 AbortSignal.timeout(toolTimeout),
