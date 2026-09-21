@@ -67,9 +67,7 @@ export type LoadedDocument = {
 };
 
 /// Load one published document and its rendered body.
-export async function loadDocument(
-    route: string,
-): Promise<LoadedDocument | undefined> {
+export async function loadDocument(route: string): Promise<LoadedDocument | undefined> {
     if (!route.startsWith("/docs/") || route.includes("..")) {
         return undefined;
     }
@@ -87,11 +85,11 @@ export async function loadDocument(
 }
 
 /// Load and validate one document metadata record.
-async function loadDocumentMetadata(
-    route: string,
-): Promise<Document | undefined> {
+async function loadDocumentMetadata(route: string): Promise<Document | undefined> {
     const text = await loadAsset(route);
-    if (text === undefined) return undefined;
+    if (text === undefined) {
+        return undefined;
+    }
     const value: unknown = JSON.parse(text);
 
     if (!isDocument(value)) {
@@ -112,9 +110,7 @@ function isDocument(value: unknown): value is Document {
         typeof document.description === "string" &&
         (document.lead == undefined || typeof document.lead === "string") &&
         typeof document.markdownRoute === "string" &&
-        ["chapter", "module", "symbol", "rule", "catalog"].includes(
-            String(document.kind),
-        ) &&
+        ["chapter", "module", "symbol", "rule", "catalog"].includes(String(document.kind)) &&
         typeof document.navigation === "object" &&
         document.navigation != null &&
         typeof document.route === "string" &&

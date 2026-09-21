@@ -12,51 +12,55 @@ import {
 } from "./resource.ts";
 
 /** Trace identity and propagation flags. */
-export const ContextDescription = defineSchema(schema.object({
-    traceId: schema.string(),
-    spanId: schema.string(),
-    traceFlags: schema.number().int(),
-    traceState: schema.string().optional(),
-    isRemote: schema.boolean().optional(),
-}));
-/** A completed span and its recorded relationships. */
-export const SpanDescription = defineSchema(schema.object({
-    /** The exact build and declaration, when source attribution is present. */
-    source: SourceDescription.optional(),
-    name: schema.string(),
-    kind: schema.number().int().min(0).max(4),
-    context: ContextDescription,
-    parent: ContextDescription.optional(),
-    startTime: TimeDescription,
-    endTime: TimeDescription,
-    duration: TimeDescription,
-    status: schema.object({
-        code: schema.number().int().min(0).max(2),
-        message: schema.string().optional(),
+export const ContextDescription = defineSchema(
+    schema.object({
+        traceId: schema.string(),
+        spanId: schema.string(),
+        traceFlags: schema.number().int(),
+        traceState: schema.string().optional(),
+        isRemote: schema.boolean().optional(),
     }),
-    attributes: AttributeDescription,
-    links: schema.array(
-        schema.object({
-            context: ContextDescription,
-            attributes: AttributeDescription,
-            droppedAttributesCount: schema.number().int().optional(),
+);
+/** A completed span and its recorded relationships. */
+export const SpanDescription = defineSchema(
+    schema.object({
+        /** The exact build and declaration, when source attribution is present. */
+        source: SourceDescription.optional(),
+        name: schema.string(),
+        kind: schema.number().int().min(0).max(4),
+        context: ContextDescription,
+        parent: ContextDescription.optional(),
+        startTime: TimeDescription,
+        endTime: TimeDescription,
+        duration: TimeDescription,
+        status: schema.object({
+            code: schema.number().int().min(0).max(2),
+            message: schema.string().optional(),
         }),
-    ),
-    events: schema.array(
-        schema.object({
-            name: schema.string(),
-            time: TimeDescription,
-            attributes: AttributeDescription,
-            droppedAttributesCount: schema.number().int().optional(),
-        }),
-    ),
-    resource: ResourceDescription,
-    scope: ScopeDescription,
-    ended: schema.boolean(),
-    droppedAttributesCount: schema.number().int(),
-    droppedEventsCount: schema.number().int(),
-    droppedLinksCount: schema.number().int(),
-}));
+        attributes: AttributeDescription,
+        links: schema.array(
+            schema.object({
+                context: ContextDescription,
+                attributes: AttributeDescription,
+                droppedAttributesCount: schema.number().int().optional(),
+            }),
+        ),
+        events: schema.array(
+            schema.object({
+                name: schema.string(),
+                time: TimeDescription,
+                attributes: AttributeDescription,
+                droppedAttributesCount: schema.number().int().optional(),
+            }),
+        ),
+        resource: ResourceDescription,
+        scope: ScopeDescription,
+        ended: schema.boolean(),
+        droppedAttributesCount: schema.number().int(),
+        droppedEventsCount: schema.number().int(),
+        droppedLinksCount: schema.number().int(),
+    }),
+);
 /** A span's portable description. */
 export type SpanDescription = schema.Infer<typeof SpanDescription>;
 

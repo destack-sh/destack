@@ -29,30 +29,31 @@ export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
                                 : value,
                             "sqlite",
                         ),
-                    forJsonSelect: definition.kind === "bigint"
-                        ? (identifier, sql) => sql`cast(${identifier} as text)`
-                        : undefined,
+                    forJsonSelect:
+                        definition.kind === "bigint"
+                            ? (identifier, sql) => sql`cast(${identifier} as text)`
+                            : undefined,
                 })(definition.name);
                 applyColumn(builder, column, this.dialect);
                 if (definition.generated) {
                     const generated = definition.generated.expression;
-                    builder.generatedAlwaysAs(() =>
-                        this.expression(
-                            typeof generated === "function" ? generated() : generated,
-                        ), { mode: definition.generated.mode });
+                    builder.generatedAlwaysAs(
+                        () =>
+                            this.expression(
+                                typeof generated === "function" ? generated() : generated,
+                            ),
+                        { mode: definition.generated.mode },
+                    );
                 }
 
                 return [property, builder];
             }),
         );
 
-        return sqlite.sqliteTable(
-            definition.name,
-            columns,
-            () =>
-                declaration.constraints(this.dialect).map((constraint) =>
-                    this.compileConstraint(constraint)
-                ),
+        return sqlite.sqliteTable(definition.name, columns, () =>
+            declaration
+                .constraints(this.dialect)
+                .map((constraint) => this.compileConstraint(constraint)),
         );
     }
 
@@ -74,23 +75,25 @@ export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
                     ],
                 });
             case "unique":
-                return sqlite.unique(constraint.name).on(
-                    ...columns(constraint.columns) as [
-                        sqlite.SQLiteColumn,
-                        ...sqlite.SQLiteColumn[],
-                    ],
-                );
+                return sqlite
+                    .unique(constraint.name)
+                    .on(
+                        ...(columns(constraint.columns) as [
+                            sqlite.SQLiteColumn,
+                            ...sqlite.SQLiteColumn[],
+                        ]),
+                    );
             case "index": {
                 const builder = constraint.unique
                     ? sqlite.uniqueIndex(constraint.name)
                     : sqlite.index(constraint.name);
                 const indexed = constraint.columns.map((column) =>
                     column instanceof Column
-                        ? this.column(column) as sqlite.SQLiteColumn
-                        : this.expression(column)
+                        ? (this.column(column) as sqlite.SQLiteColumn)
+                        : this.expression(column),
                 );
                 const index = builder.on(
-                    ...indexed as [sqlite.SQLiteColumn | SQL, ...(sqlite.SQLiteColumn | SQL)[]],
+                    ...(indexed as [sqlite.SQLiteColumn | SQL, ...(sqlite.SQLiteColumn | SQL)[]]),
                 );
 
                 return constraint.predicate
@@ -109,8 +112,12 @@ export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
                         ...sqlite.SQLiteColumn[],
                     ],
                 });
-                if (constraint.actions.onDelete) key.onDelete(constraint.actions.onDelete);
-                if (constraint.actions.onUpdate) key.onUpdate(constraint.actions.onUpdate);
+                if (constraint.actions.onDelete) {
+                    key.onDelete(constraint.actions.onDelete);
+                }
+                if (constraint.actions.onUpdate) {
+                    key.onUpdate(constraint.actions.onUpdate);
+                }
 
                 return key;
             }

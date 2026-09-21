@@ -28,7 +28,9 @@
     margin: 0;
     min-width: 0;
     color: var(--publication-ink);
-    font: 500 var(--content-title-size)/1.25 "IBM Plex Sans Variable", sans-serif;
+    font:
+        500 var(--content-title-size)/1.25 "IBM Plex Sans Variable",
+        sans-serif;
     letter-spacing: -0.025em;
     overflow-wrap: anywhere;
 }
@@ -90,7 +92,9 @@
 
 .content-entry-title {
     grid-column: 1;
-    font: 500 var(--content-entry-size)/1.4 "IBM Plex Sans Variable", sans-serif;
+    font:
+        500 var(--content-entry-size)/1.4 "IBM Plex Sans Variable",
+        sans-serif;
     letter-spacing: -0.01em;
 }
 
@@ -153,7 +157,8 @@
         --content-gutter: 1.25rem;
     }
 
-    .content-entry, .markdown a.content-entry {
+    .content-entry,
+    .markdown a.content-entry {
         column-gap: 0.75rem;
     }
 }
@@ -206,7 +211,9 @@
     padding: 0;
     background: none;
     color: inherit;
-    font: 500 var(--content-code-size)/1.5 "IBM Plex Mono", monospace;
+    font:
+        500 var(--content-code-size)/1.5 "IBM Plex Mono",
+        monospace;
     overflow-wrap: anywhere;
 }
 

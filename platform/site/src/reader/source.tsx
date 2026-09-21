@@ -24,9 +24,7 @@ export type PageSourceCommands = {
 };
 
 /// Create source commands shared by responsive article controls.
-export function createPageSourceCommands(
-    source: PageSource,
-): PageSourceCommands {
+export function createPageSourceCommands(source: PageSource): PageSourceCommands {
     const write = async (kind: SourceKind) => {
         // load the requested source format
         const route = kind === "md" ? source.markdownRoute : source.textRoute;
@@ -58,10 +56,7 @@ export function createPageSourceCommands(
 
         // unbind page actions when the reader is replaced
         return () => {
-            document.removeEventListener(
-                commandEvents.copyMarkdown,
-                copyMarkdown,
-            );
+            document.removeEventListener(commandEvents.copyMarkdown, copyMarkdown);
             document.removeEventListener(commandEvents.copyText, copyText);
         };
     });

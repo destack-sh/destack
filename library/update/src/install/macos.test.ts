@@ -34,7 +34,9 @@ test.runIf(Deno.build.os === "darwin")(
                 stderr: "piped",
                 signal: AbortSignal.timeout(3000),
             }).output();
-            if (!signed.success) throw new Error(new TextDecoder().decode(signed.stderr));
+            if (!signed.success) {
+                throw new Error(new TextDecoder().decode(signed.stderr));
+            }
 
             // force staging cleanup to fail after the native bundle is replaced
             const sha256 = "a".repeat(64);
@@ -50,17 +52,18 @@ test.runIf(Deno.build.os === "darwin")(
                 }),
             );
             await mkdir(join(installer.directory, "staged.json"));
-            await expect(installer.recover())
-                .rejects.toMatchObject({ code: "ERR_FS_EISDIR" });
-            expect(await readFile(join(destination, "Contents/Info.plist"), "utf8"))
-                .toBe(await readFile(join(application, "Contents/Info.plist"), "utf8"));
+            await expect(installer.recover()).rejects.toMatchObject({ code: "ERR_FS_EISDIR" });
+            expect(await readFile(join(destination, "Contents/Info.plist"), "utf8")).toBe(
+                await readFile(join(application, "Contents/Info.plist"), "utf8"),
+            );
 
             // replay the persisted activation through a real atomic bundle exchange
             await rm(join(installer.directory, "staged.json"), { recursive: true });
             await installer.recover();
             expect(await installer.current()).toEqual({ release, sha256, directory: staged });
-            await expect(readFile(join(installer.directory, "activate.json")))
-                .rejects.toMatchObject({ code: "ENOENT" });
+            await expect(
+                readFile(join(installer.directory, "activate.json")),
+            ).rejects.toMatchObject({ code: "ENOENT" });
         } finally {
             await rm(directory, { recursive: true, force: true });
         }

@@ -71,7 +71,7 @@ export class RelationalQuery<Result> implements PromiseLike<Result>, SQLWrapper 
     async execute(parameters?: Record<string, unknown>): Promise<Result> {
         this.connection.transaction?.assertActive();
 
-        return await this.connection.run(() => this.native.execute(parameters)) as Result;
+        return (await this.connection.run(() => this.native.execute(parameters))) as Result;
     }
 
     /** Prepare a query without extending its transaction lifetime. */
@@ -82,9 +82,7 @@ export class RelationalQuery<Result> implements PromiseLike<Result>, SQLWrapper 
             execute: async (parameters) => {
                 this.connection.transaction?.assertActive();
 
-                return await this.connection.run(
-                    () => prepared.execute(parameters),
-                ) as Result;
+                return (await this.connection.run(() => prepared.execute(parameters))) as Result;
             },
         };
     }

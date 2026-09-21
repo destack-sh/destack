@@ -6,9 +6,11 @@ import { createDirectory, DirectoryArchive, DirectoryContent } from "../reader/d
 
 /// Browse articles with the shared collection layout.
 export function BlogPage() {
-    const entries = [...posts].sort((left, right) =>
-        right.date.localeCompare(left.date) || left.title.localeCompare(right.title)
-    )
+    const entries = [...posts]
+        .sort(
+            (left, right) =>
+                right.date.localeCompare(left.date) || left.title.localeCompare(right.title),
+        )
         .map((post) => ({
             title: post.title,
             href: post.route,

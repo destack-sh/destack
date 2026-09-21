@@ -25,18 +25,18 @@ export class OperationStore<Result, Progress> implements AsyncDisposable {
         // reject limits that cannot bound work or retain active operations
         for (const value of Object.values(options)) {
             if (!Number.isSafeInteger(value) || value <= 0) {
-                throw new RangeError("Operation limits must be positive safe integers.");
+                throw new RangeError("operation limits must be positive safe integers");
             }
         }
 
         // reserve enough retained records for all active runners
         if (options.capacity < options.concurrency) {
-            throw new RangeError("Operation capacity must cover concurrency.");
+            throw new RangeError("operation capacity must cover concurrency");
         }
 
         // reject delays that overflow the runtime's signed 32 bit timer
         if (options.timeout > 2 ** 31 - 1) {
-            throw new RangeError("Operation timeout exceeds the runtime timer limit.");
+            throw new RangeError("operation timeout exceeds the runtime timer limit");
         }
 
         // retain portable schemas and store limits

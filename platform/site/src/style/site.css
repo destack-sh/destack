@@ -9,99 +9,99 @@
 @layer reset, priority1, priority2;
 
 @layer reset {
-:root {
-    --site-width: 72rem;
-    --site-gutter-left: calc(1.5rem + env(safe-area-inset-left));
-    --site-gutter-right: calc(1.5rem + env(safe-area-inset-right));
-    color-scheme: light dark;
-    --publication-page: var(--destack-color-background);
-    --publication-page-muted: var(--destack-color-muted);
-    --publication-listing: light-dark(#f1f0ec, #232220);
-    --publication-ink: var(--destack-color-foreground);
-    --publication-soft: var(--destack-color-mutedForeground);
-    --publication-line: var(--destack-color-border);
-    --publication-accent: var(--destack-color-primary);
-    --publication-rust: light-dark(#a44328, #ec9878);
-    --publication-syntax-type: light-dark(#0f6470, #79c6ce);
-    --publication-syntax-function: light-dark(#8a5a0e, #e4b66c);
-    --publication-syntax-property: light-dark(#33586b, #a4c4df);
-    --publication-syntax-literal: light-dark(#96690a, #dcb776);
-    --publication-syntax-string: light-dark(#3f7038, #a8cd91);
-    --publication-syntax-punctuation: light-dark(#6d5b45, #b8c2bf);
-    --publication-hairline: 1px;
-    --publication-stroke: 3px;
-    --brand-ring: light-dark(#302a25, #ffffff);
-    --size-page-title: clamp(2.25rem, 3.8vw, 3.25rem);
-    --size-page-description: var(--size-body);
-    --size-section-title: 1.875rem;
-    --size-subsection-title: 1.5rem;
-    --size-minor-title: 1.125rem;
-    --size-body: 1.0625rem;
-    --size-navigation: 0.875rem;
-    --size-label: var(--size-navigation);
-    --width-prose: 40rem;
-}
+    :root {
+        --site-width: 72rem;
+        --site-gutter-left: calc(1.5rem + env(safe-area-inset-left));
+        --site-gutter-right: calc(1.5rem + env(safe-area-inset-right));
+        color-scheme: light dark;
+        --publication-page: var(--destack-color-background);
+        --publication-page-muted: var(--destack-color-muted);
+        --publication-listing: light-dark(#f1f0ec, #232220);
+        --publication-ink: var(--destack-color-foreground);
+        --publication-soft: var(--destack-color-mutedForeground);
+        --publication-line: var(--destack-color-border);
+        --publication-accent: var(--destack-color-primary);
+        --publication-rust: light-dark(#a44328, #ec9878);
+        --publication-syntax-type: light-dark(#0f6470, #79c6ce);
+        --publication-syntax-function: light-dark(#8a5a0e, #e4b66c);
+        --publication-syntax-property: light-dark(#33586b, #a4c4df);
+        --publication-syntax-literal: light-dark(#96690a, #dcb776);
+        --publication-syntax-string: light-dark(#3f7038, #a8cd91);
+        --publication-syntax-punctuation: light-dark(#6d5b45, #b8c2bf);
+        --publication-hairline: 1px;
+        --publication-stroke: 3px;
+        --brand-ring: light-dark(#302a25, #ffffff);
+        --size-page-title: clamp(2.25rem, 3.8vw, 3.25rem);
+        --size-page-description: var(--size-body);
+        --size-section-title: 1.875rem;
+        --size-subsection-title: 1.5rem;
+        --size-minor-title: 1.125rem;
+        --size-body: 1.0625rem;
+        --size-navigation: 0.875rem;
+        --size-label: var(--size-navigation);
+        --width-prose: 40rem;
+    }
 
-:root[data-theme="light"] {
-    color-scheme: light;
-}
+    :root[data-theme="light"] {
+        color-scheme: light;
+    }
 
-:root[data-theme="dark"] {
-    color-scheme: dark;
-}
+    :root[data-theme="dark"] {
+        color-scheme: dark;
+    }
 
-/* keep the illustrated cover's palette independent of the reading theme */
-[data-poster] {
-    color-scheme: light;
-}
+    /* keep the illustrated cover's palette independent of the reading theme */
+    [data-poster] {
+        color-scheme: light;
+    }
 
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
 
-html,
-body {
-    max-width: 100%;
-    margin: 0;
-    overflow-x: clip;
-    overscroll-behavior: none;
-}
+    html,
+    body {
+        max-width: 100%;
+        margin: 0;
+        overflow-x: clip;
+        overscroll-behavior: none;
+    }
 
-body {
-    background: var(--publication-page);
-}
+    body {
+        background: var(--publication-page);
+    }
 
-::selection {
-    background: var(--publication-accent);
-    color: var(--publication-ink);
-}
+    ::selection {
+        background: var(--publication-accent);
+        color: var(--publication-ink);
+    }
 
-a {
-    color: inherit;
-    text-decoration: none;
-}
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
 
-button,
-input {
-    font: inherit;
-}
+    button,
+    input {
+        font: inherit;
+    }
 
-a,
-button,
-summary {
-    cursor: pointer;
-}
+    a,
+    button,
+    summary {
+        cursor: pointer;
+    }
 
-summary::-webkit-details-marker {
-    display: none;
-}
+    summary::-webkit-details-marker {
+        display: none;
+    }
 
-:focus-visible {
-    outline: 2px solid var(--publication-accent);
-    outline-offset: 3px;
-}
+    :focus-visible {
+        outline: 2px solid var(--publication-accent);
+        outline-offset: 3px;
+    }
 }
 
 /* generated Markdown */
@@ -123,11 +123,18 @@ summary::-webkit-details-marker {
     min-width: 0;
 }
 
-.markdown > :is(
-    hr, .markdown-code, .markdown-diagram, .markdown-table,
-    .lint-rule, .lint-catalog, .reference-catalog, .document-section,
-    .reference-item
-),
+.markdown
+    > :is(
+        hr,
+        .markdown-code,
+        .markdown-diagram,
+        .markdown-table,
+        .lint-rule,
+        .lint-catalog,
+        .reference-catalog,
+        .document-section,
+        .reference-item
+    ),
 .markdown > p:has(> img:only-child) {
     grid-column: wide;
 }
@@ -311,7 +318,9 @@ summary::-webkit-details-marker {
     outline-offset: 2px;
 }
 
-.markdown-table table { min-width: 42rem; }
+.markdown-table table {
+    min-width: 42rem;
+}
 
 .markdown table {
     width: 100%;
@@ -657,24 +666,33 @@ summary::-webkit-details-marker {
     padding-bottom: 0.375rem;
 }
 
-
 /* Recover the line-number column on narrow phones while preserving code spacing. */
 @media (width < 400px) {
     [data-publication-gutter],
     .markdown-code-gutter,
     [data-publication-caption]::before,
-    .markdown-code figcaption::before { display: none; }
+    .markdown-code figcaption::before {
+        display: none;
+    }
 
     [data-publication-line],
-    .markdown-code-line { grid-template-columns: minmax(max-content, 1fr); }
+    .markdown-code-line {
+        grid-template-columns: minmax(max-content, 1fr);
+    }
 
     [data-publication-caption],
-    .markdown-code figcaption { grid-template-columns: minmax(0, 1fr) auto; }
+    .markdown-code figcaption {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
 
     [data-publication-caption-title],
-    .markdown-code__title { grid-column: 1; }
+    .markdown-code__title {
+        grid-column: 1;
+    }
 
-    [data-publication-caption-detail] { grid-column: 2; }
+    [data-publication-caption-detail] {
+        grid-column: 2;
+    }
 }
 
 .markdown-diagram {
@@ -930,17 +948,25 @@ summary::-webkit-details-marker {
     line-height: 1.5;
 }
 
-.reference-item-list .reference-name { font-size: var(--content-code-size); line-height: 1.5; }
+.reference-item-list .reference-name {
+    font-size: var(--content-code-size);
+    line-height: 1.5;
+}
 .reference-item-list a::after {
-    content: "→"; position: absolute; top: var(--content-inset); right: var(--content-row-inset);
-    color: var(--publication-soft); line-height: 1.5;
+    content: "→";
+    position: absolute;
+    top: var(--content-inset);
+    right: var(--content-row-inset);
+    color: var(--publication-soft);
+    line-height: 1.5;
 }
 
 .reference-declaration {
     display: grid;
 }
 
-.reference-item > :not([data-publication-listing], .reference-declaration, .reference-member-section) {
+.reference-item
+    > :not([data-publication-listing], .reference-declaration, .reference-member-section) {
     max-width: var(--width-prose);
     width: 100%;
     margin-inline: 0;
@@ -951,8 +977,12 @@ summary::-webkit-details-marker {
     gap: 0;
 }
 
-.reference-members { border-block: var(--publication-hairline) solid var(--publication-line); }
-.markdown .reference-item-list { border-block: var(--publication-hairline) solid var(--publication-line); }
+.reference-members {
+    border-block: var(--publication-hairline) solid var(--publication-line);
+}
+.markdown .reference-item-list {
+    border-block: var(--publication-hairline) solid var(--publication-line);
+}
 
 .reference-members {
     display: grid;
@@ -1148,7 +1178,9 @@ summary::-webkit-details-marker {
         flex-wrap: nowrap;
         overflow: hidden;
     }
-    [aria-label="Breadcrumb"] > :not(:last-child) { display: none; }
+    [aria-label="Breadcrumb"] > :not(:last-child) {
+        display: none;
+    }
     [aria-label="Breadcrumb"] > :last-child {
         min-width: 0;
         overflow: hidden;
@@ -1158,4 +1190,6 @@ summary::-webkit-details-marker {
 }
 
 /* Let section spacing come from its parent instead of stacking heading margins. */
-.markdown :is(.document-section, .reference-group, .reference-item) > :is(h2, h3):first-child { margin-top: 0; }
+.markdown :is(.document-section, .reference-group, .reference-item) > :is(h2, h3):first-child {
+    margin-top: 0;
+}

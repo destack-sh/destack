@@ -9,8 +9,7 @@ export const siteSearchEntries: readonly SearchEntry[] = [
         context: "destack.sh",
         kind: "page",
         route: "/",
-        text:
-            "Destack, the absurdly integrated, fully hackable, open-source computing stack. TypeScript++, Web, native, and desktop.",
+        text: "Destack, the absurdly integrated, fully hackable, open-source computing stack. TypeScript++, Web, native, and desktop.",
         title: "Home",
     },
 ];

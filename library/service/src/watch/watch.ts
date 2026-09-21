@@ -22,7 +22,7 @@ export class Watch<Value> {
     /** Replace the value and wake waiting subscribers. */
     set(value: Value): void {
         if (this.#closed) {
-            throw new Error("Watch is closed.");
+            throw new Error("watch is closed");
         }
 
         // publish the latest value and wake current subscribers

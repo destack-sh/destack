@@ -32,13 +32,20 @@ function createSchema(table: Table, operation: "select" | "insert" | "update") {
     // derive API values directly from logical columns without loading a database driver
     for (const [property, column] of Object.entries(table[TABLE].columns)) {
         const definition = column.definition;
-        if (operation !== "select" && definition.generated) continue;
+        if (operation !== "select" && definition.generated) {
+            continue;
+        }
         let validator = definition.schema;
-        if (definition.nullable) validator = validator.nullable();
+        if (definition.nullable) {
+            validator = validator.nullable();
+        }
         if (
-            operation === "update" || (operation === "insert" &&
-                (definition.nullable || definition.default !== undefined ||
-                    definition.defaultFn !== undefined || definition.onUpdateFn !== undefined))
+            operation === "update" ||
+            (operation === "insert" &&
+                (definition.nullable ||
+                    definition.default !== undefined ||
+                    definition.defaultFn !== undefined ||
+                    definition.onUpdateFn !== undefined))
         ) {
             validator = validator.optional();
         }

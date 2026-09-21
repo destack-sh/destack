@@ -56,9 +56,10 @@ export function BlogArticle(props: BlogArticleProps) {
 }
 
 /// Blog articles use their heading outline as the primary reading navigation.
-function BlogNavigation(
-    props: { contents: readonly ContentsEntry[]; activeHeading: Accessor<string> },
-) {
+function BlogNavigation(props: {
+    contents: readonly ContentsEntry[];
+    activeHeading: Accessor<string>;
+}) {
     return (
         <nav aria-label="Article contents" {...stylex.attrs(styles.book)}>
             <div class="collection-context">
@@ -102,10 +103,7 @@ function PostNavigation(props: PostNavigationProps) {
 
     return (
         <Show when={newer() || older()}>
-            <nav
-                aria-label="post navigation"
-                {...stylex.attrs(styles.pagination)}
-            >
+            <nav aria-label="post navigation" {...stylex.attrs(styles.pagination)}>
                 <Show when={newer()}>
                     {(post) => <PostNavigationLink direction="newer" post={post()} />}
                 </Show>

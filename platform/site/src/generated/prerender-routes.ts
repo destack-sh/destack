@@ -97,5 +97,5 @@ export const prerenderRoutes = [
     "/docs/library/",
     "/docs/template/",
     "/docs/template/stack/",
-    "/docs/template/blank/"
+    "/docs/template/blank/",
 ] as const;

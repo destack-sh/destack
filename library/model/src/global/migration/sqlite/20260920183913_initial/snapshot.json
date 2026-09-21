@@ -2,9 +2,7 @@
     "version": "7",
     "dialect": "sqlite",
     "id": "5fb888d2-1ab7-41f3-8bf1-0c54513e741d",
-    "prevIds": [
-        "00000000-0000-0000-0000-000000000000"
-    ],
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
     "ddl": [
         {
             "name": "account",
@@ -2935,13 +2933,9 @@
             "table": "session"
         },
         {
-            "columns": [
-                "package_policy_region_id"
-            ],
+            "columns": ["package_policy_region_id"],
             "tableTo": "region",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -2950,13 +2944,9 @@
             "table": "account"
         },
         {
-            "columns": [
-                "network_policy_region_id"
-            ],
+            "columns": ["network_policy_region_id"],
             "tableTo": "region",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -2965,13 +2955,9 @@
             "table": "account"
         },
         {
-            "columns": [
-                "user_id"
-            ],
+            "columns": ["user_id"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -2980,13 +2966,9 @@
             "table": "account"
         },
         {
-            "columns": [
-                "user_id"
-            ],
+            "columns": ["user_id"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -2995,13 +2977,9 @@
             "table": "identity"
         },
         {
-            "columns": [
-                "role_id"
-            ],
+            "columns": ["role_id"],
             "tableTo": "role",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3010,13 +2988,9 @@
             "table": "role_permission"
         },
         {
-            "columns": [
-                "user_id"
-            ],
+            "columns": ["user_id"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3025,13 +2999,9 @@
             "table": "sign_in_request"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3040,13 +3010,9 @@
             "table": "service_account"
         },
         {
-            "columns": [
-                "service_account_id"
-            ],
+            "columns": ["service_account_id"],
             "tableTo": "service_account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3055,15 +3021,9 @@
             "table": "service_token"
         },
         {
-            "columns": [
-                "account_id",
-                "device_id"
-            ],
+            "columns": ["account_id", "device_id"],
             "tableTo": "device",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3072,13 +3032,9 @@
             "table": "preference"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3087,13 +3043,9 @@
             "table": "preference"
         },
         {
-            "columns": [
-                "user_id"
-            ],
+            "columns": ["user_id"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3102,13 +3054,9 @@
             "table": "preference"
         },
         {
-            "columns": [
-                "device_id"
-            ],
+            "columns": ["device_id"],
             "tableTo": "device",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3117,15 +3065,9 @@
             "table": "preference"
         },
         {
-            "columns": [
-                "device_id",
-                "host_id"
-            ],
+            "columns": ["device_id", "host_id"],
             "tableTo": "host",
-            "columnsTo": [
-                "device_id",
-                "id"
-            ],
+            "columnsTo": ["device_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3134,15 +3076,9 @@
             "table": "tunnel"
         },
         {
-            "columns": [
-                "device_id",
-                "device_key_id"
-            ],
+            "columns": ["device_id", "device_key_id"],
             "tableTo": "device_key",
-            "columnsTo": [
-                "device_id",
-                "id"
-            ],
+            "columnsTo": ["device_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3151,13 +3087,9 @@
             "table": "tunnel"
         },
         {
-            "columns": [
-                "host_id"
-            ],
+            "columns": ["host_id"],
             "tableTo": "host",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3166,13 +3098,9 @@
             "table": "tunnel"
         },
         {
-            "columns": [
-                "device_id"
-            ],
+            "columns": ["device_id"],
             "tableTo": "device",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3181,13 +3109,9 @@
             "table": "tunnel"
         },
         {
-            "columns": [
-                "host_id"
-            ],
+            "columns": ["host_id"],
             "tableTo": "host",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3196,13 +3120,9 @@
             "table": "host_access"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3211,13 +3131,9 @@
             "table": "host_access"
         },
         {
-            "columns": [
-                "device_id"
-            ],
+            "columns": ["device_id"],
             "tableTo": "device",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3226,13 +3142,9 @@
             "table": "device_key"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3241,13 +3153,9 @@
             "table": "account_membership"
         },
         {
-            "columns": [
-                "user_id"
-            ],
+            "columns": ["user_id"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3256,13 +3164,9 @@
             "table": "account_membership"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3271,15 +3175,9 @@
             "table": "device"
         },
         {
-            "columns": [
-                "account_id",
-                "device_id"
-            ],
+            "columns": ["account_id", "device_id"],
             "tableTo": "device",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3288,13 +3186,9 @@
             "table": "host"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3303,13 +3197,9 @@
             "table": "host"
         },
         {
-            "columns": [
-                "region_id"
-            ],
+            "columns": ["region_id"],
             "tableTo": "region",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3318,15 +3208,9 @@
             "table": "host"
         },
         {
-            "columns": [
-                "account_id",
-                "domain_id"
-            ],
+            "columns": ["account_id", "domain_id"],
             "tableTo": "domain",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3335,13 +3219,9 @@
             "table": "route"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3350,13 +3230,9 @@
             "table": "route"
         },
         {
-            "columns": [
-                "space_id"
-            ],
+            "columns": ["space_id"],
             "tableTo": "space_directory",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3365,13 +3241,9 @@
             "table": "route"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3380,15 +3252,9 @@
             "table": "domain"
         },
         {
-            "columns": [
-                "region_id",
-                "residency"
-            ],
+            "columns": ["region_id", "residency"],
             "tableTo": "region",
-            "columnsTo": [
-                "id",
-                "residency"
-            ],
+            "columnsTo": ["id", "residency"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3397,13 +3263,9 @@
             "table": "space_directory"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3412,15 +3274,9 @@
             "table": "space_directory"
         },
         {
-            "columns": [
-                "region_id",
-                "residency"
-            ],
+            "columns": ["region_id", "residency"],
             "tableTo": "region",
-            "columnsTo": [
-                "id",
-                "residency"
-            ],
+            "columnsTo": ["id", "residency"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3429,13 +3285,9 @@
             "table": "repository_directory"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3444,15 +3296,9 @@
             "table": "repository_directory"
         },
         {
-            "columns": [
-                "account_id",
-                "repository_id"
-            ],
+            "columns": ["account_id", "repository_id"],
             "tableTo": "repository_directory",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3461,15 +3307,9 @@
             "table": "package_directory"
         },
         {
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "tableTo": "space_directory",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3478,15 +3318,9 @@
             "table": "role_binding"
         },
         {
-            "columns": [
-                "account_id",
-                "role_id"
-            ],
+            "columns": ["account_id", "role_id"],
             "tableTo": "role",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3495,15 +3329,9 @@
             "table": "role_binding"
         },
         {
-            "columns": [
-                "account_id",
-                "account_membership_id"
-            ],
+            "columns": ["account_id", "account_membership_id"],
             "tableTo": "account_membership",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3512,15 +3340,9 @@
             "table": "role_binding"
         },
         {
-            "columns": [
-                "account_id",
-                "group_id"
-            ],
+            "columns": ["account_id", "group_id"],
             "tableTo": "group",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3529,15 +3351,9 @@
             "table": "role_binding"
         },
         {
-            "columns": [
-                "account_id",
-                "service_account_id"
-            ],
+            "columns": ["account_id", "service_account_id"],
             "tableTo": "service_account",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3546,13 +3362,9 @@
             "table": "role_binding"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3561,13 +3373,9 @@
             "table": "account_invitation"
         },
         {
-            "columns": [
-                "invited_by"
-            ],
+            "columns": ["invited_by"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3576,13 +3384,9 @@
             "table": "account_invitation"
         },
         {
-            "columns": [
-                "accepted_by"
-            ],
+            "columns": ["accepted_by"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3591,13 +3395,9 @@
             "table": "account_invitation"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3606,15 +3406,9 @@
             "table": "group"
         },
         {
-            "columns": [
-                "account_id",
-                "group_id"
-            ],
+            "columns": ["account_id", "group_id"],
             "tableTo": "group",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3623,15 +3417,9 @@
             "table": "group_membership"
         },
         {
-            "columns": [
-                "account_id",
-                "account_membership_id"
-            ],
+            "columns": ["account_id", "account_membership_id"],
             "tableTo": "account_membership",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3640,15 +3428,9 @@
             "table": "group_membership"
         },
         {
-            "columns": [
-                "account_id",
-                "secret_space_id"
-            ],
+            "columns": ["account_id", "secret_space_id"],
             "tableTo": "space_directory",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3657,13 +3439,9 @@
             "table": "connected_account"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3672,13 +3450,9 @@
             "table": "connected_account"
         },
         {
-            "columns": [
-                "user_id"
-            ],
+            "columns": ["user_id"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3687,13 +3461,9 @@
             "table": "connected_account"
         },
         {
-            "columns": [
-                "account_id"
-            ],
+            "columns": ["account_id"],
             "tableTo": "account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "nameExplicit": false,
@@ -3702,13 +3472,9 @@
             "table": "role"
         },
         {
-            "columns": [
-                "user_id"
-            ],
+            "columns": ["user_id"],
             "tableTo": "user",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "nameExplicit": false,
@@ -3717,13 +3483,9 @@
             "table": "session"
         },
         {
-            "columns": [
-                "device_id"
-            ],
+            "columns": ["device_id"],
             "tableTo": "device",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "nameExplicit": false,
@@ -3732,245 +3494,189 @@
             "table": "session"
         },
         {
-            "columns": [
-                "account_id",
-                "host_id"
-            ],
+            "columns": ["account_id", "host_id"],
             "nameExplicit": false,
             "name": "host_access_pk",
             "entityType": "pks",
             "table": "host_access"
         },
         {
-            "columns": [
-                "group_id",
-                "account_membership_id"
-            ],
+            "columns": ["group_id", "account_membership_id"],
             "nameExplicit": false,
             "name": "group_membership_pk",
             "entityType": "pks",
             "table": "group_membership"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "account_pk",
             "table": "account",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "identity_pk",
             "table": "identity",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "role_permission_pk",
             "table": "role_permission",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "sign_in_request_pk",
             "table": "sign_in_request",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "user_pk",
             "table": "user",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "service_account_pk",
             "table": "service_account",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "service_token_pk",
             "table": "service_token",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "preference_pk",
             "table": "preference",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "tunnel_pk",
             "table": "tunnel",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "region_pk",
             "table": "region",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "device_key_pk",
             "table": "device_key",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "account_membership_pk",
             "table": "account_membership",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "device_pk",
             "table": "device",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "host_pk",
             "table": "host",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "route_pk",
             "table": "route",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "domain_pk",
             "table": "domain",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "space_directory_pk",
             "table": "space_directory",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "repository_directory_pk",
             "table": "repository_directory",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "package_directory_pk",
             "table": "package_directory",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "role_binding_pk",
             "table": "role_binding",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "account_invitation_pk",
             "table": "account_invitation",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "group_pk",
             "table": "group",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "connected_account_pk",
             "table": "connected_account",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "role_pk",
             "table": "role",
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "session_pk",
             "table": "session",
@@ -4345,322 +4051,231 @@
             "table": "session"
         },
         {
-            "columns": [
-                "issuer",
-                "subject"
-            ],
+            "columns": ["issuer", "subject"],
             "nameExplicit": true,
             "name": "identity_issuer_subject",
             "entityType": "uniques",
             "table": "identity"
         },
         {
-            "columns": [
-                "account_id",
-                "name"
-            ],
+            "columns": ["account_id", "name"],
             "nameExplicit": true,
             "name": "service_account_name",
             "entityType": "uniques",
             "table": "service_account"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "service_account_account_id",
             "entityType": "uniques",
             "table": "service_account"
         },
         {
-            "columns": [
-                "relay",
-                "connection"
-            ],
+            "columns": ["relay", "connection"],
             "nameExplicit": true,
             "name": "tunnel_connection",
             "entityType": "uniques",
             "table": "tunnel"
         },
         {
-            "columns": [
-                "provider",
-                "code"
-            ],
+            "columns": ["provider", "code"],
             "nameExplicit": true,
             "name": "region_provider_code",
             "entityType": "uniques",
             "table": "region"
         },
         {
-            "columns": [
-                "provider",
-                "id"
-            ],
+            "columns": ["provider", "id"],
             "nameExplicit": true,
             "name": "region_provider_id",
             "entityType": "uniques",
             "table": "region"
         },
         {
-            "columns": [
-                "id",
-                "residency"
-            ],
+            "columns": ["id", "residency"],
             "nameExplicit": true,
             "name": "region_residency_id",
             "entityType": "uniques",
             "table": "region"
         },
         {
-            "columns": [
-                "device_id",
-                "id"
-            ],
+            "columns": ["device_id", "id"],
             "nameExplicit": true,
             "name": "device_key_device_id",
             "entityType": "uniques",
             "table": "device_key"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "account_membership_account_id",
             "entityType": "uniques",
             "table": "account_membership"
         },
         {
-            "columns": [
-                "account_id",
-                "user_id"
-            ],
+            "columns": ["account_id", "user_id"],
             "nameExplicit": true,
             "name": "account_membership_account_user",
             "entityType": "uniques",
             "table": "account_membership"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "device_account_id",
             "entityType": "uniques",
             "table": "device"
         },
         {
-            "columns": [
-                "device_id",
-                "id"
-            ],
+            "columns": ["device_id", "id"],
             "nameExplicit": true,
             "name": "host_device_id",
             "entityType": "uniques",
             "table": "host"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "host_account_id",
             "entityType": "uniques",
             "table": "host"
         },
         {
-            "columns": [
-                "domain_id",
-                "path",
-                "match"
-            ],
+            "columns": ["domain_id", "path", "match"],
             "nameExplicit": true,
             "name": "route_domain_path_match",
             "entityType": "uniques",
             "table": "route"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "domain_account_id",
             "entityType": "uniques",
             "table": "domain"
         },
         {
-            "columns": [
-                "account_id",
-                "name"
-            ],
+            "columns": ["account_id", "name"],
             "nameExplicit": true,
             "name": "space_directory_name",
             "entityType": "uniques",
             "table": "space_directory"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "space_directory_account",
             "entityType": "uniques",
             "table": "space_directory"
         },
         {
-            "columns": [
-                "account_id",
-                "name"
-            ],
+            "columns": ["account_id", "name"],
             "nameExplicit": true,
             "name": "repository_directory_name",
             "entityType": "uniques",
             "table": "repository_directory"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "repository_directory_account",
             "entityType": "uniques",
             "table": "repository_directory"
         },
         {
-            "columns": [
-                "account_id",
-                "name"
-            ],
+            "columns": ["account_id", "name"],
             "nameExplicit": true,
             "name": "package_directory_name",
             "entityType": "uniques",
             "table": "package_directory"
         },
         {
-            "columns": [
-                "account_id",
-                "name"
-            ],
+            "columns": ["account_id", "name"],
             "nameExplicit": true,
             "name": "group_account_name",
             "entityType": "uniques",
             "table": "group"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "group_account_id",
             "entityType": "uniques",
             "table": "group"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "connection_account_id",
             "entityType": "uniques",
             "table": "connected_account"
         },
         {
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nameExplicit": true,
             "name": "role_account_id",
             "entityType": "uniques",
             "table": "role"
         },
         {
-            "columns": [
-                "handle"
-            ],
+            "columns": ["handle"],
             "nameExplicit": false,
             "name": "account_handle_unique",
             "entityType": "uniques",
             "table": "account"
         },
         {
-            "columns": [
-                "user_id"
-            ],
+            "columns": ["user_id"],
             "nameExplicit": false,
             "name": "account_user_id_unique",
             "entityType": "uniques",
             "table": "account"
         },
         {
-            "columns": [
-                "token_hash"
-            ],
+            "columns": ["token_hash"],
             "nameExplicit": false,
             "name": "sign_in_request_token_hash_unique",
             "entityType": "uniques",
             "table": "sign_in_request"
         },
         {
-            "columns": [
-                "code_hash"
-            ],
+            "columns": ["code_hash"],
             "nameExplicit": false,
             "name": "sign_in_request_code_hash_unique",
             "entityType": "uniques",
             "table": "sign_in_request"
         },
         {
-            "columns": [
-                "token_hash"
-            ],
+            "columns": ["token_hash"],
             "nameExplicit": false,
             "name": "service_token_token_hash_unique",
             "entityType": "uniques",
             "table": "service_token"
         },
         {
-            "columns": [
-                "public_key"
-            ],
+            "columns": ["public_key"],
             "nameExplicit": false,
             "name": "device_key_public_key_unique",
             "entityType": "uniques",
             "table": "device_key"
         },
         {
-            "columns": [
-                "hostname"
-            ],
+            "columns": ["hostname"],
             "nameExplicit": false,
             "name": "domain_hostname_unique",
             "entityType": "uniques",
             "table": "domain"
         },
         {
-            "columns": [
-                "token_hash"
-            ],
+            "columns": ["token_hash"],
             "nameExplicit": false,
             "name": "account_invitation_token_hash_unique",
             "entityType": "uniques",
             "table": "account_invitation"
         },
         {
-            "columns": [
-                "token_hash"
-            ],
+            "columns": ["token_hash"],
             "nameExplicit": false,
             "name": "session_token_hash_unique",
             "entityType": "uniques",

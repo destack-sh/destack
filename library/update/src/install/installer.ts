@@ -57,7 +57,9 @@ export class Installer {
         try {
             source = await readFile(join(this.directory, "staged.json"), "utf8");
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+                return undefined;
+            }
             throw error;
         }
 
@@ -65,9 +67,10 @@ export class Installer {
         const record = JSON.parse(source);
         const release = new Release(record.version, record.target);
         if (
-            typeof record.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(record.sha256) ||
-            (record.previous !== undefined && (typeof record.previous !== "string" ||
-                !/^[0-9a-f]{64}$/.test(record.previous)))
+            typeof record.sha256 !== "string" ||
+            !/^[0-9a-f]{64}$/.test(record.sha256) ||
+            (record.previous !== undefined &&
+                (typeof record.previous !== "string" || !/^[0-9a-f]{64}$/.test(record.previous)))
         ) {
             throw new UpdateError("INSTALL", "Invalid staged release digest.");
         }
@@ -86,7 +89,9 @@ export class Installer {
         try {
             source = await readFile(join(this.directory, "current.json"), "utf8");
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+                return undefined;
+            }
             throw error;
         }
         const record = JSON.parse(source);
@@ -131,7 +136,9 @@ export class Installer {
                 strict: true,
                 preservePaths: false,
                 filter(path, entry) {
-                    if (rejected) return false;
+                    if (rejected) {
+                        return false;
+                    }
                     try {
                         verifyEntry(path, entry, staging);
                         return true;
@@ -142,7 +149,9 @@ export class Installer {
                     }
                 },
             });
-            if (rejected) throw rejected;
+            if (rejected) {
+                throw rejected;
+            }
             await verifyLinks(staging, staging);
             await check(staging);
 
@@ -154,8 +163,10 @@ export class Installer {
                 await rename(staging, destination);
             } catch (error) {
                 const code = (error as NodeJS.ErrnoException).code;
-                if (code !== "EEXIST" && code !== "ENOTEMPTY") throw error;
-                if (await readFile(join(destination, "receipt.json"), "utf8") !== receipt) {
+                if (code !== "EEXIST" && code !== "ENOTEMPTY") {
+                    throw error;
+                }
+                if ((await readFile(join(destination, "receipt.json"), "utf8")) !== receipt) {
                     throw new UpdateError(
                         "INSTALL",
                         "Installed release directory contains different content.",
@@ -209,7 +220,9 @@ export class Installer {
         try {
             source = await readFile(join(this.directory, "activate.json"), "utf8");
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+                return;
+            }
             throw error;
         }
 
@@ -219,7 +232,8 @@ export class Installer {
         const directory = this.path(release);
         const receipt = JSON.parse(await readFile(join(directory, "receipt.json"), "utf8"));
         if (
-            typeof record.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(record.sha256) ||
+            typeof record.sha256 !== "string" ||
+            !/^[0-9a-f]{64}$/.test(record.sha256) ||
             receipt.sha256 !== record.sha256
         ) {
             throw new UpdateError(
@@ -236,11 +250,12 @@ export class Installer {
         }
 
         // select the release only after platform installation succeeds
-        const current = JSON.stringify({
-            version: release.version,
-            target: release.target,
-            sha256: record.sha256,
-        }) + "\n";
+        const current =
+            JSON.stringify({
+                version: release.version,
+                target: release.target,
+                sha256: record.sha256,
+            }) + "\n";
         const pending = join(this.directory, `current.${crypto.randomUUID()}.json`);
         await writeFile(pending, current, { flag: "wx", mode: 0o600 });
         await rename(pending, join(this.directory, "current.json"));
@@ -257,8 +272,8 @@ export class Installer {
     private async checkActivation(release: Release, sha256: string): Promise<void> {
         const current = await this.current();
         if (
-            current && (current.release.target !== release.target ||
-                current.release.compare(release) > 0)
+            current &&
+            (current.release.target !== release.target || current.release.compare(release) > 0)
         ) {
             throw new UpdateError(
                 "INSTALL",
@@ -295,34 +310,20 @@ function verifyEntry(path: string, entry: Stats | ReadEntry, root: string): void
         throw new UpdateError("INSTALL", "Expected an archive entry.");
     }
     const components = path.replaceAll("\\", "/").split("/");
-    if (
-        isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/.test(path)
-    ) {
+    if (isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/.test(path)) {
         throw new UpdateError("INSTALL", `Unsafe archive path: ${path}`);
     }
     if (!["File", "Directory", "SymbolicLink"].includes(entry.type)) {
-        throw new UpdateError(
-            "INSTALL",
-            `Unsupported archive entry: ${path} (${entry.type})`,
-        );
+        throw new UpdateError("INSTALL", `Unsupported archive entry: ${path} (${entry.type})`);
     }
     if (entry.type === "SymbolicLink") {
         if (!entry.linkpath) {
-            throw new UpdateError(
-                "INSTALL",
-                `Missing archive link target: ${path}`,
-            );
+            throw new UpdateError("INSTALL", `Missing archive link target: ${path}`);
         }
         const target = resolve(root, path, "..", entry.linkpath);
         const relation = relative(root, target);
-        if (
-            isAbsolute(entry.linkpath) || relation === ".." ||
-            relation.startsWith(`..${sep}`)
-        ) {
-            throw new UpdateError(
-                "INSTALL",
-                `Archive link escapes the distribution: ${path}`,
-            );
+        if (isAbsolute(entry.linkpath) || relation === ".." || relation.startsWith(`..${sep}`)) {
+            throw new UpdateError("INSTALL", `Archive link escapes the distribution: ${path}`);
         }
     }
 }

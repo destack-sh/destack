@@ -96,11 +96,14 @@ export class ForeignKey {
     readonly actions: ReferenceActions;
 
     /** Declare a foreign key. */
-    constructor(definition: {
-        readonly name?: string;
-        readonly columns: readonly Column[];
-        readonly foreignColumns: readonly Column[];
-    }, actions: ReferenceActions = {}) {
+    constructor(
+        definition: {
+            readonly name?: string;
+            readonly columns: readonly Column[];
+            readonly foreignColumns: readonly Column[];
+        },
+        actions: ReferenceActions = {},
+    ) {
         this.name = definition.name;
         this.columns = definition.columns;
         this.foreignColumns = definition.foreignColumns;

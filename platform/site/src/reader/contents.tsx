@@ -40,11 +40,7 @@ export function ContentsTree(props: ContentsTreeProps) {
 
     return (
         <Show when={props.entries.length > 0}>
-            <ContentsList
-                activeId={props.activeId}
-                isNested={props.isNested}
-                nodes={nodes()}
-            />
+            <ContentsList activeId={props.activeId} isNested={props.isNested} nodes={nodes()} />
         </Show>
     );
 }
@@ -72,17 +68,14 @@ function ContentsList(props: ContentsListProps) {
                             <a
                                 {...stylex.attrs(
                                     styles.link,
-                                    props.activeId() === node.id &&
-                                        publicationStyles.active,
+                                    props.activeId() === node.id && publicationStyles.active,
                                 )}
                                 href={`#${node.id}`}
                             >
                                 <span>{node.text}</span>
                             </a>
 
-                            <Show
-                                when={node.children.length > 0}
-                            >
+                            <Show when={node.children.length > 0}>
                                 <ContentsList
                                     activeId={props.activeId}
                                     isNested

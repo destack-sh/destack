@@ -93,9 +93,10 @@ export function createTheme(options: ThemeOptions = {}): Theme {
 
     // expose CSS variables on the element that establishes the theme
     const style: ThemeStyle = {
-        "color-scheme": options.appearance === undefined || options.appearance === "system"
-            ? "light dark"
-            : options.appearance,
+        "color-scheme":
+            options.appearance === undefined || options.appearance === "system"
+                ? "light dark"
+                : options.appearance,
         "--destack-scaling": String(scaling),
     };
     for (const [name, value] of Object.entries(roles)) {

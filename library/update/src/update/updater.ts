@@ -63,7 +63,7 @@ export class Updater implements Disposable {
             mode: 0o600,
         });
         try {
-            if (!await lock.tryLock(true)) {
+            if (!(await lock.tryLock(true))) {
                 throw new UpdateError("BUSY", "Another Destack update is running.");
             }
             const repository = await UpdateRepository.open(
@@ -103,7 +103,8 @@ export class Updater implements Disposable {
             throw new UpdateError("INSTALL", "Cannot change the installed platform.");
         }
         if (
-            installed && latest.compare(installed.release) === 0 &&
+            installed &&
+            latest.compare(installed.release) === 0 &&
             this.repository.digest(latest) !== installed.sha256
         ) {
             throw new UpdateError("RELEASE", "Published release changed.");
@@ -144,9 +145,8 @@ export class Updater implements Disposable {
         // authenticate the archive again before extracting or executing its contents
         const verified = await this.repository.download(download.release, download.archive);
         const previous = await this.installer.current();
-        const installed = await this.installer.stage(
-            verified,
-            (directory) => verifyRelease(directory, verified.release),
+        const installed = await this.installer.stage(verified, (directory) =>
+            verifyRelease(directory, verified.release),
         );
         const staged = { ...installed, previous: previous?.sha256 };
         await this.installer.remember(staged);
@@ -167,7 +167,8 @@ export class Updater implements Disposable {
         // refresh trust after staging may have waited outside an update session
         const latest = await this.repository.latest(this.options.target);
         if (
-            latest.compare(staged.release) !== 0 || latest.target !== staged.release.target ||
+            latest.compare(staged.release) !== 0 ||
+            latest.target !== staged.release.target ||
             this.repository.digest(latest) !== staged.sha256
         ) {
             throw new UpdateError("RELEASE", "Staged release is no longer the published release.");
@@ -179,9 +180,8 @@ export class Updater implements Disposable {
 
         // reuse the authenticated cache and derive paths from the installation directory
         const download = await this.repository.download(latest);
-        const installed = await this.installer.stage(
-            download,
-            (directory) => verifyRelease(directory, latest),
+        const installed = await this.installer.stage(download, (directory) =>
+            verifyRelease(directory, latest),
         );
         await this.installer.activate(installed, this.options.application);
 
@@ -192,20 +192,28 @@ export class Updater implements Disposable {
     [Symbol.dispose](): void {
         if (!this.isClosed) {
             this.isClosed = true;
-            if (!this.isBusy) this.lock.close();
+            if (!this.isBusy) {
+                this.lock.close();
+            }
         }
     }
 
     /** Serialize operations and retain the lock until in-progress work finishes. */
     private begin(): Disposable {
-        if (this.isClosed) throw new UpdateError("CLOSED", "Update session is closed.");
-        if (this.isBusy) throw new UpdateError("BUSY", "An update operation is already running.");
+        if (this.isClosed) {
+            throw new UpdateError("CLOSED", "Update session is closed.");
+        }
+        if (this.isBusy) {
+            throw new UpdateError("BUSY", "An update operation is already running.");
+        }
         this.isBusy = true;
 
         return {
             [Symbol.dispose]: () => {
                 this.isBusy = false;
-                if (this.isClosed) this.lock.close();
+                if (this.isClosed) {
+                    this.lock.close();
+                }
             },
         };
     }

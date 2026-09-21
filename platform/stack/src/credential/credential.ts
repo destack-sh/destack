@@ -3,7 +3,9 @@ import { createHash } from "node:crypto";
 /** Resolve existing deployment credentials for Cloudflare and R2 state storage. */
 export async function credentials(): Promise<Record<string, string>> {
     const token = Deno.env.get("CLOUDFLARE_COMPANY_API_TOKEN");
-    if (!token) throw new Error("CLOUDFLARE_COMPANY_API_TOKEN is required.");
+    if (!token) {
+        throw new Error("CLOUDFLARE_COMPANY_API_TOKEN is required");
+    }
 
     // derive the R2 credential from the verified account token
     const response = await fetch(
@@ -13,13 +15,16 @@ export async function credentials(): Promise<Record<string, string>> {
             signal: AbortSignal.timeout(15_000),
         },
     );
-    if (!response.ok) throw new Error(`Cloudflare token verification failed: ${response.status}.`);
+    if (!response.ok) {
+        throw new Error(`Cloudflare token verification failed: ${response.status}.`);
+    }
     const verification = await response.json();
     if (
-        !verification.success || verification.result.status !== "active" ||
+        !verification.success ||
+        verification.result.status !== "active" ||
         typeof verification.result.id !== "string"
     ) {
-        throw new Error("Cloudflare deployment token is inactive or invalid.");
+        throw new Error("cloudflare deployment token is inactive or invalid");
     }
 
     return {

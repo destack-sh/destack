@@ -1,15 +1,17 @@
 import { defineSchema, schema } from "@destack/schema";
 
 /** Invalid package definitions and distributed files. */
-export const PackageErrorCode = defineSchema(schema.enum([
-    "INVALID_DEFINITION",
-    "UNSUPPORTED_LANGUAGE",
-    "UNSUPPORTED_TARGET",
-    "INVALID_EXPORT",
-    "INVALID_DEPENDENCY",
-    "INVALID_FILE",
-    "INVALID_INSPECTION",
-]));
+export const PackageErrorCode = defineSchema(
+    schema.enum([
+        "INVALID_DEFINITION",
+        "UNSUPPORTED_LANGUAGE",
+        "UNSUPPORTED_TARGET",
+        "INVALID_EXPORT",
+        "INVALID_DEPENDENCY",
+        "INVALID_FILE",
+        "INVALID_INSPECTION",
+    ]),
+);
 
 /** A machine-readable package failure code. */
 export type PackageErrorCode = schema.Infer<typeof PackageErrorCode>;

@@ -9,8 +9,10 @@ export function HomePage() {
     return (
         <Shell isHome>
             <Seo
-                description={"Destack is a universal software engine for building complete " +
-                    "software systems."}
+                description={
+                    "Destack is a universal software engine for building complete " +
+                    "software systems."
+                }
             />
 
             <article {...stylex.attrs(styles.article)}>

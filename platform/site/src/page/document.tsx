@@ -41,10 +41,7 @@ export function DocumentPage(props: DocumentPageProps) {
                                 textRoute={item.document.textRoute}
                                 title={item.document.title}
                             />
-                            <DocumentArticle
-                                content={item.content}
-                                document={item.document}
-                            />
+                            <DocumentArticle content={item.content} document={item.document} />
                         </>
                     )}
                 </Show>

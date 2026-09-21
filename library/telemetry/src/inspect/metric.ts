@@ -53,53 +53,57 @@ const BucketDescription = schema.object({
 });
 
 /** A metric aggregation with the corresponding point value shape. */
-export const MetricDescription = defineSchema(schema.discriminatedUnion("kind", [
-    AggregationDescription.extend({
-        kind: schema.literal("sum"),
-        isMonotonic: schema.boolean(),
-        points: schema.array(PointDescription.extend({ value: NumberDescription })),
-    }),
-    AggregationDescription.extend({
-        kind: schema.literal("gauge"),
-        points: schema.array(PointDescription.extend({ value: NumberDescription })),
-    }),
-    AggregationDescription.extend({
-        kind: schema.literal("histogram"),
-        points: schema.array(
-            PointDescription.extend({
-                value: HistogramDescription.extend({
-                    buckets: schema.object({
-                        boundaries: schema.array(NumberDescription),
-                        counts: schema.array(schema.number().int()),
+export const MetricDescription = defineSchema(
+    schema.discriminatedUnion("kind", [
+        AggregationDescription.extend({
+            kind: schema.literal("sum"),
+            isMonotonic: schema.boolean(),
+            points: schema.array(PointDescription.extend({ value: NumberDescription })),
+        }),
+        AggregationDescription.extend({
+            kind: schema.literal("gauge"),
+            points: schema.array(PointDescription.extend({ value: NumberDescription })),
+        }),
+        AggregationDescription.extend({
+            kind: schema.literal("histogram"),
+            points: schema.array(
+                PointDescription.extend({
+                    value: HistogramDescription.extend({
+                        buckets: schema.object({
+                            boundaries: schema.array(NumberDescription),
+                            counts: schema.array(schema.number().int()),
+                        }),
                     }),
                 }),
-            }),
-        ),
-    }),
-    AggregationDescription.extend({
-        kind: schema.literal("exponentialHistogram"),
-        points: schema.array(
-            PointDescription.extend({
-                value: HistogramDescription.extend({
-                    scale: schema.number().int(),
-                    zeroCount: schema.number().int(),
-                    positive: BucketDescription,
-                    negative: BucketDescription,
+            ),
+        }),
+        AggregationDescription.extend({
+            kind: schema.literal("exponentialHistogram"),
+            points: schema.array(
+                PointDescription.extend({
+                    value: HistogramDescription.extend({
+                        scale: schema.number().int(),
+                        zeroCount: schema.number().int(),
+                        positive: BucketDescription,
+                        negative: BucketDescription,
+                    }),
                 }),
-            }),
-        ),
-    }),
-]));
+            ),
+        }),
+    ]),
+);
 /** A metric's portable description. */
 export type MetricDescription = schema.Infer<typeof MetricDescription>;
 
 /** A collection of metrics grouped by resource and emitting library. */
-export const MetricCollectionDescription = defineSchema(schema.object({
-    resource: ResourceDescription,
-    scopes: schema.array(
-        schema.object({ scope: ScopeDescription, metrics: schema.array(MetricDescription) }),
-    ),
-}));
+export const MetricCollectionDescription = defineSchema(
+    schema.object({
+        resource: ResourceDescription,
+        scopes: schema.array(
+            schema.object({ scope: ScopeDescription, metrics: schema.array(MetricDescription) }),
+        ),
+    }),
+);
 /** A metric collection's portable description. */
 export type MetricCollectionDescription = schema.Infer<typeof MetricCollectionDescription>;
 
@@ -150,8 +154,12 @@ export function describeMetric(metric: MetricData): MetricDescription {
 
 /** Preserve special numbers in numeric aggregation structures. */
 function describeNumbers(value: unknown): unknown {
-    if (typeof value === "number") return Number.isFinite(value) ? value : String(value);
-    if (Array.isArray(value)) return value.map(describeNumbers);
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : String(value);
+    }
+    if (Array.isArray(value)) {
+        return value.map(describeNumbers);
+    }
     if (typeof value === "object" && value !== null) {
         return Object.fromEntries(
             Object.entries(value).map(([key, item]) => [key, describeNumbers(item)]),

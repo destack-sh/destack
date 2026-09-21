@@ -2,9 +2,7 @@
     "version": "8",
     "dialect": "postgres",
     "id": "5f29a99d-7653-4535-9ca7-da19b57f1b76",
-    "prevIds": [
-        "00000000-0000-0000-0000-000000000000"
-    ],
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
     "ddl": [
         {
             "isRlsEnabled": false,
@@ -6328,16 +6326,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "space_migration_account_id_space_id_space_account_id_id_fkey",
@@ -6347,16 +6339,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "installation_id"
-            ],
+            "columns": ["space_id", "installation_id"],
             "schemaTo": "public",
             "tableTo": "installation",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "name": "resource_binding_JsKTzo9Bzlk4_fkey",
@@ -6366,16 +6352,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "resource_id"
-            ],
+            "columns": ["space_id", "resource_id"],
             "schemaTo": "public",
             "tableTo": "resource",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "resource_binding_space_id_resource_id_resource_space_id_id_fkey",
@@ -6385,16 +6365,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "resource_id",
-                "snapshot_id"
-            ],
+            "columns": ["resource_id", "snapshot_id"],
             "schemaTo": "public",
             "tableTo": "snapshot",
-            "columnsTo": [
-                "resource_id",
-                "id"
-            ],
+            "columnsTo": ["resource_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "resource_migration_4UbLvK2m6A4D_fkey",
@@ -6404,16 +6378,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "resource_migration_account_id_space_id_space_account_id_id_fkey",
@@ -6423,16 +6391,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "space_migration_id"
-            ],
+            "columns": ["space_id", "space_migration_id"],
             "schemaTo": "public",
             "tableTo": "space_migration",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "resource_migration_RabvczZuksIR_fkey",
@@ -6442,16 +6404,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "resource_id"
-            ],
+            "columns": ["space_id", "resource_id"],
             "schemaTo": "public",
             "tableTo": "resource",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "resource_migration_hdlCv7W6iBJp_fkey",
@@ -6461,18 +6417,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "resource_id",
-                "kind"
-            ],
+            "columns": ["space_id", "resource_id", "kind"],
             "schemaTo": "public",
             "tableTo": "resource",
-            "columnsTo": [
-                "space_id",
-                "id",
-                "kind"
-            ],
+            "columnsTo": ["space_id", "id", "kind"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "vault_space_id_resource_id_kind_resource_space_id_id_kind_fkey",
@@ -6482,16 +6430,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "vault_id"
-            ],
+            "columns": ["space_id", "vault_id"],
             "schemaTo": "public",
             "tableTo": "vault",
-            "columnsTo": [
-                "space_id",
-                "resource_id"
-            ],
+            "columnsTo": ["space_id", "resource_id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "secret_space_id_vault_id_vault_space_id_resource_id_fkey",
@@ -6501,16 +6443,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "id",
-                "current_version"
-            ],
+            "columns": ["id", "current_version"],
             "schemaTo": "public",
             "tableTo": "secret_version",
-            "columnsTo": [
-                "secret_id",
-                "version"
-            ],
+            "columnsTo": ["secret_id", "version"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "secret_id_current_version_secret_version_secret_id_version_fkey",
@@ -6520,14 +6456,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "secret_id"
-            ],
+            "columns": ["secret_id"],
             "schemaTo": "public",
             "tableTo": "secret",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "secret_version_secret_id_secret_id_fkey",
@@ -6537,16 +6469,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "installation_id"
-            ],
+            "columns": ["space_id", "installation_id"],
             "schemaTo": "public",
             "tableTo": "installation",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "secret_binding_x2dtNhi3BR70_fkey",
@@ -6556,16 +6482,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "secret_id"
-            ],
+            "columns": ["space_id", "secret_id"],
             "schemaTo": "public",
             "tableTo": "secret",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "secret_binding_space_id_secret_id_secret_space_id_id_fkey",
@@ -6575,16 +6495,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "secret_id",
-                "version"
-            ],
+            "columns": ["secret_id", "version"],
             "schemaTo": "public",
             "tableTo": "secret_version",
-            "columnsTo": [
-                "secret_id",
-                "version"
-            ],
+            "columnsTo": ["secret_id", "version"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "secret_binding_gNNr9zduKkzC_fkey",
@@ -6594,16 +6508,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "deployment_id"
-            ],
+            "columns": ["space_id", "deployment_id"],
             "schemaTo": "public",
             "tableTo": "deployment",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "deployment_secret_binding_aVDIrn84mM2c_fkey",
@@ -6613,16 +6521,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "secret_id"
-            ],
+            "columns": ["space_id", "secret_id"],
             "schemaTo": "public",
             "tableTo": "secret",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "deployment_secret_binding_95TAuMbAwAdI_fkey",
@@ -6632,16 +6534,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "secret_id",
-                "version"
-            ],
+            "columns": ["secret_id", "version"],
             "schemaTo": "public",
             "tableTo": "secret_version",
-            "columnsTo": [
-                "secret_id",
-                "version"
-            ],
+            "columnsTo": ["secret_id", "version"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "deployment_secret_binding_H4HaC3rS1dqY_fkey",
@@ -6651,16 +6547,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "resource_account_id_space_id_space_account_id_id_fkey",
@@ -6670,14 +6560,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id"
-            ],
+            "columns": ["space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "resource_space_id_space_id_fkey",
@@ -6687,16 +6573,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "deployment_id"
-            ],
+            "columns": ["space_id", "deployment_id"],
             "schemaTo": "public",
             "tableTo": "deployment",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "deployment_binding_sKHriQNrM0qr_fkey",
@@ -6706,16 +6586,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "resource_id"
-            ],
+            "columns": ["space_id", "resource_id"],
             "schemaTo": "public",
             "tableTo": "resource",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "deployment_binding_aHlHGW0fQkol_fkey",
@@ -6725,14 +6599,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id"
-            ],
+            "columns": ["space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "installation_space_id_space_id_fkey",
@@ -6742,14 +6612,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "repository_id"
-            ],
+            "columns": ["repository_id"],
             "schemaTo": "public",
             "tableTo": "repository",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "name": "repository_reference_repository_id_repository_id_fkey",
@@ -6759,16 +6625,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "repository_id",
-                "package_id"
-            ],
+            "columns": ["repository_id", "package_id"],
             "schemaTo": "public",
             "tableTo": "package",
-            "columnsTo": [
-                "repository_id",
-                "id"
-            ],
+            "columnsTo": ["repository_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "release_repository_id_package_id_package_repository_id_id_fkey",
@@ -6778,14 +6638,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "package_id"
-            ],
+            "columns": ["package_id"],
             "schemaTo": "public",
             "tableTo": "package",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "release_package_id_package_id_fkey",
@@ -6795,14 +6651,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "repository_id"
-            ],
+            "columns": ["repository_id"],
             "schemaTo": "public",
             "tableTo": "repository",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "release_repository_id_repository_id_fkey",
@@ -6812,16 +6664,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "repository_id"
-            ],
+            "columns": ["account_id", "repository_id"],
             "schemaTo": "public",
             "tableTo": "repository",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "package_account_id_repository_id_repository_account_id_id_fkey",
@@ -6831,16 +6677,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "package_policy_account_id_space_id_space_account_id_id_fkey",
@@ -6850,16 +6690,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "id",
-                "current_revision_id"
-            ],
+            "columns": ["id", "current_revision_id"],
             "schemaTo": "public",
             "tableTo": "package_policy_revision",
-            "columnsTo": [
-                "policy_id",
-                "id"
-            ],
+            "columnsTo": ["policy_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "package_policy_xvCs0PPbi1QQ_fkey",
@@ -6869,14 +6703,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "policy_id"
-            ],
+            "columns": ["policy_id"],
             "schemaTo": "public",
             "tableTo": "package_policy",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "package_policy_revision_policy_id_package_policy_id_fkey",
@@ -6886,16 +6716,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "role_account_id_space_id_space_account_id_id_fkey",
@@ -6905,16 +6729,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "role_id"
-            ],
+            "columns": ["space_id", "role_id"],
             "schemaTo": "public",
             "tableTo": "role",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "role_binding_space_id_role_id_role_space_id_id_fkey",
@@ -6924,16 +6742,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "role_binding_account_id_space_id_space_account_id_id_fkey",
@@ -6943,16 +6755,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "service_account_id"
-            ],
+            "columns": ["space_id", "service_account_id"],
             "schemaTo": "public",
             "tableTo": "service_account",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "role_binding_9Gt5N7hzvGhC_fkey",
@@ -6962,14 +6768,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "role_id"
-            ],
+            "columns": ["role_id"],
             "schemaTo": "public",
             "tableTo": "role",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "CASCADE",
             "name": "role_permission_role_id_role_id_fkey",
@@ -6979,16 +6781,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "service_account_account_id_space_id_space_account_id_id_fkey",
@@ -6998,16 +6794,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "installation_id"
-            ],
+            "columns": ["space_id", "installation_id"],
             "schemaTo": "public",
             "tableTo": "installation",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "service_account_uhEfsIBjdTbR_fkey",
@@ -7017,14 +6807,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "service_account_id"
-            ],
+            "columns": ["service_account_id"],
             "schemaTo": "public",
             "tableTo": "service_account",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "service_token_service_account_id_service_account_id_fkey",
@@ -7034,16 +6820,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "space_host_account_id_space_id_space_account_id_id_fkey",
@@ -7053,16 +6833,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "installation_id"
-            ],
+            "columns": ["space_id", "installation_id"],
             "schemaTo": "public",
             "tableTo": "installation",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "schedule_space_id_installation_id_installation_space_id_id_fkey",
@@ -7072,16 +6846,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "service_account_id"
-            ],
+            "columns": ["space_id", "service_account_id"],
             "schemaTo": "public",
             "tableTo": "service_account",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "schedule_gzBE4fhR2j7T_fkey",
@@ -7091,16 +6859,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "account_id",
-                "space_id"
-            ],
+            "columns": ["account_id", "space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "account_id",
-                "id"
-            ],
+            "columnsTo": ["account_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "network_policy_account_id_space_id_space_account_id_id_fkey",
@@ -7110,16 +6872,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "id",
-                "current_revision_id"
-            ],
+            "columns": ["id", "current_revision_id"],
             "schemaTo": "public",
             "tableTo": "network_policy_revision",
-            "columnsTo": [
-                "policy_id",
-                "id"
-            ],
+            "columnsTo": ["policy_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "network_policy_4Y2hWTY0wng8_fkey",
@@ -7129,16 +6885,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "installation_id"
-            ],
+            "columns": ["space_id", "installation_id"],
             "schemaTo": "public",
             "tableTo": "installation",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "network_policy_7AS7x8uXLs0z_fkey",
@@ -7148,14 +6898,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "policy_id"
-            ],
+            "columns": ["policy_id"],
             "schemaTo": "public",
             "tableTo": "network_policy",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "network_policy_revision_policy_id_network_policy_id_fkey",
@@ -7165,18 +6911,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "installation_id",
-                "package_id"
-            ],
+            "columns": ["space_id", "installation_id", "package_id"],
             "schemaTo": "public",
             "tableTo": "installation",
-            "columnsTo": [
-                "space_id",
-                "id",
-                "package_id"
-            ],
+            "columnsTo": ["space_id", "id", "package_id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "deployment_ISYznpIySk33_fkey",
@@ -7186,16 +6924,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "host_id"
-            ],
+            "columns": ["space_id", "host_id"],
             "schemaTo": "public",
             "tableTo": "space_host",
-            "columnsTo": [
-                "space_id",
-                "host_id"
-            ],
+            "columnsTo": ["space_id", "host_id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "deployment_space_id_host_id_space_host_space_id_host_id_fkey",
@@ -7205,18 +6937,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "installation_id",
-                "workload",
-                "service_account_id"
-            ],
+            "columns": ["installation_id", "workload", "service_account_id"],
             "schemaTo": "public",
             "tableTo": "service_account",
-            "columnsTo": [
-                "installation_id",
-                "workload",
-                "id"
-            ],
+            "columnsTo": ["installation_id", "workload", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "deployment_FSmeh0YY8Wj3_fkey",
@@ -7226,16 +6950,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "deployment_id"
-            ],
+            "columns": ["space_id", "deployment_id"],
             "schemaTo": "public",
             "tableTo": "deployment",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "instance_space_id_deployment_id_deployment_space_id_id_fkey",
@@ -7245,16 +6963,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "host_id"
-            ],
+            "columns": ["space_id", "host_id"],
             "schemaTo": "public",
             "tableTo": "space_host",
-            "columnsTo": [
-                "space_id",
-                "host_id"
-            ],
+            "columnsTo": ["space_id", "host_id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "instance_space_id_host_id_space_host_space_id_host_id_fkey",
@@ -7264,16 +6976,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "applied_revision_id"
-            ],
+            "columns": ["space_id", "applied_revision_id"],
             "schemaTo": "public",
             "tableTo": "stack_revision",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "space_configuration_wo0ktYyXElYS_fkey",
@@ -7283,14 +6989,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id"
-            ],
+            "columns": ["space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "space_configuration_space_id_space_id_fkey",
@@ -7300,14 +7002,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id"
-            ],
+            "columns": ["space_id"],
             "schemaTo": "public",
             "tableTo": "space",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "stack_revision_space_id_space_id_fkey",
@@ -7317,16 +7015,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "snapshot_id"
-            ],
+            "columns": ["space_id", "snapshot_id"],
             "schemaTo": "public",
             "tableTo": "snapshot",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "restoration_space_id_snapshot_id_snapshot_space_id_id_fkey",
@@ -7336,16 +7028,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "destination_resource_id"
-            ],
+            "columns": ["space_id", "destination_resource_id"],
             "schemaTo": "public",
             "tableTo": "resource",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "restoration_hQnAjCrvAs2d_fkey",
@@ -7355,14 +7041,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "snapshot_id"
-            ],
+            "columns": ["snapshot_id"],
             "schemaTo": "public",
             "tableTo": "snapshot",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "restoration_snapshot_id_snapshot_id_fkey",
@@ -7372,14 +7054,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "destination_resource_id"
-            ],
+            "columns": ["destination_resource_id"],
             "schemaTo": "public",
             "tableTo": "resource",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "restoration_destination_resource_id_resource_id_fkey",
@@ -7389,16 +7067,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "space_id",
-                "resource_id"
-            ],
+            "columns": ["space_id", "resource_id"],
             "schemaTo": "public",
             "tableTo": "resource",
-            "columnsTo": [
-                "space_id",
-                "id"
-            ],
+            "columnsTo": ["space_id", "id"],
             "onUpdate": "NO ACTION",
             "onDelete": "RESTRICT",
             "name": "snapshot_space_id_resource_id_resource_space_id_id_fkey",
@@ -7408,14 +7080,10 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "resource_id"
-            ],
+            "columns": ["resource_id"],
             "schemaTo": "public",
             "tableTo": "resource",
-            "columnsTo": [
-                "id"
-            ],
+            "columnsTo": ["id"],
             "onUpdate": "NO ACTION",
             "onDelete": "NO ACTION",
             "name": "snapshot_resource_id_resource_id_fkey",
@@ -7424,11 +7092,7 @@
             "table": "snapshot"
         },
         {
-            "columns": [
-                "installation_id",
-                "package_id",
-                "name"
-            ],
+            "columns": ["installation_id", "package_id", "name"],
             "nameExplicit": false,
             "name": "resource_binding_pkey",
             "entityType": "pks",
@@ -7436,10 +7100,7 @@
             "table": "resource_binding"
         },
         {
-            "columns": [
-                "secret_id",
-                "version"
-            ],
+            "columns": ["secret_id", "version"],
             "nameExplicit": false,
             "name": "secret_version_pkey",
             "entityType": "pks",
@@ -7447,11 +7108,7 @@
             "table": "secret_version"
         },
         {
-            "columns": [
-                "installation_id",
-                "package_id",
-                "name"
-            ],
+            "columns": ["installation_id", "package_id", "name"],
             "nameExplicit": false,
             "name": "secret_binding_pkey",
             "entityType": "pks",
@@ -7459,11 +7116,7 @@
             "table": "secret_binding"
         },
         {
-            "columns": [
-                "deployment_id",
-                "package_id",
-                "name"
-            ],
+            "columns": ["deployment_id", "package_id", "name"],
             "nameExplicit": false,
             "name": "deployment_secret_binding_pkey",
             "entityType": "pks",
@@ -7471,11 +7124,7 @@
             "table": "deployment_secret_binding"
         },
         {
-            "columns": [
-                "deployment_id",
-                "package_id",
-                "name"
-            ],
+            "columns": ["deployment_id", "package_id", "name"],
             "nameExplicit": false,
             "name": "deployment_binding_pkey",
             "entityType": "pks",
@@ -7483,10 +7132,7 @@
             "table": "deployment_binding"
         },
         {
-            "columns": [
-                "repository_id",
-                "name"
-            ],
+            "columns": ["repository_id", "name"],
             "nameExplicit": false,
             "name": "repository_reference_pkey",
             "entityType": "pks",
@@ -7494,10 +7140,7 @@
             "table": "repository_reference"
         },
         {
-            "columns": [
-                "package_id",
-                "version"
-            ],
+            "columns": ["package_id", "version"],
             "nameExplicit": false,
             "name": "release_pkey",
             "entityType": "pks",
@@ -7505,10 +7148,7 @@
             "table": "release"
         },
         {
-            "columns": [
-                "space_id",
-                "host_id"
-            ],
+            "columns": ["space_id", "host_id"],
             "nameExplicit": false,
             "name": "space_host_pkey",
             "entityType": "pks",
@@ -7516,9 +7156,7 @@
             "table": "space_host"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "space_migration_pkey",
             "schema": "public",
@@ -7526,9 +7164,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "space_pkey",
             "schema": "public",
@@ -7536,9 +7172,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "resource_migration_pkey",
             "schema": "public",
@@ -7546,9 +7180,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "resource_id"
-            ],
+            "columns": ["resource_id"],
             "nameExplicit": false,
             "name": "vault_pkey",
             "schema": "public",
@@ -7556,9 +7188,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "secret_pkey",
             "schema": "public",
@@ -7566,9 +7196,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "resource_pkey",
             "schema": "public",
@@ -7576,9 +7204,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "repository_pkey",
             "schema": "public",
@@ -7586,9 +7212,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "installation_pkey",
             "schema": "public",
@@ -7596,9 +7220,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "package_pkey",
             "schema": "public",
@@ -7606,9 +7228,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "package_policy_pkey",
             "schema": "public",
@@ -7616,9 +7236,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "package_policy_revision_pkey",
             "schema": "public",
@@ -7626,9 +7244,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "role_pkey",
             "schema": "public",
@@ -7636,9 +7252,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "role_binding_pkey",
             "schema": "public",
@@ -7646,9 +7260,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "role_permission_pkey",
             "schema": "public",
@@ -7656,9 +7268,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "service_account_pkey",
             "schema": "public",
@@ -7666,9 +7276,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "service_token_pkey",
             "schema": "public",
@@ -7676,9 +7284,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "schedule_pkey",
             "schema": "public",
@@ -7686,9 +7292,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "network_policy_pkey",
             "schema": "public",
@@ -7696,9 +7300,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "network_policy_revision_pkey",
             "schema": "public",
@@ -7706,9 +7308,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "deployment_pkey",
             "schema": "public",
@@ -7716,9 +7316,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "instance_pkey",
             "schema": "public",
@@ -7726,9 +7324,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "space_id"
-            ],
+            "columns": ["space_id"],
             "nameExplicit": false,
             "name": "space_configuration_pkey",
             "schema": "public",
@@ -7736,9 +7332,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "stack_revision_pkey",
             "schema": "public",
@@ -7746,9 +7340,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "restoration_pkey",
             "schema": "public",
@@ -7756,9 +7348,7 @@
             "entityType": "pks"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "snapshot_pkey",
             "schema": "public",
@@ -7767,10 +7357,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "space_migration_space_id",
             "entityType": "uniques",
@@ -7779,10 +7366,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nullsNotDistinct": false,
             "name": "space_account_id",
             "entityType": "uniques",
@@ -7791,10 +7375,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "resource_id"
-            ],
+            "columns": ["space_id", "resource_id"],
             "nullsNotDistinct": false,
             "name": "vault_space_id",
             "entityType": "uniques",
@@ -7803,10 +7384,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "vault_id",
-                "name"
-            ],
+            "columns": ["vault_id", "name"],
             "nullsNotDistinct": false,
             "name": "secret_vault_name",
             "entityType": "uniques",
@@ -7815,10 +7393,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "secret_space_id",
             "entityType": "uniques",
@@ -7827,10 +7402,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "name"
-            ],
+            "columns": ["space_id", "name"],
             "nullsNotDistinct": false,
             "name": "resource_space_name",
             "entityType": "uniques",
@@ -7839,10 +7411,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "resource_space_id",
             "entityType": "uniques",
@@ -7851,11 +7420,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id",
-                "kind"
-            ],
+            "columns": ["space_id", "id", "kind"],
             "nullsNotDistinct": false,
             "name": "resource_space_kind",
             "entityType": "uniques",
@@ -7864,10 +7429,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nullsNotDistinct": false,
             "name": "repository_account_id",
             "entityType": "uniques",
@@ -7876,10 +7438,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "alias"
-            ],
+            "columns": ["space_id", "alias"],
             "nullsNotDistinct": false,
             "name": "installation_space_alias",
             "entityType": "uniques",
@@ -7888,10 +7447,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "installation_space_id",
             "entityType": "uniques",
@@ -7900,11 +7456,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id",
-                "package_id"
-            ],
+            "columns": ["space_id", "id", "package_id"],
             "nullsNotDistinct": false,
             "name": "installation_space_package",
             "entityType": "uniques",
@@ -7913,11 +7465,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "package_id",
-                "version",
-                "manifest"
-            ],
+            "columns": ["package_id", "version", "manifest"],
             "nullsNotDistinct": false,
             "name": "release_manifest_version",
             "entityType": "uniques",
@@ -7926,10 +7474,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "repository_id",
-                "id"
-            ],
+            "columns": ["repository_id", "id"],
             "nullsNotDistinct": false,
             "name": "package_repository_id",
             "entityType": "uniques",
@@ -7938,10 +7483,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "policy_id",
-                "id"
-            ],
+            "columns": ["policy_id", "id"],
             "nullsNotDistinct": false,
             "name": "package_policy_revision_policy_id",
             "entityType": "uniques",
@@ -7950,10 +7492,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "policy_id",
-                "generation"
-            ],
+            "columns": ["policy_id", "generation"],
             "nullsNotDistinct": false,
             "name": "package_policy_revision_generation",
             "entityType": "uniques",
@@ -7962,10 +7501,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "name"
-            ],
+            "columns": ["space_id", "name"],
             "nullsNotDistinct": false,
             "name": "role_space_name",
             "entityType": "uniques",
@@ -7974,10 +7510,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "role_space_id",
             "entityType": "uniques",
@@ -7986,10 +7519,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nullsNotDistinct": false,
             "name": "role_account_id",
             "entityType": "uniques",
@@ -7998,10 +7528,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "service_account_space_id",
             "entityType": "uniques",
@@ -8010,10 +7537,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "name"
-            ],
+            "columns": ["space_id", "name"],
             "nullsNotDistinct": false,
             "name": "service_account_name",
             "entityType": "uniques",
@@ -8022,10 +7546,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "account_id",
-                "id"
-            ],
+            "columns": ["account_id", "id"],
             "nullsNotDistinct": false,
             "name": "service_account_account_id",
             "entityType": "uniques",
@@ -8034,10 +7555,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "installation_id",
-                "workload"
-            ],
+            "columns": ["installation_id", "workload"],
             "nullsNotDistinct": false,
             "name": "service_account_workload",
             "entityType": "uniques",
@@ -8046,11 +7564,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "installation_id",
-                "workload",
-                "id"
-            ],
+            "columns": ["installation_id", "workload", "id"],
             "nullsNotDistinct": false,
             "name": "service_account_workload_id",
             "entityType": "uniques",
@@ -8059,10 +7573,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "name"
-            ],
+            "columns": ["space_id", "name"],
             "nullsNotDistinct": false,
             "name": "schedule_space_name",
             "entityType": "uniques",
@@ -8071,10 +7582,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "policy_id",
-                "id"
-            ],
+            "columns": ["policy_id", "id"],
             "nullsNotDistinct": false,
             "name": "network_policy_revision_policy_id",
             "entityType": "uniques",
@@ -8083,10 +7591,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "policy_id",
-                "generation"
-            ],
+            "columns": ["policy_id", "generation"],
             "nullsNotDistinct": false,
             "name": "network_policy_revision_generation",
             "entityType": "uniques",
@@ -8095,10 +7600,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "deployment_space_id",
             "entityType": "uniques",
@@ -8107,10 +7609,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "id",
-                "service_account_id"
-            ],
+            "columns": ["id", "service_account_id"],
             "nullsNotDistinct": false,
             "name": "deployment_service_account",
             "entityType": "uniques",
@@ -8119,12 +7618,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "installation_id",
-                "generation",
-                "output",
-                "workload"
-            ],
+            "columns": ["installation_id", "generation", "output", "workload"],
             "nullsNotDistinct": false,
             "name": "deployment_generation",
             "entityType": "uniques",
@@ -8133,10 +7627,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "stack_revision_space_id",
             "entityType": "uniques",
@@ -8145,11 +7636,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id",
-                "source_generation"
-            ],
+            "columns": ["space_id", "id", "source_generation"],
             "nullsNotDistinct": false,
             "name": "stack_revision_source_generation",
             "entityType": "uniques",
@@ -8158,10 +7645,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "space_id",
-                "id"
-            ],
+            "columns": ["space_id", "id"],
             "nullsNotDistinct": false,
             "name": "snapshot_space_id",
             "entityType": "uniques",
@@ -8170,10 +7654,7 @@
         },
         {
             "nameExplicit": true,
-            "columns": [
-                "resource_id",
-                "id"
-            ],
+            "columns": ["resource_id", "id"],
             "nullsNotDistinct": false,
             "name": "snapshot_resource_id",
             "entityType": "uniques",
@@ -8182,9 +7663,7 @@
         },
         {
             "nameExplicit": false,
-            "columns": [
-                "token_hash"
-            ],
+            "columns": ["token_hash"],
             "nullsNotDistinct": false,
             "name": "service_token_token_hash_key",
             "schema": "public",

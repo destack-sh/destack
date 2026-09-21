@@ -2,9 +2,7 @@
     "version": "7",
     "dialect": "sqlite",
     "id": "6e7a97d7-97c3-43bc-9011-5b9567db4fd2",
-    "prevIds": [
-        "00000000-0000-0000-0000-000000000000"
-    ],
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
     "ddl": [
         {
             "name": "audit_event",
@@ -231,9 +229,7 @@
             "table": "audit_event"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "audit_event_pk",
             "table": "audit_event",

@@ -12,7 +12,9 @@ export async function installApplication(source: string, destination: string): P
             args: [source, pending],
             stderr: "piped",
         }).output();
-        if (!copy.success) throw new UpdateError("INSTALL", new TextDecoder().decode(copy.stderr));
+        if (!copy.success) {
+            throw new UpdateError("INSTALL", new TextDecoder().decode(copy.stderr));
+        }
         await verifyApplication(pending);
 
         // exchange complete bundles in one filesystem operation and retain the old release archive
@@ -20,7 +22,9 @@ export async function installApplication(source: string, destination: string): P
         try {
             await Deno.lstat(destination);
         } catch (error) {
-            if (!(error instanceof Deno.errors.NotFound)) throw error;
+            if (!(error instanceof Deno.errors.NotFound)) {
+                throw error;
+            }
             exists = false;
         }
         if (exists) {

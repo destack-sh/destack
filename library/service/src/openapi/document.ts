@@ -18,7 +18,7 @@ export function createDocument(definition: Service, options: DocumentOptions) {
                 condition: (validator) => validator instanceof schema.Schema,
                 convert: (validator) => {
                     if (!(validator instanceof schema.Schema)) {
-                        throw new TypeError("Expected a Destack schema.");
+                        throw new TypeError("expected a Destack schema");
                     }
 
                     // both libraries describe JSON Schema Draft 2020-12 with distinct TypeScript types

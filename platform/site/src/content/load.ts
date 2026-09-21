@@ -13,7 +13,9 @@ export async function loadContent(route: string): Promise<RenderedContent> {
     }
 
     const html = await loadAsset(route);
-    if (html === undefined) throw new Error(`Missing rendered content: ${route}`);
+    if (html === undefined) {
+        throw new Error(`Missing rendered content: ${route}`);
+    }
 
     return { html };
 }

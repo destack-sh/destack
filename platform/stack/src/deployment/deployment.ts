@@ -24,14 +24,15 @@ export class Deployment {
             this.directory = resolve(ROOT, "src/shared");
             this.state = "platform.tfstate";
         } else if (
-            selection.length === 2 && ["development", "production"].includes(environment) &&
+            selection.length === 2 &&
+            ["development", "production"].includes(environment) &&
             ["global", "eu", "us"].includes(scope)
         ) {
             this.name = `${environment}/${scope}`;
             this.directory = resolve(ROOT, "src", scope === "global" ? "global" : "regional");
             this.state = `${this.name}.tfstate`;
         } else {
-            throw new Error("Select shared, or development|production followed by global|eu|us.");
+            throw new Error("select shared, or development|production followed by global|eu|us");
         }
 
         // derive paths after validating the deployment selection

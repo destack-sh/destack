@@ -145,7 +145,7 @@ function describePayload(
 /** Require the portable schema definitions used throughout Destack. */
 function describeSchema(validator: AnySchema): schema.Infer<typeof JsonSchema> {
     if (!(validator instanceof schema.Schema)) {
-        throw new TypeError("Expected a Destack schema.");
+        throw new TypeError("expected a Destack schema");
     }
 
     return JsonSchema.parse(toJsonSchema(validator));

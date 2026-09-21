@@ -20,21 +20,25 @@ export const ErrorDescription = defineSchema(
     }),
 );
 /** A test's execution outcome. */
-export const ResultDescription = defineSchema(schema.object({
-    state: schema.enum(["pending", "passed", "failed", "skipped"]),
-    errors: schema.array(ErrorDescription),
-    note: schema.string().optional(),
-}));
+export const ResultDescription = defineSchema(
+    schema.object({
+        state: schema.enum(["pending", "passed", "failed", "skipped"]),
+        errors: schema.array(ErrorDescription),
+        note: schema.string().optional(),
+    }),
+);
 /** Execution measurements supplied by the runner. */
-export const DiagnosticDescription = defineSchema(schema.object({
-    duration: schema.number(),
-    startTime: schema.number(),
-    heap: schema.number().optional(),
-    slow: schema.boolean(),
-    retryCount: schema.number().int(),
-    repeatCount: schema.number().int(),
-    flaky: schema.boolean(),
-}));
+export const DiagnosticDescription = defineSchema(
+    schema.object({
+        duration: schema.number(),
+        startTime: schema.number(),
+        heap: schema.number().optional(),
+        slow: schema.boolean(),
+        retryCount: schema.number().int(),
+        repeatCount: schema.number().int(),
+        flaky: schema.boolean(),
+    }),
+);
 /** Captured standard output or standard error. */
 export const OutputDescription = defineSchema(
     schema.object({
@@ -53,15 +57,17 @@ const DeclarationDescription = schema.object({
 });
 
 /** A collected case and its current execution result. */
-export const TestDescription = defineSchema(DeclarationDescription.extend({
-    fullName: schema.string(),
-    tags: schema.array(schema.string()),
-    mode: schema.enum(["run", "only", "skip", "todo"]),
-    result: ResultDescription,
-    diagnostic: DiagnosticDescription.optional(),
-    annotations: schema.array(AnnotationDescription),
-    artifacts: schema.array(ArtifactDescription),
-}));
+export const TestDescription = defineSchema(
+    DeclarationDescription.extend({
+        fullName: schema.string(),
+        tags: schema.array(schema.string()),
+        mode: schema.enum(["run", "only", "skip", "todo"]),
+        result: ResultDescription,
+        diagnostic: DiagnosticDescription.optional(),
+        annotations: schema.array(AnnotationDescription),
+        artifacts: schema.array(ArtifactDescription),
+    }),
+);
 /** A test case's portable description. */
 export type TestDescription = schema.Infer<typeof TestDescription>;
 
@@ -78,17 +84,19 @@ export const SuiteDescription = DeclarationDescription.extend({
 export type SuiteDescription = schema.Infer<typeof SuiteDescription>;
 
 /** A collected module and its current execution results. */
-export const ModuleDescription = defineSchema(schema.object({
-    id: schema.string(),
-    module: schema.string(),
-    project: schema.string(),
-    state: schema.enum(["queued", "skipped", "pending", "failed", "passed"]),
-    errors: schema.array(ErrorDescription),
-    metadata: schema.record(schema.string(), schema.json()),
-    logs: schema.array(OutputDescription),
-    tests: schema.array(TestDescription),
-    suites: schema.array(SuiteDescription),
-}));
+export const ModuleDescription = defineSchema(
+    schema.object({
+        id: schema.string(),
+        module: schema.string(),
+        project: schema.string(),
+        state: schema.enum(["queued", "skipped", "pending", "failed", "passed"]),
+        errors: schema.array(ErrorDescription),
+        metadata: schema.record(schema.string(), schema.json()),
+        logs: schema.array(OutputDescription),
+        tests: schema.array(TestDescription),
+        suites: schema.array(SuiteDescription),
+    }),
+);
 /** A module's portable description. */
 export type ModuleDescription = schema.Infer<typeof ModuleDescription>;
 

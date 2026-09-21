@@ -50,7 +50,9 @@ export class DatabaseConnection<
         this.connection.transaction?.assertActive();
 
         // require each bound table to belong to the prepared physical schema
-        for (const table of Object.values(definition.tables)) this.schema.table(table);
+        for (const table of Object.values(definition.tables)) {
+            this.schema.table(table);
+        }
 
         // retain one binding per declaration and physical connection
         let bound = this.#bindings.get(definition);
@@ -93,13 +95,13 @@ export class DatabaseConnection<
             ): SelectedSubquery<Result, Alias> => {
                 // select the native CTE constructor for this connection
                 if (this.connection.native.dialect === "sqlite") {
-                    return this.connection.native.database.$with(alias).as(
-                        query,
-                    ) as unknown as SelectedSubquery<Result, Alias>;
+                    return this.connection.native.database
+                        .$with(alias)
+                        .as(query) as unknown as SelectedSubquery<Result, Alias>;
                 } else if (this.connection.native.dialect === "postgresql") {
-                    return this.connection.native.database.$with(alias).as(
-                        query,
-                    ) as unknown as SelectedSubquery<Result, Alias>;
+                    return this.connection.native.database
+                        .$with(alias)
+                        .as(query) as unknown as SelectedSubquery<Result, Alias>;
                 } else {
                     return assertNever(this.connection.native);
                 }

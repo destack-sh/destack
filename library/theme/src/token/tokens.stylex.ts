@@ -2,32 +2,32 @@ import { defineConsts } from "@destack/style";
 
 /** Semantic color roles. */
 export const color = defineConsts({
-    "background": "var(--destack-color-background)",
-    "foreground": "var(--destack-color-foreground)",
-    "card": "var(--destack-color-card)",
-    "cardForeground": "var(--destack-color-cardForeground)",
-    "popover": "var(--destack-color-popover)",
-    "popoverForeground": "var(--destack-color-popoverForeground)",
-    "primary": "var(--destack-color-primary)",
-    "primaryForeground": "var(--destack-color-primaryForeground)",
-    "secondary": "var(--destack-color-secondary)",
-    "secondaryForeground": "var(--destack-color-secondaryForeground)",
-    "muted": "var(--destack-color-muted)",
-    "mutedForeground": "var(--destack-color-mutedForeground)",
-    "accent": "var(--destack-color-accent)",
-    "accentForeground": "var(--destack-color-accentForeground)",
-    "destructive": "var(--destack-color-destructive)",
-    "border": "var(--destack-color-border)",
-    "input": "var(--destack-color-input)",
-    "ring": "var(--destack-color-ring)",
-    "sidebar": "var(--destack-color-sidebar)",
-    "sidebarForeground": "var(--destack-color-sidebarForeground)",
-    "sidebarPrimary": "var(--destack-color-sidebarPrimary)",
-    "sidebarPrimaryForeground": "var(--destack-color-sidebarPrimaryForeground)",
-    "sidebarAccent": "var(--destack-color-sidebarAccent)",
-    "sidebarAccentForeground": "var(--destack-color-sidebarAccentForeground)",
-    "sidebarBorder": "var(--destack-color-sidebarBorder)",
-    "sidebarRing": "var(--destack-color-sidebarRing)",
+    background: "var(--destack-color-background)",
+    foreground: "var(--destack-color-foreground)",
+    card: "var(--destack-color-card)",
+    cardForeground: "var(--destack-color-cardForeground)",
+    popover: "var(--destack-color-popover)",
+    popoverForeground: "var(--destack-color-popoverForeground)",
+    primary: "var(--destack-color-primary)",
+    primaryForeground: "var(--destack-color-primaryForeground)",
+    secondary: "var(--destack-color-secondary)",
+    secondaryForeground: "var(--destack-color-secondaryForeground)",
+    muted: "var(--destack-color-muted)",
+    mutedForeground: "var(--destack-color-mutedForeground)",
+    accent: "var(--destack-color-accent)",
+    accentForeground: "var(--destack-color-accentForeground)",
+    destructive: "var(--destack-color-destructive)",
+    border: "var(--destack-color-border)",
+    input: "var(--destack-color-input)",
+    ring: "var(--destack-color-ring)",
+    sidebar: "var(--destack-color-sidebar)",
+    sidebarForeground: "var(--destack-color-sidebarForeground)",
+    sidebarPrimary: "var(--destack-color-sidebarPrimary)",
+    sidebarPrimaryForeground: "var(--destack-color-sidebarPrimaryForeground)",
+    sidebarAccent: "var(--destack-color-sidebarAccent)",
+    sidebarAccentForeground: "var(--destack-color-sidebarAccentForeground)",
+    sidebarBorder: "var(--destack-color-sidebarBorder)",
+    sidebarRing: "var(--destack-color-sidebarRing)",
 });
 
 /** Spacing steps 1 through 9. */
@@ -97,16 +97,16 @@ export const headingLineHeight = defineConsts({
 
 /** Text weights. */
 export const fontWeight = defineConsts({
-    "light": "var(--destack-font-weight-light)",
-    "regular": "var(--destack-font-weight-regular)",
-    "medium": "var(--destack-font-weight-medium)",
-    "bold": "var(--destack-font-weight-bold)",
+    light: "var(--destack-font-weight-light)",
+    regular: "var(--destack-font-weight-regular)",
+    medium: "var(--destack-font-weight-medium)",
+    bold: "var(--destack-font-weight-bold)",
 });
 
 /** Default and code font stacks. */
 export const fontFamily = defineConsts({
-    "default": "var(--destack-default-font-family)",
-    "code": "var(--destack-code-font-family)",
+    default: "var(--destack-default-font-family)",
+    code: "var(--destack-code-font-family)",
 });
 
 /** Corner radii and control treatments. */
@@ -117,8 +117,8 @@ export const radius = defineConsts({
     "4": "var(--destack-radius-4)",
     "5": "var(--destack-radius-5)",
     "6": "var(--destack-radius-6)",
-    "full": "var(--destack-radius-full)",
-    "thumb": "var(--destack-radius-thumb)",
+    full: "var(--destack-radius-full)",
+    thumb: "var(--destack-radius-thumb)",
 });
 
 /** Elevation shadows 1 through 6. */

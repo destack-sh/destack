@@ -9,10 +9,12 @@ import type { TableRelations } from "../schema/relation.ts";
 export type { DatabaseConnection } from "../database/connection.ts";
 
 /** The SQL dialect used by a database. */
-export const DatabaseSpec = defineSchema(schema.object({
-    /** The dialect used by queries and migrations. */
-    dialect: Dialect,
-}));
+export const DatabaseSpec = defineSchema(
+    schema.object({
+        /** The dialect used by queries and migrations. */
+        dialect: Dialect,
+    }),
+);
 /** The SQL dialect used by a database. */
 export type DatabaseSpec = schema.Infer<typeof DatabaseSpec>;
 
@@ -39,7 +41,7 @@ export class Database extends Resource<DatabaseConnection, DatabaseDeclaration> 
 
         return schema
             ? connection.bind(schema)
-            : connection as DatabaseConnection<Dialect, Relations>;
+            : (connection as DatabaseConnection<Dialect, Relations>);
     }
 }
 

@@ -32,7 +32,9 @@ test("stage across sessions, rotate trust, and preserve the active release on re
             server.listen(0, "127.0.0.1", resolve);
         });
         const address = server.address();
-        if (!address || typeof address === "string") throw new Error("Missing server address.");
+        if (!address || typeof address === "string") {
+            throw new Error("missing server address");
+        }
 
         // build an executable fixture and a complete signed archive
         const source = join(directory, "source");
@@ -52,11 +54,13 @@ test("stage across sessions, rotate trust, and preserve the active release on re
         const rootKey = SigningKey.generate();
         let root = createRoot(1, rootKey, keys);
         const target = "x86_64-unknown-linux-gnu";
-        await createRepository(repository, 1, root, keys, [{
-            target,
-            version: "2026.9.1",
-            archive,
-        }]);
+        await createRepository(repository, 1, root, keys, [
+            {
+                target,
+                version: "2026.9.1",
+                archive,
+            },
+        ]);
         const firstTimestamp = await readFile(join(repository, "metadata/timestamp.json"));
         const options = {
             directory: join(directory, "installation"),
@@ -85,10 +89,12 @@ test("stage across sessions, rotate trust, and preserve the active release on re
 
             // cancel after bytes arrive and require the next attempt to download successfully
             const interrupted = new AbortController();
-            await expect(update!.download({
-                signal: interrupted.signal,
-                onProgress: () => interrupted.abort(new Error("Interrupted download.")),
-            })).rejects.toThrow("Interrupted download.");
+            await expect(
+                update!.download({
+                    signal: interrupted.signal,
+                    onProgress: () => interrupted.abort(new Error("Interrupted download.")),
+                }),
+            ).rejects.toThrow("Interrupted download.");
             expect(await updater.current()).toBeUndefined();
             expect(await updater.staged()).toBeUndefined();
 
@@ -107,8 +113,9 @@ test("stage across sessions, rotate trust, and preserve the active release on re
             const installed = await updater.stage(download);
             expect(await updater.current()).toBeUndefined();
             expect(await updater.staged()).toEqual(installed);
-            expect(await readFile(join(installed.directory, "bin/destack"), "utf8"))
-                .toBe('#!/bin/sh\nprintf \'{"version":"2026.9.1"}\\n\'\n');
+            expect(await readFile(join(installed.directory, "bin/destack"), "utf8")).toBe(
+                '#!/bin/sh\nprintf \'{"version":"2026.9.1"}\\n\'\n',
+            );
         }
 
         // a directly launched newer executable must not activate an older staged distribution
@@ -132,11 +139,13 @@ test("stage across sessions, rotate trust, and preserve the active release on re
             timestamp: SigningKey.generate(),
         };
         root = createRoot(2, SigningKey.generate(), keys, rootKey);
-        await createRepository(repository, 2, root, keys, [{
-            target,
-            version: "2026.9.1",
-            archive,
-        }]);
+        await createRepository(repository, 2, root, keys, [
+            {
+                target,
+                version: "2026.9.1",
+                archive,
+            },
+        ]);
 
         // reopening preserves staging and follows the signed root rotation
         {
@@ -151,11 +160,13 @@ test("stage across sessions, rotate trust, and preserve the active release on re
         }
 
         // a signed archive with the wrong executable version must leave the installation unchanged
-        await createRepository(repository, 3, root, keys, [{
-            target,
-            version: "2026.9.2",
-            archive,
-        }]);
+        await createRepository(repository, 3, root, keys, [
+            {
+                target,
+                version: "2026.9.2",
+                archive,
+            },
+        ]);
         {
             using updater = await Updater.open(options);
             const update = await updater.check();
@@ -169,11 +180,13 @@ test("stage across sessions, rotate trust, and preserve the active release on re
         // reject changed bytes published under the installed version across sessions
         await writeFile(join(source, "Destack/changed"), "changed release contents");
         await create({ file: archive, gzip: true, cwd: source }, ["bin", "Destack"]);
-        await createRepository(repository, 4, root, keys, [{
-            target,
-            version: "2026.9.1",
-            archive,
-        }]);
+        await createRepository(repository, 4, root, keys, [
+            {
+                target,
+                version: "2026.9.1",
+                archive,
+            },
+        ]);
         {
             using updater = await Updater.open(options);
             await expect(updater.check()).rejects.toThrow("Published release changed.");
@@ -182,11 +195,13 @@ test("stage across sessions, rotate trust, and preserve the active release on re
 
         // reject signed expired metadata without selecting or staging another release
         const timestampPath = join(repository, "metadata/timestamp.json");
-        const timestamp = new Metadata(Timestamp.fromJSON({
-            ...JSON.parse(await readFile(timestampPath, "utf8")).signed,
-            version: 5,
-            expires: "2000-01-01T00:00:00Z",
-        }));
+        const timestamp = new Metadata(
+            Timestamp.fromJSON({
+                ...JSON.parse(await readFile(timestampPath, "utf8")).signed,
+                version: 5,
+                expires: "2000-01-01T00:00:00Z",
+            }),
+        );
         timestamp.sign((bytes) => keys.timestamp.sign(bytes));
         await writeFile(timestampPath, encode(timestamp));
         {
@@ -213,7 +228,7 @@ test("stage across sessions, rotate trust, and preserve the active release on re
         server.closeAllConnections();
         if (server.listening) {
             await new Promise<void>((resolve, reject) =>
-                server.close((error) => error ? reject(error) : resolve())
+                server.close((error) => (error ? reject(error) : resolve())),
             );
         }
         await rm(directory, { recursive: true, force: true });

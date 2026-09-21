@@ -30,11 +30,11 @@ export class Database<
     ) {
         const definition = Array.isArray(schema)
             ? undefined
-            : schema as DatabaseSchema<Record<string, Table>, Relations>;
+            : (schema as DatabaseSchema<Record<string, Table>, Relations>);
         const tables = definition
             ? orderSchemas([definition]).flatMap((schema) => Object.values(schema.tables))
-            : schema as readonly Table[];
-        const logical = definition?.relations ?? {} as Relations;
+            : (schema as readonly Table[]);
+        const logical = definition?.relations ?? ({} as Relations);
         const declarations = new SQLiteSchemaCompiler(tables);
         const relations = declarations.relations(logical);
         const native = new Connection(client, { ...options, relations });
@@ -68,7 +68,7 @@ export class Connection<
 
     /** Connect native query builders to the physical database. */
     constructor(client: Client, options: DrizzleSQLiteConfig<Relations> = {}) {
-        const relations = options.relations ?? {} as Relations;
+        const relations = options.relations ?? ({} as Relations);
         const session = new ConnectionSession<RunResult<Client>, Relations>(
             client as ConnectionClient<RunResult<Client>>,
             relations,

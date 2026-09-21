@@ -20,35 +20,41 @@ export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$
 
 /** Code deployed and scaled together. */
 export const WorkloadDefinition = defineSchema(
-    schema.object({
-        /** The exported module containing the workload handlers. */
-        entrypoint: Entrypoint,
-        /** Named services collected from code. */
-        services: schema.array(ResourceName).optional(),
-        /** Named schedules delivered by the host scheduler. */
-        schedules: schema.array(ResourceName).optional(),
-        /** Instance startup and shutdown exports. */
-        lifecycle: schema.object({
-            /** Start background activity and resolve when ready. */
-            start: schema.string().min(1).optional(),
-            /** Drain background activity before stopping. */
-            stop: schema.string().min(1).optional(),
-        }).optional(),
-        /** Workload overrides of package compute defaults. */
-        compute: ComputeDefinition.optional(),
-    }).strict(),
+    schema
+        .object({
+            /** The exported module containing the workload handlers. */
+            entrypoint: Entrypoint,
+            /** Named services collected from code. */
+            services: schema.array(ResourceName).optional(),
+            /** Named schedules delivered by the host scheduler. */
+            schedules: schema.array(ResourceName).optional(),
+            /** Instance startup and shutdown exports. */
+            lifecycle: schema
+                .object({
+                    /** Start background activity and resolve when ready. */
+                    start: schema.string().min(1).optional(),
+                    /** Drain background activity before stopping. */
+                    stop: schema.string().min(1).optional(),
+                })
+                .optional(),
+            /** Workload overrides of package compute defaults. */
+            compute: ComputeDefinition.optional(),
+        })
+        .strict(),
 );
 /** Code deployed and scaled together. */
 export type WorkloadDefinition = schema.Infer<typeof WorkloadDefinition>;
 
 /** A workload checked against its declarations and generated output. */
-export const WorkloadDescription = defineSchema(WorkloadDefinition.extend({
-    /** Resource declarations collected from the workload's module dependencies. */
-    resources: schema.array(DeclarationReference),
-    /** Secret declarations collected from the workload's module dependencies. */
-    secrets: schema.array(DeclarationReference),
-    /** The effective compute settings. */
-    compute: ComputeDefinition,
-}));
+export const WorkloadDescription = defineSchema(
+    WorkloadDefinition.extend({
+        /** Resource declarations collected from the workload's module dependencies. */
+        resources: schema.array(DeclarationReference),
+        /** Secret declarations collected from the workload's module dependencies. */
+        secrets: schema.array(DeclarationReference),
+        /** The effective compute settings. */
+        compute: ComputeDefinition,
+    }),
+);
 /** A workload checked against its declarations and generated output. */
 export type WorkloadDescription = schema.Infer<typeof WorkloadDescription>;

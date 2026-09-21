@@ -11,7 +11,9 @@ export type Tags = schema.Infer<typeof Tags>;
 
 /** Declare a label map with an empty database default. */
 export function tags(name = "tags") {
-    return json(name, Tags).notNull().default(sql`'{}'`);
+    return json(name, Tags)
+        .notNull()
+        .default(sql`'{}'`);
 }
 
 /** Declare the shared record fields. */

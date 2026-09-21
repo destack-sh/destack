@@ -22,13 +22,16 @@ test("recover interrupted activation and retain both distributions", async () =>
             const bytes = await readFile(archive);
             const sha256 = createHash("sha256").update(bytes).digest("hex");
             installed.push(
-                await installer.stage({
-                    release: new Release(version, "x86_64-unknown-linux-gnu"),
-                    archive,
-                    sha256,
-                }, async (path) => {
-                    expect(await readFile(join(path, "version"), "utf8")).toBe(version);
-                }),
+                await installer.stage(
+                    {
+                        release: new Release(version, "x86_64-unknown-linux-gnu"),
+                        archive,
+                        sha256,
+                    },
+                    async (path) => {
+                        expect(await readFile(join(path, "version"), "utf8")).toBe(version);
+                    },
+                ),
             );
         }
 
@@ -51,8 +54,9 @@ test("recover interrupted activation and retain both distributions", async () =>
             first.release.directory,
             second.release.directory,
         ]);
-        await expect(readFile(join(installer.directory, "activate.json")))
-            .rejects.toMatchObject({ code: "ENOENT" });
+        await expect(readFile(join(installer.directory, "activate.json"))).rejects.toMatchObject({
+            code: "ENOENT",
+        });
         await installer.recover();
         expect(await installer.current()).toEqual(second);
 
@@ -83,14 +87,18 @@ test("reject an archive link outside its distribution without activating files",
         await create({ file: archive, gzip: true, cwd: source }, ["escape"]);
 
         const installer = new Installer(join(directory, "installation"));
-        await expect(installer.stage({
-            release: new Release("2026.9.1", "x86_64-unknown-linux-gnu"),
-            archive,
-            sha256: "a".repeat(64),
-        }, async () => {
-            throw new Error("Unsafe archive reached executable verification.");
-        }))
-            .rejects.toThrow("Archive link escapes the distribution: escape");
+        await expect(
+            installer.stage(
+                {
+                    release: new Release("2026.9.1", "x86_64-unknown-linux-gnu"),
+                    archive,
+                    sha256: "a".repeat(64),
+                },
+                async () => {
+                    throw new Error("unsafe archive reached executable verification");
+                },
+            ),
+        ).rejects.toThrow("Archive link escapes the distribution: escape");
         expect(await installer.current()).toBeUndefined();
         expect(await readdir(join(installer.directory, "versions"))).toEqual([]);
     } finally {

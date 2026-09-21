@@ -6,7 +6,9 @@ import { navigationLinks } from "../navigation/navigation";
 /// The collections available in site search.
 export const searchScopes = [
     "All",
-    ...collections.filter((collection) => collection.isListed !== false).map((collection) => collection.title),
+    ...collections
+        .filter((collection) => collection.isListed !== false)
+        .map((collection) => collection.title),
     "Commands",
 ];
 
@@ -79,18 +81,8 @@ export function commandsFor(
 
     if (source != undefined) {
         commands.push(
-            linkCommand(
-                "source:md",
-                "source",
-                "View page as Markdown",
-                source.markdownRoute,
-            ),
-            linkCommand(
-                "source:txt",
-                "source",
-                "View page as plain text",
-                source.textRoute,
-            ),
+            linkCommand("source:md", "source", "View page as Markdown", source.markdownRoute),
+            linkCommand("source:txt", "source", "View page as plain text", source.textRoute),
             eventCommand(
                 "copy-md",
                 "source",
@@ -132,12 +124,7 @@ export function commandsFor(
 }
 
 /// Construct one link-backed site command.
-function linkCommand(
-    id: string,
-    context: string,
-    label: string,
-    href: string,
-): Command {
+function linkCommand(id: string, context: string, label: string, href: string): Command {
     return {
         action: { href, kind: "navigate" },
         context,
@@ -180,33 +167,30 @@ export function matchCommands(
         .slice(0, limit)
         .map(({ command }) => ({
             command,
-            excerpt:
-                terms.length === 0 ? "" : excerptFor(command.text, terms[0]),
+            excerpt: terms.length === 0 ? "" : excerptFor(command.text, terms[0]),
             terms,
         }));
 }
 
 /// Classify a command by its destination or action.
 function commandScope(command: Command): SearchScope {
-    if (command.kind === "action" || command.kind === "navigation")
+    if (command.kind === "action" || command.kind === "navigation") {
         return "Commands";
-    if (command.action.kind !== "navigate") return "Commands";
+    }
+    if (command.action.kind !== "navigate") {
+        return "Commands";
+    }
 
     return collectionAt(command.action.href)?.title ?? "All";
 }
 
 /// Split text into matched and unmatched segments without changing its case.
-export function highlightParts(
-    text: string,
-    terms: readonly string[],
-): readonly HighlightPart[] {
+export function highlightParts(text: string, terms: readonly string[]): readonly HighlightPart[] {
     if (text === "" || terms.length === 0) {
         return [{ isMatch: false, text }];
     }
 
-    const normalizedTerms = [
-        ...new Set(terms.map((term) => term.toLowerCase())),
-    ]
+    const normalizedTerms = [...new Set(terms.map((term) => term.toLowerCase()))]
         .filter(Boolean)
         .sort((left, right) => right.length - left.length);
     const lower = text.toLowerCase();
@@ -215,9 +199,7 @@ export function highlightParts(
     let index = 0;
 
     while (index < text.length) {
-        const term = normalizedTerms.find((candidate) =>
-            lower.startsWith(candidate, index),
-        );
+        const term = normalizedTerms.find((candidate) => lower.startsWith(candidate, index));
         if (term == undefined) {
             index += 1;
             continue;
@@ -273,9 +255,7 @@ function eventCommand(
 
 /// Normalize a free-form query into unique terms.
 function termsFor(query: string) {
-    return [
-        ...new Set(query.toLowerCase().trim().split(/\s+/).filter(Boolean)),
-    ];
+    return [...new Set(query.toLowerCase().trim().split(/\s+/).filter(Boolean))];
 }
 
 /// Score one command against all normalized query terms.
@@ -284,17 +264,10 @@ function scoreCommand(command: Command, terms: readonly string[]) {
     const context = command.context.toLowerCase();
     const text = command.text.toLowerCase();
     // use category order only to break comparable text matches
-    let score =
-        terms.length === 0
-            ? rankFor(command.kind)
-            : rankFor(command.kind) / 100;
+    let score = terms.length === 0 ? rankFor(command.kind) : rankFor(command.kind) / 100;
 
     for (const term of terms) {
-        if (
-            !label.includes(term) &&
-            !context.includes(term) &&
-            !text.includes(term)
-        ) {
+        if (!label.includes(term) && !context.includes(term) && !text.includes(term)) {
             return -1;
         }
 
@@ -304,11 +277,17 @@ function scoreCommand(command: Command, terms: readonly string[]) {
             (command.kind === "module" &&
                 (label.endsWith(`:${term}`) || label.endsWith(`/${term}`)));
 
-        if (isExact) score += 1000;
-        else if (label.startsWith(term)) score += 500;
-        else if (label.includes(term)) score += 250;
-        else if (context.includes(term)) score += 100;
-        else score += 10;
+        if (isExact) {
+            score += 1000;
+        } else if (label.startsWith(term)) {
+            score += 500;
+        } else if (label.includes(term)) {
+            score += 250;
+        } else if (context.includes(term)) {
+            score += 100;
+        } else {
+            score += 10;
+        }
     }
 
     return score;

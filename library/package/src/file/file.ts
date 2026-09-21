@@ -10,19 +10,26 @@ export const PackagePath = defineSchema(
 );
 
 /** A SHA-256 digest encoded as lowercase hexadecimal. */
-export const Digest = defineSchema(schema.string().length(64).regex(/^[a-f0-9]{64}$/));
+export const Digest = defineSchema(
+    schema
+        .string()
+        .length(64)
+        .regex(/^[a-f0-9]{64}$/),
+);
 
 /** A source or generated file in a package. */
-export const PackageFile = defineSchema(schema.object({
-    /** The path relative to the source or build root. */
-    path: PackagePath,
-    /** The SHA-256 digest of the file bytes. */
-    digest: Digest,
-    /** The file size in bytes. */
-    size: schema.number().int().min(0),
-    /** The file's media type. */
-    mediaType: schema.string().min(1),
-}));
+export const PackageFile = defineSchema(
+    schema.object({
+        /** The path relative to the source or build root. */
+        path: PackagePath,
+        /** The SHA-256 digest of the file bytes. */
+        digest: Digest,
+        /** The file size in bytes. */
+        size: schema.number().int().min(0),
+        /** The file's media type. */
+        mediaType: schema.string().min(1),
+    }),
+);
 /** A source or generated file in a package. */
 export type PackageFile = schema.Infer<typeof PackageFile>;
 
@@ -38,10 +45,7 @@ export async function describeFile(
 }
 
 /** Verify a file's exact size and digest before reading its contents. */
-export async function verifyFile(
-    file: PackageFile,
-    bytes: Uint8Array<ArrayBuffer>,
-): Promise<void> {
+export async function verifyFile(file: PackageFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
     if (bytes.byteLength !== file.size) {
         throw new PackageError("INVALID_FILE", `File size mismatch: ${file.path}`);
     }

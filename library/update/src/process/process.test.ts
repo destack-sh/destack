@@ -24,12 +24,13 @@ test("authenticate desktop shutdown and wait for process exit", async () => {
         const endpoint = JSON.parse(await Deno.readTextFile(join(directory, "desktop.json")));
 
         // reject browser requests and credentials from another caller
-        for (
-            const headers of [{ authorization: "Bearer wrong" }, {
+        for (const headers of [
+            { authorization: "Bearer wrong" },
+            {
                 authorization: `Bearer ${endpoint.token}`,
                 origin: "https://example.com",
-            }]
-        ) {
+            },
+        ]) {
             const response = await fetch(`http://127.0.0.1:${endpoint.port}/_destack/update/stop`, {
                 method: "POST",
                 headers,
@@ -37,17 +38,18 @@ test("authenticate desktop shutdown and wait for process exit", async () => {
             expect(response.status).toBe(403);
             await response.body?.cancel();
         }
-        await expect(UpdateProcess.register(directory, endpoint.port, async () => {})).rejects
-            .toThrow(
-                "Destack desktop is already running.",
-            );
+        await expect(
+            UpdateProcess.register(directory, endpoint.port, async () => {}),
+        ).rejects.toThrow("Destack desktop is already running.");
 
         // authenticate shutdown and ignore stale registration after the process exits
         expect(await UpdateProcess.stop(directory)).toBe(true);
         expect(await status).toEqual({ success: true, code: 0, signal: null });
         expect(await UpdateProcess.stop(directory)).toBe(false);
     } finally {
-        if (!isExited) process.kill("SIGKILL");
+        if (!isExited) {
+            process.kill("SIGKILL");
+        }
         await status;
         await Deno.remove(directory, { recursive: true });
     }

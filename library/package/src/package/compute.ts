@@ -2,12 +2,14 @@ import { defineSchema, schema } from "@destack/schema";
 import { PackageError } from "../error/index.ts";
 
 /** CPU and memory capacity assigned to one running instance. */
-export const ComputeResources = defineSchema(schema.object({
-    /** CPU capacity in cores. */
-    cpu: schema.number().positive().optional(),
-    /** Memory capacity in MiB. */
-    memory: schema.number().int().positive().optional(),
-}));
+export const ComputeResources = defineSchema(
+    schema.object({
+        /** CPU capacity in cores. */
+        cpu: schema.number().positive().optional(),
+        /** Memory capacity in MiB. */
+        memory: schema.number().int().positive().optional(),
+    }),
+);
 
 /** CPU and memory capacity assigned to one running instance. */
 export type ComputeResources = schema.Infer<typeof ComputeResources>;
@@ -20,12 +22,14 @@ export const ComputeDefinition = defineSchema(
         /** Maximum capacity allowed for an instance. */
         limits: ComputeResources.optional(),
         /** Scaling bounds, including whether idle execution may stop. */
-        scaling: schema.object({
-            /** Minimum warm instances; zero permits stopping all idle instances. */
-            minInstances: schema.number().int().nonnegative().optional(),
-            /** Maximum simultaneous instances. */
-            maxInstances: schema.number().int().positive().optional(),
-        }).optional(),
+        scaling: schema
+            .object({
+                /** Minimum warm instances; zero permits stopping all idle instances. */
+                minInstances: schema.number().int().nonnegative().optional(),
+                /** Maximum simultaneous instances. */
+                maxInstances: schema.number().int().positive().optional(),
+            })
+            .optional(),
         /** Time in milliseconds to retain an idle instance. */
         idleTimeout: schema.number().int().nonnegative().optional(),
         /** Time in milliseconds allowed for graceful shutdown. */

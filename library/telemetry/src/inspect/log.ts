@@ -17,24 +17,26 @@ import {
 import { ContextDescription, describeContext } from "./span.ts";
 
 /** A structured log record with explicit trace correlation. */
-export const LogDescription = defineSchema(schema.object({
-    /** The exact build and declaration, when source attribution is present. */
-    source: SourceDescription.optional(),
-    time: TimeDescription,
-    observedTime: TimeDescription,
-    context: ContextDescription.optional(),
-    severityText: schema.string().optional(),
-    severityNumber: schema.number().int().optional(),
-    body: ValueDescription.optional(),
-    eventName: schema.string().optional(),
-    attributes: AttributeDescription,
-    resource: ResourceDescription,
-    scope: ScopeDescription.extend({
+export const LogDescription = defineSchema(
+    schema.object({
+        /** The exact build and declaration, when source attribution is present. */
+        source: SourceDescription.optional(),
+        time: TimeDescription,
+        observedTime: TimeDescription,
+        context: ContextDescription.optional(),
+        severityText: schema.string().optional(),
+        severityNumber: schema.number().int().optional(),
+        body: ValueDescription.optional(),
+        eventName: schema.string().optional(),
         attributes: AttributeDescription,
-        droppedAttributesCount: schema.number().int().optional(),
+        resource: ResourceDescription,
+        scope: ScopeDescription.extend({
+            attributes: AttributeDescription,
+            droppedAttributesCount: schema.number().int().optional(),
+        }),
+        droppedAttributesCount: schema.number().int(),
     }),
-    droppedAttributesCount: schema.number().int(),
-}));
+);
 /** A log record's portable description. */
 export type LogDescription = schema.Infer<typeof LogDescription>;
 

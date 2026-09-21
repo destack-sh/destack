@@ -11,9 +11,7 @@ export function ThemeToggle() {
         const preference = window.matchMedia("(prefers-color-scheme: dark)");
         const update = () => {
             const theme = document.documentElement.dataset.theme;
-            setIsDark(
-                theme === "dark" || (theme === undefined && preference.matches),
-            );
+            setIsDark(theme === "dark" || (theme === undefined && preference.matches));
         };
         update();
         preference.addEventListener("change", update);

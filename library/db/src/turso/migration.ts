@@ -25,7 +25,9 @@ export async function applyMigrations(
     // apply SQL and history together
     for (const [offset, migration] of pending.entries()) {
         try {
-            for (const statement of migration.statements) await transaction.run(sql.raw(statement));
+            for (const statement of migration.statements) {
+                await transaction.run(sql.raw(statement));
+            }
             await transaction.run(history.insert(migration, applied.length + offset + 1));
         } catch (cause) {
             throw new DatabaseError("MIGRATION_FAILED", `Migration failed: ${migration.name}.`, {

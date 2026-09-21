@@ -64,9 +64,10 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
     ): NativeRelations<Driver, Definitions> {
         // retain application table names while binding physical columns
         const tables: Record<string, sqlite.SQLiteTable | postgres.PgTable> = Object.fromEntries(
-            Object.entries(definitions).map((
-                [name, definition],
-            ) => [name, this.table(definition.table)]),
+            Object.entries(definitions).map(([name, definition]) => [
+                name,
+                this.table(definition.table),
+            ]),
         );
         const helpers = relation.createRelationsHelper(tables);
         const columns = new Map<Column, relation.RelationsBuilderColumn<string>>();
@@ -83,9 +84,10 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
             for (const [property, reference] of Object.entries(definition.relations)) {
                 const from = bindRelationColumns(reference.from, columns);
                 const to = bindRelationColumns(reference.to, columns);
-                declarations[name][property] = reference.cardinality === "one"
-                    ? helpers.one[reference.target]({ from, to, optional: reference.optional })
-                    : helpers.many[reference.target]({ from, to });
+                declarations[name][property] =
+                    reference.cardinality === "one"
+                        ? helpers.one[reference.target]({ from, to, optional: reference.optional })
+                        : helpers.many[reference.target]({ from, to });
             }
         }
 
@@ -133,7 +135,9 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
                 this.columns.set(column, columns[property]);
             }
         }
-        if (!physical) throw new TypeError(`Undeclared SQL table: ${declaration[TABLE].name}.`);
+        if (!physical) {
+            throw new TypeError(`Undeclared SQL table: ${declaration[TABLE].name}.`);
+        }
 
         return physical as NativeTable<Driver, Definition>;
     }
@@ -143,13 +147,17 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
 
     /** Translate nested declaration expressions. */
     private chunk(chunk: SQLChunk): SQLChunk {
-        if (chunk instanceof Column) return this.column(chunk);
+        if (chunk instanceof Column) {
+            return this.column(chunk);
+        }
         if (chunk instanceof Param && chunk.encoder instanceof Column) {
             return new Param(chunk.value, this.column(chunk.encoder));
         }
         if (chunk instanceof SQL) {
             const decoder = (chunk as SQL & { decoder: unknown }).decoder;
-            if (decoder instanceof Column) chunk.mapWith(this.column(decoder));
+            if (decoder instanceof Column) {
+                chunk.mapWith(this.column(decoder));
+            }
         }
 
         return chunk;
@@ -163,7 +171,9 @@ function bindRelationColumns(
 ): [relation.RelationsBuilderColumn<string>, ...relation.RelationsBuilderColumn<string>[]] {
     const bound = columns.map((column) => {
         const binding = bindings.get(column);
-        if (!binding) throw new TypeError("Relation column is absent from the declared tables.");
+        if (!binding) {
+            throw new TypeError("relation column is absent from the declared tables");
+        }
 
         return binding;
     });
@@ -177,24 +187,35 @@ function bindRelationColumns(
 /** Apply shared column constraints through Drizzle's column builder API. */
 export function applyColumn(
     builder:
-        | sqlite.SQLiteCustomColumnBuilder<
-            { dataType: "custom"; data: unknown; driverParam: unknown }
-        >
-        | postgres.PgCustomColumnBuilder<
-            { dataType: "custom"; data: unknown; driverParam: unknown }
-        >,
+        | sqlite.SQLiteCustomColumnBuilder<{
+              dataType: "custom";
+              data: unknown;
+              driverParam: unknown;
+          }>
+        | postgres.PgCustomColumnBuilder<{
+              dataType: "custom";
+              data: unknown;
+              driverParam: unknown;
+          }>,
     column: Column,
     dialect: Dialect,
 ): void {
     // retain database defaults and application defaults separately
     const definition = column.definition;
-    if (!definition.nullable) builder.notNull();
-    if (definition.primaryKey) builder.primaryKey();
-    if (definition.unique) builder.unique(definition.unique.name);
+    if (!definition.nullable) {
+        builder.notNull();
+    }
+    if (definition.primaryKey) {
+        builder.primaryKey();
+    }
+    if (definition.unique) {
+        builder.unique(definition.unique.name);
+    }
     if (definition.default !== undefined) {
-        const value = definition.default instanceof SQL
-            ? compileExpression(definition.default, dialect)
-            : definition.default;
+        const value =
+            definition.default instanceof SQL
+                ? compileExpression(definition.default, dialect)
+                : definition.default;
         builder.default(value);
     }
 

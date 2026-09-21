@@ -23,7 +23,9 @@ export function TopBar() {
     onSettled(() => {
         const desktop = window.matchMedia("(min-width: 768px)");
         const closeMenu = () => {
-            if (desktop.matches) menu?.close();
+            if (desktop.matches) {
+                menu?.close();
+            }
         };
         desktop.addEventListener("change", closeMenu);
         return () => desktop.removeEventListener("change", closeMenu);
@@ -41,33 +43,17 @@ export function TopBar() {
         <header {...stylex.attrs(styles.root)}>
             <div {...stylex.attrs(styles.frame)}>
                 <div {...stylex.attrs(styles.body)}>
-                    <SiteLink
-                        href="/"
-                        shortcut="h"
-                        style={styles.brand}
-                        title="Alt+H: Home"
-                    >
-                        <span
-                            aria-hidden="true"
-                            class="brand-icon"
-                            innerHTML={brandIcon}
-                        />
+                    <SiteLink href="/" shortcut="h" style={styles.brand} title="Alt+H: Home">
+                        <span aria-hidden="true" class="brand-icon" innerHTML={brandIcon} />
                         Destack
                     </SiteLink>
 
-                    <nav
-                        aria-label="Primary navigation"
-                        {...stylex.attrs(styles.navigation)}
-                    >
+                    <nav aria-label="Primary navigation" {...stylex.attrs(styles.navigation)}>
                         {primaryLinks.map(({ label, href, shortcut }) => (
                             <SiteLink
                                 href={href}
                                 shortcut={shortcut}
-                                style={[
-                                    styles.link,
-                                    activeLink()?.href === href &&
-                                    styles.active,
-                                ]}
+                                style={[styles.link, activeLink()?.href === href && styles.active]}
                                 title={`Alt+${shortcut.toUpperCase()}: ${label}`}
                             >
                                 {label}
@@ -114,16 +100,15 @@ export function TopBar() {
                     onClose={() => setMenuOpen(false)}
                     {...stylex.attrs(styles.menu)}
                     onClick={(event) => {
-                        if (event.target === menu) menu.close();
+                        if (event.target === menu) {
+                            menu.close();
+                        }
                     }}
                 >
                     <div {...stylex.attrs(styles.menuHeader)}>
                         <a href="/" {...stylex.attrs(styles.brand)} onClick={() => menu?.close()}>
-                            <span
-                                aria-hidden="true"
-                                class="brand-icon"
-                                innerHTML={brandIcon}
-                            />Destack
+                            <span aria-hidden="true" class="brand-icon" innerHTML={brandIcon} />
+                            Destack
                         </a>
                         <button
                             type="button"
@@ -149,8 +134,7 @@ export function TopBar() {
                         {...stylex.attrs(styles.menuLinks)}
                         onClick={(event) => {
                             if (event.target instanceof Element && event.target.closest("a")) {
-                                menu
-                                    ?.close();
+                                menu?.close();
                             }
                         }}
                     >

@@ -6,8 +6,10 @@ import type { ConnectionClient } from "./client.ts";
 import { Transaction, TransactionSession } from "./transaction.ts";
 
 /** A query session that starts transactions through SQLite. */
-export class ConnectionSession<Result, Relations extends AnyRelations>
-    extends Session<Result, Relations> {
+export class ConnectionSession<Result, Relations extends AnyRelations> extends Session<
+    Result,
+    Relations
+> {
     /** The physical connection used to create transaction handles. */
     readonly connection: ConnectionClient<Result>;
     /** The relations shared by queries and transactions. */

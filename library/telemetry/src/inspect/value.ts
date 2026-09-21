@@ -27,20 +27,34 @@ export type ValueDescription = schema.Infer<typeof ValueDescription>;
 
 /** Describe a value without losing binary or non-finite numeric values. */
 export function describeValue(value: unknown, ancestors = new Set<object>()): ValueDescription {
-    if (value === null || value === undefined) return {};
-    if (typeof value === "string") return { stringValue: value };
-    if (typeof value === "boolean") return { boolValue: value };
-    if (typeof value === "bigint") return { intValue: value.toString() };
+    if (value === null || value === undefined) {
+        return {};
+    }
+    if (typeof value === "string") {
+        return { stringValue: value };
+    }
+    if (typeof value === "boolean") {
+        return { boolValue: value };
+    }
+    if (typeof value === "bigint") {
+        return { intValue: value.toString() };
+    }
     if (typeof value === "number") {
         return {
             doubleValue: Number.isFinite(value)
                 ? value
-                : value.toString() as "NaN" | "Infinity" | "-Infinity",
+                : (value.toString() as "NaN" | "Infinity" | "-Infinity"),
         };
     }
-    if (value instanceof Uint8Array) return { bytesValue: Array.from(value) };
-    if (typeof value !== "object") throw new TypeError("Unsupported telemetry value.");
-    if (ancestors.has(value)) throw new TypeError("Cyclic telemetry value.");
+    if (value instanceof Uint8Array) {
+        return { bytesValue: Array.from(value) };
+    }
+    if (typeof value !== "object") {
+        throw new TypeError("unsupported telemetry value");
+    }
+    if (ancestors.has(value)) {
+        throw new TypeError("cyclic telemetry value");
+    }
 
     // track ancestors while preserving repeated references in separate branches
     ancestors.add(value);
@@ -52,7 +66,7 @@ export function describeValue(value: unknown, ancestors = new Set<object>()): Va
             Object.getPrototypeOf(value) !== Object.prototype &&
             Object.getPrototypeOf(value) !== null
         ) {
-            throw new TypeError("Telemetry objects must contain plain properties.");
+            throw new TypeError("telemetry objects must contain plain properties");
         }
 
         return {

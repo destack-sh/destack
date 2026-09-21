@@ -52,7 +52,7 @@ export class Column<
 
     /** Require a concrete database dialect before decoding a driver value. */
     mapFromDriverValue(_value: unknown): Value {
-        throw new TypeError("Bind the logical column to a database before decoding values.");
+        throw new TypeError("bind the logical column to a database before decoding values");
     }
 }
 
@@ -210,9 +210,11 @@ export function text<const Values extends readonly [string, ...string[]]>(
 
 /** Define an integer represented exactly by a JavaScript number. */
 export function integer(name: string): ColumnBuilder<number> {
-    const validator = schema.number().int().min(Number.MIN_SAFE_INTEGER).max(
-        Number.MAX_SAFE_INTEGER,
-    );
+    const validator = schema
+        .number()
+        .int()
+        .min(Number.MIN_SAFE_INTEGER)
+        .max(Number.MAX_SAFE_INTEGER);
 
     return new ColumnBuilder({
         name,
@@ -306,9 +308,7 @@ export function json<Validator extends schema.Schema>(
                 return assertNever(dialect);
             }
 
-            return validator.parse(decoded) as schema.Output<
-                Validator
-            >;
+            return validator.parse(decoded) as schema.Output<Validator>;
         },
     });
 }
@@ -349,7 +349,10 @@ export function binary(name: string): ColumnBuilder<Uint8Array> {
 
 /** Define an exact signed 64-bit integer. */
 export function bigint(name: string): ColumnBuilder<bigint> {
-    const validator = schema.bigint().min(-(1n << 63n)).max((1n << 63n) - 1n);
+    const validator = schema
+        .bigint()
+        .min(-(1n << 63n))
+        .max((1n << 63n) - 1n);
 
     return new ColumnBuilder({
         name,
@@ -361,7 +364,7 @@ export function bigint(name: string): ColumnBuilder<bigint> {
         decode(value) {
             // reject a driver configuration that has already lost integer precision
             if (typeof value === "number" && !Number.isSafeInteger(value)) {
-                throw new RangeError("The database driver returned an inexact integer.");
+                throw new RangeError("the database driver returned an inexact integer");
             }
 
             return validator.parse(
@@ -398,24 +401,31 @@ export function timestamp(name: string): ColumnBuilder<Date> {
         nullable: true,
         encode(value, dialect) {
             const checked = validator.parse(value);
-            if (dialect === "sqlite") return checked.getTime();
-            else if (dialect === "postgresql") return checked.toISOString();
-            else return assertNever(dialect);
+            if (dialect === "sqlite") {
+                return checked.getTime();
+            } else if (dialect === "postgresql") {
+                return checked.toISOString();
+            } else {
+                return assertNever(dialect);
+            }
         },
         decode(value, dialect) {
             if (dialect === "sqlite") {
                 return validator.parse(
                     new Date(
-                        schema.number().int().parse(
-                            typeof value === "bigint" ? Number(value) : value,
-                        ),
+                        schema
+                            .number()
+                            .int()
+                            .parse(typeof value === "bigint" ? Number(value) : value),
                     ),
                 );
             } else if (dialect === "postgresql") {
                 return validator.parse(
                     value instanceof Date ? value : new Date(schema.string().parse(value)),
                 );
-            } else return assertNever(dialect);
+            } else {
+                return assertNever(dialect);
+            }
         },
     });
 }

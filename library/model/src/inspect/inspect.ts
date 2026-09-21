@@ -19,12 +19,14 @@ const DATABASES = [
 
 /** Describe each administrative model in both SQL dialects. */
 export function inspect() {
-    return Object.fromEntries(DATABASES.map(({ database, tables }) => [
-        database,
-        Object.values(tables).flatMap((table) =>
-            DIALECTS.map((dialect) => describeTable(table, dialect))
-        ),
-    ]));
+    return Object.fromEntries(
+        DATABASES.map(({ database, tables }) => [
+            database,
+            Object.values(tables).flatMap((table) =>
+                DIALECTS.map((dialect) => describeTable(table, dialect)),
+            ),
+        ]),
+    );
 }
 
 /** Describe table placement, SQL dialects, and exported symbols. */
@@ -36,15 +38,17 @@ export function inspectPackage(code: ModuleGraph) {
                 database,
                 symbol: code.resolveExport(entrypoint, name),
                 description: describeTable(table, dialect),
-            }))
-        )
+            })),
+        ),
     );
     const definition = schema.object({
-        tables: schema.array(schema.object({
-            database: schema.enum(["global", "regional", "audit"]),
-            symbol: SymbolReference,
-            description: TableDescription,
-        })),
+        tables: schema.array(
+            schema.object({
+                database: schema.enum(["global", "regional", "audit"]),
+                symbol: SymbolReference,
+                description: TableDescription,
+            }),
+        ),
     });
 
     return createPackageInspection("@destack/model", 3, code, definition, { tables: descriptions });

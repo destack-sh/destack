@@ -8,7 +8,9 @@ export function renderDiagrams(article: HTMLElement): () => void {
             source: element.textContent ?? "",
         }),
     );
-    if (diagrams.length === 0) return () => {};
+    if (diagrams.length === 0) {
+        return () => {};
+    }
 
     // serialize updates and discard results from an unmounted reader
     const preference = window.matchMedia("(prefers-color-scheme: dark)");
@@ -19,16 +21,14 @@ export function renderDiagrams(article: HTMLElement): () => void {
             .then(async () => {
                 const { default: mermaid } = await import("mermaid");
                 await document.fonts.ready;
-                if (isDisposed) return;
+                if (isDisposed) {
+                    return;
+                }
 
                 // use strict SVG labels and the site's reading font
                 const theme = document.documentElement.dataset.theme;
-                const isDark =
-                    theme === "dark" ||
-                    (theme === undefined && preference.matches);
-                const frame = getComputedStyle(
-                    diagrams[0].element.parentElement!,
-                );
+                const isDark = theme === "dark" || (theme === undefined && preference.matches);
+                const frame = getComputedStyle(diagrams[0].element.parentElement!);
                 const body = getComputedStyle(diagrams[0].element);
                 const background = themeColor(frame.backgroundColor);
                 const ink = themeColor(frame.color);
@@ -71,51 +71,46 @@ export function renderDiagrams(article: HTMLElement): () => void {
 
                 // preserve each source if Mermaid rejects its diagram
                 for (const { element, source } of diagrams) {
-                    if (isDisposed) return;
+                    if (isDisposed) {
+                        return;
+                    }
                     try {
                         const identifier = `diagram-${crypto.randomUUID()}`;
-                        const { svg } = await mermaid.render(
-                            identifier,
-                            source,
-                        );
-                        if (isDisposed) return;
+                        const { svg } = await mermaid.render(identifier, source);
+                        if (isDisposed) {
+                            return;
+                        }
                         element.innerHTML = svg;
                         const drawing = element.querySelector("svg");
                         if (drawing) {
-                            drawing.setAttribute(
-                                "xmlns",
-                                "http://www.w3.org/2000/svg",
-                            );
+                            drawing.setAttribute("xmlns", "http://www.w3.org/2000/svg");
                             drawing.style.width = `${drawing.viewBox.baseVal.width}px`;
                             drawing.style.maxWidth = "none";
-                            drawing.setAttribute(
-                                "height",
-                                String(drawing.viewBox.baseVal.height),
-                            );
+                            drawing.setAttribute("height", String(drawing.viewBox.baseVal.height));
                         }
-                        if (
-                            drawing &&
-                            !drawing.hasAttribute("aria-labelledby")
-                        ) {
+                        if (drawing && !drawing.hasAttribute("aria-labelledby")) {
                             drawing.setAttribute(
                                 "aria-label",
-                                element
-                                    .closest("figure")
-                                    ?.querySelector("figcaption")
+                                element.closest("figure")?.querySelector("figcaption")
                                     ?.textContent ??
                                     element.getAttribute("aria-label") ??
                                     "Diagram",
                             );
                         }
                     } catch (error) {
-                        if (!isDisposed) showError(element, source, error);
+                        if (!isDisposed) {
+                            showError(element, source, error);
+                        }
                     }
                 }
             })
             .catch((error) => {
-                if (isDisposed) return;
-                for (const { element, source } of diagrams)
+                if (isDisposed) {
+                    return;
+                }
+                for (const { element, source } of diagrams) {
                     showError(element, source, error);
+                }
             });
     };
 
@@ -138,7 +133,9 @@ export function renderDiagrams(article: HTMLElement): () => void {
 /// Convert computed CSS RGB colors to Mermaid's hexadecimal theme format.
 function themeColor(value: string): string {
     const match = /^rgb\((\d+), (\d+), (\d+)\)$/.exec(value);
-    if (!match) throw new Error(`Unsupported diagram theme color: ${value}`);
+    if (!match) {
+        throw new Error(`Unsupported diagram theme color: ${value}`);
+    }
 
     return `#${match
         .slice(1)

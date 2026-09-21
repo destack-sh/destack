@@ -8,22 +8,24 @@ import { SpaceRoute } from "./route.ts";
 import { SpacePolicies } from "../policy/index.ts";
 
 /** Source-managed space objects, keyed independently of display names and provider identifiers. */
-export const SpaceDefinition = defineSchema(schema.object({
-    /** Source-managed package and network policies. */
-    policies: SpacePolicies.optional(),
-    /** Resources created or adopted by the configuration. */
-    resources: schema.record(ResourceName, SpaceResource).optional(),
-    /** Secret metadata; secret values never occur in this definition. */
-    secrets: schema.record(ResourceName, SpaceSecret).optional(),
-    /** Independently configured package installations. */
-    installations: schema.record(ResourceName, SpaceInstallation).optional(),
-    /** Space-scoped role definitions. */
-    roles: schema.record(ResourceName, SpaceRole).optional(),
-    /** Grants evaluated using existing authority before application. */
-    bindings: schema.record(ResourceName, SpaceRoleBinding).optional(),
-    /** Routes under domains administered by the account. */
-    routes: schema.record(ResourceName, SpaceRoute).optional(),
-}));
+export const SpaceDefinition = defineSchema(
+    schema.object({
+        /** Source-managed package and network policies. */
+        policies: SpacePolicies.optional(),
+        /** Resources created or adopted by the configuration. */
+        resources: schema.record(ResourceName, SpaceResource).optional(),
+        /** Secret metadata; secret values never occur in this definition. */
+        secrets: schema.record(ResourceName, SpaceSecret).optional(),
+        /** Independently configured package installations. */
+        installations: schema.record(ResourceName, SpaceInstallation).optional(),
+        /** Space-scoped role definitions. */
+        roles: schema.record(ResourceName, SpaceRole).optional(),
+        /** Grants evaluated using existing authority before application. */
+        bindings: schema.record(ResourceName, SpaceRoleBinding).optional(),
+        /** Routes under domains administered by the account. */
+        routes: schema.record(ResourceName, SpaceRoute).optional(),
+    }),
+);
 /** Desired space contents produced from a package export. */
 export type SpaceDefinition = schema.Infer<typeof SpaceDefinition>;
 
@@ -74,13 +76,8 @@ export function defineSpace(value: schema.Input<typeof SpaceDefinition>): SpaceD
         }
         aliases.add(installation.alias);
         for (const binding of Object.values(installation.resources).flatMap(Object.values)) {
-            if (
-                "resource" in binding && !Object.hasOwn(resources, binding.resource)
-            ) {
-                throw new SpaceError(
-                    "INVALID_DEFINITION",
-                    `Unknown resource: ${binding.resource}`,
-                );
+            if ("resource" in binding && !Object.hasOwn(resources, binding.resource)) {
+                throw new SpaceError("INVALID_DEFINITION", `Unknown resource: ${binding.resource}`);
             }
         }
         for (const binding of Object.values(installation.secrets).flatMap(Object.values)) {
@@ -106,7 +103,9 @@ export function defineSpace(value: schema.Input<typeof SpaceDefinition>): SpaceD
         for (const permission of role.permissions) {
             const target = permission.target;
             if (
-                target && "kind" in target && !Object.hasOwn(collections[target.kind], target.name)
+                target &&
+                "kind" in target &&
+                !Object.hasOwn(collections[target.kind], target.name)
             ) {
                 throw new SpaceError(
                     "INVALID_DEFINITION",

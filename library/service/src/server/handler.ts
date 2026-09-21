@@ -71,10 +71,10 @@ export class ServiceHandler<T extends Context> extends OpenAPIHandler<T> {
     ): void {
         // reject deferred or recursive routers before entering the HTTP adapter
         if (isLazy(router)) {
-            throw new TypeError("Service procedures must be declared before hosting.");
+            throw new TypeError("service procedures must be declared before hosting");
         }
         if (ancestors.has(router)) {
-            throw new TypeError("Service routers must not contain cycles.");
+            throw new TypeError("service routers must not contain cycles");
         }
 
         // require the callbacks declared by each procedure
@@ -84,10 +84,10 @@ export class ServiceHandler<T extends Context> extends OpenAPIHandler<T> {
                 (access.authentication !== "public" || access.permission !== null) &&
                 !options.authorize
             ) {
-                throw new TypeError("Protected procedures require authorization.");
+                throw new TypeError("protected procedures require authorization");
             }
             if (access.audit && !options.audit) {
-                throw new TypeError("Audited procedures require audit recording.");
+                throw new TypeError("audited procedures require audit recording");
             }
         }
         // inspect each nested router while permitting reuse at independent addresses

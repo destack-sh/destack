@@ -52,7 +52,8 @@ export class MigrationHistory {
         for (const [index, previous] of applied.entries()) {
             const migration = this.migrations[index];
             if (
-                !migration || previous.name !== migration.name ||
+                !migration ||
+                previous.name !== migration.name ||
                 previous.checksum !== migration.checksum
             ) {
                 throw new DatabaseError(

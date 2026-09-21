@@ -20,12 +20,7 @@ type ShellProps = {
 /// Render the persistent site frame around one page.
 export function Shell(props: ShellProps) {
     return (
-        <div
-            {...stylex.attrs(
-                styles.root,
-                props.isHome ? styles.home : styles.paper,
-            )}
-        >
+        <div {...stylex.attrs(styles.root, props.isHome ? styles.home : styles.paper)}>
             <KeyboardShortcuts />
             {!props.isHome && <div aria-hidden="true" {...stylex.attrs(styles.paperGrain)} />}
             <div {...stylex.attrs(styles.paperLayer)}>

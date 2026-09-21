@@ -19,21 +19,26 @@ const SOURCE = schema.object({
 });
 
 /** A committed source or an exact local checkout snapshot. */
-export const SpaceSource = defineSchema(schema.union([
-    SOURCE.extend({
-        /** Source retained in repository history. */
-        kind: schema.literal("commit"),
-        /** The complete Git commit object identifier. */
-        commit: schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
-    }),
-    SOURCE.extend({
-        /** Unpublished source retained by the local build. */
-        kind: schema.literal("checkout"),
-        /** The registered working directory. */
-        checkout: identifier("checkout"),
-        /** The parent commit, absent for an unborn branch. */
-        commit: schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/).optional(),
-    }),
-]));
+export const SpaceSource = defineSchema(
+    schema.union([
+        SOURCE.extend({
+            /** Source retained in repository history. */
+            kind: schema.literal("commit"),
+            /** The complete Git commit object identifier. */
+            commit: schema.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
+        }),
+        SOURCE.extend({
+            /** Unpublished source retained by the local build. */
+            kind: schema.literal("checkout"),
+            /** The registered working directory. */
+            checkout: identifier("checkout"),
+            /** The parent commit, absent for an unborn branch. */
+            commit: schema
+                .string()
+                .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+                .optional(),
+        }),
+    ]),
+);
 /** Exact source used to evaluate a configuration. */
 export type SpaceSource = schema.Infer<typeof SpaceSource>;

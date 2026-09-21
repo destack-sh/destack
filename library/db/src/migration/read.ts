@@ -15,16 +15,16 @@ export async function readMigrations(
     // order migration directories independently of filesystem enumeration
     const directory = join(fileURLToPath(definition.migrations), dialect);
     const entries = await readdir(directory, { withFileTypes: true });
-    const names = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+    const names = entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort();
     const migrations: Migration[] = [];
 
     // read each file once and retain the exact SQL used to compute its checksum
     for (const name of names) {
         if (!/^\d{14}_.+$/.test(name)) {
-            throw new DatabaseError(
-                "INVALID_MIGRATION",
-                `Invalid migration directory: ${name}.`,
-            );
+            throw new DatabaseError("INVALID_MIGRATION", `Invalid migration directory: ${name}.`);
         }
         const source = await readFile(join(directory, name, "migration.sql"), "utf8");
         migrations.push({

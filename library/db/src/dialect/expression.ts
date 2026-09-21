@@ -13,7 +13,7 @@ class DialectExpression implements SQLWrapper {
 
     /** Reject compilation without a selected database dialect. */
     getSQL(): SQL {
-        throw new TypeError("Select a database dialect before compiling this expression.");
+        throw new TypeError("select a database dialect before compiling this expression");
     }
 }
 
@@ -33,7 +33,7 @@ export function compileExpression<Value>(
     const chunks = expression.queryChunks.map((chunk) => compileChunk(chunk, dialect, transform));
     const compiled = Object.assign(new SQL<Value>(chunks), expression, { queryChunks: chunks });
 
-    return transform ? transform(compiled) as SQL<Value> : compiled;
+    return transform ? (transform(compiled) as SQL<Value>) : compiled;
 }
 
 /** Select dialect expressions in one SQL fragment. */

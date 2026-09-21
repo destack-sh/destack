@@ -10,7 +10,7 @@ export const TARGETS = [
 ] as const;
 
 /** A supported distribution target. */
-export type Target = typeof TARGETS[number];
+export type Target = (typeof TARGETS)[number];
 
 /** A calendar release identified by authenticated update metadata. */
 export class Release {
@@ -62,7 +62,9 @@ export function compareVersions(left: string, right: string): number {
     const first = left.split(".").map(Number);
     const second = right.split(".").map(Number);
     for (let index = 0; index < first.length; index++) {
-        if (first[index] !== second[index]) return Math.sign(first[index] - second[index]);
+        if (first[index] !== second[index]) {
+            return Math.sign(first[index] - second[index]);
+        }
     }
 
     return 0;

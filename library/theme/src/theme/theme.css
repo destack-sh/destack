@@ -19,31 +19,31 @@
     --destack-radius-6: calc(16px * var(--destack-scaling) * var(--destack-radius-factor));
 }
 
-[data-destack-theme][data-radius='none'] {
+[data-destack-theme][data-radius="none"] {
     --destack-radius-factor: 0;
     --destack-radius-full: 0px;
     --destack-radius-thumb: 0.5px;
 }
 
-[data-destack-theme][data-radius='small'] {
+[data-destack-theme][data-radius="small"] {
     --destack-radius-factor: 0.75;
     --destack-radius-full: 0px;
     --destack-radius-thumb: 0.5px;
 }
 
-[data-destack-theme][data-radius='medium'] {
+[data-destack-theme][data-radius="medium"] {
     --destack-radius-factor: 1;
     --destack-radius-full: 0px;
     --destack-radius-thumb: 9999px;
 }
 
-[data-destack-theme][data-radius='large'] {
+[data-destack-theme][data-radius="large"] {
     --destack-radius-factor: 1.5;
     --destack-radius-full: 0px;
     --destack-radius-thumb: 9999px;
 }
 
-[data-destack-theme][data-radius='full'] {
+[data-destack-theme][data-radius="full"] {
     --destack-radius-factor: 1.5;
     --destack-radius-full: 9999px;
     --destack-radius-thumb: 9999px;
@@ -88,9 +88,11 @@
     /* default values */
 
     --destack-default-font-family:
-        -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui,
-    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
-    --destack-default-font-size: var(--destack-font-size-3); /* Same size used for `<Text size="3">` */
+        -apple-system, BlinkMacSystemFont, "Segoe UI (Custom)", Roboto, "Helvetica Neue",
+        "Open Sans (Custom)", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    --destack-default-font-size: var(
+        --destack-font-size-3
+    ); /* Same size used for `<Text size="3">` */
     --destack-default-font-style: normal;
     --destack-default-font-weight: var(--destack-font-weight-regular);
     --destack-default-line-height: 1.5; /* Equivalent to the line-height used for `<Text size="3">` 16px * 1.5 = 24px */
@@ -120,7 +122,8 @@
     /* Code */
 
     --destack-code-font-family:
-        'Menlo', 'Consolas (Custom)', 'Bitstream Vera Sans Mono', monospace, 'Apple Color Emoji', 'Segoe UI Emoji';
+        "Menlo", "Consolas (Custom)", "Bitstream Vera Sans Mono", monospace, "Apple Color Emoji",
+        "Segoe UI Emoji";
     --destack-code-font-size-adjust: 0.95;
     --destack-code-font-style: normal;
     --destack-code-font-weight: inherit;
@@ -140,7 +143,7 @@
 
     /* Em */
 
-    --destack-em-font-family: 'Times New Roman', 'Times', serif;
+    --destack-em-font-family: "Times New Roman", "Times", serif;
     --destack-em-font-size-adjust: 1.18;
     --destack-em-font-style: italic;
     --destack-em-font-weight: inherit;
@@ -148,7 +151,7 @@
 
     /* Quote */
 
-    --destack-quote-font-family: 'Times New Roman', 'Times', serif;
+    --destack-quote-font-family: "Times New Roman", "Times", serif;
     --destack-quote-font-size-adjust: 1.18;
     --destack-quote-font-style: italic;
     --destack-quote-font-weight: inherit;
@@ -163,223 +166,171 @@
 }
 [data-destack-theme] {
     --destack-shadow-1:
-        inset 0 0 0 1px var(--destack-gray-a5),
-    inset 0 1.5px 2px 0 var(--destack-gray-a2),
-    inset 0 1.5px 2px 0 var(--destack-black-a2);
+        inset 0 0 0 1px var(--destack-gray-a5), inset 0 1.5px 2px 0 var(--destack-gray-a2),
+        inset 0 1.5px 2px 0 var(--destack-black-a2);
 
     --destack-shadow-2:
-        0 0 0 1px var(--destack-gray-a3),
-    0 0 0 0.5px var(--destack-black-a1),
-    0 1px 1px 0 var(--destack-gray-a2),
-    0 2px 1px -1px var(--destack-black-a1),
-    0 1px 3px 0 var(--destack-black-a1);
+        0 0 0 1px var(--destack-gray-a3), 0 0 0 0.5px var(--destack-black-a1),
+        0 1px 1px 0 var(--destack-gray-a2), 0 2px 1px -1px var(--destack-black-a1),
+        0 1px 3px 0 var(--destack-black-a1);
 
     --destack-shadow-3:
-        0 0 0 1px var(--destack-gray-a3),
-    0 2px 3px -2px var(--destack-gray-a3),
-    0 3px 12px -4px var(--destack-black-a2),
-    0 4px 16px -8px var(--destack-black-a2);
+        0 0 0 1px var(--destack-gray-a3), 0 2px 3px -2px var(--destack-gray-a3),
+        0 3px 12px -4px var(--destack-black-a2), 0 4px 16px -8px var(--destack-black-a2);
 
     --destack-shadow-4:
-        0 0 0 1px var(--destack-gray-a3),
-    0 8px 40px var(--destack-black-a1),
-    0 12px 32px -16px var(--destack-gray-a3);
+        0 0 0 1px var(--destack-gray-a3), 0 8px 40px var(--destack-black-a1),
+        0 12px 32px -16px var(--destack-gray-a3);
 
     --destack-shadow-5:
-        0 0 0 1px var(--destack-gray-a3),
-    0 12px 60px var(--destack-black-a3),
-    0 12px 32px -16px var(--destack-gray-a5);
+        0 0 0 1px var(--destack-gray-a3), 0 12px 60px var(--destack-black-a3),
+        0 12px 32px -16px var(--destack-gray-a5);
 
     --destack-shadow-6:
-        0 0 0 1px var(--destack-gray-a3),
-    0 12px 60px var(--destack-black-a3),
-    0 16px 64px var(--destack-gray-a2),
-    0 16px 36px -20px var(--destack-gray-a7);
+        0 0 0 1px var(--destack-gray-a3), 0 12px 60px var(--destack-black-a3),
+        0 16px 64px var(--destack-gray-a2), 0 16px 36px -20px var(--destack-gray-a7);
 }
 @supports (color: color-mix(in oklab, white, black)) {
     [data-destack-theme] {
         --destack-shadow-1:
-            inset 0 0 0 1px var(--destack-gray-a5),
-      inset 0 1.5px 2px 0 var(--destack-gray-a2),
-      inset 0 1.5px 2px 0 var(--destack-black-a2);
+            inset 0 0 0 1px var(--destack-gray-a5), inset 0 1.5px 2px 0 var(--destack-gray-a2),
+            inset 0 1.5px 2px 0 var(--destack-black-a2);
 
         --destack-shadow-2:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a3), var(--destack-gray-3) 25%),
-      0 0 0 0.5px var(--destack-black-a1),
-      0 1px 1px 0 var(--destack-gray-a2),
-      0 2px 1px -1px var(--destack-black-a1),
-      0 1px 3px 0 var(--destack-black-a1);
+            0 0 0 0.5px var(--destack-black-a1), 0 1px 1px 0 var(--destack-gray-a2),
+            0 2px 1px -1px var(--destack-black-a1), 0 1px 3px 0 var(--destack-black-a1);
 
         --destack-shadow-3:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a3), var(--destack-gray-3) 25%),
-      0 2px 3px -2px var(--destack-gray-a3),
-      0 3px 12px -4px var(--destack-black-a2),
-      0 4px 16px -8px var(--destack-black-a2);
+            0 2px 3px -2px var(--destack-gray-a3), 0 3px 12px -4px var(--destack-black-a2),
+            0 4px 16px -8px var(--destack-black-a2);
 
         --destack-shadow-4:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a3), var(--destack-gray-3) 25%),
-      0 8px 40px var(--destack-black-a1),
-      0 12px 32px -16px var(--destack-gray-a3);
+            0 8px 40px var(--destack-black-a1), 0 12px 32px -16px var(--destack-gray-a3);
 
         --destack-shadow-5:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a3), var(--destack-gray-3) 25%),
-      0 12px 60px var(--destack-black-a3),
-      0 12px 32px -16px var(--destack-gray-a5);
+            0 12px 60px var(--destack-black-a3), 0 12px 32px -16px var(--destack-gray-a5);
 
         --destack-shadow-6:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a3), var(--destack-gray-3) 25%),
-      0 12px 60px var(--destack-black-a3),
-      0 16px 64px var(--destack-gray-a2),
-      0 16px 36px -20px var(--destack-gray-a7);
+            0 12px 60px var(--destack-black-a3), 0 16px 64px var(--destack-gray-a2),
+            0 16px 36px -20px var(--destack-gray-a7);
     }
 }
 [data-destack-theme="dark"] {
     --destack-shadow-1:
-        inset 0 -1px 1px 0 var(--destack-gray-a3),
-    inset 0 0 0 1px var(--destack-gray-a3),
-    inset 0 3px 4px 0 var(--destack-black-a5),
-    inset 0 0 0 1px var(--destack-gray-a4);
+        inset 0 -1px 1px 0 var(--destack-gray-a3), inset 0 0 0 1px var(--destack-gray-a3),
+        inset 0 3px 4px 0 var(--destack-black-a5), inset 0 0 0 1px var(--destack-gray-a4);
 
     --destack-shadow-2:
-        0 0 0 1px var(--destack-gray-a6),
-    0 0 0 0.5px var(--destack-black-a3),
-    0 1px 1px 0 var(--destack-black-a6),
-    0 2px 1px -1px var(--destack-black-a6),
-    0 1px 3px 0 var(--destack-black-a5);
+        0 0 0 1px var(--destack-gray-a6), 0 0 0 0.5px var(--destack-black-a3),
+        0 1px 1px 0 var(--destack-black-a6), 0 2px 1px -1px var(--destack-black-a6),
+        0 1px 3px 0 var(--destack-black-a5);
 
     --destack-shadow-3:
-        0 0 0 1px var(--destack-gray-a6),
-    0 2px 3px -2px var(--destack-black-a3),
-    0 3px 8px -2px var(--destack-black-a6),
-    0 4px 12px -4px var(--destack-black-a7);
+        0 0 0 1px var(--destack-gray-a6), 0 2px 3px -2px var(--destack-black-a3),
+        0 3px 8px -2px var(--destack-black-a6), 0 4px 12px -4px var(--destack-black-a7);
 
     --destack-shadow-4:
-        0 0 0 1px var(--destack-gray-a6),
-    0 8px 40px var(--destack-black-a3),
-    0 12px 32px -16px var(--destack-black-a5);
+        0 0 0 1px var(--destack-gray-a6), 0 8px 40px var(--destack-black-a3),
+        0 12px 32px -16px var(--destack-black-a5);
 
     --destack-shadow-5:
-        0 0 0 1px var(--destack-gray-a6),
-    0 12px 60px var(--destack-black-a5),
-    0 12px 32px -16px var(--destack-black-a7);
+        0 0 0 1px var(--destack-gray-a6), 0 12px 60px var(--destack-black-a5),
+        0 12px 32px -16px var(--destack-black-a7);
 
     --destack-shadow-6:
-        0 0 0 1px var(--destack-gray-a6),
-    0 12px 60px var(--destack-black-a4),
-    0 16px 64px var(--destack-black-a6),
-    0 16px 36px -20px var(--destack-black-a11);
+        0 0 0 1px var(--destack-gray-a6), 0 12px 60px var(--destack-black-a4),
+        0 16px 64px var(--destack-black-a6), 0 16px 36px -20px var(--destack-black-a11);
 }
 @supports (color: color-mix(in oklab, white, black)) {
     [data-destack-theme="dark"] {
         --destack-shadow-1:
-            inset 0 -1px 1px 0 var(--destack-gray-a3),
-      inset 0 0 0 1px var(--destack-gray-a3),
-      inset 0 3px 4px 0 var(--destack-black-a5),
-      inset 0 0 0 1px var(--destack-gray-a4);
+            inset 0 -1px 1px 0 var(--destack-gray-a3), inset 0 0 0 1px var(--destack-gray-a3),
+            inset 0 3px 4px 0 var(--destack-black-a5), inset 0 0 0 1px var(--destack-gray-a4);
 
         --destack-shadow-2:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 0 0 0.5px var(--destack-black-a3),
-      0 1px 1px 0 var(--destack-black-a6),
-      0 2px 1px -1px var(--destack-black-a6),
-      0 1px 3px 0 var(--destack-black-a5);
+            0 0 0 0.5px var(--destack-black-a3), 0 1px 1px 0 var(--destack-black-a6),
+            0 2px 1px -1px var(--destack-black-a6), 0 1px 3px 0 var(--destack-black-a5);
 
         --destack-shadow-3:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 2px 3px -2px var(--destack-black-a3),
-      0 3px 8px -2px var(--destack-black-a6),
-      0 4px 12px -4px var(--destack-black-a7);
+            0 2px 3px -2px var(--destack-black-a3), 0 3px 8px -2px var(--destack-black-a6),
+            0 4px 12px -4px var(--destack-black-a7);
 
         --destack-shadow-4:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 8px 40px var(--destack-black-a3),
-      0 12px 32px -16px var(--destack-black-a5);
+            0 8px 40px var(--destack-black-a3), 0 12px 32px -16px var(--destack-black-a5);
 
         --destack-shadow-5:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 12px 60px var(--destack-black-a5),
-      0 12px 32px -16px var(--destack-black-a7);
+            0 12px 60px var(--destack-black-a5), 0 12px 32px -16px var(--destack-black-a7);
 
         --destack-shadow-6:
             0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 12px 60px var(--destack-black-a4),
-      0 16px 64px var(--destack-black-a6),
-      0 16px 36px -20px var(--destack-black-a11);
+            0 12px 60px var(--destack-black-a4), 0 16px 64px var(--destack-black-a6),
+            0 16px 36px -20px var(--destack-black-a11);
     }
 }
 @media (prefers-color-scheme: dark) {
     [data-destack-theme="system"] {
         --destack-shadow-1:
-            inset 0 -1px 1px 0 var(--destack-gray-a3),
-    inset 0 0 0 1px var(--destack-gray-a3),
-    inset 0 3px 4px 0 var(--destack-black-a5),
-    inset 0 0 0 1px var(--destack-gray-a4);
+            inset 0 -1px 1px 0 var(--destack-gray-a3), inset 0 0 0 1px var(--destack-gray-a3),
+            inset 0 3px 4px 0 var(--destack-black-a5), inset 0 0 0 1px var(--destack-gray-a4);
 
         --destack-shadow-2:
-            0 0 0 1px var(--destack-gray-a6),
-    0 0 0 0.5px var(--destack-black-a3),
-    0 1px 1px 0 var(--destack-black-a6),
-    0 2px 1px -1px var(--destack-black-a6),
-    0 1px 3px 0 var(--destack-black-a5);
+            0 0 0 1px var(--destack-gray-a6), 0 0 0 0.5px var(--destack-black-a3),
+            0 1px 1px 0 var(--destack-black-a6), 0 2px 1px -1px var(--destack-black-a6),
+            0 1px 3px 0 var(--destack-black-a5);
 
         --destack-shadow-3:
-            0 0 0 1px var(--destack-gray-a6),
-    0 2px 3px -2px var(--destack-black-a3),
-    0 3px 8px -2px var(--destack-black-a6),
-    0 4px 12px -4px var(--destack-black-a7);
+            0 0 0 1px var(--destack-gray-a6), 0 2px 3px -2px var(--destack-black-a3),
+            0 3px 8px -2px var(--destack-black-a6), 0 4px 12px -4px var(--destack-black-a7);
 
         --destack-shadow-4:
-            0 0 0 1px var(--destack-gray-a6),
-    0 8px 40px var(--destack-black-a3),
-    0 12px 32px -16px var(--destack-black-a5);
+            0 0 0 1px var(--destack-gray-a6), 0 8px 40px var(--destack-black-a3),
+            0 12px 32px -16px var(--destack-black-a5);
 
         --destack-shadow-5:
-            0 0 0 1px var(--destack-gray-a6),
-    0 12px 60px var(--destack-black-a5),
-    0 12px 32px -16px var(--destack-black-a7);
+            0 0 0 1px var(--destack-gray-a6), 0 12px 60px var(--destack-black-a5),
+            0 12px 32px -16px var(--destack-black-a7);
 
         --destack-shadow-6:
-            0 0 0 1px var(--destack-gray-a6),
-    0 12px 60px var(--destack-black-a4),
-    0 16px 64px var(--destack-black-a6),
-    0 16px 36px -20px var(--destack-black-a11);
+            0 0 0 1px var(--destack-gray-a6), 0 12px 60px var(--destack-black-a4),
+            0 16px 64px var(--destack-black-a6), 0 16px 36px -20px var(--destack-black-a11);
     }
     @supports (color: color-mix(in oklab, white, black)) {
         [data-destack-theme="system"] {
             --destack-shadow-1:
-                inset 0 -1px 1px 0 var(--destack-gray-a3),
-      inset 0 0 0 1px var(--destack-gray-a3),
-      inset 0 3px 4px 0 var(--destack-black-a5),
-      inset 0 0 0 1px var(--destack-gray-a4);
+                inset 0 -1px 1px 0 var(--destack-gray-a3), inset 0 0 0 1px var(--destack-gray-a3),
+                inset 0 3px 4px 0 var(--destack-black-a5), inset 0 0 0 1px var(--destack-gray-a4);
 
             --destack-shadow-2:
                 0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 0 0 0.5px var(--destack-black-a3),
-      0 1px 1px 0 var(--destack-black-a6),
-      0 2px 1px -1px var(--destack-black-a6),
-      0 1px 3px 0 var(--destack-black-a5);
+                0 0 0 0.5px var(--destack-black-a3), 0 1px 1px 0 var(--destack-black-a6),
+                0 2px 1px -1px var(--destack-black-a6), 0 1px 3px 0 var(--destack-black-a5);
 
             --destack-shadow-3:
                 0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 2px 3px -2px var(--destack-black-a3),
-      0 3px 8px -2px var(--destack-black-a6),
-      0 4px 12px -4px var(--destack-black-a7);
+                0 2px 3px -2px var(--destack-black-a3), 0 3px 8px -2px var(--destack-black-a6),
+                0 4px 12px -4px var(--destack-black-a7);
 
             --destack-shadow-4:
                 0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 8px 40px var(--destack-black-a3),
-      0 12px 32px -16px var(--destack-black-a5);
+                0 8px 40px var(--destack-black-a3), 0 12px 32px -16px var(--destack-black-a5);
 
             --destack-shadow-5:
                 0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 12px 60px var(--destack-black-a5),
-      0 12px 32px -16px var(--destack-black-a7);
+                0 12px 60px var(--destack-black-a5), 0 12px 32px -16px var(--destack-black-a7);
 
             --destack-shadow-6:
                 0 0 0 1px color-mix(in oklab, var(--destack-gray-a6), var(--destack-gray-6) 25%),
-      0 12px 60px var(--destack-black-a4),
-      0 16px 64px var(--destack-black-a6),
-      0 16px 36px -20px var(--destack-black-a11);
+                0 12px 60px var(--destack-black-a4), 0 16px 64px var(--destack-black-a6),
+                0 16px 36px -20px var(--destack-black-a11);
         }
     }
 }

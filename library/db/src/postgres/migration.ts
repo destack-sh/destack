@@ -29,13 +29,9 @@ export async function applyMigrations(
             }
             await transaction.execute(history.insert(migration, applied.length + offset + 1));
         } catch (cause) {
-            throw new DatabaseError(
-                "MIGRATION_FAILED",
-                `Migration failed: ${migration.name}.`,
-                {
-                    cause,
-                },
-            );
+            throw new DatabaseError("MIGRATION_FAILED", `Migration failed: ${migration.name}.`, {
+                cause,
+            });
         }
     }
 }

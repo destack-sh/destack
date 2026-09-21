@@ -39,8 +39,7 @@ export function CommandPalette() {
     // open the palette from anywhere outside an editable control
     onSettled(() => {
         const handleKey = (event: KeyboardEvent) => {
-            const isCommand = (event.metaKey || event.ctrlKey) &&
-                event.key.toLowerCase() === "k";
+            const isCommand = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
             const isSlash = event.key === "/" && !isEditable(event.target);
             if (!isCommand && !isSlash) {
                 return;
@@ -76,9 +75,7 @@ export function CommandPalette() {
                 setEntries(await loadSearchEntries());
                 setSelected(0);
             } catch (error: unknown) {
-                setError(
-                    error instanceof Error ? error.message : String(error),
-                );
+                setError(error instanceof Error ? error.message : String(error));
             } finally {
                 setLoading(false);
             }
@@ -90,11 +87,7 @@ export function CommandPalette() {
 
         if (command.action.kind === "navigate") {
             if (isExternalLink(command.action.href)) {
-                window.open(
-                    command.action.href,
-                    "_blank",
-                    "noopener,noreferrer",
-                );
+                window.open(command.action.href, "_blank", "noopener,noreferrer");
             } else {
                 window.location.assign(command.action.href);
             }
@@ -113,8 +106,7 @@ export function CommandPalette() {
         } else if (event.key === "ArrowUp") {
             event.preventDefault();
             moveSelection(
-                (selected() - 1 + Math.max(results().length, 1)) %
-                    Math.max(results().length, 1),
+                (selected() - 1 + Math.max(results().length, 1)) % Math.max(results().length, 1),
             );
         } else if (event.key === "Enter") {
             const match = results()[selected()];
@@ -128,9 +120,7 @@ export function CommandPalette() {
     const moveSelection = (index: number) => {
         setSelected(index);
         queueMicrotask(() => {
-            document
-                .getElementById(`search-result-${index}`)
-                ?.scrollIntoView({ block: "nearest" });
+            document.getElementById(`search-result-${index}`)?.scrollIntoView({ block: "nearest" });
         });
     };
 
@@ -184,9 +174,11 @@ export function CommandPalette() {
                             </svg>
                             <input
                                 {...stylex.attrs(styles.input)}
-                                aria-activedescendant={results().length === 0
-                                    ? undefined
-                                    : `search-result-${selected()}`}
+                                aria-activedescendant={
+                                    results().length === 0
+                                        ? undefined
+                                        : `search-result-${selected()}`
+                                }
                                 aria-autocomplete="list"
                                 aria-controls="search-results"
                                 aria-expanded="true"
@@ -197,9 +189,11 @@ export function CommandPalette() {
                                     setSelected(0);
                                 }}
                                 onKeyDown={handleInputKey}
-                                placeholder={scope() === "All"
-                                    ? "Search Destack…"
-                                    : `Search ${scope().toLowerCase()}…`}
+                                placeholder={
+                                    scope() === "All"
+                                        ? "Search Destack…"
+                                        : `Search ${scope().toLowerCase()}…`
+                                }
                                 ref={input}
                                 role="combobox"
                                 type="search"
@@ -252,23 +246,18 @@ export function CommandPalette() {
                             </For>
                         </div>
 
-                        <ol
-                            {...stylex.attrs(styles.resultList)}
-                            id="search-results"
-                            role="listbox"
-                        >
+                        <ol {...stylex.attrs(styles.resultList)} id="search-results" role="listbox">
                             <For each={results()}>
                                 {(match, index) => (
                                     <li role="none">
                                         <button
                                             {...stylex.attrs(
                                                 styles.resultButton,
-                                                selected() === index() &&
-                                                    styles.selected,
+                                                selected() === index() && styles.selected,
                                             )}
-                                            aria-selected={selected() === index()
-                                                ? "true"
-                                                : "false"}
+                                            aria-selected={
+                                                selected() === index() ? "true" : "false"
+                                            }
                                             id={`search-result-${index()}`}
                                             onClick={(event) => {
                                                 event.preventDefault();
@@ -303,42 +292,23 @@ export function CommandPalette() {
                                                     <path d="m5 7 5 5-5 5m8 0h6" />
                                                 </Show>
                                             </svg>
-                                            <span
-                                                {...stylex.attrs(styles.result)}
-                                            >
-                                                <strong
-                                                    {...stylex.attrs(
-                                                        styles.resultLabel,
-                                                    )}
-                                                >
+                                            <span {...stylex.attrs(styles.result)}>
+                                                <strong {...stylex.attrs(styles.resultLabel)}>
                                                     <Highlight
                                                         match={match}
                                                         text={match.command.label}
                                                     />
                                                 </strong>
-                                                <Show
-                                                    when={match.command.context !== ""}
-                                                >
-                                                    <span
-                                                        {...stylex.attrs(
-                                                            styles.context,
-                                                        )}
-                                                    >
+                                                <Show when={match.command.context !== ""}>
+                                                    <span {...stylex.attrs(styles.context)}>
                                                         <Highlight
                                                             match={match}
-                                                            text={match.command
-                                                                .context}
+                                                            text={match.command.context}
                                                         />
                                                     </span>
                                                 </Show>
-                                                <Show
-                                                    when={match.excerpt !== ""}
-                                                >
-                                                    <span
-                                                        {...stylex.attrs(
-                                                            styles.excerpt,
-                                                        )}
-                                                    >
+                                                <Show when={match.excerpt !== ""}>
+                                                    <span {...stylex.attrs(styles.excerpt)}>
                                                         <Highlight
                                                             match={match}
                                                             text={match.excerpt}
@@ -352,12 +322,14 @@ export function CommandPalette() {
                                             >
                                                 <Show
                                                     when={selected() === index()}
-                                                    fallback={match.command.shortcut && (
-                                                        <kbd {...stylex.attrs(styles.shortcut)}>
-                                                            Alt{" "}
-                                                            {match.command.shortcut?.toUpperCase()}
-                                                        </kbd>
-                                                    )}
+                                                    fallback={
+                                                        match.command.shortcut && (
+                                                            <kbd {...stylex.attrs(styles.shortcut)}>
+                                                                Alt{" "}
+                                                                {match.command.shortcut?.toUpperCase()}
+                                                            </kbd>
+                                                        )
+                                                    }
                                                 >
                                                     <kbd {...stylex.attrs(styles.shortcut)}>↵</kbd>
                                                 </Show>
@@ -380,10 +352,10 @@ export function CommandPalette() {
                                 </p>
                             )}
                         </Show>
-                        <Show
-                            when={!loading() && !error() && results().length === 0}
-                        >
-                            <p {...stylex.attrs(styles.empty)} role="status">No results found.</p>
+                        <Show when={!loading() && !error() && results().length === 0}>
+                            <p {...stylex.attrs(styles.empty)} role="status">
+                                No results found.
+                            </p>
                         </Show>
                         <footer {...stylex.attrs(styles.help)}>
                             <span {...stylex.attrs(styles.helpKeys)}>
@@ -433,9 +405,8 @@ function Highlight(props: HighlightProps) {
     return (
         <For each={highlightParts(props.text, props.match.terms)}>
             {(part) =>
-                part.isMatch ? <mark {...stylex.attrs(styles.mark)}>{part.text}</mark> : (
-                    part.text
-                )}
+                part.isMatch ? <mark {...stylex.attrs(styles.mark)}>{part.text}</mark> : part.text
+            }
         </For>
     );
 }

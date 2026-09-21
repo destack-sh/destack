@@ -35,7 +35,9 @@ const twinkle = stylex.keyframes({
 export function Cover() {
     // shift the viewpoint by a few pixels within the poster
     const move = (event: PointerEvent & { currentTarget: HTMLDivElement }) => {
-        if (event.pointerType !== "mouse") return;
+        if (event.pointerType !== "mouse") {
+            return;
+        }
 
         const bounds = event.currentTarget.getBoundingClientRect();
         const x = (event.clientX - bounds.left) / bounds.width - 0.5;
@@ -71,24 +73,12 @@ export function Cover() {
                                 posterStyles.propositionLight,
                             )}
                         >
-                            <em
-                                {...stylex.attrs(
-                                    posterStyles.propositionItalic,
-                                )}
-                            >
-                                fully
-                            </em>{" "}
+                            <em {...stylex.attrs(posterStyles.propositionItalic)}>fully</em>{" "}
                             hackable
                         </span>
                     </p>
-                    <h1
-                        aria-label="Destack"
-                        {...stylex.attrs(posterStyles.title)}
-                    >
-                        <span
-                            aria-hidden="true"
-                            {...stylex.attrs(posterStyles.titleFirst)}
-                        >
+                    <h1 aria-label="Destack" {...stylex.attrs(posterStyles.title)}>
+                        <span aria-hidden="true" {...stylex.attrs(posterStyles.titleFirst)}>
                             D
                         </span>
                         <span aria-hidden="true">E</span>
@@ -96,37 +86,19 @@ export function Cover() {
                         <span aria-hidden="true">T</span>
                         <span aria-hidden="true">A</span>
                         <span aria-hidden="true">C</span>
-                        <span
-                            aria-hidden="true"
-                            {...stylex.attrs(posterStyles.titleLast)}
-                        >
+                        <span aria-hidden="true" {...stylex.attrs(posterStyles.titleLast)}>
                             K
                         </span>
                     </h1>
                     <p
-                        {...stylex.attrs(
-                            posterStyles.proposition,
-                            posterStyles.propositionLower,
-                        )}
+                        {...stylex.attrs(posterStyles.proposition, posterStyles.propositionLower)}
                         aria-label="open source computing stack"
                     >
-                        <span
-                            aria-hidden="true"
-                            {...stylex.attrs(posterStyles.propositionLight)}
-                        >
-                            <span
-                                {...stylex.attrs(
-                                    posterStyles.propositionUnderline,
-                                )}
-                            >
-                                open
-                            </span>{" "}
+                        <span aria-hidden="true" {...stylex.attrs(posterStyles.propositionLight)}>
+                            <span {...stylex.attrs(posterStyles.propositionUnderline)}>open</span>{" "}
                             source
                         </span>
-                        <span
-                            aria-hidden="true"
-                            {...stylex.attrs(posterStyles.propositionEnd)}
-                        >
+                        <span aria-hidden="true" {...stylex.attrs(posterStyles.propositionEnd)}>
                             computing stack
                         </span>
                     </p>
@@ -141,20 +113,9 @@ export function Cover() {
                         viewBox="0 0 900 100"
                         preserveAspectRatio="none"
                     >
-                        <path
-                            d="M0 60 Q450 -5 900 60 V100 H0Z"
-                            fill="#0a222c"
-                        />
-                        <path
-                            d="M0 60 Q450 -5 900 60"
-                            fill="none"
-                            stroke="#39717a"
-                        />
-                        <path
-                            d="M0 83 Q450 22 900 83"
-                            fill="none"
-                            stroke="#1d414c"
-                        />
+                        <path d="M0 60 Q450 -5 900 60 V100 H0Z" fill="#0a222c" />
+                        <path d="M0 60 Q450 -5 900 60" fill="none" stroke="#39717a" />
+                        <path d="M0 83 Q450 22 900 83" fill="none" stroke="#1d414c" />
                     </svg>
 
                     {/* draw the near side of the ring in front of the horizon */}
@@ -168,9 +129,7 @@ export function Cover() {
                 </div>
 
                 <div {...stylex.attrs(posterStyles.actions)}>
-                    <p {...stylex.attrs(posterStyles.fineLine)}>
-                        Own your stack
-                    </p>
+                    <p {...stylex.attrs(posterStyles.fineLine)}>Own your stack</p>
 
                     <Download>
                         <Installation />
@@ -230,10 +189,7 @@ function Scene() {
             {/* place one distant crescent beyond the rings */}
             <g {...stylex.attrs(posterStyles.moon)}>
                 <circle cx="190" cy="157" r="25" fill="#0c2731" />
-                <path
-                    d="M190 132 A25 25 0 1 0 202 179 C177 177 171 148 190 132Z"
-                    fill="#43838b"
-                />
+                <path d="M190 132 A25 25 0 1 0 202 179 C177 177 171 148 190 132Z" fill="#43838b" />
             </g>
 
             {/* use the same planet animation as the foreground ring */}
@@ -265,10 +221,7 @@ function Scene() {
                             d="M280 338 Q480 383 680 338 L680 354 Q480 397 280 354Z"
                             fill="#e77443"
                         />
-                        <path
-                            d="M280 389 Q480 426 680 389 L680 450 H280Z"
-                            fill="#a44328"
-                        />
+                        <path d="M280 389 Q480 426 680 389 L680 450 H280Z" fill="#a44328" />
                     </g>
                     {/* follow the ring tilt when projecting its shadow */}
                     <g transform={ringTilt}>
@@ -285,10 +238,7 @@ function Scene() {
                         fill="#623027"
                         opacity=".55"
                     />
-                    <path
-                        d="M614 128 C682 267 595 405 480 430 H700 V80Z"
-                        fill="#102a33"
-                    />
+                    <path d="M614 128 C682 267 595 405 480 430 H700 V80Z" fill="#102a33" />
                 </g>
                 <path
                     d="M306 278 A176 176 0 0 1 515 81"
@@ -333,15 +283,10 @@ function Installation() {
             }}
             type="button"
         >
-            <span
-                aria-hidden="true"
-                {...stylex.attrs(posterStyles.commandPrompt)}
-            >
+            <span aria-hidden="true" {...stylex.attrs(posterStyles.commandPrompt)}>
                 $
             </span>
-            <code {...stylex.attrs(posterStyles.commandCode)}>
-                {installCommand}
-            </code>
+            <code {...stylex.attrs(posterStyles.commandCode)}>{installCommand}</code>
             <svg
                 width="16"
                 height="16"

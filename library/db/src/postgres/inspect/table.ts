@@ -23,24 +23,30 @@ export function describeTable(table: PgTable): TableDescription {
             uniqueName: column.isUnique ? column.uniqueName : undefined,
             autoIncrement: false,
             hasDefault: column.hasDefault,
-            default: column.default === undefined ? undefined : expression(
-                is(column.default, SQL)
-                    ? column.default
-                    : column.default === null
-                    ? null
-                    : column.mapToDriverValue(column.default),
-            ),
+            default:
+                column.default === undefined
+                    ? undefined
+                    : expression(
+                          is(column.default, SQL)
+                              ? column.default
+                              : column.default === null
+                                ? null
+                                : column.mapToDriverValue(column.default),
+                      ),
             hasRuntimeDefault: column.defaultFn !== undefined,
             hasRuntimeUpdate: column.onUpdateFn !== undefined,
-            generated: column.generated === undefined ? undefined : {
-                mode: column.generated.mode,
-                expression: expression(
-                    typeof column.generated.as === "function"
-                        ? column.generated.as()
-                        : column.generated.as,
-                ),
-            },
-            jsonSchema: "jsonSchema" in column ? column.jsonSchema as JsonSchema : undefined,
+            generated:
+                column.generated === undefined
+                    ? undefined
+                    : {
+                          mode: column.generated.mode,
+                          expression: expression(
+                              typeof column.generated.as === "function"
+                                  ? column.generated.as()
+                                  : column.generated.as,
+                          ),
+                      },
+            jsonSchema: "jsonSchema" in column ? (column.jsonSchema as JsonSchema) : undefined,
         })),
         primaryKeys: definition.primaryKeys.map((key) => ({
             name: key.getName(),
@@ -56,7 +62,7 @@ export function describeTable(table: PgTable): TableDescription {
             columns: config.columns.map((column) =>
                 is(column, IndexedColumn)
                     ? { column: column.name }
-                    : { expression: expression(column) }
+                    : { expression: expression(column) },
             ),
             where: config.where === undefined ? undefined : expression(config.where),
         })),
@@ -81,13 +87,16 @@ export function describeTable(table: PgTable): TableDescription {
 
 /** Compile a declaration expression using PostgreSQL quoting and literal encoding. */
 function expression(value: unknown): string {
-    if (typeof value === "bigint") return value.toString();
+    if (typeof value === "bigint") {
+        return value.toString();
+    }
 
     // preserve binary literals without decoding bytes as text
     if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
-        const bytes = value instanceof ArrayBuffer
-            ? new Uint8Array(value)
-            : new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+        const bytes =
+            value instanceof ArrayBuffer
+                ? new Uint8Array(value)
+                : new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
         const hexadecimal = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
             "",
         );

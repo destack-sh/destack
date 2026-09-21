@@ -11,8 +11,9 @@ import { type DatabaseSchema, orderSchemas } from "../schema/schema.ts";
 import type { Table } from "../table/table.ts";
 
 /** Portable queries with an owned PostgreSQL connection pool. */
-export class Database<Relations extends Record<string, TableRelations> = {}>
-    extends DatabaseConnection<"postgresql", Relations> {
+export class Database<
+    Relations extends Record<string, TableRelations> = {},
+> extends DatabaseConnection<"postgresql", Relations> {
     /** The PostgreSQL connection pool. */
     readonly $client: postgres.Sql;
     /** The explicit native SQL API. */
@@ -26,11 +27,11 @@ export class Database<Relations extends Record<string, TableRelations> = {}>
     ) {
         const definition = Array.isArray(schema)
             ? undefined
-            : schema as DatabaseSchema<Record<string, Table>, Relations>;
+            : (schema as DatabaseSchema<Record<string, Table>, Relations>);
         const tables = definition
             ? orderSchemas([definition]).flatMap((schema) => Object.values(schema.tables))
-            : schema as readonly Table[];
-        const logical = definition?.relations ?? {} as Relations;
+            : (schema as readonly Table[]);
+        const logical = definition?.relations ?? ({} as Relations);
         const declarations = new PostgresSchemaCompiler(tables);
         const relations = declarations.relations(logical);
         const native = drizzle({ ...options, relations, client });

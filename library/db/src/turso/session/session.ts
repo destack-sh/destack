@@ -10,8 +10,11 @@ import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type { QueryClient, Statement } from "./client.ts";
 
 /** Execute Drizzle queries through a SQLite connection or transaction handle. */
-export abstract class Session<Result, Relations extends AnyRelations>
-    extends SQLiteAsyncSession<"async", Result, Relations> {
+export abstract class Session<Result, Relations extends AnyRelations> extends SQLiteAsyncSession<
+    "async",
+    Result,
+    Relations
+> {
     /** The connection or transaction that executes statements. */
     readonly client: QueryClient<Result>;
     /** Query logging, cache, and relation options. */
@@ -24,9 +27,8 @@ export abstract class Session<Result, Relations extends AnyRelations>
         super(new SQLiteDialect({ useJitMappers: options.jit ?? false }), "async");
         this.client = client;
         this.options = options;
-        this.logger = options.logger === true
-            ? new DefaultLogger()
-            : options.logger || new NoopLogger();
+        this.logger =
+            options.logger === true ? new DefaultLogger() : options.logger || new NoopLogger();
     }
 
     /** Compile query execution while retaining Drizzle's result mapping. */
@@ -45,20 +47,30 @@ export abstract class Session<Result, Relations extends AnyRelations>
             method,
             {
                 run: async (parameters) => {
-                    if (!prepare) return client.run(query.sql, ...parameters);
+                    if (!prepare) {
+                        return client.run(query.sql, ...parameters);
+                    }
                     statement ??= client.prepare(query.sql);
                     return (await statement).run(...parameters);
                 },
                 all: async (parameters) => {
-                    if (!prepare && mode !== "arrays") return client.all(query.sql, ...parameters);
+                    if (!prepare && mode !== "arrays") {
+                        return client.all(query.sql, ...parameters);
+                    }
                     statement ??= client.prepare(query.sql);
-                    return (await statement).safeIntegers(mode === "arrays").raw(mode === "arrays")
+                    return (await statement)
+                        .safeIntegers(mode === "arrays")
+                        .raw(mode === "arrays")
                         .all(...parameters);
                 },
                 get: async (parameters) => {
-                    if (!prepare && mode !== "arrays") return client.get(query.sql, ...parameters);
+                    if (!prepare && mode !== "arrays") {
+                        return client.get(query.sql, ...parameters);
+                    }
                     statement ??= client.prepare(query.sql);
-                    return (await statement).safeIntegers(mode === "arrays").raw(mode === "arrays")
+                    return (await statement)
+                        .safeIntegers(mode === "arrays")
+                        .raw(mode === "arrays")
                         .get(...parameters);
                 },
                 values: async (parameters) => {

@@ -63,16 +63,12 @@ export function Reader(props: ReaderProps) {
     // align direct links after responsive layout and webfonts settle
     onSettled(() => {
         const scrollToHeading = () => {
-            const identifier = decodeURIComponent(
-                window.location.hash.slice(1),
-            );
+            const identifier = decodeURIComponent(window.location.hash.slice(1));
             if (identifier === "") {
                 return;
             }
 
-            document
-                .getElementById(identifier)
-                ?.scrollIntoView({ block: "start" });
+            document.getElementById(identifier)?.scrollIntoView({ block: "start" });
         };
         const scrollAfterLayout = () => {
             window.requestAnimationFrame(scrollToHeading);
@@ -88,13 +84,8 @@ export function Reader(props: ReaderProps) {
     });
 
     return (
-        <div
-            {...stylex.attrs(publicationStyles.layout)}
-            data-publication={props.publication}
-        >
-            <aside {...stylex.attrs(publicationStyles.sidebar)}>
-                {props.navigation()}
-            </aside>
+        <div {...stylex.attrs(publicationStyles.layout)} data-publication={props.publication}>
+            <aside {...stylex.attrs(publicationStyles.sidebar)}>{props.navigation()}</aside>
 
             <article
                 ref={article}
@@ -174,18 +165,10 @@ function ReaderToolbar(props: ReaderToolbarProps) {
             <div {...stylex.attrs(styles.toolbarTools)}>
                 {props.tokenCount !== undefined && (
                     <>
-                        <span
-                            {...stylex.attrs(styles.statistic)}
-                            title="Estimated reading time"
-                        >
+                        <span {...stylex.attrs(styles.statistic)} title="Estimated reading time">
                             {formatReadTime(props.tokenCount)}
                         </span>
-                        <span
-                            {...stylex.attrs(
-                                styles.statistic,
-                                styles.tokenCount,
-                            )}
-                        >
+                        <span {...stylex.attrs(styles.statistic, styles.tokenCount)}>
                             {formatTokenCount(props.tokenCount)}
                         </span>
                     </>

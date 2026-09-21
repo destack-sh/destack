@@ -2,9 +2,7 @@
     "version": "8",
     "dialect": "postgres",
     "id": "f18f1160-3a3a-475e-a3fc-efcf045bc6b6",
-    "prevIds": [
-        "00000000-0000-0000-0000-000000000000"
-    ],
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
     "ddl": [
         {
             "isRlsEnabled": false,
@@ -390,9 +388,7 @@
             "table": "audit_event"
         },
         {
-            "columns": [
-                "id"
-            ],
+            "columns": ["id"],
             "nameExplicit": false,
             "name": "audit_event_pkey",
             "schema": "public",

@@ -57,7 +57,9 @@ export class UpdateRepository {
                 mode: 0o600,
             });
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+            if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+                throw error;
+            }
         }
 
         // prevent one cache from accepting metadata from multiple repositories
@@ -65,8 +67,10 @@ export class UpdateRepository {
         try {
             await writeFile(source, url.href, { flag: "wx", mode: 0o600 });
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-            if (await readFile(source, "utf8") !== url.href) {
+            if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+                throw error;
+            }
+            if ((await readFile(source, "utf8")) !== url.href) {
                 throw new UpdateError(
                     "REPOSITORY",
                     "Update cache belongs to a different repository.",
@@ -86,7 +90,9 @@ export class UpdateRepository {
         });
         await updater.refresh();
         const artifact = await updater.getTargetInfo(`${target}.tar.gz`);
-        if (!artifact) throw new UpdateError("REPOSITORY", `No published release for ${target}.`);
+        if (!artifact) {
+            throw new UpdateError("REPOSITORY", `No published release for ${target}.`);
+        }
 
         // retain the exact signed target even if the repository publishes another release
         const release = new Release(artifact.custom.version, target);
@@ -122,7 +128,8 @@ export class UpdateRepository {
             throw new UpdateError("REPOSITORY", "Release changed after selection.");
         }
         if (
-            artifact.length > 2 * 1024 ** 3 || !/^[0-9a-f]{64}$/.test(artifact.hashes.sha256 ?? "")
+            artifact.length > 2 * 1024 ** 3 ||
+            !/^[0-9a-f]{64}$/.test(artifact.hashes.sha256 ?? "")
         ) {
             throw new UpdateError("REPOSITORY", "Invalid release archive metadata.");
         }
@@ -135,9 +142,11 @@ export class UpdateRepository {
         if (candidate && !cached) {
             throw new UpdateError("REPOSITORY", "Installer archive failed verification.");
         }
-        const archive = cached ?? await downloader.downloadTarget(artifact);
+        const archive = cached ?? (await downloader.downloadTarget(artifact));
         options.signal?.throwIfAborted();
-        if (cached) options.onProgress?.({ received: artifact.length, total: artifact.length });
+        if (cached) {
+            options.onProgress?.({ received: artifact.length, total: artifact.length });
+        }
 
         return { release, archive, sha256: artifact.hashes.sha256 };
     }

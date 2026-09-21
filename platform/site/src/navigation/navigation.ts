@@ -16,21 +16,20 @@ export type NavigationLink = {
 };
 
 /// The primary internal site destinations.
-export const primaryLinks: readonly NavigationLink[] = collections.flatMap(
-    (collection) =>
-        collection.isListed === false || collection.shortcut == undefined
-            ? []
-            : [
-                {
-                    href: collection.route,
-                    label: collection.title,
-                    shortcut: collection.shortcut,
-                },
-            ],
+export const primaryLinks: readonly NavigationLink[] = collections.flatMap((collection) =>
+    collection.isListed === false || collection.shortcut == undefined
+        ? []
+        : [
+              {
+                  href: collection.route,
+                  label: collection.title,
+                  shortcut: collection.shortcut,
+              },
+          ],
 );
 
 /// The external Destack community destinations.
-export const socialLinks: readonly (NavigationLink & { icon: string; })[] = [
+export const socialLinks: readonly (NavigationLink & { icon: string })[] = [
     { href: "https://discord.gg/xUFQ45TWYd", label: "Discord", shortcut: "c", icon: discordIcon },
     { href: "https://x.com/destack", label: "X", shortcut: "x", icon: xIcon },
     {
@@ -42,7 +41,4 @@ export const socialLinks: readonly (NavigationLink & { icon: string; })[] = [
 ];
 
 /// Every persistent site destination.
-export const navigationLinks: readonly NavigationLink[] = [
-    ...primaryLinks,
-    ...socialLinks,
-];
+export const navigationLinks: readonly NavigationLink[] = [...primaryLinks, ...socialLinks];

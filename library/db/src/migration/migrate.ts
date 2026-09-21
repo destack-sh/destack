@@ -14,14 +14,25 @@ export async function migrate(
     const migrations = await readMigrations(definition, database.connection.native.dialect);
 
     // read committed observes history changes made before the advisory lock was acquired
-    await database.transaction(async (transaction) => {
-        const connection = transaction.connection;
-        if (connection.native.dialect === "sqlite") {
-            await turso.applyMigrations(connection.native.database, migrations, definition.name);
-        } else if (connection.native.dialect === "postgresql") {
-            await postgres.applyMigrations(connection.native.database, migrations, definition.name);
-        } else {
-            assertNever(connection.native);
-        }
-    }, { isolationLevel: "read committed" });
+    await database.transaction(
+        async (transaction) => {
+            const connection = transaction.connection;
+            if (connection.native.dialect === "sqlite") {
+                await turso.applyMigrations(
+                    connection.native.database,
+                    migrations,
+                    definition.name,
+                );
+            } else if (connection.native.dialect === "postgresql") {
+                await postgres.applyMigrations(
+                    connection.native.database,
+                    migrations,
+                    definition.name,
+                );
+            } else {
+                assertNever(connection.native);
+            }
+        },
+        { isolationLevel: "read committed" },
+    );
 }

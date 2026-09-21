@@ -8,26 +8,28 @@ import { DeclarationDescription } from "../inspect/declaration.ts";
 import { ResourceName } from "@destack/resource";
 
 /** Compiled files and dependencies for one execution target. */
-export const PackageOutput = defineSchema(schema.object({
-    /** The execution target. */
-    target: Target,
-    /** The concrete compiler runtime selected for this output. */
-    runtime: Runtime,
-    /** Validated workloads keyed by their declared names. */
-    workloads: schema.record(ResourceName, WorkloadDescription),
-    /** Collected resource, secret, service and schedule declarations. */
-    declarations: schema.array(DeclarationDescription),
-    /** The output directory within the build. */
-    directory: PackagePath,
-    /** Generated entrypoints keyed by their exported names. */
-    exports: schema.record(schema.string().min(1), PackagePath),
-    /** Compiler declaration entrypoints keyed by their exported names. */
-    types: schema.record(schema.string().min(1), PackagePath).optional(),
-    /** Exact dependencies referenced by runtime code and declarations. */
-    dependencies: schema.record(DependencyName, DependencyRelease),
-    /** Inspection documents collected for this target. */
-    inspections: schema.array(PackageInspectionReference),
-}));
+export const PackageOutput = defineSchema(
+    schema.object({
+        /** The execution target. */
+        target: Target,
+        /** The concrete compiler runtime selected for this output. */
+        runtime: Runtime,
+        /** Validated workloads keyed by their declared names. */
+        workloads: schema.record(ResourceName, WorkloadDescription),
+        /** Collected resource, secret, service and schedule declarations. */
+        declarations: schema.array(DeclarationDescription),
+        /** The output directory within the build. */
+        directory: PackagePath,
+        /** Generated entrypoints keyed by their exported names. */
+        exports: schema.record(schema.string().min(1), PackagePath),
+        /** Compiler declaration entrypoints keyed by their exported names. */
+        types: schema.record(schema.string().min(1), PackagePath).optional(),
+        /** Exact dependencies referenced by runtime code and declarations. */
+        dependencies: schema.record(DependencyName, DependencyRelease),
+        /** Inspection documents collected for this target. */
+        inspections: schema.array(PackageInspectionReference),
+    }),
+);
 
 /** Compiled files for one execution target. */
 export type PackageOutput = schema.Infer<typeof PackageOutput>;

@@ -45,7 +45,7 @@ export class UpdateProcess implements Disposable {
             mode: 0o600,
         });
         try {
-            if (!await lock.tryLock(true)) {
+            if (!(await lock.tryLock(true))) {
                 throw new UpdateError("BUSY", "Destack desktop is already running.");
             }
 
@@ -68,14 +68,19 @@ export class UpdateProcess implements Disposable {
     /** Handle native shutdown requests before dispatching application routes. */
     handle(request: Request): Response | undefined {
         const url = new URL(request.url);
-        if (url.pathname !== STOP_PATH) return undefined;
+        if (url.pathname !== STOP_PATH) {
+            return undefined;
+        }
         if (
-            url.origin !== `http://127.0.0.1:${this.port}` || request.headers.has("origin") ||
+            url.origin !== `http://127.0.0.1:${this.port}` ||
+            request.headers.has("origin") ||
             request.headers.get("authorization") !== `Bearer ${this.token}`
         ) {
             return new Response(null, { status: 403 });
         }
-        if (request.method !== "POST") return new Response(null, { status: 405 });
+        if (request.method !== "POST") {
+            return new Response(null, { status: 405 });
+        }
 
         // let the response complete before the application drains its HTTP server
         setTimeout(() => {
@@ -96,17 +101,24 @@ export class UpdateProcess implements Disposable {
         try {
             lock = await Deno.open(join(directory, "desktop.lock"), { read: true, write: true });
         } catch (error) {
-            if (error instanceof Deno.errors.NotFound) return false;
+            if (error instanceof Deno.errors.NotFound) {
+                return false;
+            }
             throw error;
         }
 
         // consult the live lock before trusting a persisted endpoint
         try {
-            if (await lock.tryLock(true)) return false;
+            if (await lock.tryLock(true)) {
+                return false;
+            }
             const endpoint = JSON.parse(await Deno.readTextFile(join(directory, "desktop.json")));
             if (
-                !Number.isInteger(endpoint.port) || endpoint.port < 1 || endpoint.port > 65535 ||
-                typeof endpoint.token !== "string" || !/^[0-9a-f]{64}$/.test(endpoint.token)
+                !Number.isInteger(endpoint.port) ||
+                endpoint.port < 1 ||
+                endpoint.port > 65535 ||
+                typeof endpoint.token !== "string" ||
+                !/^[0-9a-f]{64}$/.test(endpoint.token)
             ) {
                 throw new UpdateError("INSTALL", "Invalid desktop update endpoint.");
             }
@@ -123,7 +135,7 @@ export class UpdateProcess implements Disposable {
 
             // require resource release without terminating a persisted process identifier
             const deadline = performance.now() + STOP_TIMEOUT;
-            while (!await lock.tryLock(true)) {
+            while (!(await lock.tryLock(true))) {
                 if (performance.now() >= deadline) {
                     throw new UpdateError("INSTALL", "Desktop did not finish shutting down.");
                 }

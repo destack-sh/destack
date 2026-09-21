@@ -24,17 +24,13 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
                 {(item, index) => (
                     <>
                         {index() > 0 && <span>/</span>}
-                        {item.href == undefined
-                            ? (
-                                <span {...stylex.attrs(styles.current)}>
-                                    {item.label}
-                                </span>
-                            )
-                            : (
-                                <a {...stylex.attrs(styles.link)} href={item.href}>
-                                    {item.label}
-                                </a>
-                            )}
+                        {item.href == undefined ? (
+                            <span {...stylex.attrs(styles.current)}>{item.label}</span>
+                        ) : (
+                            <a {...stylex.attrs(styles.link)} href={item.href}>
+                                {item.label}
+                            </a>
+                        )}
                     </>
                 )}
             </For>

@@ -83,7 +83,9 @@ function shortcutFor(event: KeyboardEvent) {
 
 /// Return whether a shortcut originated inside an editable control.
 function isEditable(target: EventTarget | null) {
-    return target instanceof HTMLInputElement ||
+    return (
+        target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
-        (target instanceof HTMLElement && target.isContentEditable);
+        (target instanceof HTMLElement && target.isContentEditable)
+    );
 }

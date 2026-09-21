@@ -3,12 +3,14 @@ import type { TestAnnotation, TestArtifact } from "vitest";
 import { Buffer } from "node:buffer";
 
 /** An attachment stored inline or at a path. */
-export const AttachmentDescription = defineSchema(schema.object({
-    contentType: schema.string().optional(),
-    path: schema.string().optional(),
-    body: schema.string().optional(),
-    bodyEncoding: schema.enum(["base64", "utf-8"]).optional(),
-}));
+export const AttachmentDescription = defineSchema(
+    schema.object({
+        contentType: schema.string().optional(),
+        path: schema.string().optional(),
+        body: schema.string().optional(),
+        bodyEncoding: schema.enum(["base64", "utf-8"]).optional(),
+    }),
+);
 /** A portable attachment. */
 export type AttachmentDescription = schema.Infer<typeof AttachmentDescription>;
 
@@ -22,22 +24,26 @@ export const SourceDescription = defineSchema(
 );
 
 /** A test annotation with its optional attachment. */
-export const AnnotationDescription = defineSchema(schema.object({
-    message: schema.string(),
-    type: schema.string(),
-    location: SourceDescription.optional(),
-    attachment: AttachmentDescription.optional(),
-}));
+export const AnnotationDescription = defineSchema(
+    schema.object({
+        message: schema.string(),
+        type: schema.string(),
+        location: SourceDescription.optional(),
+        attachment: AttachmentDescription.optional(),
+    }),
+);
 /** A portable annotation. */
 export type AnnotationDescription = schema.Infer<typeof AnnotationDescription>;
 
 /** An extensible artifact with explicit attachments and JSON properties. */
-export const ArtifactDescription = defineSchema(schema.object({
-    type: schema.string(),
-    location: SourceDescription.optional(),
-    attachments: schema.array(AttachmentDescription),
-    properties: schema.record(schema.string(), schema.json()),
-}));
+export const ArtifactDescription = defineSchema(
+    schema.object({
+        type: schema.string(),
+        location: SourceDescription.optional(),
+        attachments: schema.array(AttachmentDescription),
+        properties: schema.record(schema.string(), schema.json()),
+    }),
+);
 /** A portable test artifact. */
 export type ArtifactDescription = schema.Infer<typeof ArtifactDescription>;
 
@@ -68,9 +74,10 @@ export function describeAnnotation(annotation: TestAnnotation): AnnotationDescri
 export function describeAttachment(
     attachment: NonNullable<TestAnnotation["attachment"]>,
 ): AttachmentDescription {
-    const body = attachment.body instanceof Uint8Array
-        ? Buffer.from(attachment.body).toString("base64")
-        : attachment.body;
+    const body =
+        attachment.body instanceof Uint8Array
+            ? Buffer.from(attachment.body).toString("base64")
+            : attachment.body;
     const bodyEncoding = attachment.body instanceof Uint8Array ? "base64" : attachment.bodyEncoding;
 
     return { contentType: attachment.contentType, path: attachment.path, body, bodyEncoding };

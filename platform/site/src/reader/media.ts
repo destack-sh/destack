@@ -1,13 +1,7 @@
 /// Replace an activated video preview with its embedded player.
 export function playVideo(event: MouseEvent) {
     // preserve ordinary navigation through modified clicks
-    if (
-        event.button !== 0 ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.shiftKey ||
-        event.altKey
-    ) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
     }
     const preview =
@@ -22,7 +16,7 @@ export function playVideo(event: MouseEvent) {
     const source = preview.dataset.videoSrc;
     const title = preview.dataset.videoTitle;
     if (source == undefined || title == undefined) {
-        throw new Error("Video preview is missing its source or title");
+        throw new Error("video preview is missing its source or title");
     }
 
     // create a player only after explicit activation

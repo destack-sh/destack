@@ -6,16 +6,18 @@ export const ResourceName = defineSchema(schema.string().regex(/^[a-z][a-z0-9-]*
 export type ResourceName = schema.Infer<typeof ResourceName>;
 
 /** A named infrastructure dependency declared by a package. */
-export const ResourceDeclaration = defineSchema(schema.object({
-    /** The package-local resource name. */
-    name: ResourceName,
-    /** The resource kind defined by its domain library. */
-    kind: ResourceName,
-    /** The declaration format version. */
-    version: schema.number().int().positive(),
-    /** The specification validated by the domain library. */
-    spec: schema.record(schema.string(), schema.json()),
-}));
+export const ResourceDeclaration = defineSchema(
+    schema.object({
+        /** The package-local resource name. */
+        name: ResourceName,
+        /** The resource kind defined by its domain library. */
+        kind: ResourceName,
+        /** The declaration format version. */
+        version: schema.number().int().positive(),
+        /** The specification validated by the domain library. */
+        spec: schema.record(schema.string(), schema.json()),
+    }),
+);
 /** A named infrastructure dependency declared by a package. */
 export type ResourceDeclaration = schema.Infer<typeof ResourceDeclaration>;
 
@@ -27,9 +29,11 @@ export function defineResourceSchema<const Kind extends string, Spec extends sch
 ) {
     ResourceDeclaration.pick({ kind: true, version: true }).parse({ kind, version });
 
-    return defineSchema(ResourceDeclaration.extend({
-        kind: schema.literal(kind),
-        version: schema.literal(version),
-        spec,
-    }));
+    return defineSchema(
+        ResourceDeclaration.extend({
+            kind: schema.literal(kind),
+            version: schema.literal(version),
+            spec,
+        }),
+    );
 }

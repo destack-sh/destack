@@ -23,23 +23,31 @@ export interface Download {
 /** Read and validate the public download catalog. */
 export async function readDownloads(): Promise<Download[]> {
     const response = await fetch("https://download.destack.sh/downloads.json");
-    if (!response.ok) throw new Error(`Download catalog returned ${response.status}.`);
+    if (!response.ok) {
+        throw new Error(`Download catalog returned ${response.status}.`);
+    }
     const catalog = await response.json();
 
     // validate addresses before placing links in the page
     const downloads = Object.entries(catalog.downloads).map(([target, value]) => {
         const { url, version } = value as { url: string; version: string };
         if (
-            !(target in platforms) || typeof url !== "string" ||
-            typeof version !== "string" || !/^\d{4}\.\d+\.\d+$/.test(version)
+            !(target in platforms) ||
+            typeof url !== "string" ||
+            typeof version !== "string" ||
+            !/^\d{4}\.\d+\.\d+$/.test(version)
         ) {
-            throw new Error("Invalid download catalog.");
+            throw new Error("invalid download catalog");
         }
         const address = new URL(url);
         if (
-            address.origin !== "https://download.destack.sh" || address.search || address.hash ||
+            address.origin !== "https://download.destack.sh" ||
+            address.search ||
+            address.hash ||
             !/^\/targets\/[a-f0-9]{64}\.[a-z0-9_-]+\.(tar\.gz|dmg|exe)$/.test(address.pathname)
-        ) throw new Error("Invalid download address.");
+        ) {
+            throw new Error("invalid download address");
+        }
 
         return {
             target: target as Download["target"],
@@ -48,19 +56,24 @@ export async function readDownloads(): Promise<Download[]> {
             url,
         };
     });
-    if (!downloads.length) throw new Error("No downloads published.");
+    if (!downloads.length) {
+        throw new Error("no downloads published");
+    }
 
     // offer one Mac download when the universal installer is published
     return downloads.some((download) => download.target === "universal-apple-darwin")
-        ? downloads.filter((download) =>
-            !["aarch64-apple-darwin", "x86_64-apple-darwin"].includes(download.target)
-        )
+        ? downloads.filter(
+              (download) =>
+                  !["aarch64-apple-darwin", "x86_64-apple-darwin"].includes(download.target),
+          )
         : downloads;
 }
 
 /** Select only platforms whose architecture is known or universal. */
 export function selectDownload(downloads: Download[], agent: string): Download | undefined {
-    if (/Android|iPhone|iPad|Mobile/.test(agent)) return undefined;
+    if (/Android|iPhone|iPad|Mobile/.test(agent)) {
+        return undefined;
+    }
     if (/Macintosh/.test(agent)) {
         return downloads.find((download) => download.target === "universal-apple-darwin");
     }

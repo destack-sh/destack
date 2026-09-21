@@ -8,13 +8,14 @@ export function createDirectory(entries: Accessor<readonly ContentEntry[]>) {
     const [parameters, setParameters] = useSearchParams();
     const year = () => String(parameters.year ?? "");
     const years = createMemo(() =>
-        [...new Set(entries().flatMap((entry) => entry.date ? [entry.date.slice(0, 4)] : []))]
-            .sort().reverse()
+        [...new Set(entries().flatMap((entry) => (entry.date ? [entry.date.slice(0, 4)] : [])))]
+            .sort()
+            .reverse(),
     );
     const filtered = createMemo(() =>
         entries().filter((entry) => {
-            return (!year() || entry.date?.startsWith(year()));
-        })
+            return !year() || entry.date?.startsWith(year());
+        }),
     );
 
     return { entries, year, years, filtered, setParameters };
@@ -44,8 +45,11 @@ export function DirectoryArchive(props: { directory: Directory }) {
                         >
                             {year}
                             <span>
-                                {directory.entries().filter((entry) => entry.date?.startsWith(year))
-                                    .length}
+                                {
+                                    directory
+                                        .entries()
+                                        .filter((entry) => entry.date?.startsWith(year)).length
+                                }
                             </span>
                         </button>
                     )}
@@ -68,9 +72,11 @@ export function DirectorySection(props: { title: string; children: JSX.Element }
 }
 
 /// Render collection controls and navigable entries.
-export function DirectoryContent(
-    props: { title: string; directory: Directory; children?: JSX.Element },
-) {
+export function DirectoryContent(props: {
+    title: string;
+    directory: Directory;
+    children?: JSX.Element;
+}) {
     return (
         <DirectorySection title={props.title}>
             <Show when={props.directory.years().length > 1 || props.directory.year()}>
@@ -82,7 +88,8 @@ export function DirectoryContent(
                             onChange={(event) =>
                                 props.directory.setParameters({
                                     year: event.currentTarget.value || undefined,
-                                })}
+                                })
+                            }
                         >
                             <option value="">All time</option>
                             <For each={props.directory.years()}>

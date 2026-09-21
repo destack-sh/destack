@@ -13,7 +13,9 @@ export function Download(props: { children: JSX.Element }) {
 
     /** Show the selected version or the common release across all platforms. */
     const version = () => {
-        if (selected()) return selected()!.version;
+        if (selected()) {
+            return selected()!.version;
+        }
         const first = downloads()[0]?.version;
 
         return downloads().every((download) => download.version === first) ? first : undefined;
@@ -21,13 +23,15 @@ export function Download(props: { children: JSX.Element }) {
 
     // load platform choices without delaying the rest of the landing page
     onSettled(() => {
-        readDownloads().then((downloads) => {
-            setDownloads(downloads);
-            setSelected(selectDownload(downloads, navigator.userAgent));
-        }).catch((error) => {
-            console.error(error);
-            setError("Downloads unavailable. Please try again.");
-        });
+        readDownloads()
+            .then((downloads) => {
+                setDownloads(downloads);
+                setSelected(selectDownload(downloads, navigator.userAgent));
+            })
+            .catch((error) => {
+                console.error(error);
+                setError("Downloads unavailable. Please try again.");
+            });
     });
 
     return (
@@ -72,9 +76,9 @@ export function Download(props: { children: JSX.Element }) {
                             }
                         }}
                         onFocusOut={(event) => {
-                            if (
-                                choices && !choices.contains(event.relatedTarget as Node | null)
-                            ) choices.open = false;
+                            if (choices && !choices.contains(event.relatedTarget as Node | null)) {
+                                choices.open = false;
+                            }
                         }}
                     >
                         <summary aria-label="Choose a platform" {...style.attrs(styles.toggle)}>
@@ -98,7 +102,9 @@ export function Download(props: { children: JSX.Element }) {
                                         {...style.attrs(styles.option)}
                                         onClick={() => {
                                             setSelected(download);
-                                            if (choices) choices.open = false;
+                                            if (choices) {
+                                                choices.open = false;
+                                            }
                                         }}
                                     >
                                         {download.label}
@@ -114,9 +120,7 @@ export function Download(props: { children: JSX.Element }) {
                     </details>
                 </div>
             </div>
-            <div {...style.attrs(styles.version)}>
-                {version()}
-            </div>
+            <div {...style.attrs(styles.version)}>{version()}</div>
         </div>
     );
 }

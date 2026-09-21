@@ -30,7 +30,9 @@ export function DocumentArticle(props: DocumentArticleProps) {
 
     // activate controls only after the complete static directory is mounted
     onSettled(() => {
-        if (body) return enhanceRuleCatalog(body);
+        if (body) {
+            return enhanceRuleCatalog(body);
+        }
     });
 
     const tokenCount = props.document.kind === "chapter" ? props.document.tokens : undefined;
@@ -65,9 +67,9 @@ export function DocumentArticle(props: DocumentArticleProps) {
                     <PageHeader
                         title={props.document.title}
                         variant={props.document.kind === "chapter" ? "chapter" : "reference"}
-                        description={props.document.kind === "chapter"
-                            ? props.document.lead
-                            : undefined}
+                        description={
+                            props.document.kind === "chapter" ? props.document.lead : undefined
+                        }
                     />
                     <Show when={props.document.kind !== "chapter" && props.document.lead}>
                         <p class="content-description">{props.document.lead}</p>
@@ -96,9 +98,9 @@ function DocumentNavigation(props: DocumentNavigationProps) {
     const navigation = () => props.current.navigation;
     // reference items highlight their containing page without changing the page list
     const activeRoute = () =>
-        [props.current, ...navigation().ancestors.toReversed()]
-            .find((page) => navigation().entries.some((entry) => entry.route === page.route))
-            ?.route;
+        [props.current, ...navigation().ancestors.toReversed()].find((page) =>
+            navigation().entries.some((entry) => entry.route === page.route),
+        )?.route;
 
     const parent = () => {
         const ancestors = navigation().ancestors;
@@ -112,7 +114,9 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                 <a href={navigation().root.route}>{navigation().root.title}</a>
                 <Show when={parent()}>
                     {(parent) => (
-                        <a class="collection-back" href={parent().route}>← {parent().title}</a>
+                        <a class="collection-back" href={parent().route}>
+                            ← {parent().title}
+                        </a>
                     )}
                 </Show>
             </div>
@@ -125,8 +129,7 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                     publicationStyles.collectionLink,
                                     documentIndent(entry.depth),
                                     entry.depth === 0 && styles.section,
-                                    entry.route === activeRoute() &&
-                                        publicationStyles.active,
+                                    entry.route === activeRoute() && publicationStyles.active,
                                 )}
                                 href={entry.route}
                             >
@@ -142,9 +145,7 @@ function DocumentNavigation(props: DocumentNavigationProps) {
 
 /// Return the indentation of one generated navigation entry.
 function documentIndent(depth: number) {
-    return [styles.depth0, styles.depth1, styles.depth2, styles.depth3][
-        Math.min(depth, 3)
-    ];
+    return [styles.depth0, styles.depth1, styles.depth2, styles.depth3][Math.min(depth, 3)];
 }
 
 /// Render the generated document ancestors.
@@ -166,26 +167,17 @@ function DocumentPagination(props: { current: Document }) {
 
     return (
         <Show when={props.current.kind !== "catalog" && (previous() || next())}>
-            <nav
-                aria-label="chapter navigation"
-                {...stylex.attrs(styles.pagination)}
-            >
+            <nav aria-label="chapter navigation" {...stylex.attrs(styles.pagination)}>
                 <Show when={previous()}>
                     {(link) => (
-                        <a
-                            {...stylex.attrs(styles.paginationLink)}
-                            href={link().route}
-                        >
+                        <a {...stylex.attrs(styles.paginationLink)} href={link().route}>
                             ← {link().title}
                         </a>
                     )}
                 </Show>
                 <Show when={next()}>
                     {(link) => (
-                        <a
-                            {...stylex.attrs(styles.paginationLink)}
-                            href={link().route}
-                        >
+                        <a {...stylex.attrs(styles.paginationLink)} href={link().route}>
                             {link().title} →
                         </a>
                     )}

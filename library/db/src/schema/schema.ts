@@ -23,9 +23,7 @@ export interface DatabaseSchema<
 export function defineDatabaseSchema<
     Tables extends Record<string, Table>,
     Relations extends Record<string, TableRelations> = {},
->(
-    definition: DatabaseSchema<Tables, Relations>,
-): DatabaseSchema<Tables, Relations> {
+>(definition: DatabaseSchema<Tables, Relations>): DatabaseSchema<Tables, Relations> {
     ResourceName.parse(definition.name);
 
     return definition;
@@ -38,7 +36,9 @@ export function orderSchemas(schemas: readonly DatabaseSchema[]): DatabaseSchema
     const active = new Set<DatabaseSchema>();
 
     // traverse each root with one shared history-name index
-    for (const schema of schemas) visitSchema(schema, visited, active, ordered);
+    for (const schema of schemas) {
+        visitSchema(schema, visited, active, ordered);
+    }
 
     return ordered;
 }
@@ -57,7 +57,9 @@ function visitSchema(
     if (previous && previous !== schema) {
         throw new TypeError(`Conflicting database schema: ${schema.name}.`);
     }
-    if (previous) return;
+    if (previous) {
+        return;
+    }
 
     // retain declaration identity while visiting shared dependencies once
     visited.set(schema.name, schema);
