@@ -1,0 +1,29 @@
+{
+    "name": "@destack/check",
+    "version": "2026.9.0",
+    "description": "Check and format Destack packages.",
+    "license": "MIT",
+    "bin": {
+        "destack-check": "./src/main.ts"
+    },
+    "type": "module",
+    "exports": {
+        "./command": "./src/main.ts",
+        ".": "./src/index.ts",
+        "./lint": "./src/lint/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./error": "./src/error/index.ts"
+    },
+    "scripts": {
+        "check": "deno check src/index.ts src/main.ts src/lint/index.ts src/inspect/index.ts"
+    },
+    "dependencies": {
+        "@oxlint/plugins": "1.83.0",
+        "typescript": "7.0.2",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "oxfmt": "0.68.0",
+        "oxlint": "1.83.0",
+        "oxlint-tsgolint": "7.0.2002"
+    }
+}
