@@ -1,0 +1,10 @@
+{
+    "language": "typescript",
+    "targets": [
+        "server"
+    ],
+    "runtimes": [
+        "deno",
+        "workerd"
+    ]
+}

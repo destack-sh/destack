@@ -1,0 +1,18 @@
+{
+    "language": "typescript",
+    "targets": ["server"],
+    "exports": {
+        "./client": {
+            "targets": ["browser", "server"],
+            "runtimes": ["browser", "deno", "workerd"]
+        },
+        "./service": {
+            "targets": ["browser", "server"],
+            "runtimes": ["browser", "deno", "workerd"]
+        },
+        "./browser": {
+            "targets": ["browser"],
+            "runtimes": ["browser"]
+        }
+    }
+}

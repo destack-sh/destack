@@ -1,0 +1,23 @@
+{
+    "language": "typescript",
+    "targets": [
+        "server"
+    ],
+    "compute": {
+        "cpuTime": 1000
+    },
+    "workloads": {
+        "web": {
+            "entrypoint": "./server",
+            "lifecycle": {},
+            "services": [
+                "notes"
+            ],
+            "schedules": [
+                "reminders",
+                "refresh",
+                "appointment"
+            ]
+        }
+    }
+}

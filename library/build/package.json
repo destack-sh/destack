@@ -1,0 +1,48 @@
+{
+    "name": "@destack/build",
+    "version": "2026.9.0",
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Inspect and build Destack packages.",
+    "exports": {
+        "./client": "./src/client/index.ts",
+        "./browser": "./src/browser.d.ts",
+        "./service": "./src/service/index.ts",
+        "./server": "./src/server/index.ts",
+        "./local": "./src/local/index.ts",
+        "./template": "./src/template/index.ts",
+        ".": "./src/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./error": "./src/error/index.ts"
+    },
+    "scripts": {
+        "check": "deno check src/index.ts src/local/index.ts src/inspect/index.ts src/template/index.ts src/build/worker.ts src/service/index.ts src/server/index.ts src/client/index.ts",
+        "test": "vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/check": "workspace:*",
+        "magic-string": "1.4.1",
+        "@jridgewell/remapping": "2.3.5",
+        "@cloudflare/workers-types": "5.20260917.1",
+        "@destack/db": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "@destack/storage": "workspace:*",
+        "@destack/space": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@solidjs/vite-plugin": "3.0.0-next.43",
+        "@solidjs/web": "2.0.0-rc.8",
+        "solid-js": "2.0.0-rc.8",
+        "@stylexjs/unplugin": "0.19.1",
+        "vite": "8.3.0",
+        "typescript": "7.0.2",
+        "rolldown": "1.2.9",
+        "cron-parser": "5.7.0"
+    },
+    "devDependencies": {
+        "@stylexjs/stylex": "0.19.1"
+    }
+}

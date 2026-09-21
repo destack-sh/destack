@@ -1,0 +1,325 @@
+import { readdir, readFile, mkdtemp, rm, symlink } from "node:fs/promises";
+import { join, relative, sep } from "node:path";
+import { createBuilder } from "vite";
+import { type StartOptions } from "@solidjs/vite-plugin";
+import { type PackageOutput } from "@destack/package/manifest";
+import { type BuildDescription } from "@destack/package/inspect";
+import { type SourceMapReference } from "@destack/package/source";
+import { type PackageSource } from "../source/index.ts";
+import { type CompileOptions } from "./module.ts";
+import { compilationPlugins, virtualPlugin } from "./compiler.ts";
+import { sourcePlugin, mapSource } from "./source.ts";
+import { prerender, type PrerenderOptions } from "./prerender/prerender.ts";
+import { type DependencyResolution } from "@destack/package/package";
+import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
+import { describeAssets, directoryPlugin } from "./asset.ts";
+import { externalModule, runtimeConditions, checkRuntime } from "./runtime.ts";
+import { type DirectoryReference } from "../inspect/directory.ts";
+import { type ModuleDescription } from "@destack/package/code";
+import { type RuntimeCompiler } from "../inspect/runtime.ts";
+import { tmpdir } from "node:os";
+import { linkDependencies } from "../source/dependency.ts";
+
+/** Solid application options supplied to its standard Vite integration. */
+export interface ApplicationOptions extends Pick<
+    StartOptions,
+    | "app"
+    | "document"
+    | "entryClient"
+    | "entryServer"
+    | "middleware"
+    | "setup"
+    | "renderMode"
+    | "css"
+> {
+    /** Compile a browser application and its server handler. */
+    kind: "web";
+    /** Server runtime and whether to distribute the handler. */
+    ssr: false | { runtime: "deno" | "workerd"; emit?: boolean };
+    /** Public URL prefix used by browser assets. */
+    base?: string;
+    /** Minify generated JavaScript. */
+    minify?: boolean;
+    /** Package-relative public asset directory; defaults to public. */
+    publicDirectory?: string | false;
+    /** Render these public routes during the build. */
+    prerender?: PrerenderOptions;
+}
+
+/** Browser assets and an optional request handler from a Solid application. */
+export interface ApplicationCompilation {
+    /** Callable exports supplied by the server adapter. */
+    handlers: string[];
+    /** Compiler descriptions keyed by output name. */
+    inspections: Record<string, BuildDescription>;
+    /** Named client and SSR outputs. */
+    outputs: Record<string, PackageOutput>;
+    /** Generated files keyed by build-relative path. */
+    files: Map<string, Uint8Array<ArrayBuffer>>;
+    /** Maps emitted by the client and server compilers. */
+    sourceMaps: SourceMapReference[];
+}
+
+/** Build a Solid application through the upstream Start environment orchestration. */
+export async function compileApplication(
+    name: string,
+    start: ApplicationOptions,
+    client: CompileOptions,
+    server: CompileOptions | undefined,
+    sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+    project: PackageSource,
+    dependencies: Readonly<Record<string, DependencyResolution>>,
+    directories: ReadonlyMap<string, readonly DirectoryReference[]>,
+    serverModules: readonly ModuleDescription[],
+    runtimes: RuntimeCompiler,
+): Promise<ApplicationCompilation> {
+    await using stage = await stagePackage(project.directory);
+    const temporary = join(stage.directory, "dist");
+    const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    const sourceMaps: SourceMapReference[] = [];
+    const locations = new Map<string, ModuleSource>();
+    const assets = new Map<string, Uint8Array<ArrayBuffer>>();
+    const outputs: Record<string, PackageOutput> = {};
+    const inspections: Record<string, BuildDescription> = {
+        client: { packages: {}, inputs: {}, outputs: {} },
+        ssr: { packages: {}, inputs: {}, outputs: {} },
+    };
+
+    // let Start build the client before the server reads its asset manifest
+    {
+        const builder = await createBuilder({
+            root: stage.directory,
+            configFile: false,
+            envDir: false,
+            publicDir: start.publicDirectory ?? "public",
+            logLevel: "silent",
+            define: { "process.env.NODE_ENV": JSON.stringify("production") },
+            base: client.base ?? "/",
+            ssr: {
+                noExternal: true,
+                target: server?.runtime === "workerd" ? "webworker" : "node",
+                resolve: {
+                    conditions: runtimeConditions(server?.runtime ?? "deno"),
+                },
+            },
+            plugins: [
+                directoryPlugin(project.directory, files, directories, assets),
+                virtualPlugin(stage.directory),
+                sourcePlugin(project.directory, files, sources),
+                dependencyPlugin(
+                    project,
+                    dependencies,
+                    inspections.client,
+                    `output/${name}-browser`,
+                    "client",
+                    locations,
+                    assets,
+                ),
+                dependencyPlugin(
+                    project,
+                    dependencies,
+                    inspections.ssr,
+                    `output/${name}-server`,
+                    "ssr",
+                    locations,
+                    assets,
+                ),
+                ...compilationPlugins(
+                    project,
+                    server !== undefined || start.prerender !== undefined,
+                    start,
+                ),
+                {
+                    name: "destack-output",
+                    enforce: "post",
+                    config() {
+                        return {
+                            environments: {
+                                client: {
+                                    build: {
+                                        outDir: join(temporary, "client"),
+                                        minify: client.minify ?? false,
+                                        rolldownOptions: {
+                                            resolve: {
+                                                conditionNames: runtimeConditions("browser"),
+                                            },
+                                            external: (specifier) =>
+                                                externalModule(specifier, "browser"),
+                                        },
+                                    },
+                                },
+                                ssr: {
+                                    resolve: {
+                                        conditions: runtimeConditions(server?.runtime ?? "deno"),
+                                    },
+                                    build: {
+                                        outDir: join(temporary, "server"),
+                                        emitAssets: true,
+                                        copyPublicDir: false,
+                                        minify: server?.minify ?? false,
+                                        rolldownOptions: {
+                                            resolve: {
+                                                mainFields:
+                                                    server?.runtime === "workerd"
+                                                        ? ["browser", "module", "main"]
+                                                        : ["module", "main"],
+                                                conditionNames: runtimeConditions(
+                                                    server?.runtime ?? "deno",
+                                                ),
+                                            },
+                                            external: (specifier) =>
+                                                externalModule(
+                                                    specifier,
+                                                    server?.runtime ?? "deno",
+                                                ),
+                                            platform:
+                                                server?.runtime === "workerd" ? "browser" : "node",
+                                        },
+                                    },
+                                },
+                            },
+                        };
+                    },
+                },
+            ],
+            build: {
+                sourcemap: true,
+                copyPublicDir: true,
+                rolldownOptions: {
+                    cwd: project.directory,
+                    experimental: { attachDebugInfo: "none" },
+                    output: {
+                        sourcemapPathTransform(source, map) {
+                            const generated = relative(temporary, map)
+                                .split(sep)
+                                .join("/")
+                                .replace(/^server\//, "ssr/");
+
+                            return mapSource(
+                                source,
+                                map,
+                                `output/${name}-${generated
+                                    .replace("client/", "browser/")
+                                    .replace("ssr/", "server/")}`,
+                                locations,
+                            );
+                        },
+                    },
+                },
+            },
+        });
+        await builder.buildApp();
+
+        // check the renderer before executing it, including renderers omitted from distribution
+        if (server) {
+            await checkRuntime(inspections.ssr, serverModules, server.runtime ?? "deno", runtimes);
+        }
+
+        // retain prerendered pages alongside browser assets for static or hybrid hosting
+        if (start.prerender) {
+            const pages = await prerender(join(temporary, "server/server.js"), start.prerender);
+            for (const [path, bytes] of pages) {
+                files.set(`output/${name}-browser/${path}`, bytes);
+            }
+        }
+
+        // retain only deployable output directories, excluding the source checkout
+        for (const [side, target] of [
+            ["client", "browser"],
+            ...(server ? [["ssr", server.target]] : []),
+        ] as const) {
+            const directory = `output/${name}-${side === "client" ? "browser" : "server"}`;
+            const distribute =
+                side === "client" || (start.ssr !== false && start.ssr.emit !== false);
+            const entries = distribute
+                ? await readdir(join(temporary, side === "ssr" ? "server" : side), {
+                      recursive: true,
+                      withFileTypes: true,
+                  })
+                : [];
+            for (const entry of entries) {
+                if (!entry.isFile()) {
+                    continue;
+                }
+                const path = join(entry.parentPath, entry.name);
+                const relative = path
+                    .slice(join(temporary, side === "ssr" ? "server" : side).length + 1)
+                    .replaceAll("\\", "/");
+                const bytes =
+                    relative === ".vite/manifest.json"
+                        ? new TextEncoder().encode(
+                              JSON.stringify(
+                                  describeAssets(
+                                      JSON.parse(await readFile(path, "utf8")),
+                                      stage.directory,
+                                      locations,
+                                  ),
+                              ),
+                          )
+                        : new Uint8Array(await readFile(path));
+                files.set(`${directory}/${relative}`, bytes);
+                if (relative.endsWith(".js.map")) {
+                    sourceMaps.push({
+                        generated: `${directory}/${relative.slice(0, -4)}`,
+                        map: `${directory}/${relative}`,
+                    });
+                }
+            }
+            outputs[side] = {
+                target: target as "browser" | "server",
+                runtime: side === "client" ? "browser" : (server?.runtime ?? "deno"),
+                workloads: {},
+                declarations: [],
+                directory,
+                exports:
+                    side === "ssr"
+                        ? { ".": `${directory}/server.js` }
+                        : server || start.prerender
+                          ? {}
+                          : { ".": `${directory}/index.html` },
+                dependencies: {},
+                inspections: [],
+            };
+        }
+
+        return {
+            outputs,
+            files,
+            sourceMaps,
+            inspections,
+            handlers: server ? ["handleRequest"] : [],
+        };
+    }
+}
+
+/** Isolate framework output while retaining normal package dependency resolution. */
+async function stagePackage(source: string): Promise<AsyncDisposable & { directory: string }> {
+    const directory = await mkdtemp(join(tmpdir(), "destack-build-"));
+
+    // link package inputs while reserving the framework's output directory
+    try {
+        for (const entry of await readdir(source, { withFileTypes: true })) {
+            if (entry.name === "dist" || entry.name === "node_modules" || entry.name === ".git") {
+                continue;
+            }
+            await symlink(
+                join(source, entry.name),
+                join(directory, entry.name),
+                entry.isDirectory() ? "junction" : "file",
+            );
+        }
+
+        // resolve dependencies through the nearest installed package tree
+        await linkDependencies(source, directory);
+    } catch (error) {
+        await rm(directory, { recursive: true });
+        throw error;
+    }
+
+    return {
+        directory,
+        async [Symbol.asyncDispose]() {
+            await rm(directory, { recursive: true });
+        },
+    };
+}

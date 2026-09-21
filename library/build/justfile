@@ -1,0 +1,17 @@
+set shell := ["bash", "-cu"]
+
+# check
+check:
+    deno task check
+
+# test
+test:
+    deno task test
+
+# update fixtures
+update:
+    UPDATE_BUILD_FIXTURES=1 deno task test --update
+
+# format
+format:
+    deno run -A @destack/check/command format src package.json destack.json

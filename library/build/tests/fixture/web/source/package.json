@@ -1,0 +1,11 @@
+{
+    "name": "@destack/build-web-fixture",
+    "version": "2026.9.0",
+    "type": "module",
+    "devDependencies": { "@destack/test": "workspace:*" },
+    "dependencies": {
+        "@destack/view": "workspace:*",
+        "@destack/style": "workspace:*",
+        "@destack/theme": "workspace:*"
+    }
+}

@@ -1,0 +1,16 @@
+{
+    "name": "@destack/build-service-fixture",
+    "version": "2026.9.0",
+    "type": "module",
+    "exports": {
+        "./server": "./src/server.ts"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "@destack/service": "workspace:*"
+    }
+}
