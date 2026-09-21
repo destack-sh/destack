@@ -7,17 +7,25 @@
     "description": "Define Destack HTTP services.",
     "sideEffects": false,
     "scripts": {
-        "check": "deno check src/index.ts src/client/index.ts src/server/index.ts src/openapi/index.ts src/inspect/index.ts src/telemetry/index.ts src/schedule/index.ts"
+        "check": "deno check src/index.ts src/client/index.ts src/server/index.ts src/openapi/index.ts src/inspect/index.ts src/telemetry/index.ts src/schedule/index.ts src/procedure/index.ts src/page/index.ts src/operation/index.ts src/health/index.ts",
+        "test": "vitest run --config vitest.config.ts"
     },
     "exports": {
+        "./declare": "./src/declare/index.ts",
+        "./operation": "./src/operation/index.ts",
+        "./procedure": "./src/procedure/index.ts",
+        "./page": "./src/page/index.ts",
+        "./health": "./src/health/index.ts",
         "./error": "./src/error/index.ts",
         ".": "./src/index.ts",
         "./client": "./src/client/index.ts",
         "./server": "./src/server/index.ts",
         "./openapi": "./src/openapi/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./telemetry": "./src/telemetry/index.ts",
         "./schedule": "./src/schedule/index.ts"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
     },
     "dependencies": {
         "@destack/schema": "workspace:*",

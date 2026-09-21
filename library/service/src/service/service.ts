@@ -1,7 +1,6 @@
-/** Define procedures, HTTP routes, schemas, errors, and shared metadata. */
-export { oc as procedure } from "@orpc/contract";
+export { defineProcedure, type ProcedureAccess } from "../procedure/procedure.ts";
 
-export * from "./declaration.ts";
+export * from "../declare/index.ts";
 
 /** Describe validated server event streams. */
 export { eventIterator } from "@orpc/contract";
