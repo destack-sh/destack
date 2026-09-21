@@ -124,7 +124,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         { caller: "alice", outcome: "started" },
         { caller: "alice", outcome: "succeeded" },
         { caller: "bob", outcome: "started" },
-        { caller: "bob", outcome: "failed" },
+        { caller: "bob", outcome: "denied" },
     ]);
 
     // refuse execution when required audit persistence fails

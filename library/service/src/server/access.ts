@@ -3,6 +3,7 @@ import { AsyncIteratorClass } from "@orpc/shared";
 import type { ProcedureAccess } from "../procedure/procedure.ts";
 import { reportError } from "./error.ts";
 import type { HandlerOptions } from "./handler.ts";
+import { ServiceError } from "../error/index.ts";
 
 /** A procedure invocation evaluated by the host's authorization policy. */
 export interface ProcedureCall<State extends Context> {
@@ -23,7 +24,7 @@ export interface ProcedureAudit<State extends Context> {
     /** The invocation evaluated by the host. */
     call: ProcedureCall<State>;
     /** The stage reached by the invocation. */
-    outcome: "started" | "succeeded" | "failed" | "cancelled";
+    outcome: "started" | "succeeded" | "failed" | "denied" | "cancelled";
     /** The failure supplied to the host, which must redact its persisted record. */
     error?: unknown;
 }
@@ -36,34 +37,44 @@ export async function invokeProcedure<State extends Context>(
 ): Promise<unknown> {
     // persist the attempt before allowing application code to execute
     const audit = call.access.audit ? options.audit! : undefined;
-    let started = false;
+    if (audit) {
+        await recordAudit({ call, outcome: "started" }, audit);
+    }
+
+    // distinguish authorization denial from an application failure
     try {
-        if (audit) {
-            await recordAudit({ call, outcome: "started" }, audit);
-        }
-        started = true;
         if (call.access.authentication !== "public" || call.access.permission !== null) {
             await options.authorize!(call);
         }
-        const result = await next();
-
-        // retain audit completion until a streamed result finishes
-        if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
-            return streamProcedure(result as AsyncIterable<unknown>, call, audit);
-        }
-        if (audit) {
-            await recordAudit({ call, outcome: "succeeded" }, audit);
-        }
-
-        return result;
     } catch (error) {
-        // report failure only when the initial audit record was accepted
-        if (started && audit) {
-            await recordAudit({ call, outcome: "failed", error }, audit);
+        if (audit) {
+            const denied =
+                error instanceof ServiceError && (error.status === 401 || error.status === 403);
+            await recordAudit({ call, outcome: denied ? "denied" : "failed", error }, audit);
         }
-
         throw reportError(error);
     }
+
+    // retain the actual application outcome independently of audit delivery failures
+    let result: unknown;
+    try {
+        result = await next();
+    } catch (error) {
+        if (audit) {
+            await recordAudit({ call, outcome: "failed", error }, audit);
+        }
+        throw reportError(error);
+    }
+
+    // retain stream completion until its iterator closes
+    if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
+        return streamProcedure(result as AsyncIterable<unknown>, call, audit);
+    }
+    if (audit) {
+        await recordAudit({ call, outcome: "succeeded" }, audit);
+    }
+
+    return result;
 }
 
 /** Report stream failures and record declared audit outcomes. */
@@ -121,7 +132,7 @@ async function recordAudit<State extends Context>(
     } catch (error) {
         // retain both failures when audit storage rejects an application failure record
         const failure =
-            event.outcome === "failed"
+            event.error !== undefined
                 ? new AggregateError([event.error, error], "Procedure failure audit failed.")
                 : error;
 
