@@ -1,0 +1,41 @@
+{
+    "plugins": [
+        "typescript",
+        "oxc",
+        "unicorn"
+    ],
+    "categories": {
+        "correctness": "error"
+    },
+    "jsPlugins": [
+        "@destack/check/lint"
+    ],
+    "rules": {
+        "eslint/curly": [
+            "error",
+            "all"
+        ],
+        "oxc/no-accumulating-spread": "error",
+        "eslint/no-unused-vars": [
+            "error",
+            {
+                "ignoreUsingDeclarations": true,
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_"
+            }
+        ],
+        "eslint/no-unassigned-vars": "off",
+        "unicorn/no-thenable": "off",
+        "eslint/no-control-regex": "off",
+        "typescript/unbound-method": "off",
+        "typescript/no-misused-spread": "off",
+        "destack/error-message-style": "error",
+        "destack/no-inline-config": "error"
+    },
+    "options": {
+        "denyWarnings": true,
+        "typeAware": true,
+        "respectEslintDisableDirectives": false
+    }
+}
