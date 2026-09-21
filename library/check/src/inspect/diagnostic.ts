@@ -9,6 +9,8 @@ export const Diagnostic = defineSchema(
         message: schema.string(),
         /** Suggested correction supplied by the tool. */
         help: schema.string().optional(),
+        /** Additional context supplied by the tool. */
+        note: schema.string().optional(),
         /** Rule documentation. */
         url: schema.string().optional(),
         /** The diagnostic severity. */

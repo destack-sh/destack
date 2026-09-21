@@ -16,6 +16,12 @@ await formatPackage({ directory: ".", files: ["src"] });
 ```
 
 ```ts
+import { formatSource } from "@destack/check";
+
+const source = await formatSource("generated.ts", generatedSource);
+```
+
+```ts
 import { checkPackage } from "@destack/check";
 import { fileURLToPath } from "node:url";
 import databaseRules from "@example/database/lint";
