@@ -163,19 +163,18 @@ fully standardize far beyond syntax, language choice, and other trivialities.
 We need exact schematics to fill in and follow for the p95 of solved use cases (think shadcn++), so we can then focus on the higher order bits that matter.
 <!--we want _exact_ prescribed module and file layouts, type shapes, call trees, services, dependencies, entire architectures.-->
 
-Once the stack is sufficiently standardised, we can finally have truly personal software that can actually be owned.
-And the most pragmatic way to standardise is to pick the best of the modern web stack, package that in a common format, and then integrate all the boring parts of the iceberg that don't matter anymore.
+With a sufficiently standardized stack, we can finally have truly personal software that can actually be owned.
+And the most pragmatic way to standardise is to pick the best of the modern web stack, package that in a common format, integrate all the boring parts of the iceberg.
 And then grow from there.
 
 <!-- TODO: demo #1 -->
 
-That is Destack, the universel software engine.
-The first part of Destack launches today: an open source, hackable, personal software platform.
-Basically, it's just a personal Git + NPM + database + compute, with all the synchronisation and boring bits to make it work nicely together with unified auth, styling, models, telemetry, and such.
+That is Destack: an open source, hackable, personal software platform.
+Basically, it's just a personal Git + NPM + database + compute, but with all the synchronisation, infrastructure, and just all the boring bits to make it work nicely together with unified auth, styling, models, telemetry, and such.
 
 <!-- TODO: demo #2 -->
 
-Destack includes "game engine" style tools for iteratively building, understanding, and refining your software, so you can actually figure out what to do.
+Inspired by game engines, Destack includes integrated tools for interactively building, understanding, and refining software .
 It's as indescructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
 Or any combination.
 
