@@ -6,6 +6,7 @@
         "./server": "./src/server.ts"
     },
     "dependencies": {
+        "@destack/audit": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/telemetry": "workspace:*",

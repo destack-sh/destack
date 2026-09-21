@@ -8288,6 +8288,36 @@ function extractContext(headers, propagator = propagation) {
 		get: (headers, name) => headers.get(name) ?? void 0
 	});
 }
+/** A canonical package-relative path using slash separators. */
+var PackagePath = defineSchema(string().regex(/^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/));
+/** A SHA-256 digest encoded as lowercase hexadecimal. */
+var Digest = defineSchema(string().length(64).regex(/^[a-f0-9]{64}$/));
+defineSchema(strictObject({
+	/** The path relative to the source or build root. */
+	path: PackagePath,
+	/** The SHA-256 digest of the file bytes. */
+	digest: Digest,
+	/** The file size in bytes. */
+	size: number().int().min(0),
+	/** The file's media type. */
+	mediaType: string().min(1)
+}));
+/** A scoped Destack package name. */
+var PackageName = defineSchema(string().max(214).regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
+defineSchema(string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
+/** The name and version declared by a package. */
+var Package = defineSchema(strictObject({
+	/** The package name, qualified by its owner. */
+	name: PackageName,
+	/** The package version. */
+	version: string().min(1)
+}));
+defineSchema(strictObject({
+	/** The released package name and version. */
+	package: Package,
+	/** The digest of its immutable build manifest. */
+	manifest: Digest
+}));
 /** Obtain package instruments from the providers registered by the host. */
 function scope(source) {
 	return {
@@ -9679,29 +9709,37 @@ var OpenAPIHandler = class extends FetchHandler {
 /** Authorize and audit an invocation before returning its value or stream. */
 async function invokeProcedure(call, next, options) {
 	const audit = call.access.audit ? options.audit : void 0;
-	let started = false;
+	if (audit) await recordAudit({
+		call,
+		outcome: "started"
+	}, audit);
 	try {
-		if (audit) await recordAudit({
-			call,
-			outcome: "started"
-		}, audit);
-		started = true;
 		if (call.access.authentication !== "public" || call.access.permission !== null) await options.authorize(call);
-		const result = await next();
-		if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) return streamProcedure(result, call, audit);
+	} catch (error) {
 		if (audit) await recordAudit({
 			call,
-			outcome: "succeeded"
+			outcome: error instanceof ORPCError && (error.status === 401 || error.status === 403) ? "denied" : "failed",
+			error
 		}, audit);
-		return result;
+		throw reportError(error);
+	}
+	let result;
+	try {
+		result = await next();
 	} catch (error) {
-		if (started && audit) await recordAudit({
+		if (audit) await recordAudit({
 			call,
 			outcome: "failed",
 			error
 		}, audit);
 		throw reportError(error);
 	}
+	if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) return streamProcedure(result, call, audit);
+	if (audit) await recordAudit({
+		call,
+		outcome: "succeeded"
+	}, audit);
+	return result;
 }
 /** Report stream failures and record declared audit outcomes. */
 function streamProcedure(stream, call, audit) {
@@ -9739,7 +9777,7 @@ async function recordAudit(event, audit) {
 	try {
 		await audit(event);
 	} catch (error) {
-		throw reportError(event.outcome === "failed" ? new AggregateError([event.error, error], "Procedure failure audit failed.") : error);
+		throw reportError(event.error !== void 0 ? new AggregateError([event.error, error], "Procedure failure audit failed.") : error);
 	}
 }
 /** Record complete RPC calls, including streamed results. */
@@ -10008,6 +10046,34 @@ strictObject({
 	/** Current readiness. */
 	status: HealthStatus
 });
+/** A stable domain action name. */
+var AuditActionName = defineSchema(string().regex(/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/));
+defineSchema(strictObject({
+	package: Package,
+	name: AuditActionName,
+	version: number().int().positive()
+}));
+/** Declare an action without recording an event or acquiring authority. */
+function defineAuditAction(action) {
+	AuditActionName.parse(action.name);
+	Package.parse(action.package);
+	number().int().positive().parse(action.version);
+	return Object.freeze({ ...action });
+}
+/** Record a published note under its declaring package. */
+var publishNote = defineAuditAction({
+	package: { "package": {
+		"name": "@destack/build-service-fixture",
+		"version": "2026.9.0"
+	} }.package,
+	name: "note.publish",
+	version: 1,
+	targets: strictObject({ note: strictObject({
+		type: literal("note"),
+		id: string()
+	}) }),
+	details: strictObject({ revision: number().int() })
+});
 /** Package instruments initialized from build-injected metadata. */
 var instruments = scope({ "package": {
 	"name": "@destack/build-service-fixture",
@@ -10090,6 +10156,6 @@ var appointment = defineSchedule({
 function remind(occurrence) {
 	return occurrence.id;
 }
-export { appointment, database, fetch, refresh, remind, reminders, router, service, token, vault };
+export { appointment, database, fetch, publishNote, refresh, remind, reminders, router, service, token, vault };
 
-//# sourceMappingURL=server-CpGptqpN.js.map
+//# sourceMappingURL=server-BueUPe3k.js.map

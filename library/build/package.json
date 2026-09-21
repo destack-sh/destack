@@ -21,6 +21,7 @@
         "test": "vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/audit": "workspace:*",
         "@destack/check": "workspace:*",
         "magic-string": "1.4.1",
         "@jridgewell/remapping": "2.3.5",

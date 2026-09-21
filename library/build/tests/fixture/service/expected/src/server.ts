@@ -7,6 +7,18 @@ import { Health } from "@destack/service/health";
 import { schema } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
+import { defineAuditAction } from "@destack/audit";
+
+/** Record a published note under its declaring package. */
+export const publishNote = defineAuditAction({
+    package: import.meta.destack.package,
+    name: "note.publish",
+    version: 1,
+    targets: schema.object({
+        note: schema.object({ type: schema.literal("note"), id: schema.string() }),
+    }),
+    details: schema.object({ revision: schema.number().int() }),
+});
 
 /** Package instruments initialized from build-injected metadata. */
 const instruments = telemetry.scope(import.meta.destack.package);

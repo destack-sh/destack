@@ -1,4 +1,6 @@
 import { schema } from "@destack/schema";
+import { AuditActionDescription, describeAuditAction } from "@destack/audit/inspect";
+import type { AuditAction } from "@destack/audit";
 import { BucketDeclaration } from "@destack/storage/inspect";
 import { DatabaseDeclaration } from "@destack/db/declare";
 import { DatabaseSchemaDescription, describeSchema } from "@destack/db/inspect";
@@ -14,6 +16,11 @@ import { BuildError } from "../error/index.ts";
 
 /** Declaration constructors and their serialized descriptions. */
 export const INSPECTORS = {
+    defineAuditAction: {
+        package: "@destack/audit",
+        kind: "audit-action",
+        schema: AuditActionDescription,
+    },
     defineDatabaseSchema: {
         package: "@destack/db",
         kind: "database-schema",
@@ -41,6 +48,18 @@ export async function inspectDeclaration(
     value: unknown,
     owner: Package,
 ): Promise<Record<string, unknown>> {
+    // retain the declaring package even when another package emits the action
+    if (name === "defineAuditAction") {
+        const description = describeAuditAction(value as AuditAction);
+        if (
+            description.package.name !== owner.name ||
+            description.package.version !== owner.version
+        ) {
+            throw new BuildError("INSPECTION_FAILED", "audit action declares a different package");
+        }
+
+        return description;
+    }
     // describe both SQL dialects without opening a database
     if (name === "defineDatabaseSchema") {
         const database = value as DatabaseSchema;
