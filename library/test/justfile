@@ -6,4 +6,4 @@ check:
 
 # format
 format:
-    deno fmt src package.json destack.json tsconfig.json
+    deno run -A @destack/check/command format src package.json destack.json tsconfig.json
