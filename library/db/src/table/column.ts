@@ -295,8 +295,15 @@ export function json<Validator extends schema.Schema>(
         types: { sqlite: "text", postgresql: "jsonb" },
         schema: validator,
         nullable: true,
-        encode(value) {
-            return JSON.stringify(validator.parse(value));
+        encode(value, dialect) {
+            const validated = validator.parse(value);
+            if (dialect === "sqlite") {
+                return JSON.stringify(validated);
+            } else if (dialect === "postgresql") {
+                return validated;
+            } else {
+                return assertNever(dialect);
+            }
         },
         decode(value, dialect) {
             let decoded;
