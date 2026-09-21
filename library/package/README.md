@@ -59,13 +59,6 @@ import { describeFile } from "@destack/package/file";
 const file = await describeFile("src/index.ts", "text/plain", bytes);
 ```
 
-```json
-{
-    "language": "typescript",
-    "inspect": { "module": "src/inspect/index.ts", "export": "inspectPackage" }
-}
-```
-
 ```ts
 import { schema } from "@destack/schema";
 import { describeTable } from "@destack/db";

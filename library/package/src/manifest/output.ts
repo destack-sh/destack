@@ -22,9 +22,7 @@ export const PackageOutput = defineSchema(
         directory: PackagePath,
         /** Generated entrypoints keyed by their exported names. */
         exports: schema.record(schema.string().min(1), PackagePath),
-        /** Compiler declaration entrypoints keyed by their exported names. */
-        types: schema.record(schema.string().min(1), PackagePath).optional(),
-        /** Exact dependencies referenced by runtime code and declarations. */
+        /** Exact dependencies referenced by runtime code. */
         dependencies: schema.record(DependencyName, DependencyRelease),
         /** Inspection documents collected for this target. */
         inspections: schema.array(PackageInspectionReference),

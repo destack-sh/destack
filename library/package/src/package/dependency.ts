@@ -14,8 +14,8 @@ export const DependencyRelease = defineSchema(
             kind: schema.literal("npm"),
             /** The resolved package and release, including npm aliases. */
             package: Package.extend({ name: DependencyName }),
-            /** The resolved tarball URL. */
-            tarball: schema.string().regex(/^https?:\/\/[^\s]+$(?![\s\S])/),
+            /** The registry that provides the release. */
+            registry: schema.string().regex(/^https?:\/\/[^\s]+$(?![\s\S])/),
             /** The registry's Subresource Integrity expression. */
             integrity: schema.string().min(1),
         }),

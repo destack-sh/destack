@@ -11,14 +11,15 @@ export const PackageInspection = defineSchema(
 );
 
 /** A validated inspection and its JSON Schema. */
-export type PackageInspection<Description = unknown> =
-    & Omit<schema.Infer<typeof PackageInspection>, "descriptions" | "schema">
-    & {
-        /** Descriptions produced by the package's libraries. */
-        descriptions: Description;
-        /** JSON Schema describing the serialized inspection. */
-        schema: ReturnType<typeof toJsonSchema>;
-    };
+export type PackageInspection<Description = unknown> = Omit<
+    schema.Infer<typeof PackageInspection>,
+    "descriptions" | "schema"
+> & {
+    /** Descriptions produced by the package's libraries. */
+    descriptions: Description;
+    /** JSON Schema describing the serialized inspection. */
+    schema: ReturnType<typeof toJsonSchema>;
+};
 
 /** Validate library descriptions and attach the inspected source modules. */
 export function createPackageInspection<Description extends schema.Schema>(
