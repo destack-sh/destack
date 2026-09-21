@@ -1,7 +1,14 @@
 {
     "language": "typescript",
     "template": {
-        "files": ["src", "package.json", "destack.json", "justfile"]
+        "files": [
+            "src",
+            "package.json",
+            "destack.json",
+            "justfile",
+            ".oxlintrc.json",
+            ".oxfmtrc.json"
+        ]
     },
     "targets": ["server"],
     "runtimes": ["deno", "workerd"]

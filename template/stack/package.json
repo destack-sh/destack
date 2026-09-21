@@ -7,7 +7,12 @@
     "sideEffects": false,
     "description": "Shared database, files, and vault declarations.",
     "exports": { ".": "./src/index.ts", "./space": "./src/space/index.ts" },
-    "scripts": { "check": "deno check src/index.ts src/space/index.ts" },
+    "scripts": {
+        "check": "deno check src/index.ts src/space/index.ts",
+        "lint": "deno run -A @destack/check/command check",
+        "format": "deno run -A @destack/check/command format"
+    },
+    "devDependencies": { "@destack/check": "2026.9.0" },
     "dependencies": {
         "@destack/space": "2026.9.0",
         "@destack/db": "2026.9.0",

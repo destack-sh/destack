@@ -1,7 +1,14 @@
 {
     "language": "typescript",
     "template": {
-        "files": ["src", "package.json", "destack.json", "justfile"],
+        "files": [
+            "src",
+            "package.json",
+            "destack.json",
+            "justfile",
+            ".oxlintrc.json",
+            ".oxfmtrc.json"
+        ],
         "dependencies": ["@destack/template-stack"]
     },
     "targets": ["browser", "server"]

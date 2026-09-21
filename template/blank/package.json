@@ -8,8 +8,11 @@
         ".": "./src/index.ts"
     },
     "scripts": {
+        "lint": "deno run -A @destack/check/command check",
+        "format": "deno run -A @destack/check/command format",
         "check": "deno check src/index.ts"
     },
+    "devDependencies": { "@destack/check": "2026.9.0" },
     "dependencies": {
         "@destack/template-stack": "2026.9.0"
     }
