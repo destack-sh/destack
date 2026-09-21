@@ -1,7 +1,5 @@
 Describe packages, source code, inspections, and built files.
 
-## Usage
-
 ```ts
 import { PackageDeclaration } from "@destack/package";
 
@@ -23,11 +21,6 @@ import { PackageManifest } from "@destack/package";
 const manifest = PackageManifest.parse(document);
 ```
 
-## Workloads
-
-Workloads select code declarations and override package compute defaults.
-The build collects resource and secret references from each workload's module dependencies.
-
 ```json
 {
     "language": "typescript",
@@ -47,8 +40,6 @@ The build collects resource and secret references from each workload's module de
 }
 ```
 
-## Dependencies
-
 ```ts
 import { BuildDescription } from "@destack/package/inspect";
 
@@ -56,25 +47,17 @@ const build = BuildDescription.parse(document.descriptions);
 const { packages, inputs, outputs } = build;
 ```
 
-Bundled dependencies appear in the build description; retained runtime imports appear in each output's `dependencies`.
-
-## Globals
-
 ```ts
 import type {} from "@destack/package/import-meta";
 
 const { name, version } = import.meta.destack.package;
 ```
 
-## Files
-
 ```ts
 import { describeFile } from "@destack/package/file";
 
 const file = await describeFile("src/index.ts", "text/plain", bytes);
 ```
-
-## Inspection
 
 ```json
 {

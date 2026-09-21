@@ -7,3 +7,4 @@ export * from "./member.ts";
 export * from "./declaration.ts";
 export * from "./symbol.ts";
 export * from "./graph.ts";
+export * from "./error.ts";
