@@ -1,1 +1,1 @@
-{ "language": "typescript", "targets": ["server"], "runtimes": ["deno"] }
+{ "language": "typescript", "targets": ["server"], "runtimes": ["bun"] }

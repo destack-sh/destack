@@ -41,7 +41,7 @@ export const deployment = table(
         /** The package-local workload name. */
         workload: text("workload").notNull(),
         /** The runtime of the selected build output. */
-        runtime: text("runtime", { enum: ["deno", "workerd"] }).notNull(),
+        runtime: text("runtime", { enum: ["bun", "workerd"] }).notNull(),
         /** The installation workload identity. */
         serviceAccountId: identifier("service_account_id", "service-account").notNull(),
         /** The workload description and effective compute settings captured at preparation. */
@@ -89,7 +89,7 @@ export const deployment = table(
             ],
         }).onDelete("restrict"),
         index("deployment_installation_state").on(entry.installationId, entry.state),
-        check("deployment_runtime", sql`${entry.runtime} IN ('deno', 'workerd')`),
+        check("deployment_runtime", sql`${entry.runtime} IN ('bun', 'workerd')`),
         check("deployment_workload", sql`length(${entry.workload}) > 0`),
         check("deployment_generation_positive", sql`${entry.generation} > 0`),
 

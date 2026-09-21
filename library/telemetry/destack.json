@@ -20,13 +20,13 @@
                 "server"
             ],
             "runtimes": [
-                "deno"
+                "bun"
             ]
         }
     },
     "runtimes": [
         "browser",
-        "deno",
+        "bun",
         "workerd"
     ]
 }

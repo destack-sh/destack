@@ -6,10 +6,11 @@
             "package.json",
             "destack.json",
             "justfile",
+            "tsconfig.json",
             ".oxlintrc.json",
             ".oxfmtrc.json"
         ]
     },
     "targets": ["server"],
-    "runtimes": ["deno", "workerd"]
+    "runtimes": ["bun", "workerd"]
 }

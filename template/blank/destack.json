@@ -6,6 +6,7 @@
             "package.json",
             "destack.json",
             "justfile",
+            "tsconfig.json",
             ".oxlintrc.json",
             ".oxfmtrc.json"
         ],

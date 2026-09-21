@@ -7,14 +7,14 @@
     "exports": {
         "./migration/generate": {
             "targets": ["server"],
-            "runtimes": ["deno"]
+            "runtimes": ["bun"]
         },
         "./postgres": {
             "targets": [
                 "server"
             ],
             "runtimes": [
-                "deno",
+                "bun",
                 "workerd"
             ]
         },
@@ -23,7 +23,7 @@
                 "server"
             ],
             "runtimes": [
-                "deno"
+                "bun"
             ]
         },
         "./turso": {
@@ -31,7 +31,7 @@
                 "server"
             ],
             "runtimes": [
-                "deno"
+                "bun"
             ]
         },
         "./turso/serverless": {
@@ -39,14 +39,14 @@
                 "server"
             ],
             "runtimes": [
-                "deno",
+                "bun",
                 "workerd"
             ]
         }
     },
     "runtimes": [
         "browser",
-        "deno",
+        "bun",
         "workerd"
     ]
 }

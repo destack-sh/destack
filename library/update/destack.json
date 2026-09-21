@@ -1,5 +1,5 @@
 {
     "language": "typescript",
     "targets": ["server"],
-    "runtimes": ["deno"]
+    "runtimes": ["bun"]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "deployment" DROP CONSTRAINT "deployment_runtime", ADD CONSTRAINT "deployment_runtime" CHECK ("runtime" IN ('bun', 'workerd'));

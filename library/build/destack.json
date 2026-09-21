@@ -4,11 +4,11 @@
     "exports": {
         "./client": {
             "targets": ["browser", "server"],
-            "runtimes": ["browser", "deno", "workerd"]
+            "runtimes": ["browser", "bun", "workerd"]
         },
         "./service": {
             "targets": ["browser", "server"],
-            "runtimes": ["browser", "deno", "workerd"]
+            "runtimes": ["browser", "bun", "workerd"]
         },
         "./browser": {
             "targets": ["browser"],
