@@ -1,7 +1,7 @@
 # check
 check:
-    deno task check
+    bun run check
 
 # format
 fmt:
-    deno fmt src
+    bun run destack-check format src

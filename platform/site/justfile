@@ -6,37 +6,37 @@ _default:
 
 # build
 build:
-    deno task build
+    bun run build
 
 # deploy
 deploy:
-    CLOUDFLARE_API_TOKEN="${CLOUDFLARE_COMPANY_API_TOKEN:?CLOUDFLARE_COMPANY_API_TOKEN is required}" deno run -A npm:wrangler deploy
+    CLOUDFLARE_API_TOKEN="${CLOUDFLARE_COMPANY_API_TOKEN:?CLOUDFLARE_COMPANY_API_TOKEN is required}" bun run wrangler deploy
 
 # format
 format:
-    @echo "No site formatter defined"
+    bun run destack-check format src build scripts
 
 # check formatting
 format-check:
-    @echo "No site formatter defined"
+    bun run destack-check format-check src build scripts
 
 # generate
 generate:
-    deno task generate
+    bun run generate
 
 # generate reference
 generate-reference:
-    deno run -A scripts/generate-release.ts
-    deno run -A scripts/generate-content.ts --reference
+    bun run scripts/generate-release.ts
+    bun run scripts/generate-content.ts --reference
 
 # generate check
 generate-check:
-    deno run -A scripts/generate-release.ts --check
-    deno run -A scripts/generate-content.ts --check
+    bun run scripts/generate-release.ts --check
+    bun run scripts/generate-content.ts --check
 
 # typecheck
 typecheck:
-    deno task typecheck
+    bun run typecheck
 
 # lint
 lint:
@@ -45,7 +45,7 @@ lint:
 
 # test
 test:
-    deno task test
+    bun run test
 
 # check
 check:
@@ -62,7 +62,7 @@ check-full:
 
 # dev
 dev:
-    deno task dev
+    bun run dev
 
 # clean
 clean:

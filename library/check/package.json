@@ -15,7 +15,7 @@
         "./error": "./src/error/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/main.ts src/lint/index.ts src/inspect/index.ts"
+        "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@oxlint/plugins": "1.83.0",

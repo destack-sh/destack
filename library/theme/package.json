@@ -3,14 +3,16 @@
     "version": "2026.9.0",
     "license": "MIT",
     "type": "module",
-    "sideEffects": ["**/*.css"],
+    "sideEffects": [
+        "**/*.css"
+    ],
     "exports": {
         ".": "./src/index.ts",
         "./theme.css": "./src/theme/theme.css",
         "./tokens.stylex": "./src/token/tokens.stylex.ts"
     },
     "scripts": {
-        "check": "deno check ./src/index.ts ./src/token/tokens.stylex.ts"
+        "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@destack/style": "workspace:*"

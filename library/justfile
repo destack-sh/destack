@@ -8,11 +8,14 @@ _default:
 
 # lint
 lint:
-    deno run -A npm:@biomejs/biome lint .
+    bun run destack-check check */src
 
 # test
 test:
+    just fs/test
+    just update/test
     just build/test
+    bun run --cwd storage test
 
 # check
 check:
@@ -20,6 +23,10 @@ check:
 
 # check quick
 check-quick:
+    just fs/check
+    bun run --cwd check check
+    just update/check
+    just test/check
     just schema/check
     just resource/check
     just vault/check
@@ -42,11 +49,11 @@ check-full:
 
 # format
 format:
-    deno run -A npm:@biomejs/biome format --write .
+    bun run destack-check format */src
 
 # check formatting
 format-check:
-    deno run -A npm:@biomejs/biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .
+    bun run destack-check format-check */src
 
 # format
 alias fmt := format
@@ -54,9 +61,3 @@ alias fmt := format
 # clean
 clean:
     rm -rf node_modules
-
-# --- release ---
-
-# publish
-publish dry="--dry-run":
-    cd schema && npm publish {{dry}} --access public

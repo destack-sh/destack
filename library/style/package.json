@@ -8,7 +8,7 @@
         ".": "./src/index.ts"
     },
     "scripts": {
-        "check": "deno check ./src/index.ts"
+        "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@stylexjs/stylex": "0.19.1"

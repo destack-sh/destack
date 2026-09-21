@@ -1,11 +1,11 @@
 Check and format Destack TypeScript packages with Oxlint and Oxfmt.
 
 ```sh
-deno run -A @destack/check/command check src
-deno run -A @destack/check/command fix src
-deno run -A @destack/check/command format src
-deno run -A @destack/check/command format-check src
-deno run -A @destack/check/command configure
+bun run destack-check check src
+bun run destack-check fix src
+bun run destack-check format src
+bun run destack-check format-check src
+bun run destack-check configure
 ```
 
 ```ts

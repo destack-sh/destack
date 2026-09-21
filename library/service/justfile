@@ -2,12 +2,12 @@ set shell := ["bash", "-cu"]
 
 # check
 check:
-    deno task check
+    bun run check
 
 # test
 test:
-    deno task test
+    bun run test
 
 # format
 format:
-    deno fmt src package.json destack.json
+    bun run destack-check format src package.json destack.json

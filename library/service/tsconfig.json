@@ -1,0 +1,17 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": { "types": ["node"], "lib": ["ESNext", "DOM", "DOM.Iterable"] },
+    "files": [
+        "src/index.ts",
+        "src/client/index.ts",
+        "src/server/index.ts",
+        "src/openapi/index.ts",
+        "src/inspect/index.ts",
+        "src/telemetry/index.ts",
+        "src/schedule/index.ts",
+        "src/procedure/index.ts",
+        "src/page/index.ts",
+        "src/operation/index.ts",
+        "src/health/index.ts"
+    ]
+}

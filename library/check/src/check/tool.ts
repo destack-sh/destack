@@ -17,7 +17,7 @@ export interface ToolResult {
     stderr: string;
 }
 
-/** Run the installed tool using the current Deno runtime. */
+/** Run the installed tool using the current Bun runtime. */
 export function runTool(
     tool: "oxlint" | "oxfmt",
     args: string[],
@@ -31,7 +31,7 @@ export function runTool(
 
     return new Promise((complete, reject) => {
         // bound the child lifetime and propagate caller cancellation
-        const child = spawn(process.execPath, ["run", "-A", executable, ...args], {
+        const child = spawn(process.execPath, ["run", "--no-env-file", executable, ...args], {
             cwd: directory,
             stdio: ["ignore", "pipe", "pipe"],
             signal: AbortSignal.any([

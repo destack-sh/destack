@@ -11,7 +11,7 @@
         "./error": "./src/error/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/context/index.ts src/error/index.ts"
+        "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@destack/schema": "workspace:*"

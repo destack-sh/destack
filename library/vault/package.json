@@ -15,6 +15,6 @@
         "@destack/resource": "workspace:*"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/inspect/index.ts"
+        "check": "tsc --project tsconfig.json"
     }
 }

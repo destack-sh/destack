@@ -1,0 +1,19 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": { "types": ["node"], "lib": ["ESNext", "DOM", "DOM.Iterable"] },
+    "files": [
+        "./src/index.ts",
+        "./src/context/index.ts",
+        "./src/trace/index.ts",
+        "./src/metric/index.ts",
+        "./src/log/index.ts",
+        "./src/resource/index.ts",
+        "./src/convention/index.ts",
+        "./src/inspect/index.ts",
+        "./src/sdk/index.ts",
+        "./src/host/index.ts",
+        "./src/browser/index.ts",
+        "./src/worker/index.ts",
+        "./src/otlp/index.ts"
+    ]
+}

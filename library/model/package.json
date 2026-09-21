@@ -15,7 +15,7 @@
         "./audit": "./src/audit/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/global/index.ts src/regional/index.ts src/source/index.ts src/audit/index.ts src/inspect/index.ts"
+        "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@destack/space": "workspace:*",

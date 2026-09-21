@@ -1,0 +1,14 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"] },
+    "files": [
+        "src/index.ts",
+        "src/code/index.ts",
+        "src/source/index.ts",
+        "src/inspect/index.ts",
+        "src/file/index.ts",
+        "src/workload/index.ts",
+        "src/runtime/index.ts",
+        "src/package/import-meta.d.ts"
+    ]
+}

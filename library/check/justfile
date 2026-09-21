@@ -2,8 +2,8 @@ set shell := ["bash", "-cu"]
 
 # check
 check:
-    deno task check
+    bun run check
 
 # format
 format:
-    deno run -A src/main.ts format src
+    bun run src/main.ts format src

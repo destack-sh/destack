@@ -2,8 +2,8 @@ set shell := ["bash", "-cu"]
 
 # check
 check:
-    deno task check
+    bun run check
 
 # format
 format:
-    deno run -A @destack/check/command format src package.json destack.json tsconfig.json
+    bun run destack-check format src package.json destack.json tsconfig.json

@@ -2,5 +2,5 @@ set shell := ["bash", "-cu"]
 
 # check
 check:
-    deno task --cwd stack check
-    deno task --cwd blank check
+    bun run --cwd stack check
+    bun run --cwd blank check

@@ -17,7 +17,7 @@ build:
 
 # build vscode
 build-vscode:
-    cd vscode && deno task package
+    cd vscode && bun run package
 
 # build zed
 build-zed:
@@ -26,12 +26,12 @@ build-zed:
 # format
 format:
     cargo fmt {{ packages }}
-    deno run -A npm:@biomejs/biome format --write vscode
+    bun run destack-check format vscode
 
 # check formatting
 format-check:
     cargo fmt --check {{ packages }}
-    deno run -A npm:@biomejs/biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false vscode
+    bun run destack-check format-check vscode
 
 # format
 alias fmt := format
@@ -39,7 +39,7 @@ alias fmt := format
 # lint
 lint:
     cargo clippy --release --target wasm32-wasip2 {{ packages }}
-    deno task --cwd vscode compile
+    bun run --cwd vscode compile
 
 # clean
 clean:
@@ -54,13 +54,13 @@ test:
 
 # test vscode
 test-vscode:
-    cd vscode && deno task test:grammar
+    cd vscode && bun run test:grammar
 
 # test zed
 test-zed:
-    for query in zed/languages/ds/*.scm; do (cd ../language/grammar/destack && deno run -A npm:tree-sitter-cli query --quiet "../../../bridge/${query}" "../../formatter/fixture/roundtrip/tree-idempotent-basic.ds") >/dev/null || exit 1; done
-    for query in zed/languages/dsm/*.scm; do (cd ../language/grammar/mir && deno run -A npm:tree-sitter-cli query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/mir/mir.txt") >/dev/null || exit 1; done
-    for query in zed/languages/dsa/*.scm; do (cd ../language/grammar/bytecode && deno run -A npm:tree-sitter-cli query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/bytecode/bytecode.txt") >/dev/null || exit 1; done
+    for query in zed/languages/ds/*.scm; do (cd ../language/grammar/destack && bun run tree-sitter-cli query --quiet "../../../bridge/${query}" "../../formatter/fixture/roundtrip/tree-idempotent-basic.ds") >/dev/null || exit 1; done
+    for query in zed/languages/dsm/*.scm; do (cd ../language/grammar/mir && bun run tree-sitter-cli query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/mir/mir.txt") >/dev/null || exit 1; done
+    for query in zed/languages/dsa/*.scm; do (cd ../language/grammar/bytecode && bun run tree-sitter-cli query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/bytecode/bytecode.txt") >/dev/null || exit 1; done
 
 # check
 check:
@@ -82,7 +82,7 @@ check-full:
 # publish vscode
 publish-vscode dry="--dry-run" prerelease="":
     @if [ "{{dry}}" = "--dry-run" ]; then \
-        cd vscode && deno task package; \
+        cd vscode && bun run package; \
         echo "Dry run: would publish vscode extension"; \
     else \
         if [ -z "${VSCE_PAT:-}" ]; then \
@@ -94,7 +94,7 @@ publish-vscode dry="--dry-run" prerelease="":
         if [ -z "${prerelease}" ] && [ "${stability}" != "stable" ]; then \
             prerelease="--pre-release"; \
         fi; \
-        cd vscode && deno run -A npm:@vscode/vsce publish --no-dependencies ${prerelease}; \
+        cd vscode && bun run @vscode/vsce publish --no-dependencies ${prerelease}; \
     fi
 
 # publish zed

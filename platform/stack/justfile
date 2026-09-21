@@ -8,23 +8,23 @@ _default:
 
 # init
 init +deployment:
-    deno run -A src/main.ts init {{deployment}}
+    bun run src/main.ts init {{deployment}}
 
 # check
 check:
-    deno fmt --check src/main.ts src/command src/deployment src/credential
-    deno check src/main.ts
-    deno run -A src/main.ts check
+    bun run destack-check format-check src/main.ts src/command src/deployment src/credential
+    bun run tsc --project tsconfig.json
+    bun run src/main.ts check
 
 # format
 format:
-    deno fmt src/main.ts src/command src/deployment src/credential
-    deno run -A src/main.ts format
+    bun run destack-check format src/main.ts src/command src/deployment src/credential
+    bun run src/main.ts format
 
 # diff
 diff +deployment:
-    deno run -A src/main.ts diff {{deployment}}
+    bun run src/main.ts diff {{deployment}}
 
 # deploy
 deploy +deployment:
-    deno run -A src/main.ts deploy {{deployment}}
+    bun run src/main.ts deploy {{deployment}}

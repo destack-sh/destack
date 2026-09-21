@@ -22,7 +22,7 @@
         "./runtime": "./src/runtime/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/code/index.ts src/source/index.ts src/inspect/index.ts src/file/index.ts src/workload/index.ts src/runtime/index.ts src/package/import-meta.d.ts"
+        "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@destack/schema": "workspace:*",

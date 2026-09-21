@@ -22,7 +22,7 @@
         "./turso/serverless": "./src/turso/serverless/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/declare/index.ts src/inspect/index.ts src/turso/schema.ts src/turso/inspect/index.ts src/postgres/index.ts src/postgres/schema.ts src/postgres/inspect/index.ts src/migration/index.ts src/migration/generate.ts src/turso/index.ts src/turso/serverless/index.ts"
+        "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@destack/schema": "workspace:*",
@@ -39,6 +39,8 @@
         "drizzle-kit": "1.0.0-rc.4"
     },
     "peerDependenciesMeta": {
-        "drizzle-kit": { "optional": true }
+        "drizzle-kit": {
+            "optional": true
+        }
     }
 }

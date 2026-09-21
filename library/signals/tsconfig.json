@@ -1,0 +1,10 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"] },
+    "files": [
+        "./src/index.ts",
+        "./src/store/index.ts",
+        "./src/error/index.ts",
+        "./src/inspect/index.ts"
+    ]
+}

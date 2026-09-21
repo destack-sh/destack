@@ -12,7 +12,7 @@
         "./inspect": "./src/inspect/index.ts"
     },
     "scripts": {
-        "check": "deno check ./src/index.ts ./src/store/index.ts ./src/error/index.ts ./src/inspect/index.ts"
+        "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@solidjs/signals": "2.0.0-rc.8"

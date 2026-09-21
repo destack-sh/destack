@@ -2,16 +2,16 @@ set shell := ["bash", "-cu"]
 
 # check
 check:
-    deno task check
+    bun run check
 
 # test
 test:
-    deno task test
+    bun run test
 
 # update fixtures
 update:
-    UPDATE_BUILD_FIXTURES=1 deno task test --update
+    UPDATE_BUILD_FIXTURES=1 bun run test --update
 
 # format
 format:
-    deno run -A @destack/check/command format src package.json destack.json
+    bun run destack-check format src package.json destack.json

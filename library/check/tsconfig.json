@@ -1,0 +1,5 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": { "types": ["bun"] },
+    "files": ["src/index.ts", "src/main.ts", "src/lint/index.ts", "src/inspect/index.ts"]
+}
