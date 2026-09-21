@@ -28,6 +28,12 @@ Install the tools needed by the packages you are working on:
 We use `justfile`s as the source of truth for all commands. 
 See the relevant directories we're working on for the relevant just recipes.
 
+## Database fixtures
+
+Keep test database tables, schema declarations, and migrations together under `tests/stack/`.
+Use `index.ts` for exports and `schema.ts` for the schema declaration.
+Run production schemas through their existing migrations; fixture migrations contain only fixture tables.
+
 ## Platform
 
 Select one infrastructure deployment explicitly:

@@ -1,0 +1,166 @@
+{
+    "version": "7",
+    "dialect": "sqlite",
+    "id": "83c33491-553f-48cc-939e-c2c66d701d39",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "name": "audit_outbox",
+            "entityType": "tables"
+        },
+        {
+            "name": "audit_sender",
+            "entityType": "tables"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "audit_outbox"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "event",
+            "entityType": "columns",
+            "table": "audit_outbox"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "content",
+            "entityType": "columns",
+            "table": "audit_outbox"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "recorded_at",
+            "entityType": "columns",
+            "table": "audit_outbox"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "audit_sender"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "audit_sender"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "sequence",
+            "entityType": "columns",
+            "table": "audit_sender"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "event_id",
+            "entityType": "columns",
+            "table": "audit_sender"
+        },
+        {
+            "columns": ["event_id"],
+            "tableTo": "audit_outbox",
+            "columnsTo": ["id"],
+            "onUpdate": "NO ACTION",
+            "onDelete": "NO ACTION",
+            "nameExplicit": false,
+            "name": "fk_audit_sender_event_id_audit_outbox_id_fk",
+            "entityType": "fks",
+            "table": "audit_sender"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "audit_outbox_pk",
+            "table": "audit_outbox",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["name"],
+            "nameExplicit": false,
+            "name": "audit_sender_pk",
+            "table": "audit_sender",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                {
+                    "value": "recorded_at",
+                    "isExpression": false
+                },
+                {
+                    "value": "id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "audit_outbox_order",
+            "entityType": "indexes",
+            "table": "audit_outbox"
+        },
+        {
+            "columns": [
+                {
+                    "value": "id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": true,
+            "where": null,
+            "origin": "manual",
+            "name": "audit_sender_id",
+            "entityType": "indexes",
+            "table": "audit_sender"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "audit_outbox_id_not_null",
+            "entityType": "checks",
+            "table": "audit_outbox"
+        },
+        {
+            "value": "\"name\" IS NOT NULL",
+            "name": "audit_sender_name_not_null",
+            "entityType": "checks",
+            "table": "audit_sender"
+        }
+    ],
+    "renames": []
+}

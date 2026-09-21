@@ -1,0 +1,33 @@
+{
+    "name": "@destack/audit",
+    "version": "2026.9.0",
+    "private": true,
+    "type": "module",
+    "license": "MIT",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts",
+        "./declare": "./src/action/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./outbox": "./src/outbox/index.ts",
+        "./history": "./src/history/index.ts",
+        "./service": "./src/service/index.ts",
+        "./client": "./src/client/index.ts",
+        "./server": "./src/server/index.ts",
+        "./error": "./src/error/index.ts"
+    },
+    "scripts": {
+        "check": "tsc -p tsconfig.json",
+        "test": "vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/service": "workspace:*",
+        "uuid": "14.0.2"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
+    }
+}

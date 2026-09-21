@@ -18,6 +18,7 @@
         "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
+        "@destack/audit": "workspace:*",
         "@destack/space": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/package": "workspace:*",

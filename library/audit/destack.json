@@ -1,0 +1,10 @@
+{
+    "language": "typescript",
+    "targets": ["browser", "server"],
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./outbox": { "targets": ["server"], "runtimes": ["bun", "workerd"] },
+        "./history": { "targets": ["server"], "runtimes": ["bun", "workerd"] },
+        "./server": { "targets": ["server"], "runtimes": ["bun", "workerd"] }
+    }
+}
