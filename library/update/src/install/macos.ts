@@ -1,36 +1,42 @@
 import { UpdateError } from "../error/error.ts";
 import { dirname, join } from "node:path";
+import { mkdir, mkdtemp, lstat, rename, rm } from "node:fs/promises";
+import { dlopen } from "bun:ffi";
 
 /** Copy a verified Mac application and atomically replace an existing installation. */
 export async function installApplication(source: string, destination: string): Promise<void> {
     // stage the bundle beside the destination for atomic replacement
-    await Deno.mkdir(dirname(destination), { recursive: true });
-    const temporary = await Deno.makeTempDir({ dir: dirname(destination), prefix: ".destack-" });
+    await mkdir(dirname(destination), { recursive: true });
+    const temporary = await mkdtemp(join(dirname(destination), ".destack-"));
     const pending = join(temporary, "Destack.app");
     try {
-        const copy = await new Deno.Command("/usr/bin/ditto", {
-            args: [source, pending],
-            stderr: "piped",
-        }).output();
-        if (!copy.success) {
-            throw new UpdateError("INSTALL", new TextDecoder().decode(copy.stderr));
+        const copy = Bun.spawn(["/usr/bin/ditto", source, pending], {
+            stdout: "ignore",
+            stderr: "pipe",
+        });
+        const [copyCode, copyError] = await Promise.all([
+            copy.exited,
+            new Response(copy.stderr).text(),
+        ]);
+        if (copyCode !== 0) {
+            throw new UpdateError("INSTALL", copyError);
         }
         await verifyApplication(pending);
 
         // exchange complete bundles in one filesystem operation and retain the old release archive
         let exists = true;
         try {
-            await Deno.lstat(destination);
+            await lstat(destination);
         } catch (error) {
-            if (!(error instanceof Deno.errors.NotFound)) {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
                 throw error;
             }
             exists = false;
         }
         if (exists) {
             await verifyApplication(destination);
-            const system = Deno.dlopen("/usr/lib/libSystem.B.dylib", {
-                renamex_np: { parameters: ["buffer", "buffer", "u32"], result: "i32" },
+            const system = dlopen("/usr/lib/libSystem.B.dylib", {
+                renamex_np: { args: ["buffer", "buffer", "u32"], returns: "i32" },
             });
             const encoder = new TextEncoder();
             try {
@@ -50,31 +56,44 @@ export async function installApplication(source: string, destination: string): P
                 system.close();
             }
         } else {
-            await Deno.rename(pending, destination);
+            await rename(pending, destination);
         }
     } finally {
-        await Deno.remove(temporary, { recursive: true });
+        await rm(temporary, { recursive: true });
     }
 }
 
 /** Verify the complete bundle and its application identifier. */
 async function verifyApplication(application: string): Promise<void> {
-    const identifier = await new Deno.Command("/usr/bin/plutil", {
-        args: ["-extract", "CFBundleIdentifier", "raw", join(application, "Contents/Info.plist")],
-        stdout: "piped",
-        stderr: "piped",
-    }).output();
-    if (
-        !identifier.success ||
-        new TextDecoder().decode(identifier.stdout).trim() !== "sh.destack.desktop"
-    ) {
+    const identifier = Bun.spawn(
+        [
+            "/usr/bin/plutil",
+            "-extract",
+            "CFBundleIdentifier",
+            "raw",
+            join(application, "Contents/Info.plist"),
+        ],
+        { stdout: "pipe", stderr: "inherit" },
+    );
+    const [identifierCode, name] = await Promise.all([
+        identifier.exited,
+        new Response(identifier.stdout).text(),
+    ]);
+    if (identifierCode !== 0 || name.trim() !== "sh.destack.desktop") {
         throw new UpdateError("INSTALL", `Not a Destack application: ${application}`);
     }
-    const signature = await new Deno.Command("/usr/bin/codesign", {
-        args: ["--verify", "--deep", "--strict", application],
-        stderr: "piped",
-    }).output();
-    if (!signature.success) {
-        throw new UpdateError("INSTALL", new TextDecoder().decode(signature.stderr));
+    const signature = Bun.spawn(
+        ["/usr/bin/codesign", "--verify", "--deep", "--strict", application],
+        {
+            stdout: "ignore",
+            stderr: "pipe",
+        },
+    );
+    const [signatureCode, signatureError] = await Promise.all([
+        signature.exited,
+        new Response(signature.stderr).text(),
+    ]);
+    if (signatureCode !== 0) {
+        throw new UpdateError("INSTALL", signatureError);
     }
 }

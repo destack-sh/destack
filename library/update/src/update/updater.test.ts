@@ -71,7 +71,7 @@ test("stage across sessions, rotate trust, and preserve the active release on re
 
         // exercise the public API, progress, cancellation, and installation locking
         {
-            using updater = await Updater.open(options);
+            await using updater = await Updater.open(options);
             await expect(Updater.open(options)).rejects.toThrow(
                 "Another Destack update is running.",
             );
@@ -120,7 +120,7 @@ test("stage across sessions, rotate trust, and preserve the active release on re
 
         // a directly launched newer executable must not activate an older staged distribution
         {
-            using updater = await Updater.open({
+            await using updater = await Updater.open({
                 ...options,
                 current: new Release("2026.9.2", target),
             });
@@ -149,7 +149,7 @@ test("stage across sessions, rotate trust, and preserve the active release on re
 
         // reopening preserves staging and follows the signed root rotation
         {
-            using updater = await Updater.open(options);
+            await using updater = await Updater.open(options);
             expect(await updater.current()).toBeUndefined();
             const staged = await updater.staged();
             const installed = await updater.activate(staged!);
@@ -168,7 +168,7 @@ test("stage across sessions, rotate trust, and preserve the active release on re
             },
         ]);
         {
-            using updater = await Updater.open(options);
+            await using updater = await Updater.open(options);
             const update = await updater.check();
             const download = await update!.download();
             await expect(updater.stage(download)).rejects.toThrow(
@@ -188,7 +188,7 @@ test("stage across sessions, rotate trust, and preserve the active release on re
             },
         ]);
         {
-            using updater = await Updater.open(options);
+            await using updater = await Updater.open(options);
             await expect(updater.check()).rejects.toThrow("Published release changed.");
             expect((await updater.current())?.release).toEqual(new Release("2026.9.1", target));
         }
@@ -205,7 +205,7 @@ test("stage across sessions, rotate trust, and preserve the active release on re
         timestamp.sign((bytes) => keys.timestamp.sign(bytes));
         await writeFile(timestampPath, encode(timestamp));
         {
-            using updater = await Updater.open(options);
+            await using updater = await Updater.open(options);
             await expect(updater.check()).rejects.toThrow("Final timestamp.json is expired");
             expect((await updater.current())?.release).toEqual(new Release("2026.9.1", target));
         }
@@ -217,7 +217,7 @@ test("stage across sessions, rotate trust, and preserve the active release on re
         rollback.sign((bytes) => keys.timestamp.sign(bytes));
         await writeFile(timestampPath, encode(rollback));
         {
-            using updater = await Updater.open(options);
+            await using updater = await Updater.open(options);
             await expect(updater.check()).rejects.toThrow(
                 "New timestamp version 1 is less than current version 4",
             );

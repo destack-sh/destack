@@ -4,27 +4,29 @@ import { type InstalledRelease, Installer, type StagedRelease } from "../install
 import { Release, type Target } from "../release/release.ts";
 import { type Download, UpdateRepository } from "../repository/repository.ts";
 import { Update } from "./update.ts";
+import { FileLock } from "@destack/fs";
+import { mkdir, stat } from "node:fs/promises";
 
 /** Maximum time allowed for a staged executable to report its version. */
 const VERIFY_TIMEOUT = 60_000;
 
 /** A locked update session for one installed Destack distribution. */
-export class Updater implements Disposable {
+export class Updater implements AsyncDisposable {
     /** Distribution files and activation records. */
     private readonly installer: Installer;
     /** Verified update repository. */
     private readonly repository: UpdateRepository;
     /** Exclusive metadata and installation lock. */
-    private readonly lock: Deno.FsFile;
+    private readonly lock: FileLock;
     /** Platform and application selected by the caller. */
     private readonly options: UpdaterOptions;
     /** Whether this session has released its lock. */
     private isClosed = false;
     /** Whether an operation is accessing metadata or installation files. */
-    private isBusy = false;
+    private operation?: PromiseWithResolvers<void>;
 
     /** Construct an updater after acquiring its installation lock. */
-    private constructor(options: UpdaterOptions, lock: Deno.FsFile, repository: UpdateRepository) {
+    private constructor(options: UpdaterOptions, lock: FileLock, repository: UpdateRepository) {
         this.options = { ...options };
         this.lock = lock;
         this.repository = repository;
@@ -55,17 +57,12 @@ export class Updater implements Disposable {
         }
 
         // serialize trust updates and installation across CLI and desktop processes
-        await Deno.mkdir(options.directory, { recursive: true, mode: 0o700 });
-        const lock = await Deno.open(join(options.directory, "update.lock"), {
-            create: true,
-            read: true,
-            write: true,
-            mode: 0o600,
-        });
+        await mkdir(options.directory, { recursive: true, mode: 0o700 });
+        const lock = await FileLock.tryAcquire(join(options.directory, "update.lock"));
+        if (!lock) {
+            throw new UpdateError("BUSY", "Another Destack update is running.");
+        }
         try {
-            if (!(await lock.tryLock(true))) {
-                throw new UpdateError("BUSY", "Another Destack update is running.");
-            }
             const repository = await UpdateRepository.open(
                 join(options.directory, "update"),
                 options.repository,
@@ -74,7 +71,7 @@ export class Updater implements Disposable {
             const updater = new Updater(options, lock, repository);
             return updater;
         } catch (error) {
-            lock.close();
+            await lock.close();
             throw error;
         }
     }
@@ -189,13 +186,10 @@ export class Updater implements Disposable {
     }
 
     /** Release the installation lock. */
-    [Symbol.dispose](): void {
-        if (!this.isClosed) {
-            this.isClosed = true;
-            if (!this.isBusy) {
-                this.lock.close();
-            }
-        }
+    async [Symbol.asyncDispose](): Promise<void> {
+        this.isClosed = true;
+        await this.operation?.promise;
+        await this.lock.close();
     }
 
     /** Serialize operations and retain the lock until in-progress work finishes. */
@@ -203,17 +197,16 @@ export class Updater implements Disposable {
         if (this.isClosed) {
             throw new UpdateError("CLOSED", "Update session is closed.");
         }
-        if (this.isBusy) {
+        if (this.operation) {
             throw new UpdateError("BUSY", "An update operation is already running.");
         }
-        this.isBusy = true;
+        const operation = Promise.withResolvers<void>();
+        this.operation = operation;
 
         return {
             [Symbol.dispose]: () => {
-                this.isBusy = false;
-                if (this.isClosed) {
-                    this.lock.close();
-                }
+                this.operation = undefined;
+                operation.resolve();
             },
         };
     }
@@ -239,30 +232,34 @@ export interface UpdaterOptions {
 async function verifyRelease(directory: string, release: Release): Promise<void> {
     // execute only an archive previously authenticated by the update repository
     const name = release.target.includes("windows") ? "destack.exe" : "destack";
-    const output = await new Deno.Command(join(directory, "bin", name), {
-        args: ["version", "--json"],
-        env: { DESTACK_UPDATE_CHECK: "1" },
-        signal: AbortSignal.timeout(VERIFY_TIMEOUT),
-        stdout: "piped",
-        stderr: "piped",
-    }).output();
-    if (!output.success) {
-        const diagnostic = new TextDecoder().decode(output.stderr).trim();
+    const child = Bun.spawn([join(directory, "bin", name), "version", "--json"], {
+        env: { ...process.env, DESTACK_UPDATE_CHECK: "1" },
+        timeout: VERIFY_TIMEOUT,
+        stdout: "pipe",
+        stderr: "pipe",
+    });
+    const [code, stdout, stderr] = await Promise.all([
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+    ]);
+    if (code !== 0) {
+        const diagnostic = stderr.trim();
         throw new UpdateError(
             "RELEASE",
-            `Downloaded CLI exited with ${output.signal ?? output.code}: ${diagnostic}`,
+            `Downloaded CLI exited with ${child.signalCode ?? code}: ${diagnostic}`,
         );
     }
 
     // reject incomplete distributions before changing the active release
-    if (JSON.parse(new TextDecoder().decode(output.stdout)).version !== release.version) {
+    if (JSON.parse(stdout).version !== release.version) {
         throw new UpdateError(
             "RELEASE",
             "Downloaded CLI version does not match the signed release.",
         );
     }
     const desktop = release.target.endsWith("apple-darwin") ? "Destack.app" : "Destack";
-    if (!(await Deno.stat(join(directory, desktop))).isDirectory) {
+    if (!(await stat(join(directory, desktop))).isDirectory()) {
         throw new UpdateError("RELEASE", "Downloaded desktop is missing.");
     }
 }

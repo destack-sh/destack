@@ -5,14 +5,14 @@ import { join } from "node:path";
 import { Installer } from "./installer.ts";
 import { Release } from "../release/release.ts";
 
-test.runIf(Deno.build.os === "darwin")(
+test.runIf(process.platform === "darwin")(
     "recover macOS activation after bundle replacement",
     async () => {
         // construct an ad-hoc signed application entirely inside the temporary installation
         const directory = await mkdtemp(join(tmpdir(), "destack-macos-update-"));
         try {
             const installer = new Installer(join(directory, "installation"));
-            const release = new Release("2026.9.1", Deno.build.target);
+            const release = new Release("2026.9.1", Release.target());
             const staged = join(installer.directory, "versions", release.directory);
             const application = join(staged, "Destack.app");
             await mkdir(join(application, "Contents/MacOS"), { recursive: true });
@@ -28,14 +28,17 @@ test.runIf(Deno.build.os === "darwin")(
 </dict></plist>
 `,
             );
-            const signed = await new Deno.Command("/usr/bin/codesign", {
-                args: ["--force", "--sign", "-", application],
-                stdout: "piped",
-                stderr: "piped",
-                signal: AbortSignal.timeout(3000),
-            }).output();
-            if (!signed.success) {
-                throw new Error(new TextDecoder().decode(signed.stderr));
+            const signed = Bun.spawn(["/usr/bin/codesign", "--force", "--sign", "-", application], {
+                stdout: "ignore",
+                stderr: "pipe",
+                timeout: 3000,
+            });
+            const [code, error] = await Promise.all([
+                signed.exited,
+                new Response(signed.stderr).text(),
+            ]);
+            if (code !== 0) {
+                throw new Error(error);
             }
 
             // force staging cleanup to fail after the native bundle is replaced

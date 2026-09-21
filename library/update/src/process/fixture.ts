@@ -1,12 +1,17 @@
 import { UpdateProcess } from "./process.ts";
 
 // retain a real child process until an authenticated updater requests shutdown
-const server = Deno.serve({ hostname: "127.0.0.1", port: 0, onListen() {} }, (request) => {
-    return process.handle(request) ?? new Response("Not found", { status: 404 });
+const stopped = Promise.withResolvers<void>();
+const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch(request) {
+        return registration.handle(request) ?? new Response("Not found", { status: 404 });
+    },
 });
-using process = await UpdateProcess.register(Deno.args[0], server.addr.port, async () => {
-    await server.shutdown();
-    Deno.exit(0);
+await using registration = await UpdateProcess.register(process.argv[2], server.port!, async () => {
+    await server.stop();
+    stopped.resolve();
 });
 console.log("ready");
-await server.finished;
+await stopped.promise;

@@ -14,6 +14,29 @@ export type Target = (typeof TARGETS)[number];
 
 /** A calendar release identified by authenticated update metadata. */
 export class Release {
+    /** Identify the running distribution's operating system and architecture. */
+    static target(): Target {
+        const architecture =
+            process.arch === "arm64" ? "aarch64" : process.arch === "x64" ? "x86_64" : undefined;
+        const system =
+            process.platform === "darwin"
+                ? "apple-darwin"
+                : process.platform === "linux"
+                  ? "unknown-linux-gnu"
+                  : process.platform === "win32"
+                    ? "pc-windows-msvc"
+                    : undefined;
+        const target = `${architecture}-${system}`;
+        if (!TARGETS.includes(target as Target)) {
+            throw new UpdateError(
+                "RELEASE",
+                `unsupported target: ${process.platform}/${process.arch}`,
+            );
+        }
+
+        return target as Target;
+    }
+
     /** Calendar version of the distribution. */
     readonly version: string;
     /** Operating system and architecture of the distribution. */

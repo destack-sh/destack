@@ -2,26 +2,36 @@ import { expect, test } from "@destack/test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { UpdateProcess } from "./process.ts";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 
 test("authenticate desktop shutdown and wait for process exit", async () => {
     // start a real native process with a private registration
-    const directory = await Deno.makeTempDir({ prefix: "destack-update-process-" });
-    const process = new Deno.Command(Deno.execPath(), {
-        args: ["run", "-A", fileURLToPath(new URL("./fixture.ts", import.meta.url)), directory],
-        stdout: "piped",
-        stderr: "inherit",
-    }).spawn();
+    const directory = await mkdtemp(join(tmpdir(), "destack-update-process-"));
+    const child = Bun.spawn(
+        [
+            process.execPath,
+            "run",
+            "--no-env-file",
+            fileURLToPath(new URL("./fixture.ts", import.meta.url)),
+            directory,
+        ],
+        {
+            stdout: "pipe",
+            stderr: "inherit",
+        },
+    );
     let isExited = false;
-    const status = process.status.then((result) => {
+    const status = child.exited.then((result) => {
         isExited = true;
         return result;
     });
     try {
-        const reader = process.stdout.getReader();
+        const reader = child.stdout.getReader();
         const ready = await reader.read();
         expect(new TextDecoder().decode(ready.value)).toBe("ready\n");
         reader.releaseLock();
-        const endpoint = JSON.parse(await Deno.readTextFile(join(directory, "desktop.json")));
+        const endpoint = JSON.parse(await readFile(join(directory, "desktop.json"), "utf8"));
 
         // reject browser requests and credentials from another caller
         for (const headers of [
@@ -44,13 +54,13 @@ test("authenticate desktop shutdown and wait for process exit", async () => {
 
         // authenticate shutdown and ignore stale registration after the process exits
         expect(await UpdateProcess.stop(directory)).toBe(true);
-        expect(await status).toEqual({ success: true, code: 0, signal: null });
+        expect(await status).toBe(0);
         expect(await UpdateProcess.stop(directory)).toBe(false);
     } finally {
         if (!isExited) {
-            process.kill("SIGKILL");
+            child.kill("SIGKILL");
         }
         await status;
-        await Deno.remove(directory, { recursive: true });
+        await rm(directory, { recursive: true });
     }
 });

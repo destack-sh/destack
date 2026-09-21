@@ -11,10 +11,17 @@
         "./process": "./src/process/index.ts",
         "./error": "./src/error/index.ts"
     },
-    "dependencies": { "tuf-js": "6.0.0", "tar": "7.5.22" },
-    "devDependencies": { "@destack/test": "workspace:*", "@tufjs/models": "5.0.0" },
+    "dependencies": {
+        "@destack/fs": "workspace:*",
+        "tuf-js": "6.0.0",
+        "tar": "7.5.22"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@tufjs/models": "5.0.0"
+    },
     "scripts": {
-        "check": "deno check src/index.ts src/process/index.ts",
+        "check": "tsc --project tsconfig.json",
         "test": "vitest run --config vitest.config.ts"
     }
 }
