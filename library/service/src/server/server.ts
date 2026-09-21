@@ -24,7 +24,7 @@ export class Server<State extends Context> implements AsyncDisposable {
             options.drainTimeout > 2 ** 31 - 1
         ) {
             throw new RangeError(
-                "Drain timeout must be a positive integer within the runtime timer limit.",
+                "drain timeout must be a positive integer within the runtime timer limit",
             );
         }
 
@@ -51,7 +51,7 @@ export class Server<State extends Context> implements AsyncDisposable {
             } catch (cleanup) {
                 throw new AggregateError(
                     [error, cleanup],
-                    "Service initialization and cleanup failed.",
+                    "service initialization and cleanup failed",
                 );
             }
 

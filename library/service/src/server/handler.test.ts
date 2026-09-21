@@ -74,10 +74,10 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
 
     // reject missing enforcement during handler construction
     expect(() => new ServiceHandler(router, { health })).toThrow(
-        "Protected procedures require authorization.",
+        new TypeError("protected procedures require authorization"),
     );
     expect(() => new ServiceHandler(router, { health, authorize })).toThrow(
-        "Audited procedures require audit recording.",
+        new TypeError("audited procedures require audit recording"),
     );
 
     // retain audit outcomes through a real HTTP client and handler

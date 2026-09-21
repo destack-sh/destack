@@ -9,9 +9,12 @@ export interface OperationRequest {
 }
 
 /** Implement the shared operation API using an authorized in-memory store. */
-export function implementOperation<Result, Progress>(store: OperationStore<Result, Progress>) {
+export function implementOperation<Result, Progress>(
+    store: OperationStore<Result, Progress>,
+    path: `/${string}` = "/operations",
+) {
     // implement the typed procedures under the host's authenticated context
-    const definition = defineOperationProcedures(store.definition);
+    const definition = defineOperationProcedures(store.definition, path);
     const implementation = implement(definition).$context<OperationRequest>();
 
     return implementation.router({

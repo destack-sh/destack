@@ -11,6 +11,7 @@
         "test": "vitest run --config vitest.config.ts"
     },
     "exports": {
+        "./watch": "./src/watch/index.ts",
         "./declare": "./src/declare/index.ts",
         "./operation": "./src/operation/index.ts",
         "./procedure": "./src/procedure/index.ts",
