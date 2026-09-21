@@ -125,7 +125,7 @@ const invalid = [
         file: "server.ts",
         source: "export function render(): string {\n    return document.title;\n}\n",
         code: "BUILD_FAILED",
-        message: "Unsupported deno API: document.title at server.ts:46",
+        message: "Unsupported bun API: document.title at server.ts:46",
         application: { ...requests.static, entryServer: "server.ts", entryClient: "client.ts" },
     },
 ];

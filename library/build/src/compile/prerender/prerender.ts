@@ -53,7 +53,7 @@ export async function prerender(
         throw new BuildError("BUILD_FAILED", "Prerender routes produce duplicate files.");
     }
 
-    // reuse the restricted renderer across requests
+    // reuse the renderer across requests
     const directory = await mkdtemp(join(tmpdir(), "destack-render-"));
     try {
         const program = join(directory, "render.js");
@@ -73,7 +73,7 @@ export async function prerender(
                 )}, ${JSON.stringify(directory)});`,
             ].join("\n"),
         );
-        await runProgram(program, outputs, options.timeout ?? 10_000, requests.length);
+        await runProgram(program, options.timeout ?? 10_000, requests.length);
         for (const [index, request] of requests.entries()) {
             try {
                 const body = outputs[index * 2];
@@ -112,38 +112,18 @@ export async function prerender(
     return files;
 }
 
-/** Render pages with restricted host access and a deadline between completed responses. */
+/** Render trusted source with a deadline between completed responses. */
 export async function runProgram(
     program: string,
-    outputs: readonly string[],
     timeout: number,
     count: number,
 ): Promise<void> {
     const directory = dirname(program);
-    const child = spawn(
-        "deno",
-        [
-            "run",
-            "--no-config",
-            "--no-lock",
-            "--no-remote",
-            "--no-npm",
-            "--no-prompt",
-            "--deny-read",
-            "--deny-net",
-            "--deny-env",
-            "--deny-run",
-            "--deny-ffi",
-            "--deny-sys",
-            `--allow-write=${outputs.join(",")}`,
-            program,
-        ],
-        {
-            cwd: directory,
-            env: { PATH: process.env.PATH, DENO_DIR: join(directory, "cache"), NO_COLOR: "1" },
-            stdio: ["ignore", "pipe", "pipe"],
-        },
-    );
+    const child = spawn(process.execPath, ["run", "--no-env-file", program], {
+        cwd: directory,
+        env: { PATH: process.env.PATH, NO_COLOR: "1" },
+        stdio: ["ignore", "pipe", "pipe"],
+    });
 
     await new Promise<void>((resolve, reject) => {
         let completed = 0;

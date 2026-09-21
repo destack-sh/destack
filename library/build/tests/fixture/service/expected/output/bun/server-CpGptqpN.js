@@ -5553,7 +5553,7 @@ function validate(schema, visited, isProperty) {
 	if (contexts) contexts.add(isProperty);
 	else visited.set(schema, /* @__PURE__ */ new Set([isProperty]));
 	const metadata = globalRegistry.get(schema);
-	for (const key of Object.keys(metadata ?? {})) if (!METADATA_KEYS.has(key)) throw new TypeError(`Unsupported schema metadata: ${key}.`);
+	for (const key of Object.keys(metadata ?? {})) if (!METADATA_KEYS.has(key)) throw new TypeError(`unsupported schema metadata: ${key}`);
 	if (metadata !== void 0) json().parse(metadata);
 	if ("coerce" in definition && definition.coerce) throw new TypeError("declared schemas cannot coerce values");
 	const checks = [...definition.checks ?? []];
@@ -5570,7 +5570,7 @@ function validate(schema, visited, isProperty) {
 			case "length_equals":
 			case "number_format":
 			case "string_format": break;
-			default: throw new TypeError(`Unsupported schema check: ${rule.check}.`);
+			default: throw new TypeError(`unsupported schema check: ${rule.check}`);
 		}
 		if ("pattern" in rule && rule.pattern instanceof RegExp && (rule.pattern.global || rule.pattern.sticky)) throw new TypeError("declared regular expressions cannot use global or sticky flags");
 		if (rule.check === "string_format") {
@@ -5605,7 +5605,7 @@ function validate(schema, visited, isProperty) {
 				"date",
 				"time",
 				"duration"
-			].includes(format) && !/^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/.test(format)) throw new TypeError(`Unsupported string format: ${format}.`);
+			].includes(format) && !/^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/.test(format)) throw new TypeError(`unsupported string format: ${format}`);
 		}
 		if ("normalize" in rule && rule.normalize) throw new TypeError("declared schemas cannot request URL normalization");
 		if ("fn" in rule && !(rule.check === "string_format" && "pattern" in rule)) throw new TypeError("declared schemas cannot use custom validation functions");
@@ -5654,7 +5654,7 @@ function validate(schema, visited, isProperty) {
 		case "lazy":
 			validate(definition.getter(), visited, isProperty);
 			break;
-		default: throw new TypeError(`Unsupported schema type: ${definition.type}.`);
+		default: throw new TypeError(`unsupported schema type: ${definition.type}`);
 	}
 }
 /** Check the supported declaration and retain native validation and inference. */
@@ -8305,7 +8305,7 @@ var package_default = {
 	description: "Define Destack HTTP services.",
 	sideEffects: false,
 	scripts: {
-		"check": "deno check src/index.ts src/client/index.ts src/server/index.ts src/openapi/index.ts src/inspect/index.ts src/telemetry/index.ts src/schedule/index.ts src/procedure/index.ts src/page/index.ts src/operation/index.ts src/health/index.ts",
+		"check": "tsc --project tsconfig.json",
 		"test": "vitest run --config vitest.config.ts"
 	},
 	exports: {
@@ -10092,4 +10092,4 @@ function remind(occurrence) {
 }
 export { appointment, database, fetch, refresh, remind, reminders, router, service, token, vault };
 
-//# sourceMappingURL=server-Y-K4_KWk.js.map
+//# sourceMappingURL=server-CpGptqpN.js.map

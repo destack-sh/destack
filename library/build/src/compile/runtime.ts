@@ -49,8 +49,8 @@ export function runtimeConditions(
     switch (runtime) {
         case "browser":
             return ["browser", "module", mode];
-        case "deno":
-            return ["server", "deno", "node", "module", mode];
+        case "bun":
+            return ["server", "bun", "node", "module", mode];
         case "workerd":
             return ["server", "worker", "workerd", "module", mode];
     }
@@ -59,14 +59,15 @@ export function runtimeConditions(
 /** Identify built-in modules supplied by the selected Destack runtime. */
 export function isRuntimeModule(specifier: string, runtime: Runtime): boolean {
     return (
-        (runtime === "deno" && isBuiltin(specifier)) ||
+        (runtime === "bun" &&
+            (isBuiltin(specifier) || specifier === "bun" || specifier.startsWith("bun:"))) ||
         (runtime === "workerd" && specifier === "node:async_hooks")
     );
 }
 
 /** Preserve supported built-ins and reject unsupported host module imports. */
 export function externalModule(specifier: string, runtime: Runtime): boolean {
-    if (!isBuiltin(specifier)) {
+    if (!isBuiltin(specifier) && specifier !== "bun" && !specifier.startsWith("bun:")) {
         return false;
     }
     if (!isRuntimeModule(specifier, runtime)) {

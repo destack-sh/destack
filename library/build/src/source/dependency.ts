@@ -1,10 +1,25 @@
 import { readFile, stat, symlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { BuildError } from "../error/index.ts";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { DependencyName, DependencyResolution } from "@destack/package/package";
+import { JSONC } from "bun";
 import { schema } from "@destack/schema";
+
+/** Bun's versioned package resolution records. */
+const BunLockfile = schema
+    .object({
+        lockfileVersion: schema.literal(2),
+        packages: schema.record(
+            schema.string(),
+            schema.tuple([
+                schema.string(),
+                schema.string().optional(),
+                schema.json().optional(),
+                schema.string().optional(),
+            ]),
+        ),
+    })
+    .strip();
 
 /** Link the nearest installed dependency directory into an isolated compiler directory. */
 export async function linkDependencies(source: string, destination: string): Promise<void> {
@@ -58,61 +73,47 @@ export async function modulePackage(
     }
 }
 
-/** Run the installed Deno toolchain. */
-const execute = promisify(execFile);
-
-/** Deno's installed npm package inventory. */
-const DenoInventory = schema
-    .object({
-        version: schema.literal(1),
-        npmPackages: schema.record(
-            schema.string(),
-            schema
-                .object({
-                    name: schema.string(),
-                    version: schema.string(),
-                    registryUrl: schema.string(),
-                })
-                .strip(),
-        ),
-    })
-    .strip();
-
-/** Read installed npm releases from Deno's inventory and lockfile. */
+/** Read installed npm releases from Bun's lockfile. */
 export async function readDependencies(
     directory: string,
 ): Promise<Record<string, DependencyResolution>> {
     // locate the lockfile without changing the selected releases
     directory = resolve(directory);
     const lock = await readLockfile(directory);
-    const result = await execute(
-        "deno",
-        ["info", "--frozen-lockfile", "--node-modules-dir=none", "--json", "package.json"],
-        {
-            cwd: lock.directory,
-            timeout: 30_000,
-            maxBuffer: 32 * 1024 * 1024,
-        },
-    );
-    const inventory = DenoInventory.parse(JSON.parse(result.stdout));
     const dependencies: Record<string, DependencyResolution> = {};
 
     // combine registry locations with locked release integrity
-    for (const [id, entry] of Object.entries(inventory.npmPackages)) {
-        const key = `${entry.name}@${entry.version}`;
-        if (dependencies[key]) {
+    for (const [id, entry] of Object.entries(lock.packages)) {
+        const [release, location, , integrity] = entry;
+        const separator = release.lastIndexOf("@");
+        const name = release.slice(0, separator);
+        const version = release.slice(separator + 1);
+        if (version.startsWith("workspace:")) {
             continue;
         }
-        const locked = lock.npm[id];
-        if (!locked) {
-            throw new BuildError("BUILD_FAILED", `Unlocked dependency: ${id}`);
+        if (separator < 1 || !integrity) {
+            throw new BuildError("BUILD_FAILED", `unsupported locked dependency: ${id}`);
         }
-        dependencies[key] = DependencyResolution.parse({
+
+        // Bun stores the full tarball URL for non-default registries
+        const suffix = `/${name}/-/`;
+        const position = location?.indexOf(suffix) ?? -1;
+        if (location && position < 0) {
+            throw new BuildError("BUILD_FAILED", `unsupported registry location: ${location}`);
+        }
+        const registry = location ? location.slice(0, position + 1) : "https://registry.npmjs.org/";
+        const key = `${name}@${version}`;
+        const resolution = DependencyResolution.parse({
             kind: "npm",
-            package: { name: entry.name, version: entry.version },
-            registry: entry.registryUrl,
-            integrity: locked.integrity,
+            package: { name, version },
+            registry,
+            integrity,
         });
+        const existing = dependencies[key];
+        if (existing && JSON.stringify(existing) !== JSON.stringify(resolution)) {
+            throw new BuildError("BUILD_FAILED", `conflicting locked dependency: ${key}`);
+        }
+        dependencies[key] = resolution;
     }
 
     // associate authored import names, including npm aliases, with their installed releases
@@ -168,34 +169,25 @@ async function readInstalledPackage(
     }
 }
 
-/** Read the nearest Deno lockfile used by the local project. */
+/** Read the nearest Bun lockfile used by the source package. */
 async function readLockfile(directory: string): Promise<{
-    directory: string;
-    npm: Record<string, { integrity: string }>;
+    packages: Record<string, [string, string?, unknown?, string?]>;
 }> {
     while (true) {
         let text: string;
         try {
-            text = await readFile(join(directory, "deno.lock"), "utf8");
+            text = await readFile(join(directory, "bun.lock"), "utf8");
         } catch (error) {
             if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
                 throw error;
             }
             const parent = dirname(directory);
             if (parent === directory) {
-                throw new BuildError("BUILD_FAILED", "No Deno lockfile.");
+                throw new BuildError("BUILD_FAILED", "no Bun lockfile");
             }
             directory = parent;
             continue;
         }
-        const lock = JSON.parse(text);
-        if (lock.version !== "5") {
-            throw new BuildError(
-                "BUILD_FAILED",
-                `Unsupported Deno lockfile version: ${lock.version}`,
-            );
-        }
-
-        return { directory, npm: lock.npm ?? {} };
+        return BunLockfile.parse(JSONC.parse(text));
     }
 }

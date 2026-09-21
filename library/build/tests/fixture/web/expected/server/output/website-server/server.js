@@ -831,6 +831,10 @@ function inServerComponentScope() {
 	const o = currentOwner;
 	return !!o && o._context[ServerComponentContext.id] === true;
 }
+function onSettled(callback) {
+	const o = getOwner();
+	if (o?.id != null) getNextChildId(o);
+}
 function ssrHandleError(err, probe) {
 	if (err instanceof NotReadyError) return err.source;
 	if (probe) return;
@@ -6006,7 +6010,7 @@ function provideRequestEvent(init, cb) {
 }
 var _virtual_solid_manifest_default = {
 	"virtual:solid-ssr-entry-client.tsx": {
-		"file": "assets/virtual_solid-ssr-entry-client-4up5QpjJ.js",
+		"file": "assets/virtual_solid-ssr-entry-client-vXr4AcT0.js",
 		"name": "virtual_solid-ssr-entry-client",
 		"src": "virtual:solid-ssr-entry-client.tsx",
 		"isEntry": true,
@@ -7290,11 +7294,19 @@ var theme = createTheme({
 function App() {
 	var _v$;
 	const [count, setCount] = createSignal(0);
+	onSettled(() => {
+		document.addEventListener("click", focusHeading);
+		return () => document.removeEventListener("click", focusHeading);
+	});
 	return ssrElement("main", theme, () => {
 		return [ssr(_tmpl$$1), (_v$ = ssrScope(() => {
 			return escape(count());
 		}), ssr(_tmpl$2, _v$))];
 	}, true);
+}
+/** Focus the heading from a browser lifecycle callback. */
+function focusHeading() {
+	document.querySelector("h1")?.focus();
 }
 var _tmpl$ = [
 	"<span",

@@ -2281,6 +2281,15 @@ function setSignal(e, t) {
 		tracking = i;
 	}
 }
+function staleValues(e, t = true) {
+	const n = stale;
+	stale = t;
+	try {
+		return e();
+	} finally {
+		stale = n;
+	}
+}
 /**
 * Context provides a form of dependency injection. It is used to save from needing to pass
 * data as props through intermediate components. This function creates a new context object
@@ -2394,6 +2403,36 @@ function runEffect(t, e) {
 	}
 }
 GlobalQueue.ct = runEffect;
+/**
+* Internal tracked effect - bypasses heap, goes directly to effect queue.
+* Runs as a leaf owner: child primitives and onCleanup are forbidden (false throws).
+* Uses stale reads.
+*/ function trackedEffect(t, e) {
+	const run = () => {
+		if (!E.He || E.ie & 64) return;
+		try {
+			E.He = false;
+			recompute(E);
+		} finally {}
+	};
+	const E = computed(() => {
+		const e = E.Ht;
+		E.Ht = void 0;
+		e?.();
+		const r = staleValues(t);
+		E.Ht = r;
+	}, {
+		...e,
+		lazy: true
+	});
+	E.Ht = void 0;
+	E.T = E.T & -33 | 16;
+	E.He = true;
+	E.Ce = 3;
+	E.Ve = run;
+	enqueueSub(E);
+	schedule();
+}
 setEffectStatusNotify(notifyEffectStatus);
 function accessor(e) {
 	const t = read.bind(null, e);
@@ -2439,6 +2478,105 @@ function createSignal$1(e, t) {
 * @description https://docs.solidjs.com/reference/secondary-primitives/create-render-effect
 */ function createRenderEffect$1(e, t, n) {
 	effect$1(e, t, void 0, n);
+}
+/**
+* Schedules `callback` to run **once** after the reactive graph has fully
+* settled — i.e. once every pending async read inside the current owner has
+* resolved and the queue has flushed. Each call registers a single fire; it
+* does not create an ongoing subscription.
+*
+* The canonical lifecycle primitive in 2.0. Three main usages:
+*
+* - **Component-level setup-and-teardown** *(the most common shape)*: run
+*   setup after the component's first stable render and **return a cleanup
+*   function** to dispose it on owner disposal. This is the replacement for
+*   the 1.x `onMount` + `onCleanup` pairing — setup and teardown live in one
+*   block, and `onCleanup` is no longer the right tool for component
+*   bodies. (`onMount` no longer exists in 2.0.)
+* - **Post-settle "ready" hook:** run once after a component's first stable
+*   render — analytics ping, focus, scroll-into-view, etc. No cleanup needed.
+* - **Inside an event handler:** schedule work to run after the action /
+*   transition triggered by the event has completed.
+*
+* Reactive reads inside the callback are *not* tracked — to react to
+* subsequent settles, register a new `onSettled` each time.
+*
+* The callback runs during the settle flush itself, which gives it the same
+* write semantics as every other effect-phase scope (the effect half of
+* `createEffect`, event handlers):
+*
+* - **Writes** are queued into the same flush's continuation — dependent memos
+*   and effects update before the flush returns — but reads inside the
+*   callback keep returning the settled (pre-write) values. A callback never
+*   observes its own unsettled write. Functional setters still compose:
+*   `set(v => v + 1)` twice increments twice.
+* - **`flush()` cannot be called** from inside the callback — the flush is
+*   already running (dev throws; production is a no-op). To force a drain
+*   after this settle, defer it: `queueMicrotask(() => flush())`.
+*
+* `onCleanup` is **not** allowed inside the callback — return a cleanup
+* function instead. The returned cleanup runs on owner disposal.
+*
+* A cleanup return is only honored when `onSettled` is called from an **owned**
+* scope (e.g. a component body). When it fires out of band from an *unowned*
+* scope — an event handler, a tracked effect, or another `onSettled` — there is
+* no owner lifecycle to bind a cleanup to; returning one is a dev-mode error
+* (and is dropped in production). Use the post-settle/event-handler forms below
+* for one-shot work, and keep setup-with-teardown in an owned scope.
+*
+* @example
+* ```tsx
+* // Component-level setup + teardown — replaces onMount + onCleanup.
+* // Subscribe to an external source on mount, unsubscribe on dispose.
+* function useViewportWidth() {
+*   const [width, setWidth] = createSignal(window.innerWidth);
+*   onSettled(() => {
+*     const onResize = () => setWidth(window.innerWidth);
+*     window.addEventListener("resize", onResize);
+*     return () => window.removeEventListener("resize", onResize);
+*   });
+*   return width;
+* }
+* ```
+*
+* @example
+* ```tsx
+* // Post-settle "ready" hook — no cleanup needed.
+* function Dashboard() {
+*   const data = createMemo(async () => fetchData());
+*
+*   onSettled(() => {
+*     analytics.track("dashboard.ready");
+*   });
+*
+*   return <Loading fallback={<Spinner />}><pre>{data()}</pre></Loading>;
+* }
+* ```
+*
+* @example
+* ```tsx
+* // Event-handler — runs after the action settles.
+* function SaveButton() {
+*   const save = action(function* () {
+*     yield api.save();
+*   });
+*
+*   const handleClick = () => {
+*     save();
+*     onSettled(() => toast("Saved!"));
+*   };
+*
+*   return <button onClick={handleClick}>Save</button>;
+* }
+* ```
+*
+* @param callback Function to run; may return a cleanup function that fires
+*   on owner disposal
+*/ function onSettled(e) {
+	const t = getOwner();
+	t && !(t.T & 16) ? trackedEffect(() => untrack(e), void 0) : globalQueue.enqueue(2, () => {
+		e();
+	});
 }
 var $PROXY = Symbol(0);
 function boundaryComputed(e, t) {
@@ -3172,10 +3310,7 @@ var seen = {};
 var __vitePreload = function preload(baseModule, deps, importerUrl) {
 	let promise = Promise.resolve();
 	if (deps && deps.length > 0) {
-		const links = document.getElementsByTagName("link");
-		const cspNonceMeta = document.querySelector("meta[property=csp-nonce]");
-		const cspNonce = cspNonceMeta?.nonce || cspNonceMeta?.getAttribute("nonce");
-		function allSettled(promises) {
+		let allSettled = function(promises) {
 			return Promise.all(promises.map((p) => Promise.resolve(p).then((value) => ({
 				status: "fulfilled",
 				value
@@ -3183,20 +3318,16 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 				status: "rejected",
 				reason
 			}))));
-		}
-		function importMetaResolve(specifier) {
+		}, importMetaResolve = function(specifier) {
 			if (import.meta.resolve) return import.meta.resolve(specifier);
-			return new URL(
-				specifier,
-				/** #__KEEP__ */
-				import.meta.url
-			).href;
-		}
+			return new URL(specifier, import.meta.url).href;
+		};
+		const links = document.getElementsByTagName("link"), cspNonceMeta = document.querySelector("meta[property=csp-nonce]"), cspNonce = cspNonceMeta?.nonce || cspNonceMeta?.getAttribute("nonce");
 		promise = allSettled(deps.map((dep) => {
 			dep = assetsURL(dep, importerUrl);
 			dep = importMetaResolve(dep);
 			if (dep in seen) return;
-			seen[dep] = true;
+			seen[dep] = !0;
 			const isCss = dep.endsWith(".css");
 			for (let i = links.length - 1; i >= 0; i--) {
 				const link = links[i];
@@ -3211,12 +3342,12 @@ var __vitePreload = function preload(baseModule, deps, importerUrl) {
 			document.head.appendChild(link);
 			if (isCss) return new Promise((res, rej) => {
 				link.addEventListener("load", res);
-				link.addEventListener("error", () => rej(/* @__PURE__ */ new Error(`Unable to preload CSS for ${dep}`)));
+				link.addEventListener("error", () => rej(Error(`Unable to preload CSS for ${dep}`)));
 			});
 		}).filter((p) => p !== void 0));
 	}
 	function handlePreloadError(err) {
-		const e = new Event("vite:preloadError", { cancelable: true });
+		const e = new Event("vite:preloadError", { cancelable: !0 });
 		e.payload = err;
 		window.dispatchEvent(e);
 		if (!e.defaultPrevented) throw err;
@@ -5525,17 +5656,25 @@ var theme = createTheme({
 /** Render the build fixture. */
 function App() {
 	const [count, setCount] = createSignal(0);
+	onSettled(() => {
+		document.addEventListener("click", focusHeading);
+		return () => document.removeEventListener("click", focusHeading);
+	});
 	var _el$ = getNextElement(_tmpl$);
 	var _el$3 = _el$.firstChild.nextSibling;
 	var _el$5 = _el$3.firstChild.nextSibling;
 	var [_el$6, _el$7] = getNextMarker(_el$5.nextSibling);
 	spread(_el$, theme, true);
-	_el$3.$$click = () => setCount(count() + 1);
+	_el$3._$$click = () => setCount(count() + 1);
 	insert(_el$3, scope(() => {
 		return count();
 	}), _el$6, _el$7);
 	runHydrationEvents();
 	return _el$;
+}
+/** Focus the heading from a browser lifecycle callback. */
+function focusHeading() {
+	document.querySelector("h1")?.focus();
 }
 delegateEvents(["click"]);
 hydrate(() => createComponent(DefaultErrorBoundary, { get children() {
@@ -5546,4 +5685,4 @@ hydrate(() => createComponent(DefaultErrorBoundary, { get children() {
 	} });
 } }), document);
 
-//# sourceMappingURL=virtual_solid-ssr-entry-client-4up5QpjJ.js.map
+//# sourceMappingURL=virtual_solid-ssr-entry-client-vXr4AcT0.js.map

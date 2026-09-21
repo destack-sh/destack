@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,19 +10,18 @@ import { ServiceHandler } from "@destack/service/server";
 import { createClient } from "@destack/service/client";
 import { preview } from "../service/preview.ts";
 import { requests } from "../../tests/fixture/web/request.ts";
-import { readDependencies } from "../source/dependency.ts";
+import { linkDependencies, readDependencies } from "../source/dependency.ts";
 
 test("serve an application and invalidate its edited source", async () => {
     const fixture = new URL("../../tests/fixture/web/", import.meta.url);
     const dependencies = await readDependencies(fileURLToPath(new URL("source/", fixture)));
     const directory = await mkdtemp(join(tmpdir(), "destack-local-"));
     try {
-        await cp(new URL("source/", fixture), directory, { recursive: true });
-        await symlink(
-            fileURLToPath(new URL("../../../../node_modules", import.meta.url)),
-            join(directory, "node_modules"),
-            "junction",
-        );
+        await cp(new URL("source/", fixture), directory, {
+            recursive: true,
+            filter: (path) => !path.endsWith("/node_modules") && !path.endsWith("\\node_modules"),
+        });
+        await linkDependencies(fileURLToPath(new URL("source/", fixture)), directory);
         // retain real source and routing through the service lifecycle
         let released = 0;
         let failRelease = false;

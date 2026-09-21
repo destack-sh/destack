@@ -119,7 +119,7 @@ export async function readPackageDeclaration(
     directory: string,
     target: Target,
     entries?: Readonly<Record<string, string>>,
-    runtime: Runtime = target === "browser" ? "browser" : "deno",
+    runtime: Runtime = target === "browser" ? "browser" : "bun",
 ): Promise<Omit<PackageSource, "configuration" | typeof Symbol.asyncDispose>> {
     if ((target === "browser") !== (runtime === "browser")) {
         throw new PackageError(

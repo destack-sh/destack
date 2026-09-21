@@ -1,10 +1,11 @@
-import { cp, mkdtemp, symlink, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Buffer } from "node:buffer";
 import { expect } from "@destack/test";
 import { buildPackage, type BuildOptions, type PackageBuild } from "../src/index.ts";
 import { readDependencies } from "../src/local/index.ts";
+import { linkDependencies } from "../src/source/index.ts";
 import { tmpdir } from "node:os";
 
 /** Compare every distributed path and byte with the fixture's expected directory. */
@@ -102,12 +103,12 @@ export class Fixture implements AsyncDisposable {
         const directory = await mkdtemp(join(tmpdir(), "destack-build-fixture-"));
         const source = join(directory, "source");
         try {
-            await cp(new URL("source/", fixture), source, { recursive: true });
-            await symlink(
-                fileURLToPath(new URL("../../../node_modules", import.meta.url)),
-                join(source, "node_modules"),
-                "junction",
-            );
+            await cp(new URL("source/", fixture), source, {
+                recursive: true,
+                filter: (path) =>
+                    !path.endsWith("/node_modules") && !path.endsWith("\\node_modules"),
+            });
+            await linkDependencies(fileURLToPath(new URL("source/", fixture)), source);
 
             return new Fixture(fixture, directory, source, resolved);
         } catch (error) {

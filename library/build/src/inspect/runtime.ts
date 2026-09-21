@@ -1,9 +1,7 @@
-import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
-import { promisify } from "node:util";
 import { API } from "typescript/unstable/async";
 import type { GlobalReference } from "@destack/package/code";
 import type { Runtime } from "@destack/package/runtime";
@@ -11,8 +9,6 @@ import { BuildError } from "../error/index.ts";
 
 /** Resolve installed runtime declarations from the compiler package. */
 const REQUIRE = createRequire(import.meta.url);
-/** Run the managed Deno toolchain with bounded output and duration. */
-const EXECUTE = promisify(execFile);
 
 /** Runtime type environments retained across builds of one package. */
 export class RuntimeCompiler implements AsyncDisposable {
@@ -125,14 +121,8 @@ export class RuntimeCompiler implements AsyncDisposable {
                         "index.d.ts",
                     ),
                 );
-            } else if (runtime === "deno") {
-                const { stdout } = await EXECUTE("deno", ["types"], {
-                    timeout: 10000,
-                    maxBuffer: 8 * 1024 * 1024,
-                });
-                const declaration = join(directory, "deno.d.ts");
-                await writeFile(declaration, stdout);
-                files.push(declaration);
+            } else if (runtime === "bun") {
+                files.push(REQUIRE.resolve("@types/bun/index.d.ts"));
             }
             const entry = join(directory, "runtime.ts");
             await writeFile(entry, "export {};\n");
@@ -143,6 +133,7 @@ export class RuntimeCompiler implements AsyncDisposable {
                     compilerOptions: {
                         target: "ESNext",
                         module: "ESNext",
+                        moduleResolution: "Bundler",
                         types: [],
                         lib: runtime === "browser" ? ["ESNext", "DOM", "DOM.Iterable"] : ["ESNext"],
                         skipLibCheck: true,

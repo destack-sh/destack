@@ -23,7 +23,7 @@ export interface CompileOptions {
     kind: "module";
     /** The execution target. */
     target: Target;
-    /** The compiler runtime; browser targets use browser and server targets default to Deno. */
+    /** The compiler runtime; browser targets use browser and server targets default to Bun. */
     runtime?: Runtime;
     /** Package-relative module or HTML entries; omit to compile package exports. */
     entries?: Readonly<Record<string, string>>;
@@ -139,10 +139,10 @@ export async function compilePackage(
             sourcemap: true,
             copyPublicDir: false,
             rolldownOptions: {
-                platform: project.runtime === "deno" ? "node" : "browser",
+                platform: project.runtime === "bun" ? "node" : "browser",
                 resolve: {
                     mainFields:
-                        project.runtime === "deno"
+                        project.runtime === "bun"
                             ? ["module", "main"]
                             : ["browser", "module", "main"],
                     conditionNames: runtimeConditions(project.runtime),

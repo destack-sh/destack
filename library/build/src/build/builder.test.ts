@@ -1,11 +1,12 @@
 import { expect, test } from "@destack/test";
-import { cp, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildPackage, PackageBuild, PackageBuilder } from "../index.ts";
 import { request } from "../../tests/fixture/library/request.ts";
 import { readDependencies } from "../local/index.ts";
+import { linkDependencies } from "../source/index.ts";
 import { request as resourceRequest } from "../../tests/fixture/resource/request.ts";
 import { expectBuild, expectFiles } from "../../tests/fixture.ts";
 
@@ -14,12 +15,11 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
     const directory = await mkdtemp(join(tmpdir(), "destack-declaration-edit-"));
     try {
         // evaluate an ordinary imported helper and retain the complete initial output
-        await cp(fixture, directory, { recursive: true });
-        await symlink(
-            fileURLToPath(new URL("../../../../node_modules", import.meta.url)),
-            join(directory, "node_modules"),
-            "junction",
-        );
+        await cp(fixture, directory, {
+            recursive: true,
+            filter: (path) => !path.endsWith("/node_modules") && !path.endsWith("\\node_modules"),
+        });
+        await linkDependencies(fileURLToPath(fixture), directory);
         const file = join(directory, "src/index.ts");
         const source = await readFile(file, "utf8");
         await writeFile(

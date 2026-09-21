@@ -345,7 +345,9 @@ export class BuildCompiler implements AsyncDisposable {
 
             // check the runtime and associate runnable workloads
             outputs[name].declarations = selected;
-            await checkRuntime(buildDescription, modules, project.runtime, this.runtimes);
+            if (!request.application || project.runtime === "browser") {
+                await checkRuntime(buildDescription, modules, project.runtime, this.runtimes);
+            }
             outputs[name].workloads = await describeWorkloads(
                 selected,
                 modules,

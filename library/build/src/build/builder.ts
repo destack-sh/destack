@@ -25,7 +25,7 @@ const TOOLCHAIN_ENVIRONMENT = [
     "WINDIR",
     "COMSPEC",
     "PATHEXT",
-    "DENO_DIR",
+    "BUN_INSTALL_CACHE_DIR",
     "XDG_CACHE_HOME",
 ] as const;
 
@@ -73,12 +73,10 @@ export class PackageBuilder implements AsyncDisposable {
 
         // retain one production environment across sequential build requests
         this.#child = spawn(
-            "deno",
+            process.execPath,
             [
                 "run",
-                "--node-modules-dir=manual",
-                "-A",
-                "--no-prompt",
+                "--no-env-file",
                 fileURLToPath(new URL("./worker.ts", import.meta.url)),
                 this.directory,
             ],

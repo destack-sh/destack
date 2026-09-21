@@ -51,7 +51,7 @@ test("inspect and build authorized source through the service", async () => {
                 return {
                     directory,
                     target: "server",
-                    runtime: "deno",
+                    runtime: "bun",
                     async [Symbol.asyncDispose]() {
                         released.push("inspect");
                     },
@@ -90,7 +90,7 @@ test("inspect and build authorized source through the service", async () => {
     expect(released).toEqual(["inspect"]);
 
     // require local and remote inspection to return the same complete description
-    const local = await inspectPackage({ directory, target: "server", runtime: "deno" });
+    const local = await inspectPackage({ directory, target: "server", runtime: "bun" });
     expect(local).toEqual(inspection);
 
     // wait for the complete build, including storage and source release

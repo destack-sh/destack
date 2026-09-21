@@ -6,7 +6,7 @@ import { inspectPackage } from "@destack/build/inspect";
 const inspection = await inspectPackage({
     directory,
     target: "server",
-    runtime: "deno",
+    runtime: "bun",
 });
 
 const { code, descriptions } = inspection;
@@ -22,7 +22,7 @@ const build = await buildPackage({
         library: {
             kind: "module",
             target: "server",
-            runtime: "deno",
+            runtime: "bun",
             bundle: false,
         },
         backend: {
@@ -42,7 +42,7 @@ await build.write(destination);
 import { PackageBuilder } from "@destack/build";
 
 await using builder = await PackageBuilder.start(directory);
-const inspection = await builder.inspect({ target: "server", runtime: "deno" });
+const inspection = await builder.inspect({ target: "server", runtime: "bun" });
 const first = await builder.build({ dependencies, outputs });
 const edited = await builder.build({ dependencies, outputs });
 ```

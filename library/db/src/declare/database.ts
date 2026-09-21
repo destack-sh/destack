@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { defineResourceSchema, Resource } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import { Dialect } from "../dialect/dialect.ts";
-import { DatabaseConnection } from "../database/connection.ts";
+import type { DatabaseConnection } from "../database/connection.ts";
 import type { DatabaseSchema } from "../schema/schema.ts";
 import type { Table } from "../table/table.ts";
 import type { TableRelations } from "../schema/relation.ts";

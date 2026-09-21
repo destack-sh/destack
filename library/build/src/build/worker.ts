@@ -7,8 +7,25 @@ import { Console } from "node:console";
 /** Build sequential requests with one retained compiler. */
 async function main(): Promise<void> {
     // reserve stdout for framed build results and send package logs to diagnostics
-    globalThis.console = new Console({ stdout: process.stderr, stderr: process.stderr });
-    const directory = Deno.args[0];
+    Object.assign(
+        globalThis.console,
+        new Console({ stdout: process.stderr, stderr: process.stderr }),
+    );
+    console.write = (...messages) => {
+        const bytes = Buffer.concat(
+            messages.map((message) =>
+                typeof message === "string"
+                    ? Buffer.from(message)
+                    : ArrayBuffer.isView(message)
+                      ? Buffer.from(message.buffer, message.byteOffset, message.byteLength)
+                      : Buffer.from(message),
+            ),
+        );
+        process.stderr.write(bytes);
+
+        return bytes.length;
+    };
+    const directory = process.argv[2];
     await using compiler = new BuildCompiler(directory);
     for await (const message of readMessages(process.stdin)) {
         let response: BuildResponse;

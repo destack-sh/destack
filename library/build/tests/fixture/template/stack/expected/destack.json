@@ -4,7 +4,7 @@
         "server"
     ],
     "runtimes": [
-        "deno",
+        "bun",
         "workerd"
     ]
 }

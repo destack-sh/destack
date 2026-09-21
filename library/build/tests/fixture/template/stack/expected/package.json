@@ -11,9 +11,9 @@
         "./space": "./src/space/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/space/index.ts",
-        "lint": "deno run -A @destack/check/command check",
-        "format": "deno run -A @destack/check/command format"
+        "check": "tsc --project tsconfig.json",
+        "lint": "destack-check check",
+        "format": "destack-check format"
     },
     "devDependencies": {
         "@destack/check": "2026.9.0"

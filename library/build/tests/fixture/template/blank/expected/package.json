@@ -8,9 +8,9 @@
         ".": "./src/index.ts"
     },
     "scripts": {
-        "lint": "deno run -A @destack/check/command check",
-        "format": "deno run -A @destack/check/command format",
-        "check": "deno check src/index.ts"
+        "lint": "destack-check check",
+        "format": "destack-check format",
+        "check": "tsc --project tsconfig.json"
     },
     "devDependencies": {
         "@destack/check": "2026.9.0"

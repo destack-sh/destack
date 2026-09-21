@@ -1,5 +1,5 @@
-import { readdir, readFile, mkdtemp, rm, symlink } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { readdir, readFile, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { join, relative, resolve, sep } from "node:path";
 import { createBuilder } from "vite";
 import { type StartOptions } from "@solidjs/vite-plugin";
 import { type PackageOutput } from "@destack/package/manifest";
@@ -35,7 +35,7 @@ export interface ApplicationOptions extends Pick<
     /** Compile a browser application and its server handler. */
     kind: "web";
     /** Server runtime and whether to distribute the handler. */
-    ssr: false | { runtime: "deno" | "workerd"; emit?: boolean };
+    ssr: false | { runtime: "bun" | "workerd"; emit?: boolean };
     /** Public URL prefix used by browser assets. */
     base?: string;
     /** Minify generated JavaScript. */
@@ -73,7 +73,7 @@ export async function compileApplication(
     serverModules: readonly ModuleDescription[],
     runtimes: RuntimeCompiler,
 ): Promise<ApplicationCompilation> {
-    await using stage = await stagePackage(project.directory);
+    await using stage = await stagePackage(project);
     const temporary = join(stage.directory, "dist");
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
     const sourceMaps: SourceMapReference[] = [];
@@ -99,7 +99,7 @@ export async function compileApplication(
                 noExternal: true,
                 target: server?.runtime === "workerd" ? "webworker" : "node",
                 resolve: {
-                    conditions: runtimeConditions(server?.runtime ?? "deno"),
+                    conditions: runtimeConditions(server?.runtime ?? "bun"),
                 },
             },
             plugins: [
@@ -150,7 +150,7 @@ export async function compileApplication(
                                 },
                                 ssr: {
                                     resolve: {
-                                        conditions: runtimeConditions(server?.runtime ?? "deno"),
+                                        conditions: runtimeConditions(server?.runtime ?? "bun"),
                                     },
                                     build: {
                                         outDir: join(temporary, "server"),
@@ -164,14 +164,11 @@ export async function compileApplication(
                                                         ? ["browser", "module", "main"]
                                                         : ["module", "main"],
                                                 conditionNames: runtimeConditions(
-                                                    server?.runtime ?? "deno",
+                                                    server?.runtime ?? "bun",
                                                 ),
                                             },
                                             external: (specifier) =>
-                                                externalModule(
-                                                    specifier,
-                                                    server?.runtime ?? "deno",
-                                                ),
+                                                externalModule(specifier, server?.runtime ?? "bun"),
                                             platform:
                                                 server?.runtime === "workerd" ? "browser" : "node",
                                         },
@@ -210,9 +207,19 @@ export async function compileApplication(
         });
         await builder.buildApp();
 
-        // check the renderer before executing it, including renderers omitted from distribution
+        // check server entrypoints and dependency imports before prerendering shared views
         if (server) {
-            await checkRuntime(inspections.ssr, serverModules, server.runtime ?? "deno", runtimes);
+            const entrypoints = new Set(
+                [start.entryServer, start.middleware]
+                    .filter((path): path is string => !!path)
+                    .map((path) =>
+                        relative(project.directory, resolve(project.directory, path))
+                            .split(sep)
+                            .join("/"),
+                    ),
+            );
+            const modules = serverModules.filter((module) => entrypoints.has(module.path));
+            await checkRuntime(inspections.ssr, modules, server.runtime ?? "bun", runtimes);
         }
 
         // retain prerendered pages alongside browser assets for static or hybrid hosting
@@ -267,7 +274,7 @@ export async function compileApplication(
             }
             outputs[side] = {
                 target: target as "browser" | "server",
-                runtime: side === "client" ? "browser" : (server?.runtime ?? "deno"),
+                runtime: side === "client" ? "browser" : (server?.runtime ?? "bun"),
                 workloads: {},
                 declarations: [],
                 directory,
@@ -293,24 +300,37 @@ export async function compileApplication(
 }
 
 /** Isolate framework output while retaining normal package dependency resolution. */
-async function stagePackage(source: string): Promise<AsyncDisposable & { directory: string }> {
+async function stagePackage(
+    source: PackageSource,
+): Promise<AsyncDisposable & { directory: string }> {
     const directory = await mkdtemp(join(tmpdir(), "destack-build-"));
 
     // link package inputs while reserving the framework's output directory
     try {
-        for (const entry of await readdir(source, { withFileTypes: true })) {
-            if (entry.name === "dist" || entry.name === "node_modules" || entry.name === ".git") {
+        for (const entry of await readdir(source.directory, { withFileTypes: true })) {
+            if (
+                entry.name === "dist" ||
+                entry.name === "node_modules" ||
+                entry.name === ".git" ||
+                entry.name === "tsconfig.json"
+            ) {
                 continue;
             }
             await symlink(
-                join(source, entry.name),
+                join(source.directory, entry.name),
                 join(directory, entry.name),
                 entry.isDirectory() ? "junction" : "file",
             );
         }
 
         // resolve dependencies through the nearest installed package tree
-        await linkDependencies(source, directory);
+        await linkDependencies(source.directory, directory);
+
+        // retain authored relative paths through the selected absolute compiler configuration
+        await writeFile(
+            join(directory, "tsconfig.json"),
+            JSON.stringify({ extends: source.configuration }),
+        );
     } catch (error) {
         await rm(directory, { recursive: true });
         throw error;

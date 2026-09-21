@@ -17,7 +17,7 @@
         "./error": "./src/error/index.ts"
     },
     "scripts": {
-        "check": "deno check src/index.ts src/local/index.ts src/inspect/index.ts src/template/index.ts src/build/worker.ts src/service/index.ts src/server/index.ts src/client/index.ts",
+        "check": "tsc --project tsconfig.json",
         "test": "vitest run --config vitest.config.ts"
     },
     "dependencies": {

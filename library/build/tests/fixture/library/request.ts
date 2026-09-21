@@ -7,7 +7,7 @@ export const request = {
         library: {
             kind: "module",
             target: "server",
-            runtime: "deno",
+            runtime: "bun",
             bundle: false,
         },
     },
