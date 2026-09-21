@@ -19,7 +19,7 @@ Destack is *developed* primarily using Rust and TypeScript (and Destack itself, 
 Install the tools needed by the packages you are working on:
 
 - [Rust](https://rustup.rs/): Rust compiler (`nightly-2026-05-26`, see [rust-toolchain.toml](rust-toolchain.toml))
-- [Deno](https://deno.com/): JavaScript runtime and package management (2.9.7)
+- [Bun](https://bun.sh/): JavaScript runtime and package management (1.4.2)
 - [just](https://github.com/casey/just): Scripts and command runner
 - [Python](https://python.org/): Project docs validation and codegen utilities
 
