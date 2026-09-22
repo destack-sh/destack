@@ -35,9 +35,9 @@ Hardware has advanced far beyond the capabilities envisiaged all those decades a
 [Path editing in Tiny Glade](https://www.youtube.com/watch?v=CdWpq2efN8Y) — Pounce Light, trailer excerpt.
 :::
 
-Sure, "malleable software" and "end-user programming" have been valiantly resurrected again and again - and each time it more or less failed.
-Now, malleable software does sort of exist, we just call it Excel and Notion and Roblox. 
-But it's not really _general_, not really integrated, and just not powerful, and so we have thousand SaaS with their own vertical slice of stack.
+Sure, "malleable software" and "end-user programming" have been valiantly resurrected many times to die again and again.
+Mostly, anyway - malleable software does sort of exist, we just call it Excel and Notion and Roblox. 
+But those are not _general_, not integrated, not expressive, and so we have thousand SaaS with their own vertical slice of stack.
 
 To actually _own_ your software suite, to properly integrate it, to customize it; well - you would need to get each vendor's sources, enforce compatible stores and interfaces, and unify enough of the stack to join "reminders in Notion" with "leads in Salesforce" and "events in Outlook".
 With the current stack, this is just not a serious option, so instead we have "connectors".
@@ -46,8 +46,8 @@ With the current stack, this is just not a serious option, so instead we have "c
 [The Tower of Babel, 1563](https://bruegel.at/en/the-tower-of-babel/) — Pieter Bruegel the Elder, Kunsthistorisches Museum, Vienna.
 :::
 
-Sadly, connectors are a hack.
-It's not that interfaces are wrong, of course we need interfaces, just not _this_ kind of interface - it's like trying to bolt two icebergs together with duct tape at the very top.
+Sadly, "connectors" are a hack. Integrations shouldn't exist at all.
+Of course, we need interfaces, just not _these_ interfaces - we're bolting two icebergs together with duct tape at the top.
 Better connectors patch the symptom; there is a much more fundamental architecture issue, and that it is impossible to correct unless we reconsider the entire stack.
 
 What we _really_ need is software designed from the ground up to be open, hackable, and remixable.
