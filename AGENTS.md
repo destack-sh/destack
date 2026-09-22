@@ -22,6 +22,9 @@
 
 ### Logic and State
 
+- Declare TypeScript class fields explicitly, with documentation above each field.
+- Assign fields in constructor bodies; do not use constructor parameter properties.
+
 - Less is more, every line of code is a liability, every bit of state is suspicious. 
 - Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
 - When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it altogether, or phrase the problem differently to eliminate the need for this whole piece in the first place.

@@ -15,6 +15,12 @@
             "error",
             "all"
         ],
+        "typescript/parameter-properties": [
+            "error",
+            {
+                "prefer": "class-property"
+            }
+        ],
         "oxc/no-accumulating-spread": "error",
         "eslint/no-unused-vars": [
             "error",

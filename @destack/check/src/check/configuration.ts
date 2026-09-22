@@ -45,6 +45,7 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
         jsPlugins: [builtin, ...plugins.map(({ name, specifier }) => ({ name, specifier }))],
         rules: {
             "eslint/curly": ["error", "all"],
+            "typescript/parameter-properties": ["error", { prefer: "class-property" }],
             "oxc/no-accumulating-spread": "error",
             "eslint/no-unused-vars": [
                 "error",
