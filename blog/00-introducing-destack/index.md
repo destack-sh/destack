@@ -178,6 +178,8 @@ Inspired by game engines, Destack includes integrated tools for interactively bu
 It's as indescructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
 Or any combination.
 
-Destack is all yours.
+<!-- TODO: demo #2 -->
+
+Destack launches today. You can try it here:
 
 <!-- TODO: CTA? -->
