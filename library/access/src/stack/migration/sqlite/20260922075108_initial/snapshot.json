@@ -1,0 +1,304 @@
+{
+    "version": "7",
+    "dialect": "sqlite",
+    "id": "29c17142-3aad-4b6d-a57b-60c11ef34b0c",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "name": "access_grant",
+            "entityType": "tables"
+        },
+        {
+            "name": "access_token",
+            "entityType": "tables"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "package_id",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "type",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "object_id",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "relation",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "subject_kind",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "subject_authority",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "subject_id",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "access_grant"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "access_token"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "access_token"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "digest",
+            "entityType": "columns",
+            "table": "access_token"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "access_token"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "access_token"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revoked_at",
+            "entityType": "columns",
+            "table": "access_token"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "access_grant_pk",
+            "table": "access_grant",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "access_token_pk",
+            "table": "access_token",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                {
+                    "value": "scope",
+                    "isExpression": false
+                },
+                {
+                    "value": "package_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "type",
+                    "isExpression": false
+                },
+                {
+                    "value": "object_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "relation",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "access_grant_object",
+            "entityType": "indexes",
+            "table": "access_grant"
+        },
+        {
+            "columns": [
+                {
+                    "value": "subject_kind",
+                    "isExpression": false
+                },
+                {
+                    "value": "subject_authority",
+                    "isExpression": false
+                },
+                {
+                    "value": "subject_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "scope",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "access_grant_subject",
+            "entityType": "indexes",
+            "table": "access_grant"
+        },
+        {
+            "columns": ["digest"],
+            "nameExplicit": false,
+            "name": "access_token_digest_unique",
+            "entityType": "uniques",
+            "table": "access_token"
+        },
+        {
+            "value": "\"expires_at\" IS NULL OR \"expires_at\" > \"created_at\"",
+            "name": "access_grant_expiry",
+            "entityType": "checks",
+            "table": "access_grant"
+        },
+        {
+            "value": "(\"subject_kind\" = 'everyone' AND \"subject_authority\" = '' AND \"subject_id\" = '') OR (\"subject_kind\" <> 'everyone' AND length(\"subject_authority\") > 0 AND length(\"subject_id\") > 0)",
+            "name": "access_grant_subject",
+            "entityType": "checks",
+            "table": "access_grant"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "access_grant_id_not_null",
+            "entityType": "checks",
+            "table": "access_grant"
+        },
+        {
+            "value": "\"expires_at\" IS NULL OR \"expires_at\" > \"created_at\"",
+            "name": "access_token_expiry",
+            "entityType": "checks",
+            "table": "access_token"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "access_token_id_not_null",
+            "entityType": "checks",
+            "table": "access_token"
+        }
+    ],
+    "renames": []
+}

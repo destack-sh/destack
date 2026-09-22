@@ -1,0 +1,29 @@
+{
+    "name": "@destack/access",
+    "version": "2026.9.0",
+    "private": true,
+    "type": "module",
+    "license": "MIT",
+    "sideEffects": false,
+    "exports": {
+        ".": "./src/index.ts",
+        "./declare": "./src/access/object.ts",
+        "./stack": "./src/stack/index.ts",
+        "./database": "./src/database/index.ts",
+        "./inspect": "./src/inspect/index.ts",
+        "./error": "./src/error/index.ts"
+    },
+    "dependencies": {
+        "@destack/schema": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/db": "workspace:*",
+        "uuid": "14.0.2"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
+    },
+    "scripts": {
+        "check": "tsc -p tsconfig.json",
+        "test": "vitest run --config vitest.config.ts"
+    }
+}

@@ -1,0 +1,282 @@
+{
+    "version": "8",
+    "dialect": "postgres",
+    "id": "3412c2bd-2ea9-4c5d-aedc-1632f9aa2bb1",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "isRlsEnabled": false,
+            "name": "example_item",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "isRlsEnabled": false,
+            "name": "example_item_parent_ancestor",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "isRlsEnabled": false,
+            "name": "example_item_parent_ancestor_revision",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "owner",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "parent",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "row",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "column",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "locked",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "team",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "protected",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "ancestor",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "descendant",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "depth",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item_parent_ancestor_revision"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "revision",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "example_item_parent_ancestor_revision"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "scope",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "descendant",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "ancestor",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "example_item_parent_ancestor_descendant",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "example_item_pkey",
+            "schema": "public",
+            "table": "example_item",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["scope"],
+            "nameExplicit": false,
+            "name": "example_item_parent_ancestor_revision_pkey",
+            "schema": "public",
+            "table": "example_item_parent_ancestor_revision",
+            "entityType": "pks"
+        },
+        {
+            "nameExplicit": true,
+            "columns": ["scope", "ancestor", "descendant"],
+            "nullsNotDistinct": false,
+            "name": "example_item_parent_ancestor_path",
+            "entityType": "uniques",
+            "schema": "public",
+            "table": "example_item_parent_ancestor"
+        }
+    ],
+    "renames": []
+}

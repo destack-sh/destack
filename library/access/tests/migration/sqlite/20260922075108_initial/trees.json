@@ -1,0 +1,11 @@
+[
+    {
+        "name": "parent",
+        "table": "example_item",
+        "id": "id",
+        "scope": "scope",
+        "parent": "parent",
+        "ancestors": "example_item_parent_ancestor",
+        "revision": "example_item_parent_ancestor_revision"
+    }
+]

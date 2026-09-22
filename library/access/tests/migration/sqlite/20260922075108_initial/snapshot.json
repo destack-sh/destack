@@ -1,0 +1,226 @@
+{
+    "version": "7",
+    "dialect": "sqlite",
+    "id": "dfc11ec1-237c-4409-bfef-ecfb9fa293ec",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "name": "example_item",
+            "entityType": "tables"
+        },
+        {
+            "name": "example_item_parent_ancestor",
+            "entityType": "tables"
+        },
+        {
+            "name": "example_item_parent_ancestor_revision",
+            "entityType": "tables"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "owner",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "parent",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "row",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "column",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "locked",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "team",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "protected",
+            "entityType": "columns",
+            "table": "example_item"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "ancestor",
+            "entityType": "columns",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "descendant",
+            "entityType": "columns",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "depth",
+            "entityType": "columns",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "example_item_parent_ancestor_revision"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "example_item_parent_ancestor_revision"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "example_item_pk",
+            "table": "example_item",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["scope"],
+            "nameExplicit": false,
+            "name": "example_item_parent_ancestor_revision_pk",
+            "table": "example_item_parent_ancestor_revision",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                {
+                    "value": "scope",
+                    "isExpression": false
+                },
+                {
+                    "value": "descendant",
+                    "isExpression": false
+                },
+                {
+                    "value": "ancestor",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "example_item_parent_ancestor_descendant",
+            "entityType": "indexes",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "columns": ["scope", "ancestor", "descendant"],
+            "nameExplicit": true,
+            "name": "example_item_parent_ancestor_path",
+            "entityType": "uniques",
+            "table": "example_item_parent_ancestor"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "example_item_id_not_null",
+            "entityType": "checks",
+            "table": "example_item"
+        },
+        {
+            "value": "\"scope\" IS NOT NULL",
+            "name": "example_item_parent_ancestor_revision_scope_not_null",
+            "entityType": "checks",
+            "table": "example_item_parent_ancestor_revision"
+        }
+    ],
+    "renames": []
+}
