@@ -7,6 +7,7 @@ import { AuditOutbox } from "@destack/audit/outbox";
 import { connect } from "../../secret/client.ts";
 import { vaultPackage } from "../../audit/index.ts";
 import { VaultFixture } from "./fixture.ts";
+import { PackageId } from "@destack/package";
 
 /** Serve distinct tenants through one regional server while retaining exact token scopes. */
 test("authorize multiple spaces through one regional vault", async () => {
@@ -24,6 +25,8 @@ test("authorize multiple spaces through one regional vault", async () => {
         .insert(rolePermission)
         .values(await second.database.select().from(rolePermission));
 
+    // embed vault procedures in a different receiving package, preserving vault permissions
+    const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000099");
     // issue independent credentials for the same receiving service
     const keys = await generateKeyPair("ES256");
     const issuer = new TokenIssuer({
@@ -36,16 +39,21 @@ test("authorize multiple spaces through one regional vault", async () => {
     });
     const verifier = new TokenVerifier({
         issuer: "https://account.test",
-        audience: vaultPackage.id,
+        audience,
         authority: { kind: "global" },
         keys: { keys: [{ ...(await exportJWK(keys.publicKey)), alg: "ES256", kid: "current" }] },
     });
-    const server = await first.host(first.store, (request) => verifier.authenticate(request));
+    const server = await first.host(
+        first.vault,
+        (request) => verifier.authenticate(request),
+        audience,
+    );
     const clients = [];
     for (const tenant of [first, second]) {
         const issued = await issuer.issue(
             new Caller({
                 ...tenant.context.caller.authentication,
+                audience,
                 scope: tenant.spaceId,
                 credential: { kind: "personal", id: tenant.userId },
             }),
@@ -101,6 +109,7 @@ test("authorize multiple spaces through one regional vault", async () => {
     // retain authoritative account ownership and correlate domain and procedure events
     const events = await new AuditOutbox(database).read(1000);
     const changes = events.filter((event) => event.action.name === "secret.create");
+    expect(changes.map((event) => event.context.package)).toEqual([vaultPackage, vaultPackage]);
     expect(
         changes.map((event) => ({
             spaceId: event.context.spaceId,

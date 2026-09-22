@@ -44,15 +44,18 @@ const written = await client.version.write({
 
 ```ts
 import { LocalKeyring, EnvelopeEncryption } from "@destack/vault/encryption";
-import { VaultServer, VaultStore } from "@destack/vault/server";
+import { implementService } from "@destack/vault/server";
+import { Vault } from "@destack/vault/vault";
+import { Server } from "@destack/service/server";
 import { Health } from "@destack/service/health";
 import { defineService } from "@destack/service";
 import { vaultService } from "@destack/vault/service";
 
 const keys = await LocalKeyring.import("2026-09", rootKeys);
-const store = new VaultStore(database, new EnvelopeEncryption(keys), "eu");
-const vault = new VaultServer(store);
-const server = await vault.start({
+const vault = new Vault(database, new EnvelopeEncryption(keys), "eu");
+const server = await Server.start({
+    ...implementService(vault),
+    audience: receivingPackageId,
     spaceId: regionalSystemSpaceId,
     resources,
     health: new Health("vault"),

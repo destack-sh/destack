@@ -15,7 +15,9 @@
         "./stack": "./src/stack/index.ts",
         "./encryption": "./src/encryption/index.ts",
         "./audit": "./src/audit/index.ts",
-        "./error": "./src/error/index.ts"
+        "./error": "./src/error/index.ts",
+        "./vault": "./src/vault/index.ts",
+        "./secret/version": "./src/secret/version.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",

@@ -1,14 +1,22 @@
 import {
+    writeVersion,
+    getVersion,
+    listVersions,
+    readVersion,
+    promoteVersion,
+    changeVersion,
+    rewrapVersion,
+} from "../secret/version.ts";
+import { rewrapRequests } from "../vault/request.ts";
+import {
     implement,
-    Server,
-    type ServerOptions,
+    type ServiceImplementation,
     type ServiceContext,
 } from "@destack/service/server";
 import { createProcedureAudit } from "@destack/audit/server";
 import { vaultService, VaultScope } from "../service/index.ts";
-import { VaultStore } from "./store.ts";
+import { Vault } from "../vault/index.ts";
 import { ServiceError } from "@destack/service/error";
-import { vaultPackage } from "../audit/index.ts";
 import { vaultAudit } from "./context.ts";
 import { identifier } from "@destack/schema";
 import { space } from "@destack/model/regional";
@@ -22,75 +30,53 @@ const targetSchema = VaultScope.extend({
     vaultId: identifier("resource").optional(),
 }).strip();
 
-/** Regional secret procedures hosted through the shared Server lifecycle. */
-export class VaultServer {
-    /** Typed procedures with transaction-bound secret authorization. */
-    readonly router: ReturnType<typeof createRouter>;
-    /** Storage and separately provisioned encryption keys. */
-    readonly store: VaultStore;
+/** Implement regional secret procedures and transaction-bound authorization. */
+export function implementService(vault: Vault): ServiceImplementation {
+    return {
+        router: createRouter(vault),
+        target: async (call) => {
+            const selected = targetSchema.safeParse(call.input);
+            if (!selected.success) {
+                throw new ServiceError("BAD_REQUEST");
+            }
 
-    /** Attach prepared regional storage to the service procedures. */
-    constructor(store: VaultStore) {
-        this.store = store;
-        this.router = createRouter(store);
-    }
-
-    /** Start authenticated hosting with durable auditing and uncached responses. */
-    start(options: VaultServerOptions): Promise<Server> {
-        return Server.start({
-            ...options,
-            router: this.router,
-            audience: vaultPackage.id,
-            target: async (call) => {
-                const selected = targetSchema.safeParse(call.input);
-                if (!selected.success) {
-                    throw new ServiceError("BAD_REQUEST");
-                }
-
-                return {
-                    scope: selected.data.spaceId,
-                    id: selected.data.secretId ?? selected.data.vaultId ?? selected.data.spaceId,
-                };
-            },
-            authorize: async ({ context }) => {
-                // enforce persisted grants inside each store transaction
-                context.requireCaller();
-            },
-            audit: createProcedureAudit(async ({ context }) => {
-                // attribute attempts only to the credential's verified tenant
-                const scope =
-                    context.authenticationError === undefined
-                        ? context.caller?.authentication.scope
-                        : undefined;
-                const selected = scope
-                    ? await this.store.database
-                          .select({ id: space.id, accountId: space.accountId })
-                          .from(space)
-                          .where(sql`${space.id} = ${scope}`)
-                          .get()
+            return {
+                scope: selected.data.spaceId,
+                id: selected.data.secretId ?? selected.data.vaultId ?? selected.data.spaceId,
+            };
+        },
+        authorize: async ({ context }) => {
+            // enforce persisted grants inside each vault transaction
+            context.requireCaller();
+        },
+        audit: createProcedureAudit(async ({ context }) => {
+            // attribute attempts only to the credential's verified tenant
+            const scope =
+                context.authenticationError === undefined
+                    ? context.caller?.authentication.scope
                     : undefined;
+            const selected = scope
+                ? await vault.database
+                      .select({ id: space.id, accountId: space.accountId })
+                      .from(space)
+                      .where(sql`${space.id} = ${scope}`)
+                      .get()
+                : undefined;
 
-                return vaultAudit(context, this.store.database, selected);
-            }),
-            responseHeaders: { "Cache-Control": "no-store", Pragma: "no-cache" },
-        });
-    }
+            return vaultAudit(context, vault.database, selected);
+        }),
+        responseHeaders: { "Cache-Control": "no-store", Pragma: "no-cache" },
+    };
 }
 
-/** Host identity verification, installation policy, resources and lifecycle. */
-export type VaultServerOptions = Omit<
-    ServerOptions,
-    "router" | "audience" | "target" | "authorize" | "audit" | "responseHeaders"
->;
-
 /** Connect every procedure to transaction-bound storage operations. */
-function createRouter(store: VaultStore) {
+function createRouter(vault: Vault) {
     const implementation = implement(vaultService)
         .$context<ServiceContext>()
         .use(async ({ context, next }, input) => {
             // derive audit tenancy from persisted regional ownership
             const { spaceId } = targetSchema.parse(input);
-            const selected = await store.database
+            const selected = await vault.database
                 .select({ id: space.id, accountId: space.accountId })
                 .from(space)
                 .where(eq(space.id, spaceId))
@@ -102,80 +88,80 @@ function createRouter(store: VaultStore) {
             return next({
                 context: {
                     caller: context.requireCaller(),
-                    audit: vaultAudit(context, store.database, selected),
+                    audit: vaultAudit(context, vault.database, selected),
                 },
             });
         });
     const router = implementation.router({
         vault: {
             get: implementation.vault.get.handler(({ input, context }) =>
-                store.getVault(input, context),
+                vault.getVault(input, context),
             ),
             list: implementation.vault.list.handler(({ input, context }) =>
-                store.listVaults(input, context),
+                vault.listVaults(input, context),
             ),
         },
         secret: {
             purge: implementation.secret.purge.handler(({ input, context }) =>
-                store.purge(input, context),
+                vault.purge(input, context),
             ),
             create: implementation.secret.create.handler(({ input, context }) =>
-                store.create(input, context),
+                vault.create(input, context),
             ),
             get: implementation.secret.get.handler(({ input, context }) =>
-                store.get(input, context),
+                vault.get(input, context),
             ),
             list: implementation.secret.list.handler(({ input, context }) =>
-                store.list(input, context),
+                vault.list(input, context),
             ),
             update: implementation.secret.update.handler(({ input, context }) =>
-                store.change("update", input, context),
+                vault.change("update", input, context),
             ),
             disable: implementation.secret.disable.handler(({ input, context }) =>
-                store.change("disable", input, context),
+                vault.change("disable", input, context),
             ),
             enable: implementation.secret.enable.handler(({ input, context }) =>
-                store.change("enable", input, context),
+                vault.change("enable", input, context),
             ),
             delete: implementation.secret.delete.handler(({ input, context }) =>
-                store.change("delete", input, context),
+                vault.change("delete", input, context),
             ),
             restore: implementation.secret.restore.handler(({ input, context }) =>
-                store.change("restore", input, context),
+                vault.change("restore", input, context),
             ),
         },
         version: {
             rewrap: implementation.version.rewrap.handler(({ input, context }) =>
-                store.rewrap(input, context),
+                rewrapVersion(vault, input, context),
             ),
             get: implementation.version.get.handler(({ input, context }) =>
-                store.getVersion(input, context),
+                getVersion(vault, input, context),
             ),
             list: implementation.version.list.handler(({ input, context }) =>
-                store.listVersions(input, context),
+                listVersions(vault, input, context),
             ),
             read: implementation.version.read.handler(({ input, context }) =>
-                store.read(input, context),
+                readVersion(vault, input, context),
             ),
             write: implementation.version.write.handler(({ input, context }) =>
-                store.write(input, context),
+                writeVersion(vault, input, context),
             ),
             promote: implementation.version.promote.handler(({ input, context }) =>
-                store.promote(input, context),
+                promoteVersion(vault, input, context),
             ),
             disable: implementation.version.disable.handler(({ input, context }) =>
-                store.changeVersion("disable", input, context),
+                changeVersion(vault, "disable", input, context),
             ),
             enable: implementation.version.enable.handler(({ input, context }) =>
-                store.changeVersion("enable", input, context),
+                changeVersion(vault, "enable", input, context),
             ),
             destroy: implementation.version.destroy.handler(({ input, context }) =>
-                store.changeVersion("destroy", input, context),
+                changeVersion(vault, "destroy", input, context),
             ),
         },
         request: {
             rewrap: implementation.request.rewrap.handler(({ input, context }) =>
-                store.rewrapRequests(input, context),
+                rewrapRequests(vault, input, context),
             ),
         },
     });

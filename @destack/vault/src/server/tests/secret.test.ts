@@ -1,3 +1,4 @@
+import { readVersion } from "../../secret/version.ts";
 import { expect, test } from "@destack/test";
 import { createRequestId } from "@destack/service/request";
 import { and, eq } from "@destack/db";
@@ -234,7 +235,7 @@ test("purge expired recovery records exactly once", async () => {
     ).toEqual([]);
     await fixture.allow(true);
     await fixture.allowRead(true);
-    await expect(fixture.store.read(key, fixture.context)).rejects.toMatchObject({
+    await expect(readVersion(fixture.vault, key, fixture.context)).rejects.toMatchObject({
         code: "FORBIDDEN",
         message: "secret is unavailable",
     });

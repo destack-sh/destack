@@ -1,3 +1,4 @@
+import { writeVersion } from "../../secret/version.ts";
 import { PackageId } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { createRequestId, REQUEST_LIFETIME_MS } from "@destack/service/request";
@@ -214,9 +215,9 @@ test("serialize competing writes and roll back failed audit recording", async ()
             },
         );
         const rejected = { ...write, revision: before.revision, requestId: createRequestId() };
-        await expect(fixture.store.write(rejected, { ...fixture.context, audit })).rejects.toThrow(
-            "audit unavailable",
-        );
+        await expect(
+            writeVersion(fixture.vault, rejected, { ...fixture.context, audit }),
+        ).rejects.toThrow("audit unavailable");
         expect(await client.secret.get(key)).toEqual(before);
         expect((await client.version.write(rejected)).version.version).toBe(3);
     } finally {

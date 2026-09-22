@@ -16,10 +16,12 @@ import { Caller, TokenIssuer, TokenVerifier } from "@destack/service/authenticat
 import { generateKeyPair, exportJWK, SignJWT } from "jose";
 import { v7 } from "uuid";
 import { vaultSchema } from "../../stack/index.ts";
-import { VaultStore, VaultServer, type VaultContext } from "../../server/index.ts";
+import { implementService } from "../../server/index.ts";
+import { Vault, type VaultContext } from "../../vault/index.ts";
 import { LocalKeyring, EnvelopeEncryption } from "../../encryption/index.ts";
 import { vaultPackage } from "../../audit/index.ts";
 import { connect } from "../../secret/client.ts";
+import type { PackageId } from "@destack/package";
 
 /** A migrated database, provisioned vault and authenticated HTTP client. */
 export class VaultFixture implements AsyncDisposable {
@@ -34,7 +36,7 @@ export class VaultFixture implements AsyncDisposable {
     /** Database opened by this fixture. */
     readonly database: DatabaseConnection;
     /** Production encrypted storage. */
-    store!: VaultStore;
+    vault!: Vault;
     /** Standard service hosting lifecycle. */
     server!: Server;
     /** Hosted servers closed before their shared database. */
@@ -130,7 +132,7 @@ export class VaultFixture implements AsyncDisposable {
         });
 
         // keep the same signed credential through subsequent database revocation checks
-        const server = await this.host(this.store, (request) => verifier.authenticate(request));
+        const server = await this.host(this.vault, (request) => verifier.authenticate(request));
         this.client = connect({
             url: "https://vault.test",
             headers: { authorization: `Bearer ${issued.accessToken}` },
@@ -140,7 +142,7 @@ export class VaultFixture implements AsyncDisposable {
 
     /** Host production procedures under the standard authentication and shutdown lifecycle. */
     async host(
-        store: VaultStore,
+        vault: Vault,
         authenticate: (request: Request) => Promise<Caller | null> = async (request) => {
             if (request.headers.get("Authorization") !== `Bearer ${this.userId}`) {
                 throw new ServiceError("UNAUTHORIZED");
@@ -148,8 +150,11 @@ export class VaultFixture implements AsyncDisposable {
 
             return this.context.caller;
         },
+        audience: PackageId = vaultPackage.id,
     ): Promise<Server> {
-        const server = await new VaultServer(store).start({
+        const server = await Server.start({
+            ...implementService(vault),
+            audience,
             spaceId: "space-00000000-0000-4000-8000-000000000001",
             resources: new ResourceContext(),
             health: new Health("vault"),
@@ -270,10 +275,11 @@ export class VaultFixture implements AsyncDisposable {
                 }
             }
             const keys = await LocalKeyring.import("one", new Map([["one", fixture.root]]));
-            fixture.store = new VaultStore(database, new EnvelopeEncryption(keys), "eu");
+            fixture.vault = new Vault(database, new EnvelopeEncryption(keys), "eu");
 
             // bind verified identity and transaction-aware authority as the host does
             fixture.context = {
+                audience: vaultPackage.id,
                 caller: new Caller({
                     credential: { kind: "fixture" },
                     audience: vaultPackage.id,
@@ -301,7 +307,7 @@ export class VaultFixture implements AsyncDisposable {
                     new AuditOutbox(database),
                 ),
             };
-            fixture.server = await fixture.host(fixture.store);
+            fixture.server = await fixture.host(fixture.vault);
             fixture.client = connect({
                 url: "http://vault.test",
                 headers: { Authorization: `Bearer ${fixture.userId}` },

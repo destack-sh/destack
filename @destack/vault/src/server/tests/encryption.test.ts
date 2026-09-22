@@ -1,3 +1,4 @@
+import { writeVersion, readVersion } from "../../secret/version.ts";
 import { expect, test } from "@destack/test";
 import { createRequestId } from "@destack/service/request";
 import { eq } from "@destack/db";
@@ -8,7 +9,7 @@ import { AuditRecorder } from "@destack/audit";
 import { VaultFixture } from "./fixture.ts";
 import { vaultValue } from "../../stack/index.ts";
 import { LocalKeyring, EnvelopeEncryption } from "../../encryption/index.ts";
-import { VaultStore } from "../../server/index.ts";
+import { Vault } from "../../vault/index.ts";
 import { vaultPackage } from "../../audit/index.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -60,7 +61,7 @@ test("rotate root keys and reopen without the old key", async () => {
             ["two", next],
         ]),
     );
-    const rotating = new VaultStore(database, new EnvelopeEncryption(keys), "eu");
+    const rotating = new Vault(database, new EnvelopeEncryption(keys), "eu");
     const server = await fixture.host(rotating);
     const client = connect({
         url: "http://vault.test",
@@ -88,9 +89,9 @@ test("rotate root keys and reopen without the old key", async () => {
 
     // retain value access and exact mutation replay after retiring the old root
     const currentKeys = await LocalKeyring.import("two", new Map([["two", next]]));
-    const current = new VaultStore(database, new EnvelopeEncryption(currentKeys), "eu");
-    expect((await current.read(key, fixture.context)).value).toEqual(request.value);
-    expect(await current.write(request, fixture.context)).toEqual(written);
+    const current = new Vault(database, new EnvelopeEncryption(currentKeys), "eu");
+    expect((await readVersion(current, key, fixture.context)).value).toEqual(request.value);
+    expect(await writeVersion(current, request, fixture.context)).toEqual(written);
 });
 
 test("recover persisted values and exact retries after reopening the database", async () => {
@@ -110,13 +111,14 @@ test("recover persisted values and exact retries after reopening the database", 
         const database = await turso.connect(file, vaultSchema);
         try {
             const keys = await LocalKeyring.import("one", new Map([["one", fixture.root]]));
-            const store = new VaultStore(database, new EnvelopeEncryption(keys), "eu");
+            const vault = new Vault(database, new EnvelopeEncryption(keys), "eu");
             const owner = await database
                 .select()
                 .from(space)
                 .where(eq(space.id, fixture.spaceId))
                 .get();
             const context = {
+                audience: vaultPackage.id,
                 caller: fixture.context.caller,
                 audit: new AuditRecorder(
                     {
@@ -130,17 +132,17 @@ test("recover persisted values and exact retries after reopening the database", 
                     new AuditOutbox(database),
                 ),
             };
-            expect(await store.read(saved.key, context)).toEqual({
+            expect(await readVersion(vault, saved.key, context)).toEqual({
                 version: saved.written.version,
                 value: saved.request.value,
             });
-            expect(await store.write(saved.request, context)).toEqual(saved.written);
+            expect(await writeVersion(vault, saved.request, context)).toEqual(saved.written);
 
             // reject unavailable keys without creating replacement material
             const replacement = crypto.getRandomValues(new Uint8Array(32));
             const missing = await LocalKeyring.import("two", new Map([["two", replacement]]));
-            const inaccessible = new VaultStore(database, new EnvelopeEncryption(missing), "eu");
-            await expect(inaccessible.read(saved.key, context)).rejects.toMatchObject({
+            const inaccessible = new Vault(database, new EnvelopeEncryption(missing), "eu");
+            await expect(readVersion(inaccessible, saved.key, context)).rejects.toMatchObject({
                 code: "KEY_UNAVAILABLE",
                 message: "required root key is unavailable",
             });
@@ -170,7 +172,7 @@ test("withhold plaintext when audit persistence fails", async () => {
             },
         },
     );
-    await expect(fixture.store.read(key, { ...fixture.context, audit })).rejects.toThrow(
+    await expect(readVersion(fixture.vault, key, { ...fixture.context, audit })).rejects.toThrow(
         "audit unavailable",
     );
 });

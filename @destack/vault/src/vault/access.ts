@@ -21,7 +21,7 @@ export async function authorizeVault(
     transaction: DatabaseConnection,
 ): Promise<void> {
     // apply the shared delegation protocol to the exact persisted target
-    const access = context.caller.context(vaultPackage.id, Date.now(), request.spaceId);
+    const access = context.caller.context(context.audience, Date.now(), request.spaceId);
     const now = access.now;
     const [type, name] = request.operation.split(".");
     const permission = { packageId: vaultPackage.id, type, name };
