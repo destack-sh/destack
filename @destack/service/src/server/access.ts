@@ -43,8 +43,8 @@ export async function invokeProcedure<State extends Context>(
 
     // distinguish authorization denial from an application failure
     try {
-        if (call.access.authentication !== "public" || call.access.permission !== null) {
-            await options.authorize!(call);
+        if (options.authorize) {
+            await options.authorize(call);
         }
     } catch (error) {
         if (audit) {
@@ -61,14 +61,16 @@ export async function invokeProcedure<State extends Context>(
         result = await next();
     } catch (error) {
         if (audit) {
-            await recordAudit({ call, outcome: "failed", error }, audit);
+            const denied =
+                error instanceof ServiceError && (error.status === 401 || error.status === 403);
+            await recordAudit({ call, outcome: denied ? "denied" : "failed", error }, audit);
         }
         throw reportError(error);
     }
 
     // retain stream completion until its iterator closes
     if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) {
-        return streamProcedure(result as AsyncIterable<unknown>, call, audit);
+        return streamProcedure(result as AsyncIterable<unknown>, call, options);
     }
     if (audit) {
         await recordAudit({ call, outcome: "succeeded" }, audit);
@@ -81,9 +83,10 @@ export async function invokeProcedure<State extends Context>(
 function streamProcedure<State extends Context>(
     stream: AsyncIterable<unknown>,
     call: ProcedureCall<State>,
-    audit?: (event: ProcedureAudit<State>) => Promise<void>,
+    options: Pick<HandlerOptions<State>, "authorize" | "audit">,
 ): AsyncIteratorClass<unknown> {
     // retain completion separately from consumer cancellation
+    const audit = call.access.audit ? options.audit! : undefined;
     let outcome: ProcedureAudit<State>["outcome"] = "cancelled";
     let failure: unknown;
     const iterator = stream[Symbol.asyncIterator]();
@@ -91,14 +94,24 @@ function streamProcedure<State extends Context>(
     return new AsyncIteratorClass(
         async () => {
             try {
+                // recheck long-lived subscriptions before work and immediately before disclosure
+                if (options.authorize) {
+                    await options.authorize(call);
+                }
                 const result = await iterator.next();
+                if (options.authorize && !result.done) {
+                    await options.authorize(call);
+                }
                 if (result.done) {
                     outcome = "succeeded";
                 }
 
                 return result;
             } catch (error) {
-                outcome = "failed";
+                outcome =
+                    error instanceof ServiceError && (error.status === 401 || error.status === 403)
+                        ? "denied"
+                        : "failed";
                 failure = error;
                 throw reportError(error);
             }
@@ -106,7 +119,7 @@ function streamProcedure<State extends Context>(
         async (reason) => {
             // release and audit streams even when cancelled before their first value
             try {
-                if (reason !== "next") {
+                if (reason !== "next" || outcome !== "succeeded") {
                     await iterator.return?.();
                 }
             } catch (error) {
@@ -133,7 +146,7 @@ async function recordAudit<State extends Context>(
         // retain both failures when audit storage rejects an application failure record
         const failure =
             event.error !== undefined
-                ? new AggregateError([event.error, error], "Procedure failure audit failed.")
+                ? new AggregateError([event.error, error], "procedure failure audit failed")
                 : error;
 
         throw reportError(failure);

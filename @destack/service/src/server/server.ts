@@ -1,13 +1,22 @@
 import type { Health } from "../health/health.ts";
-import type { Context, ServiceHandler } from "./handler.ts";
+import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
+import { permitsCredential, permitsDelegation } from "@destack/access";
+import type { ResourceContext } from "@destack/resource/context";
+import type { Caller } from "../authentication/index.ts";
+import type { Service } from "../service/index.ts";
+import { ServiceError } from "../error/index.ts";
+import { ServiceContext } from "./context.ts";
+import type { ProcedureCall } from "./access.ts";
 import { reportError } from "./error.ts";
 
 /** A host-managed HTTP service with readiness and streaming-aware draining. */
-export class Server<State extends Context> implements AsyncDisposable {
+export class Server implements AsyncDisposable {
     /** Current health, shared with optional health procedures. */
     readonly health: Health;
     /** Host settings retained until shutdown. */
-    readonly #options: ServerOptions<State>;
+    readonly #options: ServerOptions;
+    /** HTTP adapter constructed from the declared router. */
+    readonly #handler: ServiceHandler<ServiceContext>;
     /** Accepted requests, including responses still being consumed. */
     readonly #requests = new Set<AbortController>();
     /** Notification when accepted requests complete. */
@@ -15,8 +24,15 @@ export class Server<State extends Context> implements AsyncDisposable {
     /** The single shutdown attempt. */
     #closing?: Promise<void>;
 
-    /** Retain the host's handler and lifecycle settings. */
-    private constructor(options: ServerOptions<State>) {
+    /** Construct the HTTP handler and retain lifecycle settings. */
+    private constructor(options: ServerOptions) {
+        // reject missing enforcement before wrapping callbacks for the HTTP adapter
+        for (const callback of ["authenticate", "authorizeHost", "authorize"] as const) {
+            if (typeof options[callback] !== "function") {
+                throw new TypeError(`${callback} must be configured before starting a server`);
+            }
+        }
+
         // reject delays that overflow the runtime's signed 32 bit timer
         if (
             !Number.isInteger(options.drainTimeout) ||
@@ -28,15 +44,20 @@ export class Server<State extends Context> implements AsyncDisposable {
             );
         }
 
-        // retain the handler and initial health
+        // construct the handler with mandatory host and application authorization
         this.#options = options;
-        this.health = options.handler.health;
+        this.health = options.health;
+        this.#handler = new ServiceHandler(options.router, {
+            ...options,
+            authorize: async (call) => {
+                await Server.#authorize(call, options);
+                await options.authorize(call);
+            },
+        });
     }
 
-    /** Initialize resources before publishing readiness. */
-    static async start<State extends Context>(
-        options: ServerOptions<State>,
-    ): Promise<Server<State>> {
+    /** Configure request handling and initialize resources before publishing readiness. */
+    static async start(options: ServerOptions): Promise<Server> {
         // publish readiness after initialization completes
         const server = new Server(options);
         server.health.set("starting");
@@ -76,12 +97,12 @@ export class Server<State extends Context> implements AsyncDisposable {
         const controller = new AbortController();
         this.#requests.add(controller);
         const signal = AbortSignal.any([request.signal, controller.signal]);
-        const accepted = new Request(request, { signal });
         try {
             // authenticate before dispatching the request
-            const context = await this.#options.context(accepted);
+            const accepted = new Request(request, { signal });
+            const context = await Server.#authenticate(accepted, this.#options);
             signal.throwIfAborted();
-            const result = await this.#options.handler.handle(accepted, { context });
+            const result = await this.#handler.handle(accepted, { context });
             const response = result.matched ? result.response : new Response(null, { status: 404 });
 
             return this.#respond(response, controller, signal);
@@ -109,6 +130,53 @@ export class Server<State extends Context> implements AsyncDisposable {
     /** Close the service. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.close();
+    }
+
+    /** Retain authentication failures for the procedure's audit path. */
+    static async #authenticate(request: Request, options: ServerOptions): Promise<ServiceContext> {
+        // authenticate only against the installation's trusted configuration
+        let caller: Caller | null = null;
+        let authenticationError: unknown;
+        try {
+            caller = await options.authenticate(request);
+            caller?.context(options.audience, Date.now(), options.spaceId);
+        } catch (error) {
+            authenticationError = error ?? new ServiceError("UNAUTHORIZED");
+        }
+
+        return new ServiceContext(
+            request,
+            options.audience,
+            options.spaceId,
+            caller,
+            options.resources,
+            authenticationError,
+        );
+    }
+
+    /** Enforce identity, credential restrictions and current installation policy. */
+    static async #authorize(
+        call: ProcedureCall<ServiceContext>,
+        options: ServerOptions,
+    ): Promise<void> {
+        // reject invalid credentials on public routes and require identity on protected routes
+        const access = call.context.access;
+        if (call.access.authentication !== "public") {
+            call.context.requireCaller();
+        }
+
+        // constrain the operation before application authorization selects its exact objects
+        const permission = call.access.permission;
+        const target = { scope: options.spaceId };
+        if (
+            permission &&
+            (!permitsCredential(permission, target, access) ||
+                !permitsDelegation(permission, target, access))
+        ) {
+            throw new ServiceError("FORBIDDEN");
+        }
+
+        await options.authorizeHost(call);
     }
 
     /** Retain a response until its body completes, fails, or is cancelled. */
@@ -234,16 +302,26 @@ export class Server<State extends Context> implements AsyncDisposable {
     }
 }
 
-/** Host-provided initialization, authorization, and shutdown behavior. */
-export interface ServerOptions<State extends Context> {
-    /** Implemented and instrumented service handler. */
-    handler: ServiceHandler<State>;
-    /** Authenticate each request and construct its authorized context. */
-    context(request: Request): State | Promise<State>;
+/** Authentication, authorization, resources and lifecycle for one hosted service. */
+export interface ServerOptions extends HandlerOptions<ServiceContext> {
+    /** Application procedures receiving the standard service context. */
+    router: Router<Service, ServiceContext>;
+    /** Fixed receiving package identifier. */
+    audience: string;
+    /** Fixed administered space identifier. */
+    spaceId: string;
+    /** Installation resource clients selected by the host. */
+    resources: ResourceContext;
+    /** Verify credentials; return null only when the request has no credential. */
+    authenticate(request: Request): Promise<Caller | null>;
+    /** Enforce installation restrictions and host-only access requirements. */
+    authorizeHost(call: ProcedureCall<ServiceContext>): Promise<void>;
+    /** Enforce application permissions, including exact objects and sharing grants. */
+    authorize(call: ProcedureCall<ServiceContext>): Promise<void>;
     /** Complete initialization before accepting application requests. */
     initialize?(): Promise<void>;
     /** Release resources after accepted requests finish. */
     dispose?(): Promise<void>;
-    /** Maximum graceful drain time before aborting outstanding requests. */
+    /** Maximum graceful drain time in milliseconds before aborting outstanding requests. */
     drainTimeout: number;
 }

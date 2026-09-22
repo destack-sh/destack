@@ -125,9 +125,6 @@ import { BuildServer } from "@destack/build/server";
 import { Server } from "@destack/service/server";
 
 await using build = new BuildServer({
-    health,
-    authorize,
-    audit,
     builds: {
         open: openImmutableSource,
         inspect: openInspectionSource,
@@ -141,8 +138,15 @@ await using build = new BuildServer({
 });
 
 await using server = await Server.start({
-    handler: build.handler,
-    context: authenticate,
+    router: build.router,
+    health,
+    audience: buildPackageId,
+    spaceId,
+    resources,
+    authenticate,
+    authorizeHost: authorizeInstallation,
+    authorize,
+    audit,
     drainTimeout: 10_000,
 });
 

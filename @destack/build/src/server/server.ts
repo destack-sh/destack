@@ -2,9 +2,8 @@ import {
     implement,
     implementOperation,
     OperationStore,
-    ServiceHandler,
-    type HandlerOptions,
-    type OperationRequest,
+    type Router,
+    type ServiceContext,
 } from "@destack/service/server";
 import type { OperationStoreOptions } from "@destack/service/server";
 import {
@@ -30,15 +29,15 @@ import { implementPreview, PreviewStore, type PreviewHost, type PreviewLimits } 
 
 /** Build and preview procedures with bounded, caller-scoped state. */
 export class BuildServer implements AsyncDisposable {
-    /** HTTP handler with shared authorization, audit, probes, and telemetry. */
-    readonly handler: ServiceHandler<OperationRequest>;
+    /** Build procedures hosted through the shared Server lifecycle. */
+    readonly router: Router<typeof buildService, ServiceContext>;
     /** Retained operation records. */
     readonly builds: OperationStore<BuildResult, BuildProgress>;
     /** Retained previews and their live servers. */
     readonly #previews: PreviewStore;
     /** Active inspection requests retained until their compiler exits. */
     readonly #inspections = new Map<AbortController, Promise<void>>();
-    /** Host access and limits shared by request handlers. */
+    /** Source access and limits shared by request handlers. */
     readonly #options: BuildServerOptions;
     /** Whether shutdown has begun. */
     #closed = false;
@@ -49,56 +48,64 @@ export class BuildServer implements AsyncDisposable {
         this.#options = options;
         this.builds = new OperationStore(BuildOperation, options.limits.build);
         this.#previews = new PreviewStore(options.previews, options.limits.preview);
-        const service = implement(buildService).$context<OperationRequest>();
+        const service = implement(buildService).$context<ServiceContext>();
 
         // retain host source access until compilation and storage have settled
         const start = service.build.start.handler(({ input, context }) =>
-            this.builds.start(context.owner, { phase: "preparing" }, async ({ signal, report }) => {
-                await using source = await options.builds.open(context.owner, input, signal);
-                report({ phase: "building" });
+            this.builds.start(
+                context.requireCaller().id,
+                { phase: "preparing" },
+                async ({ signal, report }) => {
+                    await using source = await options.builds.open(
+                        context.requireCaller().id,
+                        input,
+                        signal,
+                    );
+                    report({ phase: "building" });
 
-                // preserve operation cancellation across the compiler process
-                let build: PackageBuild;
-                try {
-                    build = await buildPackage({ ...source.options, signal });
-                } catch (error) {
-                    if (
-                        signal.aborted &&
-                        error instanceof BuildError &&
-                        error.cause === signal.reason
-                    ) {
-                        throw signal.reason;
+                    // preserve operation cancellation across the compiler process
+                    let build: PackageBuild;
+                    try {
+                        build = await buildPackage({ ...source.options, signal });
+                    } catch (error) {
+                        if (
+                            signal.aborted &&
+                            error instanceof BuildError &&
+                            error.cause === signal.reason
+                        ) {
+                            throw signal.reason;
+                        }
+                        throw error;
                     }
-                    throw error;
-                }
 
-                // publish the complete package before completing the operation
-                await using result = build;
-                report({ phase: "storing" });
-                signal.throwIfAborted();
-                const stored = await options.builds.store(context.owner, result, signal);
+                    // publish the complete package before completing the operation
+                    await using result = build;
+                    report({ phase: "storing" });
+                    signal.throwIfAborted();
+                    const stored = await options.builds.store(
+                        context.requireCaller().id,
+                        result,
+                        signal,
+                    );
 
-                return { source: input.source, package: stored };
-            }),
+                    return { source: input.source, package: stored };
+                },
+            ),
         );
 
-        // enforce access through the common handler before dispatching caller-scoped operations
-        this.handler = new ServiceHandler(
-            service.router({
-                inspect: service.inspect.handler(async ({ input, context, signal }) => {
-                    return await this.#inspect(context.owner, input, signal);
-                }),
-                build: { ...implementOperation(this.builds, "/builds"), start },
-                preview: implementPreview(this.#previews),
+        // expose procedures for the shared Server to authenticate and authorize
+        this.router = service.router({
+            inspect: service.inspect.handler(async ({ input, context, signal }) => {
+                return await this.#inspect(context.requireCaller().id, input, signal);
             }),
-            options,
-        );
+            build: { ...implementOperation(this.builds, "/builds"), start },
+            preview: implementPreview(this.#previews),
+        });
     }
 
     /** Stop accepting work and await build and preview cleanup. */
     async [Symbol.asyncDispose](): Promise<void> {
         this.#closed = true;
-        this.handler.health.set("draining");
         for (const controller of this.#inspections.keys()) {
             controller.abort();
         }
@@ -109,7 +116,6 @@ export class BuildServer implements AsyncDisposable {
             this.#previews[Symbol.asyncDispose](),
             ...this.#inspections.values(),
         ]);
-        this.handler.health.set("stopped");
         const failures = results
             .filter((result) => result.status === "rejected")
             .map((result) => result.reason);
@@ -177,8 +183,8 @@ export interface BuildHost {
     store(owner: string, build: PackageBuild, signal: AbortSignal): Promise<PackageLocation>;
 }
 
-/** Host access, retention, and required shared service enforcement. */
-export interface BuildServerOptions extends HandlerOptions<OperationRequest> {
+/** Source access, operation retention and preview hosting. */
+export interface BuildServerOptions {
     /** Immutable source access and result storage. */
     builds: BuildHost;
     /** Editable source access and preview routing. */

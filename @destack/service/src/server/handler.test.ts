@@ -202,6 +202,68 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     expect(new Set(spans.map((span) => span.spanContext().traceId)).size).toBe(3);
 });
 
+/** Revoke access while a protected stream waits for its next value. */
+test("withhold streamed values after access revocation", async () => {
+    const waiting = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    let allowed = true;
+    let closed = false;
+    const outcomes: string[] = [];
+    const service = {
+        watch: defineProcedure({ authentication: "identity", permission: null, audit: true })
+            .route({ method: "GET", path: "/watch" })
+            .output(eventIterator(schema.string())),
+    };
+    const implementation = implement(service);
+    const router = implementation.router({
+        watch: implementation.watch.handler(async function* () {
+            try {
+                waiting.resolve();
+                await release.promise;
+                yield "private";
+            } finally {
+                closed = true;
+            }
+        }),
+    });
+
+    // exercise the HTTP transport while authorization changes during the pending read
+    const handler = new ServiceHandler(router, {
+        health: new Health("watch"),
+        authorize: async () => {
+            if (!allowed) {
+                throw new ServiceError("FORBIDDEN");
+            }
+        },
+        audit: async ({ outcome }) => {
+            outcomes.push(outcome);
+        },
+    });
+    const client = createClient(service, {
+        url: "https://test.local",
+        fetch: async (request) => {
+            const result = await handler.handle(request, { context: {} });
+
+            return result.matched ? result.response : new Response(null, { status: 404 });
+        },
+    });
+    const received = (async () => {
+        const values: string[] = [];
+        for await (const value of await client.watch()) {
+            values.push(value);
+        }
+
+        return values;
+    })();
+    const rejected = expect(received).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
+    await waiting.promise;
+    allowed = false;
+    release.resolve();
+    await rejected;
+    expect(closed).toBe(true);
+    expect(outcomes).toEqual(["started", "denied"]);
+});
+
 /** Collect metrics directly after the HTTP calls finish. */
 class CallMetrics extends MetricReader {
     /** Complete synchronous collection. */

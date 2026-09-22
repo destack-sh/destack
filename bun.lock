@@ -330,16 +330,20 @@
       "version": "2026.9.0",
       "dependencies": {
         "@destack/access": "workspace:*",
+        "@destack/db": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@orpc/client": "1.15.1",
         "@orpc/contract": "1.15.1",
+        "@orpc/json-schema": "1.15.1",
         "@orpc/openapi": "1.15.1",
         "@orpc/openapi-client": "1.15.1",
         "@orpc/server": "1.15.1",
         "@orpc/shared": "1.15.1",
+        "jose": "6.2.12",
+        "uuid": "14.0.2",
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
@@ -881,6 +885,8 @@
     "@orpc/contract": ["@orpc/contract@1.15.1", "", { "dependencies": { "@orpc/client": "1.15.1", "@orpc/shared": "1.15.1", "@standard-schema/spec": "^1.1.0", "openapi-types": "^12.1.3" } }, "sha512-iXVEEjooewmEkyrDLeWHY3vKYq67htdUQjCDLx0MoiqA0NFFVv6sZ1LNj/tPWZ1p5Mca34xcAx1SwYZcchQ/xA=="],
 
     "@orpc/interop": ["@orpc/interop@1.15.1", "", {}, "sha512-NmAaUVt1fgiYSfG5KOswv5pVzZbbDyeryd2M2lS1YMb9sTJ8ipPnGFbYaHZBD3mvkXtY4FzsNXFyBgGaSzbytg=="],
+
+    "@orpc/json-schema": ["@orpc/json-schema@1.15.1", "", { "dependencies": { "@orpc/contract": "1.15.1", "@orpc/interop": "1.15.1", "@orpc/openapi": "1.15.1", "@orpc/server": "1.15.1", "@orpc/shared": "1.15.1", "json-schema-typed": "^8.0.2" } }, "sha512-+zLE41QrydiAlrLvUj5XBZ8xcEhvH9iHhRrS7vQMnRJeJZVJAHGFETK3fSqEq7KRlFU4jiCRmXJ7oC82NBRdjw=="],
 
     "@orpc/openapi": ["@orpc/openapi@1.15.1", "", { "dependencies": { "@orpc/client": "1.15.1", "@orpc/contract": "1.15.1", "@orpc/interop": "1.15.1", "@orpc/openapi-client": "1.15.1", "@orpc/server": "1.15.1", "@orpc/shared": "1.15.1", "@orpc/standard-server": "1.15.1", "json-schema-typed": "^8.0.2", "rou3": "^0.7.12" } }, "sha512-sUhy1vIsxPKxgxK0c9sC2c5rZWDTRNwYHXcnjZgQgNYtDptphOCcrl819/lvPoRvjqyFwSNKE6/34pYy64NaWA=="],
 

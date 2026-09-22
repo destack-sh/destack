@@ -4,7 +4,8 @@ import { Health } from "../health/index.ts";
 import { createClient } from "../client/index.ts";
 import { defineOperation, defineOperationProcedures } from "../operation/index.ts";
 import { ServiceError } from "../error/index.ts";
-import { implementOperation, OperationStore, Server, ServiceHandler } from "../server/index.ts";
+import { implementOperation, OperationStore, Server } from "../server/index.ts";
+import { hosting, createCaller } from "../server/tests/fixture.ts";
 
 test.for([undefined, "/builds"] as const)(
     "run authorized operations through HTTP, reconnect, cancel, and release results (%s)",
@@ -23,16 +24,11 @@ test.for([undefined, "/builds"] as const)(
         // serve operation procedures under the authenticated caller
         const service = defineOperationProcedures(definition, path);
         const router = implementOperation(store, path);
+        const alice = createCaller("alice");
         await using server = await Server.start({
-            handler: new ServiceHandler(router, {
-                health: new Health("operations"),
-                authorize: async ({ context }) => {
-                    if (!context.owner) {
-                        throw new ServiceError("UNAUTHORIZED");
-                    }
-                },
-            }),
-            context: (request) => ({ owner: request.headers.get("authorization")! }),
+            ...hosting,
+            router,
+            health: new Health("operations"),
             drainTimeout: 1000,
         });
 
@@ -59,7 +55,7 @@ test.for([undefined, "/builds"] as const)(
 
         // observe work independently of a subscriber's connection
         const release = Promise.withResolvers<void>();
-        const started = store.start("alice", { step: "compile" }, async ({ report }) => {
+        const started = store.start(alice.id, { step: "compile" }, async ({ report }) => {
             await release.promise;
             report({ step: "complete" });
 
@@ -78,7 +74,7 @@ test.for([undefined, "/builds"] as const)(
         const stream = await client.watch({ id: started.id }, { signal: disconnect.signal });
         expect(await stream.next()).toEqual({ done: false, value: started });
         disconnect.abort();
-        expect(store.get("alice", started.id)).toEqual(started);
+        expect(store.get(alice.id, started.id)).toEqual(started);
 
         // reconnect after publication and collect the retained outcome
         release.resolve();
@@ -104,7 +100,7 @@ test.for([undefined, "/builds"] as const)(
         // acknowledge cancellation only after the runner observes its signal and cleans up
         const entered = Promise.withResolvers<void>();
         let cleaned = false;
-        const cancelled = store.start("alice", { step: "wait" }, async ({ signal }) => {
+        const cancelled = store.start(alice.id, { step: "wait" }, async ({ signal }) => {
             const aborted = Promise.withResolvers<void>();
             signal.addEventListener("abort", () => aborted.resolve(), { once: true });
             entered.resolve();

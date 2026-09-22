@@ -1,5 +1,5 @@
 import { ServiceError } from "@destack/service/error";
-import { implement, reportError, type OperationRequest } from "@destack/service/server";
+import { implement, reportError, type ServiceContext } from "@destack/service/server";
 import { Watch } from "@destack/service/watch";
 import { LocalServer, type LocalServerOptions } from "../local/server.ts";
 import { Preview, type PreviewRequest, preview } from "../service/preview.ts";
@@ -303,21 +303,21 @@ interface PreviewEntry {
 
 /** Implement preview procedures against authenticated lifecycle state. */
 export function implementPreview(store: PreviewStore) {
-    const service = implement({ preview }).$context<OperationRequest>();
+    const service = implement({ preview }).$context<ServiceContext>();
 
     return service.preview.router({
         start: service.preview.start.handler(({ input, context }) =>
-            store.start(context.owner, input),
+            store.start(context.requireCaller().id, input),
         ),
         get: service.preview.get.handler(({ input, context }) =>
-            store.get(context.owner, input.id),
+            store.get(context.requireCaller().id, input.id),
         ),
-        list: service.preview.list.handler(({ context }) => store.list(context.owner)),
+        list: service.preview.list.handler(({ context }) => store.list(context.requireCaller().id)),
         watch: service.preview.watch.handler(({ input, context, signal }) =>
-            store.watch(context.owner, input.id, signal),
+            store.watch(context.requireCaller().id, input.id, signal),
         ),
         stop: service.preview.stop.handler(({ input, context }) =>
-            store.stop(context.owner, input.id),
+            store.stop(context.requireCaller().id, input.id),
         ),
     });
 }

@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import { Health } from "@destack/service/health";
 import { ServiceError } from "@destack/service/error";
 import { implementPreview, PreviewStore } from "../server/preview.ts";
-import { ServiceHandler } from "@destack/service/server";
+import { Server } from "@destack/service/server";
+import { hosting, createCaller } from "./tests/fixture.ts";
 import { createClient } from "@destack/service/client";
 import { preview } from "../service/preview.ts";
 import { requests } from "../../tests/fixture/web/request.ts";
@@ -16,6 +17,7 @@ test("serve an application and invalidate its edited source", async () => {
     const fixture = new URL("../../tests/fixture/web/", import.meta.url);
     const dependencies = await readDependencies(fileURLToPath(new URL("source/", fixture)));
     const directory = await mkdtemp(join(tmpdir(), "destack-local-"));
+    const alice = createCaller("alice");
     try {
         await cp(new URL("source/", fixture), directory, {
             recursive: true,
@@ -29,7 +31,7 @@ test("serve an application and invalidate its edited source", async () => {
             {
                 async open(owner, request) {
                     expect({ owner, request }).toEqual({
-                        owner: "alice",
+                        owner: alice.id,
                         request: { source: "web", application: "server" },
                     });
 
@@ -57,28 +59,20 @@ test("serve an application and invalidate its edited source", async () => {
             },
             { concurrency: 1, capacity: 2, retention: 60_000 },
         );
-        const handler = new ServiceHandler(
-            { preview: implementPreview(previews) },
-            {
-                health: new Health("build"),
-                authorize: async ({ context }) => {
-                    if (!context.owner) {
-                        throw new ServiceError("UNAUTHORIZED");
-                    }
-                },
-                audit: async () => {},
-            },
-        );
+        await using server = await Server.start({
+            ...hosting,
+            router: { preview: implementPreview(previews) },
+            health: new Health("build"),
+            audit: async () => {},
+            drainTimeout: 1000,
+        });
         let owner = "alice";
         const client = createClient(
             { preview },
             {
                 url: "https://build.local",
-                fetch: async (request) => {
-                    const result = await handler.handle(request, { context: { owner } });
-
-                    return result.matched ? result.response : new Response(null, { status: 404 });
-                },
+                headers: () => ({ authorization: owner }),
+                fetch: (request) => server.fetch(request),
             },
         );
 

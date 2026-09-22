@@ -12,6 +12,8 @@ import { inspectPackage } from "../inspect/index.ts";
 import { PackageBuild } from "../build/build.ts";
 import { describeFile } from "@destack/package/file";
 import { openPackage, type PackageLocation } from "@destack/package/manifest";
+import { Server } from "@destack/service/server";
+import { hosting, createCaller } from "./tests/fixture.ts";
 
 test("inspect and build authorized source through the service", async () => {
     const fixture = new URL("../../tests/fixture/library/", import.meta.url);
@@ -22,16 +24,10 @@ test("inspect and build authorized source through the service", async () => {
     const destination = join(input.directory, "published");
     let location: PackageLocation | undefined;
     let temporary: string | undefined;
+    const alice = createCaller("alice");
 
     // resolve client references before exposing source to the compiler
     await using server = new BuildServer({
-        health: new Health("build"),
-        authorize: async ({ context }) => {
-            if (context.owner !== "alice" && context.owner !== "bob") {
-                throw new ServiceError("UNAUTHORIZED");
-            }
-        },
-        audit: async () => {},
         limits: {
             build: { concurrency: 1, capacity: 4, retention: 60_000, timeout: 10_000 },
             preview: { concurrency: 1, capacity: 4, retention: 60_000 },
@@ -39,7 +35,7 @@ test("inspect and build authorized source through the service", async () => {
         builds: {
             async open(owner, selection) {
                 expect({ owner, selection }).toEqual({
-                    owner: "alice",
+                    owner: alice.id,
                     selection: { source: "library", outputs: ["library"] },
                 });
 
@@ -52,7 +48,7 @@ test("inspect and build authorized source through the service", async () => {
             },
             async inspect(owner, selection) {
                 expect({ owner, selection }).toEqual({
-                    owner: "alice",
+                    owner: alice.id,
                     selection: { source: "library", output: "library" },
                 });
 
@@ -90,13 +86,17 @@ test("inspect and build authorized source through the service", async () => {
         },
     });
     let owner = "alice";
+    await using http = await Server.start({
+        ...hosting,
+        router: server.router,
+        health: new Health("build"),
+        audit: async () => {},
+        drainTimeout: 1000,
+    });
     const client = connect({
         url: "https://build.local",
-        fetch: async (request) => {
-            const response = await server.handler.handle(request, { context: { owner } });
-
-            return response.matched ? response.response : new Response(null, { status: 404 });
-        },
+        headers: () => ({ authorization: owner }),
+        fetch: (request) => http.fetch(request),
     });
 
     // compare inspection to the descriptions distributed by a production build
@@ -136,7 +136,7 @@ test("inspect and build authorized source through the service", async () => {
         },
     });
     expect(released).toEqual(["inspect", "build"]);
-    expect(stored).toEqual(["alice"]);
+    expect(stored).toEqual([alice.id]);
 
     // retrieve verified descriptions after the compiler and temporary result have closed
     await expect(readFile(join(temporary!, "manifest.json"))).rejects.toMatchObject({

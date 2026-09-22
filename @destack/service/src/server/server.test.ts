@@ -4,8 +4,8 @@ import { Health, health } from "../health/index.ts";
 import { implementHealth } from "../health/server.ts";
 import { createClient } from "../client/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
-import { ServiceError } from "../error/index.ts";
-import { implement, Server, ServiceHandler } from "./index.ts";
+import { implement, Server, type ServerOptions } from "./index.ts";
+import { hosting } from "./tests/fixture.ts";
 
 test("drain complete HTTP response streams before disposing service resources", async () => {
     // declare health and a stream whose completion the caller controls
@@ -20,30 +20,32 @@ test("drain complete HTTP response streams before disposing service resources", 
 
     // hold the response open until the caller releases the final event
     const implementation = implement(service);
-    const handler = new ServiceHandler<{ caller: string }>(
-        implementation.router({
-            health: implementHealth(readiness),
-            read: implementation.read.handler(async function* () {
-                yield "first";
-                await release.promise;
-                yield "last";
-            }),
+    const router = implementation.router({
+        health: implementHealth(readiness),
+        read: implementation.read.handler(async function* () {
+            yield "first";
+            await release.promise;
+            yield "last";
         }),
-        {
-            health: readiness,
-            authorize: async ({ context }) => {
-                if (context.caller !== "alice") {
-                    throw new ServiceError("UNAUTHORIZED");
-                }
-            },
-        },
-    );
+    });
 
     // retain lifecycle calls while serving the declared procedures
     const lifecycle: string[] = [];
+    for (const callback of ["authenticate", "authorizeHost", "authorize"] as const) {
+        await expect(
+            Server.start({
+                ...hosting,
+                router,
+                health: readiness,
+                drainTimeout: 1000,
+                [callback]: undefined,
+            } as unknown as ServerOptions),
+        ).rejects.toThrow(`${callback} must be configured before starting a server`);
+    }
     const server = await Server.start({
-        handler,
-        context: () => ({ caller: "alice" }),
+        ...hosting,
+        router,
+        health: readiness,
         initialize: async () => {
             lifecycle.push("initialize");
         },
@@ -56,6 +58,7 @@ test("drain complete HTTP response streams before disposing service resources", 
     // begin consuming the application stream before shutdown
     const client = createClient(service, {
         url: "https://test.local",
+        headers: { authorization: "alice" },
         fetch: (request) => server.fetch(request),
     });
     const stream = await client.read();
@@ -104,31 +107,23 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
 
     // keep the handler active until it can acknowledge cancellation
     const implementation = implement(service);
-    const handler = new ServiceHandler(
-        implementation.router({
-            get: implementation.get.handler(async ({ signal }) => {
-                entered.resolve();
-                await waiting.promise;
-                signal?.throwIfAborted();
+    const router = implementation.router({
+        get: implementation.get.handler(async ({ signal }) => {
+            entered.resolve();
+            await waiting.promise;
+            signal?.throwIfAborted();
 
-                return "complete";
-            }),
+            return "complete";
         }),
-        { health: new Health("work") },
-    );
+    });
 
     // observe cleanup independently of the caller's shutdown deadline
     let disposed = false;
     const disposal = Promise.withResolvers<void>();
     const server = await Server.start({
-        handler,
-        context: (request) => {
-            if (request.headers.get("authorization") !== "alice") {
-                throw new ServiceError("UNAUTHORIZED");
-            }
-
-            return {};
-        },
+        ...hosting,
+        router,
+        health: new Health("work"),
         dispose: async () => {
             disposed = true;
             disposal.resolve();
@@ -142,6 +137,13 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
         fetch: (request) => server.fetch(request),
     });
     await expect(client.get()).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
+
+    // release requests that fail construction before authentication or handler dispatch
+    const consumed = new Request("https://test.local/work", { method: "POST", body: "used" });
+    await consumed.text();
+    const failure = await server.fetch(consumed);
+    expect(failure.status).toBe(500);
+    await failure.arrayBuffer();
 
     // admit an authenticated request and retain its cancellation failure
     const authorized = createClient(service, {

@@ -13,6 +13,8 @@ import { ProcedureAccess } from "../procedure/procedure.ts";
 import type { Health } from "../health/health.ts";
 import { invokeProcedure, type ProcedureCall, type ProcedureAudit } from "./access.ts";
 import { ServiceTelemetry } from "../telemetry/index.ts";
+import { SmartCoercionPlugin } from "@orpc/json-schema";
+import { schemaConverter } from "../openapi/document.ts";
 
 /** Implement service procedures with typed context and middleware. */
 export { implement } from "@orpc/server";
@@ -31,6 +33,10 @@ export class ServiceHandler<T extends Context> extends OpenAPIHandler<T> {
         // report failures and establish trace context before application interceptors
         super(router, {
             ...options,
+            plugins: [
+                new SmartCoercionPlugin({ schemaConverters: [schemaConverter] }),
+                ...(options.plugins ?? []),
+            ],
             clientInterceptors: [
                 ({ path, next }) => telemetry.invoke(path, next),
                 async ({ next, procedure, path, input, context, signal }) => {
@@ -105,7 +111,7 @@ export class ServiceHandler<T extends Context> extends OpenAPIHandler<T> {
 export interface HandlerOptions<T extends Context> extends OpenAPIHandlerOptions<T> {
     /** Readiness shared with the host. */
     health: Health;
-    /** Verify credentials and every declared permission, rejecting denied calls. */
+    /** Require authenticated request context and enforce the procedure's declared access. */
     authorize?(call: ProcedureCall<T>): Promise<void>;
     /** Persist required audit events before acknowledging their completion. */
     audit?(event: ProcedureAudit<T>): Promise<void>;

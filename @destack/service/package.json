@@ -11,6 +11,9 @@
         "test": "vitest run --config vitest.config.ts"
     },
     "exports": {
+        "./authentication": "./src/authentication/index.ts",
+        "./request": "./src/request/index.ts",
+        "./database": "./src/database/index.ts",
         "./watch": "./src/watch/index.ts",
         "./declare": "./src/declare/index.ts",
         "./operation": "./src/operation/index.ts",
@@ -29,6 +32,9 @@
         "@destack/test": "workspace:*"
     },
     "dependencies": {
+        "jose": "6.2.12",
+        "@destack/db": "workspace:*",
+        "uuid": "14.0.2",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
@@ -37,6 +43,7 @@
         "@orpc/contract": "1.15.1",
         "@orpc/openapi": "1.15.1",
         "@orpc/openapi-client": "1.15.1",
+        "@orpc/json-schema": "1.15.1",
         "@orpc/server": "1.15.1",
         "@destack/resource": "workspace:*",
         "@destack/access": "workspace:*"
