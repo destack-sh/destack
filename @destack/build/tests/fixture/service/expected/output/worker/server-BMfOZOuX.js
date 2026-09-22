@@ -7234,8 +7234,41 @@ defineSchema(strictObject({
 	/** The digest of its immutable build manifest. */
 	manifest: Digest
 }));
+defineSchema(strictObject({
+	/** The authenticated identity category. */
+	kind: _enum([
+		"user",
+		"service-account",
+		"group",
+		"share-token"
+	]),
+	/** The authority responsible for the identity. */
+	authority: string().min(1),
+	/** The immutable identifier assigned by that authority. */
+	id: string().min(1)
+}));
+union([
+	string(),
+	number().finite(),
+	boolean()
+]);
+/** Compare the complete authority-qualified identity. */
+function sameSubject(left, right) {
+	return left.kind === right.kind && left.authority === right.authority && left.id === right.id;
+}
 /** A stable declaration-local name used by access rules. */
 var AccessName = string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
+/** Reject an invalid declaration, unavailable record, or unauthorized operation. */
+var AccessError = class extends Error {
+	/** Stable failure classification. */
+	code;
+	/** Retain the error classification and cause. */
+	constructor(code, message, options) {
+		super(message, options);
+		this.name = "AccessError";
+		this.code = code;
+	}
+};
 defineSchema(strictObject({
 	/** The package that declares the object type. */
 	packageId: PackageId,
@@ -10722,6 +10755,270 @@ var ServiceHandler = class ServiceHandler extends OpenAPIHandler {
 		}
 	}
 };
+/** Match credential restrictions before checking exact objects or compiling filtered queries. */
+function permitsCredential(permission, object, context) {
+	return context.permissions === void 0 || context.permissions.some((entry) => entry.packageId === permission.packageId && entry.type === permission.type && entry.name === permission.name && entry.scope === object.scope && (entry.objectId === void 0 || object.id === void 0 || entry.objectId === object.id));
+}
+/** Verify each delegation step and require every step to include the requested operation. */
+function permitsDelegation(permission, object, context) {
+	if (!context.actor) {
+		if (context.delegations?.length) throw new AccessError("INVALID_CONTEXT", "delegations require an authenticated actor");
+		return true;
+	}
+	if (!context.subject || !context.subjects.some((subject) => sameSubject(subject, context.subject))) throw new AccessError("INVALID_CONTEXT", "delegation requires an authenticated represented subject");
+	const chain = context.delegations ?? [];
+	if (chain.length === 0) return false;
+	let previous = context.subject;
+	const ids = /* @__PURE__ */ new Set();
+	for (const delegation of chain) {
+		if (ids.has(delegation.id) || !sameSubject(previous, delegation.subject)) throw new AccessError("INVALID_CONTEXT", "delegation chain is inconsistent");
+		ids.add(delegation.id);
+		if (!Number.isFinite(delegation.createdAt) || !Number.isFinite(delegation.expiresAt) || delegation.revokedAt !== null || delegation.createdAt > context.now || context.now >= delegation.expiresAt) return false;
+		if (!delegation.permissions.some((entry) => entry.packageId === permission.packageId && entry.type === permission.type && entry.name === permission.name && entry.scope === object.scope && (object.id === void 0 || entry.objectId === void 0 || entry.objectId === object.id))) return false;
+		previous = delegation.actor;
+	}
+	return sameSubject(previous, context.actor);
+}
+/** Verified identity and installation resources supplied to a user service invocation. */
+var ServiceContext = class {
+	/** Incoming request and cancellation signal. */
+	request;
+	/** Receiving package identifier fixed by the hosting deployment. */
+	audience;
+	/** Verified credential space, or the hosting space for an unscoped caller. */
+	spaceId;
+	/** Authenticated identity, or null for an anonymous request. */
+	caller;
+	/** Resource clients bound by the host for this installation. */
+	resources;
+	/** Credential failure retained for procedure audit recording. */
+	authenticationError;
+	/** Server-generated correlation identity shared by request and domain audit events. */
+	requestId = crypto.randomUUID();
+	/** Retain host-selected scope independently of request input. */
+	constructor(request, audience, spaceId, caller, resources, authenticationError) {
+		this.request = request;
+		this.audience = audience;
+		this.spaceId = spaceId;
+		this.caller = caller;
+		this.resources = resources;
+		this.authenticationError = authenticationError;
+	}
+	/** Require a current authenticated caller before performing identity-dependent work. */
+	requireCaller() {
+		if (this.authenticationError !== void 0) throw this.authenticationError;
+		if (!this.caller) throw new ORPCError("UNAUTHORIZED");
+		this.caller.context(this.audience, Date.now(), this.spaceId);
+		return this.caller;
+	}
+	/** Read authorization inputs with a fresh time for each operation or stream event. */
+	get access() {
+		if (this.authenticationError !== void 0) throw this.authenticationError;
+		return this.caller ? this.caller.context(this.audience, Date.now(), this.spaceId) : {
+			subjects: [],
+			attributes: {},
+			now: Date.now()
+		};
+	}
+};
+/** A host-managed HTTP service with readiness and streaming-aware draining. */
+var Server = class Server {
+	/** Current health, shared with optional health procedures. */
+	health;
+	/** Host settings retained until shutdown. */
+	#options;
+	/** HTTP adapter constructed from the declared router. */
+	#handler;
+	/** Accepted requests, including responses still being consumed. */
+	#requests = /* @__PURE__ */ new Set();
+	/** Notification when accepted requests complete. */
+	#drained = Promise.withResolvers();
+	/** The single shutdown attempt. */
+	#closing;
+	/** Construct the HTTP handler and retain lifecycle settings. */
+	constructor(options) {
+		for (const callback of [
+			"authenticate",
+			"authorizeHost",
+			"authorize"
+		]) if (typeof options[callback] !== "function") throw new TypeError(`${callback} must be configured before starting a server`);
+		if (!Number.isInteger(options.drainTimeout) || options.drainTimeout <= 0 || options.drainTimeout > 2 ** 31 - 1) throw new RangeError("drain timeout must be a positive integer within the runtime timer limit");
+		this.#options = options;
+		this.health = options.health;
+		this.#handler = new ServiceHandler(options.router, {
+			...options,
+			authorize: async (call) => {
+				await Server.#authorize(call, options);
+				await options.authorize(call);
+			}
+		});
+	}
+	/** Configure request handling and initialize resources before publishing readiness. */
+	static async start(options) {
+		const server = new Server(options);
+		server.health.set("starting");
+		try {
+			await options.initialize?.();
+			server.health.set("serving");
+		} catch (error) {
+			server.health.set("stopped");
+			try {
+				await options.dispose?.();
+			} catch (cleanup) {
+				throw new AggregateError([error, cleanup], "service initialization and cleanup failed");
+			}
+			throw error;
+		}
+		return server;
+	}
+	/** Dispatch probes and authorized requests, retaining streamed response lifetimes. */
+	async fetch(request) {
+		const probe = this.health.probe(request);
+		if (probe) return this.#headers(probe);
+		if (this.#closing || this.health.status !== "serving") return this.#headers(new Response(null, { status: 503 }));
+		const controller = new AbortController();
+		this.#requests.add(controller);
+		const signal = AbortSignal.any([request.signal, controller.signal]);
+		try {
+			const accepted = new Request(request, { signal });
+			let response = await this.#options.route?.(accepted);
+			if (response === void 0) {
+				const context = await Server.#authenticate(accepted, this.#options);
+				signal.throwIfAborted();
+				const result = await this.#handler.handle(accepted, { context });
+				response = result.matched ? result.response : new Response(null, { status: 404 });
+			}
+			return this.#respond(this.#headers(response), controller, signal);
+		} catch (error) {
+			this.#finish(controller);
+			if (signal.aborted) throw error;
+			const failure = reportError(error);
+			return this.#headers(Response.json(failure.toJSON(), { status: failure.status }));
+		}
+	}
+	/** Refuse new work, drain accepted requests, and dispose resources once. */
+	close() {
+		this.#closing ??= this.#close();
+		return this.#closing;
+	}
+	/** Apply deployment response policy to success, failure and health responses. */
+	#headers(response) {
+		if (!this.#options.responseHeaders) return response;
+		const headers = new Headers(response.headers);
+		for (const [name, value] of new Headers(this.#options.responseHeaders)) headers.set(name, value);
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers
+		});
+	}
+	/** Close the service. */
+	async [Symbol.asyncDispose]() {
+		await this.close();
+	}
+	/** Retain authentication failures for the procedure's audit path. */
+	static async #authenticate(request, options) {
+		let caller = null;
+		let authenticationError;
+		try {
+			caller = await options.authenticate(request);
+			caller?.context(options.audience, Date.now(), options.target ? caller.authentication.scope : options.spaceId);
+		} catch (error) {
+			authenticationError = error ?? new ORPCError("UNAUTHORIZED");
+		}
+		return new ServiceContext(request, options.audience, options.target ? caller?.authentication.scope ?? options.spaceId : options.spaceId, caller, options.resources, authenticationError);
+	}
+	/** Enforce identity, credential restrictions and current installation policy. */
+	static async #authorize(call, options) {
+		let access = call.context.access;
+		if (call.access.authentication !== "public") call.context.requireCaller();
+		const permission = call.access.permission;
+		const target = options.target ? await options.target(call) : { scope: options.spaceId };
+		if (call.context.caller) access = call.context.caller.context(options.audience, Date.now(), target.scope);
+		if (permission && (!permitsCredential(permission, target, access) || !permitsDelegation(permission, target, access))) throw new ORPCError("FORBIDDEN");
+		await options.authorizeHost(call);
+	}
+	/** Retain a response until its body completes, fails, or is cancelled. */
+	#respond(response, controller, signal) {
+		if (!response.body) {
+			this.#finish(controller);
+			return response;
+		}
+		const reader = response.body.getReader();
+		const finish = () => {
+			signal.removeEventListener("abort", abort);
+			this.#finish(controller);
+		};
+		const abort = () => {
+			reader.cancel(signal.reason).catch((error) => {
+				reportError(error);
+				responseError = error;
+			}).finally(finish);
+		};
+		let responseError;
+		signal.addEventListener("abort", abort, { once: true });
+		if (signal.aborted) abort();
+		const body = new ReadableStream({
+			async pull(stream) {
+				try {
+					const next = await reader.read();
+					if (responseError !== void 0) throw responseError;
+					signal.throwIfAborted();
+					if (next.done) {
+						finish();
+						stream.close();
+					} else stream.enqueue(next.value);
+				} catch (error) {
+					finish();
+					stream.error(error);
+				}
+			},
+			async cancel(reason) {
+				try {
+					await reader.cancel(reason);
+				} finally {
+					finish();
+				}
+			}
+		});
+		return new Response(body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers
+		});
+	}
+	/** Release a request and wake shutdown when all requests finish. */
+	#finish(controller) {
+		this.#requests.delete(controller);
+		if (this.#closing && !this.#requests.size) this.#drained.resolve();
+	}
+	/** Drain within the deadline and leave forced termination to the host. */
+	async #close() {
+		this.health.set("draining");
+		if (!this.#requests.size) this.#drained.resolve();
+		const completion = this.#drained.promise.then(async () => {
+			try {
+				await this.#options.dispose?.();
+			} catch (error) {
+				reportError(error);
+				throw error;
+			} finally {
+				this.health.set("stopped");
+			}
+		});
+		const deadline = Promise.withResolvers();
+		const timer = setTimeout(() => {
+			const error = new DOMException("Service drain deadline exceeded.", "TimeoutError");
+			for (const controller of this.#requests) controller.abort(error);
+			deadline.reject(error);
+		}, this.#options.drainTimeout);
+		try {
+			await Promise.race([completion, deadline.promise]);
+		} finally {
+			clearTimeout(timer);
+		}
+	}
+};
 /** A current value with bounded, coalesced change notifications. */
 var Watch = class {
 	/** The latest value. */
@@ -10839,6 +11136,33 @@ strictObject({
 	/** Current readiness. */
 	status: HealthStatus
 });
+/** A resource binding failure. */
+var ResourceError = class extends Error {
+	/** The binding operation that failed. */
+	code;
+	/** Describe a missing or duplicate binding. */
+	constructor(code, message, options) {
+		super(message, options);
+		this.name = "ResourceError";
+		this.code = code;
+	}
+};
+/** Resource clients authorised by the host for one invocation or local operation. */
+var ResourceContext = class {
+	/** Clients indexed by their imported declaration objects. */
+	#clients = /* @__PURE__ */ new WeakMap();
+	/** Bind an authorised client before invoking application code. */
+	bind(resource, client) {
+		if (this.#clients.has(resource)) throw new ResourceError("ALREADY_BOUND", `Resource already bound: ${resource.name}`);
+		this.#clients.set(resource, client);
+		return this;
+	}
+	/** Return the client selected for this declaration. */
+	get(resource) {
+		if (!this.#clients.has(resource)) throw new ResourceError("NOT_BOUND", `Resource is not bound: ${resource.name}`);
+		return this.#clients.get(resource);
+	}
+};
 /** A package-local action named noun.verb, with a present-tense verb and optional nested nouns. */
 var AuditActionName = defineSchema(string().regex(/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/));
 defineSchema(strictObject({
@@ -10902,17 +11226,36 @@ var service = defineService({
 	protocol: "http",
 	handler: "fetch"
 }, router);
-/** The typed notes implementation. */
-var implementation = implement(router);
-/** Readiness of the initialized HTTP handler. */
-var health = new Health("notes");
-health.set("serving");
-/** The HTTP dispatcher used by both supported runtimes. */
-var handler = new ServiceHandler({ list: implementation.list.handler(() => ({ path: "/notes" })) }, { health });
+/** Implement the public notes procedures. */
+function implementService() {
+	const implementation = implement(router);
+	return {
+		router: implementation.router({ list: implementation.list.handler(() => ({ path: "/notes" })) }),
+		authorize: async () => {}
+	};
+}
+/** The HTTP service hosted by both supported runtimes. */
+var server = Server.start({
+	...implementService(),
+	audience: { "package": {
+		"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+		"name": "@destack/build-service-fixture",
+		"version": "2026.9.0"
+	} }.package.id,
+	spaceId: "fixture",
+	resources: new ResourceContext(),
+	health: new Health("notes"),
+	authenticate: async (request) => {
+		if (request.headers.has("authorization") || request.headers.has("cookie")) throw new ORPCError("UNAUTHORIZED");
+		return null;
+	},
+	authorizeHost: async () => {},
+	drainTimeout: 1e3
+});
 /** Respond through the emitted handler. */
 async function fetch(request) {
 	instruments.logger.emit({ body: "Request received" });
-	return (await handler.handle(request)).response ?? new Response("Not found", { status: 404 });
+	return (await server).fetch(request);
 }
 /** The daily reminder schedule. */
 var reminders = defineSchedule({
@@ -10951,6 +11294,6 @@ var appointment = defineSchedule({
 function remind(occurrence) {
 	return occurrence.id;
 }
-export { appointment, database, fetch, publishNote, refresh, remind, reminders, router, service, token, vault };
+export { appointment, database, fetch, implementService, publishNote, refresh, remind, reminders, router, service, token, vault };
 
-//# sourceMappingURL=server-CUsFsM2b.js.map
+//# sourceMappingURL=server-BMfOZOuX.js.map

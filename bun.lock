@@ -125,6 +125,7 @@
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/telemetry": "workspace:*",

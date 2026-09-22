@@ -4,6 +4,7 @@ import {
     OperationStore,
     type Router,
     type ServiceContext,
+    type ServiceImplementation,
 } from "@destack/service/server";
 import type { OperationStoreOptions } from "@destack/service/server";
 import {
@@ -25,16 +26,17 @@ import {
     type BuildProgress,
     type InspectRequest,
 } from "../service/index.ts";
-import { implementPreview, PreviewStore, type PreviewHost, type PreviewLimits } from "./preview.ts";
+import { implementPreview } from "./preview.ts";
+import { PreviewPool, type PreviewHost, type PreviewLimits } from "../preview/index.ts";
 
 /** Build and preview procedures with bounded, caller-scoped state. */
-export class BuildServer implements AsyncDisposable {
+class BuildServer implements AsyncDisposable {
     /** Build procedures hosted through the shared Server lifecycle. */
     readonly router: Router<typeof buildService, ServiceContext>;
     /** Retained operation records. */
     readonly builds: OperationStore<BuildResult, BuildProgress>;
     /** Retained previews and their live servers. */
-    readonly #previews: PreviewStore;
+    readonly #previews: PreviewPool;
     /** Active inspection requests retained until their compiler exits. */
     readonly #inspections = new Map<AbortController, Promise<void>>();
     /** Source access and limits shared by request handlers. */
@@ -47,7 +49,7 @@ export class BuildServer implements AsyncDisposable {
         // retain host access and bounded request state
         this.#options = options;
         this.builds = new OperationStore(BuildOperation, options.limits.build);
-        this.#previews = new PreviewStore(options.previews, options.limits.preview);
+        this.#previews = new PreviewPool(options.previews, options.limits.preview);
         const service = implement(buildService).$context<ServiceContext>();
 
         // retain host source access until compilation and storage have settled
@@ -161,6 +163,20 @@ export class BuildServer implements AsyncDisposable {
             completed.resolve();
         }
     }
+}
+
+/** Implement bounded build and preview operations with host-selected access and auditing. */
+export function implementService(
+    options: BuildServerOptions,
+    access: Pick<ServiceImplementation, "authorize" | "audit">,
+): ServiceImplementation {
+    const server = new BuildServer(options);
+
+    return {
+        ...access,
+        router: server.router,
+        dispose: () => server[Symbol.asyncDispose](),
+    };
 }
 
 /** Host-retained immutable checkout and resolved build inputs. */

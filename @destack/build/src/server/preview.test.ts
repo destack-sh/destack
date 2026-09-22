@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Health } from "@destack/service/health";
 import { ServiceError } from "@destack/service/error";
-import { implementPreview, PreviewStore } from "../server/preview.ts";
+import { implementPreview } from "./preview.ts";
+import { PreviewPool } from "../preview/index.ts";
 import { Server } from "@destack/service/server";
 import { hosting, createCaller } from "./tests/fixture.ts";
 import { createClient } from "@destack/service/client";
@@ -27,7 +28,7 @@ test("serve an application and invalidate its edited source", async () => {
         // retain real source and routing through the service lifecycle
         let released = 0;
         let failRelease = false;
-        await using previews = new PreviewStore(
+        await using previews = new PreviewPool(
             {
                 async open(owner, request) {
                     expect({ owner, request }).toEqual({

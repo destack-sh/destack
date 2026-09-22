@@ -2,7 +2,9 @@ import { defineDatabase } from "@destack/db/declare";
 import { defineSecret, defineVault } from "@destack/vault";
 import { defineSchedule } from "@destack/service/schedule";
 import { defineService, defineProcedure } from "@destack/service";
-import { implement, ServiceHandler } from "@destack/service/server";
+import { implement, Server, type ServiceImplementation } from "@destack/service/server";
+import { ResourceContext } from "@destack/resource/context";
+import { ServiceError } from "@destack/service/error";
 import { Health } from "@destack/service/health";
 import { schema } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
@@ -49,26 +51,41 @@ export const service = defineService(
     router,
 );
 
-/** The typed notes implementation. */
-const implementation = implement(router);
-/** Readiness of the initialized HTTP handler. */
-const health = new Health("notes");
-health.set("serving");
-/** The HTTP dispatcher used by both supported runtimes. */
-const handler = new ServiceHandler(
-    {
-        list: implementation.list.handler(() => ({ path: "/notes" })),
+/** Implement the public notes procedures. */
+export function implementService(): ServiceImplementation {
+    const implementation = implement(router);
+
+    return {
+        router: implementation.router({
+            list: implementation.list.handler(() => ({ path: "/notes" })),
+        }),
+        authorize: async () => {},
+    };
+}
+
+/** The HTTP service hosted by both supported runtimes. */
+const server = Server.start({
+    ...implementService(),
+    audience: import.meta.destack.package.id,
+    spaceId: "fixture",
+    resources: new ResourceContext(),
+    health: new Health("notes"),
+    authenticate: async (request) => {
+        if (request.headers.has("authorization") || request.headers.has("cookie")) {
+            throw new ServiceError("UNAUTHORIZED");
+        }
+
+        return null;
     },
-    { health },
-);
+    authorizeHost: async () => {},
+    drainTimeout: 1000,
+});
 
 /** Respond through the emitted handler. */
 export async function fetch(request: Request): Promise<Response> {
     instruments.logger.emit({ body: "Request received" });
 
-    const result = await handler.handle(request);
-
-    return result.response ?? new Response("Not found", { status: 404 });
+    return (await server).fetch(request);
 }
 /** The daily reminder schedule. */
 export const reminders = defineSchedule({

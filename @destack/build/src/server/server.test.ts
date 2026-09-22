@@ -4,7 +4,7 @@ import { ServiceError } from "@destack/service/error";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BuildServer } from "../server/index.ts";
+import { implementService } from "../server/index.ts";
 import { connect } from "../client/index.ts";
 import { Fixture, expectBuild } from "../../tests/fixture.ts";
 import { request } from "../../tests/fixture/library/request.ts";
@@ -27,68 +27,73 @@ test("inspect and build authorized source through the service", async () => {
     const alice = createCaller("alice");
 
     // resolve client references before exposing source to the compiler
-    await using server = new BuildServer({
-        limits: {
-            build: { concurrency: 1, capacity: 4, retention: 60_000, timeout: 10_000 },
-            preview: { concurrency: 1, capacity: 4, retention: 60_000 },
-        },
-        builds: {
-            async open(owner, selection) {
-                expect({ owner, selection }).toEqual({
-                    owner: alice.id,
-                    selection: { source: "library", outputs: ["library"] },
-                });
+    const service = implementService(
+        {
+            limits: {
+                build: { concurrency: 1, capacity: 4, retention: 60_000, timeout: 10_000 },
+                preview: { concurrency: 1, capacity: 4, retention: 60_000 },
+            },
+            builds: {
+                async open(owner, selection) {
+                    expect({ owner, selection }).toEqual({
+                        owner: alice.id,
+                        selection: { source: "library", outputs: ["library"] },
+                    });
 
-                return {
-                    options: { directory, ...request },
-                    async [Symbol.asyncDispose]() {
-                        released.push("build");
-                    },
-                };
-            },
-            async inspect(owner, selection) {
-                expect({ owner, selection }).toEqual({
-                    owner: alice.id,
-                    selection: { source: "library", output: "library" },
-                });
+                    return {
+                        options: { directory, ...request },
+                        async [Symbol.asyncDispose]() {
+                            released.push("build");
+                        },
+                    };
+                },
+                async inspect(owner, selection) {
+                    expect({ owner, selection }).toEqual({
+                        owner: alice.id,
+                        selection: { source: "library", output: "library" },
+                    });
 
-                return {
-                    directory,
-                    target: "server",
-                    runtime: "bun",
-                    async [Symbol.asyncDispose]() {
-                        released.push("inspect");
-                    },
-                };
-            },
-            async store(owner, build) {
-                await expectBuild(build, new URL("expected/", fixture));
-                await build.write(destination);
-                temporary = build.directory;
-                const manifest = await describeFile(
-                    "manifest.json",
-                    "application/json",
-                    new Uint8Array(await readFile(join(destination, "manifest.json"))),
-                );
-                location = {
-                    manifest: manifest.digest,
-                    url: `https://build.local/packages/${manifest.digest}/`,
-                };
-                stored.push(owner);
+                    return {
+                        directory,
+                        target: "server",
+                        runtime: "bun",
+                        async [Symbol.asyncDispose]() {
+                            released.push("inspect");
+                        },
+                    };
+                },
+                async store(owner, build) {
+                    await expectBuild(build, new URL("expected/", fixture));
+                    await build.write(destination);
+                    temporary = build.directory;
+                    const manifest = await describeFile(
+                        "manifest.json",
+                        "application/json",
+                        new Uint8Array(await readFile(join(destination, "manifest.json"))),
+                    );
+                    location = {
+                        manifest: manifest.digest,
+                        url: `https://build.local/packages/${manifest.digest}/`,
+                    };
+                    stored.push(owner);
 
-                return location;
+                    return location;
+                },
+            },
+            previews: {
+                async open() {
+                    throw new ServiceError("NOT_FOUND", {
+                        message: "source has no web application",
+                    });
+                },
             },
         },
-        previews: {
-            async open() {
-                throw new ServiceError("NOT_FOUND", { message: "source has no web application" });
-            },
-        },
-    });
+        hosting,
+    );
     let owner = "alice";
     await using http = await Server.start({
         ...hosting,
-        router: server.router,
+        ...service,
         health: new Health("build"),
         audit: async () => {},
         drainTimeout: 1000,

@@ -121,10 +121,10 @@ await client.preview.stop({ id: preview.id });
 ```
 
 ```ts
-import { BuildServer } from "@destack/build/server";
+import { implementService } from "@destack/build/server";
 import { Server } from "@destack/service/server";
 
-await using build = new BuildServer({
+const implementation = implementService({
     builds: {
         open: openImmutableSource,
         inspect: openInspectionSource,
@@ -135,18 +135,16 @@ await using build = new BuildServer({
         build: { concurrency: 4, capacity: 100, timeout: 60_000, retention: 3_600_000 },
         preview: { concurrency: 4, capacity: 100, retention: 3_600_000 },
     },
-});
+}, { authorize, audit });
 
 await using server = await Server.start({
-    router: build.router,
+    ...implementation,
     health,
     audience: buildPackageId,
     spaceId,
     resources,
     authenticate,
     authorizeHost: authorizeInstallation,
-    authorize,
-    audit,
     drainTimeout: 10_000,
 });
 
