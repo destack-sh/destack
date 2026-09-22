@@ -99,12 +99,15 @@ export class Server implements AsyncDisposable {
         this.#requests.add(controller);
         const signal = AbortSignal.any([request.signal, controller.signal]);
         try {
-            // authenticate before dispatching the request
+            // dispatch additional protocols or authenticate the declared service procedures
             const accepted = new Request(request, { signal });
-            const context = await Server.#authenticate(accepted, this.#options);
-            signal.throwIfAborted();
-            const result = await this.#handler.handle(accepted, { context });
-            const response = result.matched ? result.response : new Response(null, { status: 404 });
+            let response = await this.#options.route?.(accepted);
+            if (response === undefined) {
+                const context = await Server.#authenticate(accepted, this.#options);
+                signal.throwIfAborted();
+                const result = await this.#handler.handle(accepted, { context });
+                response = result.matched ? result.response : new Response(null, { status: 404 });
+            }
 
             return this.#respond(this.#headers(response), controller, signal);
         } catch (error) {
@@ -134,12 +137,17 @@ export class Server implements AsyncDisposable {
             return response;
         }
 
-        const headers = new Headers(this.#options.responseHeaders);
-        for (const [name, value] of headers) {
-            response.headers.set(name, value);
+        // preserve responses whose headers are immutable, including protocol redirects
+        const headers = new Headers(response.headers);
+        for (const [name, value] of new Headers(this.#options.responseHeaders)) {
+            headers.set(name, value);
         }
 
-        return response;
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+        });
     }
 
     /** Close the service. */
@@ -325,29 +333,37 @@ export class Server implements AsyncDisposable {
 }
 
 /** Authentication, authorization, resources and lifecycle for one hosted service. */
-export interface ServerOptions extends HandlerOptions<ServiceContext> {
-    /** Application procedures receiving the standard service context. */
-    router: Router<Service, ServiceContext>;
+export interface ServerOptions extends ServiceImplementation {
+    /** Readiness shared with the host. */
+    health: Health;
     /** Fixed receiving package identifier. */
     audience: PackageId;
     /** Hosting space, also used as the default authorization scope. */
     spaceId: string;
-    /** Response headers enforced on every response, including failures and probes. */
-    responseHeaders?: ConstructorParameters<typeof Headers>[0];
-    /** Select an exact authorization target when a service administers other spaces or objects. */
-    target?(call: ProcedureCall<ServiceContext>): Promise<{ scope: string; id?: string }>;
     /** Installation resource clients selected by the host. */
     resources: ResourceContext;
     /** Verify credentials; return null only when the request has no credential. */
     authenticate(request: Request): Promise<Caller | null>;
     /** Enforce installation restrictions and host-only access requirements. */
     authorizeHost(call: ProcedureCall<ServiceContext>): Promise<void>;
+    /** Maximum graceful drain time in milliseconds before aborting outstanding requests. */
+    drainTimeout: number;
+}
+
+/** Implemented procedures, domain enforcement and resource lifecycle. */
+export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContext>, "health"> {
+    /** Application procedures receiving the standard service context. */
+    router: Router<Service, ServiceContext>;
+    /** Response headers enforced on every response, including failures and probes. */
+    responseHeaders?: ConstructorParameters<typeof Headers>[0];
+    /** Select an exact authorization target when a service administers other spaces or objects. */
+    target?(call: ProcedureCall<ServiceContext>): Promise<{ scope: string; id?: string }>;
+    /** Dispatch an additional HTTP protocol with its own authentication, or return undefined. */
+    route?(request: Request): Promise<Response | undefined>;
     /** Enforce application permissions, including exact objects and sharing grants. */
     authorize(call: ProcedureCall<ServiceContext>): Promise<void>;
     /** Complete initialization before accepting application requests. */
     initialize?(): Promise<void>;
     /** Release resources after accepted requests finish. */
     dispose?(): Promise<void>;
-    /** Maximum graceful drain time in milliseconds before aborting outstanding requests. */
-    drainTimeout: number;
 }

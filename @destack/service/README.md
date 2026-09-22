@@ -7,7 +7,7 @@ import { schema } from "@destack/schema";
 import { defineService, defineProcedure } from "@destack/service";
 import { inspectService } from "@destack/service/inspect";
 
-const notes = {
+export const notesService = {
     list: defineProcedure({ authentication: "identity", permission: null, audit: false })
         .route({ method: "GET", path: "/notes" })
         .output(schema.array(schema.object({ id: schema.string(), title: schema.string() }))),
@@ -20,7 +20,7 @@ export const service = defineService(
         protocol: "http",
         handler: "fetch",
     },
-    notes,
+    notesService,
 );
 
 const description = await inspectService(service, {
@@ -69,22 +69,42 @@ const operation = operations.start(caller.id, { completed: 0 }, async ({ signal,
 ## Hosting
 
 ```ts
-import { implementHealth, Server } from "@destack/service/server";
+// server/server.ts
+import { implement, type ServiceContext, type ServiceImplementation } from "@destack/service/server";
+import { notesService } from "../service/index.ts";
+import type { Notebook } from "../notebook/index.ts";
+
+export function implementService(notebook: Notebook): ServiceImplementation {
+    const service = implement(notesService).$context<ServiceContext>();
+
+    return {
+        router: service.router({
+            list: service.list.handler(({ context }) => notebook.list(context.access)),
+        }),
+        authorize: async ({ context }) => { context.requireCaller(); },
+    };
+}
+
+// server/index.ts
+export * from "./server.ts";
+```
+
+```ts
+import { Server } from "@destack/service/server";
+import { implementService } from "./server/index.ts";
 import { Health } from "@destack/service/health";
 
-const health = new Health("publish");
+const health = new Health("notes");
 await using server = await Server.start({
-    router: { ...router, health: implementHealth(health) },
+    ...implementService(notebook),
     health,
     audience: servicePackageId,
     spaceId,
     resources,
     authenticate,
     authorizeHost: authorizeInstallation,
-    authorize: authorizeApplication,
-    audit: recordAudit,
     drainTimeout: 10000,
-    dispose: () => operations.close(),
+    dispose: () => database.close(),
 });
 
 // pass requests from the host's listener
@@ -148,7 +168,7 @@ export const reminders = defineSchedule({
 import { Server, ServiceContext, implement } from "@destack/service/server";
 
 // application handlers receive the same context on every hosting target
-const implementation = implement(service).$context<ServiceContext>();
+const implementation = implement(notesService).$context<ServiceContext>();
 const router = implementation.router({
     list: implementation.list.handler(({ context }) =>
         database

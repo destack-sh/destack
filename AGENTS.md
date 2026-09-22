@@ -85,6 +85,12 @@ match extracted {
 
 ### Factoring and Boundaries
 
+- Put public service procedures in `service/` and their implementation in `server/`.
+- Export `implementService(...)` from `server/index.ts`, returning `ServiceImplementation`.
+- Host implementations through `@destack/service`'s `Server.start(...)`.
+- Keep domain operations in noun modules; reserve `*Store` for persistence responsibilities.
+- Put reusable domain operations beside `server/`; pass verified context explicitly.
+
 - The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible _that the target machine understands well_, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware and under expected usage scenarios.
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Most code on the internet, on StackOverflow, or on open source libraries, and even in their documentation, is not very good. Anything external we take in should be treated with great suspicion.

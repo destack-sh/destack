@@ -46,6 +46,17 @@ test("drain complete HTTP response streams before disposing service resources", 
         ...hosting,
         router,
         health: readiness,
+        route: async (request) => {
+            const path = new URL(request.url).pathname;
+            if (path === "/auth/redirect") {
+                return Response.redirect("https://identity.local/sign-in", 303);
+            } else if (path === "/auth/keys") {
+                return Response.json({ keys: [] });
+            } else {
+                return undefined;
+            }
+        },
+        responseHeaders: { "Cache-Control": "no-store" },
         initialize: async () => {
             lifecycle.push("initialize");
         },
@@ -54,6 +65,22 @@ test("drain complete HTTP response streams before disposing service resources", 
         },
         drainTimeout: 1000,
     });
+
+    // serve a protocol's public endpoint without invoking application credential verification
+    const keys = await server.fetch(new Request("https://test.local/auth/keys"));
+    expect([keys.status, keys.headers.get("Cache-Control"), await keys.json()]).toEqual([
+        200,
+        "no-store",
+        { keys: [] },
+    ]);
+
+    // retain redirect status and location while applying the deployment's response policy
+    const redirect = await server.fetch(new Request("https://test.local/auth/redirect"));
+    expect([
+        redirect.status,
+        redirect.headers.get("Location"),
+        redirect.headers.get("Cache-Control"),
+    ]).toEqual([303, "https://identity.local/sign-in", "no-store"]);
 
     // begin consuming the application stream before shutdown
     const client = createClient(service, {
@@ -84,6 +111,7 @@ test("drain complete HTTP response streams before disposing service resources", 
     expect((await server.fetch(new Request("https://test.local/readyz"))).status).toBe(503);
     expect((await server.fetch(new Request("https://test.local/livez"))).status).toBe(200);
     expect((await server.fetch(new Request("https://test.local/read"))).status).toBe(503);
+    expect((await server.fetch(new Request("https://test.local/auth/keys"))).status).toBe(503);
     expect(lifecycle).toEqual(["initialize"]);
 
     // finish the response before disposing resources exactly once
