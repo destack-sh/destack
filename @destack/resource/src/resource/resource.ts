@@ -1,4 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
+import { ResourceHandle } from "./handle.ts";
 
 /** A declaration name within a package. */
 export const ResourceName = defineSchema(schema.string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
@@ -20,6 +21,27 @@ export const ResourceDeclaration = defineSchema(
 );
 /** A named infrastructure dependency declared by a package. */
 export type ResourceDeclaration = schema.Infer<typeof ResourceDeclaration>;
+
+/** An inert declaration with access to a host-bound client. */
+export class Resource<
+    Handle,
+    Declaration extends ResourceDeclaration = ResourceDeclaration,
+> extends ResourceHandle<Handle> {
+    /** The resource kind. */
+    readonly kind: Declaration["kind"];
+    /** The declaration format version. */
+    readonly version: Declaration["version"];
+    /** The domain specification. */
+    readonly spec: Declaration["spec"];
+
+    /** Retain validated metadata without opening a resource. */
+    constructor(declaration: Declaration) {
+        super(declaration.name);
+        this.kind = declaration.kind;
+        this.version = declaration.version;
+        this.spec = declaration.spec;
+    }
+}
 
 /** Define a resource declaration with a concrete specification. */
 export function defineResourceSchema<const Kind extends string, Spec extends schema.Schema>(
