@@ -12,17 +12,57 @@ import manifest from "../../package.json" with { type: "json" };
 import definition from "../../destack.json" with { type: "json" };
 import { PackageId } from "@destack/package";
 
-/** Audited history access without copying filters or event contents into diagnostics. */
-export const accessAudit = defineAuditAction({
-    package: { id: PackageId.parse(definition.id), name: manifest.name, version: manifest.version },
-    name: "audit.access",
-    version: 1,
-    targets: schema.record(
-        schema.string(),
-        schema.object({ type: schema.string(), id: schema.string() }),
-    ),
-    details: schema.object({ operation: schema.enum(["get", "list", "export", "prune"]) }),
+/** Package declaring audit-history operations. */
+const auditPackage = {
+    id: PackageId.parse(definition.id),
+    name: manifest.name,
+    version: manifest.version,
+};
+/** Selected audit-history collection. */
+const auditTarget = schema.object({
+    collection: schema.object({ type: schema.string(), id: schema.string() }),
 });
+/** History actions omit filters and event contents. */
+const auditDetails = schema.object({});
+
+/** Record audit-history get requests and outcomes. */
+export const auditGet = defineAuditAction({
+    package: auditPackage,
+    name: "audit.get",
+    version: 1,
+    targets: auditTarget,
+    details: auditDetails,
+});
+
+/** Record audit-history list requests and outcomes. */
+export const auditList = defineAuditAction({
+    package: auditPackage,
+    name: "audit.list",
+    version: 1,
+    targets: auditTarget,
+    details: auditDetails,
+});
+
+/** Record audit-history export requests and outcomes. */
+export const auditExport = defineAuditAction({
+    package: auditPackage,
+    name: "audit.export",
+    version: 1,
+    targets: auditTarget,
+    details: auditDetails,
+});
+
+/** Record audit-history prune requests and outcomes. */
+export const auditPrune = defineAuditAction({
+    package: auditPackage,
+    name: "audit.prune",
+    version: 1,
+    targets: auditTarget,
+    details: auditDetails,
+});
+
+/** Audit-history actions indexed by service operation. */
+const auditAction = { get: auditGet, list: auditList, export: auditExport, prune: auditPrune };
 
 /** Authorization requests interpreted by the hosting account and residency policy. */
 export type AuditAccess =
@@ -148,9 +188,9 @@ async function beginAccess(
               : scope.type === "host"
                 ? scope.hostId
                 : "global";
-    const attempt = context.audit.begin(accessAudit, {
+    const attempt = context.audit.begin(auditAction[operation], {
         targets: { collection: { type: scope.type, id } },
-        details: { operation },
+        details: {},
     });
     await context.audit.append(attempt);
     try {

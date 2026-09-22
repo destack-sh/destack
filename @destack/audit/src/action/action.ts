@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { AuditTarget } from "../event/target.ts";
 import { Package } from "@destack/package";
 
-/** A stable domain action name. */
+/** A package-local action named noun.verb, with a present-tense verb and optional nested nouns. */
 export const AuditActionName = defineSchema(
     schema.string().regex(/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/),
 );
@@ -25,7 +25,7 @@ export interface AuditAction<
 > {
     /** The declaring package, normally import.meta.destack.package. */
     readonly package: Package;
-    /** The package-local domain action name. */
+    /** The package-local noun.verb action name, with a present-tense verb. */
     readonly name: string;
     /** The version of the targets and details schemas. */
     readonly version: number;

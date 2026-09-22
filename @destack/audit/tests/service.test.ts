@@ -6,7 +6,7 @@ import { Health } from "@destack/service/health";
 import { AuditRecorder } from "../src/record/index.ts";
 import { defineAuditAction } from "../src/action/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
-import { createAuditHandler } from "../src/server/server.ts";
+import { createAuditHandler, auditList } from "../src/server/server.ts";
 import { AuditContext } from "../src/event/index.ts";
 import { PackageId } from "@destack/package";
 
@@ -111,8 +111,18 @@ test("authorize producers and readers, stream history, and record denied access"
             client.get({ scope: { type: "account", accountId: foreign }, id: attempt.id }),
         ).rejects.toMatchObject({ code: "FORBIDDEN" });
         const accesses = (await outbox.read()).filter(
-            (event) => event.action.name === "audit.access",
+            (event) => event.action.package.id === auditList.package.id,
         );
+        expect(accesses.map((event) => event.action.name)).toEqual([
+            "audit.list",
+            "audit.list",
+            "audit.list",
+            "audit.list",
+            "audit.export",
+            "audit.export",
+            "audit.get",
+            "audit.get",
+        ]);
         expect(accesses.map((event) => event.result)).toEqual([
             { stage: "attempt" },
             { stage: "result", outcome: "success" },

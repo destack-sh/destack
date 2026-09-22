@@ -22,7 +22,11 @@ export const invokeService = defineAuditAction({
 
 /** Record service invocations under host-attested request context. */
 export function createProcedureAudit<State extends object>(
-    recorder: (call: ProcedureCall<State>) => Pick<AuditRecorder, "begin" | "complete" | "append">,
+    recorder: (
+        call: ProcedureCall<State>,
+    ) =>
+        | Pick<AuditRecorder, "begin" | "complete" | "append">
+        | Promise<Pick<AuditRecorder, "begin" | "complete" | "append">>,
 ): (event: ProcedureAudit<State>) => Promise<void> {
     const attempts = new WeakMap<
         ProcedureCall<State>,
@@ -31,7 +35,7 @@ export function createProcedureAudit<State extends object>(
 
     return async (event) => {
         if (event.outcome === "started") {
-            const writer = recorder(event.call);
+            const writer = await recorder(event.call);
             const attempt = writer.begin(invokeService, {
                 targets: { procedure: { type: "procedure", id: event.call.path.join(".") } },
                 details: { authentication: event.call.access.authentication },
