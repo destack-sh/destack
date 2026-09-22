@@ -51,5 +51,5 @@ export function inspectPackage(code: ModuleGraph) {
         ),
     });
 
-    return createPackageInspection("@destack/model", 3, code, definition, { tables: descriptions });
+    return createPackageInspection("@destack/model", code, definition, { tables: descriptions });
 }

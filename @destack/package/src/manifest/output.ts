@@ -1,10 +1,8 @@
 import { defineSchema, schema } from "@destack/schema";
 import { DependencyName, DependencyRelease, Target } from "../package/index.ts";
 import { PackagePath } from "../file/index.ts";
-import { PackageInspectionReference } from "./inspection.ts";
 import { Runtime } from "../runtime/index.ts";
 import { WorkloadDescription } from "../workload/index.ts";
-import { DeclarationDescription } from "../inspect/declaration.ts";
 import { ResourceName } from "@destack/resource";
 
 /** Compiled files and dependencies for one execution target. */
@@ -14,18 +12,18 @@ export const PackageOutput = defineSchema(
         target: Target,
         /** The concrete compiler runtime selected for this output. */
         runtime: Runtime,
+        /** Whether this output is distributed for execution. */
+        emit: schema.boolean(),
         /** Validated workloads keyed by their declared names. */
         workloads: schema.record(ResourceName, WorkloadDescription),
-        /** Collected resource, secret, service and schedule declarations. */
-        declarations: schema.array(DeclarationDescription),
+        /** Domain collection names and selected record indices. */
+        descriptions: schema.record(schema.string(), schema.array(schema.number().int().min(0))),
         /** The output directory within the build. */
         directory: PackagePath,
         /** Generated entrypoints keyed by their exported names. */
         exports: schema.record(schema.string().min(1), PackagePath),
         /** Exact dependencies referenced by runtime code. */
         dependencies: schema.record(DependencyName, DependencyRelease),
-        /** Inspection documents collected for this target. */
-        inspections: schema.array(PackageInspectionReference),
     }),
 );
 

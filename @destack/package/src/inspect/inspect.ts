@@ -9,8 +9,6 @@ export function definePackageInspection<Description extends schema.Schema>(
         schema.object({
             /** The inspection format name. */
             name: schema.string().min(1),
-            /** The inspection format version. */
-            version: schema.number().int().min(1),
             /** The package's source modules. */
             code: schema.array(ModuleDescription),
             /** Descriptions defined by the package's libraries. */

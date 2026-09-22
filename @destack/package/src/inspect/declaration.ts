@@ -11,12 +11,12 @@ export const DeclarationDescription = defineSchema(
         name: schema.string().min(1),
         /** The declaration domain. */
         kind: ResourceName,
+        /** The declaration constructor in its exact domain package. */
+        constructor: DependencySymbol.extend({ package: Package }),
         /** The original declaration in its exact source package. */
         symbol: DependencySymbol.extend({ package: Package }),
         /** The declaring module and source position. */
         source: SourceLocation,
-        /** JSON Schema supplied by the domain library. */
-        schema: schema.record(schema.string(), schema.json()),
         /** The description validated by its domain inspector. */
         description: schema.record(schema.string(), schema.json()),
     }),

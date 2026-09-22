@@ -23,6 +23,15 @@ import { PackageManifest } from "@destack/package";
 const manifest = PackageManifest.parse(document);
 ```
 
+```ts
+import { openPackage } from "@destack/package/manifest";
+
+const reader = await openPackage(location, { fetch: authenticatedFetch });
+const files = await reader.files();
+const dependencies = await reader.dependencies();
+const sourceMaps = await reader.sourceMaps();
+```
+
 ```json
 {
     "id": "package-01996ab0-0000-7000-8000-000000000001",
@@ -80,7 +89,7 @@ const description = schema.object({
 });
 
 export function inspectPackage(code: ModuleGraph) {
-    return createPackageInspection(import.meta.destack.package.name, 1, code, description, {
+    return createPackageInspection(import.meta.destack.package.name, code, description, {
         tables: Object.entries(tables).map(([name, table]) => ({
             symbol: code.resolveExport("src/index.ts", name),
             description: describeTable(table),

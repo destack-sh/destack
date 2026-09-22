@@ -1,29 +1,24 @@
 import { defineSchema, schema } from "@destack/schema";
-import { createDocument, type DocumentOptions } from "../openapi/index.ts";
 import type { Service } from "../service/index.ts";
 import { describeProcedures, ProcedureDescription } from "./procedure.ts";
 import { ServiceDeclaration, type ServiceDefinition } from "../declare/service.ts";
 
-/** The generated OpenAPI document for a named service. */
+/** Routes, payloads and errors declared by a named service. */
 export const ServiceDescription = defineSchema(
     schema.object({
         /** The package-local service name. */
         name: schema.string().min(1),
-        /** The service description format version. */
-        version: schema.literal(1),
         /** Procedure addresses, declared payloads, and errors. */
         procedures: schema.array(ProcedureDescription),
-        /** The OpenAPI 3.1 document, including routes, schemas, and errors. */
-        document: schema.record(schema.string(), schema.json()),
     }),
 );
-/** The generated OpenAPI document for a named service. */
+/** Routes, payloads and errors declared by a named service. */
 export type ServiceDescription = schema.Infer<typeof ServiceDescription>;
 
 /** An HTTP handler declaration and its inspected API. */
 export const ServiceInspection = defineSchema(
     ServiceDeclaration.extend({
-        /** Procedures and OpenAPI generated from the associated router. */
+        /** Procedures declared by the associated router. */
         api: ServiceDescription.optional(),
     }),
 );
@@ -31,30 +26,18 @@ export const ServiceInspection = defineSchema(
 export type ServiceInspection = schema.Infer<typeof ServiceInspection>;
 
 /** Describe a declared handler and its associated procedures. */
-export async function inspectService(
-    definition: ServiceDefinition,
-    options: DocumentOptions,
-): Promise<ServiceInspection> {
+export function inspectService(definition: ServiceDefinition): ServiceInspection {
     // separate the serializable declaration from its executable router
     const { router, ...metadata } = definition;
     const declaration = ServiceDeclaration.parse(metadata);
-    const api = router ? await describeService(definition.name, router, options) : undefined;
+    const api = router ? describeService(definition.name, router) : undefined;
 
     return { ...declaration, ...(api ? { api } : {}) };
 }
 
-/** Inspect service routes and schemas using the same generator as HTTP documentation. */
-export async function describeService(
-    name: string,
-    service: Service,
-    options: DocumentOptions,
-): Promise<ServiceDescription> {
-    // describe procedures and generate their HTTP documentation
+/** Describe service routes and application schemas. */
+export function describeService(name: string, service: Service): ServiceDescription {
+    // retain application schemas and declared errors
     const procedures = describeProcedures(service);
-    const document = await createDocument(service, options);
-
-    // serialize OpenAPI optional properties using the generator's JSON representation
-    const serialized = JSON.parse(JSON.stringify(document));
-
-    return ServiceDescription.parse({ name, version: 1, procedures, document: serialized });
+    return ServiceDescription.parse({ name, procedures });
 }
