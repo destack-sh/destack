@@ -1,3 +1,4 @@
+import { PackageId } from "@destack/package";
 import { Caller } from "../../authentication/index.ts";
 import type { Subject } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
@@ -5,7 +6,7 @@ import { ServiceError } from "../../error/index.ts";
 
 /** Trusted hosting configuration for HTTP lifecycle and operation scenarios. */
 export const hosting = {
-    audience: "service-test",
+    audience: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
     spaceId: "test-space",
     resources: new ResourceContext(),
     authenticate: async (request: Request) => {

@@ -1,3 +1,4 @@
+import type { PackageId } from "@destack/package";
 import { type AccessContext, type Subject, type Delegation, sameSubject } from "@destack/access";
 import { ServiceError } from "../error/index.ts";
 import { identifier, schema } from "@destack/schema";
@@ -38,7 +39,7 @@ export class Caller<Credential = unknown> {
     }
 
     /** Build a current access context after enforcing audience and authentication freshness. */
-    context(audience: string, now = Date.now(), scope?: string): AccessContext {
+    context(audience: PackageId, now = Date.now(), scope?: string): AccessContext {
         const authentication = this.authentication;
         if (
             authentication.audience !== audience ||
@@ -83,8 +84,8 @@ export interface CallerAuthentication<Credential = unknown> {
     readonly permissions?: AccessContext["permissions"];
     /** Credential reference for subsequent authoritative checks, excluding raw secrets. */
     readonly credential: Credential;
-    /** Receiving service's stable identifier. */
-    readonly audience: string;
+    /** Receiving package's immutable identifier. */
+    readonly audience: PackageId;
     /** Verification time in Unix milliseconds, established by the credential authority. */
     readonly verifiedAt: number;
     /** Exclusive expiry in Unix milliseconds, bounded by the credential and assertion. */

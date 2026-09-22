@@ -1,3 +1,4 @@
+import type { PackageId } from "@destack/package";
 import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { permitsCredential, permitsDelegation } from "@destack/access";
@@ -87,10 +88,10 @@ export class Server implements AsyncDisposable {
         // answer probes and reject application requests during shutdown
         const probe = this.health.probe(request);
         if (probe) {
-            return probe;
+            return this.#headers(probe);
         }
         if (this.#closing || this.health.status !== "serving") {
-            return new Response(null, { status: 503 });
+            return this.#headers(new Response(null, { status: 503 }));
         }
 
         // retain cancellation across authentication and response consumption
@@ -105,7 +106,7 @@ export class Server implements AsyncDisposable {
             const result = await this.#handler.handle(accepted, { context });
             const response = result.matched ? result.response : new Response(null, { status: 404 });
 
-            return this.#respond(response, controller, signal);
+            return this.#respond(this.#headers(response), controller, signal);
         } catch (error) {
             // preserve cancellation and serialize application failures
             this.#finish(controller);
@@ -116,7 +117,7 @@ export class Server implements AsyncDisposable {
             // translate application failures to their public HTTP representation
             const failure = reportError(error);
 
-            return Response.json(failure.toJSON(), { status: failure.status });
+            return this.#headers(Response.json(failure.toJSON(), { status: failure.status }));
         }
     }
 
@@ -125,6 +126,20 @@ export class Server implements AsyncDisposable {
         this.#closing ??= this.#close();
 
         return this.#closing;
+    }
+
+    /** Apply deployment response policy to success, failure and health responses. */
+    #headers(response: Response): Response {
+        if (!this.#options.responseHeaders) {
+            return response;
+        }
+
+        const headers = new Headers(this.#options.responseHeaders);
+        for (const [name, value] of headers) {
+            response.headers.set(name, value);
+        }
+
+        return response;
     }
 
     /** Close the service. */
@@ -139,7 +154,11 @@ export class Server implements AsyncDisposable {
         let authenticationError: unknown;
         try {
             caller = await options.authenticate(request);
-            caller?.context(options.audience, Date.now(), options.spaceId);
+            caller?.context(
+                options.audience,
+                Date.now(),
+                options.target ? caller.authentication.scope : options.spaceId,
+            );
         } catch (error) {
             authenticationError = error ?? new ServiceError("UNAUTHORIZED");
         }
@@ -147,7 +166,7 @@ export class Server implements AsyncDisposable {
         return new ServiceContext(
             request,
             options.audience,
-            options.spaceId,
+            options.target ? (caller?.authentication.scope ?? options.spaceId) : options.spaceId,
             caller,
             options.resources,
             authenticationError,
@@ -160,14 +179,17 @@ export class Server implements AsyncDisposable {
         options: ServerOptions,
     ): Promise<void> {
         // reject invalid credentials on public routes and require identity on protected routes
-        const access = call.context.access;
+        let access = call.context.access;
         if (call.access.authentication !== "public") {
             call.context.requireCaller();
         }
 
         // constrain the operation before application authorization selects its exact objects
         const permission = call.access.permission;
-        const target = { scope: options.spaceId };
+        const target = options.target ? await options.target(call) : { scope: options.spaceId };
+        if (call.context.caller) {
+            access = call.context.caller.context(options.audience, Date.now(), target.scope);
+        }
         if (
             permission &&
             (!permitsCredential(permission, target, access) ||
@@ -307,9 +329,13 @@ export interface ServerOptions extends HandlerOptions<ServiceContext> {
     /** Application procedures receiving the standard service context. */
     router: Router<Service, ServiceContext>;
     /** Fixed receiving package identifier. */
-    audience: string;
-    /** Fixed administered space identifier. */
+    audience: PackageId;
+    /** Hosting space, also used as the default authorization scope. */
     spaceId: string;
+    /** Response headers enforced on every response, including failures and probes. */
+    responseHeaders?: ConstructorParameters<typeof Headers>[0];
+    /** Select an exact authorization target when a service administers other spaces or objects. */
+    target?(call: ProcedureCall<ServiceContext>): Promise<{ scope: string; id?: string }>;
     /** Installation resource clients selected by the host. */
     resources: ResourceContext;
     /** Verify credentials; return null only when the request has no credential. */

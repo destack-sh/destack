@@ -1,3 +1,4 @@
+import type { PackageId } from "@destack/package";
 import {
     createLocalJWKSet,
     createRemoteJWKSet,
@@ -136,10 +137,10 @@ export class TokenVerifier {
                 : createLocalJWKSet(options.keys);
     }
 
-    /** Verify a bearer token without calling its account authority on each request. */
+    /** Verify a bearer token and optionally require one fixed receiving space. */
     async authenticate(
         request: Request,
-        spaceId: string,
+        spaceId?: string,
         now = Date.now(),
     ): Promise<Caller<schema.Infer<typeof TokenAuthentication>["credential"]>> {
         const authorization = request.headers.get("authorization");
@@ -185,12 +186,12 @@ export class TokenVerifier {
             });
         }
 
-        // require the access-token purpose, bounded lifetime and exact target space
+        // require the access-token purpose, bounded lifetime and any configured fixed space
         const parsed = TokenAuthentication.safeParse(payload.caller);
         if (
             !parsed.success ||
             payload.token_use !== "access" ||
-            parsed.data.spaceId !== spaceId ||
+            (spaceId !== undefined && parsed.data.spaceId !== spaceId) ||
             payload.sub !== parsed.data.subject.id ||
             payload.aud !== this.options.audience ||
             typeof payload.jti !== "string" ||
@@ -210,7 +211,7 @@ export class TokenVerifier {
             verifiedAt: payload.iat! * 1000,
             expiresAt: payload.exp! * 1000,
         });
-        caller.context(this.options.audience, now, spaceId);
+        caller.context(this.options.audience, now, parsed.data.spaceId);
         verifyTokenAuthentication(caller.authentication, this.options.authority, now);
 
         return caller;
@@ -224,7 +225,7 @@ export interface TokenVerifierOptions {
     /** Exact authentication issuer URL. */
     readonly issuer: string;
     /** Exact receiving service package identifier. */
-    readonly audience: string;
+    readonly audience: PackageId;
     /** Trusted public keys, or a fixed HTTPS JWKS endpoint. */
     readonly keys: URL | JSONWebKeySet;
     /** Host transport for public-key discovery. */
