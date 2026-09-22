@@ -1,0 +1,227 @@
+[
+    {
+        "name": "notes",
+        "kind": "service",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                "name": "@destack/service",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/service.ts",
+                "name": "defineService"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "service"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 41,
+            "column": 23
+        },
+        "description": {
+            "name": "notes",
+            "version": 1,
+            "handler": "fetch",
+            "protocol": "http",
+            "api": {
+                "name": "notes",
+                "procedures": [
+                    {
+                        "name": [
+                            "list"
+                        ],
+                        "method": "GET",
+                        "path": "/notes",
+                        "metadata": {
+                            "authentication": "public",
+                            "permission": null,
+                            "audit": false
+                        },
+                        "output": {
+                            "kind": "value",
+                            "schema": {
+                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                "type": "object",
+                                "properties": {
+                                    "path": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "path"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "errors": {
+                            "NOT_IMPLEMENTED": {
+                                "status": 501
+                            },
+                            "UNAUTHORIZED": {
+                                "status": 401
+                            },
+                            "FORBIDDEN": {
+                                "status": 403
+                            },
+                            "NOT_FOUND": {
+                                "status": 404
+                            },
+                            "CONFLICT": {
+                                "status": 409
+                            },
+                            "PRECONDITION_FAILED": {
+                                "status": 412
+                            },
+                            "SOURCE_MANAGED": {
+                                "status": 409
+                            },
+                            "UNSUPPORTED": {
+                                "status": 422
+                            },
+                            "RATE_LIMITED": {
+                                "status": 429
+                            },
+                            "UNAVAILABLE": {
+                                "status": 503
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "name": "reminders",
+        "kind": "schedule",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                "name": "@destack/service",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/schedule/schedule.ts",
+                "name": "defineSchedule"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "reminders"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 73,
+            "column": 25
+        },
+        "description": {
+            "name": "reminders",
+            "version": 1,
+            "handler": "remind",
+            "concurrency": "forbid",
+            "deadline": 60000,
+            "timing": "cron",
+            "cron": "0 9 * * *",
+            "timezone": "UTC"
+        }
+    },
+    {
+        "name": "refresh",
+        "kind": "schedule",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                "name": "@destack/service",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/schedule/schedule.ts",
+                "name": "defineSchedule"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "refresh"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 85,
+            "column": 23
+        },
+        "description": {
+            "name": "refresh",
+            "version": 1,
+            "handler": "remind",
+            "concurrency": "forbid",
+            "deadline": 60000,
+            "timing": "interval",
+            "interval": 300000,
+            "startsAt": 1800000000000,
+            "endsAt": 1800086400000
+        }
+    },
+    {
+        "name": "appointment",
+        "kind": "schedule",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                "name": "@destack/service",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/schedule/schedule.ts",
+                "name": "defineSchedule"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "appointment"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 98,
+            "column": 27
+        },
+        "description": {
+            "name": "appointment",
+            "version": 1,
+            "handler": "remind",
+            "concurrency": "allow",
+            "deadline": 60000,
+            "timing": "once",
+            "startsAt": 1800000000000
+        }
+    }
+]

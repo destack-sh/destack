@@ -1,0 +1,75 @@
+[
+    {
+        "path": "destack.json",
+        "digest": "b873c9c5b647ea0840d501a87eee5a523775c212539900494cf0509b80388dfd",
+        "size": 110,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/library/asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/postgresql/20260920000000_note/migration.sql",
+        "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
+        "size": 65,
+        "mediaType": "application/octet-stream"
+    },
+    {
+        "path": "output/library/asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/sqlite/20260920000000_note/migration.sql",
+        "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
+        "size": 65,
+        "mediaType": "application/octet-stream"
+    },
+    {
+        "path": "output/library/index-BJXAoba_.js",
+        "digest": "b89563b29ffa7397bc5e532e71d043ddedf81458f8f25b710ecdb55b2aa2ac5e",
+        "size": 211930,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/library/index-BJXAoba_.js.map",
+        "digest": "24f5a64d302e9bb429a488d3c526c9336d2a2df874745f05df1e3b11ac6fe8bd",
+        "size": 599928,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "package.json",
+        "digest": "42e96609994801e73fc829c995e4662cafb3da553880e95e9f8b786d14aac6a9",
+        "size": 179,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "src/index.ts",
+        "digest": "808c1ae7548ca781c21ceec12144858e2a46d61f3f5d5cbd291e72d30406d03a",
+        "size": 639,
+        "mediaType": "application/octet-stream",
+        "descriptions": [
+            {
+                "package": {
+                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                    "name": "@destack/package",
+                    "version": "2026.9.0"
+                },
+                "kind": "module",
+                "outputs": [
+                    "library"
+                ],
+                "file": {
+                    "path": "manifest/files/src/index.ts.json",
+                    "digest": "2102973c675a4662e91678e981ee8418a24ce29bc26249a9cfc779460391f2e1",
+                    "size": 15072,
+                    "mediaType": "application/json"
+                }
+            }
+        ]
+    },
+    {
+        "path": "src/migration/postgresql/20260920000000_note/migration.sql",
+        "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
+        "size": 65,
+        "mediaType": "application/octet-stream"
+    },
+    {
+        "path": "src/migration/sqlite/20260920000000_note/migration.sql",
+        "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
+        "size": 65,
+        "mediaType": "application/octet-stream"
+    }
+]

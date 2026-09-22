@@ -2,18 +2,26 @@ import { expect, test } from "@destack/test";
 import { Health } from "@destack/service/health";
 import { ServiceError } from "@destack/service/error";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BuildServer } from "../server/index.ts";
 import { connect } from "../client/index.ts";
-import { expectBuild } from "../../tests/fixture.ts";
+import { Fixture, expectBuild } from "../../tests/fixture.ts";
 import { request } from "../../tests/fixture/library/request.ts";
 import { inspectPackage } from "../inspect/index.ts";
+import { PackageBuild } from "../build/build.ts";
+import { describeFile } from "@destack/package/file";
+import { openPackage, type PackageLocation } from "@destack/package/manifest";
 
 test("inspect and build authorized source through the service", async () => {
     const fixture = new URL("../../tests/fixture/library/", import.meta.url);
     const directory = fileURLToPath(new URL("source/", fixture));
     const released: string[] = [];
     const stored: string[] = [];
+    await using input = await Fixture.open("library");
+    const destination = join(input.directory, "published");
+    let location: PackageLocation | undefined;
+    let temporary: string | undefined;
 
     // resolve client references before exposing source to the compiler
     await using server = new BuildServer({
@@ -59,9 +67,20 @@ test("inspect and build authorized source through the service", async () => {
             },
             async store(owner, build) {
                 await expectBuild(build, new URL("expected/", fixture));
+                await build.write(destination);
+                temporary = build.directory;
+                const manifest = await describeFile(
+                    "manifest.json",
+                    "application/json",
+                    new Uint8Array(await readFile(join(destination, "manifest.json"))),
+                );
+                location = {
+                    manifest: manifest.digest,
+                    url: `https://build.local/packages/${manifest.digest}/`,
+                };
                 stored.push(owner);
 
-                return "https://build.local/download/library.tgz";
+                return location;
             },
         },
         previews: {
@@ -80,13 +99,16 @@ test("inspect and build authorized source through the service", async () => {
         },
     });
 
-    // compare inspection to the same document distributed by a production build
+    // compare inspection to the descriptions distributed by a production build
     const inspection = await client.inspect({ source: "library", output: "library" });
-    const expected = JSON.parse(
-        await readFile(new URL("expected/inspect/library/index.json", fixture), "utf8"),
-    );
-    const { schema: _schema, ...document } = inspection;
-    expect(document).toEqual(expected);
+    const expected = await PackageBuild.open(fileURLToPath(new URL("expected/", fixture)));
+    const files = await expected.files();
+    const modules = files.flatMap((file) => file.descriptions ?? []);
+    expect(inspection).toEqual({
+        name: expected.manifest.package.name,
+        code: await Promise.all(modules.map((description) => expected.module(description.file))),
+        descriptions: { declarations: [], tests: [] },
+    });
     expect(released).toEqual(["inspect"]);
 
     // require local and remote inspection to return the same complete description
@@ -100,7 +122,6 @@ test("inspect and build authorized source through the service", async () => {
     for await (const state of stream) {
         completed = state;
     }
-    const manifest = JSON.parse(await readFile(new URL("expected/manifest.json", fixture), "utf8"));
     expect(completed).toEqual({
         id: started.id,
         createdAt: started.createdAt,
@@ -111,12 +132,31 @@ test("inspect and build authorized source through the service", async () => {
         progress: { phase: "storing" },
         result: {
             source: "library",
-            manifest,
-            download: "https://build.local/download/library.tgz",
+            package: location,
         },
     });
     expect(released).toEqual(["inspect", "build"]);
     expect(stored).toEqual(["alice"]);
+
+    // retrieve verified descriptions after the compiler and temporary result have closed
+    await expect(readFile(join(temporary!, "manifest.json"))).rejects.toMatchObject({
+        code: "ENOENT",
+    });
+    const loaded: string[] = [];
+    const remote = await openPackage(location!, {
+        fetch: async (request) => {
+            const url = new URL(request instanceof Request ? request.url : request);
+            expect(url.href.startsWith(location!.url)).toBe(true);
+            const relative = url.pathname.slice(new URL(location!.url).pathname.length);
+            const path = relative.startsWith("files/") ? relative.slice(6) : relative;
+            loaded.push(path);
+
+            return new Response(await readFile(join(destination, path)));
+        },
+    });
+    expect(remote.manifest).toEqual(expected.manifest);
+    expect(await remote.files()).toEqual(files);
+    expect(loaded).toEqual(["manifest.json", expected.manifest.files.path]);
 
     // keep retained results private and allow their owner to remove them
     owner = "bob";

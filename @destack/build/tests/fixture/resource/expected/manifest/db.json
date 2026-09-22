@@ -1,0 +1,183 @@
+[
+    {
+        "name": "main",
+        "kind": "resource",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                "name": "@destack/db",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/database.ts",
+                "name": "defineDatabase"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
+                "name": "@example/resources",
+                "version": "1.0.0"
+            },
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "database"
+            }
+        },
+        "source": {
+            "file": "src/index.ts",
+            "line": 4,
+            "column": 24
+        },
+        "description": {
+            "name": "main",
+            "kind": "database",
+            "version": 1,
+            "spec": {
+                "dialect": "sqlite"
+            }
+        }
+    },
+    {
+        "name": "notes",
+        "kind": "database-schema",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                "name": "@destack/db",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/schema/schema.ts",
+                "name": "defineDatabaseSchema"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
+                "name": "@example/resources",
+                "version": "1.0.0"
+            },
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "notes"
+            }
+        },
+        "source": {
+            "file": "src/index.ts",
+            "line": 10,
+            "column": 21
+        },
+        "description": {
+            "name": "notes",
+            "sqlite": {
+                "name": "notes",
+                "version": 1,
+                "dialect": "sqlite",
+                "tables": [
+                    {
+                        "dialect": "sqlite",
+                        "name": "note",
+                        "columns": [
+                            {
+                                "property": "id",
+                                "name": "id",
+                                "type": "integer",
+                                "dataType": "integer",
+                                "nullable": false,
+                                "primaryKey": true,
+                                "unique": false,
+                                "autoIncrement": false,
+                                "hasDefault": false,
+                                "hasRuntimeDefault": false,
+                                "hasRuntimeUpdate": false,
+                                "jsonSchema": {
+                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                }
+                            },
+                            {
+                                "property": "title",
+                                "name": "title",
+                                "type": "text",
+                                "dataType": "text",
+                                "nullable": false,
+                                "primaryKey": false,
+                                "unique": false,
+                                "autoIncrement": false,
+                                "hasDefault": false,
+                                "hasRuntimeDefault": false,
+                                "hasRuntimeUpdate": false,
+                                "jsonSchema": {
+                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                    "type": "string"
+                                }
+                            }
+                        ],
+                        "primaryKeys": [],
+                        "uniqueConstraints": [],
+                        "indexes": [],
+                        "foreignKeys": [],
+                        "checks": []
+                    }
+                ]
+            },
+            "postgresql": {
+                "name": "notes",
+                "version": 1,
+                "dialect": "postgresql",
+                "tables": [
+                    {
+                        "dialect": "postgresql",
+                        "name": "note",
+                        "columns": [
+                            {
+                                "property": "id",
+                                "name": "id",
+                                "type": "bigint",
+                                "dataType": "integer",
+                                "nullable": false,
+                                "primaryKey": true,
+                                "unique": false,
+                                "autoIncrement": false,
+                                "hasDefault": false,
+                                "hasRuntimeDefault": false,
+                                "hasRuntimeUpdate": false,
+                                "jsonSchema": {
+                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                }
+                            },
+                            {
+                                "property": "title",
+                                "name": "title",
+                                "type": "text",
+                                "dataType": "text",
+                                "nullable": false,
+                                "primaryKey": false,
+                                "unique": false,
+                                "autoIncrement": false,
+                                "hasDefault": false,
+                                "hasRuntimeDefault": false,
+                                "hasRuntimeUpdate": false,
+                                "jsonSchema": {
+                                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                    "type": "string"
+                                }
+                            }
+                        ],
+                        "primaryKeys": [],
+                        "uniqueConstraints": [],
+                        "indexes": [],
+                        "foreignKeys": [],
+                        "checks": []
+                    }
+                ]
+            }
+        }
+    }
+]

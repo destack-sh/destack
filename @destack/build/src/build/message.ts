@@ -21,7 +21,11 @@ export type BuildResponse =
 
 /** Work accepted by the isolated compiler. */
 export type BuildRequest =
-    | { kind: "build"; options: Omit<BuildOptions, "directory" | "signal" | "timeout"> }
+    | {
+          kind: "build";
+          destination: string;
+          options: Omit<BuildOptions, "directory" | "signal" | "timeout">;
+      }
     | { kind: "inspect"; options: Omit<InspectOptions, "directory"> };
 
 /** Completed compiler work. */
@@ -29,7 +33,6 @@ export type BuildResult =
     | {
           kind: "build";
           manifest: PackageManifest;
-          files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
       }
     | { kind: "inspect"; inspection: PackageInspection };
 

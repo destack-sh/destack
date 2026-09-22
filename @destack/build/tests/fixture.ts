@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 /** Compare every distributed path and byte with the fixture's expected directory. */
 export async function expectBuild(build: PackageBuild, expected: URL): Promise<void> {
     // include the manifest alongside the exact distributed bytes
-    const files = new Map(build.files);
+    const files = await readBuildFiles(build);
     files.set(
         "manifest.json",
         new TextEncoder().encode(`${JSON.stringify(build.manifest, null, 4)}\n`),
@@ -67,14 +67,31 @@ export async function expectDirectory(
 }
 
 /** Compare complete file sets without traversing each byte as an object property. */
-export function expectFiles(
-    actual: ReadonlyMap<string, Uint8Array>,
-    expected: ReadonlyMap<string, Uint8Array>,
-): void {
+export async function expectFiles(
+    actualBuild: PackageBuild,
+    expectedBuild: PackageBuild,
+): Promise<void> {
+    const actual = await readBuildFiles(actualBuild);
+    const expected = await readBuildFiles(expectedBuild);
     expect([...actual.keys()]).toEqual([...expected.keys()]);
     for (const [path, bytes] of actual) {
         expect(Buffer.compare(bytes, expected.get(path)!), path).toBe(0);
     }
+}
+
+/** Read fixture outputs for complete byte comparisons. */
+export async function readBuildFiles(
+    build: PackageBuild,
+): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+    const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    const records = (await build.reader.inventory()).sort((left, right) =>
+        left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+    );
+    for (const file of records) {
+        files.set(file.path, new Uint8Array(await readFile(join(build.directory, file.path))));
+    }
+
+    return files;
 }
 
 /** An isolated source checkout used by complete build fixtures. */

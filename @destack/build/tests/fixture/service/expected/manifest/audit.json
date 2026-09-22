@@ -1,0 +1,84 @@
+[
+    {
+        "name": "note.publish",
+        "kind": "audit-action",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614e-739d-8c3c-55f69a40525a",
+                "name": "@destack/audit",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/action/action.ts",
+                "name": "defineAuditAction"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "publishNote"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 12,
+            "column": 27
+        },
+        "description": {
+            "name": "note.publish",
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "version": 1,
+            "targets": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                    "note": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "const": "note"
+                            },
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "type",
+                            "id"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "required": [
+                    "note"
+                ],
+                "additionalProperties": false
+            },
+            "details": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                    "revision": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                    }
+                },
+                "required": [
+                    "revision"
+                ],
+                "additionalProperties": false
+            }
+        }
+    }
+]

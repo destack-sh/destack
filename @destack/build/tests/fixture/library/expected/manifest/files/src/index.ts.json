@@ -1,0 +1,47 @@
+{
+    "path": "src/index.ts",
+    "source": {
+        "path": "src/index.ts",
+        "digest": "69237ef4faab16e125cc35af4c7c0bdea8f52fe6bd4f196be7064d2f7295a889",
+        "size": 51,
+        "mediaType": "text/plain"
+    },
+    "length": 51,
+    "imports": [
+        "./note.ts"
+    ],
+    "globals": [],
+    "errors": [
+        {
+            "source": {
+                "file": "src/index.ts",
+                "start": 0,
+                "end": 51
+            },
+            "throws": [],
+            "calls": [],
+            "catches": [],
+            "finally": [],
+            "unknowns": []
+        }
+    ],
+    "symbols": [],
+    "exports": [
+        {
+            "name": "Note",
+            "symbol": {
+                "module": "src/note.ts",
+                "name": "Note"
+            },
+            "isTypeOnly": true
+        },
+        {
+            "name": "createNote",
+            "symbol": {
+                "module": "src/note.ts",
+                "name": "createNote"
+            },
+            "isTypeOnly": false
+        }
+    ]
+}

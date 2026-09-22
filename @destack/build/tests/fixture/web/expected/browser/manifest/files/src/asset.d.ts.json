@@ -1,0 +1,15 @@
+{
+    "path": "src/asset.d.ts",
+    "source": {
+        "path": "src/asset.d.ts",
+        "digest": "f9cc0e513982b81e76185b263b3711d7032aa1ac1f7939204757e8e34386e695",
+        "size": 63,
+        "mediaType": "text/plain"
+    },
+    "length": 63,
+    "imports": [],
+    "globals": [],
+    "errors": [],
+    "symbols": [],
+    "exports": []
+}

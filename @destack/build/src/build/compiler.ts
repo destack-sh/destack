@@ -1,13 +1,15 @@
-import { readFile } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { createHash } from "node:crypto";
+import { resolve, join, dirname } from "node:path";
 import { type Package } from "@destack/package";
-import { describeFile } from "@destack/package/file";
-import { type PackageOutput } from "@destack/package/manifest";
+import { describeFile, type PackageFile } from "@destack/package/file";
+import { type PackageOutput, type PackageManifest } from "@destack/package/manifest";
+import type { DependencyResolution } from "@destack/package/package";
 import { type SourceMapReference } from "@destack/package/source";
 import { type TypeScriptInspection, TypeScriptCompiler } from "../inspect/typescript.ts";
-import { inspectModules, serializeInspection, type InspectOptions } from "../inspect/inspection.ts";
+import { inspectModules, stringifyInspection, type InspectOptions } from "../inspect/inspection.ts";
 import { evaluateDeclarations } from "../inspect/evaluate.ts";
-import { serializeBuild } from "../compile/dependency.ts";
 import { selectDeclarations } from "../inspect/declaration.ts";
 import { type BuildDescription, type DeclarationDescription } from "@destack/package/inspect";
 import { type PackageSource, openPackage } from "../source/index.ts";
@@ -20,6 +22,11 @@ import { Template } from "../template/index.ts";
 import { checkRuntime } from "../compile/runtime.ts";
 import { checkPackage, formatPackage } from "@destack/check";
 import { RuntimeCompiler } from "../inspect/runtime.ts";
+import { serializeDescriptions, encodeDescription, type ManifestDescription } from "./manifest.ts";
+import testMetadata from "../../../test/package.json" with { type: "json" };
+import testDefinition from "../../../test/destack.json" with { type: "json" };
+import packageMetadata from "../../../package/package.json" with { type: "json" };
+import packageDefinition from "../../../package/destack.json" with { type: "json" };
 
 /** Compiler state and configurations retained for one source package. */
 export class BuildCompiler implements AsyncDisposable {
@@ -53,10 +60,11 @@ export class BuildCompiler implements AsyncDisposable {
     }
 
     /** Inspect a source package and compile its requested outputs. */
-    async build(options: BuildOptions): Promise<PackageBuild> {
+    async build(options: BuildOptions, destination: string): Promise<PackageBuild> {
         // collect distributed files and named outputs
         const dependencies = options.dependencies;
         const files = new Map<string, Uint8Array<ArrayBuffer>>();
+        const records = new Map<string, PackageFile>();
         const outputs: Record<string, PackageOutput> = {};
         const sourceMaps: SourceMapReference[] = [];
         let source: Package | undefined;
@@ -206,6 +214,16 @@ export class BuildCompiler implements AsyncDisposable {
             }
         }
 
+        // share equal descriptions while retaining target-specific variants
+        const moduleDescriptions: ManifestDescription["modules"] = [];
+        const declarationDescriptions: ManifestDescription["declarations"] = [];
+        const testDescriptions: ManifestDescription["tests"] = [];
+        const selections: ManifestDescription["selections"] = new Map();
+        const resolved: Record<string, DependencyResolution> = {};
+        const moduleIndices = new Map<string, number>();
+        const declarationIndices = new Map<string, number>();
+        const testIndices = new Map<string, number>();
+
         // describe declarations and compile each selected output
         for (const [name, request] of requested) {
             const output = request.options;
@@ -238,23 +256,11 @@ export class BuildCompiler implements AsyncDisposable {
             }
 
             // evaluate each collected declaration set once
-            const { modules, tests, directories } = inspected;
+            const { modules, directories } = inspected;
             let declarations = evaluated.get(inspected);
             if (!declarations) {
                 declarations = await evaluateDeclarations(inspected.declarations, project);
                 evaluated.set(inspected, declarations);
-            }
-
-            // keep inspection outside public browser output directories
-            const description = inspectModules(
-                project.declaration.package,
-                modules,
-                tests,
-                declarations,
-            );
-            const inspection = serializeInspection(description, `inspect/${name}`);
-            for (const [path, bytes] of inspection.files) {
-                retainFile(path, bytes, files);
             }
 
             // compile each output from the retained source bytes
@@ -285,17 +291,21 @@ export class BuildCompiler implements AsyncDisposable {
                         ]),
                         inputs.get(`${applicationName}-server`)?.inspection.modules ?? [],
                         this.runtimes,
+                        destination,
                     );
                     applications.set(applicationName, application);
                     for (const [path, bytes] of application.files) {
-                        retainFile(path, bytes, files);
+                        await writeBuildFile(path, bytes, destination, records);
+                    }
+                    application.files.clear();
+                    for (const path of application.paths) {
+                        await describeBuildFile(path, destination, records);
                     }
                     sourceMaps.push(...application.sourceMaps);
                 }
 
                 // associate this environment with its compiled files and inspection
                 const compiled = application.outputs[request.side!];
-                compiled.inspections.push(inspection.reference);
                 outputs[name] = compiled;
                 buildDescription = application.inspections[request.side!];
             } else {
@@ -306,13 +316,17 @@ export class BuildCompiler implements AsyncDisposable {
                     files,
                     project,
                     directories,
+                    destination,
                 );
 
                 // retain compiled modules and their source maps
                 for (const [path, bytes] of compiled.files) {
-                    retainFile(path, bytes, files);
+                    await writeBuildFile(path, bytes, destination, records);
                 }
-                compiled.output.inspections.push(inspection.reference);
+                compiled.files.clear();
+                for (const path of compiled.paths) {
+                    await describeBuildFile(path, destination, records);
+                }
                 outputs[name] = compiled.output;
                 sourceMaps.push(...compiled.sourceMaps);
                 buildDescription = compiled.inspection;
@@ -349,7 +363,6 @@ export class BuildCompiler implements AsyncDisposable {
             }
 
             // check the runtime and associate runnable workloads
-            outputs[name].declarations = selected;
             if (!request.application || project.runtime === "browser") {
                 await checkRuntime(buildDescription, modules, project.runtime, this.runtimes);
             }
@@ -362,15 +375,30 @@ export class BuildCompiler implements AsyncDisposable {
                 request.side === "ssr" ? applications.get(request.application!.name)!.handlers : [],
             );
 
-            // publish compiler inspection separately from installable runtime dependencies
-            const buildInspection = serializeBuild(buildDescription, `inspect/${name}/build`);
-            outputs[name].inspections.push(buildInspection.reference);
-            for (const [path, bytes] of buildInspection.files) {
-                retainFile(path, bytes, files);
+            // retain exact dependency resolutions once
+            for (const [key, dependency] of Object.entries(buildDescription.packages)) {
+                if (resolved[key] && JSON.stringify(resolved[key]) !== JSON.stringify(dependency)) {
+                    throw new BuildError(
+                        "BUILD_FAILED",
+                        `conflicting dependency resolution: ${key}`,
+                    );
+                }
+                resolved[key] = dependency;
             }
+            selections.set(name, {
+                modules: inspected.modules.map((value) =>
+                    retainDescription(value, moduleDescriptions, moduleIndices),
+                ),
+                declarations: selected.map((value) =>
+                    retainDescription(value, declarationDescriptions, declarationIndices),
+                ),
+                tests: inspected.tests.map((value) =>
+                    retainDescription(value, testDescriptions, testIndices),
+                ),
+            });
         }
 
-        // retain renderer inspection with the browser output when only static pages are distributed
+        // retain build-only renderer descriptions without deployment entrypoints
         for (const [name, request] of requested) {
             const application = request.application?.options;
             if (
@@ -378,44 +406,83 @@ export class BuildCompiler implements AsyncDisposable {
                 application?.ssr !== false &&
                 application?.ssr.emit === false
             ) {
-                outputs[`${request.application!.name}-browser`].inspections.push(
-                    ...outputs[name].inspections,
-                );
-                delete outputs[name];
+                outputs[name].exports = {};
+                outputs[name].emit = false;
+                outputs[name].workloads = {};
             }
         }
 
-        // describe distributed files in a stable order
-        const descriptions = [];
-        const orderedFiles = new Map(
-            [...files].sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)),
+        // serialize shared descriptions by domain and module
+        const manifest = await serializeDescriptions(
+            {
+                modules: moduleDescriptions,
+                declarations: declarationDescriptions,
+                tests: testDescriptions,
+                modulePackage: {
+                    id: packageDefinition.id as Package["id"],
+                    name: packageMetadata.name,
+                    version: packageMetadata.version,
+                },
+                testPackage: {
+                    id: testDefinition.id as Package["id"],
+                    name: testMetadata.name,
+                    version: testMetadata.version,
+                },
+                selections,
+            },
+            outputs,
         );
-        for (const [path, bytes] of orderedFiles) {
-            const extension = path.split(".").at(-1);
-            const mediaType =
-                extension === "map" || extension === "json"
-                    ? "application/json"
-                    : extension === "js"
-                      ? "text/javascript"
-                      : extension === "html"
-                        ? "text/html"
-                        : extension === "css"
-                          ? "text/css"
-                          : "application/octet-stream";
-            descriptions.push(await describeFile(path, mediaType, bytes));
+
+        // describe distributed files in a stable order
+        for (const [path, bytes] of files) {
+            await writeBuildFile(path, bytes, destination, records);
+        }
+        files.clear();
+        const descriptions = [];
+        const ordered = [...records.values()].sort((left, right) =>
+            left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+        );
+        for (const file of ordered) {
+            const inspected = manifest.modules.get(file.path);
+            descriptions.push(inspected ? { ...file, descriptions: inspected } : file);
         }
 
-        return new PackageBuild(
-            {
-                formatVersion: 1,
-                package: source!,
-                language: "typescript",
-                outputs,
-                files: descriptions,
-                sourceMaps,
-            },
-            orderedFiles,
-        );
+        // require every inspected path to identify a distributed file
+        for (const path of manifest.modules.keys()) {
+            if (!records.has(path)) {
+                throw new BuildError(
+                    "BUILD_FAILED",
+                    `inspected file is absent from build: ${path}`,
+                );
+            }
+        }
+
+        // publish inventories separately from source and executable files
+        const inventories = { dependencies: resolved, files: descriptions, sourceMaps };
+        const references = {} as Pick<PackageManifest, "dependencies" | "files" | "sourceMaps">;
+        for (const name of ["dependencies", "files", "sourceMaps"] as const) {
+            const path = `manifest/${name}.json`;
+            const bytes = encodeDescription(inventories[name]);
+            references[name] = await describeFile(path, "application/json", bytes);
+            await writeBuildFile(path, bytes, destination, records);
+        }
+        for (const [path, bytes] of manifest.files) {
+            await writeBuildFile(path, bytes, destination, records);
+        }
+
+        const result: PackageManifest = {
+            formatVersion: 1,
+            package: source!,
+            language: "typescript",
+            dependencies: references.dependencies,
+            descriptions: manifest.descriptions,
+            outputs,
+            files: references.files,
+            sourceMaps: references.sourceMaps,
+        };
+        await writeFile(join(destination, "manifest.json"), JSON.stringify(result), { flag: "wx" });
+
+        return new PackageBuild(result, destination, "retained");
     }
 
     /** Reuse a configuration until its package declarations change. */
@@ -480,6 +547,26 @@ export class BuildCompiler implements AsyncDisposable {
     }
 }
 
+/** Share equal descriptions and return their manifest index. */
+function retainDescription<Value>(
+    value: Value,
+    values: Value[],
+    indices: Map<string, number>,
+): number {
+    const key = stringifyInspection(value);
+    const existing = indices.get(key);
+    if (existing !== undefined) {
+        return existing;
+    }
+
+    // retain each target-specific variant once
+    const index = values.length;
+    values.push(value);
+    indices.set(key, index);
+
+    return index;
+}
+
 /** Retain one file and reject changes between output builds. */
 function retainFile(
     path: string,
@@ -496,4 +583,63 @@ function retainFile(
     }
 
     files.set(path, bytes);
+}
+
+/** Write one output and retain only its authenticated file record. */
+async function writeBuildFile(
+    path: string,
+    bytes: Uint8Array<ArrayBuffer>,
+    directory: string,
+    records: Map<string, PackageFile>,
+): Promise<void> {
+    // preserve media types used by the distributed manifest
+    const file = await describeFile(path, fileMediaType(path), bytes);
+    const previous = records.get(path);
+    if (previous) {
+        if (previous.digest !== file.digest) {
+            throw new BuildError("BUILD_FAILED", `conflicting build file: ${path}`);
+        }
+        return;
+    }
+
+    // publish bytes before recording the successful write
+    const destination = join(directory, path);
+    await mkdir(dirname(destination), { recursive: true });
+    await writeFile(destination, bytes, { flag: "wx" });
+    records.set(path, file);
+}
+
+/** Hash a compiler-written output without reading the entire file into memory. */
+async function describeBuildFile(
+    path: string,
+    directory: string,
+    records: Map<string, PackageFile>,
+): Promise<void> {
+    const hash = createHash("sha256");
+    let size = 0;
+    for await (const bytes of createReadStream(join(directory, path))) {
+        hash.update(bytes);
+        size += bytes.length;
+    }
+    const digest = hash.digest("hex");
+    const previous = records.get(path);
+    if (previous && previous.digest !== digest) {
+        throw new BuildError("BUILD_FAILED", `conflicting build file: ${path}`);
+    }
+    records.set(path, { path, digest, size, mediaType: fileMediaType(path) });
+}
+
+/** Select the distributed media type from a generated path. */
+function fileMediaType(path: string): string {
+    const extension = path.split(".").at(-1);
+
+    return extension === "json" || extension === "map"
+        ? "application/json"
+        : extension === "js"
+          ? "text/javascript"
+          : extension === "html"
+            ? "text/html"
+            : extension === "css"
+              ? "text/css"
+              : "application/octet-stream";
 }

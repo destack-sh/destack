@@ -6,129 +6,57 @@
         "version": "2026.9.0"
     },
     "language": "typescript",
+    "dependencies": {
+        "path": "manifest/dependencies.json",
+        "digest": "3ab1eb3bdd2b78343942254450bf3539c3f1bb723d13967b946a6cb0aa5229be",
+        "size": 14020,
+        "mediaType": "application/json"
+    },
+    "descriptions": {
+        "test": {
+            "package": {
+                "id": "package-01a0c80b-614f-73ed-891d-020804987e52",
+                "name": "@destack/test",
+                "version": "2026.9.0"
+            },
+            "file": {
+                "path": "manifest/test.json",
+                "digest": "b39ee45eb874810a11104fdadc1af641e59c3bf2782322157e835625f82f3d4a",
+                "size": 534,
+                "mediaType": "application/json"
+            }
+        }
+    },
     "outputs": {
         "website-browser": {
             "target": "browser",
             "runtime": "browser",
+            "emit": true,
             "workloads": {},
-            "declarations": [],
+            "descriptions": {
+                "test": [
+                    0,
+                    1,
+                    2
+                ]
+            },
             "directory": "output/website-browser",
             "exports": {
                 ".": "output/website-browser/index.html"
             },
-            "dependencies": {},
-            "inspections": [
-                {
-                    "name": "@destack/build-web-fixture",
-                    "version": 1,
-                    "document": "inspect/website-browser/index.json",
-                    "schema": "inspect/website-browser/schema.json"
-                },
-                {
-                    "name": "@destack/build/compile",
-                    "version": 1,
-                    "document": "inspect/website-browser/build/index.json",
-                    "schema": "inspect/website-browser/build/schema.json"
-                }
-            ]
+            "dependencies": {}
         }
     },
-    "files": [
-        {
-            "path": "destack.json",
-            "digest": "7ff50ead724c9c3886e2e93cbf1989050f3c5af4dd3d7a21755de4bc58f307d5",
-            "size": 151,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "inspect/website-browser/build/index.json",
-            "digest": "f752c96f457846aaa6165221d188babbda25fe08ffda676278ddd4a28bc11413",
-            "size": 33446,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "inspect/website-browser/build/schema.json",
-            "digest": "66e3aa5acb5ee1f8fa0d91f5589b23280f551fd9cb7a7385f391673caa049813",
-            "size": 4098,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "inspect/website-browser/index.json",
-            "digest": "e95ae656e2a9cb1ea68a175f27f75f0cee33bdea25f450c3026e0bc7b4b251df",
-            "size": 13940,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "inspect/website-browser/schema.json",
-            "digest": "7ee76e96eb37bbe2185b5ea91cbc3495f7848a02f8977f674628bbe2617a6e07",
-            "size": 81316,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "output/website-browser/.vite/manifest.json",
-            "digest": "8623b755cff4dd002ff8aa3b11f47595476515e1201d6a53220e28a92eb0aea3",
-            "size": 420,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-6gsEq8xi.js",
-            "digest": "178f86c63b2abcb2b85dda08d223c0e84706c93d145c7e730c2600fc49c1501f",
-            "size": 134099,
-            "mediaType": "text/javascript"
-        },
-        {
-            "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-6gsEq8xi.js.map",
-            "digest": "20cd88cd44b9d82f01aaac42036e63d72a1047dc57d9c0b00c8cf8243b351563",
-            "size": 524743,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-fvpRBgw-.css",
-            "digest": "3d600c4ffa88de41131d25da9de9eb510c2176df8d415ed05ae85bb29ee466e6",
-            "size": 15363,
-            "mediaType": "text/css"
-        },
-        {
-            "path": "output/website-browser/index.html",
-            "digest": "c46da6c0c71cc5f3f0f6721bd9f91ca8f7827fd6afe0cf4029d7e10928f38bf0",
-            "size": 326,
-            "mediaType": "text/html"
-        },
-        {
-            "path": "package.json",
-            "digest": "54693e013d8ea7b838bad69a3d0a72d9e19bcdfbbc5e647f6e0a2765c4464008",
-            "size": 303,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "src/App.tsx",
-            "digest": "bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7",
-            "size": 1182,
-            "mediaType": "application/octet-stream"
-        },
-        {
-            "path": "src/app.test.ts",
-            "digest": "5df69ce79264458249ba5f717cbcfc8ffd756858f51d1598762ff0020268d94a",
-            "size": 294,
-            "mediaType": "application/octet-stream"
-        },
-        {
-            "path": "src/asset.d.ts",
-            "digest": "f9cc0e513982b81e76185b263b3711d7032aa1ac1f7939204757e8e34386e695",
-            "size": 63,
-            "mediaType": "application/octet-stream"
-        },
-        {
-            "path": "src/style.css",
-            "digest": "535edfaf1983951a8c055f0a80a93ea571ce13b755c14755567274a5a75bb84c",
-            "size": 24,
-            "mediaType": "text/css"
-        }
-    ],
-    "sourceMaps": [
-        {
-            "generated": "output/website-browser/assets/virtual_solid-ssr-entry-client-6gsEq8xi.js",
-            "map": "output/website-browser/assets/virtual_solid-ssr-entry-client-6gsEq8xi.js.map"
-        }
-    ]
+    "files": {
+        "path": "manifest/files.json",
+        "digest": "ebb7ecc8acab78d0a34da88fa3f0994859b57ef908236e7c92e3a99c8e0aa9a0",
+        "size": 4434,
+        "mediaType": "application/json"
+    },
+    "sourceMaps": {
+        "path": "manifest/sourceMaps.json",
+        "digest": "de28e5e0d659b1cfde890bb744449ca36637595407c8638a242fa93d1b85e1cc",
+        "size": 207,
+        "mediaType": "application/json"
+    }
 }

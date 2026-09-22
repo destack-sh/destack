@@ -1,0 +1,52 @@
+[
+    {
+        "name": "note",
+        "kind": "access",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614e-739e-a21a-66fd749e17ca",
+                "name": "@destack/access",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/access/object.ts",
+                "name": "defineObject"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "@example/stack",
+                "version": "1.0.0"
+            },
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "note"
+            }
+        },
+        "source": {
+            "file": "src/index.ts",
+            "line": 13,
+            "column": 20
+        },
+        "description": {
+            "packageId": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+            "name": "note",
+            "attributes": {},
+            "relations": {
+                "owner": {
+                    "kind": "subject",
+                    "subjects": [
+                        "user"
+                    ]
+                }
+            },
+            "permissions": {
+                "read": {
+                    "kind": "relation",
+                    "name": "owner"
+                }
+            }
+        }
+    }
+]

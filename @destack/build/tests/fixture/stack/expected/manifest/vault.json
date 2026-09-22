@@ -1,0 +1,39 @@
+[
+    {
+        "name": "credentials",
+        "kind": "resource",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
+                "name": "@destack/vault",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/vault.ts",
+                "name": "defineVault"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6148-71fe-af7d-35098929d5dd",
+                "name": "@destack/template-stack",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/vault/vault.ts",
+                "name": "credentials"
+            }
+        },
+        "source": {
+            "file": "src/vault/vault.ts",
+            "line": 3,
+            "column": 27
+        },
+        "description": {
+            "name": "credentials",
+            "kind": "vault",
+            "version": 1,
+            "spec": {}
+        }
+    }
+]

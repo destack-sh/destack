@@ -102,7 +102,7 @@ export class PackageBuilder implements AsyncDisposable {
         this.#child.on("error", (error) => this.#fail(error));
         this.#child.stdin.on("error", (error) => this.#fail(error));
 
-        // bound diagnostics from a failed tool without writing build files to disk
+        // bound diagnostics retained from compiler tools
         this.#child.stderr.setEncoding("utf8");
         this.#child.stderr.on("data", (chunk: string) => {
             this.#stderr += chunk;
@@ -136,12 +136,25 @@ export class PackageBuilder implements AsyncDisposable {
     /** Build current source using retained compiler state. */
     async build(options: Omit<BuildOptions, "directory">): Promise<PackageBuild> {
         const { signal, timeout, ...request } = options;
-        const response = await this.#request({ kind: "build", options: request }, signal, timeout);
-        if (response.kind !== "build") {
-            throw new BuildError("BUILD_FAILED", "unexpected compiler result");
-        }
+        const destination = await mkdtemp(join(tmpdir(), "destack-build-"));
+        try {
+            const response = await this.#request(
+                { kind: "build", destination, options: request },
+                signal,
+                timeout,
+            );
+            if (response.kind !== "build") {
+                throw new BuildError("BUILD_FAILED", "unexpected compiler result");
+            }
 
-        return new PackageBuild(response.manifest, response.files);
+            return new PackageBuild(response.manifest, destination, "temporary");
+        } catch (error) {
+            if (this.#stopping) {
+                await this.#closed;
+            }
+            await rm(destination, { recursive: true, force: true });
+            throw error;
+        }
     }
 
     /** Inspect source inside the isolated compiler process. */
@@ -176,7 +189,9 @@ export class PackageBuilder implements AsyncDisposable {
         if (this.#pending) {
             throw new BuildError("BUILD_FAILED", "A build is already running.");
         }
-        signal?.throwIfAborted();
+        if (signal?.aborted) {
+            throw new BuildError("BUILD_FAILED", "Build cancelled.", { cause: signal.reason });
+        }
         const abort = () =>
             this.#fail(
                 new BuildError("BUILD_FAILED", "Build cancelled.", { cause: signal?.reason }),
@@ -276,7 +291,16 @@ export class PackageBuilder implements AsyncDisposable {
 export async function buildPackage(options: BuildOptions): Promise<PackageBuild> {
     options.signal?.throwIfAborted();
     const { directory, ...request } = options;
-    await using builder = await PackageBuilder.start(directory);
+    let result: PackageBuild | undefined;
 
-    return await builder.build(request);
+    // transfer the result only after the compiler has closed successfully
+    try {
+        await using builder = await PackageBuilder.start(directory);
+        result = await builder.build(request);
+    } catch (error) {
+        await result?.[Symbol.asyncDispose]();
+        throw error;
+    }
+
+    return result;
 }

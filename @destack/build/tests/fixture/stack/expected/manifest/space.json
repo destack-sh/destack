@@ -1,0 +1,49 @@
+[
+    {
+        "name": "personal",
+        "kind": "space",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614e-739c-9b50-70e5119010b1",
+                "name": "@destack/space",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/space.ts",
+                "name": "defineSpace"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "@example/stack",
+                "version": "1.0.0"
+            },
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "personal"
+            }
+        },
+        "source": {
+            "file": "src/index.ts",
+            "line": 22,
+            "column": 24
+        },
+        "description": {
+            "resources": {
+                "main": {
+                    "declaration": {
+                        "name": "main",
+                        "kind": "database",
+                        "version": 1,
+                        "spec": {
+                            "dialect": "sqlite"
+                        }
+                    },
+                    "retention": "retain",
+                    "tags": {}
+                }
+            }
+        }
+    }
+]

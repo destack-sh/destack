@@ -1,5 +1,15 @@
-import { readdir, readFile, realpath, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
-import { join, relative, resolve, sep } from "node:path";
+import {
+    readdir,
+    readFile,
+    realpath,
+    mkdtemp,
+    rm,
+    symlink,
+    writeFile,
+    copyFile,
+    mkdir,
+} from "node:fs/promises";
+import { join, relative, resolve, sep, dirname } from "node:path";
 import { createBuilder } from "vite";
 import { type StartOptions } from "@solidjs/vite-plugin";
 import { type PackageOutput } from "@destack/package/manifest";
@@ -56,6 +66,8 @@ export interface ApplicationCompilation {
     outputs: Record<string, PackageOutput>;
     /** Generated files keyed by build-relative path. */
     files: Map<string, Uint8Array<ArrayBuffer>>;
+    /** Generated files copied out of the framework's temporary directory. */
+    paths: string[];
     /** Maps emitted by the client and server compilers. */
     sourceMaps: SourceMapReference[];
 }
@@ -72,10 +84,12 @@ export async function compileApplication(
     directories: ReadonlyMap<string, readonly DirectoryReference[]>,
     serverModules: readonly ModuleDescription[],
     runtimes: RuntimeCompiler,
+    destinationRoot: string,
 ): Promise<ApplicationCompilation> {
     await using stage = await stagePackage(project);
     const temporary = join(stage.directory, "dist");
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    const paths: string[] = [];
     const sourceMaps: SourceMapReference[] = [];
     const locations = new Map<string, ModuleSource>();
     const assets = new Map<string, Uint8Array<ArrayBuffer>>();
@@ -105,7 +119,7 @@ export async function compileApplication(
             plugins: [
                 directoryPlugin(project.directory, files, directories, assets),
                 virtualPlugin(stage.directory),
-                sourcePlugin(project.directory, files, sources),
+                sourcePlugin(project.directory, files, sources, destinationRoot, paths),
                 dependencyPlugin(
                     project,
                     dependencies,
@@ -252,19 +266,24 @@ export async function compileApplication(
                 const relative = path
                     .slice(join(temporary, side === "ssr" ? "server" : side).length + 1)
                     .replaceAll("\\", "/");
-                const bytes =
-                    relative === ".vite/manifest.json"
-                        ? new TextEncoder().encode(
-                              JSON.stringify(
-                                  describeAssets(
-                                      JSON.parse(await readFile(path, "utf8")),
-                                      stage.directory,
-                                      locations,
-                                  ),
-                              ),
-                          )
-                        : new Uint8Array(await readFile(path));
-                files.set(`${directory}/${relative}`, bytes);
+                const output = `${directory}/${relative}`;
+                if (relative === ".vite/manifest.json") {
+                    const bytes = new TextEncoder().encode(
+                        JSON.stringify(
+                            describeAssets(
+                                JSON.parse(await readFile(path, "utf8")),
+                                stage.directory,
+                                locations,
+                            ),
+                        ),
+                    );
+                    files.set(output, bytes);
+                } else {
+                    const destination = join(destinationRoot, output);
+                    await mkdir(dirname(destination), { recursive: true });
+                    await copyFile(path, destination);
+                    paths.push(output);
+                }
                 if (relative.endsWith(".js.map")) {
                     sourceMaps.push({
                         generated: `${directory}/${relative.slice(0, -4)}`,
@@ -275,8 +294,9 @@ export async function compileApplication(
             outputs[side] = {
                 target: target as "browser" | "server",
                 runtime: side === "client" ? "browser" : (server?.runtime ?? "bun"),
+                emit: true,
                 workloads: {},
-                declarations: [],
+                descriptions: {},
                 directory,
                 exports:
                     side === "ssr"
@@ -285,13 +305,13 @@ export async function compileApplication(
                           ? {}
                           : { ".": `${directory}/index.html` },
                 dependencies: {},
-                inspections: [],
             };
         }
 
         return {
             outputs,
             files,
+            paths,
             sourceMaps,
             inspections,
             handlers: server ? ["handleRequest"] : [],

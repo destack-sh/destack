@@ -32,9 +32,12 @@ async function main(): Promise<void> {
         try {
             const request = message as BuildRequest;
             if (request.kind === "build") {
-                const build = await compiler.build({ ...request.options, directory });
+                const build = await compiler.build(
+                    { ...request.options, directory },
+                    request.destination,
+                );
                 response = {
-                    result: { kind: "build", manifest: build.manifest, files: build.files },
+                    result: { kind: "build", manifest: build.manifest },
                 };
             } else if (request.kind === "inspect") {
                 const inspection = await compiler.inspect({ ...request.options, directory });

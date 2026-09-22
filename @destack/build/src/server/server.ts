@@ -14,6 +14,7 @@ import {
     type PackageBuild,
 } from "../build/index.ts";
 import { PackageInspection } from "@destack/package/inspect";
+import type { PackageLocation } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 import { ServiceError } from "@destack/service/error";
 import type { InspectOptions } from "../inspect/inspection.ts";
@@ -72,11 +73,12 @@ export class BuildServer implements AsyncDisposable {
                 }
 
                 // publish the complete package before completing the operation
+                await using result = build;
                 report({ phase: "storing" });
                 signal.throwIfAborted();
-                const download = await options.builds.store(context.owner, build, signal);
+                const stored = await options.builds.store(context.owner, result, signal);
 
-                return { source: input.source, manifest: build.manifest, download };
+                return { source: input.source, package: stored };
             }),
         );
 
@@ -171,8 +173,8 @@ export interface BuildHost {
         request: InspectRequest,
         signal?: AbortSignal,
     ): Promise<InspectOptions & AsyncDisposable>;
-    /** Store all build files and return an authorized complete-archive download URL. */
-    store(owner: string, build: PackageBuild, signal: AbortSignal): Promise<string>;
+    /** Export build files and return their authorized retrieval endpoint. */
+    store(owner: string, build: PackageBuild, signal: AbortSignal): Promise<PackageLocation>;
 }
 
 /** Host access, retention, and required shared service enforcement. */

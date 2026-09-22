@@ -1,0 +1,39 @@
+[
+    {
+        "name": "files",
+        "kind": "resource",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614e-73a0-82d0-e8fa51e85a5b",
+                "name": "@destack/bucket",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/bucket.ts",
+                "name": "defineBucket"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6148-71fe-af7d-35098929d5dd",
+                "name": "@destack/template-stack",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/bucket/bucket.ts",
+                "name": "files"
+            }
+        },
+        "source": {
+            "file": "src/bucket/bucket.ts",
+            "line": 3,
+            "column": 21
+        },
+        "description": {
+            "name": "files",
+            "kind": "bucket",
+            "version": 1,
+            "spec": {}
+        }
+    }
+]

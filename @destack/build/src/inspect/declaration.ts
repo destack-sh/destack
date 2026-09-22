@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { readFile } from "node:fs/promises";
 import {
     type Project,
@@ -16,7 +16,6 @@ import {
     type SourceFile,
     SyntaxKind,
 } from "typescript/unstable/ast";
-import { toJsonSchema } from "@destack/schema";
 import type { DeclarationDescription, BuildDescription } from "@destack/package/inspect";
 import { Package } from "@destack/package";
 import { BuildError } from "../error/index.ts";
@@ -31,7 +30,7 @@ export interface Declaration {
     file: string;
     /** The exported constant name. */
     export: string;
-    /** The symbol, source location, and description schema. */
+    /** The symbol and source location. */
     description: Omit<DeclarationDescription, "description">;
 }
 
@@ -88,10 +87,11 @@ export async function collectDeclarations(
 
     // locate exported constants for evaluation
     for (const [index, node] of calls.entries()) {
-        const name = inspectors[index];
-        if (!name) {
+        const inspector = inspectors[index];
+        if (!inspector) {
             continue;
         }
+        const { name, constructor } = inspector;
 
         // require a named variable initialized by the constructor
         const definition = INSPECTORS[name];
@@ -142,6 +142,7 @@ export async function collectDeclarations(
             export: exportedName,
             description: {
                 kind: definition.kind,
+                constructor,
                 name: symbolName,
                 symbol: { package: owner, symbol: { module: file, name: symbolName } },
                 source: {
@@ -149,7 +150,6 @@ export async function collectDeclarations(
                     line: prefix.split("\n").length - 1,
                     column: prefix.length - prefix.lastIndexOf("\n") - 1,
                 },
-                schema: toJsonSchema(definition.schema) as Declaration["description"]["schema"],
             },
         });
     }
@@ -161,7 +161,9 @@ export async function collectDeclarations(
 async function resolveInspector(
     symbol: TypeScriptSymbol | undefined,
     project: Project,
-): Promise<InspectorName | undefined> {
+): Promise<
+    { name: InspectorName; constructor: DeclarationDescription["constructor"] } | undefined
+> {
     // follow imported constructor aliases
     if (symbol && symbol.flags & SymbolFlags.Alias) {
         symbol = await project.checker.getAliasedSymbol(symbol);
@@ -178,7 +180,23 @@ async function resolveInspector(
     }
     const owner = await modulePackage(dirname(declaration.getSourceFile().fileName));
 
-    return owner.name === INSPECTORS[name].package ? name : undefined;
+    if (owner.name !== INSPECTORS[name].package) {
+        return undefined;
+    }
+
+    // identify the domain package and constructor without embedding its format schema
+    const definition = JSON.parse(await readFile(join(owner.directory, "destack.json"), "utf8"));
+    const packageIdentity = Package.parse({
+        id: definition.id,
+        name: owner.name,
+        version: owner.version,
+    });
+    const module = relative(owner.directory, declaration.getSourceFile().fileName).replaceAll(
+        "\\",
+        "/",
+    );
+
+    return { name, constructor: { package: packageIdentity, symbol: { module, name } } };
 }
 
 /** Select package declarations and dependency declarations parsed by this compilation. */

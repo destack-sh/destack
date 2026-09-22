@@ -1,5 +1,3 @@
-import { schema, toJsonSchema } from "@destack/schema";
-import { serializeInspection } from "../inspect/inspection.ts";
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep, posix } from "node:path";
 import { type Plugin } from "vite";
@@ -527,21 +525,4 @@ export function unresolvedImports(ast: ESTree.Program): string[] {
     }).visit(ast);
 
     return imports;
-}
-
-/** Serialize the compiler's input and output graph. */
-export function serializeBuild(description: BuildDescription, directory: string) {
-    // describe the versioned document containing the compiler graph
-    const documentSchema = schema.object({
-        name: schema.literal("@destack/build/compile"),
-        version: schema.literal(1),
-        descriptions: BuildDescription,
-    });
-    const document: schema.Infer<typeof documentSchema> = {
-        name: "@destack/build/compile",
-        version: 1,
-        descriptions: description,
-    };
-
-    return serializeInspection({ ...document, schema: toJsonSchema(documentSchema) }, directory);
 }

@@ -94,7 +94,7 @@ export async function inspectDeclaration(
     if (name === "defineService") {
         const service = value as ServiceDefinition;
 
-        return inspectService(service, { info: { title: service.name, version: owner.version } });
+        return inspectService(service);
     }
 
     // validate schedule expressions alongside their declared timing

@@ -45,6 +45,8 @@ export interface Compilation {
     output: PackageOutput;
     /** Generated files and captured source assets. */
     files: Map<string, Uint8Array<ArrayBuffer>>;
+    /** Generated output paths written by Vite. */
+    paths: string[];
     /** Maps for generated JavaScript. */
     sourceMaps: SourceMapReference[];
 }
@@ -57,9 +59,11 @@ export async function compilePackage(
     sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     project: PackageSource,
     directories: ReadonlyMap<string, readonly DirectoryReference[]>,
+    destinationRoot: string,
 ): Promise<Compilation> {
     const directory = `output/${name}`;
-    const destination = resolve(project.directory, directory);
+    const destination = resolve(destinationRoot, directory);
+    const paths: string[] = [];
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
     const exports: Record<string, string> = {};
     const external: Record<string, DependencyRelease> = {};
@@ -73,16 +77,17 @@ export async function compilePackage(
         return {
             inspection,
             files,
+            paths,
             sourceMaps,
             output: {
                 target: options.target,
                 runtime: project.runtime,
+                emit: true,
                 directory,
                 workloads: {},
-                declarations: [],
+                descriptions: {},
                 exports: {},
                 dependencies: {},
-                inspections: [],
             },
         };
     }
@@ -117,7 +122,7 @@ export async function compilePackage(
         },
         plugins: [
             directoryPlugin(project.directory, files, directories, assets),
-            sourcePlugin(project.directory, files, sources),
+            sourcePlugin(project.directory, files, sources, destinationRoot, paths),
             dependencyPlugin(
                 project,
                 dependencies,
@@ -131,7 +136,7 @@ export async function compilePackage(
         ],
         build: {
             emitAssets: true,
-            write: false,
+            write: true,
             outDir: destination,
             emptyOutDir: false,
             ssr: !isBrowser,
@@ -219,7 +224,7 @@ export async function compilePackage(
                     chunkFileNames: "[name]-[hash].js",
                     assetFileNames: "asset/[name]-[hash][extname]",
                     sourcemapPathTransform(source, map) {
-                        const output = relative(project.directory, map).split(sep).join("/");
+                        const output = `${directory}/${relative(destination, map).split(sep).join("/")}`;
 
                         return mapSource(source, map, output, locations);
                     },
@@ -228,17 +233,13 @@ export async function compilePackage(
         },
     });
 
-    // collect output in memory and map authored entries to generated files
+    // retain generated paths and map authored entries to generated files
     if (!("output" in generated)) {
         throw new BuildError("BUILD_FAILED", "Expected one Vite output.");
     }
     for (const entry of generated.output) {
         const path = PackagePath.parse(`${directory}/${entry.fileName}`);
-        const value = entry.type === "chunk" ? entry.code : entry.source;
-        files.set(
-            path,
-            typeof value === "string" ? new TextEncoder().encode(value) : new Uint8Array(value),
-        );
+        paths.push(path);
         for (const [name, source] of Object.entries(project.exports)) {
             if (entry.type === "chunk" && entry.facadeModuleId === source) {
                 exports[name] = path;
@@ -266,14 +267,15 @@ export async function compilePackage(
         output: {
             target: options.target,
             runtime: project.runtime,
+            emit: true,
             workloads: {},
-            declarations: [],
+            descriptions: {},
             directory,
             exports,
             dependencies: external,
-            inspections: [],
         },
         files,
+        paths,
         sourceMaps,
     };
 }

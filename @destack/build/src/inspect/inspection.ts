@@ -8,8 +8,6 @@ import {
     type PackageInspection,
 } from "@destack/package/inspect";
 import { TestDeclaration } from "@destack/test/inspect";
-import { PackagePath } from "@destack/package/file";
-import { PackageInspectionReference } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 
 /** Source and resolution settings for package inspection. */
@@ -42,7 +40,6 @@ export function inspectModules(
 ): PackageInspection {
     return createPackageInspection(
         source.name,
-        1,
         new ModuleGraph(modules),
         schema.object({
             tests: schema.array(TestDeclaration),
@@ -52,35 +49,11 @@ export function inspectModules(
     );
 }
 
-/** Encode an inspection and its schema as build files. */
-export function serializeInspection<
-    Inspection extends Pick<PackageInspection, "name" | "version" | "schema">,
->(inspection: Inspection, directory: string) {
-    // assign validated paths within the build
-    PackagePath.parse(directory);
-    const reference = PackageInspectionReference.parse({
-        name: inspection.name,
-        version: inspection.version,
-        document: `${directory}/index.json`,
-        schema: `${directory}/schema.json`,
-    });
-
-    // encode each document once
-    const encoder = new TextEncoder();
-    const { schema, ...document } = inspection;
-    const files = new Map([
-        [reference.document, encoder.encode(stringifyInspection(document))],
-        [reference.schema, encoder.encode(stringifyInspection(schema))],
-    ]);
-
-    return { reference, files };
-}
-
 /** Serialize an inspection value without implicit conversions or discarded values. */
-export function stringifyInspection(value: unknown): string {
+export function stringifyInspection(value: unknown, indent = 0): string {
     checkValue(value, "$", new Set());
 
-    return JSON.stringify(value);
+    return JSON.stringify(value, null, indent);
 }
 
 /** Require JSON values, allowing absent optional object properties. */

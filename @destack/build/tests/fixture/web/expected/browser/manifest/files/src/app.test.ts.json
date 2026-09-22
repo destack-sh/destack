@@ -1,0 +1,279 @@
+{
+    "path": "src/app.test.ts",
+    "source": {
+        "path": "src/app.test.ts",
+        "digest": "5df69ce79264458249ba5f717cbcfc8ffd756858f51d1598762ff0020268d94a",
+        "size": 294,
+        "mediaType": "text/plain"
+    },
+    "length": 294,
+    "imports": [
+        "@destack/test"
+    ],
+    "globals": [
+        {
+            "name": "Error",
+            "symbol": {
+                "compiler": {
+                    "name": "typescript",
+                    "version": "7.0.2"
+                },
+                "symbol": {
+                    "module": "lib.es5.d.ts",
+                    "name": "Error"
+                }
+            },
+            "members": [],
+            "dynamic": false,
+            "source": {
+                "file": "src/app.test.ts",
+                "start": 122,
+                "end": 127
+            }
+        }
+    ],
+    "errors": [
+        {
+            "source": {
+                "file": "src/app.test.ts",
+                "start": 0,
+                "end": 294
+            },
+            "throws": [],
+            "calls": [
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 99,
+                        "end": 177
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 180,
+                        "end": 292
+                    },
+                    "target": {
+                        "package": {
+                            "name": "vitest",
+                            "version": "5.0.1"
+                        },
+                        "symbol": {
+                            "module": "dist/index.d.ts",
+                            "name": "describe"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                }
+            ],
+            "catches": [],
+            "finally": [],
+            "unknowns": [
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 99,
+                        "end": 177
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 180,
+                        "end": 292
+                    },
+                    "reason": "call"
+                }
+            ]
+        },
+        {
+            "source": {
+                "file": "src/app.test.ts",
+                "start": 100,
+                "end": 174
+            },
+            "throws": [
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 112,
+                        "end": 172
+                    },
+                    "type": {
+                        "text": "Error",
+                        "references": [
+                            {
+                                "compiler": {
+                                    "name": "typescript",
+                                    "version": "7.0.2"
+                                },
+                                "symbol": {
+                                    "module": "lib.es5.d.ts",
+                                    "name": "Error"
+                                }
+                            }
+                        ]
+                    },
+                    "catches": []
+                }
+            ],
+            "calls": [
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 118,
+                        "end": 171
+                    },
+                    "target": {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Error"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                }
+            ],
+            "catches": [],
+            "finally": [],
+            "unknowns": [
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 118,
+                        "end": 171
+                    },
+                    "reason": "call"
+                }
+            ]
+        },
+        {
+            "source": {
+                "file": "src/app.test.ts",
+                "start": 204,
+                "end": 291
+            },
+            "throws": [],
+            "calls": [
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 216,
+                        "end": 241
+                    },
+                    "target": {
+                        "package": {
+                            "name": "vitest",
+                            "version": "5.0.1"
+                        },
+                        "symbol": {
+                            "module": "dist/index.d.ts",
+                            "name": "test"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 247,
+                        "end": 288
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 247,
+                        "end": 264
+                    },
+                    "target": {
+                        "package": {
+                            "name": "vitest",
+                            "version": "5.0.1"
+                        },
+                        "symbol": {
+                            "module": "dist/chunks/config.d.CU_b-wJj.d.ts",
+                            "name": "__type.each"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                }
+            ],
+            "catches": [],
+            "finally": [],
+            "unknowns": [
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 216,
+                        "end": 241
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 247,
+                        "end": 288
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 247,
+                        "end": 264
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/app.test.ts",
+                        "start": 247,
+                        "end": 256
+                    },
+                    "reason": "property"
+                }
+            ]
+        },
+        {
+            "source": {
+                "file": "src/app.test.ts",
+                "start": 232,
+                "end": 240
+            },
+            "throws": [],
+            "calls": [],
+            "catches": [],
+            "finally": [],
+            "unknowns": []
+        },
+        {
+            "source": {
+                "file": "src/app.test.ts",
+                "start": 279,
+                "end": 287
+            },
+            "throws": [],
+            "calls": [],
+            "catches": [],
+            "finally": [],
+            "unknowns": []
+        }
+    ],
+    "symbols": [],
+    "exports": []
+}

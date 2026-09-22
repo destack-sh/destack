@@ -1,0 +1,41 @@
+[
+    {
+        "name": "main",
+        "kind": "resource",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                "name": "@destack/db",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/database.ts",
+                "name": "defineDatabase"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "database"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 26,
+            "column": 24
+        },
+        "description": {
+            "name": "main",
+            "kind": "database",
+            "version": 1,
+            "spec": {
+                "dialect": "sqlite"
+            }
+        }
+    }
+]

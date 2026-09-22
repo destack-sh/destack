@@ -15,7 +15,7 @@ const { code, descriptions } = inspection;
 ```ts
 import { buildPackage } from "@destack/build";
 
-const build = await buildPackage({
+await using build = await buildPackage({
     directory,
     dependencies,
     outputs: {
@@ -34,8 +34,23 @@ const build = await buildPackage({
     },
 });
 
-const { manifest, files } = build;
+const { manifest, reader, directory: outputDirectory } = build;
 await build.write(destination);
+```
+
+```ts
+import { PackageBuild } from "@destack/build";
+import { DeclarationDescription } from "@destack/package/inspect";
+import { schema } from "@destack/schema";
+
+const reader = await PackageBuild.open(destination);
+const dependencies = await reader.dependencies();
+const files = await reader.files();
+const sourceMaps = await reader.sourceMaps();
+const services = await reader.domain("service", schema.array(DeclarationDescription));
+const file = files.find((file) => file.path === "src/index.ts");
+const description = file?.descriptions?.find((description) => description.kind === "module");
+const module = description && (await reader.module(description.file));
 ```
 
 ```ts
@@ -43,8 +58,8 @@ import { PackageBuilder } from "@destack/build";
 
 await using builder = await PackageBuilder.start(directory);
 const inspection = await builder.inspect({ target: "server", runtime: "bun" });
-const first = await builder.build({ dependencies, outputs });
-const edited = await builder.build({ dependencies, outputs });
+await using first = await builder.build({ dependencies, outputs });
+await using edited = await builder.build({ dependencies, outputs });
 ```
 
 ```ts
@@ -60,7 +75,7 @@ const application = {
     },
 } as const;
 
-const build = await buildPackage({
+await using build = await buildPackage({
     directory,
     dependencies,
     outputs: { website: application },
@@ -82,6 +97,7 @@ const { watcher, moduleGraph } = server.vite;
 
 ```ts
 import { connect } from "@destack/build/client";
+import { openPackage } from "@destack/package/manifest";
 
 const client = connect({ url: "https://build.example.com", fetch: authenticatedFetch });
 const inspection = await client.inspect({ source: revision, output: "library" });
@@ -89,7 +105,8 @@ const inspection = await client.inspect({ source: revision, output: "library" })
 const build = await client.build.start({ source: revision, outputs: ["library"] });
 for await (const operation of await client.build.watch({ id: build.id })) {
     if (operation.state === "succeeded") {
-        await download(operation.result.download);
+        const reader = await openPackage(operation.result.package, { fetch: authenticatedFetch });
+        const files = await reader.files();
     }
 }
 
@@ -114,7 +131,7 @@ await using build = new BuildServer({
     builds: {
         open: openImmutableSource,
         inspect: openInspectionSource,
-        store: storePackageArchive,
+        store: storePackage,
     },
     previews: { open: openEditableSource },
     limits: {

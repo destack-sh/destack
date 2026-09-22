@@ -1,0 +1,74 @@
+[
+    {
+        "name": "credentials",
+        "kind": "resource",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
+                "name": "@destack/vault",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/vault.ts",
+                "name": "defineVault"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "vault"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 31,
+            "column": 21
+        },
+        "description": {
+            "name": "credentials",
+            "kind": "vault",
+            "version": 1,
+            "spec": {}
+        }
+    },
+    {
+        "name": "mail-token",
+        "kind": "secret",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
+                "name": "@destack/vault",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/secret.ts",
+                "name": "defineSecret"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "token"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 33,
+            "column": 21
+        },
+        "description": {
+            "name": "mail-token",
+            "version": 1
+        }
+    }
+]

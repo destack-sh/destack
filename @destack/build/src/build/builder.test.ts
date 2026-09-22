@@ -11,6 +11,8 @@ import { request as resourceRequest } from "../../tests/fixture/resource/request
 import { Fixture, expectBuild, expectFiles } from "../../tests/fixture.ts";
 import { requests } from "../../tests/fixture/web/request.ts";
 import { formatSource } from "@destack/check";
+import { schema } from "@destack/schema";
+import { DeclarationDescription } from "@destack/package/inspect";
 
 test("rebuild a web application with emitted assets and restore every output", async () => {
     await using fixture = await Fixture.open("web");
@@ -47,17 +49,17 @@ test("rebuild a web application with emitted assets and restore every output", a
     const options = { dependencies: fixture.dependencies, outputs: { website: requests.browser } };
 
     // compare the full distribution before and after an application edit
-    const first = await builder.build(options);
-    const repeated = await builder.build(options);
+    await using first = await builder.build(options);
+    await using repeated = await builder.build(options);
     expect(repeated.manifest).toEqual(first.manifest);
-    expectFiles(repeated.files, first.files);
+    await expectFiles(repeated, first);
     await writeFile(file, source.replace("Hello Destack", "Edited Destack"));
-    const edited = await builder.build(options);
+    await using edited = await builder.build(options);
     expect(edited.manifest).not.toEqual(first.manifest);
     await writeFile(file, source);
-    const restored = await builder.build(options);
+    await using restored = await builder.build(options);
     expect(restored.manifest).toEqual(first.manifest);
-    expectFiles(restored.files, first.files);
+    await expectFiles(restored, first);
 });
 
 test("reinspect edited declaration helpers in a retained compiler", async () => {
@@ -82,20 +84,20 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
         await writeFile(helper, original);
         const dependencies = await readDependencies(fileURLToPath(fixture));
         await using builder = await PackageBuilder.start(directory);
-        const first = await builder.build({ dependencies, ...resourceRequest });
+        await using first = await builder.build({ dependencies, ...resourceRequest });
 
         // reload the helper and preserve declaration logs outside the result stream
         await writeFile(
             helper,
             'console.info("inspecting title");\nexport function title(): string {\n    return "heading";\n}\n',
         );
-        const edited = await builder.build({ dependencies, ...resourceRequest });
-        const baseline = first.manifest.outputs.library.declarations.find(
-            (declaration) => declaration.kind === "database-schema",
-        )!;
-        const actual = edited.manifest.outputs.library.declarations.find(
-            (declaration) => declaration.kind === "database-schema",
-        )!;
+        await using edited = await builder.build({ dependencies, ...resourceRequest });
+        const baseline = (
+            await first.reader.domain("db", schema.array(DeclarationDescription))
+        ).find((declaration) => declaration.kind === "database-schema")!;
+        const actual = (
+            await edited.reader.domain("db", schema.array(DeclarationDescription))
+        ).find((declaration) => declaration.kind === "database-schema")!;
         const expected = structuredClone(baseline);
         for (const dialect of ["sqlite", "postgresql"]) {
             const schema = expected.description[dialect] as {
@@ -107,9 +109,9 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
 
         // restore the helper and compare every distributed byte and the full manifest
         await writeFile(helper, original);
-        const restored = await builder.build({ dependencies, ...resourceRequest });
+        await using restored = await builder.build({ dependencies, ...resourceRequest });
         expect(restored.manifest).toEqual(first.manifest);
-        expectFiles(restored.files, first.files);
+        await expectFiles(restored, first);
 
         // await the same shutdown through concurrent callers and the enclosing using scope
         await Promise.all([builder[Symbol.asyncDispose](), builder[Symbol.asyncDispose]()]);
@@ -128,13 +130,13 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         // compile a real package and compare its complete distributed output
         await cp(new URL("source/", fixture), source, { recursive: true });
         await using builder = await PackageBuilder.start(source);
-        const build = await builder.build(request);
+        await using build = await builder.build(request);
         await expectBuild(build, new URL("expected/", fixture));
 
         // rebuild unchanged, edited, and restored source with the same compiler
-        const unchanged = await builder.build(request);
+        await using unchanged = await builder.build(request);
         expect(unchanged.manifest).toEqual(build.manifest);
-        expectFiles(unchanged.files, build.files);
+        await expectFiles(unchanged, build);
         const notePath = join(source, "src/note.ts");
         const note = await readFile(notePath, "utf8");
         await writeFile(
@@ -143,7 +145,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
                 .replace("complete: boolean", "complete: true")
                 .replace("complete: false", "complete: true"),
         );
-        const edited = await builder.build(request);
+        await using edited = await builder.build(request);
         const editDirectory = join(directory, "edited");
         await edited.write(editDirectory);
         const editedModule = await import(
@@ -151,9 +153,9 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         );
         expect(editedModule.createNote("Edited")).toEqual({ title: "Edited", complete: true });
         await writeFile(notePath, note);
-        const restoredSource = await builder.build(request);
+        await using restoredSource = await builder.build(request);
         expect(restoredSource.manifest).toEqual(build.manifest);
-        expectFiles(restoredSource.files, build.files);
+        await expectFiles(restoredSource, build);
 
         // reject an API unavailable in the selected runtime, then accept restored source
         await writeFile(notePath, note + "\nexport const page = document.title;\n");
@@ -173,7 +175,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const browserSource =
             note + "\nexport const page = document.documentElement.dataset.theme;\n";
         await writeFile(notePath, browserSource);
-        const browser = await builder.build({
+        await using browser = await builder.build({
             dependencies: {},
             outputs: {
                 library: {
@@ -183,7 +185,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
                 },
             },
         });
-        expect(new TextDecoder().decode(browser.files.get("src/note.ts"))).toBe(browserSource);
+        expect(await readFile(join(browser.directory, "src/note.ts"), "utf8")).toBe(browserSource);
 
         // reject server functions before their bodies can reach a browser output
         await writeFile(notePath, '"use server";\n' + note);
@@ -222,20 +224,22 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
 
         // leave no published manifest when an output cannot be written
         const failed = join(directory, "failed");
-        const conflicting = new PackageBuild(
-            build.manifest,
-            new Map([
-                ["output", new Uint8Array()],
-                ["output/library/index.js", new Uint8Array()],
-            ]),
-        );
-        await expect(conflicting.write(failed)).rejects.toMatchObject({ code: "ENOTDIR" });
+        await rm(join(build.directory, build.manifest.outputs.library.exports["."]));
+        await expect(build.write(failed)).rejects.toMatchObject({ code: "ENOENT" });
         await expect(readFile(join(failed, "manifest.json"))).rejects.toMatchObject({
             code: "ENOENT",
         });
         const output = restored.manifest.outputs.library;
         const module = await import(pathToFileURL(join(destination, output.exports["."])).href);
         expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
+
+        // discard temporary compiler output while preserving the retained distribution
+        await build[Symbol.asyncDispose]();
+        await expect(readFile(join(build.directory, "manifest.json"))).rejects.toMatchObject({
+            code: "ENOENT",
+        });
+        await restored[Symbol.asyncDispose]();
+        expect((await PackageBuild.read(destination)).manifest).toEqual(restored.manifest);
     } finally {
         await rm(directory, { recursive: true });
     }
@@ -262,7 +266,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     });
 
     // use the same compiler successfully after rejected requests
-    const build = await builder.build(request);
+    await using build = await builder.build(request);
     const expected = JSON.parse(
         await readFile(
             new URL("../../tests/fixture/library/expected/manifest.json", import.meta.url),

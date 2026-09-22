@@ -1,7 +1,7 @@
 import { PackageId } from "@destack/package/package";
 import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
-import { PackageManifest } from "@destack/package/manifest";
+import { PackageLocation } from "@destack/package/manifest";
 import { defineOperation, defineOperationProcedures } from "@destack/service/operation";
 import { defineProcedure } from "@destack/service";
 
@@ -20,10 +20,8 @@ export type BuildRequest = schema.Infer<typeof BuildRequest>;
 export const BuildResult = schema.object({
     /** Source reference selected by the request. */
     source: schema.string().min(1),
-    /** Manifest describing the complete build. */
-    manifest: PackageManifest,
-    /** Authorized HTTP endpoint for downloading the complete package archive. */
-    download: schema.url(),
+    /** Stored package available independently of the compiler's lifetime. */
+    package: PackageLocation,
 });
 
 /** Stored build returned to clients. */

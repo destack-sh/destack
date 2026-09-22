@@ -6,106 +6,38 @@
         "version": "1.0.0"
     },
     "language": "typescript",
+    "dependencies": {
+        "path": "manifest/dependencies.json",
+        "digest": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+        "size": 3,
+        "mediaType": "application/json"
+    },
+    "descriptions": {},
     "outputs": {
         "library": {
             "target": "server",
             "runtime": "bun",
+            "emit": true,
             "workloads": {},
-            "declarations": [],
+            "descriptions": {},
             "directory": "output/library",
             "exports": {
                 ".": "output/library/index-D7oujdfV.js",
                 "./note": "output/library/note-C0F0SalF.js"
             },
-            "dependencies": {},
-            "inspections": [
-                {
-                    "name": "@destack/build-library-fixture",
-                    "version": 1,
-                    "document": "inspect/library/index.json",
-                    "schema": "inspect/library/schema.json"
-                },
-                {
-                    "name": "@destack/build/compile",
-                    "version": 1,
-                    "document": "inspect/library/build/index.json",
-                    "schema": "inspect/library/build/schema.json"
-                }
-            ]
+            "dependencies": {}
         }
     },
-    "files": [
-        {
-            "path": "destack.json",
-            "digest": "c0f2135786dd5e27aa5323effe79ea642bc328188777306dc04dd798eaddef1e",
-            "size": 129,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "inspect/library/build/index.json",
-            "digest": "160171777728f35997b1bddc4f17d20a18bd8bc951405f910e6ac0c29a60f073",
-            "size": 736,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "inspect/library/build/schema.json",
-            "digest": "66e3aa5acb5ee1f8fa0d91f5589b23280f551fd9cb7a7385f391673caa049813",
-            "size": 4098,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "inspect/library/index.json",
-            "digest": "6cde73ff6cc1f49e4cb532efc9bfa68cb4e5364c1452b13a59fbda32adceffd0",
-            "size": 2986,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "inspect/library/schema.json",
-            "digest": "7ee76e96eb37bbe2185b5ea91cbc3495f7848a02f8977f674628bbe2617a6e07",
-            "size": 81316,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "output/library/index-D7oujdfV.js",
-            "digest": "46143e33f054d7ed80f702425b76c29e009a0887b9bbed8a65f6c9e5f7cb7ccd",
-            "size": 72,
-            "mediaType": "text/javascript"
-        },
-        {
-            "path": "output/library/note-C0F0SalF.js",
-            "digest": "97c4d76e7bc773900b65e21d3b2a4e94771829d0e8ff38555de2b6f0bd1aa2c9",
-            "size": 171,
-            "mediaType": "text/javascript"
-        },
-        {
-            "path": "output/library/note-C0F0SalF.js.map",
-            "digest": "16c699ec6e1e5a69e9450214e99557cc62e641d54c9b49214fb49c4eeeaf13c5",
-            "size": 476,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "package.json",
-            "digest": "1ba67546e1c4c7f5c2d28c403ddd17433f67b5fc39c649caa985302688c642fc",
-            "size": 164,
-            "mediaType": "application/json"
-        },
-        {
-            "path": "src/index.ts",
-            "digest": "69237ef4faab16e125cc35af4c7c0bdea8f52fe6bd4f196be7064d2f7295a889",
-            "size": 51,
-            "mediaType": "application/octet-stream"
-        },
-        {
-            "path": "src/note.ts",
-            "digest": "4d02f7e158fbc9f5ed0bd8d22df8872d1ba143874f3cf624e905c02a7d94f2f7",
-            "size": 287,
-            "mediaType": "application/octet-stream"
-        }
-    ],
-    "sourceMaps": [
-        {
-            "generated": "output/library/note-C0F0SalF.js",
-            "map": "output/library/note-C0F0SalF.js.map"
-        }
-    ]
+    "files": {
+        "path": "manifest/files.json",
+        "digest": "7dae4021daca80c9357c3296f994e89756b3f8380cf07d07a129b79989c416df",
+        "size": 2781,
+        "mediaType": "application/json"
+    },
+    "sourceMaps": {
+        "path": "manifest/sourceMaps.json",
+        "digest": "8f53775b1c440634090719a206b2381b0a0c30f3c5c617daf7ccc2c6ed39022c",
+        "size": 125,
+        "mediaType": "application/json"
+    }
 }

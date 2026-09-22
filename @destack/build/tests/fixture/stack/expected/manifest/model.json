@@ -1,0 +1,39 @@
+[
+    {
+        "name": "account",
+        "kind": "account",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f3-b32b-12779e5cd20a",
+                "name": "@destack/model",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/account.ts",
+                "name": "defineAccount"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "@example/stack",
+                "version": "1.0.0"
+            },
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "account"
+            }
+        },
+        "source": {
+            "file": "src/index.ts",
+            "line": 10,
+            "column": 23
+        },
+        "description": {
+            "environments": {
+                "development": {},
+                "production": {}
+            }
+        }
+    }
+]

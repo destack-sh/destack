@@ -1,0 +1,51 @@
+[
+    {
+        "path": "destack.json",
+        "digest": "6d46d9017a48b53e90f0118e5a552968c08cfbb3b7011da4d72e2c23c1becd5b",
+        "size": 118,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/stack/index-CIxIfcjj.js",
+        "digest": "dc27b2731defc29bf8ed7b0d9a07412ff47824f25335eba75993fc7dc8c6f5d0",
+        "size": 219231,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/stack/index-CIxIfcjj.js.map",
+        "digest": "22c000a88a5a7f8f05db276c2da9f0f57cd9a9af2fdefdb2212cb5f2b215128f",
+        "size": 603001,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "package.json",
+        "digest": "dacab756f11ff3ae1f67e6ed524f542717582742354e88e88141f13e4ea21d8f",
+        "size": 378,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "src/index.ts",
+        "digest": "29c6e80edde45240d0d41078d06189a507b7b38d5d21687b8320abce78353276",
+        "size": 1053,
+        "mediaType": "application/octet-stream",
+        "descriptions": [
+            {
+                "package": {
+                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                    "name": "@destack/package",
+                    "version": "2026.9.0"
+                },
+                "kind": "module",
+                "outputs": [
+                    "stack"
+                ],
+                "file": {
+                    "path": "manifest/files/src/index.ts.json",
+                    "digest": "c735c5ffa50b3c2c68dd32ec72fe761bc73aca9e00617459bc3eda06e902345c",
+                    "size": 21524,
+                    "mediaType": "application/json"
+                }
+            }
+        ]
+    }
+]

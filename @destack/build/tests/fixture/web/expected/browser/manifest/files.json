@@ -1,0 +1,125 @@
+[
+    {
+        "path": "destack.json",
+        "digest": "7ff50ead724c9c3886e2e93cbf1989050f3c5af4dd3d7a21755de4bc58f307d5",
+        "size": 151,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/website-browser/.vite/manifest.json",
+        "digest": "8623b755cff4dd002ff8aa3b11f47595476515e1201d6a53220e28a92eb0aea3",
+        "size": 420,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-6gsEq8xi.js",
+        "digest": "178f86c63b2abcb2b85dda08d223c0e84706c93d145c7e730c2600fc49c1501f",
+        "size": 134099,
+        "mediaType": "text/javascript"
+    },
+    {
+        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-6gsEq8xi.js.map",
+        "digest": "20cd88cd44b9d82f01aaac42036e63d72a1047dc57d9c0b00c8cf8243b351563",
+        "size": 524743,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-fvpRBgw-.css",
+        "digest": "3d600c4ffa88de41131d25da9de9eb510c2176df8d415ed05ae85bb29ee466e6",
+        "size": 15363,
+        "mediaType": "text/css"
+    },
+    {
+        "path": "output/website-browser/index.html",
+        "digest": "c46da6c0c71cc5f3f0f6721bd9f91ca8f7827fd6afe0cf4029d7e10928f38bf0",
+        "size": 326,
+        "mediaType": "text/html"
+    },
+    {
+        "path": "package.json",
+        "digest": "54693e013d8ea7b838bad69a3d0a72d9e19bcdfbbc5e647f6e0a2765c4464008",
+        "size": 303,
+        "mediaType": "application/json"
+    },
+    {
+        "path": "src/App.tsx",
+        "digest": "bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7",
+        "size": 1182,
+        "mediaType": "application/octet-stream",
+        "descriptions": [
+            {
+                "package": {
+                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                    "name": "@destack/package",
+                    "version": "2026.9.0"
+                },
+                "kind": "module",
+                "outputs": [
+                    "website-browser"
+                ],
+                "file": {
+                    "path": "manifest/files/src/App.tsx.json",
+                    "digest": "a8804bc6ef9ac8bf8caa9595c531787741fedb4032739a9930252cc74b4b5b07",
+                    "size": 33387,
+                    "mediaType": "application/json"
+                }
+            }
+        ]
+    },
+    {
+        "path": "src/app.test.ts",
+        "digest": "5df69ce79264458249ba5f717cbcfc8ffd756858f51d1598762ff0020268d94a",
+        "size": 294,
+        "mediaType": "application/octet-stream",
+        "descriptions": [
+            {
+                "package": {
+                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                    "name": "@destack/package",
+                    "version": "2026.9.0"
+                },
+                "kind": "module",
+                "outputs": [
+                    "website-browser"
+                ],
+                "file": {
+                    "path": "manifest/files/src/app.test.ts.json",
+                    "digest": "aa09e9af13c525395f330e40c8376d10e1f502bf184e286fec08093b975a0b29",
+                    "size": 8365,
+                    "mediaType": "application/json"
+                }
+            }
+        ]
+    },
+    {
+        "path": "src/asset.d.ts",
+        "digest": "f9cc0e513982b81e76185b263b3711d7032aa1ac1f7939204757e8e34386e695",
+        "size": 63,
+        "mediaType": "application/octet-stream",
+        "descriptions": [
+            {
+                "package": {
+                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                    "name": "@destack/package",
+                    "version": "2026.9.0"
+                },
+                "kind": "module",
+                "outputs": [
+                    "website-browser"
+                ],
+                "file": {
+                    "path": "manifest/files/src/asset.d.ts.json",
+                    "digest": "e91b993551c69f508f0b9c4888aabba4b2367687ef94da82300d6692ff2cd341",
+                    "size": 342,
+                    "mediaType": "application/json"
+                }
+            }
+        ]
+    },
+    {
+        "path": "src/style.css",
+        "digest": "535edfaf1983951a8c055f0a80a93ea571ce13b755c14755567274a5a75bb84c",
+        "size": 24,
+        "mediaType": "text/css"
+    }
+]
