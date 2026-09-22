@@ -4,18 +4,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Template } from "../template/index.ts";
+import { PackageId } from "@destack/package/package";
 import { expectDirectory } from "../../tests/fixture.ts";
 
 test.each(["stack", "blank"])("instantiate the %s package template", async (name) => {
     const directory = await mkdtemp(join(tmpdir(), "destack-template-"));
     const template = await Template.read(
-        fileURLToPath(new URL(`../../../../template/${name}/`, import.meta.url)),
+        fileURLToPath(new URL(`../../../template-${name}/`, import.meta.url)),
     );
     const parameters = {
+        id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
         name: `@example/${name}`,
         dependencies:
             name === "blank"
-                ? { "@destack/template-stack": { name: "@example/stack", version: "1.0.0" } }
+                ? {
+                      "@destack/template-stack": {
+                          id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000006"),
+                          name: "@example/stack",
+                          version: "1.0.0",
+                      },
+                  }
                 : {},
     };
 

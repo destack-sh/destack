@@ -1,3 +1,5 @@
+import { PackageId } from "@destack/package/package";
+import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
 import { OperationError } from "@destack/service/operation";
 import { defineProcedure, eventIterator } from "@destack/service";
@@ -68,7 +70,11 @@ export const preview = {
 function access(action: "read" | "start" | "stop") {
     return defineProcedure({
         authentication: "identity",
-        permission: { resource: "destack.preview", action },
+        permission: {
+            packageId: PackageId.parse(packageDefinition.id),
+            type: "preview",
+            name: action,
+        },
         audit: action !== "read",
     });
 }

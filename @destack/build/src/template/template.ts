@@ -84,8 +84,16 @@ export class Template {
         if (!template) {
             throw new PackageError("INVALID_DEFINITION", "Package has no template declaration.");
         }
-        Package.parse({ name: manifest.name, version: manifest.version });
+        Package.parse({ id: definition.id, name: manifest.name, version: manifest.version });
         parameters = TemplateParameters.parse(parameters);
+
+        // assign a distinct identity to the new package
+        if (parameters.id === definition.id) {
+            throw new PackageError(
+                "INVALID_DEFINITION",
+                "template instance requires a new package ID",
+            );
+        }
 
         // require all declared selections and reject unrelated overrides
         const expected = [...(template.dependencies ?? [])].sort();
@@ -126,7 +134,11 @@ export class Template {
         }
         const imports = {
             ...parameters.dependencies,
-            [manifest.name]: { name: parameters.name, version: manifest.version },
+            [manifest.name]: {
+                id: parameters.id,
+                name: parameters.name,
+                version: manifest.version,
+            },
         };
 
         // copy declared bytes and edit only parsed module specifiers
@@ -154,6 +166,7 @@ export class Template {
 
         // generate an ordinary package without retaining template classification
         manifest.name = parameters.name;
+        definition.id = parameters.id;
         delete definition.template;
         files.set("package.json", encoder.encode(JSON.stringify(manifest, null, 4) + "\n"));
         files.set("destack.json", encoder.encode(JSON.stringify(definition, null, 4) + "\n"));

@@ -1,3 +1,5 @@
+import { PackageId } from "@destack/package/package";
+import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
 import { PackageManifest } from "@destack/package/manifest";
 import { defineOperation, defineOperationProcedures } from "@destack/service/operation";
@@ -43,7 +45,11 @@ export const build = {
     ...defineOperationProcedures(BuildOperation, "/builds"),
     start: defineProcedure({
         authentication: "identity",
-        permission: { resource: "destack.build", action: "start" },
+        permission: {
+            packageId: PackageId.parse(packageDefinition.id),
+            type: "build",
+            name: "start",
+        },
         audit: true,
     })
         .route({ method: "POST", path: "/builds" })

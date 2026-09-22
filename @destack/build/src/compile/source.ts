@@ -6,7 +6,6 @@ import { type ModuleSource } from "./dependency.ts";
 import { BuildError } from "../error/index.ts";
 import { transform } from "rolldown/utils";
 import { ModuleMetadata } from "@destack/package/package";
-import { type Package } from "@destack/package";
 import { modulePackage } from "../source/dependency.ts";
 
 /** Retain authored files read by Vite. */
@@ -18,6 +17,13 @@ export function sourcePlugin(
     return {
         name: "destack-source",
         enforce: "pre",
+        transform: {
+            filter: { id: /\?(?:[^#]*&)?url(?:&|$)/ },
+            handler(code) {
+                // generated asset URLs have no authored JavaScript locations
+                return { code, map: { mappings: "" } };
+            },
+        },
         load: {
             filter: { id: new RegExp(`^${RegExp.escape(directory.replaceAll("\\", "/"))}/`) },
             async handler(id) {
@@ -76,7 +82,11 @@ export function mapSource(
 }
 
 /** Replace module metadata before bundling and preserve the transformation's source map. */
-export function metadataPlugin(directory: string, source: Package, configuration: string): Plugin {
+export function metadataPlugin(
+    directory: string,
+    source: ModuleMetadata["package"],
+    configuration: string,
+): Plugin {
     const metadata = ModuleMetadata.parse({ package: source });
 
     return {
@@ -94,12 +104,16 @@ export function metadataPlugin(directory: string, source: Package, configuration
                     path === ".." ||
                     path.startsWith(`..${sep}`) ||
                     path.split(sep).includes("node_modules");
-                const owner = external ? await modulePackage(dirname(id)) : source;
-                const identity = external
-                    ? ModuleMetadata.parse({
-                          package: { name: owner.name, version: owner.version },
-                      })
-                    : metadata;
+                let identity = metadata;
+                if (external) {
+                    const owner = await modulePackage(dirname(id));
+                    const definition = JSON.parse(
+                        await readFile(resolve(owner.directory, "destack.json"), "utf8"),
+                    );
+                    identity = ModuleMetadata.parse({
+                        package: { id: definition.id, name: owner.name, version: owner.version },
+                    });
+                }
 
                 // replace each module's metadata before code from multiple modules is combined
                 const result = await transform(id, code, {

@@ -8,7 +8,57 @@ import { request } from "../../tests/fixture/library/request.ts";
 import { readDependencies } from "../local/index.ts";
 import { linkDependencies } from "../source/index.ts";
 import { request as resourceRequest } from "../../tests/fixture/resource/request.ts";
-import { expectBuild, expectFiles } from "../../tests/fixture.ts";
+import { Fixture, expectBuild, expectFiles } from "../../tests/fixture.ts";
+import { requests } from "../../tests/fixture/web/request.ts";
+import { formatSource } from "@destack/check";
+
+test("rebuild a web application with emitted assets and restore every output", async () => {
+    await using fixture = await Fixture.open("web");
+    const file = join(fixture.source, "src/App.tsx");
+    const original = await readFile(file, "utf8");
+
+    // declare the asset imports used by this standalone application
+    const declaration = join(fixture.source, "src/assets.d.ts");
+    await writeFile(
+        declaration,
+        await formatSource(
+            declaration,
+            'declare module "*.svg?url" { const url: string; export default url; }',
+        ),
+    );
+
+    // retain two distinct emitted assets through the application's public render
+    for (const name of ["first", "second"]) {
+        await writeFile(
+            join(fixture.source, `src/${name}.svg`),
+            `<svg xmlns="http://www.w3.org/2000/svg"><!--${name.repeat(1500)}--></svg>`,
+        );
+    }
+    const source = await formatSource(
+        file,
+        'import first from "./first.svg?url";\nimport second from "./second.svg?url";\n' +
+            original.replace(
+                "<main {...theme}>",
+                "<main {...theme}><img src={first} /><img src={second} />",
+            ),
+    );
+    await writeFile(file, source);
+    await using builder = await PackageBuilder.start(fixture.source);
+    const options = { dependencies: fixture.dependencies, outputs: { website: requests.browser } };
+
+    // compare the full distribution before and after an application edit
+    const first = await builder.build(options);
+    const repeated = await builder.build(options);
+    expect(repeated.manifest).toEqual(first.manifest);
+    expectFiles(repeated.files, first.files);
+    await writeFile(file, source.replace("Hello Destack", "Edited Destack"));
+    const edited = await builder.build(options);
+    expect(edited.manifest).not.toEqual(first.manifest);
+    await writeFile(file, source);
+    const restored = await builder.build(options);
+    expect(restored.manifest).toEqual(first.manifest);
+    expectFiles(restored.files, first.files);
+});
 
 test("reinspect edited declaration helpers in a retained compiler", async () => {
     const fixture = new URL("../../tests/fixture/resource/source/", import.meta.url);

@@ -212,7 +212,8 @@ export class BuildCompiler implements AsyncDisposable {
             const { project, inspection: inspected } = inputs.get(name)!;
             if (
                 source &&
-                (source.name !== project.declaration.package.name ||
+                (source.id !== project.declaration.package.id ||
+                    source.name !== project.declaration.package.name ||
                     source.version !== project.declaration.package.version)
             ) {
                 throw new BuildError("BUILD_FAILED", "Package changed during build.");
@@ -321,7 +322,7 @@ export class BuildCompiler implements AsyncDisposable {
             const selected = selectDeclarations(declarations, source, buildDescription);
             for (const declaration of selected) {
                 const owner = declaration.symbol.package;
-                if (owner.name === source.name && owner.version === source.version) {
+                if (owner.id === source.id && owner.version === source.version) {
                     continue;
                 }
 
@@ -329,7 +330,11 @@ export class BuildCompiler implements AsyncDisposable {
                 const key = `${owner.name}@${owner.version}`;
                 const dependency =
                     buildDescription.packages[key] ?? outputs[name].dependencies[owner.name];
-                if (!dependency || dependency.package.version !== owner.version) {
+                if (
+                    !dependency ||
+                    dependency.package.version !== owner.version ||
+                    (dependency.kind !== "npm" && dependency.package.id !== owner.id)
+                ) {
                     throw new BuildError("BUILD_FAILED", `Unresolved declaration package: ${key}`);
                 }
                 if (

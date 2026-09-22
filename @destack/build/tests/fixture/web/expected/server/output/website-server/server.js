@@ -6010,7 +6010,7 @@ function provideRequestEvent(init, cb) {
 }
 var _virtual_solid_manifest_default = {
 	"virtual:solid-ssr-entry-client.tsx": {
-		"file": "assets/virtual_solid-ssr-entry-client-vXr4AcT0.js",
+		"file": "assets/virtual_solid-ssr-entry-client-_NyLQ9aj.js",
 		"name": "virtual_solid-ssr-entry-client",
 		"src": "virtual:solid-ssr-entry-client.tsx",
 		"isEntry": true,

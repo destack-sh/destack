@@ -131,9 +131,10 @@ export async function readPackageDeclaration(
     const metadata = schema
         .record(schema.string(), schema.json())
         .parse(JSON.parse(await readFile(resolve(directory, "package.json"), "utf8")));
+    const configuration = JSON.parse(await readFile(resolve(directory, "destack.json"), "utf8"));
     const declaration = PackageDeclaration.parse({
-        package: { name: metadata.name, version: metadata.version },
-        definition: JSON.parse(await readFile(resolve(directory, "destack.json"), "utf8")),
+        package: { id: configuration.id, name: metadata.name, version: metadata.version },
+        definition: configuration,
         exports: metadata.exports,
         dependencies: metadata.dependencies === undefined ? {} : metadata.dependencies,
         peerDependencies: metadata.peerDependencies === undefined ? {} : metadata.peerDependencies,

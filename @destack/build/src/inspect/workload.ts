@@ -29,7 +29,7 @@ export async function describeWorkloads(
         if (!["resource", "secret", "service", "schedule"].includes(declaration.kind)) {
             continue;
         }
-        const key = `${declaration.symbol.package.name}:${declaration.kind}:${declaration.name}`;
+        const key = `${declaration.symbol.package.id}:${declaration.kind}:${declaration.name}`;
         if (declared.has(key)) {
             throw invalid(`Duplicate declaration: ${key}`);
         }
@@ -62,14 +62,7 @@ export async function describeWorkloads(
             ["service", definition.services ?? []],
             ["schedule", definition.schedules ?? []],
         ] as const) {
-            const references = names.map((reference) =>
-                typeof reference === "string"
-                    ? { package: project.declaration.package.name, name: reference }
-                    : reference,
-            );
-            const keys = references.map(
-                (reference) => `${reference.package}:${kind}:${reference.name}`,
-            );
+            const keys = names.map((name) => `${project.declaration.package.id}:${kind}:${name}`);
             if (new Set(keys).size !== keys.length) {
                 throw invalid(`Duplicate ${kind} reference in workload: ${name}`);
             }
@@ -209,7 +202,7 @@ export async function describeWorkloads(
                 continue;
             }
 
-            const reference = { package: owner.name, name: declaration.name };
+            const reference = { packageId: owner.id, name: declaration.name };
             if (declaration.kind === "resource") {
                 resources.push(reference);
             } else {

@@ -21,6 +21,8 @@
         "test": "vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/model": "workspace:*",
+        "@destack/access": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/check": "workspace:*",
         "magic-string": "1.4.1",
@@ -29,7 +31,7 @@
         "@destack/db": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/vault": "workspace:*",
-        "@destack/storage": "workspace:*",
+        "@destack/bucket": "workspace:*",
         "@destack/space": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",

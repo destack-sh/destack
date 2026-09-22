@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { AuditActionDescription, describeAuditAction } from "@destack/audit/inspect";
 import type { AuditAction } from "@destack/audit";
-import { BucketDeclaration } from "@destack/storage/inspect";
+import { BucketDeclaration } from "@destack/bucket/inspect";
 import { DatabaseDeclaration } from "@destack/db/declare";
 import { DatabaseSchemaDescription, describeSchema } from "@destack/db/inspect";
 import type { DatabaseSchema } from "@destack/db";
@@ -11,6 +11,9 @@ import { inspectService, ServiceInspection } from "@destack/service/inspect";
 import type { ServiceDefinition } from "@destack/service";
 import type { Package } from "@destack/package";
 import { SpaceDefinition } from "@destack/space";
+import { AccountDefinition } from "@destack/model/declare";
+import { AccessDeclaration } from "@destack/access/inspect";
+import type { ObjectType } from "@destack/access/declare";
 import { CronExpressionParser } from "cron-parser";
 import { BuildError } from "../error/index.ts";
 
@@ -31,12 +34,14 @@ export const INSPECTORS = {
         }),
     },
     defineSchedule: { package: "@destack/service", kind: "schedule", schema: ScheduleDeclaration },
-    defineBucket: { package: "@destack/storage", kind: "resource", schema: BucketDeclaration },
+    defineBucket: { package: "@destack/bucket", kind: "resource", schema: BucketDeclaration },
     defineDatabase: { package: "@destack/db", kind: "resource", schema: DatabaseDeclaration },
     defineVault: { package: "@destack/vault", kind: "resource", schema: VaultDeclaration },
     defineSecret: { package: "@destack/vault", kind: "secret", schema: SecretDeclaration },
     defineService: { package: "@destack/service", kind: "service", schema: ServiceInspection },
     defineSpace: { package: "@destack/space", kind: "space", schema: SpaceDefinition },
+    defineAccount: { package: "@destack/model", kind: "account", schema: AccountDefinition },
+    defineObject: { package: "@destack/access", kind: "access", schema: AccessDeclaration },
 } as const;
 
 /** A supported declaration constructor. */
@@ -48,10 +53,24 @@ export async function inspectDeclaration(
     value: unknown,
     owner: Package,
 ): Promise<Record<string, unknown>> {
+    // retain qualified access declarations without evaluating application records
+    if (name === "defineObject") {
+        const declaration = AccessDeclaration.parse((value as ObjectType).definition);
+        if (declaration.packageId !== owner.id) {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                "access declaration belongs to a different package",
+            );
+        }
+
+        return declaration;
+    }
+
     // retain the declaring package even when another package emits the action
     if (name === "defineAuditAction") {
         const description = describeAuditAction(value as AuditAction);
         if (
+            description.package.id !== owner.id ||
             description.package.name !== owner.name ||
             description.package.version !== owner.version
         ) {

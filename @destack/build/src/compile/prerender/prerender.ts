@@ -113,11 +113,7 @@ export async function prerender(
 }
 
 /** Render trusted source with a deadline between completed responses. */
-export async function runProgram(
-    program: string,
-    timeout: number,
-    count: number,
-): Promise<void> {
+export async function runProgram(program: string, timeout: number, count: number): Promise<void> {
     const directory = dirname(program);
     const child = spawn(process.execPath, ["run", "--no-env-file", program], {
         cwd: directory,

@@ -12,7 +12,10 @@ import { tmpdir } from "node:os";
 export async function expectBuild(build: PackageBuild, expected: URL): Promise<void> {
     // include the manifest alongside the exact distributed bytes
     const files = new Map(build.files);
-    files.set("manifest.json", new TextEncoder().encode(JSON.stringify(build.manifest)));
+    files.set(
+        "manifest.json",
+        new TextEncoder().encode(`${JSON.stringify(build.manifest, null, 4)}\n`),
+    );
     await expectDirectory(files, expected);
 }
 

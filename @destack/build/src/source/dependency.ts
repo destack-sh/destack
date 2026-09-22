@@ -57,6 +57,7 @@ export async function modulePackage(
     while (true) {
         try {
             const metadata = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
+            // subpath manifests configure module scopes without identifying a package release
             if (typeof metadata.name === "string" && typeof metadata.version === "string") {
                 return { directory, name: metadata.name, version: metadata.version };
             }
@@ -85,7 +86,7 @@ export async function readDependencies(
     // combine registry locations with locked release integrity
     for (const [id, entry] of Object.entries(lock.packages)) {
         const [release, location, , integrity] = entry;
-        const separator = release.lastIndexOf("@");
+        const separator = release.indexOf("@", 1);
         const name = release.slice(0, separator);
         const version = release.slice(separator + 1);
         if (version.startsWith("workspace:")) {

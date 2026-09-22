@@ -1,1 +1,174 @@
-{"formatVersion":1,"package":{"name":"@destack/build-web-fixture","version":"2026.9.0"},"language":"typescript","outputs":{"website-browser":{"target":"browser","runtime":"browser","workloads":{},"declarations":[],"directory":"output/website-browser","exports":{},"dependencies":{},"inspections":[{"name":"@destack/build-web-fixture","version":1,"document":"inspect/website-browser/index.json","schema":"inspect/website-browser/schema.json"},{"name":"@destack/build/compile","version":1,"document":"inspect/website-browser/build/index.json","schema":"inspect/website-browser/build/schema.json"},{"name":"@destack/build-web-fixture","version":1,"document":"inspect/website-server/index.json","schema":"inspect/website-server/schema.json"},{"name":"@destack/build/compile","version":1,"document":"inspect/website-server/build/index.json","schema":"inspect/website-server/build/schema.json"}]}},"files":[{"path":"destack.json","digest":"a3bfc3f4365e1f15f045490db777e457309ee183bc52282e9b9274efe4d2ae07","size":93,"mediaType":"application/json"},{"path":"inspect/website-browser/build/index.json","digest":"f45f78c1e3a547cd36c71f9e74e2886764912d9e93da9b31a61dfdf64288633f","size":33507,"mediaType":"application/json"},{"path":"inspect/website-browser/build/schema.json","digest":"a2cd1446870fe918e6c62369627c69c941418a6c7d168f0b46a34cb37ed42db9","size":3838,"mediaType":"application/json"},{"path":"inspect/website-browser/index.json","digest":"21350267129931f614c012cca1a867cdee109f47152442d6c788eab03841f1f3","size":13888,"mediaType":"application/json"},{"path":"inspect/website-browser/schema.json","digest":"8cb6fe89d343f0d5af2c871bc552b0d0ba5b6a70e005d25217b8022fa5352bee","size":69163,"mediaType":"application/json"},{"path":"inspect/website-server/build/index.json","digest":"663fedb82e772086282372afdfd8e4a57de29a1fc36a80680c67b5c55457c220","size":35003,"mediaType":"application/json"},{"path":"inspect/website-server/build/schema.json","digest":"a2cd1446870fe918e6c62369627c69c941418a6c7d168f0b46a34cb37ed42db9","size":3838,"mediaType":"application/json"},{"path":"inspect/website-server/index.json","digest":"21350267129931f614c012cca1a867cdee109f47152442d6c788eab03841f1f3","size":13888,"mediaType":"application/json"},{"path":"inspect/website-server/schema.json","digest":"8cb6fe89d343f0d5af2c871bc552b0d0ba5b6a70e005d25217b8022fa5352bee","size":69163,"mediaType":"application/json"},{"path":"output/website-browser/.vite/manifest.json","digest":"aed212906ce2ee987e756c3d1342026efc49ad913f9f682b81f7706b11050fad","size":420,"mediaType":"application/json"},{"path":"output/website-browser/about/index.html","digest":"11f1027dcd6b8cfa298f01dd4c4cad2f4db693a200aa0c61811f38dfb62a2e02","size":4028,"mediaType":"text/html"},{"path":"output/website-browser/assets/virtual_solid-ssr-entry-client-fvpRBgw-.css","digest":"3d600c4ffa88de41131d25da9de9eb510c2176df8d415ed05ae85bb29ee466e6","size":15363,"mediaType":"text/css"},{"path":"output/website-browser/assets/virtual_solid-ssr-entry-client-vXr4AcT0.js","digest":"012ecd9f19ef37f9b31867068d432b92c2e0cc255547207f3ed93b4b219bb221","size":159214,"mediaType":"text/javascript"},{"path":"output/website-browser/assets/virtual_solid-ssr-entry-client-vXr4AcT0.js.map","digest":"95307a2ae6f839f1247163fe80a13abcd1809bcd4d8c3f3052baa23c10a8d9d1","size":540289,"mediaType":"application/json"},{"path":"output/website-browser/index.html","digest":"11f1027dcd6b8cfa298f01dd4c4cad2f4db693a200aa0c61811f38dfb62a2e02","size":4028,"mediaType":"text/html"},{"path":"package.json","digest":"54693e013d8ea7b838bad69a3d0a72d9e19bcdfbbc5e647f6e0a2765c4464008","size":303,"mediaType":"application/json"},{"path":"src/App.tsx","digest":"bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7","size":1182,"mediaType":"application/octet-stream"},{"path":"src/app.test.ts","digest":"5df69ce79264458249ba5f717cbcfc8ffd756858f51d1598762ff0020268d94a","size":294,"mediaType":"application/octet-stream"},{"path":"src/asset.d.ts","digest":"f9cc0e513982b81e76185b263b3711d7032aa1ac1f7939204757e8e34386e695","size":63,"mediaType":"application/octet-stream"},{"path":"src/style.css","digest":"535edfaf1983951a8c055f0a80a93ea571ce13b755c14755567274a5a75bb84c","size":24,"mediaType":"text/css"}],"sourceMaps":[{"generated":"output/website-browser/assets/virtual_solid-ssr-entry-client-vXr4AcT0.js","map":"output/website-browser/assets/virtual_solid-ssr-entry-client-vXr4AcT0.js.map"}]}
+{
+    "formatVersion": 1,
+    "package": {
+        "id": "package-01a0c80b-6150-71b0-a85f-d5e647206c9a",
+        "name": "@destack/build-web-fixture",
+        "version": "2026.9.0"
+    },
+    "language": "typescript",
+    "outputs": {
+        "website-browser": {
+            "target": "browser",
+            "runtime": "browser",
+            "workloads": {},
+            "declarations": [],
+            "directory": "output/website-browser",
+            "exports": {},
+            "dependencies": {},
+            "inspections": [
+                {
+                    "name": "@destack/build-web-fixture",
+                    "version": 1,
+                    "document": "inspect/website-browser/index.json",
+                    "schema": "inspect/website-browser/schema.json"
+                },
+                {
+                    "name": "@destack/build/compile",
+                    "version": 1,
+                    "document": "inspect/website-browser/build/index.json",
+                    "schema": "inspect/website-browser/build/schema.json"
+                },
+                {
+                    "name": "@destack/build-web-fixture",
+                    "version": 1,
+                    "document": "inspect/website-server/index.json",
+                    "schema": "inspect/website-server/schema.json"
+                },
+                {
+                    "name": "@destack/build/compile",
+                    "version": 1,
+                    "document": "inspect/website-server/build/index.json",
+                    "schema": "inspect/website-server/build/schema.json"
+                }
+            ]
+        }
+    },
+    "files": [
+        {
+            "path": "destack.json",
+            "digest": "7ff50ead724c9c3886e2e93cbf1989050f3c5af4dd3d7a21755de4bc58f307d5",
+            "size": 151,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/website-browser/build/index.json",
+            "digest": "e182abadd2ee713795fca4a947e6c6ed6a52918bb171ddf2f848e27dee88867f",
+            "size": 33715,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/website-browser/build/schema.json",
+            "digest": "66e3aa5acb5ee1f8fa0d91f5589b23280f551fd9cb7a7385f391673caa049813",
+            "size": 4098,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/website-browser/index.json",
+            "digest": "e95ae656e2a9cb1ea68a175f27f75f0cee33bdea25f450c3026e0bc7b4b251df",
+            "size": 13940,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/website-browser/schema.json",
+            "digest": "7ee76e96eb37bbe2185b5ea91cbc3495f7848a02f8977f674628bbe2617a6e07",
+            "size": 81316,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/website-server/build/index.json",
+            "digest": "46f97cc1f2aab85e36d73d36d7feca93760def6ff83d0b8009bfe5393baf02c1",
+            "size": 35211,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/website-server/build/schema.json",
+            "digest": "66e3aa5acb5ee1f8fa0d91f5589b23280f551fd9cb7a7385f391673caa049813",
+            "size": 4098,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/website-server/index.json",
+            "digest": "e95ae656e2a9cb1ea68a175f27f75f0cee33bdea25f450c3026e0bc7b4b251df",
+            "size": 13940,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/website-server/schema.json",
+            "digest": "7ee76e96eb37bbe2185b5ea91cbc3495f7848a02f8977f674628bbe2617a6e07",
+            "size": 81316,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "output/website-browser/.vite/manifest.json",
+            "digest": "05c2e9ebeb344c6534650328c81ebf77e36c8ab595135ec8d1024a56a0696d71",
+            "size": 420,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "output/website-browser/about/index.html",
+            "digest": "df7b1428ab32d40c3a5f9b307382ea6681d4071f5c76f713ef8f1abe44d6f4c8",
+            "size": 4028,
+            "mediaType": "text/html"
+        },
+        {
+            "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-_NyLQ9aj.js",
+            "digest": "362b4789a9dbedb50a1b2d2e220fb0c496e06392d6ea1b426203c1dcdd351c58",
+            "size": 159213,
+            "mediaType": "text/javascript"
+        },
+        {
+            "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-_NyLQ9aj.js.map",
+            "digest": "b8cf6655e59a25d5958181214c73bd3ff550a0eebfb2fb9c0fcd868e47add176",
+            "size": 540289,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-fvpRBgw-.css",
+            "digest": "3d600c4ffa88de41131d25da9de9eb510c2176df8d415ed05ae85bb29ee466e6",
+            "size": 15363,
+            "mediaType": "text/css"
+        },
+        {
+            "path": "output/website-browser/index.html",
+            "digest": "df7b1428ab32d40c3a5f9b307382ea6681d4071f5c76f713ef8f1abe44d6f4c8",
+            "size": 4028,
+            "mediaType": "text/html"
+        },
+        {
+            "path": "package.json",
+            "digest": "54693e013d8ea7b838bad69a3d0a72d9e19bcdfbbc5e647f6e0a2765c4464008",
+            "size": 303,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "src/App.tsx",
+            "digest": "bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7",
+            "size": 1182,
+            "mediaType": "application/octet-stream"
+        },
+        {
+            "path": "src/app.test.ts",
+            "digest": "5df69ce79264458249ba5f717cbcfc8ffd756858f51d1598762ff0020268d94a",
+            "size": 294,
+            "mediaType": "application/octet-stream"
+        },
+        {
+            "path": "src/asset.d.ts",
+            "digest": "f9cc0e513982b81e76185b263b3711d7032aa1ac1f7939204757e8e34386e695",
+            "size": 63,
+            "mediaType": "application/octet-stream"
+        },
+        {
+            "path": "src/style.css",
+            "digest": "535edfaf1983951a8c055f0a80a93ea571ce13b755c14755567274a5a75bb84c",
+            "size": 24,
+            "mediaType": "text/css"
+        }
+    ],
+    "sourceMaps": [
+        {
+            "generated": "output/website-browser/assets/virtual_solid-ssr-entry-client-_NyLQ9aj.js",
+            "map": "output/website-browser/assets/virtual_solid-ssr-entry-client-_NyLQ9aj.js.map"
+        }
+    ]
+}

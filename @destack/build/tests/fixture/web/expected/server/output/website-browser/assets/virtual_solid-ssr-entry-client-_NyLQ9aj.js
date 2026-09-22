@@ -5665,7 +5665,7 @@ function App() {
 	var _el$5 = _el$3.firstChild.nextSibling;
 	var [_el$6, _el$7] = getNextMarker(_el$5.nextSibling);
 	spread(_el$, theme, true);
-	_el$3._$$click = () => setCount(count() + 1);
+	_el$3.$$click = () => setCount(count() + 1);
 	insert(_el$3, scope(() => {
 		return count();
 	}), _el$6, _el$7);
@@ -5685,4 +5685,4 @@ hydrate(() => createComponent(DefaultErrorBoundary, { get children() {
 	} });
 } }), document);
 
-//# sourceMappingURL=virtual_solid-ssr-entry-client-vXr4AcT0.js.map
+//# sourceMappingURL=virtual_solid-ssr-entry-client-_NyLQ9aj.js.map

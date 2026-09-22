@@ -1,1 +1,1098 @@
-{"formatVersion":1,"package":{"name":"@example/resources","version":"1.0.0"},"language":"typescript","outputs":{"library":{"target":"server","runtime":"bun","workloads":{},"declarations":[{"name":"main","kind":"resource","symbol":{"package":{"name":"@example/resources","version":"1.0.0"},"symbol":{"module":"src/index.ts","name":"database"}},"source":{"file":"src/index.ts","line":4,"column":24},"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"name":{"type":"string","pattern":"^[a-z][a-z0-9-]*$(?![\\s\\S])"},"kind":{"type":"string","const":"database"},"version":{"type":"number","const":1},"spec":{"type":"object","properties":{"dialect":{"type":"string","enum":["sqlite","postgresql"]}},"required":["dialect"],"additionalProperties":false}},"required":["name","kind","version","spec"],"additionalProperties":false},"description":{"name":"main","kind":"database","version":1,"spec":{"dialect":"sqlite"}}},{"name":"notes","kind":"database-schema","symbol":{"package":{"name":"@example/resources","version":"1.0.0"},"symbol":{"module":"src/index.ts","name":"notes"}},"source":{"file":"src/index.ts","line":10,"column":21},"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"name":{"type":"string","pattern":"^[a-z][a-z0-9-]*$(?![\\s\\S])"},"sqlite":{"type":"object","properties":{"name":{"type":"string","pattern":"^[a-z][a-z0-9-]*$(?![\\s\\S])"},"version":{"type":"number","const":1},"dialect":{"type":"string","enum":["sqlite","postgresql"]},"tables":{"type":"array","items":{"type":"object","properties":{"dialect":{"type":"string","enum":["sqlite","postgresql"]},"name":{"type":"string"},"columns":{"type":"array","items":{"type":"object","properties":{"property":{"type":"string"},"name":{"type":"string"},"type":{"type":"string"},"dataType":{"type":"string"},"mode":{"type":"string"},"enumValues":{"type":"array","items":{"type":"string"}},"nullable":{"type":"boolean"},"primaryKey":{"type":"boolean"},"unique":{"type":"boolean"},"uniqueName":{"type":"string"},"autoIncrement":{"type":"boolean"},"hasDefault":{"type":"boolean"},"default":{"type":"string"},"hasRuntimeDefault":{"type":"boolean"},"hasRuntimeUpdate":{"type":"boolean"},"generated":{"type":"object","properties":{"mode":{"type":"string","enum":["virtual","stored"]},"expression":{"type":"string"}},"required":["expression"],"additionalProperties":false},"jsonSchema":{"type":"object","propertyNames":{"type":"string"},"additionalProperties":{"$ref":"#/$defs/__schema0"}}},"required":["property","name","type","dataType","nullable","primaryKey","unique","autoIncrement","hasDefault","hasRuntimeDefault","hasRuntimeUpdate"],"additionalProperties":false}},"primaryKeys":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"columns":{"type":"array","items":{"type":"string"}}},"required":["name","columns"],"additionalProperties":false}},"uniqueConstraints":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"columns":{"type":"array","items":{"type":"string"}}},"required":["name","columns"],"additionalProperties":false}},"indexes":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"unique":{"type":"boolean"},"columns":{"type":"array","items":{"anyOf":[{"type":"object","properties":{"column":{"type":"string"}},"required":["column"],"additionalProperties":false},{"type":"object","properties":{"expression":{"type":"string"}},"required":["expression"],"additionalProperties":false}]}},"where":{"type":"string"}},"required":["name","unique","columns"],"additionalProperties":false}},"foreignKeys":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"columns":{"type":"array","items":{"type":"string"}},"table":{"type":"string"},"references":{"type":"array","items":{"type":"string"}},"onUpdate":{"type":"string"},"onDelete":{"type":"string"}},"required":["name","columns","table","references"],"additionalProperties":false}},"checks":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"expression":{"type":"string"}},"required":["name","expression"],"additionalProperties":false}}},"required":["dialect","name","columns","primaryKeys","uniqueConstraints","indexes","foreignKeys","checks"],"additionalProperties":false}},"dependencies":{"type":"array","items":{"type":"string","pattern":"^[a-z][a-z0-9-]*$(?![\\s\\S])"}}},"required":["name","version","dialect","tables"],"additionalProperties":false},"postgresql":{"type":"object","properties":{"name":{"type":"string","pattern":"^[a-z][a-z0-9-]*$(?![\\s\\S])"},"version":{"type":"number","const":1},"dialect":{"type":"string","enum":["sqlite","postgresql"]},"tables":{"type":"array","items":{"type":"object","properties":{"dialect":{"type":"string","enum":["sqlite","postgresql"]},"name":{"type":"string"},"columns":{"type":"array","items":{"type":"object","properties":{"property":{"type":"string"},"name":{"type":"string"},"type":{"type":"string"},"dataType":{"type":"string"},"mode":{"type":"string"},"enumValues":{"type":"array","items":{"type":"string"}},"nullable":{"type":"boolean"},"primaryKey":{"type":"boolean"},"unique":{"type":"boolean"},"uniqueName":{"type":"string"},"autoIncrement":{"type":"boolean"},"hasDefault":{"type":"boolean"},"default":{"type":"string"},"hasRuntimeDefault":{"type":"boolean"},"hasRuntimeUpdate":{"type":"boolean"},"generated":{"type":"object","properties":{"mode":{"type":"string","enum":["virtual","stored"]},"expression":{"type":"string"}},"required":["expression"],"additionalProperties":false},"jsonSchema":{"type":"object","propertyNames":{"type":"string"},"additionalProperties":{"$ref":"#/$defs/__schema0"}}},"required":["property","name","type","dataType","nullable","primaryKey","unique","autoIncrement","hasDefault","hasRuntimeDefault","hasRuntimeUpdate"],"additionalProperties":false}},"primaryKeys":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"columns":{"type":"array","items":{"type":"string"}}},"required":["name","columns"],"additionalProperties":false}},"uniqueConstraints":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"columns":{"type":"array","items":{"type":"string"}}},"required":["name","columns"],"additionalProperties":false}},"indexes":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"unique":{"type":"boolean"},"columns":{"type":"array","items":{"anyOf":[{"type":"object","properties":{"column":{"type":"string"}},"required":["column"],"additionalProperties":false},{"type":"object","properties":{"expression":{"type":"string"}},"required":["expression"],"additionalProperties":false}]}},"where":{"type":"string"}},"required":["name","unique","columns"],"additionalProperties":false}},"foreignKeys":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"columns":{"type":"array","items":{"type":"string"}},"table":{"type":"string"},"references":{"type":"array","items":{"type":"string"}},"onUpdate":{"type":"string"},"onDelete":{"type":"string"}},"required":["name","columns","table","references"],"additionalProperties":false}},"checks":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"expression":{"type":"string"}},"required":["name","expression"],"additionalProperties":false}}},"required":["dialect","name","columns","primaryKeys","uniqueConstraints","indexes","foreignKeys","checks"],"additionalProperties":false}},"dependencies":{"type":"array","items":{"type":"string","pattern":"^[a-z][a-z0-9-]*$(?![\\s\\S])"}}},"required":["name","version","dialect","tables"],"additionalProperties":false}},"required":["name","sqlite","postgresql"],"additionalProperties":false,"$defs":{"__schema0":{"anyOf":[{"type":"string"},{"type":"number"},{"type":"boolean"},{"type":"null"},{"type":"array","items":{"$ref":"#/$defs/__schema0"}},{"type":"object","propertyNames":{"type":"string"},"additionalProperties":{"$ref":"#/$defs/__schema0"}}]}}},"description":{"name":"notes","sqlite":{"name":"notes","version":1,"dialect":"sqlite","tables":[{"dialect":"sqlite","name":"note","columns":[{"property":"id","name":"id","type":"integer","dataType":"integer","nullable":false,"primaryKey":true,"unique":false,"autoIncrement":false,"hasDefault":false,"hasRuntimeDefault":false,"hasRuntimeUpdate":false,"jsonSchema":{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"integer","minimum":-9007199254740991,"maximum":9007199254740991}},{"property":"title","name":"title","type":"text","dataType":"text","nullable":false,"primaryKey":false,"unique":false,"autoIncrement":false,"hasDefault":false,"hasRuntimeDefault":false,"hasRuntimeUpdate":false,"jsonSchema":{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"string"}}],"primaryKeys":[],"uniqueConstraints":[],"indexes":[],"foreignKeys":[],"checks":[]}]},"postgresql":{"name":"notes","version":1,"dialect":"postgresql","tables":[{"dialect":"postgresql","name":"note","columns":[{"property":"id","name":"id","type":"bigint","dataType":"integer","nullable":false,"primaryKey":true,"unique":false,"autoIncrement":false,"hasDefault":false,"hasRuntimeDefault":false,"hasRuntimeUpdate":false,"jsonSchema":{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"integer","minimum":-9007199254740991,"maximum":9007199254740991}},{"property":"title","name":"title","type":"text","dataType":"text","nullable":false,"primaryKey":false,"unique":false,"autoIncrement":false,"hasDefault":false,"hasRuntimeDefault":false,"hasRuntimeUpdate":false,"jsonSchema":{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"string"}}],"primaryKeys":[],"uniqueConstraints":[],"indexes":[],"foreignKeys":[],"checks":[]}]}}}],"directory":"output/library","exports":{".":"output/library/index-pJ_fWQ3z.js"},"dependencies":{},"inspections":[{"name":"@example/resources","version":1,"document":"inspect/library/index.json","schema":"inspect/library/schema.json"},{"name":"@destack/build/compile","version":1,"document":"inspect/library/build/index.json","schema":"inspect/library/build/schema.json"}]}},"files":[{"path":"destack.json","digest":"6ea2cd597c7301c3486ab374034bef6f6f3e7efb0d46a028be316cecd8ba1806","size":52,"mediaType":"application/json"},{"path":"inspect/library/build/index.json","digest":"fce48757a7cf013ae691b2863a729e91c9b98df2fdb996472fe81f3289ad3303","size":44336,"mediaType":"application/json"},{"path":"inspect/library/build/schema.json","digest":"a2cd1446870fe918e6c62369627c69c941418a6c7d168f0b46a34cb37ed42db9","size":3838,"mediaType":"application/json"},{"path":"inspect/library/index.json","digest":"7188604bc93494aaead9395ec28950a9118d6d9e6bb567e739244dece303b33d","size":14874,"mediaType":"application/json"},{"path":"inspect/library/schema.json","digest":"8cb6fe89d343f0d5af2c871bc552b0d0ba5b6a70e005d25217b8022fa5352bee","size":69163,"mediaType":"application/json"},{"path":"output/library/asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/postgresql/20260920000000_note/migration.sql","digest":"3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a","size":65,"mediaType":"application/octet-stream"},{"path":"output/library/asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/sqlite/20260920000000_note/migration.sql","digest":"3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a","size":65,"mediaType":"application/octet-stream"},{"path":"output/library/index-pJ_fWQ3z.js","digest":"8fa8ce75b63a9b81bf3789d8f85f43fe99d943eda91c60bf4e005b9c9d0872cf","size":211968,"mediaType":"text/javascript"},{"path":"output/library/index-pJ_fWQ3z.js.map","digest":"f2b7c6bd061eb87b86131c08bceaad61ebe3bffeea7ce6c7d3a101c337cd6218","size":598736,"mediaType":"application/json"},{"path":"package.json","digest":"42e96609994801e73fc829c995e4662cafb3da553880e95e9f8b786d14aac6a9","size":179,"mediaType":"application/json"},{"path":"src/index.ts","digest":"808c1ae7548ca781c21ceec12144858e2a46d61f3f5d5cbd291e72d30406d03a","size":639,"mediaType":"application/octet-stream"},{"path":"src/migration/postgresql/20260920000000_note/migration.sql","digest":"3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a","size":65,"mediaType":"application/octet-stream"},{"path":"src/migration/sqlite/20260920000000_note/migration.sql","digest":"3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a","size":65,"mediaType":"application/octet-stream"}],"sourceMaps":[{"generated":"output/library/index-pJ_fWQ3z.js","map":"output/library/index-pJ_fWQ3z.js.map"}]}
+{
+    "formatVersion": 1,
+    "package": {
+        "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
+        "name": "@example/resources",
+        "version": "1.0.0"
+    },
+    "language": "typescript",
+    "outputs": {
+        "library": {
+            "target": "server",
+            "runtime": "bun",
+            "workloads": {},
+            "declarations": [
+                {
+                    "name": "main",
+                    "kind": "resource",
+                    "symbol": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
+                            "name": "@example/resources",
+                            "version": "1.0.0"
+                        },
+                        "symbol": {
+                            "module": "src/index.ts",
+                            "name": "database"
+                        }
+                    },
+                    "source": {
+                        "file": "src/index.ts",
+                        "line": 4,
+                        "column": 24
+                    },
+                    "schema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "const": "database"
+                            },
+                            "version": {
+                                "type": "number",
+                                "const": 1
+                            },
+                            "spec": {
+                                "type": "object",
+                                "properties": {
+                                    "dialect": {
+                                        "type": "string",
+                                        "enum": [
+                                            "sqlite",
+                                            "postgresql"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "dialect"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "kind",
+                            "version",
+                            "spec"
+                        ],
+                        "additionalProperties": false
+                    },
+                    "description": {
+                        "name": "main",
+                        "kind": "database",
+                        "version": 1,
+                        "spec": {
+                            "dialect": "sqlite"
+                        }
+                    }
+                },
+                {
+                    "name": "notes",
+                    "kind": "database-schema",
+                    "symbol": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
+                            "name": "@example/resources",
+                            "version": "1.0.0"
+                        },
+                        "symbol": {
+                            "module": "src/index.ts",
+                            "name": "notes"
+                        }
+                    },
+                    "source": {
+                        "file": "src/index.ts",
+                        "line": 10,
+                        "column": 21
+                    },
+                    "schema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                            },
+                            "sqlite": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                                    },
+                                    "version": {
+                                        "type": "number",
+                                        "const": 1
+                                    },
+                                    "dialect": {
+                                        "type": "string",
+                                        "enum": [
+                                            "sqlite",
+                                            "postgresql"
+                                        ]
+                                    },
+                                    "tables": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "dialect": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "sqlite",
+                                                        "postgresql"
+                                                    ]
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "columns": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "property": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": {
+                                                                "type": "string"
+                                                            },
+                                                            "dataType": {
+                                                                "type": "string"
+                                                            },
+                                                            "mode": {
+                                                                "type": "string"
+                                                            },
+                                                            "enumValues": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "nullable": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "primaryKey": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "unique": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "uniqueName": {
+                                                                "type": "string"
+                                                            },
+                                                            "autoIncrement": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "hasDefault": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "default": {
+                                                                "type": "string"
+                                                            },
+                                                            "hasRuntimeDefault": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "hasRuntimeUpdate": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "generated": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "mode": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "virtual",
+                                                                            "stored"
+                                                                        ]
+                                                                    },
+                                                                    "expression": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "expression"
+                                                                ],
+                                                                "additionalProperties": false
+                                                            },
+                                                            "jsonSchema": {
+                                                                "type": "object",
+                                                                "propertyNames": {
+                                                                    "type": "string"
+                                                                },
+                                                                "additionalProperties": {
+                                                                    "$ref": "#/$defs/__schema0"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "property",
+                                                            "name",
+                                                            "type",
+                                                            "dataType",
+                                                            "nullable",
+                                                            "primaryKey",
+                                                            "unique",
+                                                            "autoIncrement",
+                                                            "hasDefault",
+                                                            "hasRuntimeDefault",
+                                                            "hasRuntimeUpdate"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "primaryKeys": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "columns": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "columns"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "uniqueConstraints": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "columns": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "columns"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "indexes": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "unique": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "columns": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                                "column": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "column"
+                                                                            ],
+                                                                            "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                                "expression": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "expression"
+                                                                            ],
+                                                                            "additionalProperties": false
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "where": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "unique",
+                                                            "columns"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "foreignKeys": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "columns": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "table": {
+                                                                "type": "string"
+                                                            },
+                                                            "references": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "onUpdate": {
+                                                                "type": "string"
+                                                            },
+                                                            "onDelete": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "columns",
+                                                            "table",
+                                                            "references"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "checks": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "expression": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "expression"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "dialect",
+                                                "name",
+                                                "columns",
+                                                "primaryKeys",
+                                                "uniqueConstraints",
+                                                "indexes",
+                                                "foreignKeys",
+                                                "checks"
+                                            ],
+                                            "additionalProperties": false
+                                        }
+                                    },
+                                    "trees": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "table": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "id": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "scope": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "parent": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "ancestors": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "revision": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "table",
+                                                "id",
+                                                "scope",
+                                                "parent",
+                                                "ancestors",
+                                                "revision"
+                                            ],
+                                            "additionalProperties": false
+                                        }
+                                    },
+                                    "dependencies": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "version",
+                                    "dialect",
+                                    "tables"
+                                ],
+                                "additionalProperties": false
+                            },
+                            "postgresql": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                                    },
+                                    "version": {
+                                        "type": "number",
+                                        "const": 1
+                                    },
+                                    "dialect": {
+                                        "type": "string",
+                                        "enum": [
+                                            "sqlite",
+                                            "postgresql"
+                                        ]
+                                    },
+                                    "tables": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "dialect": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "sqlite",
+                                                        "postgresql"
+                                                    ]
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "columns": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "property": {
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": {
+                                                                "type": "string"
+                                                            },
+                                                            "dataType": {
+                                                                "type": "string"
+                                                            },
+                                                            "mode": {
+                                                                "type": "string"
+                                                            },
+                                                            "enumValues": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "nullable": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "primaryKey": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "unique": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "uniqueName": {
+                                                                "type": "string"
+                                                            },
+                                                            "autoIncrement": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "hasDefault": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "default": {
+                                                                "type": "string"
+                                                            },
+                                                            "hasRuntimeDefault": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "hasRuntimeUpdate": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "generated": {
+                                                                "type": "object",
+                                                                "properties": {
+                                                                    "mode": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "virtual",
+                                                                            "stored"
+                                                                        ]
+                                                                    },
+                                                                    "expression": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "expression"
+                                                                ],
+                                                                "additionalProperties": false
+                                                            },
+                                                            "jsonSchema": {
+                                                                "type": "object",
+                                                                "propertyNames": {
+                                                                    "type": "string"
+                                                                },
+                                                                "additionalProperties": {
+                                                                    "$ref": "#/$defs/__schema0"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "property",
+                                                            "name",
+                                                            "type",
+                                                            "dataType",
+                                                            "nullable",
+                                                            "primaryKey",
+                                                            "unique",
+                                                            "autoIncrement",
+                                                            "hasDefault",
+                                                            "hasRuntimeDefault",
+                                                            "hasRuntimeUpdate"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "primaryKeys": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "columns": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "columns"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "uniqueConstraints": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "columns": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "columns"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "indexes": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "unique": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "columns": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                                "column": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "column"
+                                                                            ],
+                                                                            "additionalProperties": false
+                                                                        },
+                                                                        {
+                                                                            "type": "object",
+                                                                            "properties": {
+                                                                                "expression": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "expression"
+                                                                            ],
+                                                                            "additionalProperties": false
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "where": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "unique",
+                                                            "columns"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "foreignKeys": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "columns": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "table": {
+                                                                "type": "string"
+                                                            },
+                                                            "references": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "onUpdate": {
+                                                                "type": "string"
+                                                            },
+                                                            "onDelete": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "columns",
+                                                            "table",
+                                                            "references"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                },
+                                                "checks": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "expression": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "expression"
+                                                        ],
+                                                        "additionalProperties": false
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "dialect",
+                                                "name",
+                                                "columns",
+                                                "primaryKeys",
+                                                "uniqueConstraints",
+                                                "indexes",
+                                                "foreignKeys",
+                                                "checks"
+                                            ],
+                                            "additionalProperties": false
+                                        }
+                                    },
+                                    "trees": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "table": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "id": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "scope": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "parent": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "ancestors": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "revision": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "table",
+                                                "id",
+                                                "scope",
+                                                "parent",
+                                                "ancestors",
+                                                "revision"
+                                            ],
+                                            "additionalProperties": false
+                                        }
+                                    },
+                                    "dependencies": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "pattern": "^[a-z][a-z0-9-]*$(?![\\s\\S])"
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "version",
+                                    "dialect",
+                                    "tables"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "sqlite",
+                            "postgresql"
+                        ],
+                        "additionalProperties": false,
+                        "$defs": {
+                            "__schema0": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "type": "null"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/$defs/__schema0"
+                                        }
+                                    },
+                                    {
+                                        "type": "object",
+                                        "propertyNames": {
+                                            "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                            "$ref": "#/$defs/__schema0"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": {
+                        "name": "notes",
+                        "sqlite": {
+                            "name": "notes",
+                            "version": 1,
+                            "dialect": "sqlite",
+                            "tables": [
+                                {
+                                    "dialect": "sqlite",
+                                    "name": "note",
+                                    "columns": [
+                                        {
+                                            "property": "id",
+                                            "name": "id",
+                                            "type": "integer",
+                                            "dataType": "integer",
+                                            "nullable": false,
+                                            "primaryKey": true,
+                                            "unique": false,
+                                            "autoIncrement": false,
+                                            "hasDefault": false,
+                                            "hasRuntimeDefault": false,
+                                            "hasRuntimeUpdate": false,
+                                            "jsonSchema": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "type": "integer",
+                                                "minimum": -9007199254740991,
+                                                "maximum": 9007199254740991
+                                            }
+                                        },
+                                        {
+                                            "property": "title",
+                                            "name": "title",
+                                            "type": "text",
+                                            "dataType": "text",
+                                            "nullable": false,
+                                            "primaryKey": false,
+                                            "unique": false,
+                                            "autoIncrement": false,
+                                            "hasDefault": false,
+                                            "hasRuntimeDefault": false,
+                                            "hasRuntimeUpdate": false,
+                                            "jsonSchema": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "type": "string"
+                                            }
+                                        }
+                                    ],
+                                    "primaryKeys": [],
+                                    "uniqueConstraints": [],
+                                    "indexes": [],
+                                    "foreignKeys": [],
+                                    "checks": []
+                                }
+                            ]
+                        },
+                        "postgresql": {
+                            "name": "notes",
+                            "version": 1,
+                            "dialect": "postgresql",
+                            "tables": [
+                                {
+                                    "dialect": "postgresql",
+                                    "name": "note",
+                                    "columns": [
+                                        {
+                                            "property": "id",
+                                            "name": "id",
+                                            "type": "bigint",
+                                            "dataType": "integer",
+                                            "nullable": false,
+                                            "primaryKey": true,
+                                            "unique": false,
+                                            "autoIncrement": false,
+                                            "hasDefault": false,
+                                            "hasRuntimeDefault": false,
+                                            "hasRuntimeUpdate": false,
+                                            "jsonSchema": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "type": "integer",
+                                                "minimum": -9007199254740991,
+                                                "maximum": 9007199254740991
+                                            }
+                                        },
+                                        {
+                                            "property": "title",
+                                            "name": "title",
+                                            "type": "text",
+                                            "dataType": "text",
+                                            "nullable": false,
+                                            "primaryKey": false,
+                                            "unique": false,
+                                            "autoIncrement": false,
+                                            "hasDefault": false,
+                                            "hasRuntimeDefault": false,
+                                            "hasRuntimeUpdate": false,
+                                            "jsonSchema": {
+                                                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                                                "type": "string"
+                                            }
+                                        }
+                                    ],
+                                    "primaryKeys": [],
+                                    "uniqueConstraints": [],
+                                    "indexes": [],
+                                    "foreignKeys": [],
+                                    "checks": []
+                                }
+                            ]
+                        }
+                    }
+                }
+            ],
+            "directory": "output/library",
+            "exports": {
+                ".": "output/library/index-BJXAoba_.js"
+            },
+            "dependencies": {},
+            "inspections": [
+                {
+                    "name": "@example/resources",
+                    "version": 1,
+                    "document": "inspect/library/index.json",
+                    "schema": "inspect/library/schema.json"
+                },
+                {
+                    "name": "@destack/build/compile",
+                    "version": 1,
+                    "document": "inspect/library/build/index.json",
+                    "schema": "inspect/library/build/schema.json"
+                }
+            ]
+        }
+    },
+    "files": [
+        {
+            "path": "destack.json",
+            "digest": "b873c9c5b647ea0840d501a87eee5a523775c212539900494cf0509b80388dfd",
+            "size": 110,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/library/build/index.json",
+            "digest": "ddd639af02c5ebc2966e1ed04b6a35bfefeb604dbcb4cf307707693d055f5e79",
+            "size": 44546,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/library/build/schema.json",
+            "digest": "66e3aa5acb5ee1f8fa0d91f5589b23280f551fd9cb7a7385f391673caa049813",
+            "size": 4098,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/library/index.json",
+            "digest": "cbaf4b3d84ce6e7ecd664ba013600a382be7c078ff84063d40647d50ec7219f7",
+            "size": 16506,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "inspect/library/schema.json",
+            "digest": "7ee76e96eb37bbe2185b5ea91cbc3495f7848a02f8977f674628bbe2617a6e07",
+            "size": 81316,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "output/library/asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/postgresql/20260920000000_note/migration.sql",
+            "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
+            "size": 65,
+            "mediaType": "application/octet-stream"
+        },
+        {
+            "path": "output/library/asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/sqlite/20260920000000_note/migration.sql",
+            "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
+            "size": 65,
+            "mediaType": "application/octet-stream"
+        },
+        {
+            "path": "output/library/index-BJXAoba_.js",
+            "digest": "b89563b29ffa7397bc5e532e71d043ddedf81458f8f25b710ecdb55b2aa2ac5e",
+            "size": 211930,
+            "mediaType": "text/javascript"
+        },
+        {
+            "path": "output/library/index-BJXAoba_.js.map",
+            "digest": "24f5a64d302e9bb429a488d3c526c9336d2a2df874745f05df1e3b11ac6fe8bd",
+            "size": 599928,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "package.json",
+            "digest": "42e96609994801e73fc829c995e4662cafb3da553880e95e9f8b786d14aac6a9",
+            "size": 179,
+            "mediaType": "application/json"
+        },
+        {
+            "path": "src/index.ts",
+            "digest": "808c1ae7548ca781c21ceec12144858e2a46d61f3f5d5cbd291e72d30406d03a",
+            "size": 639,
+            "mediaType": "application/octet-stream"
+        },
+        {
+            "path": "src/migration/postgresql/20260920000000_note/migration.sql",
+            "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
+            "size": 65,
+            "mediaType": "application/octet-stream"
+        },
+        {
+            "path": "src/migration/sqlite/20260920000000_note/migration.sql",
+            "digest": "3a7e45e0c68fe1b6319acc51d4ed515ae88d87c97234731f0d517f358091015a",
+            "size": 65,
+            "mediaType": "application/octet-stream"
+        }
+    ],
+    "sourceMaps": [
+        {
+            "generated": "output/library/index-BJXAoba_.js",
+            "map": "output/library/index-BJXAoba_.js.map"
+        }
+    ]
+}

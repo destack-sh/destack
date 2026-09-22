@@ -1,4 +1,5 @@
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { readFile } from "node:fs/promises";
 import {
     type Project,
     type Symbol as TypeScriptSymbol,
@@ -17,7 +18,7 @@ import {
 } from "typescript/unstable/ast";
 import { toJsonSchema } from "@destack/schema";
 import type { DeclarationDescription, BuildDescription } from "@destack/package/inspect";
-import type { Package } from "@destack/package";
+import { Package } from "@destack/package";
 import { BuildError } from "../error/index.ts";
 import { type InspectorName, INSPECTORS } from "./inspector.ts";
 import { modulePackage } from "../source/dependency.ts";
@@ -39,7 +40,7 @@ export async function collectDeclarations(
     source: SourceFile,
     file: string,
     project: Project,
-    owner: Package,
+    sourcePackage: Awaited<ReturnType<typeof modulePackage>>,
 ): Promise<Declaration[]> {
     // collect calls before resolving constructor symbols in one request
     const declarations: Declaration[] = [];
@@ -62,6 +63,16 @@ export async function collectDeclarations(
     if (inspectors.every((inspector) => inspector === undefined)) {
         return declarations;
     }
+
+    // resolve stable identity only for packages exporting Destack declarations
+    const definition = JSON.parse(
+        await readFile(join(sourcePackage.directory, "destack.json"), "utf8"),
+    );
+    const owner = Package.parse({
+        id: definition.id,
+        name: sourcePackage.name,
+        version: sourcePackage.version,
+    });
 
     // identify exports through the compiler, including export lists and aliases
     const module = await project.checker.getSymbolAtLocation(source);
@@ -190,7 +201,7 @@ export function selectDeclarations(
     // retain authored declarations and only the dependencies used by this output
     return declarations.filter((declaration) => {
         const owner = declaration.symbol.package;
-        if (owner.name === source.name && owner.version === source.version) {
+        if (owner.id === source.id && owner.version === source.version) {
             return true;
         }
 

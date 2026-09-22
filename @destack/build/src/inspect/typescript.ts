@@ -1,5 +1,6 @@
 import { BuildError } from "../error/index.ts";
-import { readFileSync, realpathSync } from "node:fs";
+import { realpathSync } from "node:fs";
+import { readFile, realpath } from "node:fs/promises";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { version } from "typescript";
 import {
@@ -16,6 +17,7 @@ import {
     SyntaxKind,
 } from "typescript/unstable/ast";
 import { DependencySymbol, ModuleDescription } from "@destack/package/code";
+import { Package, DependencyPackage } from "@destack/package/package";
 import { SymbolInspector } from "./symbol.ts";
 import { describeFile } from "@destack/package/file";
 import type { TestDeclaration } from "@destack/test/inspect";
@@ -58,7 +60,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
     /** Inspect a configuration after notifying the compiler of changed files. */
     async inspect(configuration: string): Promise<TypeScriptInspection> {
         // refresh the selected configuration
-        configuration = realpathSync(resolve(this.directory, configuration));
+        configuration = await realpath(resolve(this.directory, configuration));
 
         // refresh client ASTs while the native compiler retains incremental project state
         this.#api.clearSourceFileCache();
@@ -153,12 +155,7 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
         // associate domain declarations with their declaring package
         const owner = await modulePackage(dirname(file));
         const path = relative(owner.directory, file).split(sep).join("/");
-        declarations.push(
-            ...(await collectDeclarations(source, path, project, {
-                name: owner.name,
-                version: owner.version,
-            })),
-        );
+        declarations.push(...(await collectDeclarations(source, path, project, owner)));
     }
 
     // collect modules before resolving declarations reached through reexports
@@ -173,17 +170,17 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
         tests.push(...(await collectTests(source, path, project)));
 
         // require source bytes to match the compiler snapshot
-        const bytes = new Uint8Array(readFileSync(file));
+        const bytes = new Uint8Array(await readFile(file));
         const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         if (text !== source.text) {
             throw new BuildError("INSPECTION_FAILED", `Source changed during inspection: ${path}`);
         }
 
-        // describe imports and globals before following exported symbols
+        // register every module before following references between declarations
         sources.set(path, bytes);
         modules.set(path, {
             path,
-            globals: await collectGlobals(source, project, path, inspector.reference),
+            globals: [],
             errors: [],
             source: await describeFile(path, "text/plain", bytes),
             length: source.text.length,
@@ -206,8 +203,9 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
             throw new BuildError("INSPECTION_FAILED", `Missing compiler source: ${file}`);
         }
 
-        // collect errors and resolve the module symbol
+        // resolve globals and errors after every authored module has been registered
         const module = modules.get(relative(root, file).split(sep).join("/"))!;
+        module.globals = await collectGlobals(source, project, module.path, inspector.reference);
         module.errors = await inspectErrors(source, inspector);
         const symbol = await project.checker.getSymbolAtLocation(source);
         if (!symbol) {
@@ -402,36 +400,32 @@ async function describeSymbol(
 
     // resolve external declarations against their package metadata
     if (!contains(root, file) || relative(root, file).split(sep).includes("node_modules")) {
-        let directory = dirname(file);
-        while (true) {
-            try {
-                const metadata = JSON.parse(
-                    readFileSync(resolve(directory, "package.json"), "utf8"),
-                );
+        const metadata = await modulePackage(dirname(file));
+        let definition: string | undefined;
 
-                // nested package scopes can declare only their module format
-                if (metadata.name !== undefined || metadata.version !== undefined) {
-                    return DependencySymbol.parse({
-                        package: { name: metadata.name, version: metadata.version },
-                        symbol: {
-                            module: relative(directory, file).split(sep).join("/"),
-                            name,
-                        },
-                    });
-                }
-            } catch (error) {
-                if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
-                    throw error;
-                }
+        // read optional Destack metadata once and preserve every other filesystem failure
+        try {
+            definition = await readFile(resolve(metadata.directory, "destack.json"), "utf8");
+        } catch (error) {
+            if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+                throw error;
             }
-
-            // continue through nested package scopes
-            const parent = dirname(directory);
-            if (parent === directory) {
-                throw new BuildError("INSPECTION_FAILED", `No package metadata for ${file}`);
-            }
-            directory = parent;
         }
+
+        // retain stable identity for Destack packages and registry identity for npm packages
+        const identity = { name: metadata.name, version: metadata.version };
+        const owner =
+            definition === undefined
+                ? DependencyPackage.parse(identity)
+                : Package.parse({ ...identity, id: JSON.parse(definition).id });
+
+        return DependencySymbol.parse({
+            package: owner,
+            symbol: {
+                module: relative(metadata.directory, file).split(sep).join("/"),
+                name,
+            },
+        });
     }
 
     // retain the original declaration once when several modules reexport it

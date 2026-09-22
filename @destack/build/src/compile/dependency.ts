@@ -8,22 +8,12 @@ import { BuildError } from "../error/index.ts";
 import { type PackageSource } from "../source/index.ts";
 import { describeFile } from "@destack/package/file";
 import { BuildDescription } from "@destack/package/inspect";
-import { PackageDefinition } from "@destack/package";
+import { Package, PackageDefinition } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { modulePackage } from "../source/dependency.ts";
 import { isBuiltin } from "node:module";
 import { type OutputBundle, RUNTIME_MODULE_ID } from "rolldown";
 import { type ESTree, Visitor } from "rolldown/utils";
-
-/** The compiler inspection document stored beside package inspection. */
-const BuildInspection = schema.object({
-    /** The compiler inspection format. */
-    name: schema.literal("@destack/build/compile"),
-    /** The compiler inspection format version. */
-    version: schema.literal(1),
-    /** Resolved dependencies and compiler input and output relationships. */
-    descriptions: BuildDescription,
-});
 
 /** A parsed module's source package and path. */
 export interface ModuleSource {
@@ -123,9 +113,22 @@ export function dependencyPlugin(
             }
             const directory = dirname(path);
             const source = await resolver.package(directory);
-            const declared = (await resolver.definition(source.directory))?.runtimes;
+            const definition = await resolver.definition(source.directory);
+            const declared = definition?.runtimes;
             const localPath = relative(source.directory, path).split(sep).join("/");
             const query = module.id.slice(path.length);
+
+            // index physical asset paths used without import queries by Vite's manifest
+            if (query) {
+                locations.set(path, {
+                    kind: "source",
+                    path: localPath,
+                    ...(source.directory === project.directory
+                        ? {}
+                        : { package: `${source.name}@${source.version}` }),
+                });
+            }
+
             if (source.directory === project.directory) {
                 const unresolved = unresolvedImports(this.parse(module.code));
                 locations.set(module.id, {
@@ -158,7 +161,11 @@ export function dependencyPlugin(
                 if (!snapshot) {
                     snapshot = {
                         kind: "source",
-                        package: { name: source.name, version: source.version },
+                        package: Package.parse({
+                            id: definition?.id,
+                            name: source.name,
+                            version: source.version,
+                        }),
                         files: [],
                     };
                     description.packages[key] = snapshot;
@@ -524,11 +531,17 @@ export function unresolvedImports(ast: ESTree.Program): string[] {
 
 /** Serialize the compiler's input and output graph. */
 export function serializeBuild(description: BuildDescription, directory: string) {
-    const document: schema.Infer<typeof BuildInspection> = {
+    // describe the versioned document containing the compiler graph
+    const documentSchema = schema.object({
+        name: schema.literal("@destack/build/compile"),
+        version: schema.literal(1),
+        descriptions: BuildDescription,
+    });
+    const document: schema.Infer<typeof documentSchema> = {
         name: "@destack/build/compile",
         version: 1,
         descriptions: description,
     };
 
-    return serializeInspection({ ...document, schema: toJsonSchema(BuildInspection) }, directory);
+    return serializeInspection({ ...document, schema: toJsonSchema(documentSchema) }, directory);
 }

@@ -6971,6 +6971,64 @@ function fallbackContractConfig(key, value) {
 	if (value === void 0) return DEFAULT_CONFIG$1[key];
 	return value;
 }
+/** A canonical package-relative path using slash separators. */
+var PackagePath = defineSchema(string().regex(/^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/));
+/** A SHA-256 digest encoded as lowercase hexadecimal. */
+var Digest = defineSchema(string().length(64).regex(/^[a-f0-9]{64}$/));
+defineSchema(strictObject({
+	/** The path relative to the source or build root. */
+	path: PackagePath,
+	/** The SHA-256 digest of the file bytes. */
+	digest: Digest,
+	/** The file size in bytes. */
+	size: number().int().min(0),
+	/** The file's media type. */
+	mediaType: string().min(1)
+}));
+/** The immutable identity retained across package renames and releases. */
+var PackageId = identifier("package");
+/** A scoped Destack package name. */
+var PackageName = defineSchema(string().max(214).regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
+defineSchema(strictObject({
+	name: defineSchema(string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/)),
+	version: string().min(1)
+}));
+/** The immutable identity, current name and version declared by a Destack package. */
+var Package = defineSchema(strictObject({
+	/** The identity retained across renames and releases. */
+	id: PackageId,
+	/** The package name, qualified by its owner. */
+	name: PackageName,
+	/** The package version. */
+	version: string().min(1)
+}));
+defineSchema(strictObject({
+	/** The released package name and version. */
+	package: Package,
+	/** The digest of its immutable build manifest. */
+	manifest: Digest
+}));
+/** A stable declaration-local name used by access rules. */
+var AccessName = string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
+defineSchema(strictObject({
+	/** The package that declares the object type. */
+	packageId: PackageId,
+	/** The declaration-local object type name. */
+	type: AccessName,
+	/** The authority scope containing the object. */
+	scope: string().min(1),
+	/** The stable application record identity. */
+	id: string().min(1)
+}));
+/** A stable reference to a declared permission, independent of a package version. */
+var PermissionReference = defineSchema(strictObject({
+	/** The package that declares the permission. */
+	packageId: PackageId,
+	/** The declaration-local object type name. */
+	type: AccessName,
+	/** The permission name within that object type. */
+	name: AccessName
+}));
 /** Access and audit requirements interpreted by the service's middleware. */
 var ProcedureAccess = strictObject({
 	/** Credentials required before invoking the procedure. */
@@ -6979,11 +7037,8 @@ var ProcedureAccess = strictObject({
 		"identity",
 		"host"
 	]),
-	/** Resource type and action checked in the request's authorized scope. */
-	permission: strictObject({
-		resource: string().min(1),
-		action: string().min(1)
-	}).nullable(),
+	/** The declared permission checked in the request's authorized scope. */
+	permission: PermissionReference.nullable(),
 	/** Whether successful and failed attempts require security audit records. */
 	audit: boolean()
 });
@@ -8288,36 +8343,6 @@ function extractContext(headers, propagator = propagation) {
 		get: (headers, name) => headers.get(name) ?? void 0
 	});
 }
-/** A canonical package-relative path using slash separators. */
-var PackagePath = defineSchema(string().regex(/^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/));
-/** A SHA-256 digest encoded as lowercase hexadecimal. */
-var Digest = defineSchema(string().length(64).regex(/^[a-f0-9]{64}$/));
-defineSchema(strictObject({
-	/** The path relative to the source or build root. */
-	path: PackagePath,
-	/** The SHA-256 digest of the file bytes. */
-	digest: Digest,
-	/** The file size in bytes. */
-	size: number().int().min(0),
-	/** The file's media type. */
-	mediaType: string().min(1)
-}));
-/** A scoped Destack package name. */
-var PackageName = defineSchema(string().max(214).regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
-defineSchema(string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
-/** The name and version declared by a package. */
-var Package = defineSchema(strictObject({
-	/** The package name, qualified by its owner. */
-	name: PackageName,
-	/** The package version. */
-	version: string().min(1)
-}));
-defineSchema(strictObject({
-	/** The released package name and version. */
-	package: Package,
-	/** The digest of its immutable build manifest. */
-	manifest: Digest
-}));
 /** Obtain package instruments from the providers registered by the host. */
 function scope(source) {
 	return {
@@ -8355,6 +8380,7 @@ var package_default = {
 	},
 	devDependencies: { "@destack/test": "workspace:*" },
 	dependencies: {
+		"@destack/package": "workspace:*",
 		"@destack/schema": "workspace:*",
 		"@destack/telemetry": "workspace:*",
 		"@orpc/shared": "1.15.1",
@@ -8363,11 +8389,26 @@ var package_default = {
 		"@orpc/openapi": "1.15.1",
 		"@orpc/openapi-client": "1.15.1",
 		"@orpc/server": "1.15.1",
-		"@destack/resource": "workspace:*"
+		"@destack/resource": "workspace:*",
+		"@destack/access": "workspace:*"
 	}
 };
+var destack_default = {
+	id: "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+	language: "typescript",
+	targets: ["browser", "server"],
+	runtimes: [
+		"browser",
+		"bun",
+		"workerd"
+	]
+};
 /** Service failure instrumentation. */
-var instruments$1 = scope(package_default);
+var instruments$1 = scope(Package.parse({
+	id: destack_default.id,
+	name: package_default.name,
+	version: package_default.version
+}));
 /** Record unexpected failures and return an error safe to send to clients. */
 function reportError(error) {
 	if (error instanceof ORPCError && error.status < 500) return error;
@@ -9780,6 +9821,12 @@ async function recordAudit(event, audit) {
 		throw reportError(event.error !== void 0 ? new AggregateError([event.error, error], "Procedure failure audit failed.") : error);
 	}
 }
+/** The package declaring service instrumentation. */
+var manifest = Package.parse({
+	id: destack_default.id,
+	name: package_default.name,
+	version: package_default.version
+});
 /** Record complete RPC calls, including streamed results. */
 var ServiceTelemetry = class {
 	/** Call durations in seconds. */
@@ -9790,7 +9837,7 @@ var ServiceTelemetry = class {
 	constructor(kind) {
 		instrumentService();
 		this.#kind = kind === "client" ? SpanKind.CLIENT : SpanKind.SERVER;
-		this.#duration = scope(package_default).meter.createHistogram(`rpc.${kind}.call.duration`, {
+		this.#duration = scope(manifest).meter.createHistogram(`rpc.${kind}.call.duration`, {
 			unit: "s",
 			advice: { explicitBucketBoundaries: [
 				.005,
@@ -9816,7 +9863,7 @@ var ServiceTelemetry = class {
 			"rpc.system.name": "orpc",
 			"rpc.method": path.join("/")
 		};
-		return scope(package_default).tracer.startActiveSpan(path.join("/"), {
+		return scope(manifest).tracer.startActiveSpan(path.join("/"), {
 			kind: this.#kind,
 			attributes
 		}, (span) => this.#invoke(next, attributes, span));
@@ -10063,6 +10110,7 @@ function defineAuditAction(action) {
 /** Record a published note under its declaring package. */
 var publishNote = defineAuditAction({
 	package: { "package": {
+		"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
 		"name": "@destack/build-service-fixture",
 		"version": "2026.9.0"
 	} }.package,
@@ -10076,6 +10124,7 @@ var publishNote = defineAuditAction({
 });
 /** Package instruments initialized from build-injected metadata. */
 var instruments = scope({ "package": {
+	"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
 	"name": "@destack/build-service-fixture",
 	"version": "2026.9.0"
 } }.package);
@@ -10158,4 +10207,4 @@ function remind(occurrence) {
 }
 export { appointment, database, fetch, publishNote, refresh, remind, reminders, router, service, token, vault };
 
-//# sourceMappingURL=server-BueUPe3k.js.map
+//# sourceMappingURL=server-DQhgk_GB.js.map

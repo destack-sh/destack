@@ -1,4 +1,4 @@
-import { readdir, readFile, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { readdir, readFile, realpath, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { createBuilder } from "vite";
 import { type StartOptions } from "@solidjs/vite-plugin";
@@ -303,7 +303,7 @@ export async function compileApplication(
 async function stagePackage(
     source: PackageSource,
 ): Promise<AsyncDisposable & { directory: string }> {
-    const directory = await mkdtemp(join(tmpdir(), "destack-build-"));
+    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-")));
 
     // link package inputs while reserving the framework's output directory
     try {

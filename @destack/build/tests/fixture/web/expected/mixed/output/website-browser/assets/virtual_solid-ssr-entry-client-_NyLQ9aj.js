@@ -1028,6 +1028,14 @@ function childId(e, t) {
 */ function inheritId(e, t, n) {
 	return e?.id ?? (t ? n?.id : n?.id != null ? getNextChildId(n) : void 0);
 }
+/**
+* Returns the *next* child id for `owner` without consuming it. Used by
+* hydration plumbing to peek at the id a future child will receive.
+*
+* @internal
+*/ function peekNextChildId(e) {
+	return childId(e, false);
+}
 function formatId(e, t) {
 	const n = t.toString(36), i = n.length - 1;
 	return e + (i ? String.fromCharCode(64 + i) : "") + n;
@@ -1660,6 +1668,49 @@ function ownerInSnapshotScope(e) {
 		e = e.qe;
 	}
 	return false;
+}
+function setSnapshotCapture(e) {
+	snapshotCaptureActive = e;
+	if (e && !snapshotSources) snapshotSources = /* @__PURE__ */ new Set();
+}
+function markSnapshotScope(e) {
+	e.Me = true;
+}
+function releaseSnapshotScope(e) {
+	e.Me = false;
+	releaseSubtree(e);
+	schedule();
+}
+function releaseSubtree(e) {
+	let t = e.Ye;
+	while (t) {
+		if (t.Me) {
+			t = t.Ze;
+			continue;
+		}
+		if (t.oe) {
+			const e = t;
+			e.T &= -9;
+			if (e.ie & 256) {
+				e.ie &= -257;
+				e.ie |= 2;
+				if (dirtyQueue.Ke > e.Be) dirtyQueue.Ke = e.Be;
+				insertIntoHeap(e, dirtyQueue);
+			}
+		}
+		releaseSubtree(t);
+		t = t.Ze;
+	}
+}
+function clearSnapshots() {
+	if (snapshotSources) {
+		for (const e of snapshotSources) {
+			delete e.o?.ze;
+			if (e["sp"] !== void 0) e["sp"] = void 0;
+		}
+		snapshotSources = null;
+	}
+	snapshotCaptureActive = false;
 }
 function recompute(e, t = false) {
 	bumpNotifyEpoch();
@@ -2775,16 +2826,473 @@ var $SOURCES = Symbol(0);
 * live on the object, not in the sources, so it must be read directly. */ function mergeSources(e) {
 	return e != null && e[$PROXY] === e ? e[$SOURCES] : void 0;
 }
+var NoHydrateContext = {
+	id: Symbol("NoHydrateContext"),
+	defaultValue: false
+};
 var sharedConfig = {
 	hydrating: false,
 	registry: void 0,
 	done: false
 };
+function hydrationGetNextContextId() {
+	const o = getOwner();
+	if (!o) throw new Error(`getNextContextId cannot be used under non-hydrating context`);
+	if (getContext(NoHydrateContext)) return void 0;
+	return getNextChildId(o);
+}
+var _hydrationEndCallbacks = null;
+var _pendingBoundaries = 0;
+var _hydrationDone = false;
+var _snapshotRootOwner = null;
+function markTopLevelSnapshotScope() {
+	if (_snapshotRootOwner) return;
+	let owner = getOwner();
+	if (!owner) return;
+	while (owner._parent) owner = owner._parent;
+	markSnapshotScope(owner);
+	_snapshotRootOwner = owner;
+}
+function isHydrationInProgress() {
+	return !_hydrationDone && (sharedConfig.hydrating || _pendingBoundaries > 0);
+}
+function onHydrationEnd(callback) {
+	if (_hydrationDone || !sharedConfig.hydrating && _pendingBoundaries === 0) {
+		queueMicrotask(callback);
+		return;
+	}
+	if (!_hydrationEndCallbacks) _hydrationEndCallbacks = [];
+	_hydrationEndCallbacks.push(callback);
+}
+function drainHydrationCallbacks() {
+	if (_hydrationDone) return;
+	_hydrationDone = true;
+	_doneValue = true;
+	clearSnapshots();
+	setSnapshotCapture(false);
+	flush();
+	const cbs = _hydrationEndCallbacks;
+	_hydrationEndCallbacks = null;
+	if (cbs) for (const cb of cbs) cb();
+	setTimeout(() => {
+		if (globalThis._$HY) globalThis._$HY.done = true;
+		sharedConfig.registry?.clear();
+	});
+}
+function checkHydrationComplete() {
+	if (!_hydratingValue && _pendingBoundaries === 0) drainHydrationCallbacks();
+}
+var _hydratingValue = false;
+var _doneValue = false;
+var _createSignal;
+var _createErrorBoundary;
+var _createRenderEffect;
+var MockPromise = /* @__PURE__ */ (() => {
+	class MockPromise {
+		catch() {
+			return new MockPromise();
+		}
+		then() {
+			return new MockPromise();
+		}
+		finally() {
+			return new MockPromise();
+		}
+	}
+	for (const k of [
+		"all",
+		"allSettled",
+		"any",
+		"race",
+		"reject",
+		"resolve"
+	]) MockPromise[k] = () => new MockPromise();
+	return MockPromise;
+})();
+function subFetch(fn, prev) {
+	const ogFetch = fetch;
+	const ogPromise = Promise;
+	try {
+		window.fetch = () => new MockPromise();
+		Promise = MockPromise;
+		const result = fn(prev);
+		if (result && typeof result[Symbol.asyncIterator] === "function") result[Symbol.asyncIterator]().next();
+		if (result && typeof result.then === "function") result.then(void 0, () => {});
+		return result;
+	} finally {
+		window.fetch = ogFetch;
+		Promise = ogPromise;
+	}
+}
+function syncThenable(value) {
+	return { then(fn) {
+		fn(value);
+	} };
+}
+function readHydratedValue(initP, refresh, options) {
+	refresh();
+	if (initP != null && typeof initP === "object") {
+		if (hasLoadingWindow(options) && typeof initP.then === "function") return { then: initP.then.bind(initP) };
+		if (initP.s === 2) {
+			if (typeof initP.then === "function") initP.then(void 0, () => {});
+			throw initP.v;
+		}
+		if (initP.s === 1) return initP.v;
+	}
+	return initP;
+}
+var latchedOnce = /* @__PURE__ */ new WeakSet();
+function readSerializedOrCompute(compute, prev, options) {
+	const o = getOwner();
+	if (sharedConfig.done || !sharedConfig.has(o.id)) return compute(prev);
+	if (latchedOnce.has(o)) {
+		if (options?.ssrSource !== "hybrid") armLiveTakeover();
+	} else latchedOnce.add(o);
+	return readHydratedValue(sharedConfig.load(o.id), () => {
+		const traced = subFetch(compute, prev);
+		if (options?.ssrSource !== "hybrid" && traced != null && traced[LIVE_SOURCE]) armLiveTakeover();
+		return traced;
+	}, options);
+}
+var UNASKED = { then() {} };
+var LIVE_SOURCE = Symbol.for("solid.LiveSource");
+var liveGate;
+function armLiveTakeover() {
+	if (!liveGate) {
+		const [read, write] = createSignal$1(false);
+		liveGate = read;
+		onHydrationEnd(() => {
+			liveGate = void 0;
+			write(true);
+		});
+	}
+	liveGate();
+}
+function hasLoadingWindow(options) {
+	return options != null && typeof options === "object" && ("loadingValue" in options || options.seedLoadingValue === true);
+}
+function forwardIteratorReturn(it, value) {
+	const returned = it.return?.(value);
+	return returned && typeof returned.then === "function" ? returned : syncThenable(returned ?? {
+		done: true,
+		value
+	});
+}
+function normalizeIterator(it, deferFirst) {
+	let first = true;
+	let buffered = null;
+	return {
+		next() {
+			if (first) {
+				first = false;
+				const r = it.next();
+				if (r && typeof r.then === "function") return r;
+				return deferFirst ? Promise.resolve(r) : syncThenable(r);
+			}
+			if (buffered) {
+				const b = buffered;
+				buffered = null;
+				return b;
+			}
+			let latest = it.next();
+			if (latest && typeof latest.then === "function") return latest;
+			let result = latest;
+			while (!latest.done) {
+				const peek = it.next();
+				if (peek && typeof peek.then === "function") {
+					buffered = peek;
+					break;
+				}
+				latest = peek;
+				if (!latest.done) result = latest;
+				else if (result !== latest) buffered = Promise.resolve(latest);
+			}
+			return Promise.resolve(result);
+		},
+		return(value) {
+			buffered = null;
+			return forwardIteratorReturn(it, value);
+		}
+	};
+}
+function isAsyncIterable(v) {
+	return v != null && typeof v[Symbol.asyncIterator] === "function";
+}
+function hydrateSignalFromAsyncIterable(coreFn, compute, options) {
+	const expectedId = peekNextChildId(getOwner());
+	if (!sharedConfig.has(expectedId)) return null;
+	const loaded = sharedConfig.load(expectedId);
+	if (!isAsyncIterable(loaded)) return null;
+	const base = normalizeIterator(loaded[Symbol.asyncIterator](), hasLoadingWindow(options));
+	let terminal = false;
+	const it = {
+		next() {
+			const p = base.next();
+			return { then(res, rej) {
+				return p.then((r) => {
+					if (r.done) terminal = true;
+					return res(r);
+				}, (e) => {
+					terminal = true;
+					if (rej) return rej(e);
+					throw e;
+				});
+			} };
+		},
+		return(value) {
+			return base.return(value);
+		}
+	};
+	const iterable = { [Symbol.asyncIterator]() {
+		return it;
+	} };
+	return coreFn((prev) => {
+		if (terminal) return compute(prev);
+		subFetch(compute, prev);
+		return iterable;
+	}, options);
+}
+function withHydrationGate(create) {
+	const [hydrated, setHydrated] = createSignal$1(false, { ownedWrite: true });
+	const result = create(hydrated);
+	setHydrated(true);
+	return result;
+}
+function hydrateSignalLike(coreFn, fn, options) {
+	markTopLevelSnapshotScope();
+	const ssrSource = options?.ssrSource;
+	if (ssrSource === "client") return withHydrationGate((hydrated) => coreFn((prev) => {
+		if (!hydrated()) return UNASKED;
+		return fn(prev);
+	}, options));
+	if (ssrSource === "hybrid" && sharedConfig.has(peekNextChildId(getOwner()))) {
+		let takeover = false;
+		const detect = (prev) => {
+			const r = fn(prev);
+			takeover = isAsyncIterable(r);
+			return r;
+		};
+		return withHydrationGate((hydrated) => coreFn((prev) => {
+			if (hydrated() && takeover) return fn(prev);
+			return readSerializedOrCompute(detect, prev, options);
+		}, options));
+	}
+	const aiResult = hydrateSignalFromAsyncIterable(coreFn, fn, options);
+	if (aiResult !== null) return aiResult;
+	return coreFn((prev) => readSerializedOrCompute(fn, prev, options), options);
+}
+function hydratedCreateSignal(fn, second) {
+	if (typeof fn !== "function" || !sharedConfig.hydrating) return createSignal$1(fn, second);
+	return hydrateSignalLike(createSignal$1, fn, second);
+}
+function hydratedCreateErrorBoundary(fn, fallback) {
+	if (!sharedConfig.hydrating) return createErrorBoundary$1(fn, fallback);
+	markTopLevelSnapshotScope();
+	const expectedId = peekNextChildId(getOwner());
+	if (sharedConfig.has(expectedId)) {
+		const err = sharedConfig.load(expectedId);
+		if (err !== void 0) {
+			let hydrated = true;
+			return createErrorBoundary$1(() => {
+				if (hydrated) {
+					hydrated = false;
+					throw err;
+				}
+				return fn();
+			}, fallback);
+		}
+	}
+	return createErrorBoundary$1(fn, fallback);
+}
+function hydratedEffect(coreFn, compute, effectFn, options) {
+	if (!sharedConfig.hydrating || options?.transparent) return coreFn(compute, effectFn, options);
+	if (options?.ssrSource === "client") {
+		let active = false;
+		withHydrationGate((hydrated) => coreFn((prev) => {
+			if (!hydrated()) return prev;
+			active = true;
+			return compute(prev);
+		}, (next, prev) => {
+			if (!active) return;
+			return effectFn(next, prev);
+		}, options));
+		return;
+	}
+	markTopLevelSnapshotScope();
+	coreFn((prev) => readSerializedOrCompute(compute, prev), effectFn, options);
+}
+function hydratedCreateRenderEffect(compute, effectFn, options) {
+	return hydratedEffect(createRenderEffect$1, compute, effectFn, options);
+}
+function enableHydration() {
+	_createSignal = hydratedCreateSignal;
+	_createErrorBoundary = hydratedCreateErrorBoundary;
+	_createRenderEffect = hydratedCreateRenderEffect;
+	sharedConfig.getNextContextId = hydrationGetNextContextId;
+	sharedConfig.isHydrationInProgress = isHydrationInProgress;
+	sharedConfig.onHydrationEnd = onHydrationEnd;
+	const hy = globalThis._$HY;
+	if (hy && !hy.fr) {
+		if (!hy.f) hy.f = fragmentPolicy;
+		hy.fr = {
+			pending: anyFragmentPending,
+			subscribe: subscribeFragments,
+			claim: claimFragment,
+			release: releaseFragment
+		};
+		const prevFe = hy.fe;
+		hy.fe = (id, parent) => {
+			prevFe && prevFe(id, parent);
+			for (const sub of _revealSubs) sub(id, parent);
+		};
+		watchTruncation(hy);
+	}
+	_hydratingValue = sharedConfig.hydrating;
+	_doneValue = sharedConfig.done;
+	Object.defineProperty(sharedConfig, "hydrating", {
+		get() {
+			return _hydratingValue;
+		},
+		set(v) {
+			const was = _hydratingValue;
+			_hydratingValue = v;
+			if (!was && v) {
+				_hydrationDone = false;
+				_doneValue = false;
+				setSnapshotCapture(true);
+				_snapshotRootOwner = null;
+			} else if (was && !v) {
+				if (_snapshotRootOwner) {
+					releaseSnapshotScope(_snapshotRootOwner);
+					_snapshotRootOwner = null;
+				}
+				checkHydrationComplete();
+			}
+		},
+		configurable: true,
+		enumerable: true
+	});
+	Object.defineProperty(sharedConfig, "done", {
+		get() {
+			return _doneValue;
+		},
+		set(v) {
+			_doneValue = v;
+			if (v) drainHydrationCallbacks();
+		},
+		configurable: true,
+		enumerable: true
+	});
+}
 var createSignal = (...args) => {
-	return createSignal$1(...args);
+	return (_createSignal || createSignal$1)(...args);
 };
-var createErrorBoundary = (...args) => createErrorBoundary$1(...args);
-var createRenderEffect = (...args) => createRenderEffect$1(...args);
+var createErrorBoundary = (...args) => (_createErrorBoundary || createErrorBoundary$1)(...args);
+var createRenderEffect = (...args) => (_createRenderEffect || createRenderEffect$1)(...args);
+var _fragments = /* @__PURE__ */ new Map();
+var _truncated = /* @__PURE__ */ new Set();
+var _revealSubs = /* @__PURE__ */ new Set();
+var _truncationRejectors = /* @__PURE__ */ new Map();
+function fragmentState(id) {
+	let f = _fragments.get(id);
+	if (!f) _fragments.set(id, f = {});
+	return f;
+}
+function fragmentPolicy(id) {
+	const f = fragmentState(id);
+	if (!_hydrationDone || f.claimed) return globalThis.$dfr(id);
+	f.held = true;
+	return 0;
+}
+function replayHeldFragment(id) {
+	const f = _fragments.get(id);
+	if (f && f.held) {
+		f.held = false;
+		globalThis.$dfr(id);
+	}
+}
+function claimFragment(id) {
+	fragmentState(id).claimed = true;
+	replayHeldFragment(id);
+}
+function releaseFragment(id) {
+	const f = _fragments.get(id);
+	if (f) f.claimed = false;
+}
+function fragmentPending(hy, id) {
+	if (_truncated.has(id)) return false;
+	const ref = hy.r[id + "_fr"];
+	if (!ref || typeof ref !== "object") return false;
+	if (!ref.s) return true;
+	if (hy.v && hy.v[id]) return false;
+	if (!document.getElementById(id)) return false;
+	return !!document.getElementById("pl-" + id);
+}
+function anyFragmentPending() {
+	const hy = globalThis._$HY;
+	if (!hy || !hy.r) return false;
+	for (const key in hy.r) if (key.length > 3 && key.endsWith("_fr") && fragmentPending(hy, key.slice(0, -3))) return true;
+	return false;
+}
+function subscribeFragments(cb) {
+	_revealSubs.add(cb);
+	return () => _revealSubs.delete(cb);
+}
+function watchTruncation(hy) {
+	if (typeof document === "undefined" || document.readyState !== "loading") return;
+	document.addEventListener("DOMContentLoaded", () => {
+		if (!hy.r) return;
+		for (const key in hy.r) {
+			if (key.length <= 3 || !key.endsWith("_fr")) continue;
+			const ref = hy.r[key];
+			if (ref && typeof ref === "object" && !ref.s) markTruncated(hy, key.slice(0, -3));
+		}
+		setTimeout(() => rejectTruncatedRefs(hy));
+	}, { once: true });
+}
+function rejectTruncatedRefs(hy) {
+	const R = globalThis.$R;
+	if (!R || typeof R !== "object") return;
+	let registryKeys;
+	const sweep = (entry) => {
+		if (!entry || typeof entry !== "object" || typeof entry.f !== "function" || !entry.p || typeof entry.p.then !== "function" || entry.p.s) return;
+		if (!registryKeys) {
+			registryKeys = /* @__PURE__ */ new Map();
+			for (const key in hy.r) registryKeys.set(hy.r[key], key);
+		}
+		const key = registryKeys.get(entry.p);
+		if (key !== void 0) {
+			delete hy.r[key];
+			return;
+		}
+		const err = /* @__PURE__ */ new Error("Hydration value was truncated: the stream ended before it settled.");
+		entry.f(err);
+		entry.p.s = 2;
+		entry.p.v = err;
+		entry.p.then(void 0, () => {});
+	};
+	for (const key in R) {
+		const value = R[key];
+		if (Array.isArray(value)) for (const entry of value) sweep(entry);
+		else sweep(value);
+	}
+}
+function markTruncated(hy, id) {
+	if (_truncated.has(id)) return;
+	_truncated.add(id);
+	const err = /* @__PURE__ */ new Error(`Hydration fragment "${id}" was truncated: the stream ended before its content arrived.`);
+	const ref = hy.r[id + "_fr"];
+	if (ref && typeof ref === "object") {
+		ref.s = 2;
+		ref.v = err;
+	}
+	const reject = _truncationRejectors.get(id);
+	if (reject) {
+		_truncationRejectors.delete(id);
+		reject(err);
+	}
+	for (const sub of _revealSubs) sub(id);
+}
 function createComponent(Comp, props, name) {
 	return untrack(() => Comp(props || {}));
 }
@@ -2794,6 +3302,64 @@ function Errored(props) {
 		return typeof f === "function" && f.length ? f(err, reset) : f;
 	});
 }
+var scriptRel = "modulepreload";
+var assetsURL = function(dep) {
+	return "/" + dep;
+};
+var seen = {};
+var __vitePreload = function preload(baseModule, deps, importerUrl) {
+	let promise = Promise.resolve();
+	if (deps && deps.length > 0) {
+		let allSettled = function(promises) {
+			return Promise.all(promises.map((p) => Promise.resolve(p).then((value) => ({
+				status: "fulfilled",
+				value
+			}), (reason) => ({
+				status: "rejected",
+				reason
+			}))));
+		}, importMetaResolve = function(specifier) {
+			if (import.meta.resolve) return import.meta.resolve(specifier);
+			return new URL(specifier, import.meta.url).href;
+		};
+		const links = document.getElementsByTagName("link"), cspNonceMeta = document.querySelector("meta[property=csp-nonce]"), cspNonce = cspNonceMeta?.nonce || cspNonceMeta?.getAttribute("nonce");
+		promise = allSettled(deps.map((dep) => {
+			dep = assetsURL(dep, importerUrl);
+			dep = importMetaResolve(dep);
+			if (dep in seen) return;
+			seen[dep] = !0;
+			const isCss = dep.endsWith(".css");
+			for (let i = links.length - 1; i >= 0; i--) {
+				const link = links[i];
+				if (link.href === dep && (!isCss || link.rel === "stylesheet")) return;
+			}
+			const link = document.createElement("link");
+			link.rel = isCss ? "stylesheet" : scriptRel;
+			if (!isCss) link.as = "script";
+			link.crossOrigin = "";
+			link.href = dep;
+			if (cspNonce) link.setAttribute("nonce", cspNonce);
+			document.head.appendChild(link);
+			if (isCss) return new Promise((res, rej) => {
+				link.addEventListener("load", res);
+				link.addEventListener("error", () => rej(Error(`Unable to preload CSS for ${dep}`)));
+			});
+		}).filter((p) => p !== void 0));
+	}
+	function handlePreloadError(err) {
+		const e = new Event("vite:preloadError", { cancelable: !0 });
+		e.payload = err;
+		window.dispatchEvent(e);
+		if (!e.defaultPrevented) throw err;
+	}
+	return promise.then((res) => {
+		for (const item of res || []) {
+			if (item.status !== "rejected") continue;
+			handlePreloadError(item.reason);
+		}
+		return baseModule().catch(handlePreloadError);
+	});
+};
 var DOMWithState = {
 	INPUT: {
 		value: 1,
@@ -2967,6 +3533,9 @@ var hasOwn = Object.prototype.hasOwnProperty;
 var INNER_OWNED = {};
 var delegatedEvents = /* @__PURE__ */ new Set();
 var delegatedContainers = /* @__PURE__ */ new Map();
+function HydrationScript(_props) {
+	return null;
+}
 function render(code, element, init, options = {}) {
 	let disposer;
 	registerDelegatedRoot(element);
@@ -3238,8 +3807,66 @@ function ref(fn, element) {
 	const resolved = untrack(fn);
 	runWithOwner(null, () => applyRef(resolved, element));
 }
+function scope(fn) {
+	fn.$s = true;
+	return fn;
+}
 var SCOPE_OPTIONS = { scope: true };
 var hydrationRt = null;
+function installHydrationRuntime() {
+	hydrationRt = {
+		claimInitial(parent, multi, initial) {
+			if (isHydrating(parent)) {
+				if (!multi && initial === void 0 && parent) initial = [...parent.childNodes];
+				if (Array.isArray(initial)) stripTextSeparators(initial);
+			}
+			return initial;
+		},
+		reclaimRegion(current, parent, marker) {
+			if (!sharedConfig.hydrating || !current || !parent.isConnected) return current;
+			const first = Array.isArray(current) ? current[0] : current;
+			if (!first || !first.nodeType || first.isConnected) return current;
+			let nodes;
+			if (marker) {
+				nodes = [];
+				let node = marker.previousSibling, depth = 0;
+				while (node) {
+					if (node.nodeType === 8) {
+						const v = node.nodeValue;
+						if (v === "/") depth++;
+						else if (v === "$") {
+							if (depth === 0) break;
+							depth--;
+						}
+					}
+					nodes.unshift(node);
+					node = node.previousSibling;
+				}
+			} else nodes = [...parent.childNodes];
+			return stripTextSeparators(nodes);
+		},
+		dedupEvent(e) {
+			return !!(sharedConfig.registry && sharedConfig.events && sharedConfig.events.find(([el, ev]) => ev === e));
+		}
+	};
+}
+function stripTextSeparators(nodes) {
+	let j = 0;
+	for (let i = 0; i < nodes.length; i++) {
+		const node = nodes[i], t = node.nodeType;
+		if (t === 8) {
+			const v = node.nodeValue;
+			if (v === "!$") {
+				node.remove();
+				continue;
+			}
+			if (v.startsWith("pl-")) continue;
+		} else if (t === 1 && node.localName === "template" && node.id.startsWith("pl-")) continue;
+		nodes[j++] = node;
+	}
+	nodes.length = j;
+	return nodes;
+}
 function insert(parent, accessor, marker, initial, options) {
 	const multi = marker !== void 0;
 	const host = options && options.host;
@@ -3293,6 +3920,183 @@ function assign(node, props, skipChildren, prevProps = {}, skipRef = false) {
 			continue;
 		}
 		prevProps[prop] = assignProp(node, prop, props[prop], prevProps[prop], skipRef, nodeName);
+	}
+}
+function loadModuleAssets(mapping) {
+	const hy = globalThis._$HY;
+	if (!hy) return;
+	const pending = [];
+	for (const key in mapping) {
+		if (hy.modules[key]) continue;
+		const entryUrl = new URL(mapping[key], document.baseURI).href;
+		if (!hy.loading[key]) hy.loading[key] = __vitePreload(() => import(entryUrl).then((mod) => {
+			hy.modules[key] = mod;
+		}, (err) => {
+			delete hy.loading[key];
+			throw err;
+		}), []);
+		pending.push(hy.loading[key]);
+	}
+	return pending.length ? Promise.all(pending).then(() => {}) : void 0;
+}
+function hydrate(code, element, options = {}) {
+	enableHydration();
+	installHydrationRuntime();
+	if (globalThis._$HY.done) return render(code, element, [...element.childNodes], options);
+	const head = (element.nodeType === 9 ? element : element.ownerDocument).head;
+	if (head && element.contains(head)) {
+		let n = head.firstChild;
+		while (n && n.nodeType === 1 && n.hasAttribute("data-dh") && !n.hasAttribute("data-dhf")) {
+			const next = n.nextSibling;
+			head.appendChild(n);
+			n = next;
+		}
+	}
+	options.renderId ||= "";
+	if (!globalThis._$HY.modules) globalThis._$HY.modules = {};
+	if (!globalThis._$HY.loading) globalThis._$HY.loading = {};
+	sharedConfig.completed = globalThis._$HY.completed;
+	sharedConfig.events = globalThis._$HY.events;
+	sharedConfig.load = (id) => globalThis._$HY.r[id];
+	sharedConfig.has = (id) => id in globalThis._$HY.r;
+	sharedConfig.gather = (root) => gatherHydratable(element, root);
+	sharedConfig.loadModuleAssets = loadModuleAssets;
+	sharedConfig.cleanupFragment = (id) => {
+		const tpl = document.getElementById("pl-" + id);
+		if (tpl) {
+			let node = tpl.nextSibling;
+			while (node) {
+				const next = node.nextSibling;
+				if (node.nodeType === 8 && node.nodeValue === "pl-" + id) {
+					node.remove();
+					break;
+				}
+				node.remove();
+				node = next;
+			}
+			tpl.remove();
+		}
+	};
+	sharedConfig.registry = /* @__PURE__ */ new Map();
+	if (!sharedConfig.boundaryScopes) sharedConfig.boundaryScopes = /* @__PURE__ */ new Map();
+	sharedConfig.captureBoundaryScope = (id) => {
+		if (sharedConfig.registry) sharedConfig.boundaryScopes.set(id, {
+			registry: sharedConfig.registry,
+			gather: sharedConfig.gather
+		});
+	};
+	sharedConfig.hydrating = true;
+	const hyr = globalThis._$HY.r;
+	const rootMapping = hyr && (hyr[options.renderId + "_assets"] || hyr["_assets"]);
+	if (rootMapping && typeof rootMapping === "object") {
+		const p = loadModuleAssets(rootMapping);
+		if (p) {
+			gatherHydratable(element, options.renderId);
+			const registry = sharedConfig.registry;
+			const gather = sharedConfig.gather;
+			let disposer;
+			p.then(() => {
+				sharedConfig.registry = registry;
+				sharedConfig.gather = gather;
+				sharedConfig.hydrating = true;
+				try {
+					disposer = render(code, element, [...element.childNodes], options);
+				} finally {
+					sharedConfig.hydrating = false;
+				}
+			}, (err) => {
+				sharedConfig.hydrating = false;
+				sharedConfig.registry = void 0;
+				if (element.nodeType === 9) {
+					(globalThis.reportError || console.error)(err);
+					return;
+				}
+				console.error("Hydration module preload failed, falling back to client render:", err);
+				disposer = render(code, element, [...element.childNodes], options);
+			});
+			return () => disposer && disposer();
+		}
+	}
+	try {
+		gatherHydratable(element, options.renderId);
+		return render(code, element, [...element.childNodes], options);
+	} finally {
+		sharedConfig.hydrating = false;
+	}
+}
+function getNextElement(template) {
+	let node, key;
+	if (!isHydrating() || !(node = sharedConfig.registry.get(key = getHydrationKey()))) {
+		if (!template) throw new Error(`Hydration Mismatch. Unable to find DOM nodes for hydration key: ${key}`);
+		return template(true);
+	}
+	if (sharedConfig.completed) sharedConfig.completed.add(node);
+	sharedConfig.registry.delete(key);
+	return node;
+}
+function getNextMatch(el, nodeName) {
+	while (el && el.localName !== nodeName) el = el.nextSibling;
+	return el;
+}
+function getNextMarker(start) {
+	let end = start, count = 0, current = [];
+	if (isHydrating(start)) while (end) {
+		if (end.nodeType === 8) {
+			const v = end.nodeValue;
+			if (v === "$") count++;
+			else if (v === "/") {
+				if (count === 0) return [end, current];
+				count--;
+			}
+		}
+		current.push(end);
+		end = end.nextSibling;
+	}
+	return [end, current];
+}
+function runHydrationEvents() {
+	if (sharedConfig.events && !sharedConfig.events.queued) {
+		queueMicrotask(() => {
+			const { completed, events } = sharedConfig;
+			if (!events) return;
+			events.queued = false;
+			while (events.length) {
+				const [el, e] = events[0];
+				if (!completed.has(el)) return;
+				events.shift();
+				let matchContainer, matchState, matchDistance, matches;
+				for (const [container, state] of delegatedContainers) {
+					if (!state.handlers.has(e.type)) continue;
+					const entry = findOwner(e.target, state);
+					if (!entry) continue;
+					if (matchContainer) {
+						if (!matches) matches = [{
+							container: matchContainer,
+							state: matchState,
+							distance: matchDistance
+						}];
+						matches.push({
+							container,
+							state,
+							distance: entry.distance
+						});
+					} else {
+						matchContainer = container;
+						matchState = state;
+						matchDistance = entry.distance;
+					}
+				}
+				if (matches) {
+					matches.sort((a, b) => a.distance - b.distance);
+					for (let i = 0; i < matches.length; i++) eventHandler(e, matches[i].container, matches[i].state);
+				} else if (matchContainer) eventHandler(e, matchContainer, matchState);
+			}
+			if (sharedConfig.done) {
+				sharedConfig.events = _$HY.events = null;
+				sharedConfig.completed = _$HY.completed = null;
+			}
+		});
+		sharedConfig.events.queued = true;
 	}
 }
 function isHydrating(node) {
@@ -3550,10 +4354,27 @@ function cleanChildren(parent, current, marker, replacement) {
 	} else if (replacement) parent.insertBefore(replacement, marker);
 	if (replacement && marker) replacement[$$SLOT] = marker;
 }
+function gatherHydratable(element, root) {
+	const templates = element.querySelectorAll(`*[_hk]`);
+	for (let i = 0; i < templates.length; i++) {
+		const node = templates[i];
+		const key = node.getAttribute("_hk");
+		if (root) {
+			if (!key.startsWith(root)) continue;
+		} else {
+			const frame = node.closest("[data-fid]");
+			if (frame && frame !== element && element.contains(frame)) continue;
+		}
+		if (!sharedConfig.registry.has(key)) sharedConfig.registry.set(key, node);
+	}
+}
+function getHydrationKey() {
+	return sharedConfig.getNextContextId();
+}
 var _tmpl$$1 = /* @__PURE__ */ template(`<span style=font-size:1.5em;text-align:center;position:fixed;left:0;bottom:55%;width:100%>`);
 function ErrorFallback(props) {
 	console.error(props.error());
-	var _el$ = _tmpl$$1();
+	var _el$ = getNextElement(_tmpl$$1);
 	insert(_el$, "Error | Uncaught Client Exception");
 	return _el$;
 }
@@ -3564,6 +4385,18 @@ function DefaultErrorBoundary(props) {
 			return props.children;
 		}
 	});
+}
+function Document(props) {
+	var _el$ = getNextElement();
+	var _el$2 = getNextMatch(_el$.firstChild, "head");
+	var _el$5 = _el$2.firstChild.nextSibling.nextSibling;
+	var [_el$6, _el$7] = getNextMarker(_el$5.nextSibling);
+	var _el$8 = getNextMatch(_el$2.nextSibling, "body");
+	insert(_el$2, createComponent(HydrationScript, {}), _el$6, _el$7);
+	insert(_el$8, scope(() => {
+		return props.children;
+	}));
+	return _el$;
 }
 /** Gray light alpha scale. */
 var grayA = {
@@ -4813,7 +5646,7 @@ function createTheme(options = {}) {
 		style
 	};
 }
-var _tmpl$ = /* @__PURE__ */ template(`<main><h1 class=x1ywg3o6>Hello Destack</h1><button>Count: `);
+var _tmpl$ = /* @__PURE__ */ template(`<main><h1 class=x1ywg3o6>Hello Destack</h1><button>Count: <!$><!/>`);
 /** Shared styles compiled into the browser stylesheet. */
 /** Theme shared by the server and browser renders. */
 var theme = createTheme({
@@ -4827,12 +5660,16 @@ function App() {
 		document.addEventListener("click", focusHeading);
 		return () => document.removeEventListener("click", focusHeading);
 	});
-	var _el$ = _tmpl$();
+	var _el$ = getNextElement(_tmpl$);
 	var _el$3 = _el$.firstChild.nextSibling;
-	_el$3.firstChild;
+	var _el$5 = _el$3.firstChild.nextSibling;
+	var [_el$6, _el$7] = getNextMarker(_el$5.nextSibling);
 	spread(_el$, theme, true);
-	_el$3._$$click = () => setCount(count() + 1);
-	insert(_el$3, count, null);
+	_el$3.$$click = () => setCount(count() + 1);
+	insert(_el$3, scope(() => {
+		return count();
+	}), _el$6, _el$7);
+	runHydrationEvents();
 	return _el$;
 }
 /** Focus the heading from a browser lifecycle callback. */
@@ -4840,8 +5677,12 @@ function focusHeading() {
 	document.querySelector("h1")?.focus();
 }
 delegateEvents(["click"]);
-render(() => createComponent(DefaultErrorBoundary, { get children() {
-	return createComponent(App, {});
-} }), document.body);
+hydrate(() => createComponent(DefaultErrorBoundary, { get children() {
+	return createComponent(Document, { get children() {
+		return createComponent(DefaultErrorBoundary, { get children() {
+			return createComponent(App, {});
+		} });
+	} });
+} }), document);
 
-//# sourceMappingURL=virtual_solid-ssr-entry-client-D9uKDHjE.js.map
+//# sourceMappingURL=virtual_solid-ssr-entry-client-_NyLQ9aj.js.map

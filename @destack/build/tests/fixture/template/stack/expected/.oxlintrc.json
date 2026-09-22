@@ -1,20 +1,11 @@
 {
-    "plugins": [
-        "typescript",
-        "oxc",
-        "unicorn"
-    ],
+    "plugins": ["typescript", "oxc", "unicorn"],
     "categories": {
         "correctness": "error"
     },
-    "jsPlugins": [
-        "@destack/check/lint"
-    ],
+    "jsPlugins": ["@destack/check/lint"],
     "rules": {
-        "eslint/curly": [
-            "error",
-            "all"
-        ],
+        "eslint/curly": ["error", "all"],
         "oxc/no-accumulating-spread": "error",
         "eslint/no-unused-vars": [
             "error",

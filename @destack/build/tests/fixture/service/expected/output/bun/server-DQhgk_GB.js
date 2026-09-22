@@ -134,7 +134,7 @@ function slugify(input) {
 	return input.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
 }
 var captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {};
-function isObject(data) {
+function isObject$1(data) {
 	return typeof data === "object" && data !== null && !Array.isArray(data);
 }
 var allowsEval = /* @__PURE__*/ cached(() => {
@@ -148,12 +148,12 @@ var allowsEval = /* @__PURE__*/ cached(() => {
 	}
 });
 function isPlainObject(o) {
-	if (isObject(o) === false) return false;
+	if (isObject$1(o) === false) return false;
 	const ctor = o.constructor;
 	if (ctor === void 0) return true;
 	if (typeof ctor !== "function") return true;
 	const prot = ctor.prototype;
-	if (isObject(prot) === false) return false;
+	if (isObject$1(prot) === false) return false;
 	if (Object.prototype.hasOwnProperty.call(prot, "isPrototypeOf") === false) return false;
 	return true;
 }
@@ -989,8 +989,8 @@ function emoji() {
 }
 var ipv4 = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/;
 var ipv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/;
-var cidrv4$1 = /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$/;
-var cidrv6$1 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
+var cidrv4 = /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$/;
+var cidrv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
 var base64 = /^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$/;
 var base64url = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$/;
 var httpProtocol = /^https?$/;
@@ -1353,7 +1353,7 @@ var Doc = class {
 		return new F(...Object.keys(this.closed), `return function (${this.args.join(", ")}) {\n${content.join("\n")}\n};`)(...Object.values(this.closed));
 	}
 };
-var version = {
+var version$1 = {
 	major: 4,
 	minor: 6,
 	patch: 5
@@ -1363,7 +1363,7 @@ var $ZodType = /*@__PURE__*/ $constructor("$ZodType", (inst, def) => {
 	inst ?? (inst = {});
 	inst._zod.def = def;
 	inst._zod.bag = inst._zod.bag || {};
-	inst._zod.version = version;
+	inst._zod.version = version$1;
 	const defChecks = inst._zod.def.checks;
 	const checks = inst._zod.traits.has("$ZodCheck") ? [inst, ...defChecks ?? []] : defChecks?.length ? [...defChecks] : [];
 	for (const ch of checks) for (const fn of ch._zod.onattach) fn(inst);
@@ -1692,7 +1692,7 @@ var $ZodIPv6 = /*@__PURE__*/ $constructor("$ZodIPv6", (inst, def) => {
 	};
 });
 var $ZodCIDRv4 = /*@__PURE__*/ $constructor("$ZodCIDRv4", (inst, def) => {
-	def.pattern ?? (def.pattern = cidrv4$1);
+	def.pattern ?? (def.pattern = cidrv4);
 	$ZodStringFormat.init(inst, def);
 });
 function isValidCIDRv6(value) {
@@ -1706,7 +1706,7 @@ function isValidCIDRv6(value) {
 	return isValidIPv6(address);
 }
 var $ZodCIDRv6 = /*@__PURE__*/ $constructor("$ZodCIDRv6", (inst, def) => {
-	def.pattern ?? (def.pattern = cidrv6$1);
+	def.pattern ?? (def.pattern = cidrv6);
 	$ZodStringFormat.init(inst, def);
 	inst._zod.check = (payload) => {
 		if (!isValidCIDRv6(payload.value)) payload.issues.push({
@@ -2015,7 +2015,7 @@ var $ZodObject = /*@__PURE__*/ $constructor("$ZodObject", (inst, def) => {
 		}
 		return propValues;
 	});
-	const isObject$2 = isObject;
+	const isObject = isObject$1;
 	const catchall = def.catchall;
 	let value;
 	const memo = globalConfig.memoizer;
@@ -2023,7 +2023,7 @@ var $ZodObject = /*@__PURE__*/ $constructor("$ZodObject", (inst, def) => {
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$2(input)) {
+		if (!isObject(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -2153,7 +2153,7 @@ var $ZodObjectJIT = /*@__PURE__*/ $constructor("$ZodObjectJIT", (inst, def) => {
 		return doc.compile();
 	};
 	let fastpass;
-	const isObject$1 = isObject;
+	const isObject = isObject$1;
 	const jit = !globalConfig.jitless;
 	const fastEnabled = jit && allowsEval.value;
 	const catchall = def.catchall;
@@ -2161,7 +2161,7 @@ var $ZodObjectJIT = /*@__PURE__*/ $constructor("$ZodObjectJIT", (inst, def) => {
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$1(input)) {
+		if (!isObject(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -5032,16 +5032,10 @@ var ZodCIDRv4 = /*@__PURE__*/ $constructor("ZodCIDRv4", (inst, def) => {
 	$ZodCIDRv4.init(inst, def);
 	ZodStringFormat.init(inst, def);
 });
-function cidrv4(params) {
-	return /* @__PURE__ */ _cidrv4(ZodCIDRv4, params);
-}
 var ZodCIDRv6 = /*@__PURE__*/ $constructor("ZodCIDRv6", (inst, def) => {
 	$ZodCIDRv6.init(inst, def);
 	ZodStringFormat.init(inst, def);
 });
-function cidrv6(params) {
-	return /* @__PURE__ */ _cidrv6(ZodCIDRv6, params);
-}
 var ZodBase64 = /*@__PURE__*/ $constructor("ZodBase64", (inst, def) => {
 	$ZodBase64.init(inst, def);
 	ZodStringFormat.init(inst, def);
@@ -5510,7 +5504,7 @@ var ZodLazy = /*@__PURE__*/ $constructor("ZodLazy", (inst, def) => {
 	inst._zod.processJSONSchema = (ctx, json, params) => lazyProcessor(inst, ctx, json, params);
 	inst.unwrap = () => inst._zod.def.getter();
 });
-function lazy(getter) {
+function lazy$1(getter) {
 	return new ZodLazy({
 		type: "lazy",
 		getter
@@ -5528,7 +5522,7 @@ function superRefine(fn, params) {
 	return /* @__PURE__ */ _superRefine(fn, params);
 }
 function json(params) {
-	const jsonSchema = lazy(() => {
+	const jsonSchema = lazy$1(() => {
 		return union([
 			string(params),
 			number(),
@@ -5728,438 +5722,6 @@ var Resource = class {
 		return context.get(this);
 	}
 };
-/** A provisioned resource in a space. */
-var ResourceReference = defineSchema(strictObject({
-	/** The space containing the resource. */
-	space: identifier("space"),
-	/** The persistent resource identifier. */
-	resource: identifier("resource")
-}));
-defineSchema(strictObject({
-	/** The installation containing the declaration. */
-	installation: identifier("installation"),
-	/** The package declaring the resource, including imported stack packages. */
-	package: identifier("package"),
-	/** The declaration name in its package. */
-	name: ResourceName,
-	/** The resource selected by the host. */
-	target: ResourceReference
-}));
-/** An invalid space configuration. */
-var SpaceError = class extends Error {
-	/** Stable failure code. */
-	code;
-	/** Create a configuration failure. */
-	constructor(code, message, options) {
-		super(message, options);
-		this.name = "SpaceError";
-		this.code = code;
-	}
-};
-/** A canonical package-relative path using slash separators. */
-var PackagePath = defineSchema(string().regex(/^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/));
-/** A SHA-256 digest encoded as lowercase hexadecimal. */
-var Digest = defineSchema(string().length(64).regex(/^[a-f0-9]{64}$/));
-defineSchema(strictObject({
-	/** The path relative to the source or build root. */
-	path: PackagePath,
-	/** The SHA-256 digest of the file bytes. */
-	digest: Digest,
-	/** The file size in bytes. */
-	size: number().int().min(0),
-	/** The file's media type. */
-	mediaType: string().min(1)
-}));
-/** A scoped Destack package name. */
-var PackageName = defineSchema(string().max(214).regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
-/** A scoped or unscoped dependency name. */
-var DependencyName = defineSchema(string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
-/** The name and version declared by a package. */
-var Package = defineSchema(strictObject({
-	/** The package name, qualified by its owner. */
-	name: PackageName,
-	/** The package version. */
-	version: string().min(1)
-}));
-defineSchema(strictObject({
-	/** The released package name and version. */
-	package: Package,
-	/** The digest of its immutable build manifest. */
-	manifest: Digest
-}));
-/** CPU and memory capacity assigned to one running instance. */
-var ComputeResources = defineSchema(strictObject({
-	/** CPU capacity in cores. */
-	cpu: number().positive().optional(),
-	/** Memory capacity in MiB. */
-	memory: number().int().positive().optional()
-}));
-/** Capacity and lifecycle policy for a workload. */
-var ComputeDefinition = defineSchema(strictObject({
-	/** Minimum capacity requested when scheduling an instance. */
-	requests: ComputeResources.optional(),
-	/** Maximum capacity allowed for an instance. */
-	limits: ComputeResources.optional(),
-	/** Scaling bounds, including whether idle execution may stop. */
-	scaling: strictObject({
-		/** Minimum warm instances; zero permits stopping all idle instances. */
-		minInstances: number().int().nonnegative().optional(),
-		/** Maximum simultaneous instances. */
-		maxInstances: number().int().positive().optional()
-	}).optional(),
-	/** Time in milliseconds to retain an idle instance. */
-	idleTimeout: number().int().nonnegative().optional(),
-	/** Time in milliseconds allowed for graceful shutdown. */
-	shutdownTimeout: number().int().positive().optional(),
-	/** CPU time allowed per invocation in milliseconds. */
-	cpuTime: number().int().positive().optional()
-}));
-/** A declaration qualified by its source package. */
-var DeclarationReference = defineSchema(strictObject({
-	/** The declaring package, resolved to one version in this build. */
-	package: PackageName,
-	/** The name assigned by the domain declaration. */
-	name: ResourceName
-}));
-/** A package export containing runnable code. */
-var Entrypoint = defineSchema(string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
-defineSchema(defineSchema(strictObject({
-	/** The exported module containing the workload handlers. */
-	entrypoint: Entrypoint,
-	/** Named services collected from code. */
-	services: array(ResourceName).optional(),
-	/** Named schedules delivered by the host scheduler. */
-	schedules: array(ResourceName).optional(),
-	/** Instance startup and shutdown exports. */
-	lifecycle: strictObject({
-		/** Start background activity and resolve when ready. */
-		start: string().min(1).optional(),
-		/** Drain background activity before stopping. */
-		stop: string().min(1).optional()
-	}).optional(),
-	/** Workload overrides of package compute defaults. */
-	compute: ComputeDefinition.optional()
-}).strict()).extend({
-	/** Resource declarations collected from the workload's module dependencies. */
-	resources: array(DeclarationReference),
-	/** Secret declarations collected from the workload's module dependencies. */
-	secrets: array(DeclarationReference),
-	/** The effective compute settings. */
-	compute: ComputeDefinition
-}));
-/** A resource created by the configuration or explicitly adopted into its administration. */
-var SpaceResource = defineSchema(strictObject({
-	/** The resource declaration imported from its domain library. */
-	declaration: ResourceDeclaration,
-	/** An existing resource to adopt, subject to ownership and residency checks. */
-	adopt: ResourceReference.optional(),
-	/** Whether authorised removal retains or destroys the resource contents. */
-	retention: _enum(["retain", "delete"]),
-	/** Provider placement, absent when selected by the host. */
-	placement: strictObject({
-		/** The provider adapter. */
-		provider: string().min(1),
-		/** The provider region registered by the platform. */
-		region: identifier("region").optional(),
-		/** The host administering the resource. */
-		host: identifier("host").optional()
-	}).optional(),
-	/** User-defined labels. */
-	tags: record(string().min(1), string())
-}));
-/** Secret metadata declared in source, with values supplied through the vault API. */
-var SpaceSecret = defineSchema(strictObject({
-	/** The configuration resource containing the secret. */
-	vault: ResourceName,
-	/** The name within the vault. */
-	name: ResourceName
-}));
-/** Select a declared or existing resource in the destination space. */
-var SpaceResourceBinding = defineSchema(union([strictObject({ 
-/** The resource key in this configuration. */
-resource: ResourceName }), strictObject({ 
-/** The existing resource; application verifies its destination space. */
-external: ResourceReference })]));
-/** Select a configuration secret or an explicitly authorised existing secret. */
-var SpaceSecretBinding = defineSchema(strictObject({
-	/** The selected secret. */
-	target: union([strictObject({ 
-	/** The secret key in this configuration. */
-secret: ResourceName }), strictObject({
-		/** The destination space containing the existing secret. */
-		space: identifier("space"),
-		/** The existing secret. */
-		secret: identifier("secret")
-	})]),
-	/** Exact version; absence selects the current version at access time. */
-	version: number().int().positive().optional()
-}));
-/** The decision applied to a matching package. */
-var PackageDecision = defineSchema(_enum(["allow", "deny"]));
-/** Package admission for a space and its installations. */
-var PackagePolicyDefinition = defineSchema(strictObject({ 
-/** Rules for the root package and every resolved dependency. */
-admission: defineSchema(strictObject({
-	/** The decision when no rule matches. */
-	default: PackageDecision,
-	/** Rules keyed by stable names used in diagnostics and audit records. */
-	rules: record(ResourceName, defineSchema(strictObject({
-		/** All specified selector fields must match. */
-		package: defineSchema(strictObject({
-			/** The package format, including source packages authored for Destack. */
-			kind: _enum(["npm", "destack"]),
-			/** The canonical registry URL; omission matches any registry of this format. */
-			registry: string().regex(/^https?:\/\/[^\s?#@]+\/$/).optional(),
-			/** An exact package name; omission matches every name. */
-			name: DependencyName.optional(),
-			/** An npm version range; omission matches every version. */
-			version: string().min(1).optional(),
-			/** Exact content integrity; omission permits any content matching the other fields. */
-			integrity: string().min(1).optional()
-		})),
-		/** Deny takes precedence over allow within this policy. */
-		decision: PackageDecision
-	})))
-})) }));
-/** An outbound connection rule. */
-var NetworkRule = defineSchema(strictObject({
-	/** The destination to match, checked again after redirects and DNS resolution. */
-	destination: defineSchema(union([
-		strictObject({ 
-		/** Globally routable destinations, excluding host and provider control endpoints. */
-kind: literal("public") }),
-		strictObject({
-			/** Match a canonical DNS hostname. */
-			kind: literal("hostname"),
-			/** Lowercase ASCII hostname, without a trailing dot or wildcard. */
-			hostname: string().max(253).regex(/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
-			/** Include descendants of this hostname. */
-			subdomains: boolean()
-		}),
-		strictObject({
-			/** Match the actual destination address against an IP network. */
-			kind: literal("network"),
-			/** An IPv4 or IPv6 address range; use /32 or /128 for a single address. */
-			cidr: union([cidrv4(), cidrv6()])
-		})
-	])),
-	/** The application protocol or raw transport. */
-	protocol: _enum([
-		"http",
-		"https",
-		"ws",
-		"wss",
-		"tcp",
-		"udp"
-	]),
-	/** Matching ports; omission uses protocol defaults, or any raw transport port. */
-	ports: array(int().min(1).max(65535)).min(1).optional(),
-	/** Deny takes precedence over allow within this policy. */
-	decision: _enum(["allow", "deny"])
-}));
-/**
-* Outbound network restrictions for an account, space, installation, or workload.
-*/
-var NetworkPolicyDefinition = defineSchema(strictObject({
-	/** The decision for unmatched public destinations. */
-	default: _enum(["allow", "deny"]),
-	/** Named rules; nonpublic destinations require an explicit IP network allow rule. */
-	rules: record(ResourceName, NetworkRule)
-}));
-/** Source-managed policies applied throughout a space. */
-var SpacePolicies = defineSchema(strictObject({
-	/** Package admission rules. */
-	packages: PackagePolicyDefinition.optional(),
-	/** Outbound access intersected with account and host restrictions. */
-	network: NetworkPolicyDefinition.optional()
-}));
-/** Network restrictions applied to an installation and its named workloads. */
-var InstallationPolicies = defineSchema(strictObject({
-	/** Restrictions shared by every workload in the installation. */
-	network: NetworkPolicyDefinition.optional(),
-	/** Additional restrictions for individual package workloads. */
-	workloads: record(ResourceName, strictObject({ 
-	/** Outbound access intersected with installation, space, account, and host restrictions. */
-network: NetworkPolicyDefinition })).optional()
-}));
-/** Select an installation by configuration key or persistent identifier in the destination space. */
-var SpaceInstallationReference = defineSchema(union([ResourceName, strictObject({ 
-/** The existing installation checked when applying the configuration. */
-id: identifier("installation") })]));
-/** A package installation declared in a configuration. */
-var SpaceInstallation = defineSchema(strictObject({
-	/** Additional restrictions for this installation and its workloads. */
-	policies: InstallationPolicies.optional(),
-	/** The package release selected by this configuration. */
-	package: Package,
-	/** Whether this installation should serve requests. */
-	state: _enum(["enabled", "suspended"]),
-	/** Space-local URL alias, independent of the stable installation key. */
-	alias: ResourceName,
-	/** Resource selections keyed by declaring package and declaration name. */
-	resources: record(PackageName, record(ResourceName, SpaceResourceBinding)),
-	/** Secret selections keyed by declaring package and declaration name. */
-	secrets: record(PackageName, record(ResourceName, SpaceSecretBinding)),
-	/** Workload compute settings checked against package and host policy. */
-	compute: record(ResourceName, ComputeDefinition),
-	/** User-defined labels. */
-	tags: record(string().min(1), string())
-}));
-/** An object selected from the resulting configuration or by its persistent identifier. */
-var SpacePermissionTarget = defineSchema(union([strictObject({
-	/** The configuration collection containing the object. */
-	kind: _enum([
-		"resource",
-		"secret",
-		"installation"
-	]),
-	/** The stable key within that collection. */
-	name: ResourceName
-}), strictObject({ 
-/** The persistent identifier checked against the role's space scope. */
-id: union([
-	identifier("resource"),
-	identifier("secret"),
-	identifier("installation")
-]) })]));
-/** An exact API action granted within the space. */
-var SpacePermission = defineSchema(strictObject({
-	/** The namespaced API resource type. */
-	resource: string().regex(/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/),
-	/** The declared API action; wildcards are not accepted. */
-	action: ResourceName,
-	/** A selected object; absence grants all objects of the type within the space. */
-	target: SpacePermissionTarget.optional()
-}));
-/** A role whose generated grants are restricted to the configured space. */
-var SpaceRole = defineSchema(strictObject({
-	/** The role's purpose. */
-	description: string().min(1),
-	/** Additive permissions evaluated within the space. */
-	permissions: array(SpacePermission)
-}));
-/** A subject receiving a space-scoped role. */
-var SpaceSubject = defineSchema(union([
-	strictObject({ 
-	/** The existing account membership. */
-membership: identifier("account-membership") }),
-	strictObject({ 
-	/** The existing account group. */
-group: identifier("group") }),
-	strictObject({ 
-	/** The existing workload service account in this space. */
-service: identifier("service-account") }),
-	strictObject({ 
-	/** The external service account administered by the global account service. */
-accountService: identifier("service-account") }),
-	strictObject({
-		/** The configured or existing installation in the destination space. */
-		installation: SpaceInstallationReference,
-		/** The installed package's workload name. */
-		workload: ResourceName
-	})
-]));
-/** Grant one configuration role to an existing member, group, or installed workload. */
-var SpaceRoleBinding = defineSchema(strictObject({
-	/** The configured or existing role, checked against the destination space. */
-	role: union([ResourceName, strictObject({ 
-	/** The existing role. */
-id: identifier("role") })]),
-	/** The subject receiving the role. */
-	subject: SpaceSubject,
-	/** Optional expiry in UTC epoch milliseconds. */
-	expiresAt: number().int().nonnegative().optional()
-}));
-/** A route on a domain the account is authorised to administer. */
-var SpaceRoute = defineSchema(strictObject({
-	/** The registered domain; domain ownership is checked when applying the configuration. */
-	domain: identifier("domain"),
-	/** The absolute URL path without a query or fragment. */
-	path: string().regex(/^\/[^\s?#]*$/),
-	/** The path matching rule. */
-	match: _enum(["exact", "prefix"]),
-	/** The application entrypoint or HTTP redirect. */
-	destination: union([strictObject({
-		/** The configured or existing installation in the destination space. */
-		installation: SpaceInstallationReference,
-		/** The public package export serving this route. */
-		entrypoint: Entrypoint
-	}), strictObject({
-		/** The absolute HTTP destination. */
-		redirect: string().regex(/^https?:\/\/[^\s]+$/),
-		/** The HTTP redirect response status. */
-		status: union([
-			literal(301),
-			literal(302),
-			literal(303),
-			literal(307),
-			literal(308)
-		])
-	})])
-}));
-/** Source-managed space objects, keyed independently of display names and provider identifiers. */
-var SpaceDefinition = defineSchema(strictObject({
-	/** Source-managed package and network policies. */
-	policies: SpacePolicies.optional(),
-	/** Resources created or adopted by the configuration. */
-	resources: record(ResourceName, SpaceResource).optional(),
-	/** Secret metadata; secret values never occur in this definition. */
-	secrets: record(ResourceName, SpaceSecret).optional(),
-	/** Independently configured package installations. */
-	installations: record(ResourceName, SpaceInstallation).optional(),
-	/** Space-scoped role definitions. */
-	roles: record(ResourceName, SpaceRole).optional(),
-	/** Grants evaluated using existing authority before application. */
-	bindings: record(ResourceName, SpaceRoleBinding).optional(),
-	/** Routes under domains administered by the account. */
-	routes: record(ResourceName, SpaceRoute).optional()
-}));
-/** Define a configuration and check references without contacting hosts or provisioning resources. */
-function defineSpace(value) {
-	const configuration = SpaceDefinition.parse(value);
-	const { resources = {}, secrets: secretDefinitions = {}, installations = {}, roles = {}, bindings = {}, routes: routeDefinitions = {} } = configuration;
-	const adopted = /* @__PURE__ */ new Set();
-	for (const resource of Object.values(resources)) if (resource.adopt) {
-		const key = `${resource.adopt.space}/${resource.adopt.resource}`;
-		if (adopted.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate resource adoption: ${key}`);
-		adopted.add(key);
-	}
-	const secrets = /* @__PURE__ */ new Set();
-	for (const secret of Object.values(secretDefinitions)) {
-		if (resources[secret.vault]?.declaration.kind !== "vault") throw new SpaceError("INVALID_DEFINITION", `Unknown vault: ${secret.vault}`);
-		const key = `${secret.vault}/${secret.name}`;
-		if (secrets.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate secret: ${key}`);
-		secrets.add(key);
-	}
-	const aliases = /* @__PURE__ */ new Set();
-	for (const installation of Object.values(installations)) {
-		if (aliases.has(installation.alias)) throw new SpaceError("INVALID_DEFINITION", `Duplicate alias: ${installation.alias}`);
-		aliases.add(installation.alias);
-		for (const binding of Object.values(installation.resources).flatMap(Object.values)) if ("resource" in binding && !Object.hasOwn(resources, binding.resource)) throw new SpaceError("INVALID_DEFINITION", `Unknown resource: ${binding.resource}`);
-		for (const binding of Object.values(installation.secrets).flatMap(Object.values)) if (!("space" in binding.target) && !Object.hasOwn(secretDefinitions, binding.target.secret)) throw new SpaceError("INVALID_DEFINITION", `Unknown secret: ${binding.target.secret}`);
-	}
-	const collections = {
-		resource: resources,
-		secret: secretDefinitions,
-		installation: installations
-	};
-	for (const role of Object.values(roles)) for (const permission of role.permissions) {
-		const target = permission.target;
-		if (target && "kind" in target && !Object.hasOwn(collections[target.kind], target.name)) throw new SpaceError("INVALID_DEFINITION", `Unknown ${target.kind}: ${target.name}`);
-	}
-	for (const binding of Object.values(bindings)) {
-		if (typeof binding.role === "string" && !Object.hasOwn(roles, binding.role)) throw new SpaceError("INVALID_DEFINITION", `Unknown role: ${binding.role}`);
-		if ("installation" in binding.subject && typeof binding.subject.installation === "string" && !Object.hasOwn(installations, binding.subject.installation)) throw new SpaceError("INVALID_DEFINITION", `Unknown installation: ${binding.subject.installation}`);
-	}
-	const routes = /* @__PURE__ */ new Set();
-	for (const route of Object.values(routeDefinitions)) {
-		const key = `${route.domain}:${route.match}:${route.path}`;
-		if (routes.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate route: ${key}`);
-		routes.add(key);
-		if ("installation" in route.destination && typeof route.destination.installation === "string" && !Object.hasOwn(installations, route.destination.installation)) throw new SpaceError("INVALID_DEFINITION", `Unknown route installation: ${route.destination.installation}`);
-	}
-	return configuration;
-}
 /** A named database dependency. */
 var DatabaseDeclaration = defineResourceSchema("database", 1, defineSchema(strictObject({ 
 /** The dialect used by queries and migrations. */
@@ -6181,17 +5743,4468 @@ function defineDatabase(declaration) {
 		version: 1
 	}));
 }
-/** The space's shared application database. */
+/** A vault resource dependency. */
+var VaultDeclaration = defineResourceSchema("vault", 1, defineSchema(strictObject({})));
+/** Declare a vault resource. */
+function defineVault(declaration) {
+	return VaultDeclaration.parse({
+		...declaration,
+		kind: "vault",
+		version: 1
+	});
+}
+/** A secret selected when installing a package. */
+var SecretDeclaration = defineSchema(strictObject({
+	/** The package-local secret name. */
+	name: ResourceName,
+	/** The declaration format version. */
+	version: literal(1)
+}));
+defineSchema(strictObject({
+	/** The space administering the vault. */
+	space: identifier("space"),
+	/** The secret identifier. */
+	secret: identifier("secret"),
+	/** An exact version; omit to select the current version at access time. */
+	version: number().int().positive().optional()
+}));
+/** Declare a secret without embedding its value. */
+function defineSecret(declaration) {
+	return SecretDeclaration.parse({
+		...declaration,
+		version: 1
+	});
+}
+/** Fields shared by calendar, interval, and one-off schedules. */
+var SCHEDULE = strictObject({
+	/** The package-local schedule name. */
+	name: ResourceName,
+	/** The declaration format version. */
+	version: literal(1),
+	/** The exported handler receiving the scheduled occurrence. */
+	handler: string().min(1),
+	/** Whether occurrences may overlap. */
+	concurrency: _enum([
+		"allow",
+		"forbid",
+		"replace"
+	]),
+	/** How late an occurrence may start, in milliseconds. */
+	deadline: number().int().nonnegative()
+});
+/** A controller-managed schedule invoking an exported workload handler. */
+var ScheduleDeclaration = defineSchema(union([
+	SCHEDULE.extend({
+		/** Evaluate calendar occurrences in the selected time zone. */
+		timing: literal("cron"),
+		/** A five-field cron expression. */
+		cron: string().regex(/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/),
+		/** The IANA time zone used to evaluate occurrences. */
+		timezone: string().min(1),
+		/** The earliest occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative().optional(),
+		/** The exclusive end time in UTC epoch milliseconds. */
+		endsAt: number().int().nonnegative().optional()
+	}),
+	SCHEDULE.extend({
+		/** Repeat at a fixed interval from the first occurrence. */
+		timing: literal("interval"),
+		/** The interval in milliseconds. */
+		interval: number().int().positive(),
+		/** The first occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative(),
+		/** The exclusive end time in UTC epoch milliseconds. */
+		endsAt: number().int().nonnegative().optional()
+	}),
+	SCHEDULE.extend({
+		/** Invoke the handler once at the selected time. */
+		timing: literal("once"),
+		/** The occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative()
+	})
+]));
+/** Declare a schedule for build-time validation. */
+function defineSchedule(value) {
+	return ScheduleDeclaration.parse(value);
+}
+function resolveMaybeOptionalOptions(rest) {
+	return rest[0] ?? {};
+}
+function toArray(value) {
+	return Array.isArray(value) ? value : value === void 0 || value === null ? [] : [value];
+}
+var ORPC_NAME = "orpc";
+var ORPC_SHARED_PACKAGE_NAME = "@orpc/shared";
+var ORPC_SHARED_PACKAGE_VERSION = "1.15.1";
+var AbortError = class extends Error {
+	constructor(...rest) {
+		super(...rest);
+		this.name = "AbortError";
+	}
+};
+function once(fn) {
+	let cached;
+	return () => {
+		if (cached) return cached.result;
+		const result = fn();
+		cached = { result };
+		return result;
+	};
+}
+function sequential(fn) {
+	let lastOperationPromise = Promise.resolve();
+	return (...args) => {
+		return lastOperationPromise = lastOperationPromise.catch(() => {}).then(() => {
+			return fn(...args);
+		});
+	};
+}
+var SPAN_ERROR_STATUS = 2;
+var GLOBAL_OTEL_CONFIG_KEY = `__${ORPC_SHARED_PACKAGE_NAME}@${ORPC_SHARED_PACKAGE_VERSION}/otel/config__`;
+function setGlobalOtelConfig(config) {
+	globalThis[GLOBAL_OTEL_CONFIG_KEY] = config;
+}
+function getGlobalOtelConfig() {
+	return globalThis[GLOBAL_OTEL_CONFIG_KEY];
+}
+function startSpan(name, options = {}, context) {
+	return (getGlobalOtelConfig()?.tracer)?.startSpan(name, options, context);
+}
+function setSpanError(span, error, options = {}) {
+	if (!span) return;
+	const exception = toOtelException(error);
+	span.recordException(exception);
+	if (!options.signal?.aborted || options.signal.reason !== error) span.setStatus({
+		code: SPAN_ERROR_STATUS,
+		message: exception.message
+	});
+}
+function toOtelException(error) {
+	if (error instanceof Error) {
+		const exception = {
+			message: error.message,
+			name: error.name,
+			stack: error.stack
+		};
+		if ("code" in error && (typeof error.code === "string" || typeof error.code === "number")) exception.code = error.code;
+		return exception;
+	}
+	return { message: String(error) };
+}
+async function runWithSpan({ name, context, ...options }, fn) {
+	const tracer = getGlobalOtelConfig()?.tracer;
+	if (!tracer) return fn();
+	const callback = async (span) => {
+		try {
+			return await fn(span);
+		} catch (e) {
+			setSpanError(span, e, options);
+			throw e;
+		} finally {
+			span.end();
+		}
+	};
+	if (context) return tracer.startActiveSpan(name, options, context, callback);
+	else return tracer.startActiveSpan(name, options, callback);
+}
+async function runInSpanContext(span, fn) {
+	const otelConfig = getGlobalOtelConfig();
+	if (!span || !otelConfig) return fn();
+	const ctx = otelConfig.trace.setSpan(otelConfig.context.active(), span);
+	return otelConfig.context.with(ctx, fn);
+}
+function isAsyncIteratorObject(maybe) {
+	if (!maybe || typeof maybe !== "object") return false;
+	return "next" in maybe && typeof maybe.next === "function" && Symbol.asyncIterator in maybe && typeof maybe[Symbol.asyncIterator] === "function";
+}
+var asyncDisposeSymbol = Symbol.asyncDispose ?? Symbol.for("asyncDispose");
+var AsyncIteratorClass = class {
+	#isDone = false;
+	#isExecuteComplete = false;
+	#cleanup;
+	#next;
+	constructor(next, cleanup) {
+		this.#cleanup = cleanup;
+		this.#next = sequential(async () => {
+			if (this.#isDone) return {
+				done: true,
+				value: void 0
+			};
+			try {
+				const result = await next();
+				if (result.done) this.#isDone = true;
+				return result;
+			} catch (err) {
+				this.#isDone = true;
+				throw err;
+			} finally {
+				if (this.#isDone && !this.#isExecuteComplete) {
+					this.#isExecuteComplete = true;
+					await this.#cleanup("next");
+				}
+			}
+		});
+	}
+	next() {
+		return this.#next();
+	}
+	async return(value) {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("return");
+		}
+		return {
+			done: true,
+			value
+		};
+	}
+	async throw(err) {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("throw");
+		}
+		throw err;
+	}
+	/**
+	* asyncDispose symbol only available in esnext, we should fallback to Symbol.for('asyncDispose')
+	*/
+	async [asyncDisposeSymbol]() {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("dispose");
+		}
+	}
+	[Symbol.asyncIterator]() {
+		return this;
+	}
+};
+function asyncIteratorWithSpan({ name, ...options }, iterator) {
+	let span;
+	return new AsyncIteratorClass(async () => {
+		span ??= startSpan(name);
+		try {
+			const result = await runInSpanContext(span, () => iterator.next());
+			span?.addEvent(result.done ? "completed" : "yielded");
+			return result;
+		} catch (err) {
+			setSpanError(span, err, options);
+			throw err;
+		}
+	}, async (reason) => {
+		try {
+			if (reason !== "next") await runInSpanContext(span, () => iterator.return?.());
+		} catch (err) {
+			setSpanError(span, err, options);
+			throw err;
+		} finally {
+			span?.end();
+		}
+	});
+}
+function intercept(interceptors, options, main) {
+	const next = (options2, index) => {
+		const interceptor = interceptors[index];
+		if (!interceptor) return main(options2);
+		return interceptor({
+			...options2,
+			next: (newOptions = options2) => next(newOptions, index + 1)
+		});
+	};
+	return next(options, 0);
+}
+function parseEmptyableJSON(text) {
+	if (!text) return;
+	return JSON.parse(text);
+}
+function stringifyJSON(value) {
+	return JSON.stringify(value);
+}
+function getConstructor(value) {
+	if (!isTypescriptObject(value)) return null;
+	return Object.getPrototypeOf(value)?.constructor;
+}
+function isObject(value) {
+	if (!value || typeof value !== "object") return false;
+	const proto = Object.getPrototypeOf(value);
+	return proto === Object.prototype || !proto || !proto.constructor;
+}
+function isTypescriptObject(value) {
+	return !!value && (typeof value === "object" || typeof value === "function");
+}
+var NullProtoObj$1 = /* @__PURE__ */ (() => {
+	const e = function() {};
+	e.prototype = /* @__PURE__ */ Object.create(null);
+	Object.freeze(e.prototype);
+	return e;
+})();
+function value(value2, ...args) {
+	if (typeof value2 === "function") return value2(...args);
+	return value2;
+}
+function overlayProxy(target, partial) {
+	return new Proxy(typeof target === "function" ? partial : target, {
+		get(_, prop) {
+			const targetValue = prop in partial ? partial : value(target);
+			const v = Reflect.get(targetValue, prop);
+			return typeof v === "function" ? v.bind(targetValue) : v;
+		},
+		has(_, prop) {
+			return Reflect.has(partial, prop) || Reflect.has(value(target), prop);
+		}
+	});
+}
+function tryDecodeURIComponent(value) {
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return value;
+	}
+}
+var ORPC_CLIENT_PACKAGE_NAME = "@orpc/client";
+var ORPC_CLIENT_PACKAGE_VERSION = "1.15.1";
+var COMMON_ORPC_ERROR_DEFS = {
+	BAD_REQUEST: {
+		status: 400,
+		message: "Bad Request"
+	},
+	UNAUTHORIZED: {
+		status: 401,
+		message: "Unauthorized"
+	},
+	FORBIDDEN: {
+		status: 403,
+		message: "Forbidden"
+	},
+	NOT_FOUND: {
+		status: 404,
+		message: "Not Found"
+	},
+	METHOD_NOT_SUPPORTED: {
+		status: 405,
+		message: "Method Not Supported"
+	},
+	NOT_ACCEPTABLE: {
+		status: 406,
+		message: "Not Acceptable"
+	},
+	TIMEOUT: {
+		status: 408,
+		message: "Request Timeout"
+	},
+	CONFLICT: {
+		status: 409,
+		message: "Conflict"
+	},
+	PRECONDITION_FAILED: {
+		status: 412,
+		message: "Precondition Failed"
+	},
+	PAYLOAD_TOO_LARGE: {
+		status: 413,
+		message: "Payload Too Large"
+	},
+	UNSUPPORTED_MEDIA_TYPE: {
+		status: 415,
+		message: "Unsupported Media Type"
+	},
+	UNPROCESSABLE_CONTENT: {
+		status: 422,
+		message: "Unprocessable Content"
+	},
+	TOO_MANY_REQUESTS: {
+		status: 429,
+		message: "Too Many Requests"
+	},
+	CLIENT_CLOSED_REQUEST: {
+		status: 499,
+		message: "Client Closed Request"
+	},
+	INTERNAL_SERVER_ERROR: {
+		status: 500,
+		message: "Internal Server Error"
+	},
+	NOT_IMPLEMENTED: {
+		status: 501,
+		message: "Not Implemented"
+	},
+	BAD_GATEWAY: {
+		status: 502,
+		message: "Bad Gateway"
+	},
+	SERVICE_UNAVAILABLE: {
+		status: 503,
+		message: "Service Unavailable"
+	},
+	GATEWAY_TIMEOUT: {
+		status: 504,
+		message: "Gateway Timeout"
+	}
+};
+function fallbackORPCErrorStatus(code, status) {
+	return status ?? COMMON_ORPC_ERROR_DEFS[code]?.status ?? 500;
+}
+function fallbackORPCErrorMessage(code, message) {
+	return message || COMMON_ORPC_ERROR_DEFS[code]?.message || code;
+}
+var globalORPCErrorConstructors;
+var ORPCError = class ORPCError extends Error {
+	defined;
+	code;
+	status;
+	data;
+	static {
+		const GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL = Symbol.for(`__${ORPC_CLIENT_PACKAGE_NAME}@${ORPC_CLIENT_PACKAGE_VERSION}/error/ORPC_ERROR_CONSTRUCTORS__`);
+		globalThis[GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL] ??= /* @__PURE__ */ new WeakSet();
+		globalORPCErrorConstructors = globalThis[GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL];
+		globalORPCErrorConstructors.add(ORPCError);
+	}
+	constructor(code, ...rest) {
+		const options = resolveMaybeOptionalOptions(rest);
+		if (options.status !== void 0 && !isORPCErrorStatus(options.status)) throw new Error("[ORPCError] Invalid error status code.");
+		const message = fallbackORPCErrorMessage(code, options.message);
+		super(message, options);
+		this.code = code;
+		this.status = fallbackORPCErrorStatus(code, options.status);
+		this.defined = options.defined ?? false;
+		this.data = options.data;
+	}
+	toJSON() {
+		return {
+			defined: this.defined,
+			code: this.code,
+			status: this.status,
+			message: this.message,
+			data: this.data
+		};
+	}
+	/**
+	* Workaround for Next.js where different contexts use separate
+	* dependency graphs, causing multiple ORPCError constructors existing and breaking
+	* `instanceof` checks across contexts.
+	*
+	* This is particularly problematic with "Optimized SSR", where orpc-client
+	* executes in one context but is invoked from another. When an error is thrown
+	* in the execution context, `instanceof ORPCError` checks fail in the
+	* invocation context due to separate class constructors.
+	*
+	* @todo Remove this and related code if Next.js resolves the multiple dependency graph issue.
+	*/
+	static [Symbol.hasInstance](instance) {
+		if (globalORPCErrorConstructors.has(this)) {
+			const constructor = getConstructor(instance);
+			if (constructor && globalORPCErrorConstructors.has(constructor)) return true;
+		}
+		return super[Symbol.hasInstance](instance);
+	}
+};
+function toORPCError(error) {
+	return error instanceof ORPCError ? error : new ORPCError("INTERNAL_SERVER_ERROR", {
+		message: "Internal server error",
+		cause: error
+	});
+}
+function isORPCErrorStatus(status) {
+	return status < 200 || status >= 400;
+}
+function isORPCErrorJson(json) {
+	if (!isObject(json)) return false;
+	const validKeys = [
+		"defined",
+		"code",
+		"status",
+		"message",
+		"data"
+	];
+	if (Object.keys(json).some((k) => !validKeys.includes(k))) return false;
+	return "defined" in json && typeof json.defined === "boolean" && "code" in json && typeof json.code === "string" && "status" in json && typeof json.status === "number" && isORPCErrorStatus(json.status) && "message" in json && typeof json.message === "string";
+}
+function createORPCErrorFromJson(json, options = {}) {
+	return new ORPCError(json.code, {
+		...options,
+		...json
+	});
+}
+var EventEncoderError = class extends TypeError {};
+var EventDecoderError = class extends TypeError {};
+var ErrorEvent = class extends Error {
+	data;
+	constructor(options) {
+		super(options?.message ?? "An error event was received", options);
+		this.data = options?.data;
+	}
+};
+var LINE_ENDING_REGEX$1 = /\r\n|\r(?!\n)|\n/;
+var MESSAGE_DELIMITER_REGEX = /(?:\r\n|\r(?!\n)|\n){2}/;
+var MESSAGE_DELIMITER_GLOBAL_REGEX = /(?:\r\n|\r(?!\n)|\n){2}/g;
+var CR = 13;
+var LF = 10;
+var SPACE = 32;
+function decodeEventMessage(encoded) {
+	const message = {
+		data: void 0,
+		event: void 0,
+		id: void 0,
+		retry: void 0,
+		comments: []
+	};
+	for (const line of encoded.split(LINE_ENDING_REGEX$1)) {
+		if (line === "") continue;
+		const index = line.indexOf(":");
+		const value = index === -1 ? "" : line.slice(line.charCodeAt(index + 1) === SPACE ? index + 2 : index + 1);
+		if (index === 0) {
+			message.comments.push(value);
+			continue;
+		}
+		switch (index === -1 ? line : line.slice(0, index)) {
+			case "data":
+				message.data = message.data === void 0 ? value : `${message.data}
+${value}`;
+				break;
+			case "event":
+				message.event = value;
+				break;
+			case "id":
+				message.id = value;
+				break;
+			case "retry": {
+				const maybeInteger = Number.parseInt(value, 10);
+				if (maybeInteger >= 0 && maybeInteger.toString() === value) message.retry = maybeInteger;
+				break;
+			}
+		}
+	}
+	return message;
+}
+var EventDecoder = class {
+	constructor(options = {}) {
+		this.options = options;
+	}
+	pending = [];
+	tail = "";
+	discardLeadingLF = false;
+	feed(chunk) {
+		if (chunk === "") return;
+		if (this.discardLeadingLF) {
+			this.discardLeadingLF = false;
+			if (chunk.charCodeAt(0) === LF) {
+				chunk = chunk.slice(1);
+				if (chunk === "") return;
+			}
+		}
+		const scan = this.tail + chunk;
+		if (!MESSAGE_DELIMITER_REGEX.test(scan)) {
+			this.pending.push(chunk);
+			this.tail = scan.slice(-3);
+			return;
+		}
+		this.pending.push(chunk);
+		const buffered = this.pending.length === 1 ? chunk : this.pending.join("");
+		const offset = buffered.length - scan.length;
+		const parts = [];
+		let start = 0;
+		for (const match of scan.matchAll(MESSAGE_DELIMITER_GLOBAL_REGEX)) {
+			parts.push(buffered.slice(start, offset + match.index));
+			start = offset + match.index + match[0].length;
+		}
+		const incomplete = buffered.slice(start);
+		this.pending.length = 0;
+		this.tail = incomplete.slice(-3);
+		if (incomplete === "") this.discardLeadingLF = chunk.charCodeAt(chunk.length - 1) === CR;
+		else this.pending.push(incomplete);
+		for (const encoded of parts) {
+			const message = decodeEventMessage(encoded);
+			if (this.options.onEvent) this.options.onEvent(message);
+		}
+	}
+	end() {
+		if (this.pending.length !== 0) throw new EventDecoderError("Event Iterator ended before complete");
+	}
+};
+var EventDecoderStream = class extends TransformStream {
+	constructor() {
+		let decoder;
+		super({
+			start(controller) {
+				decoder = new EventDecoder({ onEvent: (event) => {
+					controller.enqueue(event);
+				} });
+			},
+			transform(chunk) {
+				decoder.feed(chunk);
+			},
+			flush() {
+				decoder.end();
+			}
+		});
+	}
+};
+var LINE_ENDING_REGEX = /\r\n|[\n\r]/;
+var LINE_ENDING_GLOBAL_REGEX = /\r\n|[\n\r]/g;
+function containsLineBreak(value) {
+	return LINE_ENDING_REGEX.test(value);
+}
+function assertEventId(id) {
+	if (containsLineBreak(id)) throw new EventEncoderError("Event's id must not contain a carriage return or newline character");
+}
+function assertEventName(event) {
+	if (containsLineBreak(event)) throw new EventEncoderError("Event's event must not contain a carriage return or newline character");
+}
+function assertEventRetry(retry) {
+	if (!Number.isInteger(retry) || retry < 0) throw new EventEncoderError("Event's retry must be a integer and >= 0");
+}
+function assertEventComment(comment) {
+	if (containsLineBreak(comment)) throw new EventEncoderError("Event's comment must not contain a carriage return or newline character");
+}
+function encodeEventData(data) {
+	if (data === void 0) return "";
+	return `data: ${data.replace(LINE_ENDING_GLOBAL_REGEX, "\ndata: ")}
+`;
+}
+function encodeEventComments(comments) {
+	let output = "";
+	for (const comment of comments ?? []) {
+		assertEventComment(comment);
+		output += `: ${comment}
+`;
+	}
+	return output;
+}
+function encodeEventMessage(message) {
+	let output = "";
+	output += encodeEventComments(message.comments);
+	if (message.event !== void 0) {
+		assertEventName(message.event);
+		output += `event: ${message.event}
+`;
+	}
+	if (message.retry !== void 0) {
+		assertEventRetry(message.retry);
+		output += `retry: ${message.retry}
+`;
+	}
+	if (message.id !== void 0) {
+		assertEventId(message.id);
+		output += `id: ${message.id}
+`;
+	}
+	output += encodeEventData(message.data);
+	output += "\n";
+	return output;
+}
+var EVENT_SOURCE_META_SYMBOL = Symbol("ORPC_EVENT_SOURCE_META");
+function withEventMeta(container, meta) {
+	if (meta.id === void 0 && meta.retry === void 0 && !meta.comments?.length) return container;
+	if (meta.id !== void 0) assertEventId(meta.id);
+	if (meta.retry !== void 0) assertEventRetry(meta.retry);
+	if (meta.comments !== void 0) for (const comment of meta.comments) assertEventComment(comment);
+	return new Proxy(container, { get(target, prop, receiver) {
+		if (prop === EVENT_SOURCE_META_SYMBOL) return meta;
+		return Reflect.get(target, prop, receiver);
+	} });
+}
+function getEventMeta(container) {
+	return isTypescriptObject(container) ? Reflect.get(container, EVENT_SOURCE_META_SYMBOL) : void 0;
+}
+var HibernationEventIterator = class extends AsyncIteratorClass {
+	/**
+	* this property is not transferred to the client, so it should be optional for type safety
+	*/
+	hibernationCallback;
+	constructor(hibernationCallback) {
+		super(async () => {
+			throw new Error("Cannot iterate over hibernating iterator directly");
+		}, async (reason) => {
+			if (reason !== "next") throw new Error("Cannot cleanup hibernating iterator directly");
+		});
+		this.hibernationCallback = hibernationCallback;
+	}
+};
+function generateContentDisposition(filename, disposition = "inline") {
+	return `${disposition}; filename="${filename.replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "\\\"")}"; filename*=utf-8''${encodeURIComponent(filename).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`).replace(/%(7C|60|5E)/g, (str, hex) => String.fromCharCode(Number.parseInt(hex, 16)))}`;
+}
+function getFilenameFromContentDisposition(contentDisposition) {
+	const encodedFilenameStarMatch = contentDisposition.match(/filename\*=(UTF-8'')?([^;]*)/i);
+	if (encodedFilenameStarMatch && typeof encodedFilenameStarMatch[2] === "string") return tryDecodeURIComponent(encodedFilenameStarMatch[2]);
+	const encodedFilenameMatch = contentDisposition.match(/filename="((?:\\"|[^"])*)"/i);
+	if (encodedFilenameMatch && typeof encodedFilenameMatch[1] === "string") return encodedFilenameMatch[1].replace(/\\"/g, "\"");
+}
+function flattenHeader(header) {
+	if (typeof header === "string" || header === void 0) return header;
+	if (header.length === 0) return;
+	return header.join(", ");
+}
+function mapEventIterator(iterator, maps) {
+	const mapError = async (error) => {
+		let mappedError = await maps.error(error);
+		if (mappedError !== error) {
+			const meta = getEventMeta(error);
+			if (meta && isTypescriptObject(mappedError)) mappedError = withEventMeta(mappedError, meta);
+		}
+		return mappedError;
+	};
+	return new AsyncIteratorClass(async () => {
+		const { done, value } = await (async () => {
+			try {
+				return await iterator.next();
+			} catch (error) {
+				throw await mapError(error);
+			}
+		})();
+		let mappedValue = await maps.value(value, done);
+		if (mappedValue !== value) {
+			const meta = getEventMeta(value);
+			if (meta && isTypescriptObject(mappedValue)) mappedValue = withEventMeta(mappedValue, meta);
+		}
+		return {
+			done,
+			value: mappedValue
+		};
+	}, async () => {
+		try {
+			await iterator.return?.();
+		} catch (error) {
+			throw await mapError(error);
+		}
+	});
+}
+var ValidationError = class extends Error {
+	issues;
+	data;
+	constructor(options) {
+		super(options.message, options);
+		this.issues = options.issues;
+		this.data = options.data;
+	}
+};
+function mergeErrorMap(errorMap1, errorMap2) {
+	return {
+		...errorMap1,
+		...errorMap2
+	};
+}
+async function validateORPCError(map, error) {
+	const { code, status, message, data, cause, defined } = error;
+	const config = map?.[error.code];
+	if (!config || fallbackORPCErrorStatus(error.code, config.status) !== error.status) return defined ? new ORPCError(code, {
+		defined: false,
+		status,
+		message,
+		data,
+		cause
+	}) : error;
+	if (!config.data) return defined ? error : new ORPCError(code, {
+		defined: true,
+		status,
+		message,
+		data,
+		cause
+	});
+	const validated = await config.data["~standard"].validate(error.data);
+	if (validated.issues) return defined ? new ORPCError(code, {
+		defined: false,
+		status,
+		message,
+		data,
+		cause
+	}) : error;
+	return new ORPCError(code, {
+		defined: true,
+		status,
+		message,
+		data: validated.value,
+		cause
+	});
+}
+var ContractProcedure = class {
+	/**
+	* This property holds the defined options for the contract procedure.
+	*/
+	"~orpc";
+	constructor(def) {
+		if (def.route?.successStatus && isORPCErrorStatus(def.route.successStatus)) throw new Error("[ContractProcedure] Invalid successStatus.");
+		if (Object.values(def.errorMap).some((val) => val && val.status && !isORPCErrorStatus(val.status))) throw new Error("[ContractProcedure] Invalid error status code.");
+		this["~orpc"] = def;
+	}
+};
+function isContractProcedure(item) {
+	if (item instanceof ContractProcedure) return true;
+	return (typeof item === "object" || typeof item === "function") && item !== null && "~orpc" in item && typeof item["~orpc"] === "object" && item["~orpc"] !== null && "errorMap" in item["~orpc"] && "route" in item["~orpc"] && "meta" in item["~orpc"];
+}
+function toEventIterator(stream, options = {}) {
+	const reader = (stream?.pipeThrough(new TextDecoderStream()).pipeThrough(new EventDecoderStream()))?.getReader();
+	let span;
+	let isCancelled = false;
+	return new AsyncIteratorClass(async () => {
+		span ??= startSpan("consume_event_iterator_stream");
+		try {
+			while (true) {
+				if (reader === void 0) return {
+					done: true,
+					value: void 0
+				};
+				const { done, value } = await runInSpanContext(span, () => reader.read());
+				if (done) {
+					if (isCancelled) throw new AbortError("Stream was cancelled");
+					return {
+						done: true,
+						value: void 0
+					};
+				}
+				switch (value.event) {
+					case "message": {
+						let message = parseEmptyableJSON(value.data);
+						if (isTypescriptObject(message)) message = withEventMeta(message, value);
+						span?.addEvent("message");
+						return {
+							done: false,
+							value: message
+						};
+					}
+					case "error": {
+						let error = new ErrorEvent({ data: parseEmptyableJSON(value.data) });
+						error = withEventMeta(error, value);
+						span?.addEvent("error");
+						throw error;
+					}
+					case "done": {
+						let done2 = parseEmptyableJSON(value.data);
+						if (isTypescriptObject(done2)) done2 = withEventMeta(done2, value);
+						span?.addEvent("done");
+						return {
+							done: true,
+							value: done2
+						};
+					}
+					default: span?.addEvent("maybe_keepalive");
+				}
+			}
+		} catch (e) {
+			if (!(e instanceof ErrorEvent)) setSpanError(span, e, options);
+			throw e;
+		}
+	}, async (reason) => {
+		try {
+			if (reason !== "next") {
+				isCancelled = true;
+				span?.addEvent("cancelled");
+			}
+			await runInSpanContext(span, () => reader?.cancel());
+		} catch (e) {
+			setSpanError(span, e, options);
+			throw e;
+		} finally {
+			span?.end();
+		}
+	});
+}
+function toEventStream(iterator, options = {}) {
+	const keepAliveEnabled = options.eventIteratorKeepAliveEnabled ?? true;
+	const keepAliveInterval = options.eventIteratorKeepAliveInterval ?? 5e3;
+	const keepAliveComment = options.eventIteratorKeepAliveComment ?? "";
+	const initialCommentEnabled = options.eventIteratorInitialCommentEnabled ?? true;
+	const initialComment = options.eventIteratorInitialComment ?? "";
+	let cancelled = false;
+	let timeout;
+	let span;
+	return new ReadableStream({
+		start(controller) {
+			span = startSpan("stream_event_iterator");
+			if (initialCommentEnabled) controller.enqueue(encodeEventMessage({ comments: [initialComment] }));
+		},
+		async pull(controller) {
+			try {
+				if (keepAliveEnabled) timeout = setInterval(() => {
+					controller.enqueue(encodeEventMessage({ comments: [keepAliveComment] }));
+					span?.addEvent("keepalive");
+				}, keepAliveInterval);
+				const value = await runInSpanContext(span, () => iterator.next());
+				clearInterval(timeout);
+				if (cancelled) return;
+				const meta = getEventMeta(value.value);
+				if (!value.done || value.value !== void 0 || meta !== void 0) {
+					const event = value.done ? "done" : "message";
+					controller.enqueue(encodeEventMessage({
+						...meta,
+						event,
+						data: stringifyJSON(value.value)
+					}));
+					span?.addEvent(event);
+				}
+				if (value.done) {
+					controller.close();
+					span?.end();
+				}
+			} catch (err) {
+				clearInterval(timeout);
+				if (cancelled) return;
+				if (err instanceof ErrorEvent) {
+					controller.enqueue(encodeEventMessage({
+						...getEventMeta(err),
+						event: "error",
+						data: stringifyJSON(err.data)
+					}));
+					span?.addEvent("error");
+					controller.close();
+				} else {
+					setSpanError(span, err);
+					controller.error(err);
+				}
+				span?.end();
+			}
+		},
+		async cancel() {
+			try {
+				cancelled = true;
+				clearInterval(timeout);
+				span?.addEvent("cancelled");
+				await runInSpanContext(span, () => iterator.return?.());
+			} catch (e) {
+				setSpanError(span, e);
+				throw e;
+			} finally {
+				span?.end();
+			}
+		}
+	}).pipeThrough(new TextEncoderStream());
+}
+function toStandardBody(re, options = {}) {
+	return runWithSpan({
+		name: "parse_standard_body",
+		signal: options.signal
+	}, async () => {
+		const contentDisposition = re.headers.get("content-disposition");
+		if (typeof contentDisposition === "string") {
+			const fileName = getFilenameFromContentDisposition(contentDisposition) ?? "blob";
+			const blob2 = await re.blob();
+			return new File([blob2], fileName, { type: blob2.type });
+		}
+		const contentType = re.headers.get("content-type");
+		if (!contentType || contentType.startsWith("application/json")) return parseEmptyableJSON(await re.text());
+		if (contentType.startsWith("multipart/form-data")) return await re.formData();
+		if (contentType.startsWith("application/x-www-form-urlencoded")) {
+			const text = await re.text();
+			return new URLSearchParams(text);
+		}
+		if (contentType.startsWith("text/event-stream")) return toEventIterator(re.body, options);
+		if (contentType.startsWith("text/plain")) return await re.text();
+		const blob = await re.blob();
+		return new File([blob], "blob", { type: blob.type });
+	});
+}
+function toFetchBody(body, headers, options = {}) {
+	if (body instanceof ReadableStream) return body;
+	const currentContentDisposition = headers.get("content-disposition");
+	headers.delete("content-type");
+	headers.delete("content-disposition");
+	if (body === void 0) return;
+	if (body instanceof Blob) {
+		headers.set("content-type", body.type);
+		headers.set("content-length", body.size.toString());
+		headers.set("content-disposition", currentContentDisposition ?? generateContentDisposition(body instanceof File ? body.name : "blob"));
+		return body;
+	}
+	if (body instanceof FormData) return body;
+	if (body instanceof URLSearchParams) return body;
+	if (isAsyncIteratorObject(body)) {
+		headers.set("content-type", "text/event-stream");
+		return toEventStream(body, options);
+	}
+	headers.set("content-type", "application/json");
+	return stringifyJSON(body);
+}
+function toStandardHeaders(headers, standardHeaders = {}) {
+	headers.forEach((value, key) => {
+		if (Array.isArray(standardHeaders[key])) standardHeaders[key].push(value);
+		else if (standardHeaders[key] !== void 0) standardHeaders[key] = [standardHeaders[key], value];
+		else standardHeaders[key] = value;
+	});
+	return standardHeaders;
+}
+function toFetchHeaders(headers, fetchHeaders = new Headers()) {
+	for (const [key, value] of Object.entries(headers)) if (Array.isArray(value)) for (const v of value) fetchHeaders.append(key, v);
+	else if (value !== void 0) fetchHeaders.append(key, value);
+	return fetchHeaders;
+}
+function toStandardLazyRequest(request) {
+	return {
+		url: new URL(request.url),
+		signal: request.signal,
+		method: request.method,
+		body: once(() => toStandardBody(request, { signal: request.signal })),
+		get headers() {
+			const headers = toStandardHeaders(request.headers);
+			Object.defineProperty(this, "headers", {
+				value: headers,
+				writable: true
+			});
+			return headers;
+		},
+		set headers(value) {
+			Object.defineProperty(this, "headers", {
+				value,
+				writable: true
+			});
+		}
+	};
+}
+function toFetchResponse(response, options = {}) {
+	const headers = toFetchHeaders(response.headers);
+	const body = toFetchBody(response.body, headers, options);
+	return new Response(body, {
+		headers,
+		status: response.status
+	});
+}
+function toHttpPath(path) {
+	return `/${path.map(encodeURIComponent).join("/")}`;
+}
+function mergeMeta(meta1, meta2) {
+	return {
+		...meta1,
+		...meta2
+	};
+}
+function mergeRoute(a, b) {
+	return {
+		...a,
+		...b
+	};
+}
+function prefixRoute(route, prefix) {
+	if (!route.path) return route;
+	return {
+		...route,
+		path: `${prefix}${route.path}`
+	};
+}
+function unshiftTagRoute(route, tags) {
+	return {
+		...route,
+		tags: [...tags, ...route.tags ?? []]
+	};
+}
+function mergePrefix(a, b) {
+	return a ? `${a}${b}` : b;
+}
+function mergeTags(a, b) {
+	return a ? [...a, ...b] : b;
+}
+function enhanceRoute(route, options) {
+	let router = route;
+	if (options.prefix) router = prefixRoute(router, options.prefix);
+	if (options.tags?.length) router = unshiftTagRoute(router, options.tags);
+	return router;
+}
+function getContractRouter(router, path) {
+	let current = router;
+	for (let i = 0; i < path.length; i++) {
+		const segment = path[i];
+		if (!current) return;
+		if (isContractProcedure(current)) return;
+		if (typeof current !== "object") return;
+		current = current[segment];
+	}
+	return current;
+}
+function enhanceContractRouter(router, options) {
+	if (isContractProcedure(router)) return new ContractProcedure({
+		...router["~orpc"],
+		errorMap: mergeErrorMap(options.errorMap, router["~orpc"].errorMap),
+		route: enhanceRoute(router["~orpc"].route, options)
+	});
+	if (typeof router !== "object" || router === null) return router;
+	const enhanced = {};
+	for (const key in router) enhanced[key] = enhanceContractRouter(router[key], options);
+	return enhanced;
+}
+var oc = new class ContractBuilder extends ContractProcedure {
+	constructor(def) {
+		super(def);
+		this["~orpc"].prefix = def.prefix;
+		this["~orpc"].tags = def.tags;
+	}
+	/**
+	* Sets or overrides the initial meta.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	$meta(initialMeta) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			meta: initialMeta
+		});
+	}
+	/**
+	* Sets or overrides the initial route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	$route(initialRoute) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			route: initialRoute
+		});
+	}
+	/**
+	* Sets or overrides the initial input schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#initial-configuration Initial Procedure Configuration Docs}
+	*/
+	$input(initialInputSchema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			inputSchema: initialInputSchema
+		});
+	}
+	/**
+	* Adds type-safe custom errors to the contract.
+	* The provided errors are spared-merged with any existing errors in the contract.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	/**
+	* Sets or updates the metadata for the contract.
+	* The provided metadata is spared-merged with any existing metadata in the contract.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition for the contract.
+	* The provided route is spared-merged with any existing route in the contract.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	/**
+	* Defines the input validation schema for the contract.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
+	*/
+	input(schema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			inputSchema: schema
+		});
+	}
+	/**
+	* Defines the output validation schema for the contract.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
+	*/
+	output(schema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			outputSchema: schema
+		});
+	}
+	/**
+	* Prefixes all procedures in the contract router.
+	* The provided prefix is post-appended to any existing router prefix.
+	*
+	* @note This option does not affect procedures that do not define a path in their route definition.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing#route-prefixes OpenAPI Route Prefixes Docs}
+	*/
+	prefix(prefix) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			prefix: mergePrefix(this["~orpc"].prefix, prefix)
+		});
+	}
+	/**
+	* Adds tags to all procedures in the contract router.
+	* This helpful when you want to group procedures together in the OpenAPI specification.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/openapi-specification#operation-metadata OpenAPI Operation Metadata Docs}
+	*/
+	tag(...tags) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			tags: mergeTags(this["~orpc"].tags, tags)
+		});
+	}
+	/**
+	* Applies all of the previously defined options to the specified contract router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	router(router) {
+		return enhanceContractRouter(router, this["~orpc"]);
+	}
+}({
+	errorMap: {},
+	route: {},
+	meta: {}
+});
+var DEFAULT_CONFIG$1 = {
+	defaultMethod: "POST",
+	defaultSuccessStatus: 200,
+	defaultSuccessDescription: "OK",
+	defaultInputStructure: "compact",
+	defaultOutputStructure: "compact"
+};
+function fallbackContractConfig(key, value) {
+	if (value === void 0) return DEFAULT_CONFIG$1[key];
+	return value;
+}
+/** A canonical package-relative path using slash separators. */
+var PackagePath = defineSchema(string().regex(/^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/));
+/** A SHA-256 digest encoded as lowercase hexadecimal. */
+var Digest = defineSchema(string().length(64).regex(/^[a-f0-9]{64}$/));
+defineSchema(strictObject({
+	/** The path relative to the source or build root. */
+	path: PackagePath,
+	/** The SHA-256 digest of the file bytes. */
+	digest: Digest,
+	/** The file size in bytes. */
+	size: number().int().min(0),
+	/** The file's media type. */
+	mediaType: string().min(1)
+}));
+/** The immutable identity retained across package renames and releases. */
+var PackageId = identifier("package");
+/** A scoped Destack package name. */
+var PackageName = defineSchema(string().max(214).regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
+defineSchema(strictObject({
+	name: defineSchema(string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/)),
+	version: string().min(1)
+}));
+/** The immutable identity, current name and version declared by a Destack package. */
+var Package = defineSchema(strictObject({
+	/** The identity retained across renames and releases. */
+	id: PackageId,
+	/** The package name, qualified by its owner. */
+	name: PackageName,
+	/** The package version. */
+	version: string().min(1)
+}));
+defineSchema(strictObject({
+	/** The released package name and version. */
+	package: Package,
+	/** The digest of its immutable build manifest. */
+	manifest: Digest
+}));
+/** A stable declaration-local name used by access rules. */
+var AccessName = string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
+defineSchema(strictObject({
+	/** The package that declares the object type. */
+	packageId: PackageId,
+	/** The declaration-local object type name. */
+	type: AccessName,
+	/** The authority scope containing the object. */
+	scope: string().min(1),
+	/** The stable application record identity. */
+	id: string().min(1)
+}));
+/** A stable reference to a declared permission, independent of a package version. */
+var PermissionReference = defineSchema(strictObject({
+	/** The package that declares the permission. */
+	packageId: PackageId,
+	/** The declaration-local object type name. */
+	type: AccessName,
+	/** The permission name within that object type. */
+	name: AccessName
+}));
+/** Access and audit requirements interpreted by the service's middleware. */
+var ProcedureAccess = strictObject({
+	/** Credentials required before invoking the procedure. */
+	authentication: _enum([
+		"public",
+		"identity",
+		"host"
+	]),
+	/** The declared permission checked in the request's authorized scope. */
+	permission: PermissionReference.nullable(),
+	/** Whether successful and failed attempts require security audit records. */
+	audit: boolean()
+});
+/** Declare a procedure with explicit access requirements and conventional errors. */
+function defineProcedure(access) {
+	return oc.$meta(access).errors({
+		NOT_IMPLEMENTED: { status: 501 },
+		UNAUTHORIZED: { status: 401 },
+		FORBIDDEN: { status: 403 },
+		NOT_FOUND: { status: 404 },
+		CONFLICT: { status: 409 },
+		PRECONDITION_FAILED: { status: 412 },
+		SOURCE_MANAGED: { status: 409 },
+		UNSUPPORTED: { status: 422 },
+		RATE_LIMITED: { status: 429 },
+		UNAVAILABLE: { status: 503 }
+	});
+}
+/** An HTTP service handled by a workload's exported function. */
+var ServiceDeclaration = defineSchema(strictObject({
+	/** The package-local service name. */
+	name: ResourceName,
+	/** The declaration format version. */
+	version: literal(1),
+	/** The exported function accepting a Request and returning a Response. */
+	handler: string().min(1),
+	/** The service transport. */
+	protocol: literal("http")
+}));
+/** Declare an HTTP service for workload routing. */
+function defineService(declaration, router) {
+	return {
+		...ServiceDeclaration.parse(declaration),
+		...router ? { router } : {}
+	};
+}
+var VERSION = "1.9.1";
+var re = /^(\d+)\.(\d+)\.(\d+)(-(.+))?$/;
+/**
+* Create a function to test an API version to see if it is compatible with the provided ownVersion.
+*
+* The returned function has the following semantics:
+* - Exact match is always compatible
+* - Major versions must match exactly
+*    - 1.x package cannot use global 2.x package
+*    - 2.x package cannot use global 1.x package
+* - The minor version of the API module requesting access to the global API must be less than or equal to the minor version of this API
+*    - 1.3 package may use 1.4 global because the later global contains all functions 1.3 expects
+*    - 1.4 package may NOT use 1.3 global because it may try to call functions which don't exist on 1.3
+* - If the major version is 0, the minor version is treated as the major and the patch is treated as the minor
+* - Patch and build tag differences are not considered at this time
+*
+* @param ownVersion version which should be checked against
+*/
+function _makeCompatibilityCheck(ownVersion) {
+	const acceptedVersions = /* @__PURE__ */ new Set([ownVersion]);
+	const rejectedVersions = /* @__PURE__ */ new Set();
+	const myVersionMatch = ownVersion.match(re);
+	if (!myVersionMatch) return () => false;
+	const ownVersionParsed = {
+		major: +myVersionMatch[1],
+		minor: +myVersionMatch[2],
+		patch: +myVersionMatch[3],
+		prerelease: myVersionMatch[4]
+	};
+	if (ownVersionParsed.prerelease != null) return function isExactmatch(globalVersion) {
+		return globalVersion === ownVersion;
+	};
+	function _reject(v) {
+		rejectedVersions.add(v);
+		return false;
+	}
+	function _accept(v) {
+		acceptedVersions.add(v);
+		return true;
+	}
+	return function isCompatible(globalVersion) {
+		if (acceptedVersions.has(globalVersion)) return true;
+		if (rejectedVersions.has(globalVersion)) return false;
+		const globalVersionMatch = globalVersion.match(re);
+		if (!globalVersionMatch) return _reject(globalVersion);
+		const globalVersionParsed = {
+			major: +globalVersionMatch[1],
+			minor: +globalVersionMatch[2],
+			patch: +globalVersionMatch[3],
+			prerelease: globalVersionMatch[4]
+		};
+		if (globalVersionParsed.prerelease != null) return _reject(globalVersion);
+		if (ownVersionParsed.major !== globalVersionParsed.major) return _reject(globalVersion);
+		if (ownVersionParsed.major === 0) {
+			if (ownVersionParsed.minor === globalVersionParsed.minor && ownVersionParsed.patch <= globalVersionParsed.patch) return _accept(globalVersion);
+			return _reject(globalVersion);
+		}
+		if (ownVersionParsed.minor <= globalVersionParsed.minor) return _accept(globalVersion);
+		return _reject(globalVersion);
+	};
+}
+/**
+* Test an API version to see if it is compatible with this API.
+*
+* - Exact match is always compatible
+* - Major versions must match exactly
+*    - 1.x package cannot use global 2.x package
+*    - 2.x package cannot use global 1.x package
+* - The minor version of the API module requesting access to the global API must be less than or equal to the minor version of this API
+*    - 1.3 package may use 1.4 global because the later global contains all functions 1.3 expects
+*    - 1.4 package may NOT use 1.3 global because it may try to call functions which don't exist on 1.3
+* - If the major version is 0, the minor version is treated as the major and the patch is treated as the minor
+* - Patch and build tag differences are not considered at this time
+*
+* @param version version of the API requesting an instance of the global API
+*/
+var isCompatible = _makeCompatibilityCheck(VERSION);
+var major = VERSION.split(".")[0];
+var GLOBAL_OPENTELEMETRY_API_KEY = Symbol.for(`opentelemetry.js.api.${major}`);
+var _global$1 = typeof globalThis === "object" ? globalThis : typeof self === "object" ? self : typeof window === "object" ? window : typeof global === "object" ? global : {};
+function registerGlobal(type, instance, diag, allowOverride = false) {
+	var _a;
+	const api = _global$1[GLOBAL_OPENTELEMETRY_API_KEY] = (_a = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) !== null && _a !== void 0 ? _a : { version: VERSION };
+	if (!allowOverride && api[type]) {
+		const err = /* @__PURE__ */ new Error(`@opentelemetry/api: Attempted duplicate registration of API: ${type}`);
+		diag.error(err.stack || err.message);
+		return false;
+	}
+	if (api.version !== "1.9.1") {
+		const err = /* @__PURE__ */ new Error(`@opentelemetry/api: Registration of version v${api.version} for ${type} does not match previously registered API v${VERSION}`);
+		diag.error(err.stack || err.message);
+		return false;
+	}
+	api[type] = instance;
+	diag.debug(`@opentelemetry/api: Registered a global for ${type} v${VERSION}.`);
+	return true;
+}
+function getGlobal(type) {
+	var _a, _b;
+	const globalVersion = (_a = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _a === void 0 ? void 0 : _a.version;
+	if (!globalVersion || !isCompatible(globalVersion)) return;
+	return (_b = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _b === void 0 ? void 0 : _b[type];
+}
+function unregisterGlobal(type, diag) {
+	diag.debug(`@opentelemetry/api: Unregistering a global for ${type} v${VERSION}.`);
+	const api = _global$1[GLOBAL_OPENTELEMETRY_API_KEY];
+	if (api) delete api[type];
+}
+/**
+* Component Logger which is meant to be used as part of any component which
+* will add automatically additional namespace in front of the log message.
+* It will then forward all message to global diag logger
+* @example
+* const cLogger = diag.createComponentLogger({ namespace: '@opentelemetry/instrumentation-http' });
+* cLogger.debug('test');
+* // @opentelemetry/instrumentation-http test
+*/
+var DiagComponentLogger = class {
+	constructor(props) {
+		this._namespace = props.namespace || "DiagComponentLogger";
+	}
+	debug(...args) {
+		return logProxy("debug", this._namespace, args);
+	}
+	error(...args) {
+		return logProxy("error", this._namespace, args);
+	}
+	info(...args) {
+		return logProxy("info", this._namespace, args);
+	}
+	warn(...args) {
+		return logProxy("warn", this._namespace, args);
+	}
+	verbose(...args) {
+		return logProxy("verbose", this._namespace, args);
+	}
+};
+function logProxy(funcName, namespace, args) {
+	const logger = getGlobal("diag");
+	if (!logger) return;
+	return logger[funcName](namespace, ...args);
+}
+/**
+* Defines the available internal logging levels for the diagnostic logger, the numeric values
+* of the levels are defined to match the original values from the initial LogLevel to avoid
+* compatibility/migration issues for any implementation that assume the numeric ordering.
+*/
+var DiagLogLevel;
+(function(DiagLogLevel) {
+	/** Diagnostic Logging level setting to disable all logging (except and forced logs) */
+	DiagLogLevel[DiagLogLevel["NONE"] = 0] = "NONE";
+	/** Identifies an error scenario */
+	DiagLogLevel[DiagLogLevel["ERROR"] = 30] = "ERROR";
+	/** Identifies a warning scenario */
+	DiagLogLevel[DiagLogLevel["WARN"] = 50] = "WARN";
+	/** General informational log message */
+	DiagLogLevel[DiagLogLevel["INFO"] = 60] = "INFO";
+	/** General debug log message */
+	DiagLogLevel[DiagLogLevel["DEBUG"] = 70] = "DEBUG";
+	/**
+	* Detailed trace level logging should only be used for development, should only be set
+	* in a development environment.
+	*/
+	DiagLogLevel[DiagLogLevel["VERBOSE"] = 80] = "VERBOSE";
+	/** Used to set the logging level to include all logging */
+	DiagLogLevel[DiagLogLevel["ALL"] = 9999] = "ALL";
+})(DiagLogLevel || (DiagLogLevel = {}));
+function createLogLevelDiagLogger(maxLevel, logger) {
+	if (maxLevel < DiagLogLevel.NONE) maxLevel = DiagLogLevel.NONE;
+	else if (maxLevel > DiagLogLevel.ALL) maxLevel = DiagLogLevel.ALL;
+	logger = logger || {};
+	function _filterFunc(funcName, theLevel) {
+		const theFunc = logger[funcName];
+		if (typeof theFunc === "function" && maxLevel >= theLevel) return theFunc.bind(logger);
+		return function() {};
+	}
+	return {
+		error: _filterFunc("error", DiagLogLevel.ERROR),
+		warn: _filterFunc("warn", DiagLogLevel.WARN),
+		info: _filterFunc("info", DiagLogLevel.INFO),
+		debug: _filterFunc("debug", DiagLogLevel.DEBUG),
+		verbose: _filterFunc("verbose", DiagLogLevel.VERBOSE)
+	};
+}
+var API_NAME$4 = "diag";
+/**
+* Singleton object which represents the entry point to the OpenTelemetry internal
+* diagnostic API
+*
+* @since 1.0.0
+*/
+var DiagAPI = class DiagAPI {
+	/** Get the singleton instance of the DiagAPI API */
+	static instance() {
+		if (!this._instance) this._instance = new DiagAPI();
+		return this._instance;
+	}
+	/**
+	* Private internal constructor
+	* @private
+	*/
+	constructor() {
+		function _logProxy(funcName) {
+			return function(...args) {
+				const logger = getGlobal("diag");
+				if (!logger) return;
+				return logger[funcName](...args);
+			};
+		}
+		const self = this;
+		const setLogger = (logger, optionsOrLogLevel = { logLevel: DiagLogLevel.INFO }) => {
+			var _a, _b, _c;
+			if (logger === self) {
+				const err = /* @__PURE__ */ new Error("Cannot use diag as the logger for itself. Please use a DiagLogger implementation like ConsoleDiagLogger or a custom implementation");
+				self.error((_a = err.stack) !== null && _a !== void 0 ? _a : err.message);
+				return false;
+			}
+			if (typeof optionsOrLogLevel === "number") optionsOrLogLevel = { logLevel: optionsOrLogLevel };
+			const oldLogger = getGlobal("diag");
+			const newLogger = createLogLevelDiagLogger((_b = optionsOrLogLevel.logLevel) !== null && _b !== void 0 ? _b : DiagLogLevel.INFO, logger);
+			if (oldLogger && !optionsOrLogLevel.suppressOverrideMessage) {
+				const stack = (_c = (/* @__PURE__ */ new Error()).stack) !== null && _c !== void 0 ? _c : "<failed to generate stacktrace>";
+				oldLogger.warn(`Current logger will be overwritten from ${stack}`);
+				newLogger.warn(`Current logger will overwrite one already registered from ${stack}`);
+			}
+			return registerGlobal("diag", newLogger, self, true);
+		};
+		self.setLogger = setLogger;
+		self.disable = () => {
+			unregisterGlobal(API_NAME$4, self);
+		};
+		self.createComponentLogger = (options) => {
+			return new DiagComponentLogger(options);
+		};
+		self.verbose = _logProxy("verbose");
+		self.debug = _logProxy("debug");
+		self.info = _logProxy("info");
+		self.warn = _logProxy("warn");
+		self.error = _logProxy("error");
+	}
+};
+var BaggageImpl = class BaggageImpl {
+	constructor(entries) {
+		this._entries = entries ? new Map(entries) : /* @__PURE__ */ new Map();
+	}
+	getEntry(key) {
+		const entry = this._entries.get(key);
+		if (!entry) return;
+		return Object.assign({}, entry);
+	}
+	getAllEntries() {
+		return Array.from(this._entries.entries());
+	}
+	setEntry(key, entry) {
+		const newBaggage = new BaggageImpl(this._entries);
+		newBaggage._entries.set(key, entry);
+		return newBaggage;
+	}
+	removeEntry(key) {
+		const newBaggage = new BaggageImpl(this._entries);
+		newBaggage._entries.delete(key);
+		return newBaggage;
+	}
+	removeEntries(...keys) {
+		const newBaggage = new BaggageImpl(this._entries);
+		for (const key of keys) newBaggage._entries.delete(key);
+		return newBaggage;
+	}
+	clear() {
+		return new BaggageImpl();
+	}
+};
+DiagAPI.instance();
+/**
+* Create a new Baggage with optional entries
+*
+* @param entries An array of baggage entries the new baggage should contain
+*/
+function createBaggage(entries = {}) {
+	return new BaggageImpl(new Map(Object.entries(entries)));
+}
+/**
+* Get a key to uniquely identify a context value
+*
+* @since 1.0.0
+*/
+function createContextKey(description) {
+	return Symbol.for(description);
+}
+/**
+* The root context is used as the default parent context when there is no active context
+*
+* @since 1.0.0
+*/
+var ROOT_CONTEXT = new class BaseContext {
+	/**
+	* Construct a new context which inherits values from an optional parent context.
+	*
+	* @param parentContext a context from which to inherit values
+	*/
+	constructor(parentContext) {
+		const self = this;
+		self._currentContext = parentContext ? new Map(parentContext) : /* @__PURE__ */ new Map();
+		self.getValue = (key) => self._currentContext.get(key);
+		self.setValue = (key, value) => {
+			const context = new BaseContext(self._currentContext);
+			context._currentContext.set(key, value);
+			return context;
+		};
+		self.deleteValue = (key) => {
+			const context = new BaseContext(self._currentContext);
+			context._currentContext.delete(key);
+			return context;
+		};
+	}
+}();
+/**
+* NoopMeter is a noop implementation of the {@link Meter} interface. It reuses
+* constant NoopMetrics for all of its methods.
+*/
+var NoopMeter = class {
+	constructor() {}
+	/**
+	* @see {@link Meter.createGauge}
+	*/
+	createGauge(_name, _options) {
+		return NOOP_GAUGE_METRIC;
+	}
+	/**
+	* @see {@link Meter.createHistogram}
+	*/
+	createHistogram(_name, _options) {
+		return NOOP_HISTOGRAM_METRIC;
+	}
+	/**
+	* @see {@link Meter.createCounter}
+	*/
+	createCounter(_name, _options) {
+		return NOOP_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createUpDownCounter}
+	*/
+	createUpDownCounter(_name, _options) {
+		return NOOP_UP_DOWN_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableGauge}
+	*/
+	createObservableGauge(_name, _options) {
+		return NOOP_OBSERVABLE_GAUGE_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableCounter}
+	*/
+	createObservableCounter(_name, _options) {
+		return NOOP_OBSERVABLE_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableUpDownCounter}
+	*/
+	createObservableUpDownCounter(_name, _options) {
+		return NOOP_OBSERVABLE_UP_DOWN_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.addBatchObservableCallback}
+	*/
+	addBatchObservableCallback(_callback, _observables) {}
+	/**
+	* @see {@link Meter.removeBatchObservableCallback}
+	*/
+	removeBatchObservableCallback(_callback) {}
+};
+var NoopMetric = class {};
+var NoopCounterMetric = class extends NoopMetric {
+	add(_value, _attributes) {}
+};
+var NoopUpDownCounterMetric = class extends NoopMetric {
+	add(_value, _attributes) {}
+};
+var NoopGaugeMetric = class extends NoopMetric {
+	record(_value, _attributes) {}
+};
+var NoopHistogramMetric = class extends NoopMetric {
+	record(_value, _attributes) {}
+};
+var NoopObservableMetric = class {
+	addCallback(_callback) {}
+	removeCallback(_callback) {}
+};
+var NoopObservableCounterMetric = class extends NoopObservableMetric {};
+var NoopObservableGaugeMetric = class extends NoopObservableMetric {};
+var NoopObservableUpDownCounterMetric = class extends NoopObservableMetric {};
+var NOOP_METER = new NoopMeter();
+var NOOP_COUNTER_METRIC = new NoopCounterMetric();
+var NOOP_GAUGE_METRIC = new NoopGaugeMetric();
+var NOOP_HISTOGRAM_METRIC = new NoopHistogramMetric();
+var NOOP_UP_DOWN_COUNTER_METRIC = new NoopUpDownCounterMetric();
+var NOOP_OBSERVABLE_COUNTER_METRIC = new NoopObservableCounterMetric();
+var NOOP_OBSERVABLE_GAUGE_METRIC = new NoopObservableGaugeMetric();
+var NOOP_OBSERVABLE_UP_DOWN_COUNTER_METRIC = new NoopObservableUpDownCounterMetric();
+/**
+* @since 1.0.0
+*/
+var defaultTextMapGetter = {
+	get(carrier, key) {
+		if (carrier == null) return;
+		return carrier[key];
+	},
+	keys(carrier) {
+		if (carrier == null) return [];
+		return Object.keys(carrier);
+	}
+};
+/**
+* @since 1.0.0
+*/
+var defaultTextMapSetter = { set(carrier, key, value) {
+	if (carrier == null) return;
+	carrier[key] = value;
+} };
+var NoopContextManager = class {
+	active() {
+		return ROOT_CONTEXT;
+	}
+	with(_context, fn, thisArg, ...args) {
+		return fn.call(thisArg, ...args);
+	}
+	bind(_context, target) {
+		return target;
+	}
+	enable() {
+		return this;
+	}
+	disable() {
+		return this;
+	}
+};
+var API_NAME$3 = "context";
+var NOOP_CONTEXT_MANAGER = new NoopContextManager();
+/**
+* Singleton object which represents the entry point to the OpenTelemetry Context API
+*
+* @since 1.0.0
+*/
+var ContextAPI = class ContextAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {}
+	/** Get the singleton instance of the Context API */
+	static getInstance() {
+		if (!this._instance) this._instance = new ContextAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current context manager.
+	*
+	* @returns true if the context manager was successfully registered, else false
+	*/
+	setGlobalContextManager(contextManager) {
+		return registerGlobal(API_NAME$3, contextManager, DiagAPI.instance());
+	}
+	/**
+	* Get the currently active context
+	*/
+	active() {
+		return this._getContextManager().active();
+	}
+	/**
+	* Execute a function with an active context
+	*
+	* @param context context to be active during function execution
+	* @param fn function to execute in a context
+	* @param thisArg optional receiver to be used for calling fn
+	* @param args optional arguments forwarded to fn
+	*/
+	with(context, fn, thisArg, ...args) {
+		return this._getContextManager().with(context, fn, thisArg, ...args);
+	}
+	/**
+	* Bind a context to a target function or event emitter
+	*
+	* @param context context to bind to the event emitter or function. Defaults to the currently active context
+	* @param target function or event emitter to bind
+	*/
+	bind(context, target) {
+		return this._getContextManager().bind(context, target);
+	}
+	_getContextManager() {
+		return getGlobal(API_NAME$3) || NOOP_CONTEXT_MANAGER;
+	}
+	/** Disable and remove the global context manager */
+	disable() {
+		this._getContextManager().disable();
+		unregisterGlobal(API_NAME$3, DiagAPI.instance());
+	}
+};
+/**
+* @since 1.0.0
+*/
+var TraceFlags;
+(function(TraceFlags) {
+	/** Represents no flag set. */
+	TraceFlags[TraceFlags["NONE"] = 0] = "NONE";
+	/** Bit to represent whether trace is sampled in trace flags. */
+	TraceFlags[TraceFlags["SAMPLED"] = 1] = "SAMPLED";
+})(TraceFlags || (TraceFlags = {}));
+/**
+* @since 1.0.0
+*/
+var INVALID_SPAN_CONTEXT = {
+	traceId: "00000000000000000000000000000000",
+	spanId: "0000000000000000",
+	traceFlags: TraceFlags.NONE
+};
+/**
+* The NonRecordingSpan is the default {@link Span} that is used when no Span
+* implementation is available. All operations are no-op including context
+* propagation.
+*/
+var NonRecordingSpan = class {
+	constructor(spanContext = INVALID_SPAN_CONTEXT) {
+		this._spanContext = spanContext;
+	}
+	spanContext() {
+		return this._spanContext;
+	}
+	setAttribute(_key, _value) {
+		return this;
+	}
+	setAttributes(_attributes) {
+		return this;
+	}
+	addEvent(_name, _attributes) {
+		return this;
+	}
+	addLink(_link) {
+		return this;
+	}
+	addLinks(_links) {
+		return this;
+	}
+	setStatus(_status) {
+		return this;
+	}
+	updateName(_name) {
+		return this;
+	}
+	end(_endTime) {}
+	isRecording() {
+		return false;
+	}
+	recordException(_exception, _time) {}
+};
+/**
+* span key
+*/
+var SPAN_KEY = createContextKey("OpenTelemetry Context Key SPAN");
+/**
+* Return the span if one exists
+*
+* @param context context to get span from
+*/
+function getSpan(context) {
+	return context.getValue(SPAN_KEY) || void 0;
+}
+/**
+* Gets the span from the current context, if one exists.
+*/
+function getActiveSpan() {
+	return getSpan(ContextAPI.getInstance().active());
+}
+/**
+* Set the span on a context
+*
+* @param context context to use as parent
+* @param span span to set active
+*/
+function setSpan(context, span) {
+	return context.setValue(SPAN_KEY, span);
+}
+/**
+* Remove current span stored in the context
+*
+* @param context context to delete span from
+*/
+function deleteSpan(context) {
+	return context.deleteValue(SPAN_KEY);
+}
+/**
+* Wrap span context in a NoopSpan and set as span in a new
+* context
+*
+* @param context context to set active span on
+* @param spanContext span context to be wrapped
+*/
+function setSpanContext(context, spanContext) {
+	return setSpan(context, new NonRecordingSpan(spanContext));
+}
+/**
+* Get the span context of the span if it exists.
+*
+* @param context context to get values from
+*/
+function getSpanContext(context) {
+	var _a;
+	return (_a = getSpan(context)) === null || _a === void 0 ? void 0 : _a.spanContext();
+}
+var isHex = new Uint8Array([
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1
+]);
+function isValidHex(id, length) {
+	if (typeof id !== "string" || id.length !== length) return false;
+	let r = 0;
+	for (let i = 0; i < id.length; i += 4) r += (isHex[id.charCodeAt(i)] | 0) + (isHex[id.charCodeAt(i + 1)] | 0) + (isHex[id.charCodeAt(i + 2)] | 0) + (isHex[id.charCodeAt(i + 3)] | 0);
+	return r === length;
+}
+/**
+* @since 1.0.0
+*/
+function isValidTraceId(traceId) {
+	return isValidHex(traceId, 32) && traceId !== "00000000000000000000000000000000";
+}
+/**
+* @since 1.0.0
+*/
+function isValidSpanId(spanId) {
+	return isValidHex(spanId, 16) && spanId !== "0000000000000000";
+}
+/**
+* Returns true if this {@link SpanContext} is valid.
+* @return true if this {@link SpanContext} is valid.
+*
+* @since 1.0.0
+*/
+function isSpanContextValid(spanContext) {
+	return isValidTraceId(spanContext.traceId) && isValidSpanId(spanContext.spanId);
+}
+/**
+* Wrap the given {@link SpanContext} in a new non-recording {@link Span}
+*
+* @param spanContext span context to be wrapped
+* @returns a new non-recording {@link Span} with the provided context
+*/
+function wrapSpanContext(spanContext) {
+	return new NonRecordingSpan(spanContext);
+}
+var contextApi = ContextAPI.getInstance();
+/**
+* No-op implementations of {@link Tracer}.
+*/
+var NoopTracer = class {
+	startSpan(name, options, context = contextApi.active()) {
+		if (Boolean(options === null || options === void 0 ? void 0 : options.root)) return new NonRecordingSpan();
+		const parentFromContext = context && getSpanContext(context);
+		if (isSpanContext(parentFromContext) && isSpanContextValid(parentFromContext)) return new NonRecordingSpan(parentFromContext);
+		else return new NonRecordingSpan();
+	}
+	startActiveSpan(name, arg2, arg3, arg4) {
+		let opts;
+		let ctx;
+		let fn;
+		if (arguments.length < 2) return;
+		else if (arguments.length === 2) fn = arg2;
+		else if (arguments.length === 3) {
+			opts = arg2;
+			fn = arg3;
+		} else {
+			opts = arg2;
+			ctx = arg3;
+			fn = arg4;
+		}
+		const parentContext = ctx !== null && ctx !== void 0 ? ctx : contextApi.active();
+		const span = this.startSpan(name, opts, parentContext);
+		const contextWithSpanSet = setSpan(parentContext, span);
+		return contextApi.with(contextWithSpanSet, fn, void 0, span);
+	}
+};
+function isSpanContext(spanContext) {
+	return spanContext !== null && typeof spanContext === "object" && "spanId" in spanContext && typeof spanContext["spanId"] === "string" && "traceId" in spanContext && typeof spanContext["traceId"] === "string" && "traceFlags" in spanContext && typeof spanContext["traceFlags"] === "number";
+}
+var NOOP_TRACER = new NoopTracer();
+/**
+* Proxy tracer provided by the proxy tracer provider
+*
+* @since 1.0.0
+*/
+var ProxyTracer = class {
+	constructor(provider, name, version, options) {
+		this._provider = provider;
+		this.name = name;
+		this.version = version;
+		this.options = options;
+	}
+	startSpan(name, options, context) {
+		return this._getTracer().startSpan(name, options, context);
+	}
+	startActiveSpan(_name, _options, _context, _fn) {
+		const tracer = this._getTracer();
+		return Reflect.apply(tracer.startActiveSpan, tracer, arguments);
+	}
+	/**
+	* Try to get a tracer from the proxy tracer provider.
+	* If the proxy tracer provider has no delegate, return a noop tracer.
+	*/
+	_getTracer() {
+		if (this._delegate) return this._delegate;
+		const tracer = this._provider.getDelegateTracer(this.name, this.version, this.options);
+		if (!tracer) return NOOP_TRACER;
+		this._delegate = tracer;
+		return this._delegate;
+	}
+};
+/**
+* An implementation of the {@link TracerProvider} which returns an impotent
+* Tracer for all calls to `getTracer`.
+*
+* All operations are no-op.
+*/
+var NoopTracerProvider = class {
+	getTracer(_name, _version, _options) {
+		return new NoopTracer();
+	}
+};
+var NOOP_TRACER_PROVIDER = new NoopTracerProvider();
+/**
+* Tracer provider which provides {@link ProxyTracer}s.
+*
+* Before a delegate is set, tracers provided are NoOp.
+*   When a delegate is set, traces are provided from the delegate.
+*   When a delegate is set after tracers have already been provided,
+*   all tracers already provided will use the provided delegate implementation.
+*
+* @deprecated This will be removed in the next major version.
+* @since 1.0.0
+*/
+var ProxyTracerProvider = class {
+	/**
+	* Get a {@link ProxyTracer}
+	*/
+	getTracer(name, version, options) {
+		var _a;
+		return (_a = this.getDelegateTracer(name, version, options)) !== null && _a !== void 0 ? _a : new ProxyTracer(this, name, version, options);
+	}
+	getDelegate() {
+		var _a;
+		return (_a = this._delegate) !== null && _a !== void 0 ? _a : NOOP_TRACER_PROVIDER;
+	}
+	/**
+	* Set the delegate tracer provider
+	*/
+	setDelegate(delegate) {
+		this._delegate = delegate;
+	}
+	getDelegateTracer(name, version, options) {
+		var _a;
+		return (_a = this._delegate) === null || _a === void 0 ? void 0 : _a.getTracer(name, version, options);
+	}
+};
+/**
+* @since 1.0.0
+*/
+var SpanKind;
+(function(SpanKind) {
+	/** Default value. Indicates that the span is used internally. */
+	SpanKind[SpanKind["INTERNAL"] = 0] = "INTERNAL";
+	/**
+	* Indicates that the span covers server-side handling of an RPC or other
+	* remote request.
+	*/
+	SpanKind[SpanKind["SERVER"] = 1] = "SERVER";
+	/**
+	* Indicates that the span covers the client-side wrapper around an RPC or
+	* other remote request.
+	*/
+	SpanKind[SpanKind["CLIENT"] = 2] = "CLIENT";
+	/**
+	* Indicates that the span describes producer sending a message to a
+	* broker. Unlike client and server, there is no direct critical path latency
+	* relationship between producer and consumer spans.
+	*/
+	SpanKind[SpanKind["PRODUCER"] = 3] = "PRODUCER";
+	/**
+	* Indicates that the span describes consumer receiving a message from a
+	* broker. Unlike client and server, there is no direct critical path latency
+	* relationship between producer and consumer spans.
+	*/
+	SpanKind[SpanKind["CONSUMER"] = 4] = "CONSUMER";
+})(SpanKind || (SpanKind = {}));
+/**
+* An enumeration of status codes.
+*
+* @since 1.0.0
+*/
+var SpanStatusCode;
+(function(SpanStatusCode) {
+	/**
+	* The default status.
+	*/
+	SpanStatusCode[SpanStatusCode["UNSET"] = 0] = "UNSET";
+	/**
+	* The operation has been validated by an Application developer or
+	* Operator to have completed successfully.
+	*/
+	SpanStatusCode[SpanStatusCode["OK"] = 1] = "OK";
+	/**
+	* The operation contains an error.
+	*/
+	SpanStatusCode[SpanStatusCode["ERROR"] = 2] = "ERROR";
+})(SpanStatusCode || (SpanStatusCode = {}));
+/**
+* Entrypoint for context API
+* @since 1.0.0
+*/
+var context = ContextAPI.getInstance();
+/**
+* An implementation of the {@link MeterProvider} which returns an impotent Meter
+* for all calls to `getMeter`
+*/
+var NoopMeterProvider = class {
+	getMeter(_name, _version, _options) {
+		return NOOP_METER;
+	}
+};
+var NOOP_METER_PROVIDER = new NoopMeterProvider();
+var API_NAME$2 = "metrics";
+/**
+* Entrypoint for metrics API
+*
+* @since 1.3.0
+*/
+var metrics = class MetricsAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {}
+	/** Get the singleton instance of the Metrics API */
+	static getInstance() {
+		if (!this._instance) this._instance = new MetricsAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current global meter provider.
+	* Returns true if the meter provider was successfully registered, else false.
+	*/
+	setGlobalMeterProvider(provider) {
+		return registerGlobal(API_NAME$2, provider, DiagAPI.instance());
+	}
+	/**
+	* Returns the global meter provider.
+	*/
+	getMeterProvider() {
+		return getGlobal(API_NAME$2) || NOOP_METER_PROVIDER;
+	}
+	/**
+	* Returns a meter from the global meter provider.
+	*/
+	getMeter(name, version, options) {
+		return this.getMeterProvider().getMeter(name, version, options);
+	}
+	/** Remove the global meter provider */
+	disable() {
+		unregisterGlobal(API_NAME$2, DiagAPI.instance());
+	}
+}.getInstance();
+/**
+* No-op implementations of {@link TextMapPropagator}.
+*/
+var NoopTextMapPropagator = class {
+	/** Noop inject function does nothing */
+	inject(_context, _carrier) {}
+	/** Noop extract function does nothing and returns the input context */
+	extract(context, _carrier) {
+		return context;
+	}
+	fields() {
+		return [];
+	}
+};
+/**
+* Baggage key
+*/
+var BAGGAGE_KEY = createContextKey("OpenTelemetry Baggage Key");
+/**
+* Retrieve the current baggage from the given context
+*
+* @param {Context} Context that manage all context values
+* @returns {Baggage} Extracted baggage from the context
+*/
+function getBaggage(context) {
+	return context.getValue(BAGGAGE_KEY) || void 0;
+}
+/**
+* Retrieve the current baggage from the active/current context
+*
+* @returns {Baggage} Extracted baggage from the context
+*/
+function getActiveBaggage() {
+	return getBaggage(ContextAPI.getInstance().active());
+}
+/**
+* Store a baggage in the given context
+*
+* @param {Context} Context that manage all context values
+* @param {Baggage} baggage that will be set in the actual context
+*/
+function setBaggage(context, baggage) {
+	return context.setValue(BAGGAGE_KEY, baggage);
+}
+/**
+* Delete the baggage stored in the given context
+*
+* @param {Context} Context that manage all context values
+*/
+function deleteBaggage(context) {
+	return context.deleteValue(BAGGAGE_KEY);
+}
+var API_NAME$1 = "propagation";
+var NOOP_TEXT_MAP_PROPAGATOR = new NoopTextMapPropagator();
+/**
+* Entrypoint for propagation API
+*
+* @since 1.0.0
+*/
+var propagation = class PropagationAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {
+		this.createBaggage = createBaggage;
+		this.getBaggage = getBaggage;
+		this.getActiveBaggage = getActiveBaggage;
+		this.setBaggage = setBaggage;
+		this.deleteBaggage = deleteBaggage;
+	}
+	/** Get the singleton instance of the Propagator API */
+	static getInstance() {
+		if (!this._instance) this._instance = new PropagationAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current propagator.
+	*
+	* @returns true if the propagator was successfully registered, else false
+	*/
+	setGlobalPropagator(propagator) {
+		return registerGlobal(API_NAME$1, propagator, DiagAPI.instance());
+	}
+	/**
+	* Inject context into a carrier to be propagated inter-process
+	*
+	* @param context Context carrying tracing data to inject
+	* @param carrier carrier to inject context into
+	* @param setter Function used to set values on the carrier
+	*/
+	inject(context, carrier, setter = defaultTextMapSetter) {
+		return this._getGlobalPropagator().inject(context, carrier, setter);
+	}
+	/**
+	* Extract context from a carrier
+	*
+	* @param context Context which the newly created context will inherit from
+	* @param carrier Carrier to extract context from
+	* @param getter Function used to extract keys from a carrier
+	*/
+	extract(context, carrier, getter = defaultTextMapGetter) {
+		return this._getGlobalPropagator().extract(context, carrier, getter);
+	}
+	/**
+	* Return a list of all fields which may be used by the propagator.
+	*/
+	fields() {
+		return this._getGlobalPropagator().fields();
+	}
+	/** Remove the global propagator */
+	disable() {
+		unregisterGlobal(API_NAME$1, DiagAPI.instance());
+	}
+	_getGlobalPropagator() {
+		return getGlobal(API_NAME$1) || NOOP_TEXT_MAP_PROPAGATOR;
+	}
+}.getInstance();
+var API_NAME = "trace";
+/**
+* Entrypoint for trace API
+*
+* @since 1.0.0
+*/
+var trace = class TraceAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {
+		this._proxyTracerProvider = new ProxyTracerProvider();
+		this.wrapSpanContext = wrapSpanContext;
+		this.isSpanContextValid = isSpanContextValid;
+		this.deleteSpan = deleteSpan;
+		this.getSpan = getSpan;
+		this.getActiveSpan = getActiveSpan;
+		this.getSpanContext = getSpanContext;
+		this.setSpan = setSpan;
+		this.setSpanContext = setSpanContext;
+	}
+	/** Get the singleton instance of the Trace API */
+	static getInstance() {
+		if (!this._instance) this._instance = new TraceAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current global tracer.
+	*
+	* @returns true if the tracer provider was successfully registered, else false
+	*/
+	setGlobalTracerProvider(provider) {
+		const success = registerGlobal(API_NAME, this._proxyTracerProvider, DiagAPI.instance());
+		if (success) this._proxyTracerProvider.setDelegate(provider);
+		return success;
+	}
+	/**
+	* Returns the global tracer provider.
+	*/
+	getTracerProvider() {
+		return getGlobal(API_NAME) || this._proxyTracerProvider;
+	}
+	/**
+	* Returns a tracer from the global tracer provider.
+	*/
+	getTracer(name, version) {
+		return this.getTracerProvider().getTracer(name, version);
+	}
+	/** Remove the global tracer provider */
+	disable() {
+		unregisterGlobal(API_NAME, DiagAPI.instance());
+		this._proxyTracerProvider = new ProxyTracerProvider();
+	}
+}.getInstance();
+var NoopLogger = class {
+	emit(_logRecord) {}
+	enabled() {
+		return false;
+	}
+};
+var NOOP_LOGGER = new NoopLogger();
+var GLOBAL_LOGS_API_KEY = Symbol.for("io.opentelemetry.js.api.logs");
+var _global = globalThis;
+/**
+* Make a function which accepts a version integer and returns the instance of an API if the version
+* is compatible, or a fallback version (usually NOOP) if it is not.
+*
+* @param requiredVersion Backwards compatibility version which is required to return the instance
+* @param instance Instance which should be returned if the required version is compatible
+* @param fallback Fallback instance, usually NOOP, which will be returned if the required version is not compatible
+*/
+function makeGetter(requiredVersion, instance, fallback) {
+	return (version) => version === requiredVersion ? instance : fallback;
+}
+var NoopLoggerProvider = class {
+	getLogger(_name, _version, _options) {
+		return new NoopLogger();
+	}
+};
+var NOOP_LOGGER_PROVIDER = new NoopLoggerProvider();
+var ProxyLogger = class {
+	constructor(provider, name, version, options) {
+		this._provider = provider;
+		this.name = name;
+		this.version = version;
+		this.options = options;
+	}
+	/**
+	* Emit a log record. This method should only be used by log appenders.
+	*
+	* @param logRecord
+	*/
+	emit(logRecord) {
+		this._getLogger().emit(logRecord);
+	}
+	enabled(options) {
+		return this._getLogger().enabled(options);
+	}
+	/**
+	* Try to get a logger from the proxy logger provider.
+	* If the proxy logger provider has no delegate, return a noop logger.
+	*/
+	_getLogger() {
+		if (this._delegate) return this._delegate;
+		const logger = this._provider._getDelegateLogger(this.name, this.version, this.options);
+		if (!logger) return NOOP_LOGGER;
+		this._delegate = logger;
+		return this._delegate;
+	}
+};
+var ProxyLoggerProvider = class {
+	getLogger(name, version, options) {
+		var _a;
+		return (_a = this._getDelegateLogger(name, version, options)) !== null && _a !== void 0 ? _a : new ProxyLogger(this, name, version, options);
+	}
+	/**
+	* Get the delegate logger provider.
+	* Used by tests only.
+	* @internal
+	*/
+	_getDelegate() {
+		var _a;
+		return (_a = this._delegate) !== null && _a !== void 0 ? _a : NOOP_LOGGER_PROVIDER;
+	}
+	/**
+	* Set the delegate logger provider
+	* @internal
+	*/
+	_setDelegate(delegate) {
+		this._delegate = delegate;
+	}
+	/**
+	* @internal
+	*/
+	_getDelegateLogger(name, version, options) {
+		var _a;
+		return (_a = this._delegate) === null || _a === void 0 ? void 0 : _a.getLogger(name, version, options);
+	}
+};
+var logs = class LogsAPI {
+	constructor() {
+		this._proxyLoggerProvider = new ProxyLoggerProvider();
+	}
+	static getInstance() {
+		if (!this._instance) this._instance = new LogsAPI();
+		return this._instance;
+	}
+	setGlobalLoggerProvider(provider) {
+		if (_global[GLOBAL_LOGS_API_KEY]) return this.getLoggerProvider();
+		_global[GLOBAL_LOGS_API_KEY] = makeGetter(1, provider, NOOP_LOGGER_PROVIDER);
+		this._proxyLoggerProvider._setDelegate(provider);
+		return provider;
+	}
+	/**
+	* Returns the global logger provider.
+	*
+	* @returns LoggerProvider
+	*/
+	getLoggerProvider() {
+		var _a, _b;
+		return (_b = (_a = _global[GLOBAL_LOGS_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(_global, 1)) !== null && _b !== void 0 ? _b : this._proxyLoggerProvider;
+	}
+	/**
+	* Returns a Logger, creating one if one with the given name, version,
+	* schemaUrl, and attributes is not already created.
+	*
+	* Getting a Logger may be expensive, especially when `attributes` are
+	* provided. Reuse Logger instances where possible instead of calling
+	* `getLogger()` on hot paths.
+	*
+	* @param name The name of the logger or instrumentation library.
+	* @param version The version of the logger or instrumentation library.
+	* @param options The options of the logger or instrumentation library.
+	* @returns {@link Logger}
+	*/
+	getLogger(name, version, options) {
+		return this.getLoggerProvider().getLogger(name, version, options);
+	}
+	/** Remove the global logger provider */
+	disable() {
+		delete _global[GLOBAL_LOGS_API_KEY];
+		this._proxyLoggerProvider = new ProxyLoggerProvider();
+	}
+}.getInstance();
+/** Extract a remote trace without inheriting another request's active context. */
+function extractContext(headers, propagator = propagation) {
+	return propagator.extract(ROOT_CONTEXT, headers, {
+		keys: (headers) => [...headers.keys()],
+		get: (headers, name) => headers.get(name) ?? void 0
+	});
+}
+/** Obtain package instruments from the providers registered by the host. */
+function scope(source) {
+	return {
+		tracer: trace.getTracer(source.name, source.version),
+		meter: metrics.getMeter(source.name, source.version),
+		logger: logs.getLogger(source.name, source.version)
+	};
+}
+var package_default = {
+	name: "@destack/service",
+	version: "2026.9.0",
+	"private": true,
+	license: "MIT",
+	type: "module",
+	description: "Define Destack HTTP services.",
+	sideEffects: false,
+	scripts: {
+		"check": "tsc --project tsconfig.json",
+		"test": "vitest run --config vitest.config.ts"
+	},
+	exports: {
+		"./watch": "./src/watch/index.ts",
+		"./declare": "./src/declare/index.ts",
+		"./operation": "./src/operation/index.ts",
+		"./procedure": "./src/procedure/index.ts",
+		"./page": "./src/page/index.ts",
+		"./health": "./src/health/index.ts",
+		"./error": "./src/error/index.ts",
+		".": "./src/index.ts",
+		"./client": "./src/client/index.ts",
+		"./server": "./src/server/index.ts",
+		"./openapi": "./src/openapi/index.ts",
+		"./inspect": "./src/inspect/index.ts",
+		"./schedule": "./src/schedule/index.ts"
+	},
+	devDependencies: { "@destack/test": "workspace:*" },
+	dependencies: {
+		"@destack/package": "workspace:*",
+		"@destack/schema": "workspace:*",
+		"@destack/telemetry": "workspace:*",
+		"@orpc/shared": "1.15.1",
+		"@orpc/client": "1.15.1",
+		"@orpc/contract": "1.15.1",
+		"@orpc/openapi": "1.15.1",
+		"@orpc/openapi-client": "1.15.1",
+		"@orpc/server": "1.15.1",
+		"@destack/resource": "workspace:*",
+		"@destack/access": "workspace:*"
+	}
+};
+var destack_default = {
+	id: "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+	language: "typescript",
+	targets: ["browser", "server"],
+	runtimes: [
+		"browser",
+		"bun",
+		"workerd"
+	]
+};
+/** Service failure instrumentation. */
+var instruments$1 = scope(Package.parse({
+	id: destack_default.id,
+	name: package_default.name,
+	version: package_default.version
+}));
+/** Record unexpected failures and return an error safe to send to clients. */
+function reportError(error) {
+	if (error instanceof ORPCError && error.status < 500) return error;
+	const exception = error instanceof Error ? error : new Error(String(error));
+	trace.getActiveSpan()?.recordException(exception);
+	instruments$1.logger.emit({
+		severityNumber: 17,
+		severityText: "ERROR",
+		body: "Service request failed",
+		attributes: {
+			"exception.type": exception.name,
+			"exception.message": exception.message,
+			...exception.stack ? { "exception.stacktrace": exception.stack } : {}
+		}
+	});
+	if (error instanceof ORPCError) return error;
+	return new ORPCError("INTERNAL_SERVER_ERROR", {
+		message: "Internal server error",
+		cause: error
+	});
+}
+function resolveFriendlyStandardHandleOptions(options) {
+	return {
+		...options,
+		context: options.context ?? {}
+	};
+}
+var LAZY_SYMBOL = Symbol("ORPC_LAZY_SYMBOL");
+function lazy(loader, meta = {}) {
+	return { [LAZY_SYMBOL]: {
+		loader,
+		meta
+	} };
+}
+function isLazy(item) {
+	return (typeof item === "object" || typeof item === "function") && item !== null && LAZY_SYMBOL in item;
+}
+function getLazyMeta(lazied) {
+	return lazied[LAZY_SYMBOL].meta;
+}
+function unlazy(lazied) {
+	return isLazy(lazied) ? lazied[LAZY_SYMBOL].loader() : Promise.resolve({ default: lazied });
+}
+function isStartWithMiddlewares(middlewares, compare) {
+	if (compare.length > middlewares.length) return false;
+	for (let i = 0; i < middlewares.length; i++) {
+		if (compare[i] === void 0) return true;
+		if (middlewares[i] !== compare[i]) return false;
+	}
+	return true;
+}
+function mergeMiddlewares(first, second, options) {
+	if (options.dedupeLeading && isStartWithMiddlewares(second, first)) return second;
+	return [...first, ...second];
+}
+function addMiddleware(middlewares, addition) {
+	return [...middlewares, addition];
+}
+var Procedure = class {
+	/**
+	* This property holds the defined options.
+	*/
+	"~orpc";
+	constructor(def) {
+		this["~orpc"] = def;
+	}
+};
+function isProcedure(item) {
+	if (item instanceof Procedure) return true;
+	return isContractProcedure(item) && "middlewares" in item["~orpc"] && "inputValidationIndex" in item["~orpc"] && "outputValidationIndex" in item["~orpc"] && "handler" in item["~orpc"];
+}
+function mergeCurrentContext(context, other) {
+	return {
+		...context,
+		...other
+	};
+}
+function createORPCErrorConstructorMap(errors) {
+	return new Proxy(errors, { get(target, code) {
+		if (typeof code !== "string") return Reflect.get(target, code);
+		const item = (...rest) => {
+			const options = resolveMaybeOptionalOptions(rest);
+			const config = errors[code];
+			return new ORPCError(code, {
+				defined: Boolean(config),
+				status: config?.status,
+				message: options.message ?? config?.message,
+				data: options.data,
+				cause: options.cause
+			});
+		};
+		return item;
+	} });
+}
+function middlewareOutputFn(output) {
+	return {
+		output,
+		context: {}
+	};
+}
+function createProcedureClient(lazyableProcedure, ...rest) {
+	const options = resolveMaybeOptionalOptions(rest);
+	return async (...[input, callerOptions]) => {
+		const path = toArray(options.path);
+		const { default: procedure } = await unlazy(lazyableProcedure);
+		const clientContext = callerOptions?.context ?? {};
+		const context = await value(options.context ?? {}, clientContext);
+		const errors = createORPCErrorConstructorMap(procedure["~orpc"].errorMap);
+		const validateError = async (e) => {
+			if (e instanceof ORPCError) return await validateORPCError(procedure["~orpc"].errorMap, e);
+			return e;
+		};
+		try {
+			const output = await runWithSpan({
+				name: "call_procedure",
+				signal: callerOptions?.signal
+			}, (span) => {
+				span?.setAttribute("procedure.path", [...path]);
+				return intercept(toArray(options.interceptors), {
+					context,
+					input,
+					errors,
+					path,
+					procedure,
+					signal: callerOptions?.signal,
+					lastEventId: callerOptions?.lastEventId
+				}, (interceptorOptions) => executeProcedureInternal(interceptorOptions.procedure, interceptorOptions));
+			});
+			if (isAsyncIteratorObject(output)) {
+				if (output instanceof HibernationEventIterator) return output;
+				return overlayProxy(output, mapEventIterator(asyncIteratorWithSpan({
+					name: "consume_event_iterator_output",
+					signal: callerOptions?.signal
+				}, output), {
+					value: (v) => v,
+					error: (e) => validateError(e)
+				}));
+			}
+			return output;
+		} catch (e) {
+			throw await validateError(e);
+		}
+	};
+}
+async function validateInput(procedure, input) {
+	const schema = procedure["~orpc"].inputSchema;
+	if (!schema) return input;
+	return runWithSpan({ name: "validate_input" }, async () => {
+		const result = await schema["~standard"].validate(input);
+		if (result.issues) throw new ORPCError("BAD_REQUEST", {
+			message: "Input validation failed",
+			data: { issues: result.issues },
+			cause: new ValidationError({
+				message: "Input validation failed",
+				issues: result.issues,
+				data: input
+			})
+		});
+		return result.value;
+	});
+}
+async function validateOutput(procedure, output) {
+	const schema = procedure["~orpc"].outputSchema;
+	if (!schema) return output;
+	return runWithSpan({ name: "validate_output" }, async () => {
+		const result = await schema["~standard"].validate(output);
+		if (result.issues) throw new ORPCError("INTERNAL_SERVER_ERROR", {
+			message: "Output validation failed",
+			cause: new ValidationError({
+				message: "Output validation failed",
+				issues: result.issues,
+				data: output
+			})
+		});
+		return result.value;
+	});
+}
+async function executeProcedureInternal(procedure, options) {
+	const middlewares = procedure["~orpc"].middlewares;
+	const inputValidationIndex = Math.min(Math.max(0, procedure["~orpc"].inputValidationIndex), middlewares.length);
+	const outputValidationIndex = Math.min(Math.max(0, procedure["~orpc"].outputValidationIndex), middlewares.length);
+	const next = async (index, context, input) => {
+		let currentInput = input;
+		if (index === inputValidationIndex) currentInput = await validateInput(procedure, currentInput);
+		const mid = middlewares[index];
+		const output = mid ? await runWithSpan({
+			name: `middleware.${mid.name}`,
+			signal: options.signal
+		}, async (span) => {
+			span?.setAttribute("middleware.index", index);
+			span?.setAttribute("middleware.name", mid.name);
+			return (await mid({
+				...options,
+				context,
+				next: async (...[nextOptions]) => {
+					const nextContext = nextOptions?.context ?? {};
+					return {
+						output: await next(index + 1, mergeCurrentContext(context, nextContext), currentInput),
+						context: nextContext
+					};
+				}
+			}, currentInput, middlewareOutputFn)).output;
+		}) : await runWithSpan({
+			name: "handler",
+			signal: options.signal
+		}, () => procedure["~orpc"].handler({
+			...options,
+			context,
+			input: currentInput
+		}));
+		if (index === outputValidationIndex) return await validateOutput(procedure, output);
+		return output;
+	};
+	return next(0, options.context, options.input);
+}
+var HIDDEN_ROUTER_CONTRACT_SYMBOL = Symbol("ORPC_HIDDEN_ROUTER_CONTRACT");
+function setHiddenRouterContract(router, contract) {
+	return new Proxy(router, { get(target, key) {
+		if (key === HIDDEN_ROUTER_CONTRACT_SYMBOL) return contract;
+		return Reflect.get(target, key);
+	} });
+}
+function getHiddenRouterContract(router) {
+	return router[HIDDEN_ROUTER_CONTRACT_SYMBOL];
+}
+function getRouter(router, path) {
+	let current = router;
+	for (let i = 0; i < path.length; i++) {
+		const segment = path[i];
+		if (!current) return;
+		if (isProcedure(current)) return;
+		if (!isTypescriptObject(current)) return;
+		if (!isLazy(current)) {
+			current = current[segment];
+			continue;
+		}
+		const lazied = current;
+		const rest = path.slice(i);
+		return lazy(async () => {
+			return unlazy(getRouter((await unlazy(lazied)).default, rest));
+		}, getLazyMeta(lazied));
+	}
+	return current;
+}
+function createAccessibleLazyRouter(lazied) {
+	return new Proxy(lazied, { get(target, key) {
+		if (typeof key !== "string") return Reflect.get(target, key);
+		return createAccessibleLazyRouter(getRouter(lazied, [key]));
+	} });
+}
+function enhanceRouter(router, options) {
+	if (isLazy(router)) {
+		const laziedMeta = getLazyMeta(router);
+		const enhancedPrefix = laziedMeta?.prefix ? mergePrefix(options.prefix, laziedMeta?.prefix) : options.prefix;
+		return createAccessibleLazyRouter(lazy(async () => {
+			const { default: unlaziedRouter } = await unlazy(router);
+			return unlazy(enhanceRouter(unlaziedRouter, options));
+		}, {
+			...laziedMeta,
+			prefix: enhancedPrefix
+		}));
+	}
+	if (isProcedure(router)) {
+		const newMiddlewares = mergeMiddlewares(options.middlewares, router["~orpc"].middlewares, { dedupeLeading: options.dedupeLeadingMiddlewares });
+		const newMiddlewareAdded = newMiddlewares.length - router["~orpc"].middlewares.length;
+		return new Procedure({
+			...router["~orpc"],
+			route: enhanceRoute(router["~orpc"].route, options),
+			errorMap: mergeErrorMap(options.errorMap, router["~orpc"].errorMap),
+			middlewares: newMiddlewares,
+			inputValidationIndex: router["~orpc"].inputValidationIndex + newMiddlewareAdded,
+			outputValidationIndex: router["~orpc"].outputValidationIndex + newMiddlewareAdded
+		});
+	}
+	if (typeof router !== "object" || router === null) return router;
+	const enhanced = {};
+	for (const key in router) enhanced[key] = enhanceRouter(router[key], options);
+	return enhanced;
+}
+function traverseContractProcedures(options, callback, lazyOptions = []) {
+	let currentRouter = options.router;
+	const hiddenContract = isTypescriptObject(options.router) ? getHiddenRouterContract(options.router) : void 0;
+	if (hiddenContract !== void 0) currentRouter = hiddenContract;
+	if (isLazy(currentRouter)) lazyOptions.push({
+		router: currentRouter,
+		path: options.path
+	});
+	else if (isContractProcedure(currentRouter)) callback({
+		contract: currentRouter,
+		path: options.path
+	});
+	else if (typeof currentRouter === "object" && currentRouter !== null) for (const key in currentRouter) traverseContractProcedures({
+		router: currentRouter[key],
+		path: [...options.path, key]
+	}, callback, lazyOptions);
+	return lazyOptions;
+}
+function createContractedProcedure(procedure, contract) {
+	return new Procedure({
+		...procedure["~orpc"],
+		errorMap: contract["~orpc"].errorMap,
+		route: contract["~orpc"].route,
+		meta: contract["~orpc"].meta
+	});
+}
+var CompositeStandardHandlerPlugin = class {
+	plugins;
+	constructor(plugins = []) {
+		this.plugins = [...plugins].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+	}
+	init(options, router) {
+		for (const plugin of this.plugins) plugin.init?.(options, router);
+	}
+};
+var StandardHandler = class {
+	constructor(router, matcher, codec, options) {
+		this.matcher = matcher;
+		this.codec = codec;
+		new CompositeStandardHandlerPlugin(options.plugins).init(options, router);
+		this.interceptors = toArray(options.interceptors);
+		this.clientInterceptors = toArray(options.clientInterceptors);
+		this.rootInterceptors = toArray(options.rootInterceptors);
+		this.matcher.init(router);
+	}
+	interceptors;
+	clientInterceptors;
+	rootInterceptors;
+	async handle(request, options) {
+		const prefix = options.prefix?.replace(/\/$/, "") || void 0;
+		if (prefix && !request.url.pathname.startsWith(`${prefix}/`) && request.url.pathname !== prefix) return {
+			matched: false,
+			response: void 0
+		};
+		return intercept(this.rootInterceptors, {
+			...options,
+			request,
+			prefix
+		}, async (interceptorOptions) => {
+			return runWithSpan({ name: `${request.method} ${request.url.pathname}` }, async (span) => {
+				let step;
+				try {
+					return await intercept(this.interceptors, interceptorOptions, async ({ request: request2, context, prefix: prefix2 }) => {
+						const method = request2.method;
+						const url = request2.url;
+						const pathname = prefix2 ? url.pathname.replace(prefix2, "") : url.pathname;
+						const match = await runWithSpan({ name: "find_procedure" }, () => this.matcher.match(method, `/${pathname.replace(/^\/|\/$/g, "")}`));
+						if (!match) return {
+							matched: false,
+							response: void 0
+						};
+						span?.updateName(`${ORPC_NAME}.${match.path.join("/")}`);
+						span?.setAttribute("rpc.system", ORPC_NAME);
+						span?.setAttribute("rpc.method", match.path.join("."));
+						step = "decode_input";
+						let input = await runWithSpan({ name: "decode_input" }, () => this.codec.decode(request2, match.params, match.procedure));
+						step = void 0;
+						if (isAsyncIteratorObject(input)) input = asyncIteratorWithSpan({
+							name: "consume_event_iterator_input",
+							signal: request2.signal
+						}, input);
+						const client = createProcedureClient(match.procedure, {
+							context,
+							path: match.path,
+							interceptors: this.clientInterceptors
+						});
+						step = "call_procedure";
+						const output = await client(input, {
+							signal: request2.signal,
+							lastEventId: flattenHeader(request2.headers["last-event-id"])
+						});
+						step = void 0;
+						return {
+							matched: true,
+							response: this.codec.encode(output, match.procedure)
+						};
+					});
+				} catch (e) {
+					if (step !== "call_procedure") setSpanError(span, e);
+					const error = step === "decode_input" && !(e instanceof ORPCError) ? new ORPCError("BAD_REQUEST", {
+						message: `Malformed request. Ensure the request body is properly formatted and the 'Content-Type' header is set correctly.`,
+						cause: e
+					}) : toORPCError(e);
+					return {
+						matched: true,
+						response: this.codec.encodeError(error)
+					};
+				}
+			});
+		});
+	}
+};
+var CompositeFetchHandlerPlugin = class extends CompositeStandardHandlerPlugin {
+	initRuntimeAdapter(options) {
+		for (const plugin of this.plugins) plugin.initRuntimeAdapter?.(options);
+	}
+};
+var FetchHandler = class {
+	constructor(standardHandler, options = {}) {
+		this.standardHandler = standardHandler;
+		new CompositeFetchHandlerPlugin(options.plugins).initRuntimeAdapter(options);
+		this.adapterInterceptors = toArray(options.adapterInterceptors);
+		this.toFetchResponseOptions = options;
+	}
+	toFetchResponseOptions;
+	adapterInterceptors;
+	async handle(request, ...rest) {
+		return intercept(this.adapterInterceptors, {
+			...resolveFriendlyStandardHandleOptions(resolveMaybeOptionalOptions(rest)),
+			request,
+			toFetchResponseOptions: this.toFetchResponseOptions
+		}, async ({ request: request2, toFetchResponseOptions, ...options }) => {
+			const standardRequest = toStandardLazyRequest(request2);
+			const result = await this.standardHandler.handle(standardRequest, options);
+			if (!result.matched) return result;
+			return {
+				matched: true,
+				response: toFetchResponse(result.response, toFetchResponseOptions)
+			};
+		});
+	}
+};
+var StandardBracketNotationSerializer = class {
+	maxArrayIndex;
+	constructor(options = {}) {
+		this.maxArrayIndex = options.maxBracketNotationArrayIndex ?? 9999;
+	}
+	serialize(data, segments = [], result = []) {
+		if (Array.isArray(data)) data.forEach((item, i) => {
+			this.serialize(item, [...segments, i], result);
+		});
+		else if (isObject(data)) for (const key in data) this.serialize(data[key], [...segments, key], result);
+		else result.push([this.stringifyPath(segments), data]);
+		return result;
+	}
+	deserialize(serialized) {
+		if (serialized.length === 0) return {};
+		const arrayPushStyles = /* @__PURE__ */ new WeakSet();
+		const ref = { value: [] };
+		for (const [path, value] of serialized) {
+			const segments = this.parsePath(path);
+			let currentRef = ref;
+			let nextSegment = "value";
+			segments.forEach((segment, i) => {
+				if (!Array.isArray(currentRef[nextSegment]) && !isObject(currentRef[nextSegment])) currentRef[nextSegment] = [];
+				if (i !== segments.length - 1) {
+					if (Array.isArray(currentRef[nextSegment]) && !isValidArrayIndex(segment, this.maxArrayIndex)) {
+						if (arrayPushStyles.has(currentRef[nextSegment])) {
+							arrayPushStyles.delete(currentRef[nextSegment]);
+							currentRef[nextSegment] = pushStyleArrayToObject(currentRef[nextSegment]);
+						} else currentRef[nextSegment] = arrayToObject(currentRef[nextSegment]);
+					}
+				} else if (Array.isArray(currentRef[nextSegment])) {
+					if (segment === "") {
+						if (currentRef[nextSegment].length && !arrayPushStyles.has(currentRef[nextSegment])) currentRef[nextSegment] = arrayToObject(currentRef[nextSegment]);
+					} else if (arrayPushStyles.has(currentRef[nextSegment])) {
+						arrayPushStyles.delete(currentRef[nextSegment]);
+						currentRef[nextSegment] = pushStyleArrayToObject(currentRef[nextSegment]);
+					} else if (!isValidArrayIndex(segment, this.maxArrayIndex)) currentRef[nextSegment] = arrayToObject(currentRef[nextSegment]);
+				}
+				currentRef = currentRef[nextSegment];
+				nextSegment = segment;
+			});
+			if (Array.isArray(currentRef) && nextSegment === "") {
+				arrayPushStyles.add(currentRef);
+				currentRef.push(value);
+			} else if (nextSegment in currentRef) {
+				if (Array.isArray(currentRef[nextSegment])) currentRef[nextSegment].push(value);
+				else currentRef[nextSegment] = [currentRef[nextSegment], value];
+			} else currentRef[nextSegment] = value;
+		}
+		return ref.value;
+	}
+	stringifyPath(segments) {
+		return segments.map((segment) => {
+			return segment.toString().replace(/[\\[\]]/g, (match) => {
+				switch (match) {
+					case "\\": return "\\\\";
+					case "[": return "\\[";
+					case "]": return "\\]";
+					/* v8 ignore next 2 */
+					default: return match;
+				}
+			});
+		}).reduce((result, segment, i) => {
+			if (i === 0) return segment;
+			return `${result}[${segment}]`;
+		}, "");
+	}
+	parsePath(path) {
+		const segments = [];
+		let inBrackets = false;
+		let currentSegment = "";
+		let backslashCount = 0;
+		for (let i = 0; i < path.length; i++) {
+			const char = path[i];
+			const nextChar = path[i + 1];
+			if (inBrackets && char === "]" && (nextChar === void 0 || nextChar === "[") && backslashCount % 2 === 0) {
+				if (nextChar === void 0) inBrackets = false;
+				segments.push(currentSegment);
+				currentSegment = "";
+				i++;
+			} else if (segments.length === 0 && char === "[" && backslashCount % 2 === 0) {
+				inBrackets = true;
+				segments.push(currentSegment);
+				currentSegment = "";
+			} else if (char === "\\") backslashCount++;
+			else {
+				currentSegment += "\\".repeat(backslashCount / 2) + char;
+				backslashCount = 0;
+			}
+		}
+		return inBrackets || segments.length === 0 ? [path] : segments;
+	}
+};
+function isValidArrayIndex(value, maxIndex) {
+	return /^0$|^[1-9]\d*$/.test(value) && Number(value) <= maxIndex;
+}
+function arrayToObject(array) {
+	const obj = new NullProtoObj$1();
+	array.forEach((item, i) => {
+		obj[i] = item;
+	});
+	return obj;
+}
+function pushStyleArrayToObject(array) {
+	const obj = new NullProtoObj$1();
+	obj[""] = array.length === 1 ? array[0] : array;
+	return obj;
+}
+var StandardOpenAPIJsonSerializer = class {
+	customSerializers;
+	constructor(options = {}) {
+		this.customSerializers = options.customJsonSerializers ?? [];
+	}
+	serialize(data, hasBlobRef = { value: false }) {
+		for (const custom of this.customSerializers) if (custom.condition(data)) return this.serialize(custom.serialize(data), hasBlobRef);
+		if (data instanceof Blob) {
+			hasBlobRef.value = true;
+			return [data, hasBlobRef.value];
+		}
+		if (data instanceof Set) return this.serialize(Array.from(data), hasBlobRef);
+		if (data instanceof Map) return this.serialize(Array.from(data.entries()), hasBlobRef);
+		if (Array.isArray(data)) return [data.map((v) => v === void 0 ? null : this.serialize(v, hasBlobRef)[0]), hasBlobRef.value];
+		if (isObject(data)) {
+			const json = {};
+			for (const k in data) {
+				if (k === "toJSON" && typeof data[k] === "function") continue;
+				json[k] = this.serialize(data[k], hasBlobRef)[0];
+			}
+			return [json, hasBlobRef.value];
+		}
+		if (typeof data === "bigint" || data instanceof RegExp || data instanceof URL) return [data.toString(), hasBlobRef.value];
+		if (data instanceof Date) return [Number.isNaN(data.getTime()) ? null : data.toISOString(), hasBlobRef.value];
+		if (Number.isNaN(data)) return [null, hasBlobRef.value];
+		return [data, hasBlobRef.value];
+	}
+};
+function standardizeHTTPPath(path) {
+	return `/${path.replace(/\/{2,}/g, "/").replace(/^\/|\/$/g, "")}`;
+}
+var StandardOpenAPISerializer = class {
+	constructor(jsonSerializer, bracketNotation) {
+		this.jsonSerializer = jsonSerializer;
+		this.bracketNotation = bracketNotation;
+	}
+	serialize(data, options = {}) {
+		if (isAsyncIteratorObject(data) && !options.outputFormat) return mapEventIterator(data, {
+			value: async (value) => this.#serialize(value, { outputFormat: "plain" }),
+			error: async (e) => {
+				return new ErrorEvent({
+					data: this.#serialize(toORPCError(e).toJSON(), { outputFormat: "plain" }),
+					cause: e
+				});
+			}
+		});
+		return this.#serialize(data, options);
+	}
+	#serialize(data, options) {
+		const [json, hasBlob] = this.jsonSerializer.serialize(data);
+		if (options.outputFormat === "plain") return json;
+		if (options.outputFormat === "URLSearchParams") {
+			const params = new URLSearchParams();
+			for (const [path, value] of this.bracketNotation.serialize(json)) if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") params.append(path, value.toString());
+			return params;
+		}
+		if (json instanceof Blob || json === void 0 || !hasBlob) return json;
+		const form = new FormData();
+		for (const [path, value] of this.bracketNotation.serialize(json)) if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") form.append(path, value.toString());
+		else if (value instanceof Blob) form.append(path, value);
+		return form;
+	}
+	deserialize(data) {
+		if (data instanceof URLSearchParams || data instanceof FormData) return this.bracketNotation.deserialize(Array.from(data.entries()));
+		if (isAsyncIteratorObject(data)) return mapEventIterator(data, {
+			value: async (value) => value,
+			error: async (e) => {
+				if (e instanceof ErrorEvent && isORPCErrorJson(e.data)) return createORPCErrorFromJson(e.data, { cause: e });
+				return e;
+			}
+		});
+		return data;
+	}
+};
+var DEFAULT_CONFIG = {
+	initialInputValidationIndex: 0,
+	initialOutputValidationIndex: 0,
+	dedupeLeadingMiddlewares: true
+};
+function fallbackConfig(key, value) {
+	if (value === void 0) return DEFAULT_CONFIG[key];
+	return value;
+}
+function decorateMiddleware(middleware) {
+	const decorated = ((...args) => middleware(...args));
+	decorated.mapInput = (mapInput) => {
+		return decorateMiddleware((options, input, ...rest) => middleware(options, mapInput(input), ...rest));
+	};
+	decorated.concat = (concatMiddleware, mapInput) => {
+		const mapped = mapInput ? decorateMiddleware(concatMiddleware).mapInput(mapInput) : concatMiddleware;
+		return decorateMiddleware((options, input, output, ...rest) => {
+			return middleware({
+				...options,
+				next: (...[nextOptions1]) => mapped({
+					...options,
+					context: {
+						...options.context,
+						...nextOptions1?.context
+					},
+					next: (...[nextOptions2]) => options.next({ context: {
+						...nextOptions1?.context,
+						...nextOptions2?.context
+					} })
+				}, input, output, ...rest)
+			}, input, output, ...rest);
+		});
+	};
+	return decorated;
+}
+function createActionableClient(client) {
+	const action = async (input) => {
+		try {
+			return [null, await client(input)];
+		} catch (error) {
+			if (error instanceof Error && "digest" in error && typeof error.digest === "string" && error.digest.startsWith("NEXT_")) throw error;
+			if (error instanceof Response && "options" in error && isObject(error.options) || isObject(error) && error.isNotFound === true) throw error;
+			return [toORPCError(error).toJSON(), void 0];
+		}
+	};
+	return action;
+}
+var DecoratedProcedure = class DecoratedProcedure extends Procedure {
+	/**
+	* Adds type-safe custom errors.
+	* The provided errors are spared-merged with any existing errors.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	/**
+	* Sets or updates the metadata.
+	* The provided metadata is spared-merged with any existing metadata.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition.
+	* The provided route is spared-merged with any existing route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	use(middleware, mapInput) {
+		const mapped = mapInput ? decorateMiddleware(middleware).mapInput(mapInput) : middleware;
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			middlewares: addMiddleware(this["~orpc"].middlewares, mapped)
+		});
+	}
+	/**
+	* Make this procedure callable (works like a function while still being a procedure).
+	*
+	* @see {@link https://orpc.dev/docs/client/server-side Server-side Client Docs}
+	*/
+	callable(...rest) {
+		const client = createProcedureClient(this, ...rest);
+		return new Proxy(client, {
+			get: (target, key) => {
+				return Reflect.has(this, key) ? Reflect.get(this, key) : Reflect.get(target, key);
+			},
+			has: (target, key) => {
+				return Reflect.has(this, key) || Reflect.has(target, key);
+			}
+		});
+	}
+	/**
+	* Make this procedure compatible with server action.
+	*
+	* @see {@link https://orpc.dev/docs/server-action Server Action Docs}
+	*/
+	actionable(...rest) {
+		const action = createActionableClient(createProcedureClient(this, ...rest));
+		return new Proxy(action, {
+			get: (target, key) => {
+				return Reflect.has(this, key) ? Reflect.get(this, key) : Reflect.get(target, key);
+			},
+			has: (target, key) => {
+				return Reflect.has(this, key) || Reflect.has(target, key);
+			}
+		});
+	}
+};
+var Builder = class Builder {
+	/**
+	* This property holds the defined options.
+	*/
+	"~orpc";
+	constructor(def) {
+		this["~orpc"] = def;
+	}
+	/**
+	* Sets or overrides the config.
+	*
+	* @see {@link https://orpc.dev/docs/client/server-side#middlewares-order Middlewares Order Docs}
+	* @see {@link https://orpc.dev/docs/best-practices/dedupe-middleware#configuration Dedupe Middleware Docs}
+	*/
+	$config(config) {
+		const inputValidationCount = this["~orpc"].inputValidationIndex - fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex);
+		const outputValidationCount = this["~orpc"].outputValidationIndex - fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex);
+		return new Builder({
+			...this["~orpc"],
+			config,
+			dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares),
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", config.initialInputValidationIndex) + inputValidationCount,
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", config.initialOutputValidationIndex) + outputValidationCount
+		});
+	}
+	/**
+	* Set or override the initial context.
+	*
+	* @see {@link https://orpc.dev/docs/context Context Docs}
+	*/
+	$context() {
+		return new Builder({
+			...this["~orpc"],
+			middlewares: [],
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex),
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex)
+		});
+	}
+	/**
+	* Sets or overrides the initial meta.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	$meta(initialMeta) {
+		return new Builder({
+			...this["~orpc"],
+			meta: initialMeta
+		});
+	}
+	/**
+	* Sets or overrides the initial route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	$route(initialRoute) {
+		return new Builder({
+			...this["~orpc"],
+			route: initialRoute
+		});
+	}
+	/**
+	* Sets or overrides the initial input schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#initial-configuration Initial Procedure Configuration Docs}
+	*/
+	$input(initialInputSchema) {
+		return new Builder({
+			...this["~orpc"],
+			inputSchema: initialInputSchema
+		});
+	}
+	/**
+	* Creates a middleware.
+	*
+	* @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+	*/
+	middleware(middleware) {
+		return decorateMiddleware(middleware);
+	}
+	/**
+	* Adds type-safe custom errors.
+	* The provided errors are spared-merged with any existing errors.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new Builder({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	use(middleware, mapInput) {
+		const mapped = mapInput ? decorateMiddleware(middleware).mapInput(mapInput) : middleware;
+		return new Builder({
+			...this["~orpc"],
+			middlewares: addMiddleware(this["~orpc"].middlewares, mapped)
+		});
+	}
+	/**
+	* Sets or updates the metadata.
+	* The provided metadata is spared-merged with any existing metadata.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new Builder({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition.
+	* The provided route is spared-merged with any existing route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new Builder({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	/**
+	* Defines the input validation schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
+	*/
+	input(schema) {
+		return new Builder({
+			...this["~orpc"],
+			inputSchema: schema,
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex) + this["~orpc"].middlewares.length
+		});
+	}
+	/**
+	* Defines the output validation schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
+	*/
+	output(schema) {
+		return new Builder({
+			...this["~orpc"],
+			outputSchema: schema,
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex) + this["~orpc"].middlewares.length
+		});
+	}
+	/**
+	* Defines the handler of the procedure.
+	*
+	* @see {@link https://orpc.dev/docs/procedure Procedure Docs}
+	*/
+	handler(handler) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			handler
+		});
+	}
+	/**
+	* Prefixes all procedures in the router.
+	* The provided prefix is post-appended to any existing router prefix.
+	*
+	* @note This option does not affect procedures that do not define a path in their route definition.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing#route-prefixes OpenAPI Route Prefixes Docs}
+	*/
+	prefix(prefix) {
+		return new Builder({
+			...this["~orpc"],
+			prefix: mergePrefix(this["~orpc"].prefix, prefix)
+		});
+	}
+	/**
+	* Adds tags to all procedures in the router.
+	* This helpful when you want to group procedures together in the OpenAPI specification.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/openapi-specification#operation-metadata OpenAPI Operation Metadata Docs}
+	*/
+	tag(...tags) {
+		return new Builder({
+			...this["~orpc"],
+			tags: mergeTags(this["~orpc"].tags, tags)
+		});
+	}
+	/**
+	* Applies all of the previously defined options to the specified router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	router(router) {
+		return enhanceRouter(router, this["~orpc"]);
+	}
+	/**
+	* Create a lazy router
+	* And applies all of the previously defined options to the specified router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	lazy(loader) {
+		return enhanceRouter(lazy(loader), this["~orpc"]);
+	}
+};
+new Builder({
+	config: {},
+	route: {},
+	meta: {},
+	errorMap: {},
+	inputValidationIndex: fallbackConfig("initialInputValidationIndex"),
+	outputValidationIndex: fallbackConfig("initialOutputValidationIndex"),
+	middlewares: [],
+	dedupeLeadingMiddlewares: true
+});
+function implementerInternal(contract, config, middlewares) {
+	if (isContractProcedure(contract)) return new Builder({
+		...contract["~orpc"],
+		config,
+		middlewares,
+		inputValidationIndex: fallbackConfig("initialInputValidationIndex", config?.initialInputValidationIndex) + middlewares.length,
+		outputValidationIndex: fallbackConfig("initialOutputValidationIndex", config?.initialOutputValidationIndex) + middlewares.length,
+		dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+	});
+	return new Proxy(contract, { get: (target, key) => {
+		if (typeof key !== "string") return Reflect.get(target, key);
+		let method;
+		if (key === "middleware") method = (mid) => decorateMiddleware(mid);
+		else if (key === "use") method = (mid) => {
+			return implementerInternal(contract, config, addMiddleware(middlewares, mid));
+		};
+		else if (key === "router") method = (router) => {
+			return setHiddenRouterContract(enhanceRouter(router, {
+				middlewares,
+				errorMap: {},
+				prefix: void 0,
+				tags: void 0,
+				dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+			}), contract);
+		};
+		else if (key === "lazy") method = (loader) => {
+			return setHiddenRouterContract(enhanceRouter(lazy(loader), {
+				middlewares,
+				errorMap: {},
+				prefix: void 0,
+				tags: void 0,
+				dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+			}), contract);
+		};
+		const next = getContractRouter(target, [key]);
+		if (!next) return method ?? next;
+		const nextImpl = implementerInternal(next, config, middlewares);
+		if (method) return new Proxy(method, { get(_, key2) {
+			return Reflect.get(nextImpl, key2);
+		} });
+		return nextImpl;
+	} });
+}
+function implement(contract, config = {}) {
+	const implInternal = implementerInternal(contract, config, []);
+	const impl = new Proxy(implInternal, { get: (target, key) => {
+		let method;
+		if (key === "$context") method = () => impl;
+		else if (key === "$config") method = (config2) => implement(contract, config2);
+		const next = Reflect.get(target, key);
+		if (!method || !next || typeof next !== "function" && typeof next !== "object") return method || next;
+		return new Proxy(method, { get(_, key2) {
+			return Reflect.get(next, key2);
+		} });
+	} });
+	return impl;
+}
+var NullProtoObj = /* @__PURE__ */ (() => {
+	const e = function() {};
+	return e.prototype = Object.create(null), Object.freeze(e.prototype), e;
+})();
+/**
+* Create a new router context.
+*/
+function createRouter() {
+	return {
+		root: { key: "" },
+		static: new NullProtoObj()
+	};
+}
+function splitPath(path) {
+	const [_, ...s] = path.split("/");
+	return s[s.length - 1] === "" ? s.slice(0, -1) : s;
+}
+function getMatchParams(segments, paramsMap) {
+	const params = new NullProtoObj();
+	for (const [index, name] of paramsMap) {
+		const segment = index < 0 ? segments.slice(-(index + 1)).join("/") : segments[index];
+		if (typeof name === "string") params[name] = segment;
+		else {
+			const match = segment.match(name);
+			if (match) for (const key in match.groups) params[key] = match.groups[key];
+		}
+	}
+	return params;
+}
+/**
+* Add a route to the router context.
+*/
+function addRoute(ctx, method = "", path, data) {
+	method = method.toUpperCase();
+	if (path.charCodeAt(0) !== 47) path = `/${path}`;
+	path = path.replace(/\\:/g, "%3A");
+	const segments = splitPath(path);
+	let node = ctx.root;
+	let _unnamedParamIndex = 0;
+	const paramsMap = [];
+	const paramsRegexp = [];
+	for (let i = 0; i < segments.length; i++) {
+		let segment = segments[i];
+		if (segment.startsWith("**")) {
+			if (!node.wildcard) node.wildcard = { key: "**" };
+			node = node.wildcard;
+			paramsMap.push([
+				-(i + 1),
+				segment.split(":")[1] || "_",
+				segment.length === 2
+			]);
+			break;
+		}
+		if (segment === "*" || segment.includes(":")) {
+			if (!node.param) node.param = { key: "*" };
+			node = node.param;
+			if (segment === "*") paramsMap.push([
+				i,
+				`_${_unnamedParamIndex++}`,
+				true
+			]);
+			else if (segment.includes(":", 1)) {
+				const regexp = getParamRegexp(segment);
+				paramsRegexp[i] = regexp;
+				node.hasRegexParam = true;
+				paramsMap.push([
+					i,
+					regexp,
+					false
+				]);
+			} else paramsMap.push([
+				i,
+				segment.slice(1),
+				false
+			]);
+			continue;
+		}
+		if (segment === "\\*") segment = segments[i] = "*";
+		else if (segment === "\\*\\*") segment = segments[i] = "**";
+		const child = node.static?.[segment];
+		if (child) node = child;
+		else {
+			const staticNode = { key: segment };
+			if (!node.static) node.static = new NullProtoObj();
+			node.static[segment] = staticNode;
+			node = staticNode;
+		}
+	}
+	const hasParams = paramsMap.length > 0;
+	if (!node.methods) node.methods = new NullProtoObj();
+	node.methods[method] ??= [];
+	node.methods[method].push({
+		data: data || null,
+		paramsRegexp,
+		paramsMap: hasParams ? paramsMap : void 0
+	});
+	if (!hasParams) ctx.static["/" + segments.join("/")] = node;
+}
+function getParamRegexp(segment) {
+	const regex = segment.replace(/:(\w+)/g, (_, id) => `(?<${id}>[^/]+)`).replace(/\./g, "\\.");
+	return /* @__PURE__ */ new RegExp(`^${regex}$`);
+}
+/**
+* Find a route by path.
+*/
+function findRoute(ctx, method = "", path, opts) {
+	if (path.charCodeAt(path.length - 1) === 47) path = path.slice(0, -1);
+	const staticNode = ctx.static[path];
+	if (staticNode && staticNode.methods) {
+		const staticMatch = staticNode.methods[method] || staticNode.methods[""];
+		if (staticMatch !== void 0) return staticMatch[0];
+	}
+	const segments = splitPath(path);
+	const match = _lookupTree(ctx, ctx.root, method, segments, 0)?.[0];
+	if (match === void 0) return;
+	if (opts?.params === false) return match;
+	return {
+		data: match.data,
+		params: match.paramsMap ? getMatchParams(segments, match.paramsMap) : void 0
+	};
+}
+function _lookupTree(ctx, node, method, segments, index) {
+	if (index === segments.length) {
+		if (node.methods) {
+			const match = node.methods[method] || node.methods[""];
+			if (match) return match;
+		}
+		if (node.param && node.param.methods) {
+			const match = node.param.methods[method] || node.param.methods[""];
+			if (match) {
+				const pMap = match[0].paramsMap;
+				if (pMap?.[pMap?.length - 1]?.[2]) return match;
+			}
+		}
+		if (node.wildcard && node.wildcard.methods) {
+			const match = node.wildcard.methods[method] || node.wildcard.methods[""];
+			if (match) {
+				const pMap = match[0].paramsMap;
+				if (pMap?.[pMap?.length - 1]?.[2]) return match;
+			}
+		}
+		return;
+	}
+	const segment = segments[index];
+	if (node.static) {
+		const staticChild = node.static[segment];
+		if (staticChild) {
+			const match = _lookupTree(ctx, staticChild, method, segments, index + 1);
+			if (match) return match;
+		}
+	}
+	if (node.param) {
+		const match = _lookupTree(ctx, node.param, method, segments, index + 1);
+		if (match) {
+			if (node.param.hasRegexParam) {
+				const exactMatch = match.find((m) => m.paramsRegexp[index]?.test(segment)) || match.find((m) => !m.paramsRegexp[index]);
+				return exactMatch ? [exactMatch] : void 0;
+			}
+			return match;
+		}
+	}
+	if (node.wildcard && node.wildcard.methods) return node.wildcard.methods[method] || node.wildcard.methods[""];
+}
+var StandardOpenAPICodec = class {
+	constructor(serializer, options = {}) {
+		this.serializer = serializer;
+		this.customErrorResponseBodyEncoder = options.customErrorResponseBodyEncoder;
+	}
+	customErrorResponseBodyEncoder;
+	async decode(request, params, procedure) {
+		if (fallbackContractConfig("defaultInputStructure", procedure["~orpc"].route.inputStructure) === "compact") {
+			const data = request.method === "GET" ? this.serializer.deserialize(request.url.searchParams) : this.serializer.deserialize(await request.body());
+			if (data === void 0) return params;
+			if (isObject(data)) return {
+				...params,
+				...data
+			};
+			return data;
+		}
+		const deserializeSearchParams = () => {
+			return this.serializer.deserialize(request.url.searchParams);
+		};
+		return {
+			params,
+			get query() {
+				const value = deserializeSearchParams();
+				Object.defineProperty(this, "query", {
+					value,
+					writable: true
+				});
+				return value;
+			},
+			set query(value) {
+				Object.defineProperty(this, "query", {
+					value,
+					writable: true
+				});
+			},
+			headers: request.headers,
+			body: this.serializer.deserialize(await request.body())
+		};
+	}
+	encode(output, procedure) {
+		const successStatus = fallbackContractConfig("defaultSuccessStatus", procedure["~orpc"].route.successStatus);
+		if (fallbackContractConfig("defaultOutputStructure", procedure["~orpc"].route.outputStructure) === "compact") {
+			if (output instanceof ReadableStream) return {
+				status: successStatus,
+				headers: {},
+				body: output
+			};
+			return {
+				status: successStatus,
+				headers: {},
+				body: this.serializer.serialize(output)
+			};
+		}
+		if (!this.#isDetailedOutput(output)) throw new Error(`
+        Invalid "detailed" output structure:
+        \u2022 Expected an object with optional properties:
+          - status (number 200-399)
+          - headers (Record<string, string | string[]>)
+          - body (any)
+        \u2022 No extra keys allowed.
+
+        Actual value:
+          ${stringifyJSON(output)}
+      `);
+		if (output.body instanceof ReadableStream) return {
+			status: output.status ?? successStatus,
+			headers: output.headers ?? {},
+			body: output.body
+		};
+		return {
+			status: output.status ?? successStatus,
+			headers: output.headers ?? {},
+			body: this.serializer.serialize(output.body)
+		};
+	}
+	encodeError(error) {
+		const body = this.customErrorResponseBodyEncoder?.(error) ?? error.toJSON();
+		return {
+			status: error.status,
+			headers: {},
+			body: this.serializer.serialize(body, { outputFormat: "plain" })
+		};
+	}
+	#isDetailedOutput(output) {
+		if (!isObject(output)) return false;
+		if (output.headers && !isObject(output.headers)) return false;
+		if (output.status !== void 0 && (typeof output.status !== "number" || !Number.isInteger(output.status) || isORPCErrorStatus(output.status))) return false;
+		return true;
+	}
+};
+function toRou3Pattern(path) {
+	return standardizeHTTPPath(path).replace(/\/\{\+([^}]+)\}/g, "/**:$1").replace(/\/\{([^}]+)\}/g, "/:$1");
+}
+function decodeParams(params) {
+	return Object.fromEntries(Object.entries(params).map(([key, value]) => [key, tryDecodeURIComponent(value)]));
+}
+var StandardOpenAPIMatcher = class {
+	filter;
+	tree = createRouter();
+	pendingRouters = [];
+	constructor(options = {}) {
+		this.filter = options.filter ?? true;
+	}
+	init(router, path = []) {
+		const laziedOptions = traverseContractProcedures({
+			router,
+			path
+		}, (traverseOptions) => {
+			if (!value(this.filter, traverseOptions)) return;
+			const { path: path2, contract } = traverseOptions;
+			const method = fallbackContractConfig("defaultMethod", contract["~orpc"].route.method);
+			const httpPath = toRou3Pattern(contract["~orpc"].route.path ?? toHttpPath(path2));
+			if (isProcedure(contract)) addRoute(this.tree, method, httpPath, {
+				path: path2,
+				contract,
+				procedure: contract,
+				router
+			});
+			else addRoute(this.tree, method, httpPath, {
+				path: path2,
+				contract,
+				procedure: void 0,
+				router
+			});
+		});
+		this.pendingRouters.push(...laziedOptions.map((option) => ({
+			...option,
+			httpPathPrefix: toHttpPath(option.path),
+			laziedPrefix: getLazyMeta(option.router).prefix
+		})));
+	}
+	async match(method, pathname) {
+		while (true) {
+			const pendingRouter = this.pendingRouters.find((pendingRouter2) => !pendingRouter2.laziedPrefix || pathname.startsWith(pendingRouter2.laziedPrefix) || pathname.startsWith(pendingRouter2.httpPathPrefix));
+			if (!pendingRouter) break;
+			pendingRouter.initPromise ??= unlazy(pendingRouter.router).then(({ default: router }) => {
+				this.init(router, pendingRouter.path);
+				this.pendingRouters.splice(this.pendingRouters.indexOf(pendingRouter), 1);
+			}).catch((error) => {
+				pendingRouter.initPromise = void 0;
+				throw error;
+			});
+			await pendingRouter.initPromise;
+		}
+		const match = findRoute(this.tree, method, pathname);
+		if (!match) return;
+		if (!match.data.procedure) {
+			const { default: maybeProcedure } = await unlazy(getRouter(match.data.router, match.data.path));
+			if (!isProcedure(maybeProcedure)) throw new Error(`
+          [Contract-First] Missing or invalid implementation for procedure at path: ${toHttpPath(match.data.path)}.
+          Ensure that the procedure is correctly defined and matches the expected contract.
+        `);
+			match.data.procedure = createContractedProcedure(maybeProcedure, match.data.contract);
+		}
+		return {
+			path: match.data.path,
+			procedure: match.data.procedure,
+			params: match.params ? decodeParams(match.params) : void 0
+		};
+	}
+};
+var StandardOpenAPIHandler = class extends StandardHandler {
+	constructor(router, options) {
+		const serializer = new StandardOpenAPISerializer(new StandardOpenAPIJsonSerializer(options), new StandardBracketNotationSerializer(options));
+		const matcher = new StandardOpenAPIMatcher(options);
+		const codec = new StandardOpenAPICodec(serializer, options);
+		super(router, matcher, codec, options);
+	}
+};
+var OpenAPIHandler = class extends FetchHandler {
+	constructor(router, options = {}) {
+		super(new StandardOpenAPIHandler(router, options), options);
+	}
+};
+/** Authorize and audit an invocation before returning its value or stream. */
+async function invokeProcedure(call, next, options) {
+	const audit = call.access.audit ? options.audit : void 0;
+	if (audit) await recordAudit({
+		call,
+		outcome: "started"
+	}, audit);
+	try {
+		if (call.access.authentication !== "public" || call.access.permission !== null) await options.authorize(call);
+	} catch (error) {
+		if (audit) await recordAudit({
+			call,
+			outcome: error instanceof ORPCError && (error.status === 401 || error.status === 403) ? "denied" : "failed",
+			error
+		}, audit);
+		throw reportError(error);
+	}
+	let result;
+	try {
+		result = await next();
+	} catch (error) {
+		if (audit) await recordAudit({
+			call,
+			outcome: "failed",
+			error
+		}, audit);
+		throw reportError(error);
+	}
+	if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) return streamProcedure(result, call, audit);
+	if (audit) await recordAudit({
+		call,
+		outcome: "succeeded"
+	}, audit);
+	return result;
+}
+/** Report stream failures and record declared audit outcomes. */
+function streamProcedure(stream, call, audit) {
+	let outcome = "cancelled";
+	let failure;
+	const iterator = stream[Symbol.asyncIterator]();
+	return new AsyncIteratorClass(async () => {
+		try {
+			const result = await iterator.next();
+			if (result.done) outcome = "succeeded";
+			return result;
+		} catch (error) {
+			outcome = "failed";
+			failure = error;
+			throw reportError(error);
+		}
+	}, async (reason) => {
+		try {
+			if (reason !== "next") await iterator.return?.();
+		} catch (error) {
+			outcome = "failed";
+			failure = error;
+			throw reportError(error);
+		} finally {
+			if (audit) await recordAudit({
+				call,
+				outcome,
+				error: failure
+			}, audit);
+		}
+	});
+}
+/** Record an audit event and preserve any preceding application failure. */
+async function recordAudit(event, audit) {
+	try {
+		await audit(event);
+	} catch (error) {
+		throw reportError(event.error !== void 0 ? new AggregateError([event.error, error], "Procedure failure audit failed.") : error);
+	}
+}
+/** The package declaring service instrumentation. */
+var manifest = Package.parse({
+	id: destack_default.id,
+	name: package_default.name,
+	version: package_default.version
+});
+/** Record complete RPC calls, including streamed results. */
+var ServiceTelemetry = class {
+	/** Call durations in seconds. */
+	#duration;
+	/** The RPC span kind. */
+	#kind;
+	/** Connect tracing and metrics to the host's providers. */
+	constructor(kind) {
+		instrumentService();
+		this.#kind = kind === "client" ? SpanKind.CLIENT : SpanKind.SERVER;
+		this.#duration = scope(manifest).meter.createHistogram(`rpc.${kind}.call.duration`, {
+			unit: "s",
+			advice: { explicitBucketBoundaries: [
+				.005,
+				.01,
+				.025,
+				.05,
+				.075,
+				.1,
+				.25,
+				.5,
+				.75,
+				1,
+				2.5,
+				5,
+				7.5,
+				10
+			] }
+		});
+	}
+	/** Measure a call without retaining its inputs or results. */
+	invoke(path, next) {
+		const attributes = {
+			"rpc.system.name": "orpc",
+			"rpc.method": path.join("/")
+		};
+		return scope(manifest).tracer.startActiveSpan(path.join("/"), {
+			kind: this.#kind,
+			attributes
+		}, (span) => this.#invoke(next, attributes, span));
+	}
+	/** Keep the span open until the value or stream completes. */
+	async #invoke(next, attributes, span) {
+		const started = performance.now();
+		const active = context.active();
+		try {
+			const result = await next();
+			if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) return this.#watch(result, started, attributes, span, active);
+			this.#record(started, attributes, span);
+			return result;
+		} catch (error) {
+			this.#record(started, attributes, span, error);
+			throw error;
+		}
+	}
+	/** Retain timing until a consumer completes or cancels the stream. */
+	#watch(stream, started, attributes, span, active) {
+		let failure;
+		const iterator = stream[Symbol.asyncIterator]();
+		return new AsyncIteratorClass(async () => {
+			try {
+				return await context.with(active, () => iterator.next());
+			} catch (error) {
+				failure = error;
+				throw error;
+			}
+		}, async (reason) => {
+			try {
+				if (reason !== "next") {
+					attributes["error.type"] = "cancelled";
+					await context.with(active, () => iterator.return?.());
+				}
+			} catch (error) {
+				failure = error;
+				throw error;
+			} finally {
+				this.#record(started, attributes, span, failure);
+			}
+		});
+	}
+	/** Record bounded failure labels and elapsed seconds. */
+	#record(started, attributes, span, error) {
+		if (error !== void 0) attributes["error.type"] = error instanceof ORPCError ? String(error.status) : "internal";
+		if (attributes["error.type"]) span.setStatus({ code: SpanStatusCode.ERROR });
+		span.setAttributes(attributes);
+		span.end();
+		this.#duration.record((performance.now() - started) / 1e3, attributes);
+	}
+};
+/** Enable procedure and HTTP tracing through the application's telemetry providers. */
+function instrumentService() {
+	setGlobalOtelConfig({
+		tracer: trace.getTracer("@destack/service"),
+		trace,
+		context,
+		propagation
+	});
+}
+/** Dispatch Fetch requests to service procedures using their HTTP routes. */
+var ServiceHandler = class ServiceHandler extends OpenAPIHandler {
+	/** Readiness shared with the hosting lifecycle. */
+	health;
+	/** Configure HTTP handling and extract trace context for each request. */
+	constructor(router, options) {
+		ServiceHandler.#checkAccess(router, options, /* @__PURE__ */ new Set());
+		const telemetry = new ServiceTelemetry("server");
+		super(router, {
+			...options,
+			clientInterceptors: [
+				({ path, next }) => telemetry.invoke(path, next),
+				async ({ next, procedure, path, input, context, signal }) => {
+					return invokeProcedure({
+						access: ProcedureAccess.parse(procedure["~orpc"].meta),
+						path,
+						input,
+						context,
+						signal
+					}, next, options);
+				},
+				...options.clientInterceptors ?? []
+			],
+			adapterInterceptors: [({ request, next }) => context.with(extractContext(request.headers), next), ...options.adapterInterceptors ?? []]
+		});
+		this.health = options.health;
+	}
+	/** Answer probes through the same HTTP path on every host. */
+	async handle(...args) {
+		const response = this.health.probe(args[0]);
+		if (response) return {
+			matched: true,
+			response
+		};
+		return super.handle(...args);
+	}
+	/** Require enforcement for every declared procedure before hosting. */
+	static #checkAccess(router, options, ancestors) {
+		if (isLazy(router)) throw new TypeError("service procedures must be declared before hosting");
+		if (ancestors.has(router)) throw new TypeError("service routers must not contain cycles");
+		if (isProcedure(router)) {
+			const access = ProcedureAccess.parse(router["~orpc"].meta);
+			if ((access.authentication !== "public" || access.permission !== null) && !options.authorize) throw new TypeError("protected procedures require authorization");
+			if (access.audit && !options.audit) throw new TypeError("audited procedures require audit recording");
+		} else {
+			ancestors.add(router);
+			for (const child of Object.values(router)) ServiceHandler.#checkAccess(child, options, ancestors);
+			ancestors.delete(router);
+		}
+	}
+};
+/** A current value with bounded, coalesced change notifications. */
+var Watch = class {
+	/** The latest value. */
+	#value;
+	/** The current change number. */
+	#revision = 0;
+	/** Whether the producer has stopped. */
+	#closed = false;
+	/** Subscribers waiting for a changed value. */
+	#subscribers = /* @__PURE__ */ new Set();
+	/** Start with an initial value. */
+	constructor(value) {
+		this.#value = value;
+	}
+	/** Read the latest published value. */
+	get value() {
+		return this.#value;
+	}
+	/** Replace the value and wake waiting subscribers. */
+	set(value) {
+		if (this.#closed) throw new Error("watch is closed");
+		this.#value = value;
+		this.#revision++;
+		for (const wake of this.#subscribers) wake();
+	}
+	/** Stop waiting subscribers. */
+	close() {
+		this.#closed = true;
+		for (const wake of this.#subscribers) wake();
+	}
+	/** Yield the current value, then the latest value after each observed change. */
+	async *watch(signal) {
+		let revision = -1;
+		while (!this.#closed && !signal?.aborted) {
+			const pending = Promise.withResolvers();
+			const wake = () => pending.resolve();
+			this.#subscribers.add(wake);
+			signal?.addEventListener("abort", wake, { once: true });
+			try {
+				if (revision !== this.#revision) {
+					revision = this.#revision;
+					yield this.value;
+				} else await pending.promise;
+			} finally {
+				this.#subscribers.delete(wake);
+				signal?.removeEventListener("abort", wake);
+			}
+		}
+	}
+};
+/** Current service health and coalesced change notifications. */
+var Health = class {
+	/** The declared service name. */
+	name;
+	/** The current readiness state. */
+	#status = new Watch("starting");
+	/** Initialize health before the host starts accepting work. */
+	constructor(name) {
+		this.name = name;
+	}
+	/** Read the current status. */
+	get status() {
+		return this.#status.value;
+	}
+	/** Publish readiness after initialization, dependency changes, or shutdown. */
+	set(status) {
+		if (status !== this.status) this.#status.set(status);
+	}
+	/** Describe current service health. */
+	check() {
+		return {
+			name: this.name,
+			status: this.status
+		};
+	}
+	/** Yield current health and changes until shutdown or subscriber cancellation. */
+	async *watch(signal) {
+		for await (const status of this.#status.watch(signal)) {
+			yield {
+				name: this.name,
+				status
+			};
+			if (status === "draining" || status === "stopped") return;
+		}
+	}
+	/** Answer conventional liveness and readiness probes, or return undefined for other paths. */
+	probe(request) {
+		const path = new URL(request.url).pathname;
+		if (path !== "/livez" && path !== "/readyz") return;
+		if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, {
+			status: 405,
+			headers: { allow: "GET, HEAD" }
+		});
+		const ready = path === "/livez" ? this.status !== "stopped" : this.status === "serving";
+		return new Response(request.method === "HEAD" ? null : ready ? "ok\n" : "unavailable\n", {
+			status: ready ? 200 : 503,
+			headers: {
+				"content-type": "text/plain; charset=utf-8",
+				"cache-control": "no-store"
+			}
+		});
+	}
+};
+/** Service readiness visible to clients and load balancers. */
+var HealthStatus = _enum([
+	"starting",
+	"serving",
+	"not-serving",
+	"draining",
+	"stopped"
+]);
+strictObject({
+	/** Declared service name. */
+	name: string().min(1),
+	/** Current readiness. */
+	status: HealthStatus
+});
+/** A stable domain action name. */
+var AuditActionName = defineSchema(string().regex(/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/));
+defineSchema(strictObject({
+	package: Package,
+	name: AuditActionName,
+	version: number().int().positive()
+}));
+/** Declare an action without recording an event or acquiring authority. */
+function defineAuditAction(action) {
+	AuditActionName.parse(action.name);
+	Package.parse(action.package);
+	number().int().positive().parse(action.version);
+	return Object.freeze({ ...action });
+}
+/** Record a published note under its declaring package. */
+var publishNote = defineAuditAction({
+	package: { "package": {
+		"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+		"name": "@destack/build-service-fixture",
+		"version": "2026.9.0"
+	} }.package,
+	name: "note.publish",
+	version: 1,
+	targets: strictObject({ note: strictObject({
+		type: literal("note"),
+		id: string()
+	}) }),
+	details: strictObject({ revision: number().int() })
+});
+/** Package instruments initialized from build-injected metadata. */
+var instruments = scope({ "package": {
+	"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+	"name": "@destack/build-service-fixture",
+	"version": "2026.9.0"
+} }.package);
+/** The shared application database. */
 var database = defineDatabase({
 	name: "main",
 	spec: { dialect: "sqlite" }
 });
-/** Configure a space without provisioning resources during compilation. */
-var personal = defineSpace({ resources: { main: {
-	declaration: database,
-	retention: "retain",
-	tags: {}
-} } });
-export { database, personal };
+/** The application's secret collection. */
+var vault = defineVault({
+	name: "credentials",
+	spec: {}
+});
+/** The secret selected during installation. */
+var token = defineSecret({ name: "mail-token" });
+/** The public notes API. */
+var router = { list: defineProcedure({
+	authentication: "public",
+	permission: null,
+	audit: false
+}).route({
+	method: "GET",
+	path: "/notes"
+}).output(strictObject({ path: string() })) };
+/** The public HTTP service. */
+var service = defineService({
+	name: "notes",
+	version: 1,
+	protocol: "http",
+	handler: "fetch"
+}, router);
+/** The typed notes implementation. */
+var implementation = implement(router);
+/** Readiness of the initialized HTTP handler. */
+var health = new Health("notes");
+health.set("serving");
+/** The HTTP dispatcher used by both supported runtimes. */
+var handler = new ServiceHandler({ list: implementation.list.handler(() => ({ path: "/notes" })) }, { health });
+/** Respond through the emitted handler. */
+async function fetch(request) {
+	instruments.logger.emit({ body: "Request received" });
+	return (await handler.handle(request)).response ?? new Response("Not found", { status: 404 });
+}
+/** The daily reminder schedule. */
+var reminders = defineSchedule({
+	name: "reminders",
+	version: 1,
+	handler: "remind",
+	timing: "cron",
+	cron: "0 9 * * *",
+	timezone: "UTC",
+	concurrency: "forbid",
+	deadline: 6e4
+});
+/** Repeat from a fixed first occurrence. */
+var refresh = defineSchedule({
+	name: "refresh",
+	version: 1,
+	handler: "remind",
+	timing: "interval",
+	interval: 3e5,
+	startsAt: 18e11,
+	endsAt: 18000864e5,
+	concurrency: "forbid",
+	deadline: 6e4
+});
+/** Send a reminder at one specified time. */
+var appointment = defineSchedule({
+	name: "appointment",
+	version: 1,
+	handler: "remind",
+	timing: "once",
+	startsAt: 18e11,
+	concurrency: "allow",
+	deadline: 6e4
+});
+/** Return the scheduled occurrence identifier. */
+function remind(occurrence) {
+	return occurrence.id;
+}
+export { appointment, database, fetch, publishNote, refresh, remind, reminders, router, service, token, vault };
 
-//# sourceMappingURL=index-DciUsx4f.js.map
+//# sourceMappingURL=server-DQhgk_GB.js.map
