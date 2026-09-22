@@ -1,5 +1,5 @@
 {
     "extends": "../../tsconfig.json",
     "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"] },
-    "files": ["src/index.ts", "src/inspect/index.ts"]
+    "include": ["src/**/*.ts", "vitest.config.ts"]
 }

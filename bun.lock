@@ -455,8 +455,20 @@
       "name": "@destack/vault",
       "version": "2026.9.0",
       "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/model": "workspace:*",
+        "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "uuid": "14.0.2",
+      },
+      "devDependencies": {
+        "@destack/test": "workspace:*",
+        "jose": "6.2.12",
       },
     },
     "@destack/view": {

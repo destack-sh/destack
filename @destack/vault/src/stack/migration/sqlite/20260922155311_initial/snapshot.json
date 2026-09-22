@@ -1,0 +1,244 @@
+{
+    "version": "7",
+    "dialect": "sqlite",
+    "id": "2bb25a05-3bdd-4969-b64c-bb5b69934cc3",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "name": "vault_value",
+            "entityType": "tables"
+        },
+        {
+            "name": "vault_request",
+            "entityType": "tables"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "secret_id",
+            "entityType": "columns",
+            "table": "vault_value"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "version",
+            "entityType": "columns",
+            "table": "vault_value"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "format",
+            "entityType": "columns",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "key_id",
+            "entityType": "columns",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "ciphertext",
+            "entityType": "columns",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "nonce",
+            "entityType": "columns",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "wrapped_key",
+            "entityType": "columns",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "key_nonce",
+            "entityType": "columns",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "caller",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "procedure",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "request_id",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "digest",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "key_id",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "response",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "vault_request"
+        },
+        {
+            "columns": ["secret_id", "version"],
+            "tableTo": "secret_version",
+            "columnsTo": ["secret_id", "version"],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "nameExplicit": false,
+            "name": "fk_vault_value_secret_id_version_secret_version_secret_id_version_fk",
+            "entityType": "fks",
+            "table": "vault_value"
+        },
+        {
+            "columns": ["secret_id", "version"],
+            "nameExplicit": false,
+            "name": "vault_value_pk",
+            "entityType": "pks",
+            "table": "vault_value"
+        },
+        {
+            "columns": ["caller", "scope", "procedure", "request_id"],
+            "nameExplicit": false,
+            "name": "vault_request_pk",
+            "entityType": "pks",
+            "table": "vault_request"
+        },
+        {
+            "columns": [
+                {
+                    "value": "expires_at",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "vault_request_expiry",
+            "entityType": "indexes",
+            "table": "vault_request"
+        },
+        {
+            "columns": [
+                {
+                    "value": "key_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "scope",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "vault_request_key",
+            "entityType": "indexes",
+            "table": "vault_request"
+        }
+    ],
+    "renames": []
+}

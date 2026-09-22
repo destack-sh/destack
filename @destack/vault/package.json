@@ -4,17 +4,37 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Declare vaults and reference secrets in Destack.",
+    "description": "Declare vault resources and manage encrypted, versioned secrets.",
     "exports": {
         "./declare": "./src/declare/index.ts",
         ".": "./src/index.ts",
-        "./inspect": "./src/inspect/index.ts"
+        "./inspect": "./src/inspect/index.ts",
+        "./client": "./src/secret/client.ts",
+        "./service": "./src/service/index.ts",
+        "./server": "./src/server/index.ts",
+        "./stack": "./src/stack/index.ts",
+        "./encryption": "./src/encryption/index.ts",
+        "./audit": "./src/audit/index.ts",
+        "./error": "./src/error/index.ts"
     },
     "dependencies": {
+        "@destack/access": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/resource": "workspace:*"
+        "@destack/resource": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/model": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "uuid": "14.0.2"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "test": "vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "jose": "6.2.12",
+        "@destack/test": "workspace:*"
     }
 }

@@ -1,5 +1,6 @@
 import { defineSchema, identifier, schema } from "@destack/schema";
-import { ResourceName } from "@destack/resource";
+import { ResourceName, ResourceHandle } from "@destack/resource";
+import type { BoundSecret } from "../secret/client.ts";
 
 /** A secret selected when installing a package. */
 export const SecretDeclaration = defineSchema(
@@ -27,7 +28,19 @@ export const SecretReference = defineSchema(
 /** A stored secret and version selection. */
 export type SecretReference = schema.Infer<typeof SecretReference>;
 
+/** An inert secret declaration with host-authorized value access. */
+class Secret extends ResourceHandle<BoundSecret> {
+    /** Declaration format version. */
+    readonly version: SecretDeclaration["version"];
+
+    /** Retain validated metadata without acquiring credentials. */
+    constructor(declaration: SecretDeclaration) {
+        super(declaration.name);
+        this.version = declaration.version;
+    }
+}
+
 /** Declare a secret without embedding its value. */
-export function defineSecret(declaration: Omit<SecretDeclaration, "version">): SecretDeclaration {
-    return SecretDeclaration.parse({ ...declaration, version: 1 });
+export function defineSecret(declaration: Omit<SecretDeclaration, "version">): Secret {
+    return new Secret(SecretDeclaration.parse({ ...declaration, version: 1 }));
 }

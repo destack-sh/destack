@@ -1,0 +1,320 @@
+{
+    "version": "8",
+    "dialect": "postgres",
+    "id": "683cff48-a91c-4155-aa9e-815696b15bca",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "isRlsEnabled": false,
+            "name": "vault_value",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "isRlsEnabled": false,
+            "name": "vault_request",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "secret_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "version",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "format",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "key_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "ciphertext",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "nonce",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "wrapped_key",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "key_nonce",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "caller",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "procedure",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "request_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "digest",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "key_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "response",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "expires_at",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "vault_request_expiry",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "key_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "scope",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "vault_request_key",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "vault_request"
+        },
+        {
+            "nameExplicit": false,
+            "columns": ["secret_id", "version"],
+            "schemaTo": "public",
+            "tableTo": "secret_version",
+            "columnsTo": ["secret_id", "version"],
+            "onUpdate": "NO ACTION",
+            "onDelete": "RESTRICT",
+            "name": "vault_value_jMdJN3WV29x2_fkey",
+            "entityType": "fks",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "columns": ["secret_id", "version"],
+            "nameExplicit": false,
+            "name": "vault_value_pkey",
+            "entityType": "pks",
+            "schema": "public",
+            "table": "vault_value"
+        },
+        {
+            "columns": ["caller", "scope", "procedure", "request_id"],
+            "nameExplicit": false,
+            "name": "vault_request_pkey",
+            "entityType": "pks",
+            "schema": "public",
+            "table": "vault_request"
+        }
+    ],
+    "renames": []
+}
