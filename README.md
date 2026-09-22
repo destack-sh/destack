@@ -14,13 +14,9 @@
 **Destack is an absurdly integrated fully hackable open source computing stack.**
 
 Destack lets you own, manage and run your personal software stack. 
-All the personal software you want, with a beautifully integrated model, simple customisation and extension, and without any lock-in - built around established TypeScript / Web standards.
-You can run Destack apps yourself, extend existing ones, build new ones, let the Destack platform host them for you, or do anything you want. 
-It's all yours.
+All the personal software you want, all the agents you need, all in one place you can take with you - beautifully integrated with a common model, customisation and extensibility, built around modern TypeScript / Web standards.
 
-Ultimately, the _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale, which enables 
-To standardize software and its production, we must first make all software systems fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
-
+You can run Destack apps yourself, extend existing ones, build new ones; you can let the Destack platform host them for you, host some or all of them yourself, or do anything you want. 
 Install Destack with:
 ```bash
 curl -fsSL https://destack.sh/install | sh
