@@ -1,10 +1,11 @@
+import { PackageId } from "@destack/package";
 import { Caller } from "@destack/service/authentication";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service/error";
 
 /** Trusted hosting configuration for build and preview HTTP scenarios. */
 export const hosting = {
-    audience: "build-test",
+    audience: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
     spaceId: "test-space",
     resources: new ResourceContext(),
     authenticate: async (request: Request) => {

@@ -8,7 +8,7 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "15bf6dfe7905d2004ad1f7d5cc862268f921eaed052f684479d6ff1c14c9fe8b",
+        "digest": "1c28bb75c5c09dc13d614ff4c6a25d545281d29e0ad639d9ccc2195f95d8ead9",
         "size": 38641,
         "mediaType": "application/json"
     },
@@ -120,20 +120,20 @@
             },
             "directory": "output/stack",
             "exports": {
-                ".": "output/stack/index-CIxIfcjj.js"
+                ".": "output/stack/index-BnrFzKrC.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "337076e912d1f754b1bd7ca770f99a4c51563e7b996cbde789ba2f4ca98bfba7",
+        "digest": "1d933488be372b713f44299f0f230d7f29756449eac676a64a3a8c50cc815114",
         "size": 1697,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "bbb7e8c08ab08021dc2898554f84f4508cbb6e7dbef264027783fabaf07b8994",
+        "digest": "c14a1416044bfd0a1b56873a40e28d043c9cd13d5c0f8f94ea376c0c5e501c71",
         "size": 123,
         "mediaType": "application/json"
     }

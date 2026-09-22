@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "69ec14d276de8c4c137163dc9b017ef3d62b136bef6161e10d4cd7c06efc0ee6",
-        "size": 11869,
+        "digest": "c837b854e0ecf2881d047210cc3d6372ae90722de69231ebfdf48fb30ee5ffce",
+        "size": 11868,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -41,20 +41,20 @@
             },
             "directory": "output/library",
             "exports": {
-                ".": "output/library/index-BJXAoba_.js"
+                ".": "output/library/index-3AY5SgEi.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "70721524ff1055e1f0ea496539dcfaf772b9564e56477877677e9b02cb0ec136",
+        "digest": "85110403be82e8a09da8ef3edd8dc562053777089999bc4e4017e5829ac715be",
         "size": 2818,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "fa9a5d08778dd62ae426bd47bbd0c1f598c84b261cf43450255f422706dc8817",
+        "digest": "add50dc5c011be264606d0063969d386a7d0adb44ae53f60c5c6c08b7698da49",
         "size": 127,
         "mediaType": "application/json"
     }

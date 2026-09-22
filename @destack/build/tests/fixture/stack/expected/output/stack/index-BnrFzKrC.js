@@ -5754,6 +5754,19 @@ function identifier(prefix) {
 	defineSchema(validator);
 	return validator;
 }
+/** A named declaration whose client is selected by the invocation's host. */
+var ResourceHandle = class {
+	/** Package-local resource name. */
+	name;
+	/** Retain the package-local binding name. */
+	constructor(name) {
+		this.name = name;
+	}
+	/** Get the client bound to the current operation. */
+	get(context) {
+		return context.get(this);
+	}
+};
 /** A declaration name within a package. */
 var ResourceName = defineSchema(string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
 /** A named infrastructure dependency declared by a package. */
@@ -5767,6 +5780,22 @@ var ResourceDeclaration = defineSchema(strictObject({
 	/** The specification validated by the domain library. */
 	spec: record(string(), json())
 }));
+/** An inert declaration with access to a host-bound client. */
+var Resource = class extends ResourceHandle {
+	/** The resource kind. */
+	kind;
+	/** The declaration format version. */
+	version;
+	/** The domain specification. */
+	spec;
+	/** Retain validated metadata without opening a resource. */
+	constructor(declaration) {
+		super(declaration.name);
+		this.kind = declaration.kind;
+		this.version = declaration.version;
+		this.spec = declaration.spec;
+	}
+};
 /** Define a resource declaration with a concrete specification. */
 function defineResourceSchema(kind, version, spec) {
 	ResourceDeclaration.pick({
@@ -5782,28 +5811,6 @@ function defineResourceSchema(kind, version, spec) {
 		spec
 	}));
 }
-/** An inert declaration with access to a host-bound client. */
-var Resource = class {
-	/** The declaration name. */
-	name;
-	/** The resource kind. */
-	kind;
-	/** The declaration format version. */
-	version;
-	/** The domain specification. */
-	spec;
-	/** Retain validated metadata without opening a resource. */
-	constructor(declaration) {
-		this.name = declaration.name;
-		this.kind = declaration.kind;
-		this.version = declaration.version;
-		this.spec = declaration.spec;
-	}
-	/** Get the resource client bound to the current operation. */
-	get(context) {
-		return context.get(this);
-	}
-};
 /** A provisioned resource in a space. */
 var ResourceReference = defineSchema(strictObject({
 	/** The space containing the resource. */
@@ -6534,4 +6541,4 @@ var personal = defineSpace({ resources: { main: {
 } } });
 export { account, database, note, personal };
 
-//# sourceMappingURL=index-CIxIfcjj.js.map
+//# sourceMappingURL=index-BnrFzKrC.js.map

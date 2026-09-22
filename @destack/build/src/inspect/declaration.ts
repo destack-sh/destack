@@ -21,6 +21,7 @@ import { Package } from "@destack/package";
 import { BuildError } from "../error/index.ts";
 import { type InspectorName, INSPECTORS } from "./inspector.ts";
 import { modulePackage } from "../source/dependency.ts";
+import type { TestDeclaration } from "@destack/test/inspect";
 
 /** An exported declaration located by the compiler. */
 export interface Declaration {
@@ -40,12 +41,22 @@ export async function collectDeclarations(
     file: string,
     project: Project,
     sourcePackage: Awaited<ReturnType<typeof modulePackage>>,
+    tests: readonly TestDeclaration[] = [],
 ): Promise<Declaration[]> {
     // collect calls before resolving constructor symbols in one request
     const declarations: Declaration[] = [];
     const calls: CallExpression[] = [];
+    const testEnds = new Map(
+        tests.filter((test) => test.kind === "test").map((test) => [test.start, test.end]),
+    );
     const pending: Node[] = [...source.statements];
     for (const node of pending) {
+        // leave test case setup and bodies to the test runner
+        const testEnd = testEnds.get(node.getStart());
+        if (testEnd !== undefined && node.end <= testEnd) {
+            continue;
+        }
+
         node.forEachChild((child) => {
             pending.push(child);
         });

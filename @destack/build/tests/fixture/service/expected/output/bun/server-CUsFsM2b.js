@@ -4248,6 +4248,12 @@ var numberProcessor = (schema, ctx, _json, params) => {
 var booleanProcessor = (_schema, _ctx, json, _params) => {
 	json.type = "boolean";
 };
+var bigintProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "BigInt cannot be represented in JSON Schema");
+};
+var symbolProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Symbols cannot be represented in JSON Schema");
+};
 var nullProcessor = (_schema, ctx, json, _params) => {
 	if (ctx.target === "openapi-3.0") {
 		json.type = "string";
@@ -4255,8 +4261,19 @@ var nullProcessor = (_schema, ctx, json, _params) => {
 		json.enum = [null];
 	} else json.type = "null";
 };
+var undefinedProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Undefined cannot be represented in JSON Schema");
+};
+var voidProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Void cannot be represented in JSON Schema");
+};
 var neverProcessor = (_schema, _ctx, json, _params) => {
 	json.not = {};
+};
+var anyProcessor = (_schema, _ctx, _json, _params) => {};
+var unknownProcessor = (_schema, _ctx, _json, _params) => {};
+var dateProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Date cannot be represented in JSON Schema");
 };
 var enumProcessor = (schema, _ctx, json, _params) => {
 	const def = schema._zod.def;
@@ -4295,11 +4312,46 @@ var literalProcessor = (schema, ctx, json, params) => {
 		json.enum = vals;
 	}
 };
+var nanProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "NaN cannot be represented in JSON Schema");
+};
+var templateLiteralProcessor = (schema, _ctx, json, _params) => {
+	const _json = json;
+	const pattern = schema._zod.pattern;
+	if (!pattern) throw new Error("Pattern not found in template literal");
+	_json.type = "string";
+	_json.pattern = pattern.source;
+};
+var fileProcessor = (schema, _ctx, json, _params) => {
+	const _json = json;
+	_json.type = "string";
+	_json.format = "binary";
+	_json.contentEncoding = "binary";
+	const { minimum, maximum, mime } = aggregateChecks(schema);
+	if (minimum !== void 0) _json.minLength = minimum;
+	if (maximum !== void 0) _json.maxLength = maximum;
+	if (!mime) return;
+	if (mime.length === 0) _json.not = {};
+	else if (mime.length === 1) _json.contentMediaType = mime[0];
+	else _json.anyOf = mime.map((m) => ({ contentMediaType: m }));
+};
+var successProcessor = (_schema, _ctx, json, _params) => {
+	json.type = "boolean";
+};
 var customProcessor = (schema, ctx, json, params) => {
 	handleUnrepresentable(schema, ctx, json, params, "Custom types cannot be represented in JSON Schema");
 };
+var functionProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Function types cannot be represented in JSON Schema");
+};
 var transformProcessor = (schema, ctx, json, params) => {
 	handleUnrepresentable(schema, ctx, json, params, "Transforms cannot be represented in JSON Schema");
+};
+var mapProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Map cannot be represented in JSON Schema");
+};
+var setProcessor = (schema, ctx, json, params) => {
+	handleUnrepresentable(schema, ctx, json, params, "Set cannot be represented in JSON Schema");
 };
 var arrayProcessor = (schema, ctx, _json, params) => {
 	const json = _json;
@@ -4384,6 +4436,58 @@ var intersectionProcessor = (schema, ctx, json, params) => {
 	const allOf = [...isSimpleIntersection(a) ? a.allOf : [a], ...isSimpleIntersection(b) ? b.allOf : [b]];
 	json.allOf = allOf;
 	ctx.intersections.push(allOf);
+};
+var tupleProcessor = (schema, ctx, _json, params) => {
+	const json = _json;
+	const def = schema._zod.def;
+	json.type = "array";
+	const prefixPath = ctx.target === "draft-2020-12" ? "prefixItems" : "items";
+	const restPath = ctx.target === "draft-2020-12" ? "items" : ctx.target === "openapi-3.0" ? "items" : "additionalItems";
+	const prefixItems = def.items.map((x, i) => processSchema(x, ctx, {
+		...params,
+		path: [
+			...params.path,
+			prefixPath,
+			i
+		]
+	}));
+	const rest = def.rest ? processSchema(def.rest, ctx, {
+		...params,
+		path: [
+			...params.path,
+			restPath,
+			...ctx.target === "openapi-3.0" ? [def.items.length] : []
+		]
+	}) : null;
+	let minItems = def.items.length;
+	while (minItems > 0) {
+		const item = def.items[minItems - 1];
+		if (!(ctx.io === "input" ? inputOptin(item) !== void 0 : item._zod.optout === "optional")) break;
+		minItems--;
+	}
+	const maxItems = def.items.length;
+	const isClosed = !def.rest;
+	if (ctx.target === "draft-2020-12") {
+		json.prefixItems = prefixItems;
+		if (isClosed) json.items = false;
+		else if (rest) json.items = rest;
+		if (minItems > 0) json.minItems = minItems;
+		if (isClosed) json.maxItems = maxItems;
+	} else if (ctx.target === "openapi-3.0") {
+		json.items = { anyOf: prefixItems };
+		if (rest) json.items.anyOf.push(rest);
+		if (minItems > 0) json.minItems = minItems;
+		if (isClosed) json.maxItems = maxItems;
+	} else {
+		json.items = prefixItems;
+		if (isClosed) json.additionalItems = false;
+		else if (rest) json.additionalItems = rest;
+		if (minItems > 0) json.minItems = minItems;
+		if (isClosed) json.maxItems = maxItems;
+	}
+	const { minimum, maximum } = aggregateChecks(schema);
+	if (typeof minimum === "number") json.minItems = minimum;
+	if (typeof maximum === "number") json.maxItems = maximum;
 };
 /** JSON object keys are always strings, so a numeric record key schema is re-expressed over the
 * numeric-string form the record parser matches. Deferred to `finalize`, after the flatten: a key
@@ -4562,6 +4666,12 @@ var readonlyProcessor = (schema, ctx, json, params) => {
 	seen.ref = def.innerType;
 	json.readOnly = true;
 };
+var promiseProcessor = (schema, ctx, _json, params) => {
+	const def = schema._zod.def;
+	processSchema(def.innerType, ctx, params);
+	const seen = ctx.seen.get(schema);
+	seen.ref = def.innerType;
+};
 var optionalProcessor = (schema, ctx, _json, params) => {
 	const def = schema._zod.def;
 	processSchema(def.innerType, ctx, params);
@@ -4574,6 +4684,81 @@ var lazyProcessor = (schema, ctx, _json, params) => {
 	const seen = ctx.seen.get(schema);
 	seen.ref = innerType;
 };
+var allProcessors = {
+	string: stringProcessor,
+	number: numberProcessor,
+	boolean: booleanProcessor,
+	bigint: bigintProcessor,
+	symbol: symbolProcessor,
+	null: nullProcessor,
+	undefined: undefinedProcessor,
+	void: voidProcessor,
+	never: neverProcessor,
+	any: anyProcessor,
+	unknown: unknownProcessor,
+	date: dateProcessor,
+	enum: enumProcessor,
+	literal: literalProcessor,
+	nan: nanProcessor,
+	template_literal: templateLiteralProcessor,
+	file: fileProcessor,
+	success: successProcessor,
+	custom: customProcessor,
+	function: functionProcessor,
+	transform: transformProcessor,
+	map: mapProcessor,
+	set: setProcessor,
+	array: arrayProcessor,
+	object: objectProcessor,
+	union: unionProcessor,
+	intersection: intersectionProcessor,
+	tuple: tupleProcessor,
+	record: recordProcessor,
+	nullable: nullableProcessor,
+	nonoptional: nonoptionalProcessor,
+	default: defaultProcessor,
+	prefault: prefaultProcessor,
+	catch: catchProcessor,
+	pipe: pipeProcessor,
+	readonly: readonlyProcessor,
+	promise: promiseProcessor,
+	optional: optionalProcessor,
+	lazy: lazyProcessor
+};
+function toJSONSchema(input, params) {
+	if ("_idmap" in input) {
+		const registry = input;
+		const ctx = initializeContext({
+			...params,
+			processors: allProcessors
+		});
+		const defs = {};
+		for (const entry of registry._idmap.entries()) {
+			const [_, schema] = entry;
+			processSchema(schema, ctx);
+		}
+		const schemas = {};
+		ctx.external = {
+			registry,
+			uri: params?.uri,
+			defs
+		};
+		for (const entry of registry._idmap.entries()) {
+			const [key, schema] = entry;
+			extractDefs(ctx, schema);
+			assignProp(schemas, key, finalize(ctx, schema));
+		}
+		if (Object.keys(defs).length > 0) schemas.__shared = { [ctx.target === "draft-2020-12" ? "$defs" : "definitions"]: defs };
+		return { schemas };
+	}
+	const ctx = initializeContext({
+		...params,
+		processors: allProcessors
+	});
+	processSchema(input, ctx);
+	extractDefs(ctx, input);
+	return finalize(ctx, input);
+}
 var _installedErrorProtos = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
 function _lazyMethod(proto, key, make) {
 	Object.defineProperty(proto, key, {
@@ -5662,6 +5847,18 @@ function defineSchema(schema) {
 	validate(schema, /* @__PURE__ */ new Map(), false);
 	return schema;
 }
+/**
+* Describe a schema using JSON Schema Draft 2020-12.
+* Use the declared validator for execution; descriptions can omit format-specific checks.
+*/
+function toJsonSchema(schema) {
+	validate(schema, /* @__PURE__ */ new Map(), false);
+	return toJSONSchema(schema, {
+		target: "draft-2020-12",
+		unrepresentable: "throw",
+		io: "input"
+	});
+}
 /** The canonical lowercase UUIDv7 representation from RFC 9562. */
 var UUID_V7 = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 /** Define a typed entity identifier with a lowercase prefix and a UUIDv7 suffix. */
@@ -5672,6 +5869,19 @@ function identifier(prefix) {
 	defineSchema(validator);
 	return validator;
 }
+/** A named declaration whose client is selected by the invocation's host. */
+var ResourceHandle = class {
+	/** Package-local resource name. */
+	name;
+	/** Retain the package-local binding name. */
+	constructor(name) {
+		this.name = name;
+	}
+	/** Get the client bound to the current operation. */
+	get(context) {
+		return context.get(this);
+	}
+};
 /** A declaration name within a package. */
 var ResourceName = defineSchema(string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
 /** A named infrastructure dependency declared by a package. */
@@ -5685,6 +5895,22 @@ var ResourceDeclaration = defineSchema(strictObject({
 	/** The specification validated by the domain library. */
 	spec: record(string(), json())
 }));
+/** An inert declaration with access to a host-bound client. */
+var Resource = class extends ResourceHandle {
+	/** The resource kind. */
+	kind;
+	/** The declaration format version. */
+	version;
+	/** The domain specification. */
+	spec;
+	/** Retain validated metadata without opening a resource. */
+	constructor(declaration) {
+		super(declaration.name);
+		this.kind = declaration.kind;
+		this.version = declaration.version;
+		this.spec = declaration.spec;
+	}
+};
 /** Define a resource declaration with a concrete specification. */
 function defineResourceSchema(kind, version, spec) {
 	ResourceDeclaration.pick({
@@ -5700,28 +5926,6 @@ function defineResourceSchema(kind, version, spec) {
 		spec
 	}));
 }
-/** An inert declaration with access to a host-bound client. */
-var Resource = class {
-	/** The declaration name. */
-	name;
-	/** The resource kind. */
-	kind;
-	/** The declaration format version. */
-	version;
-	/** The domain specification. */
-	spec;
-	/** Retain validated metadata without opening a resource. */
-	constructor(declaration) {
-		this.name = declaration.name;
-		this.kind = declaration.kind;
-		this.version = declaration.version;
-		this.spec = declaration.spec;
-	}
-	/** Get the resource client bound to the current operation. */
-	get(context) {
-		return context.get(this);
-	}
-};
 /** A named database dependency. */
 var DatabaseDeclaration = defineResourceSchema("database", 1, defineSchema(strictObject({ 
 /** The dialect used by queries and migrations. */
@@ -5747,11 +5951,11 @@ function defineDatabase(declaration) {
 var VaultDeclaration = defineResourceSchema("vault", 1, defineSchema(strictObject({})));
 /** Declare a vault resource. */
 function defineVault(declaration) {
-	return VaultDeclaration.parse({
+	return new Resource(VaultDeclaration.parse({
 		...declaration,
 		kind: "vault",
 		version: 1
-	});
+	}));
 }
 /** A secret selected when installing a package. */
 var SecretDeclaration = defineSchema(strictObject({
@@ -5768,12 +5972,22 @@ defineSchema(strictObject({
 	/** An exact version; omit to select the current version at access time. */
 	version: number().int().positive().optional()
 }));
+/** An inert secret declaration with host-authorized value access. */
+var Secret = class extends ResourceHandle {
+	/** Declaration format version. */
+	version;
+	/** Retain validated metadata without acquiring credentials. */
+	constructor(declaration) {
+		super(declaration.name);
+		this.version = declaration.version;
+	}
+};
 /** Declare a secret without embedding its value. */
 function defineSecret(declaration) {
-	return SecretDeclaration.parse({
+	return new Secret(SecretDeclaration.parse({
 		...declaration,
 		version: 1
-	});
+	}));
 }
 /** Fields shared by calendar, interval, and one-off schedules. */
 var SCHEDULE = strictObject({
@@ -5827,6 +6041,18 @@ var ScheduleDeclaration = defineSchema(union([
 function defineSchedule(value) {
 	return ScheduleDeclaration.parse(value);
 }
+var guard = (func, shouldGuard) => {
+	const _guard = (err) => {
+		if (shouldGuard && !shouldGuard(err)) throw err;
+	};
+	const isPromise2 = (result) => result instanceof Promise;
+	try {
+		const result = func();
+		return isPromise2(result) ? result.catch(_guard) : result;
+	} catch (err) {
+		return _guard(err);
+	}
+};
 function resolveMaybeOptionalOptions(rest) {
 	return rest[0] ?? {};
 }
@@ -8364,6 +8590,9 @@ var package_default = {
 		"test": "vitest run --config vitest.config.ts"
 	},
 	exports: {
+		"./authentication": "./src/authentication/index.ts",
+		"./request": "./src/request/index.ts",
+		"./database": "./src/database/index.ts",
 		"./watch": "./src/watch/index.ts",
 		"./declare": "./src/declare/index.ts",
 		"./operation": "./src/operation/index.ts",
@@ -8380,6 +8609,9 @@ var package_default = {
 	},
 	devDependencies: { "@destack/test": "workspace:*" },
 	dependencies: {
+		"jose": "6.2.12",
+		"@destack/db": "workspace:*",
+		"uuid": "14.0.2",
 		"@destack/package": "workspace:*",
 		"@destack/schema": "workspace:*",
 		"@destack/telemetry": "workspace:*",
@@ -8388,6 +8620,7 @@ var package_default = {
 		"@orpc/contract": "1.15.1",
 		"@orpc/openapi": "1.15.1",
 		"@orpc/openapi-client": "1.15.1",
+		"@orpc/json-schema": "1.15.1",
 		"@orpc/server": "1.15.1",
 		"@destack/resource": "workspace:*",
 		"@destack/access": "workspace:*"
@@ -9755,7 +9988,7 @@ async function invokeProcedure(call, next, options) {
 		outcome: "started"
 	}, audit);
 	try {
-		if (call.access.authentication !== "public" || call.access.permission !== null) await options.authorize(call);
+		if (options.authorize) await options.authorize(call);
 	} catch (error) {
 		if (audit) await recordAudit({
 			call,
@@ -9770,12 +10003,12 @@ async function invokeProcedure(call, next, options) {
 	} catch (error) {
 		if (audit) await recordAudit({
 			call,
-			outcome: "failed",
+			outcome: error instanceof ORPCError && (error.status === 401 || error.status === 403) ? "denied" : "failed",
 			error
 		}, audit);
 		throw reportError(error);
 	}
-	if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) return streamProcedure(result, call, audit);
+	if (result !== null && typeof result === "object" && Symbol.asyncIterator in result) return streamProcedure(result, call, options);
 	if (audit) await recordAudit({
 		call,
 		outcome: "succeeded"
@@ -9783,23 +10016,26 @@ async function invokeProcedure(call, next, options) {
 	return result;
 }
 /** Report stream failures and record declared audit outcomes. */
-function streamProcedure(stream, call, audit) {
+function streamProcedure(stream, call, options) {
+	const audit = call.access.audit ? options.audit : void 0;
 	let outcome = "cancelled";
 	let failure;
 	const iterator = stream[Symbol.asyncIterator]();
 	return new AsyncIteratorClass(async () => {
 		try {
+			if (options.authorize) await options.authorize(call);
 			const result = await iterator.next();
+			if (options.authorize && !result.done) await options.authorize(call);
 			if (result.done) outcome = "succeeded";
 			return result;
 		} catch (error) {
-			outcome = "failed";
+			outcome = error instanceof ORPCError && (error.status === 401 || error.status === 403) ? "denied" : "failed";
 			failure = error;
 			throw reportError(error);
 		}
 	}, async (reason) => {
 		try {
-			if (reason !== "next") await iterator.return?.();
+			if (reason !== "next" || outcome !== "succeeded") await iterator.return?.();
 		} catch (error) {
 			outcome = "failed";
 			failure = error;
@@ -9818,7 +10054,7 @@ async function recordAudit(event, audit) {
 	try {
 		await audit(event);
 	} catch (error) {
-		throw reportError(event.error !== void 0 ? new AggregateError([event.error, error], "Procedure failure audit failed.") : error);
+		throw reportError(event.error !== void 0 ? new AggregateError([event.error, error], "procedure failure audit failed") : error);
 	}
 }
 /** The package declaring service instrumentation. */
@@ -9925,6 +10161,515 @@ function instrumentService() {
 		propagation
 	});
 }
+/**
+* Content encoding strategy enum.
+*
+* - [Content-Transfer-Encoding Syntax](https://datatracker.ietf.org/doc/html/rfc2045#section-6.1)
+* - [7bit vs 8bit encoding](https://stackoverflow.com/questions/25710599/content-transfer-encoding-7bit-or-8-bit/28531705#28531705)
+*/
+var ContentEncoding;
+(function(ContentEncoding) {
+	/**
+	* Only US-ASCII characters, which use the lower 7 bits for each character.
+	*
+	* Each line must be less than 1,000 characters.
+	*/
+	ContentEncoding["7bit"] = "7bit";
+	/**
+	* Allow extended ASCII characters which can use the 8th (highest) bit to
+	* indicate special characters not available in 7bit.
+	*
+	* Each line must be less than 1,000 characters.
+	*/
+	ContentEncoding["8bit"] = "8bit";
+	/**
+	* Useful for data that is mostly non-text.
+	*/
+	ContentEncoding["Base64"] = "base64";
+	/**
+	* Same character set as 8bit, with no line length restriction.
+	*/
+	ContentEncoding["Binary"] = "binary";
+	/**
+	* An extension token defined by a standards-track RFC and registered with
+	* IANA.
+	*/
+	ContentEncoding["IETFToken"] = "ietf-token";
+	/**
+	* Lines are limited to 76 characters, and line breaks are represented using
+	* special characters that are escaped.
+	*/
+	ContentEncoding["QuotedPrintable"] = "quoted-printable";
+	/**
+	* The two characters "X-" or "x-" followed, with no intervening white space,
+	* by any token.
+	*/
+	ContentEncoding["XToken"] = "x-token";
+})(ContentEncoding || (ContentEncoding = {}));
+/**
+* This enum provides well-known formats that apply to strings.
+*/
+var Format;
+(function(Format) {
+	/**
+	* A string instance is valid against this attribute if it is a valid
+	* representation according to the "full-date" production in
+	* [RFC 3339][RFC3339].
+	*
+	* [RFC3339]: https://datatracker.ietf.org/doc/html/rfc3339
+	*/
+	Format["Date"] = "date";
+	/**
+	* A string instance is valid against this attribute if it is a valid
+	* representation according to the "date-time" production in
+	* [RFC 3339][RFC3339].
+	*
+	* [RFC3339]: https://datatracker.ietf.org/doc/html/rfc3339
+	*/
+	Format["DateTime"] = "date-time";
+	/**
+	* A string instance is valid against this attribute if it is a valid
+	* representation according to the "duration" production.
+	*/
+	Format["Duration"] = "duration";
+	/**
+	* A string instance is valid against this attribute if it is a valid Internet
+	* email address as defined by by the "Mailbox" ABNF rule in [RFC
+	* 5321][RFC5322], section 4.1.2.
+	*
+	* [RFC5321]: https://datatracker.ietf.org/doc/html/rfc5321
+	*/
+	Format["Email"] = "email";
+	/**
+	* As defined by [RFC 1123, section 2.1][RFC1123], including host names
+	* produced using the Punycode algorithm specified in
+	* [RFC 5891, section 4.4][RFC5891].
+	*
+	* [RFC1123]: https://datatracker.ietf.org/doc/html/rfc1123
+	* [RFC5891]: https://datatracker.ietf.org/doc/html/rfc5891
+	*/
+	Format["Hostname"] = "hostname";
+	/**
+	* A string instance is valid against this attribute if it is a valid Internet
+	* email address as defined by the extended "Mailbox" ABNF rule in
+	* [RFC 6531][RFC6531], section 3.3.
+	*
+	* [RFC6531]: https://datatracker.ietf.org/doc/html/rfc6531
+	*/
+	Format["IDNEmail"] = "idn-email";
+	/**
+	* As defined by either [RFC 1123, section 2.1][RFC1123] as for hostname, or
+	* an internationalized hostname as defined by
+	* [RFC 5890, section 2.3.2.3][RFC5890].
+	*
+	* [RFC1123]: https://datatracker.ietf.org/doc/html/rfc1123
+	* [RFC5890]: https://datatracker.ietf.org/doc/html/rfc5890
+	*/
+	Format["IDNHostname"] = "idn-hostname";
+	/**
+	* An IPv4 address according to the "dotted-quad" ABNF syntax as defined in
+	* [RFC 2673, section 3.2][RFC2673].
+	*
+	* [RFC2673]: https://datatracker.ietf.org/doc/html/rfc2673
+	*/
+	Format["IPv4"] = "ipv4";
+	/**
+	* An IPv6 address as defined in [RFC 4291, section 2.2][RFC4291].
+	*
+	* [RFC4291]: https://datatracker.ietf.org/doc/html/rfc4291
+	*/
+	Format["IPv6"] = "ipv6";
+	/**
+	* A string instance is valid against this attribute if it is a valid IRI,
+	* according to [RFC 3987][RFC3987].
+	*
+	* [RFC3987]: https://datatracker.ietf.org/doc/html/rfc3987
+	*/
+	Format["IRI"] = "iri";
+	/**
+	* A string instance is valid against this attribute if it is a valid IRI
+	* Reference (either an IRI or a relative-reference), according to
+	* [RFC 3987][RFC3987].
+	*
+	* [RFC3987]: https://datatracker.ietf.org/doc/html/rfc3987
+	*/
+	Format["IRIReference"] = "iri-reference";
+	/**
+	* A string instance is valid against this attribute if it is a valid JSON
+	* string representation of a JSON Pointer, according to
+	* [RFC 6901, section 5][RFC6901].
+	*
+	* [RFC6901]: https://datatracker.ietf.org/doc/html/rfc6901
+	*/
+	Format["JSONPointer"] = "json-pointer";
+	/**
+	* A string instance is valid against this attribute if it is a valid JSON
+	* string representation of a JSON Pointer fragment, according to
+	* [RFC 6901, section 5][RFC6901].
+	*
+	* [RFC6901]: https://datatracker.ietf.org/doc/html/rfc6901
+	*/
+	Format["JSONPointerURIFragment"] = "json-pointer-uri-fragment";
+	/**
+	* This attribute applies to string instances.
+	*
+	* A regular expression, which SHOULD be valid according to the
+	* [ECMA-262][ecma262] regular expression dialect.
+	*
+	* Implementations that validate formats MUST accept at least the subset of
+	* [ECMA-262][ecma262] defined in the [Regular Expressions][regexInterop]
+	* section of this specification, and SHOULD accept all valid
+	* [ECMA-262][ecma262] expressions.
+	*
+	* [ecma262]: https://www.ecma-international.org/publications-and-standards/standards/ecma-262/
+	* [regexInterop]: https://json-schema.org/draft/2020-12/json-schema-validation.html#regexInterop
+	*/
+	Format["RegEx"] = "regex";
+	/**
+	* A string instance is valid against this attribute if it is a valid
+	* [Relative JSON Pointer][relative-json-pointer].
+	*
+	* [relative-json-pointer]: https://datatracker.ietf.org/doc/html/draft-handrews-relative-json-pointer-01
+	*/
+	Format["RelativeJSONPointer"] = "relative-json-pointer";
+	/**
+	* A string instance is valid against this attribute if it is a valid
+	* representation according to the "time" production in [RFC 3339][RFC3339].
+	*
+	* [RFC3339]: https://datatracker.ietf.org/doc/html/rfc3339
+	*/
+	Format["Time"] = "time";
+	/**
+	* A string instance is valid against this attribute if it is a valid URI,
+	* according to [RFC3986][RFC3986].
+	*
+	* [RFC3986]: https://datatracker.ietf.org/doc/html/rfc3986
+	*/
+	Format["URI"] = "uri";
+	/**
+	* A string instance is valid against this attribute if it is a valid URI
+	* Reference (either a URI or a relative-reference), according to
+	* [RFC3986][RFC3986].
+	*
+	* [RFC3986]: https://datatracker.ietf.org/doc/html/rfc3986
+	*/
+	Format["URIReference"] = "uri-reference";
+	/**
+	* A string instance is valid against this attribute if it is a valid URI
+	* Template (of any level), according to [RFC 6570][RFC6570].
+	*
+	* Note that URI Templates may be used for IRIs; there is no separate IRI
+	* Template specification.
+	*
+	* [RFC6570]: https://datatracker.ietf.org/doc/html/rfc6570
+	*/
+	Format["URITemplate"] = "uri-template";
+	/**
+	* A string instance is valid against this attribute if it is a valid string
+	* representation of a UUID, according to [RFC 4122][RFC4122].
+	*
+	* [RFC4122]: https://datatracker.ietf.org/doc/html/rfc4122
+	*/
+	Format["UUID"] = "uuid";
+})(Format || (Format = {}));
+/**
+* Enum consisting of simple type names for the `type` keyword
+*/
+var TypeName;
+(function(TypeName) {
+	/**
+	* Value MUST be an array.
+	*/
+	TypeName["Array"] = "array";
+	/**
+	* Value MUST be a boolean.
+	*/
+	TypeName["Boolean"] = "boolean";
+	/**
+	* Value MUST be an integer, no floating point numbers are allowed. This is a
+	* subset of the number type.
+	*/
+	TypeName["Integer"] = "integer";
+	/**
+	* Value MUST be null. Note this is mainly for purpose of being able use union
+	* types to define nullability. If this type is not included in a union, null
+	* values are not allowed (the primitives listed above do not allow nulls on
+	* their own).
+	*/
+	TypeName["Null"] = "null";
+	/**
+	* Value MUST be a number, floating point numbers are allowed.
+	*/
+	TypeName["Number"] = "number";
+	/**
+	* Value MUST be an object.
+	*/
+	TypeName["Object"] = "object";
+	/**
+	* Value MUST be a string.
+	*/
+	TypeName["String"] = "string";
+})(TypeName || (TypeName = {}));
+TypeName.String, TypeName.Number, TypeName.Integer, TypeName.Boolean, TypeName.Null;
+var CompositeSchemaConverter = class {
+	converters;
+	constructor(converters) {
+		this.converters = converters;
+	}
+	async convert(schema, options) {
+		for (const converter of this.converters) if (await converter.condition(schema, options)) return converter.convert(schema, options);
+		return [false, {}];
+	}
+};
+var JsonSchemaXNativeType = /* @__PURE__ */ ((JsonSchemaXNativeType2) => {
+	JsonSchemaXNativeType2["BigInt"] = "bigint";
+	JsonSchemaXNativeType2["RegExp"] = "regexp";
+	JsonSchemaXNativeType2["Date"] = "date";
+	JsonSchemaXNativeType2["Url"] = "url";
+	JsonSchemaXNativeType2["Set"] = "set";
+	JsonSchemaXNativeType2["Map"] = "map";
+	return JsonSchemaXNativeType2;
+})(JsonSchemaXNativeType || {});
+var FLEXIBLE_DATE_FORMAT_REGEX = /^[^-]+-[^-]+-[^-]+$/;
+var JsonSchemaCoercer = class {
+	coerce(schema, value, options = {}) {
+		const [, coerced] = this.#coerce(schema, value, options);
+		return coerced;
+	}
+	#coerce(schema, originalValue, options) {
+		if (typeof schema === "boolean") return [schema, originalValue];
+		if (Array.isArray(schema.type)) return this.#coerce({ anyOf: schema.type.map((type) => ({
+			...schema,
+			type
+		})) }, originalValue, options);
+		let coerced = originalValue;
+		let satisfied = true;
+		if (typeof schema.$ref === "string") {
+			const refSchema = options?.components?.[schema.$ref];
+			if (refSchema !== void 0) {
+				const [subSatisfied, subCoerced] = this.#coerce(refSchema, coerced, options);
+				coerced = subCoerced;
+				satisfied = subSatisfied;
+			}
+		}
+		const enumValues = schema.const !== void 0 ? [schema.const] : schema.enum;
+		if (enumValues !== void 0 && !enumValues.includes(coerced)) {
+			if (typeof coerced === "string") {
+				const numberValue = this.#stringToNumber(coerced);
+				if (enumValues.includes(numberValue)) coerced = numberValue;
+				else {
+					const booleanValue = this.#stringToBoolean(coerced);
+					if (enumValues.includes(booleanValue)) coerced = booleanValue;
+					else satisfied = false;
+				}
+			} else satisfied = false;
+		}
+		if (typeof schema.type === "string") switch (schema.type) {
+			case "null":
+				if (coerced !== null) satisfied = false;
+				break;
+			case "string":
+				if (typeof coerced !== "string") satisfied = false;
+				break;
+			case "number":
+				if (typeof coerced === "string") coerced = this.#stringToNumber(coerced);
+				if (typeof coerced !== "number") satisfied = false;
+				break;
+			case "integer":
+				if (typeof coerced === "string") coerced = this.#stringToInteger(coerced);
+				if (typeof coerced !== "number" || !Number.isInteger(coerced)) satisfied = false;
+				break;
+			case "boolean":
+				if (typeof coerced === "string") coerced = this.#stringToBoolean(coerced);
+				if (typeof coerced !== "boolean") satisfied = false;
+				break;
+			case "array":
+				if (Array.isArray(coerced)) {
+					const prefixItemSchemas = "prefixItems" in schema ? toArray(schema.prefixItems) : Array.isArray(schema.items) ? schema.items : [];
+					const itemSchema = Array.isArray(schema.items) ? schema.additionalItems : schema.items;
+					let shouldUseCoercedItems = false;
+					const coercedItems = coerced.map((item, i) => {
+						const subSchema = prefixItemSchemas[i] ?? itemSchema;
+						if (subSchema === void 0) {
+							satisfied = false;
+							return item;
+						}
+						const [subSatisfied, subCoerced] = this.#coerce(subSchema, item, options);
+						if (!subSatisfied) satisfied = false;
+						if (subCoerced !== item) shouldUseCoercedItems = true;
+						return subCoerced;
+					});
+					if (coercedItems.length < prefixItemSchemas.length) satisfied = false;
+					if (shouldUseCoercedItems) coerced = coercedItems;
+				} else satisfied = false;
+				break;
+			case "object":
+				if (Array.isArray(coerced)) coerced = { ...coerced };
+				if (isObject(coerced)) {
+					let shouldUseCoercedItems = false;
+					const coercedItems = new NullProtoObj$1();
+					const patternProperties = Object.entries(schema.patternProperties ?? {}).map(([key, value]) => [new RegExp(key), value]);
+					for (const key in coerced) {
+						const value = coerced[key];
+						const subSchema = (schema.properties !== void 0 && Object.hasOwn(schema.properties, key) ? schema.properties[key] : void 0) ?? patternProperties.find(([pattern]) => pattern.test(key))?.[1] ?? schema.additionalProperties;
+						if (value === void 0 && !schema.required?.includes(key)) coercedItems[key] = value;
+						else if (subSchema === void 0) {
+							coercedItems[key] = value;
+							satisfied = false;
+						} else {
+							const [subSatisfied, subCoerced] = this.#coerce(subSchema, value, options);
+							coercedItems[key] = subCoerced;
+							if (!subSatisfied) satisfied = false;
+							if (subCoerced !== value) shouldUseCoercedItems = true;
+						}
+					}
+					if (schema.required?.some((key) => !Object.hasOwn(coercedItems, key))) satisfied = false;
+					if (shouldUseCoercedItems) coerced = coercedItems;
+				} else satisfied = false;
+		}
+		if ("x-native-type" in schema && typeof schema["x-native-type"] === "string") switch (schema["x-native-type"]) {
+			case JsonSchemaXNativeType.Date:
+				if (typeof coerced === "string") coerced = this.#stringToDate(coerced);
+				if (!(coerced instanceof Date)) satisfied = false;
+				break;
+			case JsonSchemaXNativeType.BigInt:
+				switch (typeof coerced) {
+					case "string":
+						coerced = this.#stringToBigInt(coerced);
+						break;
+					case "number": coerced = this.#numberToBigInt(coerced);
+				}
+				if (typeof coerced !== "bigint") satisfied = false;
+				break;
+			case JsonSchemaXNativeType.RegExp:
+				if (typeof coerced === "string") coerced = this.#stringToRegExp(coerced);
+				if (!(coerced instanceof RegExp)) satisfied = false;
+				break;
+			case JsonSchemaXNativeType.Url:
+				if (typeof coerced === "string") coerced = this.#stringToURL(coerced);
+				if (!(coerced instanceof URL)) satisfied = false;
+				break;
+			case JsonSchemaXNativeType.Set:
+				if (Array.isArray(coerced)) coerced = this.#arrayToSet(coerced);
+				if (!(coerced instanceof Set)) satisfied = false;
+				break;
+			case JsonSchemaXNativeType.Map:
+				if (Array.isArray(coerced)) coerced = this.#arrayToMap(coerced);
+				if (!(coerced instanceof Map)) satisfied = false;
+		}
+		if (schema.allOf) for (const subSchema of schema.allOf) {
+			const [subSatisfied, subCoerced] = this.#coerce(subSchema, coerced, options);
+			coerced = subCoerced;
+			if (!subSatisfied) satisfied = false;
+		}
+		for (const key of ["anyOf", "oneOf"]) if (schema[key]) {
+			let bestOptions;
+			for (const subSchema of schema[key]) {
+				const [subSatisfied, subCoerced] = this.#coerce(subSchema, coerced, options);
+				if (subSatisfied) {
+					if (!bestOptions || subCoerced === coerced) bestOptions = {
+						coerced: subCoerced,
+						satisfied: subSatisfied
+					};
+					if (subCoerced === coerced) break;
+				}
+			}
+			coerced = bestOptions ? bestOptions.coerced : coerced;
+			satisfied = bestOptions ? bestOptions.satisfied : false;
+		}
+		if (typeof schema.not !== "undefined") {
+			const [notSatisfied] = this.#coerce(schema.not, coerced, options);
+			if (notSatisfied) satisfied = false;
+		}
+		return [satisfied, coerced];
+	}
+	#stringToNumber(value) {
+		const num = Number.parseFloat(value);
+		if (Number.isNaN(num) || num !== Number(value)) return value;
+		return num;
+	}
+	#stringToInteger(value) {
+		const num = Number.parseInt(value);
+		if (Number.isNaN(num) || num !== Number(value)) return value;
+		return num;
+	}
+	#stringToBoolean(value) {
+		const lower = value.toLowerCase();
+		if (lower === "false" || lower === "off") return false;
+		if (lower === "true" || lower === "on") return true;
+		return value;
+	}
+	#stringToBigInt(value) {
+		return guard(() => BigInt(value)) ?? value;
+	}
+	#numberToBigInt(value) {
+		return guard(() => BigInt(value)) ?? value;
+	}
+	#stringToDate(value) {
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime()) || !FLEXIBLE_DATE_FORMAT_REGEX.test(value)) return value;
+		return date;
+	}
+	#stringToRegExp(value) {
+		const match = value.match(/^\/(.*)\/([a-z]*)$/);
+		if (match) {
+			const [, pattern, flags] = match;
+			return guard(() => new RegExp(pattern, flags)) ?? value;
+		}
+		return value;
+	}
+	#stringToURL(value) {
+		return guard(() => new URL(value)) ?? value;
+	}
+	#arrayToSet(value) {
+		const set = new Set(value);
+		if (set.size !== value.length) return value;
+		return set;
+	}
+	#arrayToMap(value) {
+		if (value.some((item) => !Array.isArray(item) || item.length !== 2)) return value;
+		const result = new Map(value);
+		if (result.size !== value.length) return value;
+		return result;
+	}
+};
+var SmartCoercionPlugin = class {
+	converter;
+	coercer;
+	cache = /* @__PURE__ */ new WeakMap();
+	constructor(options = {}) {
+		this.converter = new CompositeSchemaConverter(toArray(options.schemaConverters));
+		this.coercer = new JsonSchemaCoercer();
+	}
+	init(options) {
+		options.clientInterceptors ??= [];
+		options.clientInterceptors.unshift(async (options2) => {
+			const inputSchema = options2.procedure["~orpc"].inputSchema;
+			if (!inputSchema) return options2.next();
+			const coercedInput = await this.#coerce(inputSchema, options2.input);
+			return options2.next({
+				...options2,
+				input: coercedInput
+			});
+		});
+	}
+	async #coerce(schema, value) {
+		let jsonSchema = this.cache.get(schema);
+		if (!jsonSchema) {
+			jsonSchema = (await this.converter.convert(schema, { strategy: "input" }))[1];
+			this.cache.set(schema, jsonSchema);
+		}
+		return this.coercer.coerce(jsonSchema, value);
+	}
+};
+/** Convert portable Destack schemas for HTTP decoding and OpenAPI documents. */
+var schemaConverter = {
+	condition: (validator) => validator instanceof ZodType,
+	convert: (validator) => {
+		if (!(validator instanceof ZodType)) throw new TypeError("expected a Destack schema");
+		return [true, toJsonSchema(validator)];
+	}
+};
 /** Dispatch Fetch requests to service procedures using their HTTP routes. */
 var ServiceHandler = class ServiceHandler extends OpenAPIHandler {
 	/** Readiness shared with the hosting lifecycle. */
@@ -9935,6 +10680,7 @@ var ServiceHandler = class ServiceHandler extends OpenAPIHandler {
 		const telemetry = new ServiceTelemetry("server");
 		super(router, {
 			...options,
+			plugins: [new SmartCoercionPlugin({ schemaConverters: [schemaConverter] }), ...options.plugins ?? []],
 			clientInterceptors: [
 				({ path, next }) => telemetry.invoke(path, next),
 				async ({ next, procedure, path, input, context, signal }) => {
@@ -10093,7 +10839,7 @@ strictObject({
 	/** Current readiness. */
 	status: HealthStatus
 });
-/** A stable domain action name. */
+/** A package-local action named noun.verb, with a present-tense verb and optional nested nouns. */
 var AuditActionName = defineSchema(string().regex(/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/));
 defineSchema(strictObject({
 	package: Package,
@@ -10207,4 +10953,4 @@ function remind(occurrence) {
 }
 export { appointment, database, fetch, publishNote, refresh, remind, reminders, router, service, token, vault };
 
-//# sourceMappingURL=server-DQhgk_GB.js.map
+//# sourceMappingURL=server-CUsFsM2b.js.map

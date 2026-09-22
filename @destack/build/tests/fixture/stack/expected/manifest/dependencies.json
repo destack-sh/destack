@@ -21,8 +21,8 @@
             },
             {
                 "path": "src/access/access.ts",
-                "digest": "974f0ab83b08d589881b0ea8d3a34418a56d90375211a308bf78bf9e986941b4",
-                "size": 13944,
+                "digest": "3cae1bdbb110428658e9ad760979310de21cdcd21cdfc88b25a32cfaae51e4d0",
+                "size": 14181,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -51,20 +51,20 @@
             },
             {
                 "path": "src/access/policy.ts",
-                "digest": "80faa55c0763f8cf178db6f26ee92716534dc6377f11e942c7f5dca324a64a0b",
-                "size": 5180,
+                "digest": "35702a33f49fdde1f055451bbd95f5eca7659acc8dbc9b43ec02d123b775b2e6",
+                "size": 5932,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/access/subject.ts",
-                "digest": "5e3341a873c6098e6aaca091bffa02b3ea7d35e1359504787059f2d5ddf50097",
-                "size": 2090,
+                "digest": "b7f9a3dd56df892839a9d0b392e0cc7e3b3b6f79b953981cfe8f004e4ee8cd5d",
+                "size": 2257,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/access/view.ts",
-                "digest": "0cfe00a6099e59a414a1ea3b34dd202776821f6e6213f8bcf09736cfc37ac406",
-                "size": 3937,
+                "digest": "2b199633c676df42ac7911e115aa0afd99a0b30ebd835d9b69e8f704f16451c9",
+                "size": 4054,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -481,8 +481,8 @@
             },
             {
                 "path": "src/manifest/reader.ts",
-                "digest": "e005683ae44345ee3b42cfc7bd8c406e1510b02a64f7419651ec088ea2ab5a3d",
-                "size": 3558,
+                "digest": "e80e0fbb2087751d7fcde113a70802dbe7966278a121af0ca16fe2f21f0ce79c",
+                "size": 3823,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -629,8 +629,8 @@
             },
             {
                 "path": "src/resource/handle.ts",
-                "digest": "6231146f926f2cbdf3d75cf52b6c9fc3c69eb15cecdffe1c469ba6aa9140f7f5",
-                "size": 1015,
+                "digest": "de9e290facf6e4a246f7d5d18ae64442882b226b498d39afc582e2073ef9eb8f",
+                "size": 604,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -641,8 +641,8 @@
             },
             {
                 "path": "src/resource/resource.ts",
-                "digest": "7743de93e95e3409cbdffae85fbfc6e4dde32eec6dbc20d254ae870b3adcf12a",
-                "size": 1474,
+                "digest": "c7fa9f7ae56cc5ceec13cb7940df342bf3be85a50f933b08ed17f861980255b7",
+                "size": 2229,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -903,14 +903,14 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "a855998aec05d697cf981b981c3563ab010e3560605d6d2fbe9fd9b19a96c8f7",
-                "size": 228,
+                "digest": "b06f0a50b16b784f039b7cc0b780154cd5b86e9ab68ff648312395209b30df95",
+                "size": 439,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "202e4bbceb1a81b3b1325248e919eb772e9fc8288e6adb86c9f6a7e04682f8ac",
-                "size": 534,
+                "digest": "436edaf445ef34574b7ac2d4503274b1ca7daa1f35fd2eeb31233e5954882b65",
+                "size": 1342,
                 "mediaType": "application/json"
             },
             {
@@ -921,14 +921,14 @@
             },
             {
                 "path": "src/declare/secret.ts",
-                "digest": "f39664ac9a7063f12134f0688ba807c667d9d0b96ae323ba4501c94bf2acccd6",
-                "size": 1298,
+                "digest": "4161847496693261e2a6ea60c557bfce1d9a19d3043f9b19ced76f11740d9eee",
+                "size": 1788,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/vault.ts",
-                "digest": "b22a90e2cf64037d27268914a52027bdb4375dcfbeed856170e2a05921d48a16",
-                "size": 672,
+                "digest": "345009be8d07f1a209b384e51189066910e16027932746b68b7f530d2eca0caf",
+                "size": 786,
                 "mediaType": "application/octet-stream"
             }
         ]

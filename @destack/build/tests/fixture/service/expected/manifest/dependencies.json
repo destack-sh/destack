@@ -20,9 +20,27 @@
                 "mediaType": "application/json"
             },
             {
+                "path": "src/access/access.ts",
+                "digest": "3cae1bdbb110428658e9ad760979310de21cdcd21cdfc88b25a32cfaae51e4d0",
+                "size": 14181,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/access/expression.ts",
                 "digest": "e995d714c0d902104df43e5080484d1dd1ea33291436efa97319ddc76da2721e",
                 "size": 3434,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/access/index.ts",
+                "digest": "3eae4d7ecdd7f6aa81668f3e1d39c013c9addebb5aa2769d76c7a6fc0af9fd4d",
+                "size": 205,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/access/model.ts",
+                "digest": "f16a64d62004e5624698e679a57930a25d647ec5a38507a8b7e513f6ddbad7fd",
+                "size": 8965,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -32,9 +50,21 @@
                 "mediaType": "application/octet-stream"
             },
             {
+                "path": "src/access/policy.ts",
+                "digest": "35702a33f49fdde1f055451bbd95f5eca7659acc8dbc9b43ec02d123b775b2e6",
+                "size": 5932,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/access/subject.ts",
-                "digest": "5e3341a873c6098e6aaca091bffa02b3ea7d35e1359504787059f2d5ddf50097",
-                "size": 2090,
+                "digest": "b7f9a3dd56df892839a9d0b392e0cc7e3b3b6f79b953981cfe8f004e4ee8cd5d",
+                "size": 2257,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/access/view.ts",
+                "digest": "2b199633c676df42ac7911e115aa0afd99a0b30ebd835d9b69e8f704f16451c9",
+                "size": 4054,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -50,9 +80,39 @@
                 "mediaType": "application/octet-stream"
             },
             {
+                "path": "src/grant/grant.ts",
+                "digest": "2234c3dfabeb6b59fa4ac61c508e76a8a59daeeb2f31bf1e08754af8bd663636",
+                "size": 1290,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/grant/index.ts",
+                "digest": "3c75a7609043744309a0f0cddceffb9f3f3abc2c581805973b4d25add5206f8a",
+                "size": 56,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/grant/token.ts",
+                "digest": "6df0d933624919121d3d002831f04658b4b967cc47e9e5749bb8dfb047e81fd7",
+                "size": 1639,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/index.ts",
+                "digest": "733b3e35b46cca123ce73ec6b3b811c8f9a78d4832eb7d9f10a5195263a5aefa",
+                "size": 69,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/inspect/declaration.ts",
                 "digest": "4b95b4ae1ae630a028549ce3f7a36247e038e93eb80acce4c13334f828b275c0",
                 "size": 3207,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/inspect/policy.ts",
+                "digest": "83a7af935b2a1cbb38c7c87192426d7990485ad1a85ed8b452cb45dbb05d0110",
+                "size": 757,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -79,8 +139,8 @@
             },
             {
                 "path": "src/action/action.ts",
-                "digest": "1c3ed349d2f218456761ab62942e1cd65a5bd24f372cd5f8c76b758d32b51d35",
-                "size": 1847,
+                "digest": "c89093a3fa536c11d34a5809d34c16090fcb558dd32335fed6f4252ad21679ce",
+                "size": 1941,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -339,8 +399,8 @@
             },
             {
                 "path": "src/manifest/reader.ts",
-                "digest": "e005683ae44345ee3b42cfc7bd8c406e1510b02a64f7419651ec088ea2ab5a3d",
-                "size": 3558,
+                "digest": "e80e0fbb2087751d7fcde113a70802dbe7966278a121af0ca16fe2f21f0ce79c",
+                "size": 3823,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -487,8 +547,8 @@
             },
             {
                 "path": "src/resource/handle.ts",
-                "digest": "6231146f926f2cbdf3d75cf52b6c9fc3c69eb15cecdffe1c469ba6aa9140f7f5",
-                "size": 1015,
+                "digest": "de9e290facf6e4a246f7d5d18ae64442882b226b498d39afc582e2073ef9eb8f",
+                "size": 604,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -499,8 +559,8 @@
             },
             {
                 "path": "src/resource/resource.ts",
-                "digest": "7743de93e95e3409cbdffae85fbfc6e4dde32eec6dbc20d254ae870b3adcf12a",
-                "size": 1474,
+                "digest": "c7fa9f7ae56cc5ceec13cb7940df342bf3be85a50f933b08ed17f861980255b7",
+                "size": 2229,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -579,14 +639,14 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "0501a922e8689284ffcbf15e907fdb84c58bc63db5f9d7df9ce38ad2e3fc64ab",
-                "size": 228,
+                "digest": "61dfe4620aa33bf67442bd7ba1270191a0b50f27e7ae16eb34d9baaf9d2e0dc5",
+                "size": 176,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "709934444b07953bf188cd40bae4bfc9f9dd02cc2a15305b8cb95cab2adf8ea8",
-                "size": 1470,
+                "digest": "38a8d20b7236461d9c50b3a21fc4a3feb4463ff71c0ea6437d40671609cdf85a",
+                "size": 1756,
                 "mediaType": "application/json"
             },
             {
@@ -656,6 +716,12 @@
                 "mediaType": "application/octet-stream"
             },
             {
+                "path": "src/openapi/document.ts",
+                "digest": "f3b17d6407292b8f045ac996171c1fee05a02e86d058cab872ec2310926f34d3",
+                "size": 1227,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/operation/procedure.ts",
                 "digest": "7ca515bf91b1f8eff8c72f8ec74ea818642724df66a394016b25d8cca6ba0062",
                 "size": 1392,
@@ -663,8 +729,8 @@
             },
             {
                 "path": "src/operation/server.ts",
-                "digest": "9cfa1ba8f18d0419c01899e85f3d676cb43762c2efab452c63fa1bffabda60fe",
-                "size": 1512,
+                "digest": "4e23ede2a01fe559069b362a282cc5f08d4f979e8a7f95466055ebd6267f8fba",
+                "size": 1430,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -699,8 +765,14 @@
             },
             {
                 "path": "src/server/access.ts",
-                "digest": "9ee5901461b7090f6cfd9cebbbe9c22bd35431e3aafd3f95fc9ff4a5b47a67c4",
-                "size": 5096,
+                "digest": "79b2ac4be8deb3646dd4900bf826f4c65762675a574baa1291caa9c6be5a6eb1",
+                "size": 5775,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/server/context.ts",
+                "digest": "6fb850d89228dcf9e103a503622797d793874c93dc29652baf68622f4b13357b",
+                "size": 2594,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -711,14 +783,14 @@
             },
             {
                 "path": "src/server/handler.ts",
-                "digest": "11e936ff68942b8c5db0da56748ffd4ea4e13d09ce0dea5a0d5f7ddd6dc1216b",
-                "size": 4801,
+                "digest": "0c6a49362b37540e6398e74b6083bac08270a94cfb7dfa9670754620ed4457f1",
+                "size": 5089,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/server/index.ts",
-                "digest": "365f62b9e24e48d68423e9cb48ffe6256117d74dd4bdb10ea4ae9b7c9e7892ea",
-                "size": 316,
+                "digest": "b4446a602a9adfaa468f3198319f6cd34f62c4dddbd1e346bd97667b24ffc8fc",
+                "size": 346,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -729,8 +801,8 @@
             },
             {
                 "path": "src/server/server.ts",
-                "digest": "5eef70c73f94382194b851c746a097c1dc7682d362d142fd3c1f14e5c446bafb",
-                "size": 9254,
+                "digest": "d54be572e260866e43115084e61d48c440b04972f60222371c2817bef8920ec9",
+                "size": 14031,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -857,14 +929,14 @@
         "files": [
             {
                 "path": "destack.json",
-                "digest": "a855998aec05d697cf981b981c3563ab010e3560605d6d2fbe9fd9b19a96c8f7",
-                "size": 228,
+                "digest": "b06f0a50b16b784f039b7cc0b780154cd5b86e9ab68ff648312395209b30df95",
+                "size": 439,
                 "mediaType": "application/json"
             },
             {
                 "path": "package.json",
-                "digest": "202e4bbceb1a81b3b1325248e919eb772e9fc8288e6adb86c9f6a7e04682f8ac",
-                "size": 534,
+                "digest": "436edaf445ef34574b7ac2d4503274b1ca7daa1f35fd2eeb31233e5954882b65",
+                "size": 1342,
                 "mediaType": "application/json"
             },
             {
@@ -875,20 +947,32 @@
             },
             {
                 "path": "src/declare/secret.ts",
-                "digest": "f39664ac9a7063f12134f0688ba807c667d9d0b96ae323ba4501c94bf2acccd6",
-                "size": 1298,
+                "digest": "4161847496693261e2a6ea60c557bfce1d9a19d3043f9b19ced76f11740d9eee",
+                "size": 1788,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/vault.ts",
-                "digest": "b22a90e2cf64037d27268914a52027bdb4375dcfbeed856170e2a05921d48a16",
-                "size": 672,
+                "digest": "345009be8d07f1a209b384e51189066910e16027932746b68b7f530d2eca0caf",
+                "size": 786,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/index.ts",
-                "digest": "6186548b1bc96178d566c5429c6c510775ed6543afdddd87656b631f8175370e",
-                "size": 36,
+                "digest": "0a148da97851be3a46f35bfdefba27cdda4463f6f3ac391e5f18391169872de8",
+                "size": 71,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/secret/index.ts",
+                "digest": "64dd076e4897c35607af321f3aa24c7727e8add0d8d79624472afd7a000ae3d2",
+                "size": 29,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/secret/secret.ts",
+                "digest": "be523fc0d00fb796afe4e14d93f408793e1ad9ee0543cd06fd4de254a66eae08",
+                "size": 2542,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -947,6 +1031,15 @@
         "registry": "https://registry.npmjs.org/",
         "integrity": "sha512-iXVEEjooewmEkyrDLeWHY3vKYq67htdUQjCDLx0MoiqA0NFFVv6sZ1LNj/tPWZ1p5Mca34xcAx1SwYZcchQ/xA=="
     },
+    "@orpc/json-schema@1.15.1": {
+        "kind": "npm",
+        "package": {
+            "name": "@orpc/json-schema",
+            "version": "1.15.1"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-+zLE41QrydiAlrLvUj5XBZ8xcEhvH9iHhRrS7vQMnRJeJZVJAHGFETK3fSqEq7KRlFU4jiCRmXJ7oC82NBRdjw=="
+    },
     "@orpc/openapi-client@1.15.1": {
         "kind": "npm",
         "package": {
@@ -1000,6 +1093,15 @@
         },
         "registry": "https://registry.npmjs.org/",
         "integrity": "sha512-9DapOKyrEWqIAWQ0iZRTJ+AG7W70YXKhOBwlIlVv9ip7GeBytEcwghNtezNvIW5xwchkiCpNjSE91bW3Iw2txw=="
+    },
+    "json-schema-typed@8.0.2": {
+        "kind": "npm",
+        "package": {
+            "name": "json-schema-typed",
+            "version": "8.0.2"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA=="
     },
     "radash@12.1.1": {
         "kind": "npm",

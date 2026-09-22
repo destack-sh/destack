@@ -1720,8 +1720,20 @@
             },
             "typeSignatures": [],
             "valueType": {
-                "text": "{ name: string; version: 1; }",
-                "references": []
+                "text": "Secret",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614d-75a9-a76d-357d71d330a6",
+                            "name": "@destack/vault",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/secret.ts",
+                            "name": "Secret"
+                        }
+                    }
+                ]
             },
             "signatures": [],
             "members": [],
@@ -1749,8 +1761,78 @@
             },
             "typeSignatures": [],
             "valueType": {
-                "text": "{ name: string; kind: \"vault\"; version: number; spec: Record<string, never>; }",
+                "text": "import(\"@destack/resource\").Resource<{ vault: { get: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; }, import(\"zod/v4/core\").$strict>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; resourceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; list: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; limit: import(\"zod\").ZodOptional<import(\"zod\").ZodNumber>; cursor: import(\"zod\").ZodOptional<import(\"zod\").ZodString>; }, import(\"zod/v4/core\").$strict>, schema.Object<{ items: import(\"zod\").ZodArray<schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; resourceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; }, import(\"zod/v4/core\").$strict>>; cursor: import(\"zod\").ZodNullable<import(\"zod\").ZodString>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; }; secret: { purge: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; limit: import(\"zod\").ZodNumber; }, import(\"zod/v4/core\").$strict>, import(\"zod\").ZodNumber, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; create: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; tags: import(\"zod\").ZodOptional<import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>>; }, import(\"zod/v4/core\").$strict>, schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; get: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; }, import(\"zod/v4/core\").$strict>, schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; list: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; limit: import(\"zod\").ZodOptional<import(\"zod\").ZodNumber>; cursor: import(\"zod\").ZodOptional<import(\"zod\").ZodString>; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; }, import(\"zod/v4/core\").$strict>, schema.Object<{ items: import(\"zod\").ZodArray<schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>>; cursor: import(\"zod\").ZodNullable<import(\"zod\").ZodString>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; update: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; name: import(\"zod\").ZodString; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; }, import(\"zod/v4/core\").$strict>, schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; disable: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; }, import(\"zod/v4/core\").$strict>, schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; enable: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; }, import(\"zod/v4/core\").$strict>, schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; delete: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; }, import(\"zod/v4/core\").$strict>, schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; restore: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; }, import(\"zod/v4/core\").$strict>, schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; }; version: { rewrap: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; }, import(\"zod/v4/core\").$strict>, schema.Object<{ secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; createdAt: import(\"zod\").ZodNumber; expiresAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; get: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; }, import(\"zod/v4/core\").$strict>, schema.Object<{ secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; createdAt: import(\"zod\").ZodNumber; expiresAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; list: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; limit: import(\"zod\").ZodOptional<import(\"zod\").ZodNumber>; cursor: import(\"zod\").ZodOptional<import(\"zod\").ZodString>; }, import(\"zod/v4/core\").$strict>, schema.Object<{ items: import(\"zod\").ZodArray<schema.Object<{ secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; createdAt: import(\"zod\").ZodNumber; expiresAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>>; cursor: import(\"zod\").ZodNullable<import(\"zod\").ZodString>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; read: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodOptional<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, schema.Object<{ version: schema.Object<{ secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; createdAt: import(\"zod\").ZodNumber; expiresAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>; value: import(\"zod\").ZodDiscriminatedUnion<[schema.Object<{ encoding: import(\"zod\").ZodLiteral<\"text\">; value: import(\"zod\").ZodString; }, import(\"zod/v4/core\").$strict>, schema.Object<{ encoding: import(\"zod\").ZodLiteral<\"base64\">; value: import(\"zod\").ZodBase64; }, import(\"zod/v4/core\").$strict>], \"encoding\">; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; write: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; value: import(\"zod\").ZodDiscriminatedUnion<[schema.Object<{ encoding: import(\"zod\").ZodLiteral<\"text\">; value: import(\"zod\").ZodString; }, import(\"zod/v4/core\").$strict>, schema.Object<{ encoding: import(\"zod\").ZodLiteral<\"base64\">; value: import(\"zod\").ZodBase64; }, import(\"zod/v4/core\").$strict>], \"encoding\">; expiresAt: import(\"zod\").ZodOptional<import(\"zod\").ZodNumber>; promote: import(\"zod\").ZodOptional<import(\"zod\").ZodBoolean>; }, import(\"zod/v4/core\").$strict>, schema.Object<{ secret: schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>; version: schema.Object<{ secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; createdAt: import(\"zod\").ZodNumber; expiresAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; promote: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; }, import(\"zod/v4/core\").$strict>, schema.Object<{ id: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; vaultId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"resource\", \"out\">; name: import(\"zod\").ZodString; createdAt: import(\"zod\").ZodNumber; updatedAt: import(\"zod\").ZodNumber; revision: import(\"zod\").ZodNumber; tags: import(\"zod\").ZodRecord<import(\"zod\").ZodString, import(\"zod\").ZodString>; currentVersion: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; deleteAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; disable: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; }, import(\"zod/v4/core\").$strict>, schema.Object<{ secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; createdAt: import(\"zod\").ZodNumber; expiresAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; enable: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; }, import(\"zod/v4/core\").$strict>, schema.Object<{ secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; createdAt: import(\"zod\").ZodNumber; expiresAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; destroy: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ requestId: import(\"zod\").ZodUUID; revision: import(\"zod\").ZodNumber; spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; }, import(\"zod/v4/core\").$strict>, schema.Object<{ secretId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"secret\", \"out\">; version: import(\"zod\").ZodNumber; createdAt: import(\"zod\").ZodNumber; expiresAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; disabledAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; destroyedAt: import(\"zod\").ZodNullable<import(\"zod\").ZodNumber>; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; }; request: { rewrap: import(\"@orpc/contract\").ContractProcedureClient<Record<never, never>, schema.Object<{ spaceId: import(\"zod/v4/core\").$ZodBranded<import(\"zod\").ZodString, \"space\", \"out\">; keyId: import(\"zod\").ZodString; limit: import(\"zod\").ZodNumber; }, import(\"zod/v4/core\").$strict>, import(\"zod\").ZodNumber, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>>; }; }, { name: string; kind: \"vault\"; version: number; spec: Record<string, never>; }>",
                 "references": [
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es2015.iterable.d.ts",
+                            "name": "ArrayIterator"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es2019.array.d.ts",
+                            "name": "FlatArray"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Array"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "ConcatArray"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Intl.DateTimeFormatOptions"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Intl.NumberFormatOptions"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "ReadonlyArray"
+                        }
+                    },
                     {
                         "compiler": {
                             "name": "typescript",
@@ -1759,6 +1841,197 @@
                         "symbol": {
                             "module": "lib.es5.d.ts",
                             "name": "Record"
+                        }
+                    },
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73eb-9845-7906f2b7cfe0",
+                            "name": "@destack/resource",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/resource/resource.ts",
+                            "name": "Resource"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "@orpc/contract",
+                            "version": "1.15.1"
+                        },
+                        "symbol": {
+                            "module": "dist/index.d.mts",
+                            "name": "ContractProcedureClient"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "@orpc/contract",
+                            "version": "1.15.1"
+                        },
+                        "symbol": {
+                            "module": "dist/shared/contract.TuRtB1Ca.d.mts",
+                            "name": "ErrorFromErrorMap"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "@orpc/contract",
+                            "version": "1.15.1"
+                        },
+                        "symbol": {
+                            "module": "dist/shared/contract.TuRtB1Ca.d.mts",
+                            "name": "MergedErrorMap"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodArray"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodBase64"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodBoolean"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodDiscriminatedUnion"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodLiteral"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodNullable"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodNumber"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodObject"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodOptional"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodRecord"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodString"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodUUID"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$ZodBranded"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$brand"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/schemas.d.cts",
+                            "name": "$strict"
                         }
                     }
                 ]

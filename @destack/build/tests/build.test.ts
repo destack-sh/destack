@@ -3,16 +3,13 @@ import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { PackageBuild } from "../src/index.ts";
-import { Fixture, expectBuild, expectFiles, readBuildFiles } from "./fixture.ts";
+import { Fixture, expectBuild, expectFiles, expectManifest, readBuildFiles } from "./fixture.ts";
 import { request } from "./fixture/library/request.ts";
 import { request as serviceRequest } from "./fixture/service/request.ts";
 import { request as resourceRequest } from "./fixture/resource/request.ts";
 import { request as stackRequest } from "./fixture/stack/request.ts";
 import { requests } from "./fixture/web/request.ts";
 import { PackageReader } from "@destack/package/manifest";
-import { schema } from "@destack/schema";
-import { DeclarationDescription } from "@destack/package/inspect";
-import { TestDeclaration } from "@destack/test/inspect";
 
 /** Complete build scenarios and their expected output directories. */
 const fixtures = [
@@ -41,59 +38,7 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
     expect(restored.manifest).toEqual(build.manifest);
     await expectFiles(restored, build);
 
-    // load each domain independently without touching code descriptions or executable files
-    const loaded: string[] = [];
-    const reader = new PackageReader(build.manifest, async (path) => {
-        loaded.push(path);
-
-        return new Uint8Array(await readFile(join(destination, path)));
-    });
-
-    // read each inventory independently and compare its complete serialized contents
-    for (const [name, read] of [
-        ["dependencies", () => reader.dependencies()],
-        ["files", () => reader.files()],
-        ["sourceMaps", () => reader.sourceMaps()],
-    ] as const) {
-        loaded.length = 0;
-        const records = await read();
-        const reference = build.manifest[name];
-        const expected = JSON.parse(await readFile(join(build.directory, reference.path), "utf8"));
-        expect(records).toEqual(expected);
-        expect(loaded).toEqual([reference.path]);
-    }
-
-    // load each domain without reading inventories or unrelated domains
-    for (const [domain, collection] of Object.entries(build.manifest.descriptions)) {
-        loaded.length = 0;
-        const definition =
-            collection.package.name === "@destack/test"
-                ? schema.array(TestDeclaration)
-                : schema.array(DeclarationDescription);
-        const records = await reader.domain(domain, definition);
-        expect(loaded).toEqual([collection.file.path]);
-        for (const output of Object.values(build.manifest.outputs)) {
-            for (const index of output.descriptions[domain] ?? []) {
-                expect(index).toBeLessThan(records.length);
-            }
-        }
-    }
-
-    // load file descriptions independently through the shared inventory
-    loaded.length = 0;
-    const files = await reader.files();
-    expect(loaded).toEqual([build.manifest.files.path]);
-    for (const entry of files) {
-        for (const description of entry.descriptions ?? []) {
-            loaded.length = 0;
-            const module = await reader.module(description.file);
-            expect(module.path).toBe(entry.path);
-            expect(loaded).toEqual([description.file.path]);
-            for (const output of description.outputs) {
-                expect(Object.hasOwn(build.manifest.outputs, output)).toBe(true);
-            }
-        }
-    }
+    await expectManifest(build, destination);
 
     // exercise the exported package API from the relocated build
     if (fixture.name === "library") {
@@ -178,20 +123,6 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
 
 /** Invalid declarations rejected before framework compilation or rendering. */
 const invalid = [
-    {
-        file: "src/app.test.ts",
-        source: 'import { test } from "@destack/test";\ntest(String("renders"), () => {});\n',
-        code: "INSPECTION_FAILED",
-        message: "Test declaration requires a literal title: src/app.test.ts:38",
-        application: requests.browser,
-    },
-    {
-        file: "src/app.test.ts",
-        source: 'import { test } from "@destack/test";\nif (true) { test("renders", () => {}); }\n',
-        code: "INSPECTION_FAILED",
-        message: "Test declaration requires module or suite scope: src/app.test.ts:50",
-        application: requests.browser,
-    },
     {
         file: "server.ts",
         source: "export function render(): string {\n    return document.title;\n}\n",

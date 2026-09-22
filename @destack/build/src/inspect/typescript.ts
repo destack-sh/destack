@@ -64,9 +64,15 @@ export class TypeScriptCompiler implements AsyncDisposable {
 
         // refresh client ASTs while the native compiler retains incremental project state
         this.#api.clearSourceFileCache();
+        const invalidated = await this.#api.updateSnapshot({
+            fileChanges: { invalidateAll: true },
+        });
+        await invalidated.dispose();
+
+        // reread configured include patterns so added and removed modules change the inventory
         const snapshot = await this.#api.updateSnapshot({
             openProjects: [configuration],
-            fileChanges: { invalidateAll: true },
+            fileChanges: { changed: [configuration] },
         });
 
         try {
@@ -135,6 +141,7 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
     const files = fileNames.filter(
         (file) => contains(root, file) && !relative(root, file).split(sep).includes("node_modules"),
     );
+    const authored = new Set(files);
 
     // preserve domain declarations imported from shared source packages
     for (const file of fileNames) {
@@ -155,7 +162,11 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
         // associate domain declarations with their declaring package
         const owner = await modulePackage(dirname(file));
         const path = relative(owner.directory, file).split(sep).join("/");
-        declarations.push(...(await collectDeclarations(source, path, project, owner)));
+        const cases = await collectTests(source, path, project);
+        declarations.push(...(await collectDeclarations(source, path, project, owner, cases)));
+        if (authored.has(file)) {
+            tests.push(...cases);
+        }
     }
 
     // collect modules before resolving declarations reached through reexports
@@ -165,9 +176,8 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
             throw new BuildError("INSPECTION_FAILED", `Missing compiler source: ${file}`);
         }
 
-        // collect test declarations without executing test modules
+        // retain each authored module under its package-relative path
         const path = relative(root, file).split(sep).join("/");
-        tests.push(...(await collectTests(source, path, project)));
 
         // require source bytes to match the compiler snapshot
         const bytes = new Uint8Array(await readFile(file));

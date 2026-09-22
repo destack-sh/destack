@@ -1,3 +1,7 @@
+import { PackageReader } from "@destack/package/manifest";
+import { schema } from "@destack/schema";
+import { DeclarationDescription } from "@destack/package/inspect";
+import { TestDeclaration } from "@destack/test/inspect";
 import { cp, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -96,16 +100,30 @@ export async function readBuildFiles(
 
 /** An isolated source checkout used by complete build fixtures. */
 export class Fixture implements AsyncDisposable {
+    /** Source fixture location. */
+    readonly fixture: URL;
+    /** Temporary fixture directory. */
+    readonly directory: string;
+    /** Copied package source directory. */
+    readonly source: string;
+    /** Resolved fixture dependencies. */
+    readonly dependencies: BuildOptions["dependencies"];
+
     /** Reuse immutable dependency records across cases for the same fixture. */
     static readonly #dependencies = new Map<string, ReturnType<typeof readDependencies>>();
 
     /** Retain copied source and its immutable dependencies. */
     private constructor(
-        readonly fixture: URL,
-        readonly directory: string,
-        readonly source: string,
-        readonly dependencies: BuildOptions["dependencies"],
-    ) {}
+        fixture: URL,
+        directory: string,
+        source: string,
+        dependencies: BuildOptions["dependencies"],
+    ) {
+        this.fixture = fixture;
+        this.directory = directory;
+        this.source = source;
+        this.dependencies = dependencies;
+    }
 
     /** Copy a fixture and resolve its installed dependencies. */
     static async open(name: string): Promise<Fixture> {
@@ -149,5 +167,62 @@ export class Fixture implements AsyncDisposable {
     /** Remove only this fixture's temporary checkout and distribution. */
     async [Symbol.asyncDispose](): Promise<void> {
         await rm(this.directory, { recursive: true });
+    }
+}
+
+/** Read each manifest collection independently from a relocated package. */
+export async function expectManifest(build: PackageBuild, destination: string): Promise<void> {
+    // load each domain independently without touching code descriptions or executable files
+    const loaded: string[] = [];
+    const reader = new PackageReader(build.manifest, async (path) => {
+        loaded.push(path);
+
+        return new Uint8Array(await readFile(join(destination, path)));
+    });
+
+    // read each inventory independently and compare its complete serialized contents
+    for (const [name, read] of [
+        ["dependencies", () => reader.dependencies()],
+        ["files", () => reader.files()],
+        ["sourceMaps", () => reader.sourceMaps()],
+    ] as const) {
+        loaded.length = 0;
+        const records = await read();
+        const reference = build.manifest[name];
+        const expected = JSON.parse(await readFile(join(build.directory, reference.path), "utf8"));
+        expect(records).toEqual(expected);
+        expect(loaded).toEqual([reference.path]);
+    }
+
+    // load each domain without reading inventories or unrelated domains
+    for (const [domain, collection] of Object.entries(build.manifest.descriptions)) {
+        loaded.length = 0;
+        const definition =
+            collection.package.name === "@destack/test"
+                ? schema.array(TestDeclaration)
+                : schema.array(DeclarationDescription);
+        const records = await reader.domain(domain, definition);
+        expect(loaded).toEqual([collection.file.path]);
+        for (const output of Object.values(build.manifest.outputs)) {
+            for (const index of output.descriptions[domain] ?? []) {
+                expect(index).toBeLessThan(records.length);
+            }
+        }
+    }
+
+    // load file descriptions independently through the shared inventory
+    loaded.length = 0;
+    const files = await reader.files();
+    expect(loaded).toEqual([build.manifest.files.path]);
+    for (const entry of files) {
+        for (const description of entry.descriptions ?? []) {
+            loaded.length = 0;
+            const module = await reader.module(description.file);
+            expect(module.path).toBe(entry.path);
+            expect(loaded).toEqual([description.file.path]);
+            for (const output of description.outputs) {
+                expect(Object.hasOwn(build.manifest.outputs, output)).toBe(true);
+            }
+        }
     }
 }

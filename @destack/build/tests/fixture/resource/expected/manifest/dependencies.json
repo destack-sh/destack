@@ -193,8 +193,8 @@
             },
             {
                 "path": "src/resource/handle.ts",
-                "digest": "6231146f926f2cbdf3d75cf52b6c9fc3c69eb15cecdffe1c469ba6aa9140f7f5",
-                "size": 1015,
+                "digest": "de9e290facf6e4a246f7d5d18ae64442882b226b498d39afc582e2073ef9eb8f",
+                "size": 604,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -205,8 +205,8 @@
             },
             {
                 "path": "src/resource/resource.ts",
-                "digest": "7743de93e95e3409cbdffae85fbfc6e4dde32eec6dbc20d254ae870b3adcf12a",
-                "size": 1474,
+                "digest": "c7fa9f7ae56cc5ceec13cb7940df342bf3be85a50f933b08ed17f861980255b7",
+                "size": 2229,
                 "mediaType": "application/octet-stream"
             }
         ]
