@@ -91,6 +91,12 @@ main[data-reading]::before {
     border-top: 1px solid var(--publication-line);
 }
 
+/* keep documentation links compact while retaining their descriptions */
+[data-publication="manual"] .content-list {
+    --content-inset: 0.875rem;
+    --content-gap: 0.25rem;
+}
+
 /* give the blog opening and latest entry space within the shared page width */
 [data-publication="journal"]:has(.directory) {
     display: block;

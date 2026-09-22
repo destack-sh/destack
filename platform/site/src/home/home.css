@@ -6,11 +6,11 @@
 }
 .landing {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    display: grid;
+    grid-template-rows: auto minmax(180px, 1fr) auto;
+    gap: 28px;
     max-width: var(--site-width);
-    height: calc(100svh - 128px);
+    height: calc(100svh - 132px);
     min-height: 620px;
     padding: 12px var(--site-gutter-right) 10px var(--site-gutter-left);
     margin-inline: auto;
@@ -38,17 +38,17 @@
 }
 /* keep the complete planet and ring above the low foreground */
 .landscape {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    min-height: 0;
     z-index: 1;
     pointer-events: none;
 }
 .orbit-scene {
     position: absolute;
-    top: 112px;
+    top: 0;
     left: 50%;
     width: min(96%, 1100px);
-    height: calc(100% - 430px);
+    height: 100%;
     transform: translateX(-50%);
     overflow: visible;
 }
@@ -67,42 +67,30 @@
     overflow: visible;
     pointer-events: none;
 }
-.invitation h2 {
+/* introduce the platform above the illustration */
+.platform-introduction {
     position: relative;
     z-index: 2;
     margin: 0;
-    margin-block: 6px;
-}
-.invitation h2 svg {
-    display: block;
-    overflow: visible;
-    width: 100%;
-    height: auto;
-    fill: currentColor;
+    padding-block: 18px;
     font:
-        400 59px "Limelight",
+        400 clamp(18px, 2vw, 24px)/1.45 "IBM Plex Sans Variable",
         sans-serif;
-    text-transform: uppercase;
+    text-align: center;
+    text-wrap: balance;
 }
-/* follow the subtitle curve with the four supporting phrases */
-.platform-caption {
-    font:
-        600 14px "IBM Plex Sans Variable",
-        sans-serif;
-    letter-spacing: 0.1em;
-}
-.platform-caption-below {
-    transform: translateY(-10px);
+.platform-introduction strong {
+    font-weight: 600;
 }
 /* place interactive controls above the foreground and planet */
 .landing-actions {
     position: relative;
     z-index: 2;
-    width: min(100%, 700px);
+    width: 100%;
     margin: 32px auto 0;
     transform: translateY(-8px);
 }
-/* give the two actions a compact, consistent size */
+/* give the installation bar the same width and weight as the title */
 .download {
     position: relative;
     width: 100%;
@@ -118,11 +106,11 @@
     gap: 12px;
     min-width: 0;
     padding: 12px 18px;
-    border: 1px solid var(--destack-color-primary);
+    border: 2px solid var(--destack-color-primary);
     border-right: 0;
     border-radius: 2px 0 0 2px;
     font:
-        400 13px "IBM Plex Mono",
+        400 15px "IBM Plex Mono",
         monospace;
     text-align: left;
 }
@@ -142,14 +130,14 @@
 }
 .download-action > a,
 .download-action > button {
-    min-height: 48px;
-    padding: 10px 16px;
+    min-height: 58px;
+    padding: 12px 24px;
     font:
-        600 14px "IBM Plex Sans Variable",
+        600 16px "IBM Plex Sans Variable",
         sans-serif;
 }
 .download-action summary {
-    width: 36px;
+    width: 44px;
 }
 .agent-setup {
     grid-column: 1 / -1;
@@ -164,7 +152,7 @@
     color: var(--destack-color-foreground);
     text-decoration: none;
     font:
-        600 14px "IBM Plex Sans Variable",
+        600 16px "IBM Plex Sans Variable",
         sans-serif;
 }
 .agent-setup:hover {
@@ -173,26 +161,16 @@
 /* preserve the poster hierarchy while cropping the scene for a narrow viewport */
 @media (max-width: 767px) {
     .landing {
-        height: calc(100svh - 112px);
-        min-height: 530px;
+        height: calc(100svh - 124px);
+        min-height: 700px;
         padding-block: 12px 6px;
-    }
-    .platform-caption {
-        font-size: clamp(14px, calc(48px - 4vw), 34px);
-        letter-spacing: 0.06em;
-    }
-    .platform-caption-below {
-        transform: none;
     }
     .wordmark h1 {
         margin-block: 4px 2px;
     }
     .orbit-scene {
-        --planet-top: clamp(76px, calc(15vw + 28px), 134px);
-        top: var(--planet-top);
         width: 170%;
         max-width: 850px;
-        height: calc(100% - var(--planet-top) - 236px);
     }
     .landing-actions {
         margin-top: 26px;
@@ -212,7 +190,7 @@
     .download-action > a,
     .download-action > button,
     .agent-setup {
-        font-size: 12px;
+        font-size: 14px;
     }
 }
 

@@ -20,7 +20,7 @@ export type Collection = {
 /// The collections published by the site.
 export const collections: readonly Collection[] = [
     {
-        title: "Docs",
+        title: "Documentation",
         route: "/docs/",
         shortcut: "d",
         sources: [{ directory: "docs", path: "", hierarchy: [] }],
