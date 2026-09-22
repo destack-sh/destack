@@ -23,8 +23,8 @@ export interface AccessPolicy {
     readonly condition: AccessExpression;
 }
 
-/** A delegation's explicit permission and object selection. */
-export interface DelegatedPermission extends PermissionReference {
+/** A permission restricted to one scope and optionally one object. */
+export interface PermissionSelection extends PermissionReference {
     /** The authority scope in which this permission applies. */
     readonly scope: string;
     /** An optional stable application record identity. */
@@ -40,7 +40,7 @@ export interface Delegation {
     /** The software identity receiving authority. */
     readonly actor: Subject;
     /** The complete permission restriction for this step. */
-    readonly permissions: readonly DelegatedPermission[];
+    readonly permissions: readonly PermissionSelection[];
     /** The creation time in Unix milliseconds. */
     readonly createdAt: number;
     /** The exclusive expiry time in Unix milliseconds. */
@@ -60,6 +60,27 @@ export function applies(
         policy.type === permission.type &&
         policy.permissions.includes(permission.name) &&
         (policy.scope === undefined || policy.scope === scope)
+    );
+}
+
+/** Match credential restrictions before checking exact objects or compiling filtered queries. */
+export function permitsCredential(
+    permission: PermissionReference,
+    object: { scope: string; id?: string },
+    context: AccessContext,
+): boolean {
+    return (
+        context.permissions === undefined ||
+        context.permissions.some(
+            (entry) =>
+                entry.packageId === permission.packageId &&
+                entry.type === permission.type &&
+                entry.name === permission.name &&
+                entry.scope === object.scope &&
+                (entry.objectId === undefined ||
+                    object.id === undefined ||
+                    entry.objectId === object.id),
+        )
     );
 }
 

@@ -10,7 +10,7 @@ import type { AccessView } from "./view.ts";
 import { type AccessContext, type Attribute, type Subject, sameSubject } from "./subject.ts";
 import type { AccessOperand, AccessExpression } from "./expression.ts";
 import { AccessModel } from "./model.ts";
-import { applies, permitsDelegation } from "./policy.ts";
+import { applies, permitsCredential, permitsDelegation } from "./policy.ts";
 
 /** A reproducible result over one authoritative record snapshot. */
 export interface Decision {
@@ -93,6 +93,7 @@ export class Access {
         const revision = this.view.revision;
         const record = this.#object(object);
         let allowed =
+            permitsCredential(permission, object, context) &&
             permitsDelegation(permission, object, context) &&
             this.#evaluate(this.model.expression(permission), record, context, grants);
 

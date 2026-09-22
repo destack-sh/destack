@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import type { Delegation } from "./policy.ts";
+import type { Delegation, PermissionSelection } from "./policy.ts";
 
 /** An authenticated identity or a verified group or bearer-token identity. */
 export const Subject = defineSchema(
@@ -26,6 +26,8 @@ export type Attribute = schema.Infer<typeof Attribute>;
 
 /** Verified identities and attributes supplied by the authoritative caller. */
 export interface AccessContext {
+    /** Credential permissions intersected with all current object and role grants. */
+    readonly permissions?: readonly PermissionSelection[];
     /** Authenticated represented identity, required for delegated calls. */
     readonly subject?: Subject;
     /** Authenticated software actor, independently constrained by its own permissions. */

@@ -288,6 +288,30 @@ databaseTest("constrain delegated access with mandatory policies", async ({ fixt
     ).toEqual([]);
 
     // apply mandatory restrictions after ordinary grants and delegation
+    const selected = {
+        ...delegated,
+        permissions: [{ ...node.permission("edit"), scope: "personal", objectId: "b" }],
+    };
+    await compareDecisions(database, model, node, selected, ["b"]);
+    await compareDecisions(database, model, node, { ...selected, permissions: [] }, []);
+    await compareDecisions(
+        database,
+        model,
+        node,
+        {
+            ...selected,
+            permissions: [
+                {
+                    ...node.permission("edit"),
+                    scope: "other",
+                    objectId: "b",
+                },
+            ],
+        },
+        [],
+    );
+
+    // apply mandatory restrictions after ordinary grants and delegation
     const restrictedModel = new AccessModel(
         [node, cell, entity],
         [
@@ -306,14 +330,14 @@ databaseTest("constrain delegated access with mandatory policies", async ({ fixt
         database,
         restrictedModel,
         node,
-        { ...delegated, attributes: { frozen: true } },
+        { ...selected, attributes: { frozen: true } },
         [],
     );
     await compareDecisions(
         database,
         restrictedModel,
         node,
-        { ...delegated, attributes: { frozen: false } },
+        { ...selected, attributes: { frozen: false } },
         ["b"],
     );
     expect(

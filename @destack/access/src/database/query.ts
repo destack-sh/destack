@@ -7,7 +7,7 @@ import type { AccessOperand, AccessExpression } from "../access/expression.ts";
 import type { AccessContext, Subject } from "../access/subject.ts";
 import { accessGrant, accessToken } from "../stack/schema.ts";
 import type { Tree } from "@destack/db/tree";
-import { applies, permitsDelegation } from "../access/policy.ts";
+import { applies, permitsCredential, permitsDelegation } from "../access/policy.ts";
 
 /** SQL comparison operators for the declared expression language. */
 const OPERATORS = { eq: "=", ne: "<>", lt: "<", lte: "<=", gt: ">", gte: ">=" };
@@ -66,7 +66,10 @@ export class AccessQuery {
         // restrict evaluation to a valid delegation chain and its declared permission
         const mapping = this.mapping(permission);
         const table = source ?? mapping.table;
-        if (!permitsDelegation(permission, { scope }, context)) {
+        if (
+            !permitsCredential(permission, { scope }, context) ||
+            !permitsDelegation(permission, { scope }, context)
+        ) {
             return sql`false`;
         }
 
@@ -74,6 +77,21 @@ export class AccessQuery {
         const aliases = { next: 0 };
         const expression = this.model.expression(permission);
         const predicates = [this.#compile(expression, mapping, table, context, aliases)];
+
+        // constrain restricted credentials to their selected objects in set-based reads
+        if (context.permissions) {
+            const selections = context.permissions.filter(
+                (entry) =>
+                    entry.packageId === permission.packageId &&
+                    entry.type === permission.type &&
+                    entry.name === permission.name &&
+                    entry.scope === scope,
+            );
+            if (!selections.some((entry) => entry.objectId === undefined)) {
+                const ids = selections.map((entry) => sql`${entry.objectId}`);
+                predicates.push(sql`${column(table, mapping.id)} IN (${sql.join(ids, sql`, `)})`);
+            }
+        }
 
         // intersect represented-user authority, actor authority and each delegation's selection
         for (const delegation of context.delegations ?? []) {
