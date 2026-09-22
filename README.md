@@ -11,10 +11,10 @@
 
 </div>
 
-**Destack is an absurdly integrated fully hackable open source computing stack.**
+Destack is a personal software platform that lets you own, manage and run your personal software stack.
+Instead of clobbering together a variety of mismatched tools and services, Destack lets you own, manage, access, and share your personal software kingdom.
 
-Destack lets you own, manage and run your personal software stack. 
-All the personal software you want, all the agents you need, all in one place you can take with you - beautifully integrated with a common model, customisation and extensibility, built around modern TypeScript / Web standards.
+Destack is built around _one_ standardized approach to modern TypeScript and the web that enables seamless integration and customisation of _all_ apps built within it.
 
 You can run Destack apps yourself, extend existing ones, build new ones; you can let the Destack platform host them for you, host some or all of them yourself, or do anything you want. 
 Install Destack with:

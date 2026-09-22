@@ -36,7 +36,8 @@ export async function run(command: string | undefined): Promise<void> {
             process.once("SIGINT", resolve);
             process.once("SIGTERM", resolve);
         });
-    } // publish only the browser output, keeping inspection and source files private
+    }
+    // publish only the browser output, keeping inspection and source files private
     else if (command === "build") {
         const build = await buildPackage({
             directory,
