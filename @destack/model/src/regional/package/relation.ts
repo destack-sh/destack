@@ -11,7 +11,7 @@ import { space } from "../space/space.ts";
 export const packageRelations = defineRelationsPart(
     {
         repository,
-        packageTable,
+        package: packageTable,
         repositoryReference,
         release,
         packagePolicy,
@@ -38,9 +38,9 @@ export const packageRelations = defineRelationsPart(
                 optional: false,
             }),
         },
-        packageTable: {
+        package: {
             repository: relation.one.repository({
-                from: [relation.packageTable.accountId, relation.packageTable.repositoryId],
+                from: [relation.package.accountId, relation.package.repositoryId],
                 to: [relation.repository.accountId, relation.repository.id],
                 optional: false,
             }),
@@ -53,9 +53,9 @@ export const packageRelations = defineRelationsPart(
             }),
         },
         release: {
-            package: relation.one.packageTable({
+            package: relation.one.package({
                 from: [relation.release.packageId],
-                to: [relation.packageTable.id],
+                to: [relation.package.id],
                 optional: false,
             }),
             repository: relation.one.repository({

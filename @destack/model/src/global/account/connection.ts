@@ -14,7 +14,7 @@ import {
     uniqueIndex,
 } from "@destack/db";
 import { schema } from "@destack/schema";
-import { spaceDirectory } from "../directory/space.ts";
+import { space } from "../space/space.ts";
 import { account } from "./account.ts";
 import { user } from "./user.ts";
 
@@ -63,7 +63,7 @@ export const connectedAccount = table(
     (connectedAccount) => [
         foreignKey({
             columns: [connectedAccount.accountId, connectedAccount.secretSpaceId],
-            foreignColumns: [spaceDirectory.accountId, spaceDirectory.id],
+            foreignColumns: [space.accountId, space.id],
         }).onDelete("restrict"),
         unique("connection_account_id").on(connectedAccount.accountId, connectedAccount.id),
         uniqueIndex("connection_oauth")

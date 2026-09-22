@@ -1,4 +1,3 @@
-export * from "./environment.ts";
 export * from "./installation.ts";
 export * from "./deployment.ts";
 export * from "./instance.ts";
@@ -6,5 +5,5 @@ export * from "./host.ts";
 export * from "./migration.ts";
 export * from "./relation.ts";
 export * from "./space.ts";
-export * from "./configuration.ts";
+export * from "./source.ts";
 export * from "./schedule.ts";

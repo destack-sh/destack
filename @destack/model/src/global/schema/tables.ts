@@ -1,4 +1,25 @@
 import { account } from "../account/account.ts";
+import { environment } from "../account/environment.ts";
+import { accountSource, accountRevision } from "../account/source.ts";
+import {
+    organisation,
+    organisationMembership,
+    organisationInvitation,
+} from "../account/organisation.ts";
+import { personalAccessToken, personalAccessTokenPermission } from "../account/token.ts";
+import {
+    passkey,
+    twoFactor,
+    signingKey,
+    authenticationReplay,
+    oauthClient,
+    oauthResource,
+    oauthClientResource,
+    oauthConsent,
+    oauthAccessToken,
+    oauthRefreshToken,
+    oauthClientAssertion,
+} from "../authentication/index.ts";
 import { identity } from "../authentication/identity.ts";
 import { accountMembership } from "../account/membership.ts";
 import { roleBinding } from "../account/binding.ts";
@@ -8,7 +29,7 @@ import { connectedAccount } from "../account/connection.ts";
 import { role } from "../account/role.ts";
 import { session } from "../authentication/session.ts";
 import { rolePermission } from "../account/permission.ts";
-import { signInRequest } from "../authentication/signin.ts";
+import { deviceAuthorization } from "../authentication/device.ts";
 import { user } from "../account/user.ts";
 import { serviceAccount, serviceToken } from "../account/service.ts";
 import { preference } from "../account/preference.ts";
@@ -20,37 +41,60 @@ import { device } from "../host/device.ts";
 import { host } from "../host/host.ts";
 import { route } from "../routing/route.ts";
 import { domain } from "../routing/domain.ts";
-import { spaceDirectory } from "../directory/space.ts";
-import { repositoryDirectory } from "../directory/repository.ts";
-import { packageDirectory } from "../directory/package.ts";
+import { space } from "../space/space.ts";
+import { repository } from "../package/repository.ts";
+import { packageTable } from "../package/package.ts";
 
 /** Tables stored by global system administration. */
 export const tables = {
+    user,
+    organisation,
+    organisationMembership,
+    organisationInvitation,
     account,
-    identity,
+    environment,
+    accountSource,
+    accountRevision,
     accountMembership,
-    roleBinding,
     accountInvitation,
     group,
     groupMembership,
-    connectedAccount,
     role,
-    session,
+    roleBinding,
     rolePermission,
-    signInRequest,
-    user,
+    preference,
+    connectedAccount,
     serviceAccount,
     serviceToken,
-    preference,
-    tunnel,
+    personalAccessToken,
+    personalAccessTokenPermission,
+
+    identity,
+    session,
+    passkey,
+    twoFactor,
+    deviceAuthorization,
+    signingKey,
+    authenticationReplay,
+
+    oauthClient,
+    oauthResource,
+    oauthClientResource,
+    oauthConsent,
+    oauthAccessToken,
+    oauthRefreshToken,
+    oauthClientAssertion,
+
+    device,
+    deviceKey,
+    host,
     hostAccess,
     region,
-    deviceKey,
-    device,
-    host,
-    route,
+    tunnel,
+
+    space,
+    repository,
+    package: packageTable,
     domain,
-    spaceDirectory,
-    repositoryDirectory,
-    packageDirectory,
+    route,
 };

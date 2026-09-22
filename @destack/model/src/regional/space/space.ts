@@ -11,19 +11,14 @@ import {
 } from "@destack/db";
 
 import { reconciliationChecks, reconciliationColumns } from "../../record/index.ts";
-import { ENVIRONMENTS } from "./environment.ts";
 
-/** Space records. */
+/** Regional execution and reconciliation state for a globally registered space. */
 export const space = table(
     "space",
     {
         ...recordColumns("space"),
-        /** The account owning the space. */
+        /** The global account ID replicated for regional authorization and foreign keys. */
         accountId: identifier("account_id", "account").notNull(),
-        /** The displayed space name. */
-        name: text("name").notNull(),
-        /** The purpose of this space. */
-        environment: text("environment", { enum: ENVIRONMENTS }).notNull(),
         /** Whether applications should be available or suspended. */
         state: text("state", { enum: ["enabled", "suspended"] })
             .notNull()
@@ -53,12 +48,8 @@ export const space = table(
             "space_host_epoch",
             sql`${space.primaryHostEpoch} >= 0 AND (${space.primaryHostId} IS NULL OR ${space.primaryHostEpoch} > 0)`,
         ),
-        check(
-            "space_environment",
-            sql`${space.environment} IN ('development', 'preview', 'production')`,
-        ),
     ],
 );
 
-/** A persisted space record. */
+/** A persisted regional space record. */
 export type Space = Select<typeof space>;

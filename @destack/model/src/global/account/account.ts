@@ -2,6 +2,7 @@ import {
     check,
     dialectSQL,
     identifier,
+    index,
     integer,
     recordColumns,
     type Select,
@@ -10,6 +11,7 @@ import {
     text,
 } from "@destack/db";
 import { user } from "./user.ts";
+import { organisation } from "./organisation.ts";
 import { RESIDENCIES } from "../host/residency.ts";
 import { region } from "../host/region.ts";
 
@@ -45,13 +47,18 @@ export const account = table(
         /** Whether the account belongs to a person or organisation. */
         kind: text("kind", { enum: ["personal", "organisation"] }).notNull(),
         /** The user owning a personal account. */
-        userId: identifier("user_id", "user")
-            .unique()
-            .references(() => user.id, {
-                onDelete: "restrict",
-            }),
+        userId: identifier("user_id", "user").references(() => user.id, {
+            onDelete: "restrict",
+        }),
+        /** The organisation owning an organisational account. */
+        organisationId: identifier("organisation_id", "organisation").references(
+            () => organisation.id,
+            { onDelete: "restrict" },
+        ),
     },
     (account) => [
+        index("account_user").on(account.userId),
+        index("account_organisation").on(account.organisationId),
         check("account_residency", sql`${account.defaultResidency} IN ('eu', 'us')`),
         check("account_kind", sql`${account.kind} IN ('personal', 'organisation')`),
         check(
@@ -70,7 +77,7 @@ export const account = table(
         ),
         check(
             "account_user",
-            sql`(${account.kind} = 'personal' AND ${account.userId} IS NOT NULL) OR (${account.kind} = 'organisation' AND ${account.userId} IS NULL)`,
+            sql`(${account.kind} = 'personal' AND ${account.userId} IS NOT NULL AND ${account.organisationId} IS NULL) OR (${account.kind} = 'organisation' AND ${account.userId} IS NULL AND ${account.organisationId} IS NOT NULL)`,
         ),
         check(
             "account_handle",

@@ -1,13 +1,5 @@
-import {
-    check,
-    dialectSQL,
-    identifier,
-    type Select,
-    sql,
-    table,
-    text,
-    uniqueIndex,
-} from "@destack/db";
+import { identifier, type Select, sql, table, uniqueIndex } from "@destack/db";
+import { permissionChecks, permissionColumns } from "@destack/access/database";
 import { role } from "./role.ts";
 
 /** A positive permission evaluated within a role binding's scope. */
@@ -19,48 +11,20 @@ export const rolePermission = table(
         /** The role containing this permission. */
         roleId: identifier("role_id", "role")
             .notNull()
-            .references(() => role.id, {
-                onDelete: "cascade",
-            }),
-        /** The namespaced API resource type, such as destack.space or package-defined types. */
-        resource: text("resource").notNull(),
-        /** The exact declared action, such as read, update, publish, bind, or invoke. */
-        action: text("action").notNull(),
-        /** A stable object identifier within the bound scope; null grants all objects of this type. */
-        resourceId: text("resource_id"),
+            .references(() => role.id, { onDelete: "cascade" }),
+        ...permissionColumns(),
     },
-    (rolePermission) => [
-        uniqueIndex("role_permission_object")
-            .on(
-                rolePermission.roleId,
-                rolePermission.resource,
-                rolePermission.action,
-                rolePermission.resourceId,
-            )
-            .where(sql`${rolePermission.resourceId} IS NOT NULL`),
-        uniqueIndex("role_permission_all")
-            .on(rolePermission.roleId, rolePermission.resource, rolePermission.action)
-            .where(sql`${rolePermission.resourceId} IS NULL`),
-        check(
-            "role_permission_resource",
-            dialectSQL({
-                sqlite: sql`length(${rolePermission.resource}) > 0 AND instr(${rolePermission.resource}, '.') > 0 AND instr(${rolePermission.resource}, '*') = 0`,
-                postgresql: sql`length(${rolePermission.resource}) > 0 AND strpos(${rolePermission.resource}, '.') > 0 AND strpos(${rolePermission.resource}, '*') = 0`,
-            }),
+    (permission) => [
+        uniqueIndex("role_permission_scope").on(
+            permission.roleId,
+            permission.packageId,
+            permission.type,
+            permission.name,
+            sql`coalesce(${permission.objectId}, '')`,
         ),
-        check(
-            "role_permission_action",
-            dialectSQL({
-                sqlite: sql`length(${rolePermission.action}) > 0 AND instr(${rolePermission.action}, '*') = 0`,
-                postgresql: sql`length(${rolePermission.action}) > 0 AND strpos(${rolePermission.action}, '*') = 0`,
-            }),
-        ),
-        check(
-            "role_permission_identifier",
-            sql`${rolePermission.resourceId} IS NULL OR length(${rolePermission.resourceId}) > 0`,
-        ),
+        ...permissionChecks("role_permission", permission),
     ],
 );
 
-/** A role permission; grants are additive and unmatched requests are denied. */
+/** A role permission evaluated within its binding's scope. */
 export type RolePermission = Select<typeof rolePermission>;

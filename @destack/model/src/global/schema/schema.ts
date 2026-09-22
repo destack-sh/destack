@@ -2,7 +2,7 @@ import { defineDatabaseSchema } from "@destack/db";
 import { tables } from "./tables.ts";
 import { relations } from "./relation.ts";
 
-/** Global account, authentication, host, and directory records. */
+/** Global accounts, authentication, hosts, namespaces, and routing. */
 export const globalSchema = defineDatabaseSchema({
     name: "destack-global",
     tables,

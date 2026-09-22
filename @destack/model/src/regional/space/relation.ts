@@ -9,13 +9,13 @@ import { space } from "./space.ts";
 import { deployment } from "./deployment.ts";
 import { instance } from "./instance.ts";
 import { spaceHost } from "./host.ts";
-import { spaceConfiguration, stackRevision } from "./configuration.ts";
+import { spaceSource, spaceRevision } from "./source.ts";
 
 /** Query relationships for space records. */
 export const spaceRelations = defineRelationsPart(
     {
-        spaceConfiguration,
-        stackRevision,
+        spaceSource,
+        spaceRevision,
         serviceAccount,
         deployment,
         instance,
@@ -38,24 +38,21 @@ export const spaceRelations = defineRelationsPart(
                 optional: false,
             }),
         },
-        spaceConfiguration: {
+        spaceSource: {
             space: relation.one.space({
-                from: relation.spaceConfiguration.spaceId,
+                from: relation.spaceSource.spaceId,
                 to: relation.space.id,
                 optional: false,
             }),
-            applied: relation.one.stackRevision({
-                from: [
-                    relation.spaceConfiguration.spaceId,
-                    relation.spaceConfiguration.appliedRevisionId,
-                ],
-                to: [relation.stackRevision.spaceId, relation.stackRevision.id],
+            applied: relation.one.spaceRevision({
+                from: [relation.spaceSource.spaceId, relation.spaceSource.appliedRevisionId],
+                to: [relation.spaceRevision.spaceId, relation.spaceRevision.id],
                 optional: true,
             }),
         },
-        stackRevision: {
+        spaceRevision: {
             space: relation.one.space({
-                from: relation.stackRevision.spaceId,
+                from: relation.spaceRevision.spaceId,
                 to: relation.space.id,
                 optional: false,
             }),
@@ -111,9 +108,9 @@ export const spaceRelations = defineRelationsPart(
             }),
         },
         space: {
-            configuration: relation.one.spaceConfiguration({
+            source: relation.one.spaceSource({
                 from: relation.space.id,
-                to: relation.spaceConfiguration.spaceId,
+                to: relation.spaceSource.spaceId,
                 optional: true,
             }),
         },

@@ -2,6 +2,7 @@
     "extends": "../../tsconfig.json",
     "compilerOptions": { "types": ["node"], "lib": ["ESNext", "DOM", "DOM.Iterable"] },
     "files": [
+        "src/declare/index.ts",
         "src/index.ts",
         "src/global/index.ts",
         "src/regional/index.ts",

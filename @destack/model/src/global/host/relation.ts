@@ -1,5 +1,6 @@
 import { defineRelationsPart } from "@destack/db";
 import { account } from "../account/account.ts";
+import { user } from "../account/user.ts";
 import { hostAccess } from "./access.ts";
 import { deviceKey } from "./key.ts";
 import { device } from "./device.ts";
@@ -13,6 +14,7 @@ export const hostRelations = defineRelationsPart(
         host,
         hostAccess,
         account,
+        user,
         device,
         deviceKey,
         region,
@@ -39,6 +41,11 @@ export const hostRelations = defineRelationsPart(
             }),
         },
         device: {
+            enroller: relation.one.user({
+                from: relation.device.enrolledBy,
+                to: relation.user.id,
+                optional: true,
+            }),
             account: relation.one.account({
                 from: [relation.device.accountId],
                 to: [relation.account.id],

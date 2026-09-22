@@ -32,7 +32,9 @@ export const preference = table(
         deviceId: identifier("device_id", "device").references(() => device.id, {
             onDelete: "cascade",
         }),
-        /** The namespaced setting key. */
+        /** The immutable identity of the package declaring this setting. */
+        packageId: identifier("package_id", "package").notNull(),
+        /** The stable setting key within its declaring package. */
         name: text("name").notNull(),
         /** The value validated by the setting's declaring package. */
         value: json("value", schema.json()).notNull(),
@@ -43,13 +45,19 @@ export const preference = table(
             foreignColumns: [device.accountId, device.id],
         }).onDelete("cascade"),
         uniqueIndex("preference_account")
-            .on(preference.accountId, preference.name)
+            .on(preference.accountId, preference.packageId, preference.name)
             .where(sql`${preference.userId} IS NULL AND ${preference.deviceId} IS NULL`),
         uniqueIndex("preference_user")
-            .on(preference.accountId, preference.userId, preference.name)
+            .on(preference.accountId, preference.userId, preference.packageId, preference.name)
             .where(sql`${preference.userId} IS NOT NULL AND ${preference.deviceId} IS NULL`),
         uniqueIndex("preference_device")
-            .on(preference.accountId, preference.userId, preference.deviceId, preference.name)
+            .on(
+                preference.accountId,
+                preference.userId,
+                preference.deviceId,
+                preference.packageId,
+                preference.name,
+            )
             .where(sql`${preference.deviceId} IS NOT NULL`),
         check(
             "preference_device_user",

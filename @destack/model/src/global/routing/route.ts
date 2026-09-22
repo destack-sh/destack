@@ -13,7 +13,7 @@ import {
 import { account } from "../account/account.ts";
 import { reconciliationChecks, reconciliationColumns } from "../../record/index.ts";
 import { domain } from "./domain.ts";
-import { spaceDirectory } from "../directory/space.ts";
+import { space } from "../space/space.ts";
 import { provenanceChecks, provenanceColumns } from "../../source/index.ts";
 
 /** Route records. */
@@ -37,7 +37,7 @@ export const route = table(
         /** The destination kind. */
         kind: text("kind", { enum: ["application", "redirect"] }).notNull(),
         /** The destination space, whose access policy is checked by the routing service. */
-        spaceId: identifier("space_id", "space").references(() => spaceDirectory.id, {
+        spaceId: identifier("space_id", "space").references(() => space.id, {
             onDelete: "restrict",
         }),
         /** The destination installation. */

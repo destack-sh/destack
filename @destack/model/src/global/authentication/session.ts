@@ -18,10 +18,24 @@ export const session = table(
         deviceId: identifier("device_id", "device").references(() => device.id, {
             onDelete: "restrict",
         }),
-        /** The hash of the session credential. */
-        tokenHash: text("token_hash").notNull().unique(),
+        /** The session credential stored by Better Auth. */
+        token: text("token").notNull().unique(),
         /** The session creation time. */
         createdAt: integer("created_at").notNull(),
+        /** The last session refresh in epoch milliseconds. */
+        updatedAt: integer("updated_at").notNull(),
+        /** The client IP observed through trusted ingress. */
+        ipAddress: text("ip_address"),
+        /** The reported client user agent. */
+        userAgent: text("user_agent"),
+        /** The approximate country inferred from the observed address. */
+        country: text("country"),
+        /** The approximate city inferred from the observed address. */
+        city: text("city"),
+        /** The last completed authentication ceremony. */
+        authenticatedAt: integer("authenticated_at"),
+        /** The last successful strong authentication ceremony. */
+        elevatedAt: integer("elevated_at"),
         /** The session expiry time. */
         expiresAt: integer("expires_at").notNull(),
         /** The time access was revoked. */
@@ -29,6 +43,7 @@ export const session = table(
     },
     (session) => [
         index("session_user").on(session.userId),
+        index("session_device").on(session.deviceId),
         index("session_expiry").on(session.expiresAt),
         check("session_expiry_order", sql`${session.expiresAt} > ${session.createdAt}`),
     ],

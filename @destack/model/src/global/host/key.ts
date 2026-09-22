@@ -22,6 +22,10 @@ export const deviceKey = table(
             .references(() => device.id),
         /** The encoded public key, including its algorithm. */
         publicKey: text("public_key").notNull().unique(),
+        /** The RFC 7638 JWK thumbprint used to bind device proofs and tokens. */
+        thumbprint: text("thumbprint").notNull().unique(),
+        /** The time the enrolling device proved possession of the private key. */
+        verifiedAt: integer("verified_at").notNull(),
         /** The key expiry time. */
         expiresAt: integer("expires_at").notNull(),
         /** Explicit key revocation time. */
@@ -30,6 +34,10 @@ export const deviceKey = table(
     (key) => [
         unique("device_key_device_id").on(key.deviceId, key.id),
         check("device_key_expiry", sql`${key.expiresAt} > ${key.createdAt}`),
+        check(
+            "device_key_verification",
+            sql`${key.verifiedAt} >= ${key.createdAt} AND ${key.verifiedAt} < ${key.expiresAt}`,
+        ),
     ],
 );
 

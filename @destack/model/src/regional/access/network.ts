@@ -17,7 +17,7 @@ import {
 } from "@destack/db";
 import { NetworkPolicyDefinition } from "@destack/space";
 import { provenanceChecks, provenanceColumns } from "../../source/index.ts";
-import { RecordSource } from "../../source/source.ts";
+import { RecordProvenance } from "../../source/provenance.ts";
 import { space } from "../space/space.ts";
 import { installation } from "../space/installation.ts";
 
@@ -27,7 +27,7 @@ export const networkPolicy = table(
     {
         ...recordColumns("network-policy"),
         ...provenanceColumns(),
-        /** The account administering the policy, resolved through the global directory. */
+        /** The account administering the policy, resolved through the global account service. */
         accountId: identifier("account_id", "account").notNull(),
         /** The scope to which every revision applies. */
         scope: text("scope", { enum: ["account", "space", "installation", "workload"] }).notNull(),
@@ -97,7 +97,7 @@ export const networkPolicyRevision = table(
         /** The complete outbound network rules. */
         definition: json("definition", NetworkPolicyDefinition).notNull(),
         /** The exact source declaration that produced this revision, if source-managed. */
-        source: json("source", RecordSource),
+        provenance: json("provenance", RecordProvenance),
         /** SHA-256 of the canonical policy definition. */
         digest: text("digest").notNull(),
     },

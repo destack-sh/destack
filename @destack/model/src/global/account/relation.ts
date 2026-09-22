@@ -1,27 +1,33 @@
 import { defineRelationsPart } from "@destack/db";
 import { account } from "./account.ts";
-import { signInRequest } from "../authentication/signin.ts";
+import { accountSource, accountRevision } from "./source.ts";
+import { environment } from "./environment.ts";
+import { organisation, organisationMembership, organisationInvitation } from "./organisation.ts";
 import { roleBinding } from "./binding.ts";
 import { connectedAccount } from "./connection.ts";
 import { group, groupMembership } from "./group.ts";
-import { identity } from "../authentication/identity.ts";
 import { accountInvitation } from "./invitation.ts";
 import { accountMembership } from "./membership.ts";
 import { rolePermission } from "./permission.ts";
 import { preference } from "./preference.ts";
 import { role } from "./role.ts";
-import { session } from "../authentication/session.ts";
 import { serviceAccount, serviceToken } from "./service.ts";
 import { user } from "./user.ts";
 import { device } from "../host/device.ts";
 import { region } from "../host/region.ts";
+import { repository } from "../package/repository.ts";
 
 /** Query relationships for account records. */
 export const accountRelations = defineRelationsPart(
     {
         user,
         account,
-        signInRequest,
+        environment,
+        accountSource,
+        accountRevision,
+        organisation,
+        organisationMembership,
+        organisationInvitation,
         role,
         roleBinding,
         accountMembership,
@@ -29,17 +35,106 @@ export const accountRelations = defineRelationsPart(
         serviceAccount,
         connectedAccount,
         groupMembership,
-        identity,
         accountInvitation,
         rolePermission,
         preference,
         device,
-        session,
         serviceToken,
         region,
+        repository,
     },
     (relation) => ({
+        environment: {
+            account: relation.one.account({
+                from: relation.environment.accountId,
+                to: relation.account.id,
+                optional: false,
+            }),
+        },
+        accountSource: {
+            repository: relation.one.repository({
+                from: [relation.accountSource.accountId, relation.accountSource.repositoryId],
+                to: [relation.repository.accountId, relation.repository.id],
+                optional: false,
+            }),
+            account: relation.one.account({
+                from: relation.accountSource.accountId,
+                to: relation.account.id,
+                optional: false,
+            }),
+            applied: relation.one.accountRevision({
+                from: [relation.accountSource.accountId, relation.accountSource.appliedRevisionId],
+                to: [relation.accountRevision.accountId, relation.accountRevision.id],
+                optional: true,
+            }),
+        },
+        accountRevision: {
+            account: relation.one.account({
+                from: relation.accountRevision.accountId,
+                to: relation.account.id,
+                optional: false,
+            }),
+        },
+        user: {
+            accounts: relation.many.account({
+                from: relation.user.id,
+                to: relation.account.userId,
+            }),
+            memberships: relation.many.organisationMembership({
+                from: relation.user.id,
+                to: relation.organisationMembership.userId,
+            }),
+        },
+        organisation: {
+            accounts: relation.many.account({
+                from: relation.organisation.id,
+                to: relation.account.organisationId,
+            }),
+            memberships: relation.many.organisationMembership({
+                from: relation.organisation.id,
+                to: relation.organisationMembership.organisationId,
+            }),
+        },
+        organisationMembership: {
+            organisation: relation.one.organisation({
+                from: relation.organisationMembership.organisationId,
+                to: relation.organisation.id,
+                optional: false,
+            }),
+            user: relation.one.user({
+                from: relation.organisationMembership.userId,
+                to: relation.user.id,
+                optional: false,
+            }),
+        },
+        organisationInvitation: {
+            organisation: relation.one.organisation({
+                from: relation.organisationInvitation.organisationId,
+                to: relation.organisation.id,
+                optional: false,
+            }),
+            inviter: relation.one.user({
+                from: relation.organisationInvitation.invitedBy,
+                to: relation.user.id,
+                optional: false,
+            }),
+            accepter: relation.one.user({
+                from: relation.organisationInvitation.acceptedBy,
+                to: relation.user.id,
+                optional: true,
+            }),
+        },
         account: {
+            source: relation.one.accountSource({
+                from: relation.account.id,
+                to: relation.accountSource.accountId,
+                optional: true,
+            }),
+            organisation: relation.one.organisation({
+                from: relation.account.organisationId,
+                to: relation.organisation.id,
+                optional: true,
+            }),
             networkPolicyRegion: relation.one.region({
                 from: [relation.account.networkPolicyRegionId],
                 to: [relation.region.id],
@@ -52,13 +147,6 @@ export const accountRelations = defineRelationsPart(
             }),
             user: relation.one.user({
                 from: [relation.account.userId],
-                to: [relation.user.id],
-                optional: true,
-            }),
-        },
-        signInRequest: {
-            user: relation.one.user({
-                from: [relation.signInRequest.userId],
                 to: [relation.user.id],
                 optional: true,
             }),
@@ -116,13 +204,6 @@ export const accountRelations = defineRelationsPart(
                     relation.groupMembership.accountMembershipId,
                 ],
                 to: [relation.accountMembership.accountId, relation.accountMembership.id],
-                optional: false,
-            }),
-        },
-        identity: {
-            user: relation.one.user({
-                from: [relation.identity.userId],
-                to: [relation.user.id],
                 optional: false,
             }),
         },
@@ -184,18 +265,6 @@ export const accountRelations = defineRelationsPart(
                 from: [relation.role.accountId],
                 to: [relation.account.id],
                 optional: false,
-            }),
-        },
-        session: {
-            user: relation.one.user({
-                from: [relation.session.userId],
-                to: [relation.user.id],
-                optional: false,
-            }),
-            device: relation.one.device({
-                from: [relation.session.deviceId],
-                to: [relation.device.id],
-                optional: true,
             }),
         },
         serviceAccount: {

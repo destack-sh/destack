@@ -12,7 +12,8 @@
         "./global": "./src/global/index.ts",
         "./regional": "./src/regional/index.ts",
         "./source": "./src/source/index.ts",
-        "./audit": "./src/audit/index.ts"
+        "./audit": "./src/audit/index.ts",
+        "./declare": "./src/declare/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json"
@@ -23,6 +24,7 @@
         "@destack/resource": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/schema": "workspace:*"
+        "@destack/schema": "workspace:*",
+        "@destack/access": "workspace:*"
     }
 }

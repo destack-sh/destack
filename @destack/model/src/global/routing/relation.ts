@@ -1,12 +1,12 @@
 import { defineRelationsPart } from "@destack/db";
 import { account } from "../account/account.ts";
-import { spaceDirectory } from "../directory/space.ts";
+import { space } from "../space/space.ts";
 import { domain } from "./domain.ts";
 import { route } from "./route.ts";
 
 /** Query public routing records without joining regional application records. */
 export const routingRelations = defineRelationsPart(
-    { account, spaceDirectory, domain, route },
+    { account, space, domain, route },
     (relation) => ({
         domain: {
             account: relation.one.account({
@@ -21,9 +21,9 @@ export const routingRelations = defineRelationsPart(
                 to: [relation.domain.accountId, relation.domain.id],
                 optional: false,
             }),
-            space: relation.one.spaceDirectory({
+            space: relation.one.space({
                 from: [relation.route.spaceId],
-                to: [relation.spaceDirectory.id],
+                to: [relation.space.id],
                 optional: true,
             }),
         },

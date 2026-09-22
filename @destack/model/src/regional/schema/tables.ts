@@ -4,7 +4,7 @@ import { installation } from "../space/installation.ts";
 import { spaceHost } from "../space/host.ts";
 import { deployment } from "../space/deployment.ts";
 import { instance } from "../space/instance.ts";
-import { spaceConfiguration, stackRevision } from "../space/configuration.ts";
+import { spaceSource, spaceRevision } from "../space/source.ts";
 import { restoration } from "../resource/restoration.ts";
 import { snapshot } from "../resource/snapshot.ts";
 import { resourceBinding } from "../resource/binding.ts";
@@ -38,8 +38,8 @@ export const tables = {
     spaceHost,
     deployment,
     instance,
-    spaceConfiguration,
-    stackRevision,
+    spaceSource,
+    spaceRevision,
     restoration,
     snapshot,
     resourceBinding,
@@ -54,7 +54,7 @@ export const tables = {
     repository,
     repositoryReference,
     release,
-    packageTable,
+    package: packageTable,
     packagePolicy,
     packagePolicyRevision,
     role,

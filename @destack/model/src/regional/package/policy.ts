@@ -17,7 +17,7 @@ import {
 } from "@destack/db";
 import { PackagePolicyDefinition } from "@destack/space";
 import { provenanceChecks, provenanceColumns } from "../../source/index.ts";
-import { RecordSource } from "../../source/source.ts";
+import { RecordProvenance } from "../../source/provenance.ts";
 import { space } from "../space/space.ts";
 
 /** Account or space package restrictions administered in this region. */
@@ -26,7 +26,7 @@ export const packagePolicy = table(
     {
         ...recordColumns("package-policy"),
         ...provenanceColumns(),
-        /** The account administering the policy, resolved through the global directory. */
+        /** The account administering the policy, resolved through the global account service. */
         accountId: identifier("account_id", "account").notNull(),
         /** The scope to which every revision applies. */
         scope: text("scope", { enum: ["account", "space"] }).notNull(),
@@ -80,7 +80,7 @@ export const packagePolicyRevision = table(
         /** The complete package admission rules. */
         definition: json("definition", PackagePolicyDefinition).notNull(),
         /** The exact source declaration that produced this revision, if source-managed. */
-        source: json("source", RecordSource),
+        provenance: json("provenance", RecordProvenance),
         /** SHA-256 of the canonical policy definition. */
         digest: text("digest").notNull(),
     },

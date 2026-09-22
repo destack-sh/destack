@@ -1,4 +1,13 @@
-import { identifier, index, recordColumns, type Select, table, text, unique } from "@destack/db";
+import {
+    identifier,
+    index,
+    integer,
+    recordColumns,
+    type Select,
+    table,
+    text,
+    unique,
+} from "@destack/db";
 import { user } from "../account/user.ts";
 
 /** Identity records. */
@@ -12,13 +21,27 @@ export const identity = table(
             .references(() => user.id, {
                 onDelete: "cascade",
             }),
-        /** The identity provider issuer. */
-        issuer: text("issuer").notNull(),
-        /** The stable subject assigned by the issuer. */
-        subject: text("subject").notNull(),
+        /** The configured authentication provider. */
+        providerId: text("provider_id").notNull(),
+        /** The provider's user identifier. */
+        accountId: text("account_id").notNull(),
+        /** The encrypted provider access token. */
+        accessToken: text("access_token"),
+        /** The encrypted provider refresh token. */
+        refreshToken: text("refresh_token"),
+        /** The provider-issued signed ID token. */
+        idToken: text("id_token"),
+        /** The access-token expiry in epoch milliseconds. */
+        accessTokenExpiresAt: integer("access_token_expires_at"),
+        /** The refresh-token expiry in epoch milliseconds. */
+        refreshTokenExpiresAt: integer("refresh_token_expires_at"),
+        /** The space-separated provider scopes. */
+        scope: text("scope"),
+        /** The password hash used by credential authentication. */
+        password: text("password"),
     },
     (identity) => [
-        unique("identity_issuer_subject").on(identity.issuer, identity.subject),
+        unique("identity_provider_account").on(identity.providerId, identity.accountId),
         index("identity_user").on(identity.userId),
     ],
 );

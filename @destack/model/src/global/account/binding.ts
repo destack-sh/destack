@@ -9,7 +9,7 @@ import {
     table,
     uniqueIndex,
 } from "@destack/db";
-import { spaceDirectory } from "../directory/space.ts";
+import { space } from "../space/space.ts";
 import { group } from "./group.ts";
 import { accountMembership } from "./membership.ts";
 import { role } from "./role.ts";
@@ -42,7 +42,7 @@ export const roleBinding = table(
     (binding) => [
         foreignKey({
             columns: [binding.accountId, binding.spaceId],
-            foreignColumns: [spaceDirectory.accountId, spaceDirectory.id],
+            foreignColumns: [space.accountId, space.id],
         }).onDelete("restrict"),
         ...provenanceChecks("role_binding", binding),
         foreignKey({
