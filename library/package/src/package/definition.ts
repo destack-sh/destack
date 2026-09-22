@@ -6,10 +6,13 @@ import { WorkloadDefinition } from "../workload/index.ts";
 import { Runtime } from "../runtime/index.ts";
 import { ResourceName } from "@destack/resource";
 import { TemplateDefinition } from "../template/index.ts";
+import { PackageId } from "./package.ts";
 
 /** The declarations authored in destack.json. */
 export const PackageDefinition = defineSchema(
     schema.object({
+        /** The immutable identity assigned when creating this package. */
+        id: PackageId,
         /** The language used by the package. */
         language: Language,
         /** Source generation settings for a registry template package. */

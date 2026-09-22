@@ -3,9 +3,11 @@ import { PackageError } from "../error/index.ts";
 
 /** A canonical package-relative path using slash separators. */
 export const PackagePath = defineSchema(
-    schema.string().regex(
-        /^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/,
-    ),
+    schema
+        .string()
+        .regex(
+            /^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/,
+        ),
 );
 
 /** A SHA-256 digest encoded as lowercase hexadecimal. */

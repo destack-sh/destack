@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PackagePath } from "../file/file.ts";
-import { DependencyName, Package } from "../package/package.ts";
+import { DependencyPackage, Package } from "../package/package.ts";
 
 /** A symbol name qualified by its source module within a build. */
 export const SymbolLocation = defineSchema(
@@ -18,7 +18,7 @@ export type SymbolLocation = schema.Infer<typeof SymbolLocation>;
 export const DependencySymbol = defineSchema(
     schema.object({
         /** The dependency containing the symbol. */
-        package: Package.extend({ name: DependencyName }),
+        package: schema.union([Package, DependencyPackage]),
         /** The original module and symbol name. */
         symbol: SymbolLocation,
     }),
@@ -28,7 +28,7 @@ export const DependencySymbol = defineSchema(
 export const CompilerSymbol = defineSchema(
     schema.object({
         /** The compiler and version that supply the symbol. */
-        compiler: Package.extend({ name: DependencyName }),
+        compiler: DependencyPackage,
         /** The library file and qualified symbol name. */
         symbol: SymbolLocation,
     }),

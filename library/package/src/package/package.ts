@@ -1,5 +1,10 @@
-import { defineSchema, schema } from "@destack/schema";
+import { defineSchema, identifier, schema } from "@destack/schema";
 import { Digest } from "../file/file.ts";
+
+/** The immutable identity retained across package renames and releases. */
+export const PackageId = identifier("package");
+/** The immutable identity retained across package renames and releases. */
+export type PackageId = schema.Infer<typeof PackageId>;
 
 /** A scoped Destack package name. */
 export const PackageName = defineSchema(
@@ -17,9 +22,18 @@ export const DependencyName = defineSchema(
         .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/),
 );
 
-/** The name and version declared by a package. */
+/** A named dependency version, including packages from external registries. */
+export const DependencyPackage = defineSchema(
+    schema.object({ name: DependencyName, version: schema.string().min(1) }),
+);
+/** A named dependency version. */
+export type DependencyPackage = schema.Infer<typeof DependencyPackage>;
+
+/** The immutable identity, current name and version declared by a Destack package. */
 export const Package = defineSchema(
     schema.object({
+        /** The identity retained across renames and releases. */
+        id: PackageId,
         /** The package name, qualified by its owner. */
         name: PackageName,
         /** The package version. */

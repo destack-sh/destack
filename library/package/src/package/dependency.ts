@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DependencyName, Package, PackageRelease } from "../package/package.ts";
+import { DependencyPackage, Package, PackageRelease } from "../package/package.ts";
 import { PackageFile } from "../file/file.ts";
 
 /** An immutable dependency release available from a registry. */
@@ -13,7 +13,7 @@ export const DependencyRelease = defineSchema(
             /** The npm registry format. */
             kind: schema.literal("npm"),
             /** The resolved package and release, including npm aliases. */
-            package: Package.extend({ name: DependencyName }),
+            package: DependencyPackage,
             /** The registry that provides the release. */
             registry: schema.string().regex(/^https?:\/\/[^\s]+$(?![\s\S])/),
             /** The registry's Subresource Integrity expression. */

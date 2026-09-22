@@ -1,11 +1,13 @@
 Describe packages, source code, inspections, and built files.
 
 ```ts
-import { PackageDeclaration } from "@destack/package";
+import { PackageDeclaration, PackageId } from "@destack/package";
+
+const id = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
 
 const declaration: PackageDeclaration = {
-    package: { name: "@destack/schema", version: "2026.9.0" },
-    definition: { language: "typescript", targets: ["browser", "server"] },
+    package: { id, name: "@destack/schema", version: "2026.9.0" },
+    definition: { id, language: "typescript", targets: ["browser", "server"] },
     exports: { ".": "./src/index.ts" },
     dependencies: { zod: "4.6.5" },
     peerDependencies: {},
@@ -23,6 +25,7 @@ const manifest = PackageManifest.parse(document);
 
 ```json
 {
+    "id": "package-01996ab0-0000-7000-8000-000000000001",
     "language": "typescript",
     "targets": ["browser", "server"],
     "compute": {
@@ -50,7 +53,7 @@ const { packages, inputs, outputs } = build;
 ```ts
 import type {} from "@destack/package/import-meta";
 
-const { name, version } = import.meta.destack.package;
+const { id, name, version } = import.meta.destack.package;
 ```
 
 ```ts
@@ -68,10 +71,12 @@ import { createPackageInspection } from "@destack/package/inspect";
 import { tables } from "../db/index.ts";
 
 const description = schema.object({
-    tables: schema.array(schema.object({
-        symbol: SymbolReference,
-        description: TableDescription,
-    })),
+    tables: schema.array(
+        schema.object({
+            symbol: SymbolReference,
+            description: TableDescription,
+        }),
+    ),
 });
 
 export function inspectPackage(code: ModuleGraph) {

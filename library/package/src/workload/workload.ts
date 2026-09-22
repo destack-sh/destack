@@ -1,13 +1,13 @@
 import { defineSchema, schema } from "@destack/schema";
 import { ResourceName } from "@destack/resource";
 import { ComputeDefinition } from "../package/compute.ts";
-import { PackageName } from "../package/package.ts";
+import { PackageId } from "../package/package.ts";
 
 /** A declaration qualified by its source package. */
 export const DeclarationReference = defineSchema(
     schema.object({
-        /** The declaring package, resolved to one version in this build. */
-        package: PackageName,
+        /** The immutable identity of the declaring package. */
+        packageId: PackageId,
         /** The name assigned by the domain declaration. */
         name: ResourceName,
     }),

@@ -27,7 +27,7 @@ export const PackageExport: schema.Schema<PackageExport> = schema.lazy(() =>
 /** Package declarations combined from package.json and destack.json. */
 export const PackageDeclaration = defineSchema(
     schema.object({
-        /** The package name and version. */
+        /** The stable package ID, current name, and version. */
         package: Package,
         /** Destack language, targets, workloads, and compute settings. */
         definition: PackageDefinition,

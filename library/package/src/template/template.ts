@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PackagePath } from "../file/file.ts";
-import { Package, PackageName } from "../package/package.ts";
+import { Package, PackageId, PackageName } from "../package/package.ts";
 
 /** Source files and selectable dependencies used to create a package. */
 export const TemplateDefinition = defineSchema(
@@ -20,6 +20,8 @@ export type TemplateDefinition = schema.Infer<typeof TemplateDefinition>;
 export const TemplateParameters = defineSchema(
     schema
         .object({
+            /** The fresh identity assigned to the generated package. */
+            id: PackageId,
             /** The generated package name. */
             name: PackageName,
             /** Replacements keyed by the template's original dependency names. */

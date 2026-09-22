@@ -2,6 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { ResourceName } from "@destack/resource";
 import { SourceLocation } from "../source/location.ts";
 import { DependencySymbol } from "../code/reference.ts";
+import { Package } from "../package/package.ts";
 
 /** A declaration described by its domain inspector. */
 export const DeclarationDescription = defineSchema(
@@ -11,7 +12,7 @@ export const DeclarationDescription = defineSchema(
         /** The declaration domain. */
         kind: ResourceName,
         /** The original declaration in its exact source package. */
-        symbol: DependencySymbol,
+        symbol: DependencySymbol.extend({ package: Package }),
         /** The declaring module and source position. */
         source: SourceLocation,
         /** JSON Schema supplied by the domain library. */
