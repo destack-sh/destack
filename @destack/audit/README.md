@@ -55,7 +55,8 @@ await context.audit.append(result);
 import { AuditRecorder } from "@destack/audit";
 import { AuditOutbox, auditOutboxSchema } from "@destack/audit/outbox";
 import { AuditHistory, auditSchema } from "@destack/audit/history";
-import { createAuditHandler, createProcedureAudit } from "@destack/audit/server";
+import { implementService, createProcedureAudit } from "@destack/audit/server";
+import { Server } from "@destack/service/server";
 import { createAuditClient } from "@destack/audit/client";
 
 // migrate auditOutboxSchema alongside each application's schema
@@ -64,10 +65,17 @@ const audit = new AuditRecorder(verifiedContext, outbox);
 
 // migrate auditSchema in the local or regional history database
 const history = new AuditHistory(historyDatabase);
-const handler = createAuditHandler(history, health);
-const response = await handler.handle(request, {
-    context: { audit, authorizeAudit },
+const server = await Server.start({
+    ...implementService(history, { authorize: authorizeAudit, record: createAuditRecorder }),
+    audience: receivingPackageId,
+    spaceId,
+    resources,
+    health,
+    authenticate,
+    authorizeHost: authorizeInstallation,
+    drainTimeout: 10000,
 });
+const response = await server.fetch(request);
 
 const client = createAuditClient({ url, headers: authenticatedHeaders });
 await outbox.run(client, { signal, report: reportDeliveryFailure });

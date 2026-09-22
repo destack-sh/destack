@@ -1,68 +1,20 @@
+import { auditAction } from "../history/action.ts";
 import { schema } from "@destack/schema";
-import { implement, ServiceHandler } from "@destack/service/server";
+import {
+    implement,
+    type ServiceContext,
+    type ServiceImplementation,
+} from "@destack/service/server";
 import { ServiceError } from "@destack/service";
-import type { Health } from "@destack/service/health";
 import { AuditHistory } from "../history/history.ts";
 import { AuditRecorder } from "../record/index.ts";
 import { AuditEvent, type AuditResult } from "../event/index.ts";
-import { defineAuditAction } from "../action/index.ts";
 import { AuditError } from "../error/index.ts";
 import { auditService, AuditScope } from "../service/index.ts";
-import manifest from "../../package.json" with { type: "json" };
-import definition from "../../destack.json" with { type: "json" };
-import { PackageId } from "@destack/package";
+import { AuditEntry } from "../outbox/delivery.ts";
 
-/** Package declaring audit-history operations. */
-const auditPackage = {
-    id: PackageId.parse(definition.id),
-    name: manifest.name,
-    version: manifest.version,
-};
-/** Selected audit-history collection. */
-const auditTarget = schema.object({
-    collection: schema.object({ type: schema.string(), id: schema.string() }),
-});
-/** History actions omit filters and event contents. */
-const auditDetails = schema.object({});
-
-/** Record audit-history get requests and outcomes. */
-export const auditGet = defineAuditAction({
-    package: auditPackage,
-    name: "audit.get",
-    version: 1,
-    targets: auditTarget,
-    details: auditDetails,
-});
-
-/** Record audit-history list requests and outcomes. */
-export const auditList = defineAuditAction({
-    package: auditPackage,
-    name: "audit.list",
-    version: 1,
-    targets: auditTarget,
-    details: auditDetails,
-});
-
-/** Record audit-history export requests and outcomes. */
-export const auditExport = defineAuditAction({
-    package: auditPackage,
-    name: "audit.export",
-    version: 1,
-    targets: auditTarget,
-    details: auditDetails,
-});
-
-/** Record audit-history prune requests and outcomes. */
-export const auditPrune = defineAuditAction({
-    package: auditPackage,
-    name: "audit.prune",
-    version: 1,
-    targets: auditTarget,
-    details: auditDetails,
-});
-
-/** Audit-history actions indexed by service operation. */
-const auditAction = { get: auditGet, list: auditList, export: auditExport, prune: auditPrune };
+/** Select the collection without decoding operation-specific fields. */
+const historySelection = schema.object({ scope: AuditScope }).strip();
 
 /** Authorization requests interpreted by the hosting account and residency policy. */
 export type AuditAccess =
@@ -77,12 +29,44 @@ export interface AuditRequestContext {
     audit: Pick<AuditRecorder, "begin" | "complete" | "append">;
 }
 
-/** Host the shared service with mandatory producer and collection authorization. */
-export function createAuditHandler(history: AuditHistory, health: Health) {
-    const implementation = implement(auditService).$context<AuditRequestContext>();
+/** Bind history storage to authenticated producer and collection authorization. */
+export function implementService(
+    history: AuditHistory,
+    options: AuditServerOptions,
+): ServiceImplementation {
+    const implementation = implement(auditService)
+        .$context<ServiceContext>()
+        .use(async ({ context, next }) => {
+            return next({
+                context: {
+                    audit: await options.record(context),
+                    authorizeAudit: (access: AuditAccess) => options.authorize(access, context),
+                },
+            });
+        });
 
-    return new ServiceHandler(
-        implementation.router({
+    return {
+        target: async (call) => {
+            // qualify credential restrictions by the selected history collection
+            if (call.path.at(-1) === "ingest") {
+                const selected = AuditEntry.safeParse(call.input);
+                if (!selected.success) {
+                    throw new ServiceError("BAD_REQUEST");
+                }
+                const { context } = selected.data.event;
+
+                return {
+                    scope: context.spaceId ?? context.accountId ?? context.hostId ?? "global",
+                };
+            }
+            const selected = historySelection.safeParse(call.input);
+            if (!selected.success) {
+                throw new ServiceError("BAD_REQUEST");
+            }
+
+            return { scope: scopeId(selected.data.scope) };
+        },
+        router: implementation.router({
             ingest: implementation.ingest.handler(async ({ input, context }) => {
                 await context.authorizeAudit({
                     action: "ingest",
@@ -125,31 +109,35 @@ export function createAuditHandler(history: AuditHistory, health: Health) {
                 }));
             }),
         }),
-        {
-            health,
-            authorize: async ({ context }) => {
-                // validate authority before handing a request to any implementation
-                if (typeof context.authorizeAudit !== "function" || !context.audit) {
-                    throw new ServiceError("UNAUTHORIZED");
+        authorize: async ({ context }) => {
+            context.requireCaller();
+        },
+        clientInterceptors: [
+            async ({ next }) => {
+                try {
+                    return await next();
+                } catch (error) {
+                    if (error instanceof AuditError) {
+                        throw new ServiceError(
+                            error.code === "INVALID_EVENT" ? "BAD_REQUEST" : error.code,
+                            { message: error.message },
+                        );
+                    }
+                    throw error;
                 }
             },
-            clientInterceptors: [
-                async ({ next }) => {
-                    try {
-                        return await next();
-                    } catch (error) {
-                        if (error instanceof AuditError) {
-                            throw new ServiceError(
-                                error.code === "INVALID_EVENT" ? "BAD_REQUEST" : error.code,
-                                { message: error.message },
-                            );
-                        }
-                        throw error;
-                    }
-                },
-            ],
-        },
-    );
+        ],
+    };
+}
+
+/** Domain authority and request recording supplied by the hosting installation. */
+export interface AuditServerOptions {
+    /** Verify producer attestation or current collection permissions for the caller. */
+    authorize(access: AuditAccess, context: ServiceContext): Promise<void>;
+    /** Create the durable recorder for history access under the verified caller. */
+    record(
+        context: ServiceContext,
+    ): AuditRequestContext["audit"] | Promise<AuditRequestContext["audit"]>;
 }
 
 /** Record access and its result before returning history to the caller. */
@@ -180,14 +168,7 @@ async function beginAccess(
     operation: "get" | "list" | "export" | "prune",
     scope: AuditScope,
 ): Promise<AuditEvent> {
-    const id =
-        scope.type === "space"
-            ? scope.spaceId
-            : scope.type === "account"
-              ? scope.accountId
-              : scope.type === "host"
-                ? scope.hostId
-                : "global";
+    const id = scopeId(scope);
     const attempt = context.audit.begin(auditAction[operation], {
         targets: { collection: { type: scope.type, id } },
         details: {},
@@ -201,6 +182,20 @@ async function beginAccess(
     }
 
     return attempt;
+}
+
+/** Identify the authority administering a history collection. */
+function scopeId(scope: AuditScope): string {
+    switch (scope.type) {
+        case "space":
+            return scope.spaceId;
+        case "account":
+            return scope.accountId;
+        case "host":
+            return scope.hostId;
+        case "global":
+            return "global";
+    }
 }
 
 /** Retain safe error codes and distinguish rejected access from execution failure. */

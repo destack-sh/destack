@@ -6,7 +6,11 @@ import { Health } from "@destack/service/health";
 import { AuditRecorder } from "../src/record/index.ts";
 import { defineAuditAction } from "../src/action/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
-import { createAuditHandler, auditList } from "../src/server/server.ts";
+import { implementService } from "../src/server/index.ts";
+import { auditList } from "../src/history/index.ts";
+import { Server } from "@destack/service/server";
+import { Caller } from "@destack/service/authentication";
+import { ResourceContext } from "@destack/resource/context";
 import { AuditContext } from "../src/event/index.ts";
 import { PackageId } from "@destack/package";
 
@@ -44,35 +48,46 @@ test("authorize producers and readers, stream history, and record denied access"
             { ...context, service: "audit", actor: { type: "system", name: "reader" } },
             outbox,
         );
-        const handler = createAuditHandler(history, new Health("audit"));
+        await using server = await Server.start({
+            ...implementService(history, {
+                record: () => reader,
+                authorize: async (access) => {
+                    if (access.action === "ingest") {
+                        if (
+                            access.producerId !== producerId ||
+                            access.event.context.accountId !== context.accountId ||
+                            access.event.context.service !== "document"
+                        ) {
+                            throw new ServiceError("FORBIDDEN");
+                        }
+                    } else if (
+                        access.action === "prune" ||
+                        access.scope.type !== "account" ||
+                        access.scope.accountId !== context.accountId
+                    ) {
+                        throw new ServiceError("FORBIDDEN");
+                    }
+                },
+            }),
+            audience: publishDocument.package.id,
+            spaceId: "global",
+            resources: new ResourceContext(),
+            health: new Health("audit"),
+            authenticate: async () =>
+                new Caller({
+                    credential: { kind: "fixture" },
+                    audience: publishDocument.package.id,
+                    subject: { kind: "user", authority: "global", id: "reader" },
+                    subjects: [{ kind: "user", authority: "global", id: "reader" }],
+                    verifiedAt: Date.now(),
+                    expiresAt: Date.now() + 60000,
+                }),
+            authorizeHost: async () => {},
+            drainTimeout: 1000,
+        });
         const client = createAuditClient({
             url: "http://audit.local",
-            fetch: async (request) => {
-                const result = await handler.handle(request, {
-                    context: {
-                        audit: reader,
-                        authorizeAudit: async (access) => {
-                            if (access.action === "ingest") {
-                                if (
-                                    access.producerId !== producerId ||
-                                    access.event.context.accountId !== context.accountId ||
-                                    access.event.context.service !== "document"
-                                ) {
-                                    throw new ServiceError("FORBIDDEN");
-                                }
-                            } else if (
-                                access.action === "prune" ||
-                                access.scope.type !== "account" ||
-                                access.scope.accountId !== context.accountId
-                            ) {
-                                throw new ServiceError("FORBIDDEN");
-                            }
-                        },
-                    },
-                });
-
-                return result.matched ? result.response : new Response(null, { status: 404 });
-            },
+            fetch: (request) => server.fetch(request),
         });
 
         // deliver a real attempt and result through serialization and acknowledgement
