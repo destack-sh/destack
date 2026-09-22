@@ -119,7 +119,9 @@ CREATE TABLE "secret" (
 	"vault_id" text NOT NULL,
 	"name" text NOT NULL,
 	"current_version" bigint,
-	"revoked_at" bigint,
+	"disabled_at" bigint,
+	"delete_at" bigint,
+	"destroyed_at" bigint,
 	CONSTRAINT "secret_vault_name" UNIQUE("vault_id","name"),
 	CONSTRAINT "secret_space_id" UNIQUE("space_id","id"),
 	CONSTRAINT "secret_provenance_space" CHECK ("provenance" IS NULL OR ("provenance"::jsonb ->> 'kind') <> 'stack' OR ("provenance"::jsonb ->> 'spaceId') = "space_id"),
@@ -131,13 +133,13 @@ CREATE TABLE "secret_version" (
 	"secret_id" text,
 	"version" bigint,
 	"created_at" bigint NOT NULL,
-	"reference" text NOT NULL,
+	"reference" text,
 	"expires_at" bigint,
-	"revoked_at" bigint,
+	"disabled_at" bigint,
 	"destroyed_at" bigint,
 	CONSTRAINT "secret_version_pkey" PRIMARY KEY("secret_id","version"),
 	CONSTRAINT "secret_version_positive" CHECK ("version" > 0),
-	CONSTRAINT "secret_version_reference" CHECK (length("reference") > 0),
+	CONSTRAINT "secret_version_reference" CHECK ("reference" IS NULL OR length("reference") > 0),
 	CONSTRAINT "secret_version_expiry" CHECK ("expires_at" IS NULL OR "expires_at" > "created_at")
 );
 --> statement-breakpoint
@@ -697,6 +699,7 @@ CREATE INDEX "resource_binding_resource" ON "resource_binding" ("space_id","reso
 CREATE UNIQUE INDEX "resource_migration_active" ON "resource_migration" ("resource_id") WHERE "completed_at" IS NULL;--> statement-breakpoint
 CREATE INDEX "resource_migration_history" ON "resource_migration" ("resource_id","created_at");--> statement-breakpoint
 CREATE INDEX "resource_migration_space_migration" ON "resource_migration" ("space_migration_id");--> statement-breakpoint
+CREATE INDEX "secret_deletion" ON "secret" ("destroyed_at","delete_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "secret_provenance" ON "secret" (("provenance"::jsonb ->> 'kind'),coalesce(("provenance"::jsonb ->> 'accountId'), ("provenance"::jsonb ->> 'spaceId'), ("provenance"::jsonb ->> 'installationId')),("provenance"::jsonb ->> 'name')) WHERE "provenance" IS NOT NULL AND "detached_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "resource_provenance" ON "resource" (("provenance"::jsonb ->> 'kind'),coalesce(("provenance"::jsonb ->> 'accountId'), ("provenance"::jsonb ->> 'spaceId'), ("provenance"::jsonb ->> 'installationId')),("provenance"::jsonb ->> 'name')) WHERE "provenance" IS NOT NULL AND "detached_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "installation_provenance" ON "installation" (("provenance"::jsonb ->> 'kind'),coalesce(("provenance"::jsonb ->> 'accountId'), ("provenance"::jsonb ->> 'spaceId'), ("provenance"::jsonb ->> 'installationId')),("provenance"::jsonb ->> 'name')) WHERE "provenance" IS NOT NULL AND "detached_at" IS NULL;--> statement-breakpoint

@@ -1,11 +1,14 @@
 import {
+    check,
     foreignKey,
     identifier,
     index,
+    integer,
     recordColumns,
     type Select,
     sql,
     table,
+    text,
     unique,
     uniqueIndex,
 } from "@destack/db";
@@ -27,11 +30,20 @@ export const personalAccessToken = table(
         accountId: identifier("account_id", "account")
             .notNull()
             .references(() => account.id, { onDelete: "cascade" }),
+        /** The name displayed when reviewing issued credentials. */
+        name: text("name").notNull(),
+        /** The SHA-256 hash of the random bearer credential. */
+        tokenHash: text("token_hash").notNull().unique(),
+        /** The credential expiry in UTC epoch milliseconds. */
+        expiresAt: integer("expires_at").notNull(),
+        /** The time the credential was revoked. */
+        revokedAt: integer("revoked_at"),
     },
     (token) => [
         unique("personal_access_token_account_id").on(token.accountId, token.id),
         index("personal_access_token_user").on(token.userId),
         unique("personal_access_token_user_id").on(token.userId, token.id),
+        check("personal_access_token_expiry", sql`${token.expiresAt} > ${token.createdAt}`),
     ],
 );
 

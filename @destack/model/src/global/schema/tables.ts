@@ -31,7 +31,7 @@ import { session } from "../authentication/session.ts";
 import { rolePermission } from "../account/permission.ts";
 import { deviceAuthorization } from "../authentication/device.ts";
 import { user } from "../account/user.ts";
-import { serviceAccount, serviceToken } from "../account/service.ts";
+import { serviceAccount, serviceToken, serviceTokenPermission } from "../account/service.ts";
 import { preference } from "../account/preference.ts";
 import { tunnel } from "../host/tunnel.ts";
 import { hostAccess } from "../host/access.ts";
@@ -66,6 +66,7 @@ export const tables = {
     connectedAccount,
     serviceAccount,
     serviceToken,
+    serviceTokenPermission,
     personalAccessToken,
     personalAccessTokenPermission,
 

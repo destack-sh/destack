@@ -33,7 +33,7 @@ export const passkey = table(
     (credential) => [index("passkey_user").on(credential.userId)],
 );
 
-/** A user's encrypted TOTP secret and protected recovery codes. */
+/** A user's encrypted TOTP secret and recovery codes. */
 export const twoFactor = table(
     "two_factor",
     {
@@ -41,7 +41,7 @@ export const twoFactor = table(
         id: identifier("id", "two-factor").primaryKey(),
         /** The encrypted TOTP secret. */
         secret: text("secret").notNull(),
-        /** The protected recovery codes in Better Auth's format. */
+        /** The encrypted recovery codes in Better Auth's format. */
         backupCodes: text("backup_codes").notNull(),
         /** The user required to complete the second factor. */
         userId: identifier("user_id", "user")

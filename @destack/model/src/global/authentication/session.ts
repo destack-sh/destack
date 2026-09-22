@@ -34,8 +34,10 @@ export const session = table(
         city: text("city"),
         /** The last completed authentication ceremony. */
         authenticatedAt: integer("authenticated_at"),
-        /** The last successful strong authentication ceremony. */
-        elevatedAt: integer("elevated_at"),
+        /** The verified method used in the last authentication ceremony. */
+        authenticationMethod: text("authentication_method", {
+            enum: ["magic-link", "email-otp", "oauth", "device", "totp", "webauthn", "recovery"],
+        }),
         /** The session expiry time. */
         expiresAt: integer("expires_at").notNull(),
         /** The time access was revoked. */
@@ -46,6 +48,14 @@ export const session = table(
         index("session_device").on(session.deviceId),
         index("session_expiry").on(session.expiresAt),
         check("session_expiry_order", sql`${session.expiresAt} > ${session.createdAt}`),
+        check(
+            "session_authentication_method",
+            sql`${session.authenticationMethod} IS NULL OR ${session.authenticationMethod} IN ('magic-link', 'email-otp', 'oauth', 'device', 'totp', 'webauthn', 'recovery')`,
+        ),
+        check(
+            "session_authentication_time",
+            sql`${session.authenticationMethod} IS NULL OR ${session.authenticatedAt} IS NOT NULL`,
+        ),
     ],
 );
 

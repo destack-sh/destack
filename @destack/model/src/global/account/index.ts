@@ -14,3 +14,4 @@ export * from "./service.ts";
 export * from "./user.ts";
 export * from "./organisation.ts";
 export * from "./token.ts";
+export * from "./query.ts";

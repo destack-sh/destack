@@ -131,7 +131,9 @@ CREATE TABLE `secret` (
 	`vault_id` text NOT NULL,
 	`name` text NOT NULL,
 	`current_version` integer,
-	`revoked_at` integer,
+	`disabled_at` integer,
+	`delete_at` integer,
+	`destroyed_at` integer,
 	CONSTRAINT `fk_secret_space_id_vault_id_vault_space_id_resource_id_fk` FOREIGN KEY (`space_id`,`vault_id`) REFERENCES `vault`(`space_id`,`resource_id`) ON DELETE RESTRICT,
 	CONSTRAINT `fk_secret_id_current_version_secret_version_secret_id_version_fk` FOREIGN KEY (`id`,`current_version`) REFERENCES `secret_version`(`secret_id`,`version`) ON DELETE RESTRICT,
 	CONSTRAINT `secret_vault_name` UNIQUE(`vault_id`,`name`),
@@ -146,14 +148,14 @@ CREATE TABLE `secret_version` (
 	`secret_id` text NOT NULL,
 	`version` integer NOT NULL,
 	`created_at` integer NOT NULL,
-	`reference` text NOT NULL,
+	`reference` text,
 	`expires_at` integer,
-	`revoked_at` integer,
+	`disabled_at` integer,
 	`destroyed_at` integer,
 	CONSTRAINT `secret_version_pk` PRIMARY KEY(`secret_id`, `version`),
 	CONSTRAINT `fk_secret_version_secret_id_secret_id_fk` FOREIGN KEY (`secret_id`) REFERENCES `secret`(`id`) ON DELETE RESTRICT,
 	CONSTRAINT "secret_version_positive" CHECK("version" > 0),
-	CONSTRAINT "secret_version_reference" CHECK(length("reference") > 0),
+	CONSTRAINT "secret_version_reference" CHECK("reference" IS NULL OR length("reference") > 0),
 	CONSTRAINT "secret_version_expiry" CHECK("expires_at" IS NULL OR "expires_at" > "created_at")
 );
 --> statement-breakpoint
@@ -781,6 +783,7 @@ CREATE INDEX `resource_binding_resource` ON `resource_binding` (`space_id`,`reso
 CREATE UNIQUE INDEX `resource_migration_active` ON `resource_migration` (`resource_id`) WHERE "resource_migration"."completed_at" IS NULL;--> statement-breakpoint
 CREATE INDEX `resource_migration_history` ON `resource_migration` (`resource_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `resource_migration_space_migration` ON `resource_migration` (`space_migration_id`);--> statement-breakpoint
+CREATE INDEX `secret_deletion` ON `secret` (`destroyed_at`,`delete_at`);--> statement-breakpoint
 CREATE UNIQUE INDEX `secret_provenance` ON `secret` (json_extract("provenance", '$.kind'),coalesce(json_extract("provenance", '$.accountId'), json_extract("provenance", '$.spaceId'), json_extract("provenance", '$.installationId')),json_extract("provenance", '$.name')) WHERE "secret"."provenance" IS NOT NULL AND "secret"."detached_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX `resource_provenance` ON `resource` (json_extract("provenance", '$.kind'),coalesce(json_extract("provenance", '$.accountId'), json_extract("provenance", '$.spaceId'), json_extract("provenance", '$.installationId')),json_extract("provenance", '$.name')) WHERE "resource"."provenance" IS NOT NULL AND "resource"."detached_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX `installation_provenance` ON `installation` (json_extract("provenance", '$.kind'),coalesce(json_extract("provenance", '$.accountId'), json_extract("provenance", '$.spaceId'), json_extract("provenance", '$.installationId')),json_extract("provenance", '$.name')) WHERE "installation"."provenance" IS NOT NULL AND "installation"."detached_at" IS NULL;--> statement-breakpoint

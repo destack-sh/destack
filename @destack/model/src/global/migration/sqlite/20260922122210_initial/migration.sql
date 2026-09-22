@@ -183,29 +183,33 @@ CREATE TABLE `service_token` (
 	`updated_at` integer NOT NULL,
 	`revision` integer DEFAULT 1 NOT NULL,
 	`tags` text DEFAULT '{}' NOT NULL,
+	`account_id` text NOT NULL,
 	`service_account_id` text NOT NULL,
 	`name` text NOT NULL,
 	`token_hash` text NOT NULL UNIQUE,
 	`expires_at` integer NOT NULL,
 	`revoked_at` integer,
-	CONSTRAINT `fk_service_token_service_account_id_service_account_id_fk` FOREIGN KEY (`service_account_id`) REFERENCES `service_account`(`id`),
+	CONSTRAINT `fk_service_token_account_id_service_account_id_service_account_account_id_id_fk` FOREIGN KEY (`account_id`,`service_account_id`) REFERENCES `service_account`(`account_id`,`id`) ON DELETE CASCADE,
+	CONSTRAINT `service_token_account_id` UNIQUE(`account_id`,`id`),
 	CONSTRAINT "service_token_expiry" CHECK("expires_at" > "created_at"),
 	CONSTRAINT "service_token_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
-CREATE TABLE `personal_access_token` (
+CREATE TABLE `service_token_permission` (
 	`id` text PRIMARY KEY,
-	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	`revision` integer DEFAULT 1 NOT NULL,
-	`tags` text DEFAULT '{}' NOT NULL,
-	`user_id` text NOT NULL,
 	`account_id` text NOT NULL,
-	CONSTRAINT `fk_personal_access_token_user_id_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
-	CONSTRAINT `fk_personal_access_token_account_id_account_id_fk` FOREIGN KEY (`account_id`) REFERENCES `account`(`id`) ON DELETE CASCADE,
-	CONSTRAINT `personal_access_token_account_id` UNIQUE(`account_id`,`id`),
-	CONSTRAINT `personal_access_token_user_id` UNIQUE(`user_id`,`id`),
-	CONSTRAINT "personal_access_token_id_not_null" CHECK("id" IS NOT NULL)
+	`token_id` text NOT NULL,
+	`space_id` text,
+	`package_id` text NOT NULL,
+	`type` text NOT NULL,
+	`name` text NOT NULL,
+	`object_id` text,
+	CONSTRAINT `fk_service_token_permission_account_id_token_id_service_token_account_id_id_fk` FOREIGN KEY (`account_id`,`token_id`) REFERENCES `service_token`(`account_id`,`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_service_token_permission_account_id_space_id_space_account_id_id_fk` FOREIGN KEY (`account_id`,`space_id`) REFERENCES `space`(`account_id`,`id`) ON DELETE CASCADE,
+	CONSTRAINT "service_token_permission_name_0" CHECK(length("type") > 0 AND substr("type", 1, 1) GLOB '[a-z]' AND "type" NOT GLOB '*[^a-z0-9-]*' AND "type" NOT LIKE '%--%' AND "type" NOT LIKE '%-'),
+	CONSTRAINT "service_token_permission_name_1" CHECK(length("name") > 0 AND substr("name", 1, 1) GLOB '[a-z]' AND "name" NOT GLOB '*[^a-z0-9-]*' AND "name" NOT LIKE '%--%' AND "name" NOT LIKE '%-'),
+	CONSTRAINT "service_token_permission_object" CHECK("object_id" IS NULL OR length("object_id") > 0),
+	CONSTRAINT "service_token_permission_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE `organisation_membership` (
@@ -222,6 +226,26 @@ CREATE TABLE `organisation_membership` (
 	CONSTRAINT `organisation_membership_user` UNIQUE(`organisation_id`,`user_id`),
 	CONSTRAINT "organisation_membership_role" CHECK("role" IN ('owner', 'admin', 'member')),
 	CONSTRAINT "organisation_membership_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
+CREATE TABLE `personal_access_token` (
+	`id` text PRIMARY KEY,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`tags` text DEFAULT '{}' NOT NULL,
+	`user_id` text NOT NULL,
+	`account_id` text NOT NULL,
+	`name` text NOT NULL,
+	`token_hash` text NOT NULL UNIQUE,
+	`expires_at` integer NOT NULL,
+	`revoked_at` integer,
+	CONSTRAINT `fk_personal_access_token_user_id_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_personal_access_token_account_id_account_id_fk` FOREIGN KEY (`account_id`) REFERENCES `account`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `personal_access_token_account_id` UNIQUE(`account_id`,`id`),
+	CONSTRAINT `personal_access_token_user_id` UNIQUE(`user_id`,`id`),
+	CONSTRAINT "personal_access_token_expiry" CHECK("expires_at" > "created_at"),
+	CONSTRAINT "personal_access_token_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE `personal_access_token_permission` (
@@ -249,7 +273,7 @@ CREATE TABLE `identity` (
 	`tags` text DEFAULT '{}' NOT NULL,
 	`user_id` text NOT NULL,
 	`provider_id` text NOT NULL,
-	`account_id` text NOT NULL,
+	`provider_user_id` text NOT NULL,
 	`access_token` text,
 	`refresh_token` text,
 	`id_token` text,
@@ -258,7 +282,7 @@ CREATE TABLE `identity` (
 	`scope` text,
 	`password` text,
 	CONSTRAINT `fk_identity_user_id_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
-	CONSTRAINT `identity_provider_account` UNIQUE(`provider_id`,`account_id`),
+	CONSTRAINT `identity_provider_user` UNIQUE(`provider_id`,`provider_user_id`),
 	CONSTRAINT "identity_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
@@ -274,12 +298,14 @@ CREATE TABLE `session` (
 	`country` text,
 	`city` text,
 	`authenticated_at` integer,
-	`elevated_at` integer,
+	`authentication_method` text,
 	`expires_at` integer NOT NULL,
 	`revoked_at` integer,
 	CONSTRAINT `fk_session_user_id_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
 	CONSTRAINT `fk_session_device_id_device_id_fk` FOREIGN KEY (`device_id`) REFERENCES `device`(`id`) ON DELETE RESTRICT,
 	CONSTRAINT "session_expiry_order" CHECK("expires_at" > "created_at"),
+	CONSTRAINT "session_authentication_method" CHECK("authentication_method" IS NULL OR "authentication_method" IN ('magic-link', 'email-otp', 'oauth', 'device', 'totp', 'webauthn', 'recovery')),
+	CONSTRAINT "session_authentication_time" CHECK("authentication_method" IS NULL OR "authenticated_at" IS NOT NULL),
 	CONSTRAINT "session_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
@@ -393,25 +419,6 @@ CREATE TABLE `oauth_client` (
 	CONSTRAINT "oauth_client_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
-CREATE TABLE `oauth_resource` (
-	`id` text PRIMARY KEY,
-	`identifier` text NOT NULL UNIQUE,
-	`name` text NOT NULL,
-	`access_token_ttl` integer,
-	`refresh_token_ttl` integer,
-	`signing_algorithm` text,
-	`signing_key_id` text,
-	`allowed_scopes` text,
-	`custom_claims` text,
-	`dpop_bound_access_tokens_required` integer DEFAULT false,
-	`disabled` integer DEFAULT false,
-	`created_at` integer,
-	`updated_at` integer,
-	`policy_version` integer DEFAULT 1,
-	`metadata` text,
-	CONSTRAINT "oauth_resource_id_not_null" CHECK("id" IS NOT NULL)
-);
---> statement-breakpoint
 CREATE TABLE `organisation_invitation` (
 	`id` text PRIMARY KEY,
 	`created_at` integer NOT NULL,
@@ -434,6 +441,25 @@ CREATE TABLE `organisation_invitation` (
 	CONSTRAINT "organisation_invitation_expiry" CHECK("expires_at" > "created_at"),
 	CONSTRAINT "organisation_invitation_acceptance" CHECK(("accepted_by" IS NULL) = ("accepted_at" IS NULL) AND ("accepted_at" IS NULL OR ("revoked_at" IS NULL AND "accepted_at" >= "created_at" AND "accepted_at" < "expires_at"))),
 	CONSTRAINT "organisation_invitation_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
+CREATE TABLE `oauth_resource` (
+	`id` text PRIMARY KEY,
+	`identifier` text NOT NULL UNIQUE,
+	`name` text NOT NULL,
+	`access_token_ttl` integer,
+	`refresh_token_ttl` integer,
+	`signing_algorithm` text,
+	`signing_key_id` text,
+	`allowed_scopes` text,
+	`custom_claims` text,
+	`dpop_bound_access_tokens_required` integer DEFAULT false,
+	`disabled` integer DEFAULT false,
+	`created_at` integer,
+	`updated_at` integer,
+	`policy_version` integer DEFAULT 1,
+	`metadata` text,
+	CONSTRAINT "oauth_resource_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE `oauth_client_resource` (
@@ -594,23 +620,6 @@ CREATE TABLE `host_access` (
 	CONSTRAINT `fk_host_access_account_id_account_id_fk` FOREIGN KEY (`account_id`) REFERENCES `account`(`id`)
 );
 --> statement-breakpoint
-CREATE TABLE `region` (
-	`id` text PRIMARY KEY,
-	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	`revision` integer DEFAULT 1 NOT NULL,
-	`tags` text DEFAULT '{}' NOT NULL,
-	`provider` text NOT NULL,
-	`code` text NOT NULL,
-	`name` text NOT NULL,
-	`residency` text NOT NULL,
-	CONSTRAINT `region_provider_code` UNIQUE(`provider`,`code`),
-	CONSTRAINT `region_provider_id` UNIQUE(`provider`,`id`),
-	CONSTRAINT `region_residency_id` UNIQUE(`id`,`residency`),
-	CONSTRAINT "region_residency" CHECK("residency" IN ('eu', 'us')),
-	CONSTRAINT "region_id_not_null" CHECK("id" IS NOT NULL)
-);
---> statement-breakpoint
 CREATE TABLE `account` (
 	`id` text PRIMARY KEY,
 	`created_at` integer NOT NULL,
@@ -646,6 +655,23 @@ CREATE TABLE `account` (
 	CONSTRAINT "account_user" CHECK(("kind" = 'personal' AND "user_id" IS NOT NULL AND "organisation_id" IS NULL) OR ("kind" = 'organisation' AND "user_id" IS NULL AND "organisation_id" IS NOT NULL)),
 	CONSTRAINT "account_handle" CHECK(length("handle") BETWEEN 1 AND 63 AND "handle" NOT GLOB '*[^a-z0-9-]*' AND "handle" NOT LIKE '-%' AND "handle" NOT LIKE '%-'),
 	CONSTRAINT "account_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
+CREATE TABLE `region` (
+	`id` text PRIMARY KEY,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`tags` text DEFAULT '{}' NOT NULL,
+	`provider` text NOT NULL,
+	`code` text NOT NULL,
+	`name` text NOT NULL,
+	`residency` text NOT NULL,
+	CONSTRAINT `region_provider_code` UNIQUE(`provider`,`code`),
+	CONSTRAINT `region_provider_id` UNIQUE(`provider`,`id`),
+	CONSTRAINT `region_residency_id` UNIQUE(`id`,`residency`),
+	CONSTRAINT "region_residency" CHECK("residency" IN ('eu', 'us')),
+	CONSTRAINT "region_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE `tunnel` (
@@ -899,8 +925,9 @@ CREATE UNIQUE INDEX `preference_device` ON `preference` (`account_id`,`user_id`,
 CREATE UNIQUE INDEX `connection_oauth` ON `connected_account` (`account_id`,`provider`,`issuer`,`application_id`,`subject`) WHERE "connected_account"."kind" = 'oauth';--> statement-breakpoint
 CREATE UNIQUE INDEX `connection_installation` ON `connected_account` (`account_id`,`provider`,`issuer`,`application_id`,`installation_id`) WHERE "connected_account"."kind" = 'installation';--> statement-breakpoint
 CREATE INDEX `connection_user` ON `connected_account` (`user_id`);--> statement-breakpoint
-CREATE INDEX `personal_access_token_user` ON `personal_access_token` (`user_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `service_token_permission_scope` ON `service_token_permission` (`token_id`,coalesce("space_id", ''),`package_id`,`type`,`name`,coalesce("object_id", ''));--> statement-breakpoint
 CREATE INDEX `organisation_membership_user_id` ON `organisation_membership` (`user_id`);--> statement-breakpoint
+CREATE INDEX `personal_access_token_user` ON `personal_access_token` (`user_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `personal_access_token_permission_scope` ON `personal_access_token_permission` (`token_id`,coalesce("space_id", ''),`package_id`,`type`,`name`,coalesce("object_id", ''));--> statement-breakpoint
 CREATE INDEX `identity_user` ON `identity` (`user_id`);--> statement-breakpoint
 CREATE INDEX `session_user` ON `session` (`user_id`);--> statement-breakpoint

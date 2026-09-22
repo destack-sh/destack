@@ -1,7 +1,7 @@
 import { defineRelationsPart } from "@destack/db";
 import { user } from "../account/user.ts";
 import { account } from "../account/account.ts";
-import { serviceAccount } from "../account/service.ts";
+import { serviceAccount, serviceToken, serviceTokenPermission } from "../account/service.ts";
 import { personalAccessToken, personalAccessTokenPermission } from "../account/token.ts";
 import { device } from "../host/device.ts";
 import { space } from "../space/space.ts";
@@ -24,6 +24,8 @@ export const authenticationRelations = defineRelationsPart(
         user,
         account,
         serviceAccount,
+        serviceToken,
+        serviceTokenPermission,
         device,
         space,
         oauthResource,
@@ -186,6 +188,18 @@ export const authenticationRelations = defineRelationsPart(
             }),
             space: relation.one.space({
                 from: relation.personalAccessTokenPermission.spaceId,
+                to: relation.space.id,
+                optional: true,
+            }),
+        },
+        serviceTokenPermission: {
+            token: relation.one.serviceToken({
+                from: relation.serviceTokenPermission.tokenId,
+                to: relation.serviceToken.id,
+                optional: false,
+            }),
+            space: relation.one.space({
+                from: relation.serviceTokenPermission.spaceId,
                 to: relation.space.id,
                 optional: true,
             }),

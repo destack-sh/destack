@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "1e42dbe8-215a-496d-90fa-54b2c1b08e32",
+  "id": "203b2fe9-c2f4-4430-810f-c7c704419888",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -1200,7 +1200,33 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "revoked_at",
+      "name": "disabled_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "secret"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "delete_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "secret"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "destroyed_at",
       "entityType": "columns",
       "schema": "public",
       "table": "secret"
@@ -1247,7 +1273,7 @@
     {
       "type": "text",
       "typeSchema": null,
-      "notNull": true,
+      "notNull": false,
       "dimensions": 0,
       "default": null,
       "generated": null,
@@ -1278,7 +1304,7 @@
       "default": null,
       "generated": null,
       "identity": null,
-      "name": "revoked_at",
+      "name": "disabled_at",
       "entityType": "columns",
       "schema": "public",
       "table": "secret_version"
@@ -5646,6 +5672,34 @@
       "nameExplicit": true,
       "columns": [
         {
+          "value": "destroyed_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "delete_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "secret_deletion",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "secret"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
           "value": "(\"provenance\"::jsonb ->> 'kind')",
           "isExpression": true,
           "asc": true,
@@ -8328,7 +8382,7 @@
       "table": "secret_version"
     },
     {
-      "value": "length(\"reference\") > 0",
+      "value": "\"reference\" IS NULL OR length(\"reference\") > 0",
       "name": "secret_version_reference",
       "entityType": "checks",
       "schema": "public",

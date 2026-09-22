@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "731238fe-8530-4312-9222-3fe3bb6522d4",
+  "id": "a109ca8c-9822-45fa-8e24-1000f066517b",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -51,11 +51,15 @@
       "entityType": "tables"
     },
     {
-      "name": "personal_access_token",
+      "name": "service_token_permission",
       "entityType": "tables"
     },
     {
       "name": "organisation_membership",
+      "entityType": "tables"
+    },
+    {
+      "name": "personal_access_token",
       "entityType": "tables"
     },
     {
@@ -95,11 +99,11 @@
       "entityType": "tables"
     },
     {
-      "name": "oauth_resource",
+      "name": "organisation_invitation",
       "entityType": "tables"
     },
     {
-      "name": "organisation_invitation",
+      "name": "oauth_resource",
       "entityType": "tables"
     },
     {
@@ -139,11 +143,11 @@
       "entityType": "tables"
     },
     {
-      "name": "region",
+      "name": "account",
       "entityType": "tables"
     },
     {
-      "name": "account",
+      "name": "region",
       "entityType": "tables"
     },
     {
@@ -1236,6 +1240,16 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "table": "service_token"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
       "name": "service_account_id",
       "entityType": "columns",
       "table": "service_token"
@@ -1288,57 +1302,7 @@
       "generated": null,
       "name": "id",
       "entityType": "columns",
-      "table": "personal_access_token"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "table": "personal_access_token"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "table": "personal_access_token"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "1",
-      "generated": null,
-      "name": "revision",
-      "entityType": "columns",
-      "table": "personal_access_token"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "'{}'",
-      "generated": null,
-      "name": "tags",
-      "entityType": "columns",
-      "table": "personal_access_token"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "user_id",
-      "entityType": "columns",
-      "table": "personal_access_token"
+      "table": "service_token_permission"
     },
     {
       "type": "text",
@@ -1348,7 +1312,67 @@
       "generated": null,
       "name": "account_id",
       "entityType": "columns",
-      "table": "personal_access_token"
+      "table": "service_token_permission"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token_id",
+      "entityType": "columns",
+      "table": "service_token_permission"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "space_id",
+      "entityType": "columns",
+      "table": "service_token_permission"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "package_id",
+      "entityType": "columns",
+      "table": "service_token_permission"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "type",
+      "entityType": "columns",
+      "table": "service_token_permission"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "service_token_permission"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "object_id",
+      "entityType": "columns",
+      "table": "service_token_permission"
     },
     {
       "type": "text",
@@ -1429,6 +1453,116 @@
       "name": "role",
       "entityType": "columns",
       "table": "organisation_membership"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'{}'",
+      "generated": null,
+      "name": "tags",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token_hash",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "personal_access_token"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "revoked_at",
+      "entityType": "columns",
+      "table": "personal_access_token"
     },
     {
       "type": "text",
@@ -1586,7 +1720,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "account_id",
+      "name": "provider_user_id",
       "entityType": "columns",
       "table": "identity"
     },
@@ -1771,12 +1905,12 @@
       "table": "session"
     },
     {
-      "type": "integer",
+      "type": "text",
       "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "elevated_at",
+      "name": "authentication_method",
       "entityType": "columns",
       "table": "session"
     },
@@ -2578,6 +2712,146 @@
       "generated": null,
       "name": "id",
       "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'{}'",
+      "generated": null,
+      "name": "tags",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "organisation_id",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "invited_by",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "role",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token_hash",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "accepted_by",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "accepted_at",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "revoked_at",
+      "entityType": "columns",
+      "table": "organisation_invitation"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
       "table": "oauth_resource"
     },
     {
@@ -2719,146 +2993,6 @@
       "name": "metadata",
       "entityType": "columns",
       "table": "oauth_resource"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "1",
-      "generated": null,
-      "name": "revision",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "'{}'",
-      "generated": null,
-      "name": "tags",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "organisation_id",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "invited_by",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "email",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "role",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "token_hash",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "expires_at",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "accepted_by",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "accepted_at",
-      "entityType": "columns",
-      "table": "organisation_invitation"
-    },
-    {
-      "type": "integer",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "revoked_at",
-      "entityType": "columns",
-      "table": "organisation_invitation"
     },
     {
       "type": "text",
@@ -3798,96 +3932,6 @@
       "generated": null,
       "name": "id",
       "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "1",
-      "generated": null,
-      "name": "revision",
-      "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "'{}'",
-      "generated": null,
-      "name": "tags",
-      "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "provider",
-      "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "code",
-      "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "name",
-      "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "residency",
-      "entityType": "columns",
-      "table": "region"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
       "table": "account"
     },
     {
@@ -4049,6 +4093,96 @@
       "name": "organisation_id",
       "entityType": "columns",
       "table": "account"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "region"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "region"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "region"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
+      "entityType": "columns",
+      "table": "region"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'{}'",
+      "generated": null,
+      "name": "tags",
+      "entityType": "columns",
+      "table": "region"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "provider",
+      "entityType": "columns",
+      "table": "region"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "code",
+      "entityType": "columns",
+      "table": "region"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "region"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "residency",
+      "entityType": "columns",
+      "table": "region"
     },
     {
       "type": "text",
@@ -5610,48 +5744,54 @@
     },
     {
       "columns": [
+        "account_id",
         "service_account_id"
       ],
       "tableTo": "service_account",
       "columnsTo": [
+        "account_id",
         "id"
       ],
       "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
+      "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_service_token_service_account_id_service_account_id_fk",
+      "name": "fk_service_token_account_id_service_account_id_service_account_account_id_id_fk",
       "entityType": "fks",
       "table": "service_token"
     },
     {
       "columns": [
-        "user_id"
+        "account_id",
+        "token_id"
       ],
-      "tableTo": "user",
+      "tableTo": "service_token",
       "columnsTo": [
+        "account_id",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_personal_access_token_user_id_user_id_fk",
+      "name": "fk_service_token_permission_account_id_token_id_service_token_account_id_id_fk",
       "entityType": "fks",
-      "table": "personal_access_token"
+      "table": "service_token_permission"
     },
     {
       "columns": [
-        "account_id"
+        "account_id",
+        "space_id"
       ],
-      "tableTo": "account",
+      "tableTo": "space",
       "columnsTo": [
+        "account_id",
         "id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
-      "name": "fk_personal_access_token_account_id_account_id_fk",
+      "name": "fk_service_token_permission_account_id_space_id_space_account_id_id_fk",
       "entityType": "fks",
-      "table": "personal_access_token"
+      "table": "service_token_permission"
     },
     {
       "columns": [
@@ -5682,6 +5822,36 @@
       "name": "fk_organisation_membership_user_id_user_id_fk",
       "entityType": "fks",
       "table": "organisation_membership"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "user",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_personal_access_token_user_id_user_id_fk",
+      "entityType": "fks",
+      "table": "personal_access_token"
+    },
+    {
+      "columns": [
+        "account_id"
+      ],
+      "tableTo": "account",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_personal_access_token_account_id_account_id_fk",
+      "entityType": "fks",
+      "table": "personal_access_token"
     },
     {
       "columns": [
@@ -6754,8 +6924,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "personal_access_token_pk",
-      "table": "personal_access_token",
+      "name": "service_token_permission_pk",
+      "table": "service_token_permission",
       "entityType": "pks"
     },
     {
@@ -6765,6 +6935,15 @@
       "nameExplicit": false,
       "name": "organisation_membership_pk",
       "table": "organisation_membership",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "personal_access_token_pk",
+      "table": "personal_access_token",
       "entityType": "pks"
     },
     {
@@ -6853,8 +7032,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "oauth_resource_pk",
-      "table": "oauth_resource",
+      "name": "organisation_invitation_pk",
+      "table": "organisation_invitation",
       "entityType": "pks"
     },
     {
@@ -6862,8 +7041,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "organisation_invitation_pk",
-      "table": "organisation_invitation",
+      "name": "oauth_resource_pk",
+      "table": "oauth_resource",
       "entityType": "pks"
     },
     {
@@ -6943,8 +7122,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "region_pk",
-      "table": "region",
+      "name": "account_pk",
+      "table": "account",
       "entityType": "pks"
     },
     {
@@ -6952,8 +7131,8 @@
         "id"
       ],
       "nameExplicit": false,
-      "name": "account_pk",
-      "table": "account",
+      "name": "region_pk",
+      "table": "region",
       "entityType": "pks"
     },
     {
@@ -7324,16 +7503,36 @@
     {
       "columns": [
         {
-          "value": "user_id",
+          "value": "token_id",
           "isExpression": false
+        },
+        {
+          "value": "coalesce(\"space_id\", '')",
+          "isExpression": true
+        },
+        {
+          "value": "package_id",
+          "isExpression": false
+        },
+        {
+          "value": "type",
+          "isExpression": false
+        },
+        {
+          "value": "name",
+          "isExpression": false
+        },
+        {
+          "value": "coalesce(\"object_id\", '')",
+          "isExpression": true
         }
       ],
-      "isUnique": false,
+      "isUnique": true,
       "where": null,
       "origin": "manual",
-      "name": "personal_access_token_user",
+      "name": "service_token_permission_scope",
       "entityType": "indexes",
-      "table": "personal_access_token"
+      "table": "service_token_permission"
     },
     {
       "columns": [
@@ -7348,6 +7547,20 @@
       "name": "organisation_membership_user_id",
       "entityType": "indexes",
       "table": "organisation_membership"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "personal_access_token_user",
+      "entityType": "indexes",
+      "table": "personal_access_token"
     },
     {
       "columns": [
@@ -7973,6 +8186,26 @@
         "id"
       ],
       "nameExplicit": true,
+      "name": "service_token_account_id",
+      "entityType": "uniques",
+      "table": "service_token"
+    },
+    {
+      "columns": [
+        "organisation_id",
+        "user_id"
+      ],
+      "nameExplicit": true,
+      "name": "organisation_membership_user",
+      "entityType": "uniques",
+      "table": "organisation_membership"
+    },
+    {
+      "columns": [
+        "account_id",
+        "id"
+      ],
+      "nameExplicit": true,
       "name": "personal_access_token_account_id",
       "entityType": "uniques",
       "table": "personal_access_token"
@@ -7989,21 +8222,11 @@
     },
     {
       "columns": [
-        "organisation_id",
-        "user_id"
-      ],
-      "nameExplicit": true,
-      "name": "organisation_membership_user",
-      "entityType": "uniques",
-      "table": "organisation_membership"
-    },
-    {
-      "columns": [
         "provider_id",
-        "account_id"
+        "provider_user_id"
       ],
       "nameExplicit": true,
-      "name": "identity_provider_account",
+      "name": "identity_provider_user",
       "entityType": "uniques",
       "table": "identity"
     },
@@ -8238,6 +8461,15 @@
     },
     {
       "columns": [
+        "token_hash"
+      ],
+      "nameExplicit": false,
+      "name": "personal_access_token_token_hash_unique",
+      "entityType": "uniques",
+      "table": "personal_access_token"
+    },
+    {
+      "columns": [
         "token"
       ],
       "nameExplicit": false,
@@ -8283,21 +8515,21 @@
     },
     {
       "columns": [
-        "identifier"
-      ],
-      "nameExplicit": false,
-      "name": "oauth_resource_identifier_unique",
-      "entityType": "uniques",
-      "table": "oauth_resource"
-    },
-    {
-      "columns": [
         "token_hash"
       ],
       "nameExplicit": false,
       "name": "organisation_invitation_token_hash_unique",
       "entityType": "uniques",
       "table": "organisation_invitation"
+    },
+    {
+      "columns": [
+        "identifier"
+      ],
+      "nameExplicit": false,
+      "name": "oauth_resource_identifier_unique",
+      "entityType": "uniques",
+      "table": "oauth_resource"
     },
     {
       "columns": [
@@ -8507,10 +8739,28 @@
       "table": "service_token"
     },
     {
-      "value": "\"id\" IS NOT NULL",
-      "name": "personal_access_token_id_not_null",
+      "value": "length(\"type\") > 0 AND substr(\"type\", 1, 1) GLOB '[a-z]' AND \"type\" NOT GLOB '*[^a-z0-9-]*' AND \"type\" NOT LIKE '%--%' AND \"type\" NOT LIKE '%-'",
+      "name": "service_token_permission_name_0",
       "entityType": "checks",
-      "table": "personal_access_token"
+      "table": "service_token_permission"
+    },
+    {
+      "value": "length(\"name\") > 0 AND substr(\"name\", 1, 1) GLOB '[a-z]' AND \"name\" NOT GLOB '*[^a-z0-9-]*' AND \"name\" NOT LIKE '%--%' AND \"name\" NOT LIKE '%-'",
+      "name": "service_token_permission_name_1",
+      "entityType": "checks",
+      "table": "service_token_permission"
+    },
+    {
+      "value": "\"object_id\" IS NULL OR length(\"object_id\") > 0",
+      "name": "service_token_permission_object",
+      "entityType": "checks",
+      "table": "service_token_permission"
+    },
+    {
+      "value": "\"id\" IS NOT NULL",
+      "name": "service_token_permission_id_not_null",
+      "entityType": "checks",
+      "table": "service_token_permission"
     },
     {
       "value": "\"role\" IN ('owner', 'admin', 'member')",
@@ -8523,6 +8773,18 @@
       "name": "organisation_membership_id_not_null",
       "entityType": "checks",
       "table": "organisation_membership"
+    },
+    {
+      "value": "\"expires_at\" > \"created_at\"",
+      "name": "personal_access_token_expiry",
+      "entityType": "checks",
+      "table": "personal_access_token"
+    },
+    {
+      "value": "\"id\" IS NOT NULL",
+      "name": "personal_access_token_id_not_null",
+      "entityType": "checks",
+      "table": "personal_access_token"
     },
     {
       "value": "length(\"type\") > 0 AND substr(\"type\", 1, 1) GLOB '[a-z]' AND \"type\" NOT GLOB '*[^a-z0-9-]*' AND \"type\" NOT LIKE '%--%' AND \"type\" NOT LIKE '%-'",
@@ -8557,6 +8819,18 @@
     {
       "value": "\"expires_at\" > \"created_at\"",
       "name": "session_expiry_order",
+      "entityType": "checks",
+      "table": "session"
+    },
+    {
+      "value": "\"authentication_method\" IS NULL OR \"authentication_method\" IN ('magic-link', 'email-otp', 'oauth', 'device', 'totp', 'webauthn', 'recovery')",
+      "name": "session_authentication_method",
+      "entityType": "checks",
+      "table": "session"
+    },
+    {
+      "value": "\"authentication_method\" IS NULL OR \"authenticated_at\" IS NOT NULL",
+      "name": "session_authentication_time",
       "entityType": "checks",
       "table": "session"
     },
@@ -8615,12 +8889,6 @@
       "table": "oauth_client"
     },
     {
-      "value": "\"id\" IS NOT NULL",
-      "name": "oauth_resource_id_not_null",
-      "entityType": "checks",
-      "table": "oauth_resource"
-    },
-    {
       "value": "\"role\" IN ('owner', 'admin', 'member')",
       "name": "organisation_invitation_role",
       "entityType": "checks",
@@ -8643,6 +8911,12 @@
       "name": "organisation_invitation_id_not_null",
       "entityType": "checks",
       "table": "organisation_invitation"
+    },
+    {
+      "value": "\"id\" IS NOT NULL",
+      "name": "oauth_resource_id_not_null",
+      "entityType": "checks",
+      "table": "oauth_resource"
     },
     {
       "value": "\"id\" IS NOT NULL",
@@ -8723,18 +8997,6 @@
       "table": "host"
     },
     {
-      "value": "\"residency\" IN ('eu', 'us')",
-      "name": "region_residency",
-      "entityType": "checks",
-      "table": "region"
-    },
-    {
-      "value": "\"id\" IS NOT NULL",
-      "name": "region_id_not_null",
-      "entityType": "checks",
-      "table": "region"
-    },
-    {
       "value": "\"default_residency\" IN ('eu', 'us')",
       "name": "account_residency",
       "entityType": "checks",
@@ -8775,6 +9037,18 @@
       "name": "account_id_not_null",
       "entityType": "checks",
       "table": "account"
+    },
+    {
+      "value": "\"residency\" IN ('eu', 'us')",
+      "name": "region_residency",
+      "entityType": "checks",
+      "table": "region"
+    },
+    {
+      "value": "\"id\" IS NOT NULL",
+      "name": "region_id_not_null",
+      "entityType": "checks",
+      "table": "region"
     },
     {
       "value": "\"heartbeat_at\" >= \"created_at\" AND \"expires_at\" > \"heartbeat_at\"",

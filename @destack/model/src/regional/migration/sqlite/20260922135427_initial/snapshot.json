@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "e312e819-7d35-4382-bb1f-5e309b276f86",
+  "id": "96d31c7a-56a5-432e-ba9c-1fa12a00ac2c",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -904,7 +904,27 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "revoked_at",
+      "name": "disabled_at",
+      "entityType": "columns",
+      "table": "secret"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "delete_at",
+      "entityType": "columns",
+      "table": "secret"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "destroyed_at",
       "entityType": "columns",
       "table": "secret"
     },
@@ -940,7 +960,7 @@
     },
     {
       "type": "text",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -964,7 +984,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "revoked_at",
+      "name": "disabled_at",
       "entityType": "columns",
       "table": "secret_version"
     },
@@ -5595,6 +5615,24 @@
     {
       "columns": [
         {
+          "value": "destroyed_at",
+          "isExpression": false
+        },
+        {
+          "value": "delete_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "secret_deletion",
+      "entityType": "indexes",
+      "table": "secret"
+    },
+    {
+      "columns": [
+        {
           "value": "json_extract(\"provenance\", '$.kind')",
           "isExpression": true
         },
@@ -6544,7 +6582,7 @@
       "table": "secret_version"
     },
     {
-      "value": "length(\"reference\") > 0",
+      "value": "\"reference\" IS NULL OR length(\"reference\") > 0",
       "name": "secret_version_reference",
       "entityType": "checks",
       "table": "secret_version"

@@ -24,7 +24,7 @@ export const identity = table(
         /** The configured authentication provider. */
         providerId: text("provider_id").notNull(),
         /** The provider's user identifier. */
-        accountId: text("account_id").notNull(),
+        providerUserId: text("provider_user_id").notNull(),
         /** The encrypted provider access token. */
         accessToken: text("access_token"),
         /** The encrypted provider refresh token. */
@@ -41,7 +41,7 @@ export const identity = table(
         password: text("password"),
     },
     (identity) => [
-        unique("identity_provider_account").on(identity.providerId, identity.accountId),
+        unique("identity_provider_user").on(identity.providerId, identity.providerUserId),
         index("identity_user").on(identity.userId),
     ],
 );

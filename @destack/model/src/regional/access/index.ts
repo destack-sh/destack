@@ -5,3 +5,4 @@ export * from "./service.ts";
 export * from "./relation.ts";
 export * from "./network.ts";
 export * from "./deployment.ts";
+export * from "./query.ts";

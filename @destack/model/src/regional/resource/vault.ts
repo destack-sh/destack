@@ -5,6 +5,7 @@ import {
     type Identifier,
     identifier,
     integer,
+    index,
     primaryKey,
     recordColumns,
     type Select,
@@ -53,11 +54,16 @@ export const secret = table(
         name: text("name").notNull(),
         /** The selected current version; null before a value is assigned. */
         currentVersion: integer("current_version"),
-        /** Explicit revocation time. */
-        revokedAt: integer("revoked_at"),
+        /** Explicit disabling time. */
+        disabledAt: integer("disabled_at"),
+        /** Scheduled destruction time; null while retained. */
+        deleteAt: integer("delete_at"),
+        /** Completion time of irreversible value destruction. */
+        destroyedAt: integer("destroyed_at"),
     },
     (entry) => [
         unique("secret_vault_name").on(entry.vaultId, entry.name),
+        index("secret_deletion").on(entry.destroyedAt, entry.deleteAt),
         ...provenanceChecks("secret", entry),
         unique("secret_space_id").on(entry.spaceId, entry.id),
         foreignKey({
@@ -87,18 +93,21 @@ export const secretVersion = table(
         /** Creation time in UTC epoch milliseconds. */
         createdAt: integer("created_at").notNull(),
         /** The backend's immutable version reference, retained after destruction. */
-        reference: text("reference").notNull(),
+        reference: text("reference"),
         /** Optional value expiry. */
         expiresAt: integer("expires_at"),
-        /** Explicit revocation time. */
-        revokedAt: integer("revoked_at"),
+        /** Explicit disabling time. */
+        disabledAt: integer("disabled_at"),
         /** Time at which the encrypted value was destroyed. */
         destroyedAt: integer("destroyed_at"),
     },
     (entry) => [
         primaryKey({ columns: [entry.secretId, entry.version] }),
         check("secret_version_positive", sql`${entry.version} > 0`),
-        check("secret_version_reference", sql`length(${entry.reference}) > 0`),
+        check(
+            "secret_version_reference",
+            sql`${entry.reference} IS NULL OR length(${entry.reference}) > 0`,
+        ),
         check(
             "secret_version_expiry",
             sql`${entry.expiresAt} IS NULL OR ${entry.expiresAt} > ${entry.createdAt}`,
