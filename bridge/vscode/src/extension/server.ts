@@ -1,15 +1,6 @@
 import { createHash } from "node:crypto";
 import { constants as fileConstants } from "node:fs";
-import {
-    access,
-    chmod,
-    mkdir,
-    mkdtemp,
-    rename,
-    rm,
-    stat,
-    writeFile,
-} from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import * as path from "node:path";
 import extractZip from "extract-zip";
@@ -33,12 +24,23 @@ type ReleaseTarget = {
 
 /** The resolved Destack language server command. */
 export class ServerCommand {
+    /** Executable command. */
+    readonly command: string;
+    /** Command arguments. */
+    readonly arguments_: string[];
+    /** Process working directory. */
+    readonly workingDirectory: string | undefined;
+
     /** Create one resolved command. */
     private constructor(
-        readonly command: string,
-        readonly arguments_: string[],
-        readonly workingDirectory: string | undefined,
-    ) {}
+        command: string,
+        arguments_: string[],
+        workingDirectory: string | undefined,
+    ) {
+        this.command = command;
+        this.arguments_ = arguments_;
+        this.workingDirectory = workingDirectory;
+    }
 
     /** Resolve the language server command for one extension session. */
     static async resolve(context: vscode.ExtensionContext): Promise<ServerCommand> {
@@ -129,10 +131,7 @@ export class ServerCommand {
         // select the first executable candidate in build-profile order
         for (const candidate of candidates) {
             if (await this.isExecutable(candidate)) {
-                const argumentsWithSubcommand = this.withLspSubcommand(
-                    candidate,
-                    arguments_,
-                );
+                const argumentsWithSubcommand = this.withLspSubcommand(candidate, arguments_);
 
                 return new ServerCommand(candidate, argumentsWithSubcommand, root);
             }
@@ -271,11 +270,7 @@ export class ServerCommand {
     }
 
     /** Verify one release archive against its published SHA-256 digest. */
-    private static verifyArchive(
-        archiveName: string,
-        archive: Buffer,
-        checksums: string,
-    ): void {
+    private static verifyArchive(archiveName: string, archive: Buffer, checksums: string): void {
         const checksumLine = checksums
             .split(/\r?\n/)
             .find((line) => line.trimEnd().endsWith(` ${archiveName}`));
@@ -355,10 +350,7 @@ export class ServerCommand {
     ): string {
         let expanded = value;
         if (workspaceFolder) {
-            expanded = expanded.replaceAll(
-                "${workspaceFolder}",
-                workspaceFolder.uri.fsPath,
-            );
+            expanded = expanded.replaceAll("${workspaceFolder}", workspaceFolder.uri.fsPath);
         }
         if (expanded === "~") {
             return homedir();
@@ -408,7 +400,10 @@ export class ServerCommand {
 
     /** Return command arguments with the Destack LSP subcommand when required. */
     private static withLspSubcommand(command: string, arguments_: string[]): string[] {
-        const executableName = path.basename(command).toLowerCase().replace(/\.exe$/, "");
+        const executableName = path
+            .basename(command)
+            .toLowerCase()
+            .replace(/\.exe$/, "");
         if (executableName === COMMAND_NAME && arguments_[0] !== "lsp") {
             return ["lsp", ...arguments_];
         }

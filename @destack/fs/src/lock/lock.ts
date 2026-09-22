@@ -10,13 +10,16 @@ const POLL_INTERVAL = 25;
  * Use a persistent lock file in a trusted directory; keep its path intact while locks can exist.
  */
 export class FileLock implements AsyncDisposable {
+    /** The locked file's absolute path. */
+    readonly path: string;
+    /** The retained operating-system file. */
+    private readonly native: NativeLock;
+
     /** Retain the open file until explicitly released. */
-    private constructor(
-        /** The locked file's absolute path. */
-        readonly path: string,
-        /** The retained operating-system file. */
-        private readonly native: NativeLock,
-    ) {}
+    private constructor(path: string, native: NativeLock) {
+        this.path = path;
+        this.native = native;
+    }
 
     /** Open or create a file and wait for exclusive access. */
     static async acquire(path: string, options: FileLockOptions = {}): Promise<FileLock> {

@@ -21,16 +21,19 @@ const SYSTEM = dlopen("kernel32.dll", {
 
 /** A Windows file handle retained for LockFileEx ownership. */
 export class NativeLock {
+    /** The lock file's absolute path. */
+    readonly path: string;
+    /** The open handle that retains ownership. */
+    private readonly handle: bigint;
+
     /** Whether the handle has been closed. */
     private isClosed = false;
 
     /** Retain the file handle. */
-    private constructor(
-        /** The lock file's absolute path. */
-        readonly path: string,
-        /** The open handle that retains ownership. */
-        private readonly handle: bigint,
-    ) {}
+    private constructor(path: string, handle: bigint) {
+        this.path = path;
+        this.handle = handle;
+    }
 
     /** Open the persistent lock file without truncating it. */
     static async open(path: string): Promise<NativeLock> {

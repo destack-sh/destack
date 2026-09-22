@@ -14,14 +14,16 @@ const OPERATORS = { eq: "=", ne: "<>", lt: "<", lte: "<=", gt: ">", gte: ">=" };
 
 /** Compile authorization into correlated predicates for existing application queries. */
 export class AccessQuery {
+    /** Declared access model. */
+    readonly model: AccessModel;
+
     /** Application mappings indexed by declaring package and object type. */
     readonly #mappings = new Map<string, ObjectMapping>();
 
     /** Require complete mappings before accepting authorization queries. */
-    constructor(
-        readonly model: AccessModel,
-        mappings: readonly ObjectMapping[],
-    ) {
+    constructor(model: AccessModel, mappings: readonly ObjectMapping[]) {
+        this.model = model;
+
         // register each declaration once and resolve its application columns
         for (const source of mappings) {
             const mapping = freezeMapping(source);

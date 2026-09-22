@@ -10,16 +10,31 @@ import { accessGrant, accessToken } from "../stack/schema.ts";
 
 /** Persist sharing with explicit transactional authorization and audit recording. */
 export class GrantStore {
+    /** Database storing access grants. */
+    readonly database: DatabaseConnection;
+    /** Access query compiled for this database. */
+    readonly query: AccessQuery;
+    /** Record grant changes in the same transaction. */
+    readonly record: (
+        change: GrantChange,
+        context: AccessContext,
+        transaction: DatabaseConnection,
+    ) => Promise<void>;
+
     /** Bind persistence and the host's transactional audit implementation. */
     constructor(
-        readonly database: DatabaseConnection,
-        readonly query: AccessQuery,
-        readonly record: (
+        database: DatabaseConnection,
+        query: AccessQuery,
+        record: (
             change: GrantChange,
             context: AccessContext,
             transaction: DatabaseConnection,
         ) => Promise<void>,
-    ) {}
+    ) {
+        this.database = database;
+        this.query = query;
+        this.record = record;
+    }
 
     /** Authorize and persist an explicit sharing grant. */
     async grant(

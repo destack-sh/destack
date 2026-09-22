@@ -23,16 +23,19 @@ const ERRNO =
 
 /** A Unix file description retained for flock ownership. */
 export class NativeLock {
+    /** The lock file's absolute path. */
+    readonly path: string;
+    /** The open description that retains ownership. */
+    private readonly file: FileHandle;
+
     /** Share closure across repeated callers. */
     private closing?: Promise<void>;
 
     /** Retain the file description. */
-    private constructor(
-        /** The lock file's absolute path. */
-        readonly path: string,
-        /** The open description that retains ownership. */
-        private readonly file: FileHandle,
-    ) {}
+    private constructor(path: string, file: FileHandle) {
+        this.path = path;
+        this.file = file;
+    }
 
     /** Open the persistent lock file without truncating it. */
     static async open(path: string): Promise<NativeLock> {

@@ -6,16 +6,21 @@ import { Preview, type PreviewRequest, preview } from "../service/preview.ts";
 
 /** Preview lifecycle and subscriptions scoped to authenticated callers. */
 export class PreviewStore implements AsyncDisposable {
+    /** Preview process host. */
+    readonly host: PreviewHost;
+    /** Preview resource limits. */
+    readonly options: PreviewLimits;
+
     /** Retained previews indexed by identifier. */
     readonly #entries = new Map<string, PreviewEntry>();
     /** Whether the service refuses new previews. */
     #closed = false;
 
     /** Configure host access and bounded preview retention. */
-    constructor(
-        readonly host: PreviewHost,
-        readonly options: PreviewLimits,
-    ) {
+    constructor(host: PreviewHost, options: PreviewLimits) {
+        this.host = host;
+        this.options = options;
+
         // require finite bounds before accepting any work
         if (
             Object.values(options).some((value) => !Number.isSafeInteger(value) || value <= 0) ||

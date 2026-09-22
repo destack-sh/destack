@@ -18,11 +18,19 @@ export interface PackageDistribution {
 
 /** Read selected manifest descriptions through a caller-supplied file transport. */
 export class PackageReader {
+    /** Manifest describing the stored package. */
+    readonly manifest: PackageManifest;
+    /** Read one package file by its relative path. */
+    readonly load: (path: string) => Promise<Uint8Array<ArrayBuffer>>;
+
     /** Bind a manifest to local, registry or browser file access. */
     constructor(
-        readonly manifest: PackageManifest,
-        readonly load: (path: string) => Promise<Uint8Array<ArrayBuffer>>,
-    ) {}
+        manifest: PackageManifest,
+        load: (path: string) => Promise<Uint8Array<ArrayBuffer>>,
+    ) {
+        this.manifest = manifest;
+        this.load = load;
+    }
 
     /** Read exact compiler dependency resolutions. */
     dependencies() {

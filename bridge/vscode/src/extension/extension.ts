@@ -1,8 +1,5 @@
 import * as vscode from "vscode";
-import {
-    LanguageClient,
-    type LanguageClientOptions,
-} from "vscode-languageclient/node";
+import { LanguageClient, type LanguageClientOptions } from "vscode-languageclient/node";
 
 import { ServerCommand } from "./server";
 
@@ -16,6 +13,9 @@ type SourcePosition = {
 
 /** The active Destack VS Code extension. */
 export class DestackExtension {
+    /** Extension context. */
+    private readonly context: vscode.ExtensionContext;
+
     /** The active language client. */
     private client: LanguageClient | undefined;
     /** The last queued language client change. */
@@ -26,7 +26,9 @@ export class DestackExtension {
     private readonly log: vscode.LogOutputChannel;
 
     /** Create one extension owned by its VS Code context. */
-    constructor(private readonly context: vscode.ExtensionContext) {
+    constructor(context: vscode.ExtensionContext) {
+        this.context = context;
+
         this.log = vscode.window.createOutputChannel("Destack", { log: true });
         context.subscriptions.push(this.log);
     }
@@ -57,9 +59,7 @@ export class DestackExtension {
     /** Start a newly resolved language client. */
     private async startClient(): Promise<void> {
         const command = await ServerCommand.resolve(this.context);
-        this.log.info(
-            `event=server.start executable=${JSON.stringify(command.command)}`,
-        );
+        this.log.info(`event=server.start executable=${JSON.stringify(command.command)}`);
 
         const client = new LanguageClient(
             "destack",
@@ -84,10 +84,7 @@ export class DestackExtension {
                 codeLensCommands: ["references", "implementations"],
             },
             synchronize: {
-                configurationSection: [
-                    "destack.completion",
-                    "destack.inlayHints",
-                ],
+                configurationSection: ["destack.completion", "destack.inlayHints"],
             },
         };
     }
@@ -122,30 +119,26 @@ export class DestackExtension {
             vscode.commands.registerCommand(
                 "destack.showReferences",
                 async (uri: string, position: SourcePosition) => {
-                    await this.report(
-                        "show Destack references",
-                        async () =>
-                            this.showLocations(
-                                uri,
-                                position,
-                                "vscode.executeReferenceProvider",
-                                "No references found.",
-                            ),
+                    await this.report("show Destack references", async () =>
+                        this.showLocations(
+                            uri,
+                            position,
+                            "vscode.executeReferenceProvider",
+                            "No references found.",
+                        ),
                     );
                 },
             ),
             vscode.commands.registerCommand(
                 "destack.showImplementations",
                 async (uri: string, position: SourcePosition) => {
-                    await this.report(
-                        "show Destack implementations",
-                        async () =>
-                            this.showLocations(
-                                uri,
-                                position,
-                                "vscode.executeImplementationProvider",
-                                "No implementations found.",
-                            ),
+                    await this.report("show Destack implementations", async () =>
+                        this.showLocations(
+                            uri,
+                            position,
+                            "vscode.executeImplementationProvider",
+                            "No implementations found.",
+                        ),
                     );
                 },
             ),
@@ -172,9 +165,7 @@ export class DestackExtension {
     private async showLocations(
         uriValue: string,
         positionValue: SourcePosition,
-        provider:
-            | "vscode.executeReferenceProvider"
-            | "vscode.executeImplementationProvider",
+        provider: "vscode.executeReferenceProvider" | "vscode.executeImplementationProvider",
         emptyMessage: string,
     ): Promise<void> {
         if (
@@ -188,9 +179,11 @@ export class DestackExtension {
         const uri = vscode.Uri.parse(uriValue);
         const position = new vscode.Position(positionValue.line, positionValue.character);
         const results =
-            (await vscode.commands.executeCommand<
-                Array<vscode.Location | vscode.LocationLink>
-            >(provider, uri, position)) ?? [];
+            (await vscode.commands.executeCommand<Array<vscode.Location | vscode.LocationLink>>(
+                provider,
+                uri,
+                position,
+            )) ?? [];
         const locations = results.map((result) =>
             "targetUri" in result
                 ? new vscode.Location(

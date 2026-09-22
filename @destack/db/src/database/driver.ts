@@ -5,12 +5,19 @@ import type { ConnectionState } from "./connection.ts";
 
 /** A native Drizzle database and its query lifetime. */
 export class DatabaseDriver {
+    /** Native database connection. */
+    readonly native: NativeDatabase;
+    /** Shared connection lifecycle. */
+    readonly state: ConnectionState;
+    /** Active transaction state, when present. */
+    readonly transaction?: TransactionState;
+
     /** Retain the native database, connection state, and optional transaction state. */
-    constructor(
-        readonly native: NativeDatabase,
-        readonly state: ConnectionState,
-        readonly transaction?: TransactionState,
-    ) {}
+    constructor(native: NativeDatabase, state: ConnectionState, transaction?: TransactionState) {
+        this.native = native;
+        this.state = state;
+        this.transaction = transaction;
+    }
 
     /** Submit work through the active transaction or connection. */
     run<Value>(operation: () => PromiseLike<Value>): Promise<Value> {

@@ -17,6 +17,9 @@ export interface AccessView {
 
 /** An immutable indexed snapshot for offline inspection and reproducible decisions. */
 export class AccessSnapshot implements AccessView {
+    /** Revision identifying this access view. */
+    readonly revision: string | number;
+
     /** Empty grant collections share one immutable array. */
     static readonly #empty: readonly Grant[] = Object.freeze([]);
     /** Protected records indexed by their complete object references. */
@@ -28,11 +31,13 @@ export class AccessSnapshot implements AccessView {
 
     /** Copy and index one snapshot; reuse it for any number of decisions. */
     constructor(
-        readonly revision: string | number,
+        revision: string | number,
         objects: readonly AccessObject[],
         grants: readonly Grant[],
         tokens: readonly ShareToken[] = [],
     ) {
+        this.revision = revision;
+
         // freeze copied values so a caller cannot change the snapshot through a returned record
         for (const object of structuredClone(objects)) {
             const key = objectKey(object.reference);

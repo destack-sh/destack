@@ -28,11 +28,16 @@ export interface Decision {
 
 /** Evaluate a fixed application snapshot without network or database calls. */
 export class Access {
+    /** Declared access model. */
+    readonly model: AccessModel;
+    /** Current objects and grants. */
+    readonly view: AccessView;
+
     /** Retain authoritative state by reference; the host supplies its consistency lifetime. */
-    constructor(
-        readonly model: AccessModel,
-        readonly view: AccessView,
-    ) {}
+    constructor(model: AccessModel, view: AccessView) {
+        this.model = model;
+        this.view = view;
+    }
 
     /** Check a permission against a trusted request context. */
     check(
