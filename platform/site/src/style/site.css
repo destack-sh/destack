@@ -11,6 +11,7 @@
 @layer reset {
     :root {
         --site-width: 64rem;
+        --site-sky: #12313c;
         --site-gutter-left: calc(1.5rem + env(safe-area-inset-left));
         --site-gutter-right: calc(1.5rem + env(safe-area-inset-right));
         color-scheme: light dark;
@@ -1196,11 +1197,11 @@
 
 /* keep the navigation, footer, and stars in one shared frame */
 body:has([data-site]) {
-    background: #12313c;
+    background: var(--site-sky);
 }
 [data-site],
 [data-site-menu] {
-    --destack-color-background: #12313c;
+    --destack-color-background: var(--site-sky);
     --destack-color-foreground: #f1eadb;
     --destack-color-muted: #12313c;
     --destack-color-mutedForeground: #a8bbbd;
@@ -1219,7 +1220,7 @@ body:has([data-site]) {
 [data-site] > div > header,
 [data-site] > div > footer {
     color-scheme: dark;
-    font-family: "IBM Plex Mono", monospace;
+    font-family: "IBM Plex Sans Variable", sans-serif;
 }
 [data-site] > div > header,
 [data-site] > div > footer {
@@ -1231,8 +1232,8 @@ body:has([data-site]) {
 }
 [data-site-navigation] a,
 [data-site-footer] > span {
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 12px;
+    font-family: "IBM Plex Sans Variable", sans-serif;
+    font-size: 14px;
 }
 [data-site] a:focus-visible,
 [data-site] button:focus-visible,

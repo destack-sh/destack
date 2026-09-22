@@ -1,6 +1,6 @@
 /* give the journal and manual one palette in each reading theme */
 [data-reading] {
-    --destack-color-background: light-dark(#f8f5ee, #172b34);
+    --destack-color-background: light-dark(#f8f5ee, var(--site-sky));
     --destack-color-foreground: light-dark(#26363c, #e8e3d8);
     --destack-color-muted: light-dark(#eeeae0, #213841);
     --destack-color-mutedForeground: light-dark(#626963, #a6b5b7);
@@ -29,6 +29,16 @@ main[data-reading]::before {
     mix-blend-mode: multiply;
     opacity: 0.24;
     pointer-events: none;
+}
+
+/* keep the night sky flat in both selected and system dark themes */
+:root[data-theme="dark"] main[data-reading]::before {
+    display: none;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) main[data-reading]::before {
+        display: none;
+    }
 }
 
 /* align chapter navigation and article openings on the same grid */
