@@ -5,7 +5,7 @@ export const MigrationDescription = defineSchema(
     schema.object({
         /** The committed migration directory name. */
         name: schema.string().min(1),
-        /** The SHA-256 digest of the SQL file. */
+        /** The SHA-256 digest of the SQL and optional TypeScript transformation. */
         checksum: schema.string().regex(/^[a-f0-9]{64}$/),
     }),
 );

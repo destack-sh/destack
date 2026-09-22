@@ -1,0 +1,56 @@
+{
+    "version": "7",
+    "dialect": "sqlite",
+    "id": "73616de7-d093-42cf-8972-12d694a4d61a",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "name": "tree_node",
+            "entityType": "tables"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "tree_node"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "tree_node"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "parent",
+            "entityType": "columns",
+            "table": "tree_node"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "tree_node_pk",
+            "table": "tree_node",
+            "entityType": "pks"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "tree_node_id_not_null",
+            "entityType": "checks",
+            "table": "tree_node"
+        }
+    ],
+    "renames": []
+}

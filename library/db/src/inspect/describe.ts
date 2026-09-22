@@ -152,6 +152,9 @@ export function describeSchema(
         version: 1,
         dialect,
         tables: Object.values(definition.tables).map((table) => describeTable(table, dialect)),
+        ...(definition.trees?.length
+            ? { trees: definition.trees.map((tree) => tree.describe()) }
+            : {}),
         ...(definition.dependencies?.length
             ? { dependencies: definition.dependencies.map((schema) => schema.name) }
             : {}),

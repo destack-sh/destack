@@ -11,7 +11,7 @@ import * as postgres from "drizzle-orm/pg-core";
 import { describeColumnSchema } from "../inspect/table.ts";
 import type { Dialect } from "./dialect.ts";
 import { Column } from "../table/column.ts";
-import { TABLE, type Table } from "../table/table.ts";
+import { TABLE, Table } from "../table/table.ts";
 import { compileExpression } from "./expression.ts";
 import type { NativeRelations, NativeTable } from "./table.ts";
 import * as relation from "drizzle-orm/relations";
@@ -99,6 +99,15 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
 
     /** Translate a logical expression to physical columns. */
     expression<Value>(expression: SQL<Value>): SQL<Value> {
+        // register nested table aliases before resolving columns that precede their FROM clause
+        compileExpression(expression, this.dialect, (chunk) => {
+            if (chunk instanceof Table) {
+                this.table(chunk);
+            }
+
+            return chunk;
+        });
+
         return compileExpression(expression, this.dialect, (chunk) => this.chunk(chunk));
     }
 

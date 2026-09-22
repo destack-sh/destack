@@ -4,7 +4,9 @@ export type DatabaseErrorCode =
     | "INVALID_MIGRATION"
     | "MIGRATION_FAILED"
     | "CONNECTION_CLOSED"
-    | "TRANSACTION_CLOSED";
+    | "TRANSACTION_CLOSED"
+    | "TRANSACTION_REQUIRED"
+    | "TREE_NOT_FOUND";
 
 /** A database failure with a stable code. */
 export class DatabaseError extends Error {

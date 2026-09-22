@@ -137,14 +137,23 @@ export const notes = defineDatabaseSchema({
 
 ## Migrations
 
-Apply committed Drizzle SQL before starting consumers. Histories run atomically; statements that
-cannot run in a transaction are rejected by the engine.
+Apply committed Drizzle SQL before starting consumers.
+Histories run atomically; statements that cannot run in a transaction are rejected by the engine.
 
 ```ts
 import { migrate, prepare } from "@destack/db/migration";
 
 await migrate(database, notes);
 const ready = await prepare(database, [notes]);
+```
+
+```ts
+// migration/20260922000000_backfill/migration.ts
+import { sql, type DatabaseConnection } from "@destack/db";
+
+export async function migrate(database: DatabaseConnection): Promise<void> {
+    await database.execute(sql`UPDATE note SET title = 'Untitled' WHERE title IS NULL`);
+}
 ```
 
 ## Generation
@@ -160,6 +169,28 @@ const result = await generateMigrations({
     dialect: "postgresql",
     name: "add_title",
 });
+```
+
+## Trees
+
+```ts
+import { defineTree } from "@destack/db/tree";
+import { defineDatabaseSchema } from "@destack/db";
+
+const parent = defineTree({
+    name: "parent", table: node, id: "id", scope: "spaceId", parent: "parentId",
+});
+
+export const schema = defineDatabaseSchema({
+    name: "notes",
+    tables: { node, ancestors: parent.ancestors, revision: parent.revision },
+    trees: [parent],
+    migrations: new URL("./migration/", import.meta.url),
+});
+
+await database.select().from(node).where(parent.descendantsOf(spaceId, noteId));
+await parent.move(spaceId, noteId, folderId, database);
+await parent.remove(spaceId, noteId, "reparent", database);
 ```
 
 ## Inspection

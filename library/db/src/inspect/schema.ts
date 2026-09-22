@@ -2,6 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { ResourceName } from "@destack/resource";
 import { Dialect } from "../dialect/dialect.ts";
 import { TableDescription } from "./table.ts";
+import { TreeDescription } from "./tree.ts";
 
 /** The tables managed by one named database schema. */
 export const DatabaseSchemaDescription = defineSchema(
@@ -14,6 +15,8 @@ export const DatabaseSchemaDescription = defineSchema(
         dialect: Dialect,
         /** The declared tables, columns, indexes and relationships. */
         tables: schema.array(TableDescription),
+        /** Tree indexes maintained by the schema's committed migrations. */
+        trees: schema.array(TreeDescription).optional(),
         /** Schema histories that must be prepared before this one. */
         dependencies: schema.array(ResourceName).optional(),
     }),

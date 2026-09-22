@@ -1,0 +1,204 @@
+{
+    "version": "8",
+    "dialect": "postgres",
+    "id": "f7b5586e-6433-414e-b727-97eadfa66111",
+    "prevIds": ["c190fe5f-4fba-4fb6-8328-5f8f3757a783"],
+    "ddl": [
+        {
+            "isRlsEnabled": false,
+            "name": "tree_node",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "isRlsEnabled": false,
+            "name": "tree_node_parent_ancestor",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "isRlsEnabled": false,
+            "name": "tree_node_parent_ancestor_revision",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "parent",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "ancestor",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "descendant",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "depth",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor_revision"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "revision",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor_revision"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "scope",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "descendant",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "ancestor",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "tree_node_parent_ancestor_descendant",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "tree_node_pkey",
+            "schema": "public",
+            "table": "tree_node",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["scope"],
+            "nameExplicit": false,
+            "name": "tree_node_parent_ancestor_revision_pkey",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor_revision",
+            "entityType": "pks"
+        },
+        {
+            "nameExplicit": true,
+            "columns": ["scope", "ancestor", "descendant"],
+            "nullsNotDistinct": false,
+            "name": "tree_node_parent_ancestor_path",
+            "entityType": "uniques",
+            "schema": "public",
+            "table": "tree_node_parent_ancestor"
+        }
+    ],
+    "renames": []
+}

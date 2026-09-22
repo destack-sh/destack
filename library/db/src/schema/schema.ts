@@ -1,6 +1,8 @@
 import { ResourceName } from "@destack/resource";
 import type { Table } from "../table/table.ts";
 import type { TableRelations } from "./relation.ts";
+import type { Tree } from "../tree/tree.ts";
+import { DatabaseError } from "../error/error.ts";
 
 /** A named collection of tables and its committed migration history. */
 export interface DatabaseSchema<
@@ -11,6 +13,8 @@ export interface DatabaseSchema<
     readonly name: string;
     /** The tables managed by this schema. */
     readonly tables: Tables;
+    /** Trees whose tables and maintenance SQL belong to this migration history. */
+    readonly trees?: readonly Tree[];
     /** Schemas whose tables must exist before this schema is applied. */
     readonly dependencies?: readonly DatabaseSchema[];
     /** Relationships available through this schema's query API. */
@@ -24,8 +28,6 @@ export function defineDatabaseSchema<
     Tables extends Record<string, Table>,
     Relations extends Record<string, TableRelations> = {},
 >(definition: DatabaseSchema<Tables, Relations>): DatabaseSchema<Tables, Relations> {
-    ResourceName.parse(definition.name);
-
     return definition;
 }
 
@@ -50,15 +52,35 @@ function visitSchema(
     active: Set<DatabaseSchema>,
     ordered: DatabaseSchema[],
 ): void {
+    // validate history identity when assembling schemas for generation or preparation
+    ResourceName.parse(schema.name);
     if (active.has(schema)) {
-        throw new TypeError(`Cyclic database schema dependency: ${schema.name}.`);
+        throw new DatabaseError(
+            "INVALID_MIGRATION",
+            `cyclic database schema dependency: ${schema.name}`,
+        );
     }
     const previous = visited.get(schema.name);
     if (previous && previous !== schema) {
-        throw new TypeError(`Conflicting database schema: ${schema.name}.`);
+        throw new DatabaseError("INVALID_MIGRATION", `conflicting database schema: ${schema.name}`);
     }
     if (previous) {
         return;
+    }
+
+    // keep source records and their generated tree indexes in one migration history
+    const tables = new Set(Object.values(schema.tables));
+    for (const tree of schema.trees ?? []) {
+        if (
+            ![tree.definition.table, tree.ancestors, tree.revision].every((table) =>
+                tables.has(table),
+            )
+        ) {
+            throw new DatabaseError(
+                "INVALID_MIGRATION",
+                "tree tables must belong to their declaring database schema",
+            );
+        }
     }
 
     // retain declaration identity while visiting shared dependencies once

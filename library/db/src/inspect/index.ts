@@ -3,3 +3,4 @@ export * from "./schema.ts";
 export * from "./migration.ts";
 export * from "./describe.ts";
 export * from "./catalog.ts";
+export * from "./tree.ts";

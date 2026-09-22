@@ -4,12 +4,14 @@ import type { Migration } from "../migration/migration.ts";
 import { DatabaseError } from "../error/index.ts";
 import type { MigrationDescription } from "../inspect/migration.ts";
 import { MigrationHistory } from "../migration/history.ts";
+import type { DatabaseConnection } from "../database/connection.ts";
 
 /** Apply committed SQL through an existing PostgreSQL transaction. */
 export async function applyMigrations(
     transaction: Pick<PostgresJsDatabase, "execute">,
     migrations: readonly Migration[],
     name: string,
+    database: DatabaseConnection,
 ): Promise<void> {
     const history = new MigrationHistory(migrations, name);
 
@@ -27,6 +29,7 @@ export async function applyMigrations(
             for (const statement of migration.statements) {
                 await transaction.execute(sql.raw(statement));
             }
+            await migration.apply?.(database);
             await transaction.execute(history.insert(migration, applied.length + offset + 1));
         } catch (cause) {
             throw new DatabaseError("MIGRATION_FAILED", `Migration failed: ${migration.name}.`, {

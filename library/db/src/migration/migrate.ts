@@ -22,12 +22,14 @@ export async function migrate(
                     connection.native.database,
                     migrations,
                     definition.name,
+                    transaction,
                 );
             } else if (connection.native.dialect === "postgresql") {
                 await postgres.applyMigrations(
                     connection.native.database,
                     migrations,
                     definition.name,
+                    transaction,
                 );
             } else {
                 assertNever(connection.native);

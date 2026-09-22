@@ -12,6 +12,8 @@
         "src/postgres/inspect/index.ts",
         "src/migration/index.ts",
         "src/migration/generate.ts",
+        "src/tree/index.ts",
+        "src/tree/tests/tree.test.ts",
         "src/turso/index.ts",
         "src/turso/serverless/index.ts"
     ]
