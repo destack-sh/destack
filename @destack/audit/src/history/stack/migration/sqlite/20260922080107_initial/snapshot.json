@@ -1,7 +1,7 @@
 {
     "version": "7",
     "dialect": "sqlite",
-    "id": "5f462675-5521-4da8-b41c-f77a6eb994e9",
+    "id": "1c643368-65dd-400e-a3c3-db584cf98201",
     "prevIds": ["00000000-0000-0000-0000-000000000000"],
     "ddl": [
         {
@@ -82,7 +82,7 @@
             "autoincrement": false,
             "default": null,
             "generated": null,
-            "name": "package",
+            "name": "package_id",
             "entityType": "columns",
             "table": "audit_event"
         },
@@ -350,6 +350,28 @@
             "where": null,
             "origin": "manual",
             "name": "audit_action_time",
+            "entityType": "indexes",
+            "table": "audit_event"
+        },
+        {
+            "columns": [
+                {
+                    "value": "package_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "recorded_at",
+                    "isExpression": false
+                },
+                {
+                    "value": "id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "audit_package_time",
             "entityType": "indexes",
             "table": "audit_event"
         },

@@ -163,7 +163,7 @@ export class AuditHistory {
                 id: event.id,
                 attemptId: event.attemptId ?? null,
                 action: event.action.name,
-                package: event.action.package.name,
+                packageId: event.action.package.id,
                 accountId: event.context.accountId ?? null,
                 spaceId: event.context.spaceId ?? null,
                 hostId: event.context.hostId ?? null,
@@ -230,8 +230,8 @@ export class AuditHistory {
         if (query.action) {
             filters.push(eq(auditEvent.action, query.action));
         }
-        if (query.package) {
-            filters.push(eq(auditEvent.package, query.package));
+        if (query.packageId) {
+            filters.push(eq(auditEvent.packageId, query.packageId));
         }
 
         // select an actor or occurrence

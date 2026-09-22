@@ -6,7 +6,6 @@
 }
 .landing {
     position: relative;
-    z-index: 1;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -17,6 +16,8 @@
     margin-inline: auto;
 }
 .wordmark {
+    position: relative;
+    z-index: 2;
     width: 100%;
     container-type: inline-size;
 }
@@ -58,7 +59,7 @@
 .landscape {
     position: absolute;
     inset: 0;
-    z-index: 2;
+    z-index: 1;
     pointer-events: none;
 }
 .orbit-scene {
@@ -72,14 +73,12 @@
 }
 .invitation {
     position: relative;
-    isolation: isolate;
     width: 100%;
     text-align: center;
-    container-type: inline-size;
 }
 .horizon {
     position: absolute;
-    z-index: -1;
+    z-index: 0;
     top: -24px;
     left: 0;
     width: 100%;
@@ -88,15 +87,25 @@
     pointer-events: none;
 }
 .invitation h2 {
+    position: relative;
+    z-index: 2;
     margin: 0;
+    transform: translateY(-10px);
+}
+.invitation h2 svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    fill: currentColor;
     font:
-        400 5.9cqw/1.15 "Limelight",
+        400 59px "Limelight",
         sans-serif;
     text-transform: uppercase;
-    white-space: nowrap;
 }
+/* place interactive controls above the foreground and planet */
 .landing-actions {
     position: relative;
+    z-index: 2;
     width: min(100%, 700px);
     margin: 32px auto 0;
 }

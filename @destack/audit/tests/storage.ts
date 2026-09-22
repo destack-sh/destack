@@ -10,10 +10,15 @@ import { AuditRecorder, defineAuditAction } from "../src/index.ts";
 import { AuditOutbox, auditOutboxSchema } from "../src/outbox/index.ts";
 import { AuditHistory, auditSchema } from "../src/history/index.ts";
 import { document, testSchema } from "./stack/index.ts";
+import { PackageId } from "@destack/package";
 
 /** A declared change with explicit historical details. */
 export const renameDocument = defineAuditAction({
-    package: { name: "@example/document", version: "1.0.0" },
+    package: {
+        id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
+        name: "@example/document",
+        version: "1.0.0",
+    },
     name: "document.rename",
     version: 1,
     targets: schema.object({

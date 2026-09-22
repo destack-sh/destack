@@ -1,9 +1,13 @@
 import { telemetry, trace } from "@destack/telemetry";
 import { ServiceError } from "../error/index.ts";
-import manifest from "../../package.json" with { type: "json" };
+import metadata from "../../package.json" with { type: "json" };
+import definition from "../../destack.json" with { type: "json" };
+import { Package } from "@destack/package";
 
 /** Service failure instrumentation. */
-const instruments = telemetry.scope(manifest);
+const instruments = telemetry.scope(
+    Package.parse({ id: definition.id, name: metadata.name, version: metadata.version }),
+);
 
 /** Record unexpected failures and return an error safe to send to clients. */
 export function reportError(error: unknown): ServiceError<string, unknown> {

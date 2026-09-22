@@ -29,6 +29,7 @@
         "@destack/test": "workspace:*"
     },
     "dependencies": {
+        "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@orpc/shared": "1.15.1",
@@ -37,6 +38,7 @@
         "@orpc/openapi": "1.15.1",
         "@orpc/openapi-client": "1.15.1",
         "@orpc/server": "1.15.1",
-        "@destack/resource": "workspace:*"
+        "@destack/resource": "workspace:*",
+        "@destack/access": "workspace:*"
     }
 }

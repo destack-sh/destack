@@ -1,51 +1,20 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
-set dotenv-load := true
-set dotenv-filename := "../.env.local"
 
 _default:
     @just --list --unsorted
 
-# lint
-lint:
-    bun run destack-check check */src
+# check
+check:
+    cd .. && bun run --filter './@destack/*' --if-present check
 
 # test
 test:
-    just fs/test
-    just update/test
-    just build/test
-    bun run --cwd storage test
+    cd .. && bun run --bun --filter './@destack/*' --if-present test
 
-# check
-check:
-    just check-quick
-
-# check quick
-check-quick:
-    just fs/check
-    bun run --cwd check check
-    just update/check
-    just test/check
-    just schema/check
-    just resource/check
-    just vault/check
-    just storage/check
-    just package/check
-    just space/check
-    just build/check
-    just db/check
-    just model/check
-    just service/check
-    just telemetry/check
-    just signals/check
-    just view/check
-    just style/check
-    just theme/check
-
-# check full
-check-full:
-    just check-quick
+# lint
+lint:
+    bun run destack-check check */src
 
 # format
 format:
@@ -55,9 +24,4 @@ format:
 format-check:
     bun run destack-check format-check */src
 
-# format
 alias fmt := format
-
-# clean
-clean:
-    rm -rf node_modules

@@ -1,3 +1,5 @@
+import { PackageId } from "@destack/package/package";
+import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
 import { identifier } from "@destack/schema/identifier";
 import { defineProcedure, eventIterator } from "@destack/service";
@@ -38,7 +40,11 @@ export const auditService = {
 function procedure(action: "ingest" | "get" | "list" | "export" | "prune") {
     return defineProcedure({
         authentication: "identity",
-        permission: { resource: "audit", action },
+        permission: {
+            packageId: PackageId.parse(packageDefinition.id),
+            type: "audit",
+            name: action,
+        },
         audit: false,
     });
 }

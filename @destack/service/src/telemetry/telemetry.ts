@@ -12,7 +12,16 @@ import {
 } from "@destack/telemetry";
 import { AsyncIteratorClass, setGlobalOtelConfig } from "@orpc/shared";
 import { ServiceError } from "../error/index.ts";
-import manifest from "../../package.json" with { type: "json" };
+import metadata from "../../package.json" with { type: "json" };
+import definition from "../../destack.json" with { type: "json" };
+import { Package } from "@destack/package";
+
+/** The package declaring service instrumentation. */
+const manifest = Package.parse({
+    id: definition.id,
+    name: metadata.name,
+    version: metadata.version,
+});
 
 /** Record complete RPC calls, including streamed results. */
 export class ServiceTelemetry {

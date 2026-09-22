@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { identifier } from "@destack/schema/identifier";
 import { AuditEvent } from "../event/index.ts";
 import { AuditActionName } from "../action/index.ts";
-import { PackageName } from "@destack/package";
+import { PackageId } from "@destack/package";
 
 /** The independently authorized audit collection. */
 export const AuditScope = defineSchema(
@@ -32,7 +32,7 @@ export const AuditQuery = defineSchema(
     schema.object({
         scope: AuditScope,
         action: AuditActionName.optional(),
-        package: PackageName.optional(),
+        packageId: PackageId.optional(),
         actor: schema.string().min(1).optional(),
         target: schema
             .object({ type: schema.string().min(1), id: schema.string().min(1) })

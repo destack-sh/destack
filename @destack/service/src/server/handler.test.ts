@@ -1,3 +1,5 @@
+import { PackageId } from "@destack/package/package";
+import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { startTelemetry } from "@destack/telemetry/host";
@@ -40,7 +42,11 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     const service = {
         read: defineProcedure({
             authentication: "identity",
-            permission: { resource: "notes", action: "read" },
+            permission: {
+                packageId: PackageId.parse(packageDefinition.id),
+                type: "notes",
+                name: "read",
+            },
             audit: true,
         })
             .route({ method: "GET", path: "/notes" })
@@ -65,8 +71,9 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         if (
             context.caller !== "alice" ||
             access.authentication !== "identity" ||
-            access.permission?.resource !== "notes" ||
-            access.permission.action !== "read"
+            access.permission?.packageId !== packageDefinition.id ||
+            access.permission.type !== "notes" ||
+            access.permission.name !== "read"
         ) {
             throw new ServiceError("FORBIDDEN");
         }

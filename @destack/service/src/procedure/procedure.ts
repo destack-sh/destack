@@ -1,14 +1,13 @@
 import { oc } from "@orpc/contract";
 import { schema } from "@destack/schema";
+import { PermissionReference } from "@destack/access/declare";
 
 /** Access and audit requirements interpreted by the service's middleware. */
 export const ProcedureAccess = schema.object({
     /** Credentials required before invoking the procedure. */
     authentication: schema.enum(["public", "identity", "host"]),
-    /** Resource type and action checked in the request's authorized scope. */
-    permission: schema
-        .object({ resource: schema.string().min(1), action: schema.string().min(1) })
-        .nullable(),
+    /** The declared permission checked in the request's authorized scope. */
+    permission: PermissionReference.nullable(),
     /** Whether successful and failed attempts require security audit records. */
     audit: schema.boolean(),
 });

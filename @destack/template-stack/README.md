@@ -1,6 +1,14 @@
 Declare the base configuration of a space.
 
 ```ts
+import { defineAccount } from "@destack/model/declare";
+
+export const account = defineAccount({
+    environments: { development: {}, production: {} },
+});
+```
+
+```ts
 import { credentials, database, files } from "@florian/stack";
 ```
 

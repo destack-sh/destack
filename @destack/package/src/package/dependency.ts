@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DependencyPackage, Package, PackageRelease } from "../package/package.ts";
+import { DependencyPackage, Package, PackageRelease } from "./package.ts";
 import { PackageFile } from "../file/file.ts";
 
 /** An immutable dependency release available from a registry. */

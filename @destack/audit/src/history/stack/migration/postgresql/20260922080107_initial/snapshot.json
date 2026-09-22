@@ -1,7 +1,7 @@
 {
     "version": "8",
     "dialect": "postgres",
-    "id": "54999a58-beb0-443b-982d-cf8a786d680d",
+    "id": "e0665eda-e2c5-4386-a119-399e7a822a5d",
     "prevIds": ["00000000-0000-0000-0000-000000000000"],
     "ddl": [
         {
@@ -108,7 +108,7 @@
             "default": null,
             "generated": null,
             "identity": null,
-            "name": "package",
+            "name": "package_id",
             "entityType": "columns",
             "schema": "public",
             "table": "audit_event"
@@ -452,6 +452,41 @@
             "method": "btree",
             "concurrently": false,
             "name": "audit_action_time",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "audit_event"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "package_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "recorded_at",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "audit_package_time",
             "entityType": "indexes",
             "schema": "public",
             "table": "audit_event"

@@ -23,7 +23,7 @@ export const auditEvent = table(
         hostId: identifier("host_id", "host"),
         /** Indexed action and actor fields. */
         action: text("action").notNull(),
-        package: text("package").notNull(),
+        packageId: identifier("package_id", "package").notNull(),
         actor: text("actor").notNull(),
         stage: text("stage", { enum: ["attempt", "result"] }).notNull(),
         outcome: text("outcome", { enum: ["success", "failure", "denied", "cancelled"] }),
@@ -38,6 +38,7 @@ export const auditEvent = table(
         index("audit_space_time").on(event.spaceId, event.recordedAt, event.id),
         index("audit_host_time").on(event.hostId, event.recordedAt, event.id),
         index("audit_action_time").on(event.action, event.recordedAt, event.id),
+        index("audit_package_time").on(event.packageId, event.recordedAt, event.id),
         index("audit_actor_time").on(event.actor, event.recordedAt, event.id),
     ],
 );

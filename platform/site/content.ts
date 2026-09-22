@@ -43,16 +43,24 @@ export const collections: readonly Collection[] = [
     {
         title: "Libraries",
         route: "/docs/library/",
-        sources: [{ directory: "library/docs", path: "library", hierarchy: [20] }],
+        sources: [{ directory: "@destack/docs/package", path: "library", hierarchy: [20] }],
     },
     {
         title: "Templates",
         route: "/docs/template/",
         shortcut: "t",
         sources: [
-            { directory: "template/docs", path: "template", hierarchy: [50] },
-            { directory: "template/stack/docs", path: "template/stack", hierarchy: [50, 10] },
-            { directory: "template/blank/docs", path: "template/blank", hierarchy: [50, 20] },
+            { directory: "@destack/docs/template", path: "template", hierarchy: [50] },
+            {
+                directory: "@destack/template-stack/docs",
+                path: "template/stack",
+                hierarchy: [50, 10],
+            },
+            {
+                directory: "@destack/template-blank/docs",
+                path: "template/blank",
+                hierarchy: [50, 20],
+            },
         ],
     },
     {

@@ -1,4 +1,5 @@
 {
+    "id": "package-01a0c80b-614d-75aa-9a7c-0ffca96cf01a",
     "language": "typescript",
     "targets": [
         "browser",

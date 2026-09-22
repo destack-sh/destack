@@ -5,7 +5,7 @@ CREATE TABLE "audit_event" (
 	"space_id" text,
 	"host_id" text,
 	"action" text NOT NULL,
-	"package" text NOT NULL,
+	"package_id" text NOT NULL,
 	"actor" text NOT NULL,
 	"stage" text NOT NULL,
 	"outcome" text,
@@ -33,6 +33,7 @@ CREATE INDEX "audit_account_time" ON "audit_event" ("account_id","recorded_at","
 CREATE INDEX "audit_space_time" ON "audit_event" ("space_id","recorded_at","id");--> statement-breakpoint
 CREATE INDEX "audit_host_time" ON "audit_event" ("host_id","recorded_at","id");--> statement-breakpoint
 CREATE INDEX "audit_action_time" ON "audit_event" ("action","recorded_at","id");--> statement-breakpoint
+CREATE INDEX "audit_package_time" ON "audit_event" ("package_id","recorded_at","id");--> statement-breakpoint
 CREATE INDEX "audit_actor_time" ON "audit_event" ("actor","recorded_at","id");--> statement-breakpoint
 CREATE UNIQUE INDEX "audit_target_role" ON "audit_target" ("event_id","role");--> statement-breakpoint
 CREATE INDEX "audit_target_object" ON "audit_target" ("type","id","event_id");--> statement-breakpoint

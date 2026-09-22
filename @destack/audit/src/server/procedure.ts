@@ -6,10 +6,12 @@ import { AuditRecorder } from "../record/index.ts";
 import type { AuditEvent, AuditResult } from "../event/index.ts";
 import { AuditError } from "../error/index.ts";
 import manifest from "../../package.json" with { type: "json" };
+import definition from "../../destack.json" with { type: "json" };
+import { PackageId } from "@destack/package";
 
 /** Procedure execution, separate from any domain action committed by its handler. */
 export const invokeService = defineAuditAction({
-    package: { name: manifest.name, version: manifest.version },
+    package: { id: PackageId.parse(definition.id), name: manifest.name, version: manifest.version },
     name: "service.invoke",
     version: 1,
     targets: schema.object({

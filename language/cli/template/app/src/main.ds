@@ -1,6 +1,0 @@
-import { log } from "destack:console";
-
-/// Run the application.
-export function main(): void {
-    log("Hello, Destack!");
-}

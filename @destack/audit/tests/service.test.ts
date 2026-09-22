@@ -8,10 +8,15 @@ import { defineAuditAction } from "../src/action/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
 import { createAuditHandler } from "../src/server/server.ts";
 import { AuditContext } from "../src/event/index.ts";
+import { PackageId } from "@destack/package";
 
 /** Typed application action exercised through the HTTP service. */
 const publishDocument = defineAuditAction({
-    package: { name: "@example/document", version: "1.0.0" },
+    package: {
+        id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
+        name: "@example/document",
+        version: "1.0.0",
+    },
     name: "document.publish",
     version: 1,
     targets: schema.object({

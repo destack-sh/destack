@@ -17,7 +17,7 @@ update:
 # build
 build:
     just platform/build
-    just app/build
+    just dev/release/build
 
 # generate
 generate:
@@ -25,45 +25,37 @@ generate:
 
 # format
 format:
-    just library/format
+    just @destack/format
     just platform/format
-    just app/format
-    bun run destack-check format service/*/src template/*/src
+    just dev/release/format
 
 alias fmt := format
 
 # check formatting
 format-check:
-    just library/format-check
+    just @destack/format-check
     just platform/format-check
-    bun run destack-check format-check app/*/src service/*/src template/*/src
     just dev/release/format-check
 
 # lint
 lint:
     just check-hygiene
-    bun run destack-check check library/*/src service/*/src app/*/src platform/*/src template/*/src
+    bun run destack-check check @destack/*/src platform/*/src
     just platform/lint
-    just app/check-quick
+    just dev/release/check
 
 # test
 test:
-    just library/test
-    bun run --cwd service/registry test
-    bun run --cwd app/cli test
+    just @destack/test
     just platform/test
 
 # check
 check:
     just check-hygiene
-    just library/check
-    bun run --cwd service/daemon check
-    bun run --cwd service/registry check
-    bun run --cwd template/blank check
-    bun run --cwd template/stack check
+    just @destack/check
     just platform/site/typecheck
     just platform/stack/check
-    just app/check-quick
+    just dev/release/check
 
 alias check-quick := check
 alias check-full := check

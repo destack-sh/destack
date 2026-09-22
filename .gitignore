@@ -136,7 +136,7 @@ platform/site/public/docs/
 platform/site/public/_content/
 platform/site/public/search.json
 platform/site/.generated/
-app/desktop/.generated/
+@destack/desktop/.generated/
 .DS_Store
 
 *.destack

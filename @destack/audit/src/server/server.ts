@@ -9,10 +9,12 @@ import { defineAuditAction } from "../action/index.ts";
 import { AuditError } from "../error/index.ts";
 import { auditService, AuditScope } from "../service/index.ts";
 import manifest from "../../package.json" with { type: "json" };
+import definition from "../../destack.json" with { type: "json" };
+import { PackageId } from "@destack/package";
 
 /** Audited history access without copying filters or event contents into diagnostics. */
 export const accessAudit = defineAuditAction({
-    package: { name: manifest.name, version: manifest.version },
+    package: { id: PackageId.parse(definition.id), name: manifest.name, version: manifest.version },
     name: "audit.access",
     version: 1,
     targets: schema.record(
