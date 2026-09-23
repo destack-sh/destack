@@ -2,39 +2,47 @@ import * as stylex from "@destack/style";
 
 import { tokens } from "../style/tokens.stylex";
 
-/// The ring inclination shared by every rendering of the mark.
-const tilt = "rotate(-20 16 16)";
+/// The ring's ellipse and inclination, shared by every rendering of the mark.
+const ring = { cx: "16", cy: "16", rx: "15.2", ry: "4.2", transform: "rotate(-22 16 16)" };
 
-/// Render the Destack planet mark in color, drawn for the dark space field.
+/// The dark side of the planet.
+const shadow = "#c64a17";
+
+/// Render the Destack planet mark: an orange globe with a shadow side, and an orange ring cut free by a gap.
 export function Mark(props: { style?: stylex.Styles }) {
     return (
-        <svg
-            aria-hidden="true"
-            viewBox="0 0 32 32"
-            fill="none"
-            {...stylex.attrs(styles.mark, props.style)}
-        >
+        <svg aria-hidden="true" viewBox="0 0 32 32" {...stylex.attrs(styles.mark, props.style)}>
             <defs>
-                <clipPath id="mark-globe">
-                    <circle cx="16" cy="16" r="8.5" />
+                <clipPath id="mark-front">
+                    <path d="M-8 16H40V40H-8Z" transform={ring.transform} />
                 </clipPath>
+                <clipPath id="mark-globe">
+                    <circle cx="16" cy="16" r="11" />
+                </clipPath>
+                <mask id="mark-gap" maskUnits="userSpaceOnUse" x="-8" y="-8" width="48" height="48">
+                    <rect x="-8" y="-8" width="48" height="48" fill="#fff" />
+                    <g clip-path="url(#mark-front)">
+                        <ellipse {...ring} fill="none" stroke="#000" stroke-width="5.8" />
+                    </g>
+                </mask>
             </defs>
 
-            {/* draw the back of the ring, then the banded globe over it */}
-            <g transform={tilt}>
-                <path d="M1 16a15 5 0 0 1 30 0" stroke="#f1eadb" stroke-width="2" />
-            </g>
-            <g clip-path="url(#mark-globe)">
-                <circle cx="16" cy="16" r="8.5" fill="#dc5b2d" />
-                <path d="M4 11.5q12 3 24 0v2.2q-12 3-24 0Z" fill="#ee8952" />
-                <path d="M4 16.5q12 3 24 0v2.4q-12 3-24 0Z" fill="#a44328" />
-                <path d="M19 7c4 3 4 13-2 18h8V7Z" fill="#4a211b" opacity=".45" />
+            {/* draw the back of the ring, then the globe with its shadow side, cut by the gap in front */}
+            <ellipse {...ring} fill="none" stroke={tokens.signal} stroke-width="2.6" />
+            <g mask="url(#mark-gap)">
+                <circle cx="16" cy="16" r="11" fill={tokens.signal} />
+                <circle
+                    cx="20.62"
+                    cy="20.62"
+                    r="11.22"
+                    fill={shadow}
+                    clip-path="url(#mark-globe)"
+                />
             </g>
 
-            {/* close the ring in front, parted from the globe by a gap of space */}
-            <g transform={tilt}>
-                <path d="M1 16a15 5 0 0 0 30 0" stroke={tokens.space} stroke-width="4.5" />
-                <path d="M1 16a15 5 0 0 0 30 0" stroke="#f1eadb" stroke-width="2" />
+            {/* close the ring in front of the globe */}
+            <g clip-path="url(#mark-front)">
+                <ellipse {...ring} fill="none" stroke={tokens.signal} stroke-width="2.6" />
             </g>
         </svg>
     );

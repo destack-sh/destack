@@ -42,6 +42,13 @@ export default function Document(props: ParentProps) {
                 )}
                 <script src="/theme.js" />
                 <link rel="icon" href="/brand/favicon/favicon.svg" type="image/svg+xml" />
+                <link
+                    rel="icon"
+                    href="/brand/favicon/favicon-32.png"
+                    type="image/png"
+                    sizes="32x32"
+                />
+                <link rel="apple-touch-icon" href="/brand/icon/icon-180.png" />
                 {/* start the visible heading, navigation, and reading fonts with the document */}
                 {[
                     limelight,

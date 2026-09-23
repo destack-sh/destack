@@ -25,7 +25,7 @@ export const tokens = stylex.defineConsts({
     /// The ink drawn on signal fills.
     signalInk: "#12313c",
     /// The deep space field behind illustrations in both themes.
-    space: "#040d12",
+    space: "#0d2233",
     /// The cream drawn on space and night fields in both themes.
     cream: "#f1eadb",
     /// The night field behind code and reveals in both themes.

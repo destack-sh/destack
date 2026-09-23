@@ -18,11 +18,12 @@ const stillStars = (() => {
         return seed / 2147483647;
     };
     let stars = "";
-    for (let index = 0; index < 40; index++) {
+    for (let index = 0; index < 12; index++) {
         const x = (random() * 240).toFixed(1);
         const y = (random() * 120).toFixed(1);
-        const radius = (random() < 0.85 ? 0.45 + random() * 0.35 : 0.9 + random() * 0.5).toFixed(2);
-        const alpha = (0.3 + random() * 0.6).toFixed(2);
+        const size = random();
+        const radius = size < 0.7 ? 0.7 : size < 0.93 ? 1.1 : 1.6;
+        const alpha = (0.35 + random() * 0.55).toFixed(2);
         stars += `<circle cx='${x}' cy='${y}' r='${radius}' fill='#f1eadb' fill-opacity='${alpha}'/>`;
     }
     const tile = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='120'>${stars}</svg>`;
@@ -44,7 +45,7 @@ uniform vec3 hole;
 uniform float glow;
 uniform float flow;
 
-const vec3 space = vec3(0.016, 0.05, 0.07);
+const vec3 space = vec3(0.051, 0.133, 0.2);
 const vec3 rimColor = vec3(0.945, 0.918, 0.859);
 const vec3 signal = vec3(1.0, 0.475, 0.18);
 
@@ -64,34 +65,20 @@ float box(vec2 p, vec2 extent, float radius) {
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
 }
 
-float haze(vec2 p) {
-    return noise(p) * 0.5 + noise(p * 2.1) * 0.3 + noise(p * 4.3) * 0.2;
-}
-
+// return a sparse field of flat, crisp stars in a few sizes
 vec3 starLayer(vec2 p, float cellSize, float density, float t) {
     vec2 cell = floor(p / cellSize);
-    vec2 local = fract(p / cellSize);
+    vec2 local = fract(p / cellSize) * cellSize;
     float seed = hash(cell);
     if (seed > density) {
         return vec3(0.0);
     }
-
-    // place one star per cell, mostly faint, with a rare bright one
-    vec2 centre = vec2(hash(cell + 1.3), hash(cell + 2.7)) * 0.8 + 0.1;
-    float magnitude = pow(hash(cell + 5.1), 7.0);
-    float radius = mix(0.45, 1.5, magnitude) / cellSize;
-    float gap = length(local - centre);
-    float core = exp(-gap * gap / (radius * radius));
-    float halo = exp(-gap * cellSize / 3.0) * magnitude * 0.35;
-
-    // scintillate gently, the brighter stars a little more
-    float twinkle = 1.0 - (0.3 + 0.45 * magnitude) * (0.5 + 0.5 * sin(t * (0.9 + hash(cell + 9.0) * 1.8) + seed * 40.0));
-
-    // tint from warm to cool like real stellar colours
-    float temperature = hash(cell + 3.3);
-    vec3 tint = temperature < 0.2 ? vec3(1.0, 0.82, 0.66) : (temperature > 0.75 ? vec3(0.74, 0.83, 1.0) : vec3(1.0, 0.97, 0.92));
-
-    return tint * (core * mix(0.3, 1.25, magnitude) + halo) * twinkle;
+    vec2 centre = (vec2(hash(cell + 1.3), hash(cell + 2.7)) * 0.7 + 0.15) * cellSize;
+    float size = hash(cell + 5.1);
+    float radius = size < 0.7 ? 0.7 : (size < 0.93 ? 1.1 : 1.6);
+    float disc = 1.0 - smoothstep(radius - 0.5, radius + 0.5, length(local - centre));
+    float alpha = mix(0.35, 0.9, hash(cell + 7.7)) * (0.85 + 0.15 * sin(t * (0.4 + hash(cell + 9.0) * 0.6) + seed * 40.0));
+    return rimColor * disc * alpha;
 }
 
 // return one shooting star's light at a point, one streak per period on its own track
@@ -142,19 +129,18 @@ void main() {
         sky += around / max(distance, 1.0) * hole.z * hole.z * 1.6 / max(distance, hole.z);
     }
 
-    // layer a faint nebula and two depths of stars that drift against the pointer
-    float mist = haze(sky * 0.012 + vec2(time * 0.004, 0.0));
-    vec3 nebula = mix(vec3(0.05, 0.09, 0.16), vec3(0.14, 0.07, 0.12), noise(sky * 0.006)) * smoothstep(0.45, 0.9, mist) * 0.5;
-    vec3 far = starLayer(sky + drift * 0.4 + vec2(time * 2.4, time * 0.6), 5.0, 0.15, time);
-    vec3 near = starLayer(sky + drift + 31.0 + vec2(time * 5.5, time * 1.4), 11.0, 0.12, time * 1.3);
+    // glow softly from the upper left, under two sparse depths of flat stars that drift against the pointer
+    float falloff = 1.0 - smoothstep(0.0, 1.0, length(frag - size * vec2(0.3, 0.2)) / max(size.x, size.y) * 1.8);
+    vec3 nebula = (vec3(0.118, 0.259, 0.341) - space) * falloff * 0.55;
+    vec3 far = starLayer(sky + drift * 0.4 + vec2(time * 1.2, time * 0.3), 26.0, 0.32, time);
+    vec3 near = starLayer(sky + drift + 71.0 + vec2(time * 2.4, time * 0.6), 58.0, 0.35, time * 1.3) * 1.25;
 
-    // streak a shooting star across now and then, and a shower of them while the pointer is over the goo
+    // shower shooting stars while the pointer is over the goo
     vec3 meteor = vec3(0.0);
-    for (int i = 0; i < 4; i++) {
-        float track = float(i);
-        float weight = i == 0 ? 1.0 : pull;
-        if (weight > 0.01) {
-            meteor += streak(frag, size, time + track * 0.73, i == 0 ? 6.0 : 0.9 + track * 0.35, track) * weight;
+    if (pull > 0.01) {
+        for (int i = 1; i < 4; i++) {
+            float track = float(i);
+            meteor += streak(frag, size, time + track * 0.73, 0.9 + track * 0.35, track) * pull;
         }
     }
 
@@ -191,7 +177,7 @@ void main() {
 }
 `;
 
-/// A heavy, starry goo field that swells toward the pointer.
+/// A heavy goo field of quiet stars that swells toward the pointer.
 class Starfield {
     /// The shader that draws the goo.
     shader: Shader;

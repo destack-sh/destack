@@ -3,164 +3,135 @@ import * as stylex from "@destack/style";
 import { Goo } from "../effect/goo";
 import { tokens } from "../style/tokens.stylex";
 
-/// The ring inclination.
-const ringTilt = "rotate(-22 480 254)";
-/// The cloud band inclination.
-const cloudTilt = "rotate(-10 480 254)";
+/// The planet's centre and radius, in the plate's drawing units.
+const centre = { x: 480, y: 260 };
+const radius = 170;
 
-/// Render the planet floating in a cell of viscous space.
+/// The ring's ellipse and inclination, in the same proportions as the mark.
+const ring = {
+    cx: String(centre.x),
+    cy: String(centre.y),
+    rx: String(radius * 1.382),
+    ry: String(radius * 0.382),
+    transform: `rotate(-22 ${centre.x} ${centre.y})`,
+};
+
+/// The ring's stroke, and the gap cut between it and the globe.
+const ringWidth = radius * 0.236;
+const gapWidth = radius * 0.145;
+
+/// The dark side of the planet.
+const shadow = "#c64a17";
+
+/// Render the planet floating in a cell of quiet space, with a meteor passing by now and then.
 export function Plate(props: { style?: stylex.Styles }) {
     return (
         <Goo style={props.style}>
-            <svg aria-hidden="true" viewBox="160 60 640 390" {...stylex.attrs(styles.planet)}>
+            <svg aria-hidden="true" viewBox="80 40 800 440" {...stylex.attrs(styles.planet)}>
+                <Meteor />
                 <Planet />
             </svg>
         </Goo>
     );
 }
 
-/// Draw the banded globe inside its divided ring.
+/// Draw the mark's planet: an orange globe with a shadow side, and an orange ring cut free by a gap.
 function Planet() {
     return (
         <>
             <defs>
-                <clipPath id="plate-globe">
-                    <circle cx="480" cy="254" r="176" />
+                <clipPath id="plate-front">
+                    <path d="M0 260H960V760H0Z" transform={ring.transform} />
                 </clipPath>
-                <radialGradient
-                    id="plate-atmosphere"
-                    cx="480"
-                    cy="254"
-                    r="235"
-                    gradientUnits="userSpaceOnUse"
+                <clipPath id="plate-globe">
+                    <circle cx={centre.x} cy={centre.y} r={radius} />
+                </clipPath>
+                <mask
+                    id="plate-gap"
+                    maskUnits="userSpaceOnUse"
+                    x="0"
+                    y="0"
+                    width="960"
+                    height="560"
                 >
-                    <stop offset="0.72" stop-color="#ff792e" stop-opacity="0.32" />
-                    <stop offset="1" stop-color="#ff792e" stop-opacity="0" />
-                </radialGradient>
-                <radialGradient
-                    id="plate-limb"
-                    cx="440"
-                    cy="214"
-                    r="230"
-                    gradientUnits="userSpaceOnUse"
-                >
-                    <stop offset="0.55" stop-color="#2a0f0a" stop-opacity="0" />
-                    <stop offset="1" stop-color="#2a0f0a" stop-opacity="0.6" />
-                </radialGradient>
-                <radialGradient
-                    id="plate-light"
-                    cx="410"
-                    cy="170"
-                    r="120"
-                    gradientUnits="userSpaceOnUse"
-                >
-                    <stop offset="0" stop-color="#fff4e0" stop-opacity="0.28" />
-                    <stop offset="1" stop-color="#fff4e0" stop-opacity="0" />
-                </radialGradient>
-                <filter id="plate-ring-glow" x="-20%" y="-60%" width="140%" height="220%">
-                    <feGaussianBlur stdDeviation="9" />
-                </filter>
+                    <rect width="960" height="560" fill="#fff" />
+                    <g clip-path="url(#plate-front)">
+                        <ellipse
+                            {...ring}
+                            fill="none"
+                            stroke="#000"
+                            stroke-width={ringWidth + gapWidth * 2}
+                        />
+                    </g>
+                </mask>
             </defs>
 
-            {/* draw the back of the ring before the globe */}
-            <g transform={ringTilt}>
-                <Ring path="M174 254 A306 82 0 0 1 786 254" />
+            {/* draw the back of the ring, then the globe with its shadow side, cut by the gap in front */}
+            <ellipse {...ring} fill="none" stroke={tokens.signal} stroke-width={ringWidth} />
+            <g mask="url(#plate-gap)">
+                <circle cx={centre.x} cy={centre.y} r={radius} fill={tokens.signal} />
+                <circle
+                    cx={centre.x + radius * 0.42}
+                    cy={centre.y + radius * 0.42}
+                    r={radius * 1.02}
+                    fill={shadow}
+                    clip-path="url(#plate-globe)"
+                />
             </g>
-
-            <g clip-path="url(#plate-globe)">
-                <circle cx="480" cy="254" r="176" fill="#dc5b2d" />
-                {/* turn the cloud bands slowly, two copies tiled end to end */}
-                <g transform={cloudTilt}>
-                    <g {...stylex.attrs(styles.spin)}>
-                        <CloudBands />
-                        <g transform="translate(400 0)">
-                            <CloudBands />
-                        </g>
-                    </g>
-                </g>
-
-                {/* round the globe with a darker limb and a lit shoulder */}
-                <circle cx="480" cy="254" r="176" fill="url(#plate-limb)" />
-                <circle cx="480" cy="254" r="176" fill="url(#plate-light)" />
-
-                {/* cast the ring shadow and a soft night side as flat regions */}
-                <g transform={ringTilt}>
-                    <path
-                        d="M270 286 Q480 370 690 286"
-                        fill="none"
-                        stroke="#542e29"
-                        stroke-width="20"
-                    />
-                </g>
-                <path d="M580 90 C668 200 610 370 440 430 H700 V50Z" fill="#4a211b" opacity=".45" />
-            </g>
-
-            {/* light the sunward rim */}
-            <path
-                d="M306 278 A176 176 0 0 1 515 81"
-                fill="none"
-                stroke="#f1b77a"
-                stroke-width="1.5"
-                opacity=".7"
-            />
 
             {/* close the ring in front of the globe */}
-            <g transform={ringTilt}>
-                <Ring path="M174 254 A306 82 0 0 0 786 254" />
+            <g clip-path="url(#plate-front)">
+                <ellipse {...ring} fill="none" stroke={tokens.signal} stroke-width={ringWidth} />
             </g>
         </>
     );
 }
 
-/// Draw one half of the divided ring, lit by a soft glow.
-function Ring(props: { path: string }) {
+/// Draw a meteor that streaks past the planet's upper left now and then.
+function Meteor() {
     return (
-        <g fill="none" stroke="#f1eadb">
-            <path
-                d={props.path}
-                stroke="#ffd7a6"
-                stroke-width="30"
-                opacity=".5"
-                filter="url(#plate-ring-glow)"
-            />
-            <path d={props.path} stroke-width="22" />
-            <path d={props.path} stroke={tokens.space} stroke-width="3" />
-            <path d={props.path} stroke="#8b8376" stroke-width="1" />
+        <g {...stylex.attrs(styles.meteor)}>
+            <defs>
+                <linearGradient id="plate-streak" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color={tokens.cream} stop-opacity="0" />
+                    <stop offset="1" stop-color={tokens.cream} stop-opacity="0.95" />
+                </linearGradient>
+            </defs>
+            <g transform="translate(200 130) rotate(-20)">
+                <rect
+                    x="-110"
+                    y="-1.6"
+                    width="110"
+                    height="3.2"
+                    rx="1.6"
+                    fill="url(#plate-streak)"
+                />
+                <circle r="3" fill={tokens.cream} />
+            </g>
         </g>
     );
 }
 
-/// Draw one period of the planet's cloud bands.
-function CloudBands() {
-    return (
-        <g>
-            <path d="M280 118 Q480 185 680 118 L680 155 Q480 212 280 155Z" fill="#e77443" />
-            <path d="M280 176 Q480 226 680 176 L680 209 Q480 257 280 209Z" fill="#a44328" />
-            <path d="M280 235 Q480 278 680 235 L680 251 Q480 296 280 251Z" fill="#ee8952" />
-            <path d="M280 276 Q480 319 680 276 L680 315 Q480 355 280 315Z" fill="#aa4729" />
-            <path d="M280 338 Q480 383 680 338 L680 354 Q480 397 280 354Z" fill="#e77443" />
-            <path d="M280 389 Q480 426 680 389 L680 450 H280Z" fill="#a44328" />
-        </g>
-    );
-}
-
-const spin = stylex.keyframes({
-    from: { transform: "translateX(0)" },
-    to: { transform: "translateX(-400px)" },
+const streak = stylex.keyframes({
+    "0%": { opacity: 0, transform: "translate(-60px, 22px)" },
+    "4%": { opacity: 1 },
+    "12%": { opacity: 0, transform: "translate(120px, -44px)" },
+    "100%": { opacity: 0, transform: "translate(120px, -44px)" },
 });
 
 const styles = stylex.create({
-    spin: {
-        animationDuration: "48s",
+    meteor: {
+        animationDuration: "9s",
         animationIterationCount: "infinite",
-        animationName: spin,
-        animationTimingFunction: "steps(1440)",
+        animationName: streak,
+        animationTimingFunction: "ease-out",
+        opacity: 0,
         "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
     planet: {
         display: "block",
         height: "100%",
-        padding: "6%",
+        padding: "3%",
         pointerEvents: "none",
         width: "100%",
     },
