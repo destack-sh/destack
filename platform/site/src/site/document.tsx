@@ -16,14 +16,14 @@ const theme = createTheme({
     monospaceFontFamily: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
 });
 
-// retain the publication palette within the shared semantic roles
+// map the paper and night palettes onto the shared semantic roles
 Object.assign(theme.style, {
-    "--destack-color-background": "light-dark(#f8f7f4, #1b1a19)",
-    "--destack-color-foreground": "light-dark(#272624, #d5d2cb)",
-    "--destack-color-muted": "light-dark(#efeeea, #292725)",
-    "--destack-color-mutedForeground": "light-dark(#68655f, #a39e94)",
-    "--destack-color-border": "light-dark(#dedbd5, #3d3a36)",
-    "--destack-color-primary": "light-dark(#b95532, #d68b65)",
+    "--destack-color-background": "light-dark(#f8f5ee, #0b2029)",
+    "--destack-color-foreground": "light-dark(#12313c, #f1eadb)",
+    "--destack-color-muted": "light-dark(#eeebe3, #122a33)",
+    "--destack-color-mutedForeground": "light-dark(#5c6a6d, #a8bbbd)",
+    "--destack-color-border": "light-dark(#12313c2e, #f1eadb33)",
+    "--destack-color-primary": "#ff792e",
 });
 
 /** Render the shared HTML document. */

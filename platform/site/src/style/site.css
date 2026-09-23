@@ -8,16 +8,28 @@
 
 @layer reset, priority1, priority2;
 
+/* wind the users' dance down smoothly */
+@property --sway {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 1;
+}
+
 @layer reset {
     :root {
-        --site-width: 64rem;
-        --site-sky: #12313c;
-        --site-gutter-left: calc(1.5rem + env(safe-area-inset-left));
-        --site-gutter-right: calc(1.5rem + env(safe-area-inset-right));
+        --site-width: min(1200px, calc(100vw - 48px));
+        --site-column: calc(var(--site-width) / 12);
+        --site-bar: 64px;
+        --site-row: clamp(52px, calc((100svh - var(--site-bar) * 2 - 3px) / 12.4), 96px);
+        --site-stage: calc(var(--site-row) * 1.4);
+        --site-cell: calc(var(--site-column) / 11);
+        --site-cell-row: calc(var(--site-stage) / 9);
+        --site-inset: 24px;
+        --site-water: light-dark(#2b6f82, #0a2e3a);
         color-scheme: light dark;
         --publication-page: var(--destack-color-background);
         --publication-page-muted: var(--destack-color-muted);
-        --publication-listing: light-dark(#f1f0ec, #232220);
+        --publication-listing: var(--destack-color-muted);
         --publication-ink: var(--destack-color-foreground);
         --publication-soft: var(--destack-color-mutedForeground);
         --publication-line: var(--destack-color-border);
@@ -30,17 +42,26 @@
         --publication-syntax-string: light-dark(#3f7038, #a8cd91);
         --publication-syntax-punctuation: light-dark(#6d5b45, #b8c2bf);
         --publication-hairline: 1px;
-        --publication-stroke: 3px;
-        --brand-ring: #ffffff;
-        --size-page-title: clamp(2.25rem, 3.8vw, 3.25rem);
-        --size-page-description: var(--size-body);
         --size-section-title: 1.875rem;
         --size-subsection-title: 1.5rem;
         --size-minor-title: 1.125rem;
         --size-body: 1.0625rem;
         --size-navigation: 0.875rem;
         --size-label: var(--size-navigation);
-        --width-prose: 40rem;
+        --width-prose: 100%;
+    }
+
+    /* switch the lattice to four full-width columns on phones */
+    @media (max-width: 767px) {
+        :root {
+            --site-width: 100vw;
+            --site-column: calc(100vw / 4);
+            --site-bar: 56px;
+            --site-row: 72px;
+            --site-stage: 72px;
+            --site-cell: calc(100vw / 88);
+            --site-inset: 20px;
+        }
     }
 
     :root[data-theme="light"] {
@@ -49,11 +70,6 @@
 
     :root[data-theme="dark"] {
         color-scheme: dark;
-    }
-
-    /* keep the illustrated cover's palette independent of the reading theme */
-    [data-poster] {
-        color-scheme: light;
     }
 
     *,
@@ -508,45 +524,6 @@
     user-select: none;
 }
 
-/* exhibit listings on the night field */
-.exhibit-listings {
-    --publication-page: #0d252e;
-    --publication-page-muted: #0a1e26;
-    --publication-ink: #f1eadb;
-    --publication-soft: #9aa8a4;
-    --publication-line: #24444f;
-    --publication-accent: #e77443;
-    --publication-syntax-type: #6fbdc8;
-    --publication-syntax-function: #dcac52;
-    --publication-syntax-property: #9db8c9;
-    --publication-syntax-literal: #d9b45a;
-    --publication-syntax-string: #a3c98a;
-    --publication-syntax-punctuation: #a89f8d;
-}
-
-.exhibit-listings [data-publication-caption] {
-    border-bottom-color: var(--publication-line);
-}
-
-.exhibit-listings [data-publication-caption]::before,
-.exhibit-listings [data-publication-caption-number],
-.exhibit-listings [data-publication-gutter] {
-    border-right-color: var(--publication-line);
-}
-
-/* figure numbers fill the caption gutter cell */
-[data-publication-caption-number] {
-    display: grid;
-    grid-column: 1;
-    grid-row: 1;
-    align-items: center;
-    justify-content: center;
-    border-right: var(--publication-hairline) solid var(--publication-line);
-    background: var(--publication-page-muted);
-    color: var(--publication-accent);
-    font-size: var(--size-label);
-}
-
 /* shared publication listings */
 [data-publication-listing],
 .markdown-code {
@@ -580,8 +557,7 @@
     background: transparent;
 }
 
-[data-publication-caption-title],
-.markdown-code__title {
+[data-publication-caption-title] {
     align-self: center;
     grid-column: 2;
     grid-row: 1;
@@ -686,8 +662,7 @@
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    [data-publication-caption-title],
-    .markdown-code__title {
+    [data-publication-caption-title] {
         grid-column: 1;
     }
 
@@ -1164,15 +1139,6 @@
     }
 }
 
-/* size the shared SVG while retaining its theme colors */
-.brand-icon,
-.brand-icon > svg {
-    display: block;
-    width: 28px;
-    height: 28px;
-    flex-shrink: 0;
-}
-
 /* keep the compact reader location on the same row as its controls */
 @media (width < 52rem) {
     [aria-label="Breadcrumb"] {
@@ -1193,51 +1159,4 @@
 /* Let section spacing come from its parent instead of stacking heading margins. */
 .markdown :is(.document-section, .reference-group, .reference-item) > :is(h2, h3):first-child {
     margin-top: 0;
-}
-
-/* keep the navigation, footer, and stars in one shared frame */
-body:has([data-site]) {
-    background: var(--site-sky);
-}
-[data-site],
-[data-site-menu] {
-    --destack-color-background: var(--site-sky);
-    --destack-color-foreground: #f1eadb;
-    --destack-color-muted: #12313c;
-    --destack-color-mutedForeground: #a8bbbd;
-    --destack-color-border: #f1eadb25;
-    --destack-color-primary: #ff792e;
-    --brand-ring: #ffffff;
-    background-color: var(--destack-color-background);
-    color: var(--destack-color-foreground);
-}
-[data-site] {
-    background-image: url("/stars.svg");
-    background-size: 1100px 930px;
-}
-[data-home],
-[data-site-menu],
-[data-site] > div > header,
-[data-site] > div > footer {
-    color-scheme: dark;
-    font-family: "IBM Plex Sans Variable", sans-serif;
-}
-[data-site] > div > header,
-[data-site] > div > footer {
-    background: transparent;
-}
-[data-site-navigation],
-[data-site-footer] {
-    border: 0;
-}
-[data-site-navigation] a,
-[data-site-footer] > span {
-    font-family: "IBM Plex Sans Variable", sans-serif;
-    font-size: 14px;
-}
-[data-site] a:focus-visible,
-[data-site] button:focus-visible,
-[data-site] summary:focus-visible {
-    outline: 2px solid var(--destack-color-primary);
-    outline-offset: 5px;
 }

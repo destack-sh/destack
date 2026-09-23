@@ -1,17 +1,21 @@
-import { color } from "@destack/theme/tokens.stylex";
+import { fontFamily } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 
+import { Goo } from "../effect/goo";
+import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
 import { socialLinks } from "./navigation";
 
-/// Render the publisher and community links in the shared site footer.
-export function Footer() {
+/// The radius of the black hole in the footer, in CSS pixels.
+const holeRadius = 7;
+
+/// Close every page with a band of starry space around a black hole, holding the community links.
+export function Footer(props: { flow: number }) {
     return (
         <footer {...stylex.attrs(styles.root)}>
-            <div {...stylex.attrs(styles.frame)}>
-                <div {...stylex.attrs(styles.content)} data-site-footer>
-                    <span {...stylex.attrs(styles.publisher)}>© Symbol Industries</span>
+            <Goo hole={holeRadius} flow={props.flow} style={styles.band}>
+                <div {...stylex.attrs(lattice.frame, styles.bar)}>
                     <nav aria-label="Social navigation" {...stylex.attrs(styles.navigation)}>
                         {socialLinks.map(({ label, href, shortcut, icon }) => (
                             <SiteLink
@@ -30,58 +34,48 @@ export function Footer() {
                         ))}
                     </nav>
                 </div>
-            </div>
+            </Goo>
         </footer>
     );
 }
 
 const styles = stylex.create({
-    frame: {
+    root: {
         marginInline: "auto",
         maxWidth: tokens.siteWidth,
-        paddingInline: `${tokens.gutterLeft} ${tokens.gutterRight}`,
         width: "100%",
     },
-    content: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexWrap: "wrap",
-        gap: "0.5rem 1rem",
-        paddingBlock: "0.75rem",
-        borderTopColor: color.border,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
+    band: {
+        height: tokens.bar,
     },
-    publisher: {
-        color: color.foreground,
-        fontSize: "var(--size-navigation)",
+    bar: {
+        alignItems: "center",
+        borderInlineWidth: 0,
+        color: tokens.cream,
+        fontFamily: fontFamily.default,
+        height: "100%",
     },
     navigation: {
-        display: "flex",
         alignItems: "center",
-        justifyContent: "center",
+        display: "flex",
         gap: "0.5rem",
+        gridColumn: "1 / -1",
+        justifyContent: "center",
+        paddingInline: "0.75rem",
     },
     link: {
-        display: "inline-flex",
         alignItems: "center",
+        color: tokens.cream,
+        display: "flex",
+        height: "2.75rem",
         justifyContent: "center",
         width: "2.75rem",
-        height: "2.75rem",
-        color: color.foreground,
-        ":hover": { color: color.primary },
-        ":focus-visible": { outline: `2px solid ${color.primary}`, outlineOffset: "2px" },
+        ":hover": { color: tokens.signal },
     },
     icon: {
         display: "block",
-        width: "18px",
-        height: "18px",
         fill: "currentColor",
-    },
-    root: {
-        backgroundColor: color.background,
-        color: color.foreground,
-        maxWidth: "100vw",
+        height: "18px",
+        width: "18px",
     },
 });

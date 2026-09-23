@@ -5,11 +5,14 @@ import { createMemo, createSignal, onSettled } from "@destack/view";
 import { Portal } from "@destack/view";
 
 import { CommandPalette } from "../command/palette";
+import { Goo } from "../effect/goo";
+import { Mark } from "../site/mark";
+import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
 import { primaryLinks } from "./navigation";
+import { SoundToggle } from "./sound";
 import { ThemeToggle } from "./theme";
-import brandIcon from "../../.generated/mark.svg?raw";
 
 const mobile = "@media (max-width: 767px)";
 
@@ -17,7 +20,7 @@ const mobile = "@media (max-width: 767px)";
 export function TopBar() {
     const location = useLocation();
     let menu: HTMLDialogElement | undefined;
-    const [menuOpen, setMenuOpen] = createSignal(false);
+    const [isMenuOpen, setIsMenuOpen] = createSignal(false);
 
     // dismiss mobile navigation when the desktop navigation becomes available
     onSettled(() => {
@@ -41,64 +44,77 @@ export function TopBar() {
 
     return (
         <header {...stylex.attrs(styles.root)}>
-            <div {...stylex.attrs(styles.frame)}>
-                <div {...stylex.attrs(styles.body)} data-site-navigation>
-                    <SiteLink href="/" shortcut="h" style={styles.brand} title="Alt+H: Home">
-                        <span aria-hidden="true" class="brand-icon" innerHTML={brandIcon} />
+            <div {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.bar)}>
+                {/* set the brand in a cell of starry space */}
+                <Goo style={styles.brandCell}>
+                    <SiteLink href="/" shortcut="h" style={styles.brand} title="Home (Alt+H)">
+                        <Mark />
                         Destack
                     </SiteLink>
+                </Goo>
 
-                    <nav aria-label="Primary navigation" {...stylex.attrs(styles.navigation)}>
-                        {primaryLinks.map(({ label, href, shortcut }) => (
-                            <SiteLink
-                                href={href}
-                                shortcut={shortcut}
-                                style={[styles.link, activeLink()?.href === href && styles.active]}
-                                title={`Alt+${shortcut.toUpperCase()}: ${label}`}
-                            >
-                                {label}
-                            </SiteLink>
-                        ))}
-                    </nav>
-                    <div {...stylex.attrs(styles.controls)}>
-                        <CommandPalette />
-                        <ThemeToggle />
-                        <button
-                            aria-label="Menu"
-                            title="Menu"
-                            aria-haspopup="dialog"
-                            aria-expanded={menuOpen() ? "true" : "false"}
-                            aria-controls="site-menu"
-                            type="button"
-                            {...stylex.attrs(styles.mobileControl)}
-                            onClick={() => {
-                                menu?.showModal();
-                                setMenuOpen(true);
-                            }}
+                {/* give each destination one two-column cell */}
+                <nav aria-label="Primary navigation" {...stylex.attrs(styles.navigation)}>
+                    {primaryLinks.map(({ label, href, shortcut }) => (
+                        <SiteLink
+                            href={href}
+                            shortcut={shortcut}
+                            style={[
+                                lattice.ruleRight,
+                                styles.link,
+                                activeLink()?.href === href && styles.active,
+                            ]}
+                            title={`${label} (Alt+${shortcut.toUpperCase()})`}
                         >
-                            <svg
-                                aria-hidden="true"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.75"
-                                stroke-linecap="round"
-                            >
-                                <path d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </button>
-                    </div>
+                            {label}
+                        </SiteLink>
+                    ))}
+                </nav>
+
+                {/* keep search, theme, sound, and the account together above the plate */}
+                <div {...stylex.attrs(styles.tools)}>
+                    <CommandPalette />
+                    <ThemeToggle />
+                    <SoundToggle />
+                    <button
+                        aria-label="Menu"
+                        title="Menu"
+                        aria-haspopup="dialog"
+                        aria-expanded={isMenuOpen() ? "true" : "false"}
+                        aria-controls="site-menu"
+                        type="button"
+                        {...stylex.attrs(styles.menuButton)}
+                        onClick={() => {
+                            menu?.showModal();
+                            setIsMenuOpen(true);
+                        }}
+                    >
+                        <svg
+                            aria-hidden="true"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.75"
+                            stroke-linecap="round"
+                        >
+                            <path d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+
+                    {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
+                    <button type="button" disabled {...stylex.attrs(styles.account)}>
+                        Sign in
+                    </button>
                 </div>
             </div>
             <Portal>
                 <dialog
                     ref={menu}
                     id="site-menu"
-                    data-site-menu
                     aria-label="Site navigation"
-                    onClose={() => setMenuOpen(false)}
+                    onClose={() => setIsMenuOpen(false)}
                     {...stylex.attrs(styles.menu)}
                     onClick={(event) => {
                         if (event.target === menu) {
@@ -107,8 +123,11 @@ export function TopBar() {
                     }}
                 >
                     <div {...stylex.attrs(styles.menuHeader)}>
-                        <a href="/" {...stylex.attrs(styles.brand)} onClick={() => menu?.close()}>
-                            <span aria-hidden="true" class="brand-icon" innerHTML={brandIcon} />
+                        <a
+                            href="/"
+                            {...stylex.attrs(styles.menuBrand)}
+                            onClick={() => menu?.close()}
+                        >
                             Destack
                         </a>
                         <button
@@ -172,99 +191,95 @@ export function TopBar() {
 const hover = { color: color.primary };
 
 const styles = stylex.create({
-    body: {
-        alignItems: "center",
-        borderBottomColor: color.border,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
-        display: "grid",
+    root: {
+        backgroundColor: color.background,
+        color: color.foreground,
+    },
+    bar: {
         fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
-        fontWeight: 400,
-        gridTemplateColumns: "auto minmax(0, 1fr) auto",
-        columnGap: "0.75rem",
-        minHeight: "4rem",
-        minWidth: 0,
-        width: "100%",
-        [mobile]: {
-            columnGap: "0.25rem",
-            gridTemplateColumns: "minmax(0, 1fr) auto",
-            minHeight: "3.5rem",
-            paddingBlock: 0,
-        },
+        height: tokens.bar,
+    },
+    brandCell: {
+        gridColumn: "span 3",
+        [mobile]: { gridColumn: "span 2" },
     },
     brand: {
         alignItems: "center",
-        color: color.foreground,
-        display: "inline-flex",
+        color: tokens.cream,
+        display: "flex",
         fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "0.625rem",
-        gridColumn: "1",
-        justifySelf: "start",
-        ":hover": hover,
-        [mobile]: {
-            gridColumn: "1",
-            gridRow: 1,
-        },
-    },
-    frame: {
-        marginInline: "auto",
-        maxWidth: tokens.siteWidth,
-        minWidth: 0,
-        paddingInline: `${tokens.gutterLeft} ${tokens.gutterRight}`,
-        width: "100%",
+        height: "100%",
+        paddingInline: tokens.inset,
+        ":hover": { color: tokens.signal },
     },
     navigation: {
-        alignItems: "center",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "1.5rem",
-        gridColumn: 2,
-        justifyContent: "flex-end",
-        minWidth: 0,
+        display: "grid",
+        gridColumn: "span 6",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
         [mobile]: { display: "none" },
     },
     link: {
+        alignItems: "center",
         color: color.foreground,
-        paddingBlock: "0.625rem",
+        display: "flex",
+        justifyContent: "center",
         ":hover": hover,
     },
     active: {
         fontWeight: 600,
-        textDecorationLine: "underline",
         textDecorationColor: color.primary,
+        textDecorationLine: "underline",
         textDecorationThickness: "1px",
         textUnderlineOffset: "0.5em",
     },
-    mobileControl: {
+    tools: {
+        alignItems: "center",
+        display: "flex",
+        gridColumn: "span 3",
+        paddingInline: "0.75rem",
+        [mobile]: { gridColumn: "span 2", justifyContent: "flex-end", paddingInline: "0.25rem" },
+    },
+    account: {
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: color.mutedForeground,
+        cursor: "not-allowed",
+        fontFamily: fontFamily.default,
+        fontSize: "var(--size-navigation)",
+        marginLeft: "auto",
+        paddingInline: "0.75rem",
+        [mobile]: { display: "none" },
+    },
+    menuButton: {
         alignItems: "center",
         backgroundColor: "transparent",
         borderWidth: 0,
         color: color.foreground,
         cursor: "pointer",
         display: "none",
-        justifyContent: "center",
         height: "2.75rem",
+        justifyContent: "center",
         padding: 0,
         width: "2.75rem",
         [mobile]: { display: "inline-flex" },
     },
-    controls: { display: "flex", alignItems: "center", gap: 0 },
     menu: {
         backgroundColor: color.background,
         borderWidth: 0,
         color: color.foreground,
         fontFamily: fontFamily.default,
+        height: "100dvh",
         inset: 0,
         margin: 0,
         maxHeight: "100dvh",
         maxWidth: "100vw",
-        height: "100dvh",
-        padding: `0 ${tokens.gutterRight} 2rem ${tokens.gutterLeft}`,
-        width: "100vw",
         overscrollBehavior: "contain",
+        padding: `0 ${tokens.inset} 2rem`,
+        width: "100vw",
         "::backdrop": { backgroundColor: color.background },
     },
     menuHeader: {
@@ -273,8 +288,8 @@ const styles = stylex.create({
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "flex",
+        height: tokens.bar,
         justifyContent: "space-between",
-        minHeight: "3.5rem",
     },
     menuClose: {
         alignItems: "center",
@@ -283,31 +298,30 @@ const styles = stylex.create({
         color: color.foreground,
         cursor: "pointer",
         display: "inline-flex",
-        justifyContent: "center",
         height: "2.75rem",
+        justifyContent: "center",
         width: "2.75rem",
         ":hover": hover,
-        ":focus-visible": { outline: `2px solid ${color.primary}`, outlineOffset: "-2px" },
     },
-    menuLinks: { display: "grid", paddingTop: "var(--content-section-gap)" },
-    menuLink: {
-        alignItems: "baseline",
+    menuBrand: {
+        alignItems: "center",
+        color: color.foreground,
         display: "flex",
-        justifyContent: "space-between",
-        gap: "1rem",
+        fontWeight: 600,
+        gap: "0.625rem",
+    },
+    menuLinks: { display: "grid" },
+    menuLink: {
+        alignItems: "center",
         borderBottomColor: color.border,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         color: color.foreground,
-        fontSize: "var(--content-title-size)",
-        lineHeight: "1.5",
-        paddingBlock: "var(--content-inset)",
-        ":hover": { color: color.primary },
-        ":focus-visible": { outline: `2px solid ${color.primary}`, outlineOffset: "-2px" },
-    },
-    root: {
-        backgroundColor: color.background,
-        color: color.foreground,
-        maxWidth: "100vw",
+        display: "flex",
+        fontSize: "1.5rem",
+        gap: "1rem",
+        justifyContent: "space-between",
+        paddingBlock: "1.25rem",
+        ":hover": hover,
     },
 });

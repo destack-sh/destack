@@ -6,59 +6,32 @@ import { Footer } from "../navigation/footer";
 import { KeyboardShortcuts } from "../navigation/shortcut";
 import { TopBar } from "../navigation/topbar";
 
-/// Properties for the persistent site frame.
-type ShellProps = {
-    /// The page body.
-    children: JSX.Element;
-
-    /// Whether the page supplies its own visual field.
-    isHome?: boolean;
-};
-
-/// Render the persistent site frame around one page.
-export function Shell(props: ShellProps) {
+/// Render the persistent site frame around one page, with water flowing through the footer's black hole:
+/// 1 draining into it, -1 welling out of it, 0 still.
+export function Shell(props: { children: JSX.Element; flow?: number }) {
     return (
-        <div {...stylex.attrs(styles.root)} data-home={props.isHome ? "" : undefined} data-site>
+        <div {...stylex.attrs(styles.root)}>
             <KeyboardShortcuts />
-            <div {...stylex.attrs(styles.layer)}>
-                <TopBar />
-            </div>
-            <main
-                {...stylex.attrs(styles.main, styles.layer)}
-                data-reading={props.isHome ? undefined : ""}
-            >
-                {props.children}
-            </main>
-            <div {...stylex.attrs(styles.layer)}>
-                <Footer />
-            </div>
+            <TopBar />
+            <main {...stylex.attrs(styles.main)}>{props.children}</main>
+            <Footer flow={props.flow ?? 0} />
         </div>
     );
 }
 
 const styles = stylex.create({
-    main: {
-        display: "grid",
-        minHeight: 0,
-        minWidth: 0,
-        width: "100%",
-    },
-    layer: {
-        minWidth: 0,
-        position: "relative",
-        zIndex: 1,
-    },
     root: {
-        isolation: "isolate",
-        position: "relative",
         backgroundColor: color.background,
         color: color.foreground,
         display: "grid",
         fontFamily: fontFamily.default,
         gridTemplateRows: "auto minmax(0, 1fr) auto",
         minHeight: "100svh",
+        overflow: "clip",
+    },
+    main: {
+        display: "flex",
+        flexDirection: "column",
         minWidth: 0,
-        overflowX: "clip",
-        width: "100%",
     },
 });

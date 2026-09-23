@@ -434,7 +434,7 @@ const styles = stylex.create({
         height: "2.75rem",
         marginRight: "-0.75rem",
         borderRadius: "0.25rem",
-        ":hover": { backgroundColor: tokens.creamDeep, color: color.foreground },
+        ":hover": { backgroundColor: tokens.pageMuted, color: color.foreground },
         ":focus-visible": { outline: "2px solid", outlineColor: color.primary },
     },
     context: {
@@ -567,7 +567,7 @@ const styles = stylex.create({
         padding: "0.5rem",
         scrollbarWidth: "thin",
     },
-    selected: { backgroundColor: tokens.creamDeep },
+    selected: { backgroundColor: tokens.pageMuted },
     scopes: {
         display: "flex",
         alignItems: "center",
@@ -592,7 +592,7 @@ const styles = stylex.create({
         fontSize: "var(--size-label)",
         padding: "0.5rem",
         whiteSpace: "nowrap",
-        ":hover": { backgroundColor: tokens.creamDeep, color: color.foreground },
+        ":hover": { backgroundColor: tokens.pageMuted, color: color.foreground },
         ":focus-visible": {
             outlineColor: color.primary,
             outlineStyle: "solid",
@@ -601,7 +601,7 @@ const styles = stylex.create({
         },
     },
     scopeSelected: {
-        backgroundColor: tokens.creamDeep,
+        backgroundColor: tokens.pageMuted,
         color: color.foreground,
         textDecorationLine: "underline",
         textDecorationColor: color.primary,

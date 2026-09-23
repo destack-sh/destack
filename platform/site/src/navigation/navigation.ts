@@ -1,7 +1,6 @@
 import discordIcon from "./icons/discord.svg?raw";
 import githubIcon from "./icons/github.svg?raw";
 import xIcon from "./icons/x.svg?raw";
-import { collections } from "../../content";
 
 /// One persistent site destination and its keyboard mnemonic.
 export type NavigationLink = {
@@ -16,17 +15,12 @@ export type NavigationLink = {
 };
 
 /// The primary internal site destinations.
-export const primaryLinks: readonly NavigationLink[] = collections.flatMap((collection) =>
-    collection.isListed === false || collection.shortcut == undefined
-        ? []
-        : [
-              {
-                  href: collection.route,
-                  label: collection.title,
-                  shortcut: collection.shortcut,
-              },
-          ],
-);
+export const primaryLinks: readonly NavigationLink[] = [
+    { href: "/docs/", label: "Documentation", shortcut: "d" },
+    { href: "/blog/", label: "Blog", shortcut: "b" },
+    // TODO #Incomplete: point at the package browser once the registry discovery API exists
+    { href: "/docs/template/", label: "Registry", shortcut: "r" },
+];
 
 /// The external Destack community destinations.
 export const socialLinks: readonly (NavigationLink & { icon: string })[] = [
@@ -35,8 +29,8 @@ export const socialLinks: readonly (NavigationLink & { icon: string })[] = [
     {
         href: "https://github.com/destack-sh/destack",
         label: "GitHub",
-        icon: githubIcon,
         shortcut: "g",
+        icon: githubIcon,
     },
 ];
 

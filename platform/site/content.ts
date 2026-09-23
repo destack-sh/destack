@@ -1,4 +1,4 @@
-/// A published collection, its sources, and its optional header shortcut.
+/// A published collection and its sources.
 export type Collection = {
     /// The visible collection name.
     title: string;
@@ -6,8 +6,6 @@ export type Collection = {
     isListed?: boolean;
     /// The canonical collection root.
     route: string;
-    /// The header keyboard shortcut.
-    shortcut?: string;
     /// The repository directories published in this collection.
     sources: readonly {
         directory: string;
@@ -22,14 +20,12 @@ export const collections: readonly Collection[] = [
     {
         title: "Documentation",
         route: "/docs/",
-        shortcut: "d",
         sources: [{ directory: "docs", path: "", hierarchy: [] }],
     },
     {
         title: "Language",
         isListed: false,
         route: "/docs/language/",
-        shortcut: "l",
         sources: [
             { directory: "language/docs", path: "language", hierarchy: [10] },
             {
@@ -48,7 +44,6 @@ export const collections: readonly Collection[] = [
     {
         title: "Templates",
         route: "/docs/template/",
-        shortcut: "t",
         sources: [
             { directory: "@destack/docs/template", path: "template", hierarchy: [50] },
             {
@@ -66,7 +61,6 @@ export const collections: readonly Collection[] = [
     {
         title: "Blog",
         route: "/blog/",
-        shortcut: "b",
         sources: [{ directory: "blog", path: "", hierarchy: [] }],
     },
 ];
