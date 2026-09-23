@@ -1,0 +1,1022 @@
+{
+    "version": "8",
+    "dialect": "postgres",
+    "id": "172caa4e-de22-4aa3-8dcc-655ea080a4a9",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "isRlsEnabled": false,
+            "name": "setting_assignment",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "isRlsEnabled": false,
+            "name": "setting_policy",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "isRlsEnabled": false,
+            "name": "setting_request",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "isRlsEnabled": false,
+            "name": "setting_source",
+            "entityType": "tables",
+            "schema": "public"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "package_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "user_authority",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "space_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "host_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "consumer_package_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "installation_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "device_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "name",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "value",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "revision",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "provenance",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "source",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "detached_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "authority",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "space_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "host_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "setting",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "installation_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "mode",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "value",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "revision",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "provenance",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "source",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "detached_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "caller",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "scope",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "procedure",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "request_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "digest",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "key_id",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "jsonb",
+            "typeSchema": null,
+            "notNull": false,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "response",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "key",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_source"
+        },
+        {
+            "type": "bigint",
+            "typeSchema": null,
+            "notNull": true,
+            "dimensions": 0,
+            "default": null,
+            "generated": null,
+            "identity": null,
+            "name": "revision",
+            "entityType": "columns",
+            "schema": "public",
+            "table": "setting_source"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "user_authority",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "user_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "package_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "name",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_assignment_user",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "space_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "package_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "name",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_assignment_space",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "host_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "package_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "name",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_assignment_host",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "package_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "name",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "scope",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "coalesce(\"user_authority\", '')",
+                    "isExpression": true,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "coalesce(\"user_id\", '')",
+                    "isExpression": true,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "coalesce(\"space_id\", '')",
+                    "isExpression": true,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "coalesce(\"host_id\", '')",
+                    "isExpression": true,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "coalesce(\"consumer_package_id\", '')",
+                    "isExpression": true,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "coalesce(\"installation_id\", '')",
+                    "isExpression": true,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "coalesce(\"device_id\", '')",
+                    "isExpression": true,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": true,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_assignment_target",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "source",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_assignment_source",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_policy_account",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "space_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_policy_space",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "host_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_policy_host",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "source",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_policy_source",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_policy"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "expires_at",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_request_expiry",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "nameExplicit": true,
+            "columns": [
+                {
+                    "value": "key_id",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                },
+                {
+                    "value": "scope",
+                    "isExpression": false,
+                    "asc": true,
+                    "nullsFirst": false,
+                    "opclass": null
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "with": "",
+            "method": "btree",
+            "concurrently": false,
+            "name": "setting_request_key",
+            "entityType": "indexes",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "columns": ["caller", "scope", "procedure", "request_id"],
+            "nameExplicit": false,
+            "name": "setting_request_pkey",
+            "entityType": "pks",
+            "schema": "public",
+            "table": "setting_request"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "setting_assignment_pkey",
+            "schema": "public",
+            "table": "setting_assignment",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "setting_policy_pkey",
+            "schema": "public",
+            "table": "setting_policy",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["key"],
+            "nameExplicit": false,
+            "name": "setting_source_pkey",
+            "schema": "public",
+            "table": "setting_source",
+            "entityType": "pks"
+        },
+        {
+            "value": "(\n            (\"scope\" = 'user' AND \"user_authority\" IS NOT NULL AND \"user_id\" IS NOT NULL AND \"host_id\" IS NULL)\n            OR (\"scope\" = 'space' AND \"space_id\" IS NOT NULL AND \"user_authority\" IS NULL AND \"user_id\" IS NULL AND \"host_id\" IS NULL AND \"consumer_package_id\" IS NULL AND \"device_id\" IS NULL)\n            OR (\"scope\" = 'host' AND \"host_id\" IS NOT NULL AND \"user_authority\" IS NULL AND \"user_id\" IS NULL AND \"space_id\" IS NULL AND \"installation_id\" IS NULL AND \"consumer_package_id\" IS NULL AND \"device_id\" IS NULL)\n        ) AND (\"installation_id\" IS NULL OR \"space_id\" IS NOT NULL)",
+            "name": "setting_assignment_scope",
+            "entityType": "checks",
+            "schema": "public",
+            "table": "setting_assignment"
+        },
+        {
+            "value": "\n            (\"authority\" = 'account' AND \"account_id\" IS NOT NULL AND \"space_id\" IS NULL AND \"host_id\" IS NULL)\n            OR (\"authority\" = 'space' AND \"space_id\" IS NOT NULL AND \"account_id\" IS NULL AND \"host_id\" IS NULL)\n            OR (\"authority\" = 'host' AND \"host_id\" IS NOT NULL AND \"account_id\" IS NULL AND \"space_id\" IS NULL)",
+            "name": "setting_policy_authority",
+            "entityType": "checks",
+            "schema": "public",
+            "table": "setting_policy"
+        }
+    ],
+    "renames": []
+}

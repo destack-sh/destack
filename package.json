@@ -31,6 +31,7 @@
         "@destack/registry",
         "@destack/home",
         "@destack/schema",
+        "@destack/setting",
         "@destack/test",
         "@destack/cli",
         "platform/site",

@@ -351,6 +351,24 @@
         "@destack/test": "workspace:*",
       },
     },
+    "@destack/setting": {
+      "name": "@destack/setting",
+      "version": "2026.9.0",
+      "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/model": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "uuid": "14.0.2",
+      },
+      "devDependencies": {
+        "@destack/resource": "workspace:*",
+        "@destack/test": "workspace:*",
+      },
+    },
     "@destack/signals": {
       "name": "@destack/signals",
       "version": "2026.9.0",
@@ -677,6 +695,8 @@
     "@destack/schema": ["@destack/schema@workspace:@destack/schema"],
 
     "@destack/service": ["@destack/service@workspace:@destack/service"],
+
+    "@destack/setting": ["@destack/setting@workspace:@destack/setting"],
 
     "@destack/signals": ["@destack/signals@workspace:@destack/signals"],
 

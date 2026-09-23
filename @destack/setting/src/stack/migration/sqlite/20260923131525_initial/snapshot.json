@@ -1,0 +1,757 @@
+{
+    "version": "7",
+    "dialect": "sqlite",
+    "id": "62bd7c9b-eb1f-4175-b369-9bd1abacda77",
+    "prevIds": ["00000000-0000-0000-0000-000000000000"],
+    "ddl": [
+        {
+            "name": "setting_assignment",
+            "entityType": "tables"
+        },
+        {
+            "name": "setting_policy",
+            "entityType": "tables"
+        },
+        {
+            "name": "setting_request",
+            "entityType": "tables"
+        },
+        {
+            "name": "setting_source",
+            "entityType": "tables"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "package_id",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_authority",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "user_id",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "space_id",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "host_id",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "consumer_package_id",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "installation_id",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "device_id",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "name",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "value",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "provenance",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "source",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "detached_at",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "setting_assignment"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "id",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "authority",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "account_id",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "space_id",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "host_id",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "setting",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "installation_id",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "mode",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "value",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "provenance",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "source",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "integer",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "detached_at",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "updated_at",
+            "entityType": "columns",
+            "table": "setting_policy"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "caller",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "scope",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "procedure",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "request_id",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "digest",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "key_id",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "response",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "created_at",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "expires_at",
+            "entityType": "columns",
+            "table": "setting_request"
+        },
+        {
+            "type": "text",
+            "notNull": false,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "key",
+            "entityType": "columns",
+            "table": "setting_source"
+        },
+        {
+            "type": "integer",
+            "notNull": true,
+            "autoincrement": false,
+            "default": null,
+            "generated": null,
+            "name": "revision",
+            "entityType": "columns",
+            "table": "setting_source"
+        },
+        {
+            "columns": ["caller", "scope", "procedure", "request_id"],
+            "nameExplicit": false,
+            "name": "setting_request_pk",
+            "entityType": "pks",
+            "table": "setting_request"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "setting_assignment_pk",
+            "table": "setting_assignment",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["id"],
+            "nameExplicit": false,
+            "name": "setting_policy_pk",
+            "table": "setting_policy",
+            "entityType": "pks"
+        },
+        {
+            "columns": ["key"],
+            "nameExplicit": false,
+            "name": "setting_source_pk",
+            "table": "setting_source",
+            "entityType": "pks"
+        },
+        {
+            "columns": [
+                {
+                    "value": "user_authority",
+                    "isExpression": false
+                },
+                {
+                    "value": "user_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "package_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "name",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_assignment_user",
+            "entityType": "indexes",
+            "table": "setting_assignment"
+        },
+        {
+            "columns": [
+                {
+                    "value": "space_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "package_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "name",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_assignment_space",
+            "entityType": "indexes",
+            "table": "setting_assignment"
+        },
+        {
+            "columns": [
+                {
+                    "value": "host_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "package_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "name",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_assignment_host",
+            "entityType": "indexes",
+            "table": "setting_assignment"
+        },
+        {
+            "columns": [
+                {
+                    "value": "package_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "name",
+                    "isExpression": false
+                },
+                {
+                    "value": "scope",
+                    "isExpression": false
+                },
+                {
+                    "value": "coalesce(\"user_authority\", '')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(\"user_id\", '')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(\"space_id\", '')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(\"host_id\", '')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(\"consumer_package_id\", '')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(\"installation_id\", '')",
+                    "isExpression": true
+                },
+                {
+                    "value": "coalesce(\"device_id\", '')",
+                    "isExpression": true
+                }
+            ],
+            "isUnique": true,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_assignment_target",
+            "entityType": "indexes",
+            "table": "setting_assignment"
+        },
+        {
+            "columns": [
+                {
+                    "value": "source",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_assignment_source",
+            "entityType": "indexes",
+            "table": "setting_assignment"
+        },
+        {
+            "columns": [
+                {
+                    "value": "account_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_policy_account",
+            "entityType": "indexes",
+            "table": "setting_policy"
+        },
+        {
+            "columns": [
+                {
+                    "value": "space_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_policy_space",
+            "entityType": "indexes",
+            "table": "setting_policy"
+        },
+        {
+            "columns": [
+                {
+                    "value": "host_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "id",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_policy_host",
+            "entityType": "indexes",
+            "table": "setting_policy"
+        },
+        {
+            "columns": [
+                {
+                    "value": "source",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_policy_source",
+            "entityType": "indexes",
+            "table": "setting_policy"
+        },
+        {
+            "columns": [
+                {
+                    "value": "expires_at",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_request_expiry",
+            "entityType": "indexes",
+            "table": "setting_request"
+        },
+        {
+            "columns": [
+                {
+                    "value": "key_id",
+                    "isExpression": false
+                },
+                {
+                    "value": "scope",
+                    "isExpression": false
+                }
+            ],
+            "isUnique": false,
+            "where": null,
+            "origin": "manual",
+            "name": "setting_request_key",
+            "entityType": "indexes",
+            "table": "setting_request"
+        },
+        {
+            "value": "(\n            (\"scope\" = 'user' AND \"user_authority\" IS NOT NULL AND \"user_id\" IS NOT NULL AND \"host_id\" IS NULL)\n            OR (\"scope\" = 'space' AND \"space_id\" IS NOT NULL AND \"user_authority\" IS NULL AND \"user_id\" IS NULL AND \"host_id\" IS NULL AND \"consumer_package_id\" IS NULL AND \"device_id\" IS NULL)\n            OR (\"scope\" = 'host' AND \"host_id\" IS NOT NULL AND \"user_authority\" IS NULL AND \"user_id\" IS NULL AND \"space_id\" IS NULL AND \"installation_id\" IS NULL AND \"consumer_package_id\" IS NULL AND \"device_id\" IS NULL)\n        ) AND (\"installation_id\" IS NULL OR \"space_id\" IS NOT NULL)",
+            "name": "setting_assignment_scope",
+            "entityType": "checks",
+            "table": "setting_assignment"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "setting_assignment_id_not_null",
+            "entityType": "checks",
+            "table": "setting_assignment"
+        },
+        {
+            "value": "\n            (\"authority\" = 'account' AND \"account_id\" IS NOT NULL AND \"space_id\" IS NULL AND \"host_id\" IS NULL)\n            OR (\"authority\" = 'space' AND \"space_id\" IS NOT NULL AND \"account_id\" IS NULL AND \"host_id\" IS NULL)\n            OR (\"authority\" = 'host' AND \"host_id\" IS NOT NULL AND \"account_id\" IS NULL AND \"space_id\" IS NULL)",
+            "name": "setting_policy_authority",
+            "entityType": "checks",
+            "table": "setting_policy"
+        },
+        {
+            "value": "\"id\" IS NOT NULL",
+            "name": "setting_policy_id_not_null",
+            "entityType": "checks",
+            "table": "setting_policy"
+        },
+        {
+            "value": "\"key\" IS NOT NULL",
+            "name": "setting_source_key_not_null",
+            "entityType": "checks",
+            "table": "setting_source"
+        }
+    ],
+    "renames": []
+}
