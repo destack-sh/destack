@@ -1,15 +1,11 @@
 Start a TypeScript package with a shared stack dependency.
 
 ```ts
-import type { SettingContext } from "@destack/setting";
-import { language, appearance } from "./settings/index.ts";
+import { ClientContext } from "@destack/service/client";
+import { settings } from "./connection/index.ts";
+import { readLanguage } from "./index.ts";
 
-export async function readSettings(settings: SettingContext) {
-    const result = await settings.resolve({ language, appearance });
-
-    return {
-        language: result.language.value,
-        appearance: result.appearance.value,
-    };
-}
+const context = new ClientContext(configuration, transport);
+context.bind(settings);
+const language = await readLanguage(target, context.resources);
 ```

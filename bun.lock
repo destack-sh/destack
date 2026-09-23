@@ -423,7 +423,9 @@
       "version": "2026.9.0",
       "dependencies": {
         "@destack/package": "2026.9.0",
+        "@destack/resource": "2026.9.0",
         "@destack/schema": "2026.9.0",
+        "@destack/service": "2026.9.0",
         "@destack/setting": "2026.9.0",
         "@destack/template-stack": "2026.9.0",
       },

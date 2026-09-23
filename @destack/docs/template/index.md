@@ -15,7 +15,7 @@ Templates are ordinary packages with a `template` declaration in `destack.json`.
 ```ts
 import { generateTemplate, readTemplate, writeTemplate } from "@destack/build/template";
 
-const source = await readTemplate("template/blank");
+const source = await readTemplate("@destack/template-blank");
 const files = generateTemplate(source, {
     name: "@florian/notes",
     dependencies: {
