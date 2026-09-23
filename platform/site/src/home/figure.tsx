@@ -5,7 +5,7 @@ import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/vie
 import { Ice } from "../effect/ice";
 import { sound } from "../effect/sound";
 import { Sparks } from "../effect/sparks";
-import { drainAt, nightWater, paperWater, travel, Water } from "../effect/water";
+import { drainAt, nightWater, paperWater, travel, Water, waveAt } from "../effect/water";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { Band, Card, DuctTape, type Entity, type Reveal } from "./card";
@@ -18,6 +18,8 @@ const still = "@media (prefers-reduced-motion: reduce)";
 
 /// The rows above the waterline today.
 const dryRows = 2;
+/// The share of a vendor card's height that sinks below the surface, so it barely floats.
+const cardDraft = 0.1;
 /// The switch's name for the stack today, set in crooked letters.
 const stacked = "\u201cThe Stack\u201d";
 
@@ -458,7 +460,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         const waterline = () => (frame.height * dryRows) / layers.length;
         const shift = () =>
             drawing.getBoundingClientRect().left - canvas.getBoundingClientRect().left;
-        let riders: { element: HTMLElement; bergs: number[] }[] | undefined;
+        let riders: { element: HTMLElement; berg: number; lift: number }[] | undefined;
         let strips: SVGElement[] | undefined;
 
         // stick both ends of a tape strip to its cards, then span, turn, and stretch it
@@ -486,18 +488,31 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         measure();
         try {
             const centres = columnCentres.map((centre) => centre / boardCells);
-            ice = new Ice(iceCanvas, centres, !isStill, (lifts, tilts) => {
+            ice = new Ice(iceCanvas, centres, !isStill, () => {
                 riders ??= [...figure.querySelectorAll<HTMLElement>("[data-bob]")].map(
-                    (element) => ({
-                        element,
-                        bergs: element.dataset.bob!.split(" ").map(Number),
-                    }),
+                    (element) => ({ element, berg: Number(element.dataset.bob), lift: 0 }),
                 );
-                for (const { element, bergs } of riders) {
-                    const lift = bergs.reduce((sum, berg) => sum + lifts[berg], 0) / bergs.length;
-                    const tilt = bergs.reduce((sum, berg) => sum + tilts[berg], 0) / bergs.length;
-                    element.style.setProperty("--lift", `${lift.toFixed(2)}px`);
-                    element.style.setProperty("--tilt", `${tilt.toFixed(2)}deg`);
+
+                // float each vendor card low on the surface above its berg, heaving with the waves and leaning with their slope
+                const seconds = performance.now() / 1000;
+                const cell = frame.width / boardCells;
+                const top = drawing.getBoundingClientRect().top;
+                const lifts: number[] = [];
+                const tilts: number[] = [];
+                for (const rider of riders) {
+                    const x = shift() + cell * columnCentres[rider.berg];
+                    const box = rider.element.getBoundingClientRect();
+                    const rest = box.bottom - top - rider.lift;
+                    const sink = waterline() - rest + box.height * cardDraft;
+                    const heave = Math.sin(seconds * 0.9 + rider.berg * 2.1) * 2;
+                    const slope = waveAt(x + 30, seconds) - waveAt(x - 30, seconds);
+                    rider.lift = sink + waveAt(x, seconds) + heave;
+                    lifts[rider.berg] = rider.lift;
+                    tilts[rider.berg] =
+                        (Math.atan2(slope, 60) * 180) / Math.PI +
+                        Math.sin(seconds * 0.6 + rider.berg * 1.4) * 1.2;
+                    rider.element.style.setProperty("--lift", `${rider.lift.toFixed(2)}px`);
+                    rider.element.style.setProperty("--tilt", `${tilts[rider.berg].toFixed(2)}deg`);
                 }
                 strips ??= [...figure.querySelectorAll<SVGElement>("[data-tape]")];
                 for (const tape of strips) {
