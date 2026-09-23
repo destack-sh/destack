@@ -20,9 +20,9 @@ const entities: Record<string, Entity> = {
     colleague: { label: "Colleague", icon: "user", role: "Human" },
     friend: { label: "Friend", icon: "user", role: "Human" },
     agent: { label: "Agent", icon: "agent", role: "Agent" },
-    notion: { label: "Notion", icon: "notion", role: "Rented" },
-    slack: { label: "Slack", icon: "slack", role: "Rented" },
-    github: { label: "GitHub", icon: "github", role: "Rented" },
+    notion: { label: "Notion", icon: "notion", role: "$10/seat/mo" },
+    slack: { label: "Slack", icon: "slack", role: "$8.75/seat/mo" },
+    github: { label: "GitHub", icon: "github", role: "$4/seat/mo" },
     pages: { label: "Pages", icon: "pages", role: "App" },
     chat: { label: "Chat", icon: "chat", role: "App" },
     tasks: { label: "Tasks", icon: "tasks", role: "App" },
@@ -256,6 +256,10 @@ type Kind = "locked" | "link" | "chain" | "drop";
 /// A point in layer pixels.
 type Point = { x: number; y: number };
 
+/// A right-angled cable run: its two ends and where its middle segment crosses, down then across then down,
+/// or across then down then across.
+type Run = { from: Point; to: Point; bend: number };
+
 /// A card's edges and centre in layer pixels.
 type Box = { left: number; right: number; top: number; bottom: number; centre: number };
 
@@ -275,6 +279,8 @@ type Cable = {
     alpha: number;
     /// The time the cable starts to fade in.
     showsAt: number;
+    /// How far the cable has settled onto the grid, from 0 following its cards to 1 resting in the holes.
+    settle: number;
 };
 
 /// Show the top two layers, locked today or freely rearranging with Destack, every card draggable.
@@ -417,47 +423,29 @@ export function Remix(props: {
                     velocity: { x: 0, y: 0 },
                     alpha: 0,
                     showsAt: 0,
+                    settle: 0,
                 };
                 cables.set(key, found);
             }
             return found;
         };
 
-        // swing a cable's middle like a taut cable and draw it with vertical or horizontal ends
-        const hang = (
-            key: string,
-            kind: Kind,
-            from: Point,
-            to: Point,
-            isAcross: boolean,
-            fade: number,
-            now: number,
-            route?: string,
-        ) => {
-            const found = cable(key, kind);
+        // fade a cable in once its moment in the choreography comes
+        const show = (found: Cable, fade: number, now: number) => {
             if (found.alpha === 0 && found.showsAt < changedAt) {
                 found.showsAt = changedAt + delay;
             }
             if (now >= found.showsAt) {
                 found.alpha = Math.min(1, found.alpha + 0.06);
             }
-
-            // lay a resting cable along its route through the holes, calm and ready to swing
-            const middle = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
             const opacity = String(found.alpha * fade);
             found.path.style.opacity = opacity;
             found.ends.style.opacity = opacity;
-            found.ends.setAttribute("d", `${plug(from)}${plug(to)}`);
-            if (route) {
-                found.path.setAttribute("d", route);
-                found.middle = middle;
-                found.offset = { x: 0, y: 0 };
-                found.velocity = { x: 0, y: 0 };
-                isStirring ||= found.alpha < 1;
-                return;
-            }
+            isStirring ||= found.alpha < 1;
+        };
 
-            // push the middle against the motion of its ends, then spring it back toward the straight line
+        // push a cable's middle against the motion of its ends, spring it back, and return how far it swings
+        const swing = (found: Cable, middle: Point) => {
             const previous = found.middle ?? middle;
             found.middle = middle;
             const velocity = found.velocity;
@@ -467,22 +455,61 @@ export function Remix(props: {
                 (velocity.y - (middle.y - previous.y) * 0.9 - found.offset.y * 0.09) * 0.84;
             found.offset.x += velocity.x;
             found.offset.y += velocity.y;
-            const isSwinging = Math.abs(velocity.x) + Math.abs(velocity.y) > 0.02;
-            isStirring ||= isSwinging || found.alpha < 1;
+            isStirring ||= Math.abs(velocity.x) + Math.abs(velocity.y) > 0.02;
+            return found.offset;
+        };
 
-            // sag cables that run across a little under their own weight
-            const sag = isAcross ? Math.min(10, Math.abs(to.x - from.x) * 0.08) : 0;
-            const bend = { x: found.offset.x * 1.33, y: (found.offset.y + sag) * 1.33 };
-            const half = isAcross ? (to.x - from.x) / 2 : (to.y - from.y) / 2;
-            const first = isAcross
-                ? { x: from.x + half + bend.x, y: from.y + bend.y }
-                : { x: from.x + bend.x, y: from.y + half + bend.y };
-            const second = isAcross
-                ? { x: to.x - half + bend.x, y: to.y + bend.y }
-                : { x: to.x + bend.x, y: to.y - half + bend.y };
+        // hang a locked cable between two cards as a taut curve that swings as they bob
+        const hang = (key: string, from: Point, to: Point, now: number) => {
+            const found = cable(key, "locked");
+            show(found, 1, now);
+            found.ends.setAttribute("d", `${plug(from)}${plug(to)}`);
+            const offset = swing(found, { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
+            const half = (to.y - from.y) / 2;
+            const bend = { x: offset.x * 1.33, y: offset.y * 1.33 };
             found.path.setAttribute(
                 "d",
-                `M${from.x} ${from.y}C${first.x} ${first.y} ${second.x} ${second.y} ${to.x} ${to.y}`,
+                `M${from.x} ${from.y}C${from.x + bend.x} ${from.y + half + bend.y} ${to.x + bend.x} ${to.y - half + bend.y} ${to.x} ${to.y}`,
+            );
+        };
+
+        // run an open cable at right angles, following its cards while they move and easing into the holes once they rest
+        const run = (
+            key: string,
+            kind: Kind,
+            free: Run,
+            grid: Run,
+            isResting: boolean,
+            isAcross: boolean,
+            fade: number,
+            now: number,
+        ) => {
+            const found = cable(key, kind);
+            show(found, fade, now);
+
+            // blend the free run toward the grid run as the cable settles
+            const target = isResting ? 1 : 0;
+            found.settle += (target - found.settle) * 0.14;
+            if (Math.abs(target - found.settle) < 0.002) {
+                found.settle = target;
+            }
+            isStirring ||= found.settle !== target;
+            const t = found.settle;
+            const mix = (a: number, b: number) => a + (b - a) * t;
+            const from = { x: mix(free.from.x, grid.from.x), y: mix(free.from.y, grid.from.y) };
+            const to = { x: mix(free.to.x, grid.to.x), y: mix(free.to.y, grid.to.y) };
+
+            // swing the middle segment across its length while the cable is loose
+            const offset = swing(found, { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
+            const bend =
+                mix(free.bend, grid.bend) + (isAcross ? offset.x : offset.y) * 1.33 * (1 - t);
+
+            found.ends.setAttribute("d", `${plug(from)}${plug(to)}`);
+            found.path.setAttribute(
+                "d",
+                isAcross
+                    ? `M${from.x} ${from.y}H${bend}V${to.y}H${to.x}`
+                    : `M${from.x} ${from.y}V${bend}H${to.x}V${to.y}`,
             );
         };
 
@@ -526,17 +553,26 @@ export function Remix(props: {
                 }
                 const key = `${kind}:${upper}:${lower}`;
                 kept.add(key);
-                if (isOpen && rests(upper, from) && rests(lower, to)) {
-                    const start = { x: hole(from.centre), y: from.bottom };
-                    const end = { x: hole(to.centre), y: to.top };
-                    const trackY = cellRow * (8.5 + (index % 2));
-                    const route = `M${start.x} ${start.y}V${trackY}H${end.x}V${end.y}`;
-                    hang(key, kind, start, end, false, 1, now, route);
-                } else {
-                    const start = { x: from.centre, y: from.bottom };
-                    const end = { x: to.centre, y: to.top };
-                    hang(key, kind, start, end, false, 1, now);
+                const start = { x: from.centre, y: from.bottom };
+                const end = { x: to.centre, y: to.top };
+                if (!isOpen) {
+                    hang(key, start, end, now);
+                    return;
                 }
+                run(
+                    key,
+                    kind,
+                    { from: start, to: end, bend: (start.y + end.y) / 2 },
+                    {
+                        from: { x: hole(from.centre), y: from.bottom },
+                        to: { x: hole(to.centre), y: to.top },
+                        bend: cellRow * (8.5 + (index % 2)),
+                    },
+                    rests(upper, from) && rests(lower, to),
+                    false,
+                    1,
+                    now,
+                );
             });
 
             // once open, chain the lower cards along a hole row and drop each into the services below its slot
@@ -554,53 +590,43 @@ export function Remix(props: {
                     if (next) {
                         const key = `chain:${card.id}:${next.id}`;
                         kept.add(key);
-                        if (card.isResting && next.isResting) {
-                            const y = cellRow * 13.5;
-                            const start = { x: card.right, y };
-                            const end = { x: next.left, y };
-                            hang(
-                                key,
-                                "chain",
-                                start,
-                                end,
-                                true,
-                                reveal,
-                                now,
-                                `M${start.x} ${y}H${end.x}`,
-                            );
-                        } else {
-                            const start = { x: card.right, y: (card.top + card.bottom) / 2 };
-                            const end = { x: next.left, y: (next.top + next.bottom) / 2 };
-                            hang(key, "chain", start, end, true, reveal, now);
-                        }
+                        const start = { x: card.right, y: (card.top + card.bottom) / 2 };
+                        const end = { x: next.left, y: (next.top + next.bottom) / 2 };
+                        const y = cellRow * 13.5;
+                        run(
+                            key,
+                            "chain",
+                            { from: start, to: end, bend: (start.x + end.x) / 2 },
+                            {
+                                from: { x: start.x, y },
+                                to: { x: end.x, y },
+                                bend: (start.x + end.x) / 2,
+                            },
+                            card.isResting && next.isResting,
+                            true,
+                            reveal,
+                            now,
+                        );
                     }
                     const key = `drop:${card.id}`;
                     kept.add(key);
                     const place = places.get(card.id);
                     const anchor = { x: hole(place ? centre(place, cell) : card.centre), y: floor };
-                    if (card.isResting) {
-                        const start = { x: anchor.x, y: card.bottom };
-                        hang(
-                            key,
-                            "drop",
-                            start,
-                            anchor,
-                            false,
-                            reveal,
-                            now,
-                            `M${anchor.x} ${start.y}V${floor}`,
-                        );
-                    } else {
-                        hang(
-                            key,
-                            "drop",
-                            { x: card.centre, y: card.bottom },
-                            anchor,
-                            false,
-                            reveal,
-                            now,
-                        );
-                    }
+                    const start = { x: card.centre, y: card.bottom };
+                    run(
+                        key,
+                        "drop",
+                        { from: start, to: anchor, bend: (start.y + anchor.y) / 2 },
+                        {
+                            from: { x: anchor.x, y: card.bottom },
+                            to: anchor,
+                            bend: (card.bottom + anchor.y) / 2,
+                        },
+                        card.isResting,
+                        false,
+                        reveal,
+                        now,
+                    );
                 });
             }
 
