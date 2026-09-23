@@ -98,7 +98,7 @@ const layers: readonly Layer[] = [
 ];
 
 /// The vendor that owns each column's layers under water.
-const owners = ["Notion", "PostHog", "GitHub"];
+const owners = ["Notion", "Slack", "GitHub"];
 
 /// The layers each vendor keeps under water, one per submerged row.
 const locked: readonly Entity[] = [

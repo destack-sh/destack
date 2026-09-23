@@ -21,10 +21,10 @@ const entities: Record<string, Entity> = {
     friend: { label: "Friend", icon: "user", role: "Human" },
     agent: { label: "Agent", icon: "agent", role: "Agent" },
     notion: { label: "Notion", icon: "notion", role: "Rented" },
-    posthog: { label: "PostHog", icon: "posthog", role: "Rented" },
+    slack: { label: "Slack", icon: "slack", role: "Rented" },
     github: { label: "GitHub", icon: "github", role: "Rented" },
     pages: { label: "Pages", icon: "pages", role: "App" },
-    insights: { label: "Insights", icon: "insights", role: "App" },
+    chat: { label: "Chat", icon: "chat", role: "App" },
     tasks: { label: "Tasks", icon: "tasks", role: "App" },
     planner: { label: "Planner", icon: "tasks", role: "Fork of Tasks" },
 };
@@ -35,7 +35,7 @@ const todayReveals: { [id: string]: Reveal | undefined } = {
         kind: "fields",
         rows: [
             ["Notion", "login + 2FA"],
-            ["PostHog", "GitHub login"],
+            ["Slack", "magic link"],
             ["GitHub", "SSO + 2FA"],
             ["billing", "3 plans"],
         ],
@@ -44,7 +44,7 @@ const todayReveals: { [id: string]: Reveal | undefined } = {
         kind: "fields",
         rows: [
             ["Notion", "seat pending"],
-            ["PostHog", "guest link"],
+            ["Slack", "guest, 1 channel"],
             ["GitHub", "no seat"],
         ],
     },
@@ -52,7 +52,7 @@ const todayReveals: { [id: string]: Reveal | undefined } = {
         kind: "fields",
         rows: [
             ["Notion", "public link"],
-            ["PostHog", "no access"],
+            ["Slack", "no access"],
             ["GitHub", "no access"],
         ],
     },
@@ -60,12 +60,12 @@ const todayReveals: { [id: string]: Reveal | undefined } = {
         kind: "fields",
         rows: [
             ["BLOCKED", "Notion API"],
-            ["BLOCKED", "PostHog"],
+            ["BLOCKED", "Slack history"],
             ["ALLOWED", "GitHub MCP"],
         ],
     },
     notion: { kind: "cipher" },
-    posthog: { kind: "cipher" },
+    slack: { kind: "cipher" },
     github: { kind: "cipher" },
 };
 
@@ -83,7 +83,7 @@ const openReveals: { [id: string]: Reveal | undefined } = {
         rows: [
             ["passkey", "one"],
             ["pages", "edit"],
-            ["insights", "view"],
+            ["chat", "post"],
         ],
     },
     friend: {
@@ -115,16 +115,16 @@ const openReveals: { [id: string]: Reveal | undefined } = {
             "}",
         ],
     },
-    insights: {
+    chat: {
         kind: "code",
-        name: "insights.tsx",
+        name: "chat.tsx",
         lines: [
-            "function Insights() {",
-            "  const hits = useEvents(",
-            '    "page_view",',
-            "  );",
+            "function Chat() {",
+            "  const said = useChat();",
             "  return (",
-            "    <Chart of={hits()} />",
+            "    <For each={said()}>",
+            "      {Message}",
+            "    </For>",
             "  );",
             "}",
         ],
@@ -160,9 +160,9 @@ const openReveals: { [id: string]: Reveal | undefined } = {
 /// Every card the scenes can show.
 const ids = Object.keys(entities);
 /// The vendor apps, in the order of the icebergs they ride.
-const vendors = ["notion", "posthog", "github"];
+const vendors = ["notion", "slack", "github"];
 /// The open apps, which anyone can fork.
-const apps = ["pages", "insights", "tasks", "planner"];
+const apps = ["pages", "chat", "tasks", "planner"];
 
 /// One arrangement of the top two layers.
 type Scene = {
@@ -177,10 +177,10 @@ type Scene = {
 /// The locked stack today: everyone signs in to separate vendor apps.
 const today: Scene = {
     upper: ["you", "colleague", "friend", "agent"],
-    lower: [{ id: "notion" }, { id: "posthog" }, { id: "github" }],
+    lower: [{ id: "notion" }, { id: "slack" }, { id: "github" }],
     links: [
         ["you", "notion"],
-        ["colleague", "posthog"],
+        ["colleague", "slack"],
         ["friend", "notion"],
         ["agent", "github"],
     ],
@@ -190,11 +190,11 @@ const today: Scene = {
 const scenes: readonly Scene[] = [
     {
         upper: ["you", "colleague", "friend", "agent"],
-        lower: [{ id: "pages" }, { id: "insights" }, { id: "tasks" }],
+        lower: [{ id: "pages" }, { id: "chat" }, { id: "tasks" }],
         links: [
             ["you", "pages"],
-            ["you", "insights"],
-            ["colleague", "insights"],
+            ["you", "chat"],
+            ["colleague", "chat"],
             ["colleague", "tasks"],
             ["friend", "pages"],
             ["agent", "tasks"],
@@ -203,22 +203,22 @@ const scenes: readonly Scene[] = [
     },
     {
         upper: ["you", "colleague", "friend", "agent"],
-        lower: [{ id: "pages" }, { id: "insights" }, { id: "planner", isWide: true }],
+        lower: [{ id: "pages" }, { id: "chat" }, { id: "planner", isWide: true }],
         links: [
             ["you", "pages"],
             ["colleague", "planner"],
             ["friend", "pages"],
-            ["friend", "insights"],
+            ["friend", "chat"],
             ["agent", "planner"],
         ],
     },
     {
-        upper: ["you", "colleague", "insights", "friend"],
+        upper: ["you", "colleague", "chat", "friend"],
         lower: [{ id: "pages" }, { id: "agent" }, { id: "planner", isWide: true }],
         links: [
             ["you", "pages"],
             ["colleague", "agent"],
-            ["insights", "agent"],
+            ["chat", "agent"],
             ["friend", "planner"],
         ],
     },
