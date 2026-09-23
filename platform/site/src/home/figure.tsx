@@ -650,7 +650,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
                 )}
             </For>
 
-            {/* drift flotsam along the waterline, behind the cards and under the water, once it has been calm a while */}
+            {/* drift flotsam along the waterline, in front of the cards and under the water, once it has been calm a while */}
             <Flotsam
                 isAdrift={isAdrift()}
                 surfacedAt={surfacedAt()}
@@ -1252,7 +1252,7 @@ const styles = stylex.create({
         right: 0,
         top: `calc(100% * ${dryRows} / ${layers.length} - 1px)`,
         transition: `opacity 400ms ${easing}`,
-        zIndex: 1,
+        zIndex: 2,
         [mobile]: { display: "none" },
     },
     poolGone: {
@@ -1302,6 +1302,6 @@ const styles = stylex.create({
         position: "absolute",
         transition: `opacity 400ms ${easing}`,
         width: "100%",
-        zIndex: 1,
+        zIndex: 2,
     },
 });

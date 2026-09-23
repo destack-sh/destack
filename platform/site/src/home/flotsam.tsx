@@ -333,7 +333,7 @@ const styles = stylex.create({
         position: "absolute",
         right: 0,
         transition: "opacity 1200ms ease",
-        zIndex: 1,
+        zIndex: 2,
         "@media (prefers-reduced-motion: reduce)": { display: "none" },
     },
     adrift: {
