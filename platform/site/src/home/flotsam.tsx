@@ -37,9 +37,17 @@ const pieces: readonly Piece[] = [
         art: Lifeboat,
         width: 88,
         height: 46,
-        draft: 16,
-        tie: [82, 26],
-        tags: ["Acquired", "Now sunsetting", "Now AI-first", "Pivoted", "Our journey ends"],
+        draft: 17,
+        tie: [85, 20],
+        tags: [
+            "Acquired by private equity",
+            "Sunsetting in 30 days",
+            "Our incredible journey",
+            "Now AI-first",
+            "Pivoting to agents",
+            "Read-only from Friday",
+            "Winding down, sorry",
+        ],
     },
     {
         art: LifeRing,
@@ -47,7 +55,15 @@ const pieces: readonly Piece[] = [
         height: 40,
         draft: 18,
         tie: [37, 22],
-        tags: ["Talk to sales", "Price +40%", "Per seat", "Enterprise only", "Annual billing"],
+        tags: [
+            "New plan: +40% for you",
+            "Now usage-based",
+            "SSO is Enterprise-only",
+            "Free plan retired",
+            "Renewed for 3 years",
+            "Talk to sales to cancel",
+            "AI add-on, now included*",
+        ],
     },
     {
         art: Buoy,
@@ -55,7 +71,15 @@ const pieces: readonly Piece[] = [
         height: 44,
         draft: 14,
         tie: [25, 28],
-        tags: ["Deprecated", "Rate limited", "Upgrade to Enterprise", "API v1 EOL", "Book a demo"],
+        tags: [
+            "Now deprecated",
+            "Rate limited, try later",
+            "API v1 retired today",
+            "Breaking change (minor)",
+            "Webhooks paused",
+            "Feature moved to Pro",
+            "Upgrade to Enterprise",
+        ],
     },
     {
         art: Duck,
@@ -65,10 +89,12 @@ const pieces: readonly Piece[] = [
         tie: [41, 28],
         tags: [
             "We value your feedback",
-            "Ticket #48213",
+            "Export ready in 3 days",
+            "Closed as won't fix",
+            "Works on our end",
+            "Your call is important",
             "Contact your admin",
-            "Trial expired",
-            "Export 3–5 days",
+            "Ticket #48213 auto-closed",
         ],
     },
 ];
@@ -231,19 +257,27 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
     );
 }
 
-/// Draw an orange lifeboat with a castaway rowing.
+/// Draw a leaking orange lifeboat with a castaway bailing it out.
 function Lifeboat() {
     return (
         <svg width="88" height="46" viewBox="0 0 88 46" {...stylex.attrs(styles.art)}>
-            <path d="M34 20 L60 44" {...stylex.attrs(styles.oar)} />
-            <circle cx="30" cy="10" r="5" {...stylex.attrs(styles.skin)} />
-            <path d="M30 15 V26 M30 19 L36 22" {...stylex.attrs(styles.limb)} />
+            <circle cx="40" cy="11" r="5" {...stylex.attrs(styles.skin)} />
+            <path d="M40 16 V27 M40 19.5 L32 13.5 M40 22 L33 18" {...stylex.attrs(styles.limb)} />
             <path
-                d="M2 26 H86 L80 40 Q78 44 72 44 H16 Q10 44 8 40 Z"
+                d="M24 10 H32 L31 18 H25 Z"
+                transform="rotate(-35 28 14)"
+                {...stylex.attrs(styles.bucket)}
+            />
+            <path d="M22 9 Q17 7 13 11" {...stylex.attrs(styles.splashEdge)} />
+            <path d="M22 9 Q17 7 13 11" {...stylex.attrs(styles.splash)} />
+            <circle cx="11" cy="15" r="1.3" {...stylex.attrs(styles.drop)} />
+            <circle cx="9.5" cy="19.5" r="1" {...stylex.attrs(styles.drop)} />
+            <path
+                d="M3 22 Q10 26 20 26 H64 Q78 26 86 18 L80 36 Q76 44 68 44 H16 Q9 44 6 37 Z"
                 {...stylex.attrs(styles.hull)}
             />
-            <path d="M6 31 H82" {...stylex.attrs(styles.stripe)} />
-            <circle cx="80" cy="22" r="2" {...stylex.attrs(styles.brass)} />
+            <path d="M5 27.5 Q11 31 20 31 H64 Q76.5 31 83.5 24" {...stylex.attrs(styles.stripe)} />
+            <path d="M58 34 l3 -4 l1.5 3 l3 -3" {...stylex.attrs(styles.crack)} />
         </svg>
     );
 }
@@ -354,13 +388,31 @@ const styles = stylex.create({
         fill: "none",
         stroke: tokens.signalInk,
         strokeLinecap: "round",
+        strokeLinejoin: "round",
         strokeWidth: 2.5,
     },
-    oar: {
+    bucket: {
+        fill: "#9fb4bd",
+        stroke: tokens.signalInk,
+        strokeLinejoin: "round",
+        strokeWidth: 1.25,
+    },
+    splash: {
         fill: "none",
-        stroke: "#8a5a32",
+        stroke: "#bfe3ee",
         strokeLinecap: "round",
-        strokeWidth: 2.5,
+        strokeWidth: 2.2,
+    },
+    splashEdge: {
+        fill: "none",
+        stroke: tokens.signalInk,
+        strokeLinecap: "round",
+        strokeWidth: 3.6,
+    },
+    drop: {
+        fill: "#bfe3ee",
+        stroke: tokens.signalInk,
+        strokeWidth: 0.7,
     },
     hull: {
         fill: tokens.signal,
@@ -369,13 +421,16 @@ const styles = stylex.create({
         strokeWidth: 1.5,
     },
     stripe: {
+        fill: "none",
         stroke: tokens.cream,
         strokeWidth: 2.5,
     },
-    brass: {
-        fill: "#e8c27a",
+    crack: {
+        fill: "none",
         stroke: tokens.signalInk,
-        strokeWidth: 1,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        strokeWidth: 1.2,
     },
     ring: {
         fill: "none",

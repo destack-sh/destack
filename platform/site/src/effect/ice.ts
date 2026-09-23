@@ -1,7 +1,7 @@
 import { Shader } from "./gl";
 
 /// The milliseconds the ice takes to shatter or reassemble.
-const breakTime = 1600;
+const breakTime = 1200;
 
 /// The ice fragment shader.
 const fragmentSource = `
@@ -145,13 +145,13 @@ float surfaceAt(float x) {
 // the outline ink
 const vec3 ink = vec3(0.07, 0.19, 0.235);
 
-// shade a facet in flat cel tones lit from the upper left: white and pale blue above water, two blues below
+// shade a facet in flat cel tones lit from the upper left: white and a faint blue above water, two close blues below
 vec3 shade(vec2 local, vec2 cell) {
     float light = 0.55 + 0.45 * hash(cell) - local.x / column * 0.5;
     if (local.y < 0.0) {
-        return light > 0.62 ? vec3(1.0) : vec3(0.8, 0.91, 0.96);
+        return light > 0.62 ? vec3(1.0) : vec3(0.9, 0.955, 0.98);
     }
-    return light > 0.6 ? vec3(0.55, 0.8, 0.88) : vec3(0.36, 0.64, 0.75);
+    return light > 0.6 ? vec3(0.5, 0.76, 0.85) : vec3(0.43, 0.7, 0.8);
 }
 
 void main() {
@@ -182,7 +182,7 @@ void main() {
 
                 // pencil the facet creases above water, then ink the outline
                 float crease = (1.0 - smoothstep(0.0, 0.04, cell.z)) * step(p.y, 0.0);
-                color = mix(color, ink, crease * 0.16);
+                color = mix(color, ink, crease * 0.08);
                 color = mix(color, ink, smoothstep(-1.6, -0.8, d) * 0.6);
 
                 // wrap a foam collar where the water surface meets the ice
@@ -207,7 +207,7 @@ void main() {
                     // ink the cracks as the ice breaks, easing back to whole-ice creases, outline, and collar as it settles
                     float apart = smoothstep(0.0, 0.25, shatter);
                     float crack = 1.0 - smoothstep(0.012, 0.03, cell.z);
-                    float crease = (1.0 - smoothstep(0.0, 0.04, cell.z)) * step(origin.y, 0.0) * 0.16;
+                    float crease = (1.0 - smoothstep(0.0, 0.04, cell.z)) * step(origin.y, 0.0) * 0.08;
                     vec3 color = mix(shade(origin, shard), ink, mix(crease, crack * 0.6, apart));
                     color = mix(color, ink, smoothstep(-1.6, -0.8, d) * 0.6);
                     float collar = 1.0 - smoothstep(1.2, 2.2, abs(frag.y - surfaceAt(frag.x) - 3.0));

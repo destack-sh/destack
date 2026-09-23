@@ -40,7 +40,7 @@ const crooked = [
 const adriftDelay = 20000;
 
 /// The milliseconds the shattered ice waits before it clumps back together as the water returns.
-const reformDelay = 1500;
+const reformDelay = 1100;
 
 /// The two configurations the figure compares.
 type Stack = "today" | "destack";
@@ -406,7 +406,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
                 sparks.burst(
                     bounds.left - origin.left + (bounds.width * centre) / boardCells,
                     y,
-                    26,
+                    14,
                 );
             }
             const began = performance.now();
@@ -418,7 +418,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
                     canvas.clientWidth * 0.3,
                     canvas.clientWidth,
                     light.waterline + 10,
-                    4,
+                    2,
                 );
             }, 120);
         }
@@ -709,7 +709,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
                     <div
                         style={{
                             "--row": String(dryRows + index + 1),
-                            "--cascade": `${1100 + index * 300}ms`,
+                            "--cascade": `${820 + index * 220}ms`,
                             "clip-path": `inset(-2px calc((1 - var(--reveal-${dryRows + index})) * 50%))`,
                         }}
                         {...stylex.attrs(styles.band)}
@@ -979,12 +979,12 @@ const styles = stylex.create({
         [still]: { transition: "none" },
     },
     swapReturn: {
-        transition: `opacity 300ms ${easing} 2550ms`,
+        transition: `opacity 300ms ${easing} 1900ms`,
         [still]: { transition: "none" },
     },
     swapLeave: {
         opacity: 0,
-        transition: `opacity 250ms ${easing} 2300ms`,
+        transition: `opacity 250ms ${easing} 1700ms`,
         [still]: { transition: "none" },
     },
     claimText: {
@@ -1285,7 +1285,7 @@ const styles = stylex.create({
         transition: `opacity 400ms ${easing} 100ms`,
     },
     tapeBack: {
-        transition: `opacity 400ms ${easing} 2800ms`,
+        transition: `opacity 400ms ${easing} 2100ms`,
     },
     sparks: {
         height: "100%",

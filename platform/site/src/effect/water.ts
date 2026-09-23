@@ -36,7 +36,7 @@ export const paperWater: WaterPalette = {
 export const drainAt = 0.875;
 
 /// The milliseconds a full drain or fill takes.
-export const travel = 3200;
+export const travel = 2400;
 
 /// The water fragment shader.
 const fragmentSource = `
@@ -108,22 +108,23 @@ void main() {
         discard;
     }
 
-    // deepen in three flat cel bands of equal height
+    // deepen gradually toward the bottom
     float depth = clamp(below / max(size.y - level, 60.0), 0.0, 0.999);
-    vec3 color = mix(shallow, deep, floor(depth * 3.0) / 3.2);
+    vec3 color = mix(shallow, deep, smoothstep(0.0, 1.0, depth) * 0.94);
 
-    // lay a flat band of light just under the surface
-    color = mix(color, caustic, step(below, 14.0) * 0.22);
+    // brighten softly just under the surface
+    color = mix(color, caustic, (1.0 - smoothstep(4.0, 26.0, below)) * 0.14);
 
     // streak the whirlpool over the drain with spiralling foam
     float whirl = (funnel + fill) * exp(-spread * spread * 0.4);
     float spiral = step(0.8, fract(y * 0.06 + (x - drain) * 0.03 - time * 2.5));
     color = mix(color, foam, whirl * spiral * 0.55);
 
-    // net the light into crisp caustic lines that thin out with depth
+    // net the light into faint caustic lines that thin out with depth
     vec2 drift = vec2(x, y + sin(x * 0.02 + time * 0.5) * 6.0) / 70.0;
     float border = cells(drift, time * 0.6);
-    color = mix(color, caustic, step(border, 0.035 - depth * 0.02) * 0.14 * (1.0 - depth));
+    float threshold = 0.035 - depth * 0.02;
+    color = mix(color, caustic, (1.0 - smoothstep(threshold - 0.01, threshold, border)) * 0.06 * (1.0 - depth));
 
     // clear the water inside the searchlight
     float offset = length(vec2(x, y) - lens.xy);
@@ -139,7 +140,7 @@ void main() {
     color = mix(color, ink, outline * 0.55);
 
     // keep the water nearly opaque so the submerged stack reads only as shapes, except through the searchlight
-    float alpha = mix(mix(0.74, 0.88, step(0.34, depth)), 0.04, clear);
+    float alpha = mix(mix(0.74, 0.88, smoothstep(0.0, 0.8, depth)), 0.04, clear);
     alpha = max(alpha, max(froth, outline));
     gl_FragColor = vec4(color * alpha, alpha);
 }

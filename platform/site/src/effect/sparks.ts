@@ -153,11 +153,11 @@ export class Sparks {
             // glow cream, fading out at the end of its life
             const fade = Math.min(1, this.life[index] / (this.span[index] * 0.4));
             const size = this.isMote[index] === 1 ? 1.4 : 1.8;
-            context.fillStyle = `rgba(255, 244, 222, ${(fade * 0.9).toFixed(3)})`;
+            context.fillStyle = `rgba(255, 244, 222, ${(fade * 0.7).toFixed(3)})`;
             context.beginPath();
             context.arc(this.x[index], this.y[index], size, 0, Math.PI * 2);
             context.fill();
-            context.fillStyle = `rgba(255, 180, 120, ${(fade * 0.18).toFixed(3)})`;
+            context.fillStyle = `rgba(255, 180, 120, ${(fade * 0.1).toFixed(3)})`;
             context.beginPath();
             context.arc(this.x[index], this.y[index], size * 3, 0, Math.PI * 2);
             context.fill();
