@@ -6,27 +6,27 @@
         "mediaType": "application/json"
     },
     {
-        "path": "output/stack/index-ClyNLJHz.js",
-        "digest": "044ecae236ecb01821f80bf0d07168c9f356fd2ae1f00166c9a4c23d7a771a6f",
-        "size": 219450,
+        "path": "output/stack/index-DzV3fsEz.js",
+        "digest": "e6d471fb05df61dc07002e316d1534448783748f1c91ccc7000e306a44d44291",
+        "size": 234900,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/stack/index-ClyNLJHz.js.map",
-        "digest": "ae998e1d986fda98f251898ebaedc4f758741d61ef8a4e775fa42a1be49b0713",
-        "size": 603625,
+        "path": "output/stack/index-DzV3fsEz.js.map",
+        "digest": "e104528ff6c746bcc8c2c87f5924d129bae1c8acfa6f7c349a17c331e9ec210d",
+        "size": 628074,
         "mediaType": "application/json"
     },
     {
         "path": "package.json",
-        "digest": "dacab756f11ff3ae1f67e6ed524f542717582742354e88e88141f13e4ea21d8f",
-        "size": 378,
+        "digest": "6cada94c5173f3bfd3c214db2dc8ea48c8e96fb7b4baf251fd6498be1ced1754",
+        "size": 463,
         "mediaType": "application/json"
     },
     {
         "path": "src/index.ts",
-        "digest": "29c6e80edde45240d0d41078d06189a507b7b38d5d21687b8320abce78353276",
-        "size": 1053,
+        "digest": "edfb715b927daa4867ca3d8a5349d76bf7ab54daa0c0fbd82433ae69f38f9438",
+        "size": 2283,
         "mediaType": "application/octet-stream",
         "descriptions": [
             {
@@ -41,8 +41,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/index.ts.json",
-                    "digest": "2cbcbc434020b5052c64802c40faaf7a828fe0bd0097e0550ea10486fb224d22",
-                    "size": 21488,
+                    "digest": "297ef9506776bde5e9be273f32743f512d811a9e56be7bd3b3bb6967f9c25b7d",
+                    "size": 37812,
                     "mediaType": "application/json"
                 }
             }

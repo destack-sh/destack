@@ -6,6 +6,8 @@
         ".": "./src/index.ts"
     },
     "dependencies": {
+        "@destack/setting": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/model": "workspace:*",
         "@destack/access": "workspace:*",

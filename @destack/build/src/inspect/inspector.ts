@@ -16,9 +16,27 @@ import { AccessDeclaration } from "@destack/access/inspect";
 import type { ObjectType } from "@destack/access/declare";
 import { CronExpressionParser } from "cron-parser";
 import { BuildError } from "../error/index.ts";
+import {
+    SettingDescription,
+    describeSetting,
+    SettingAssignmentDefinition,
+    SettingPolicyDefinition,
+} from "@destack/setting/inspect";
+import type { Setting } from "@destack/setting";
 
 /** Declaration constructors and their serialized descriptions. */
 export const INSPECTORS = {
+    defineSetting: { package: "@destack/setting", kind: "setting", schema: SettingDescription },
+    defineSettingAssignment: {
+        package: "@destack/setting",
+        kind: "setting-assignment",
+        schema: SettingAssignmentDefinition,
+    },
+    defineSettingPolicy: {
+        package: "@destack/setting",
+        kind: "setting-policy",
+        schema: SettingPolicyDefinition,
+    },
     defineAuditAction: {
         package: "@destack/audit",
         kind: "audit-action",
@@ -53,6 +71,19 @@ export async function inspectDeclaration(
     value: unknown,
     owner: Package,
 ): Promise<Record<string, unknown>> {
+    // retain the native declaration's schema and verify its immutable package identity
+    if (name === "defineSetting") {
+        const description = describeSetting(value as Setting);
+        if (
+            description.package.id !== owner.id ||
+            description.package.version !== owner.version ||
+            description.package.name !== owner.name
+        ) {
+            throw new BuildError("INSPECTION_FAILED", "setting declares a different package");
+        }
+
+        return description;
+    }
     // retain qualified access declarations without evaluating application records
     if (name === "defineObject") {
         const declaration = AccessDeclaration.parse((value as ObjectType).definition);

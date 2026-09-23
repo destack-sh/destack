@@ -1,0 +1,144 @@
+[
+    {
+        "name": "language",
+        "kind": "setting",
+        "constructor": {
+            "package": {
+                "id": "package-019f5530-8000-7000-8000-000000000001",
+                "name": "@destack/setting",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/setting.ts",
+                "name": "defineSetting"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "@example/stack",
+                "version": "1.0.0"
+            },
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "language"
+            }
+        },
+        "source": {
+            "file": "src/index.ts",
+            "line": 13,
+            "column": 24
+        },
+        "description": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "@example/stack",
+                "version": "1.0.0"
+            },
+            "name": "language",
+            "title": "Language",
+            "description": "Language used for shared documents.",
+            "default": "en",
+            "scope": "space",
+            "overrides": [
+                "installation"
+            ],
+            "apply": "immediate",
+            "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "string",
+                "enum": [
+                    "en",
+                    "de"
+                ]
+            }
+        }
+    },
+    {
+        "name": "languageAssignment",
+        "kind": "setting-assignment",
+        "constructor": {
+            "package": {
+                "id": "package-019f5530-8000-7000-8000-000000000001",
+                "name": "@destack/setting",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/assignment.ts",
+                "name": "defineSettingAssignment"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "@example/stack",
+                "version": "1.0.0"
+            },
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "languageAssignment"
+            }
+        },
+        "source": {
+            "file": "src/index.ts",
+            "line": 26,
+            "column": 34
+        },
+        "description": {
+            "setting": {
+                "packageId": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "language"
+            },
+            "target": {
+                "kind": "space",
+                "location": {
+                    "spaceId": "space-019f5530-8000-7000-8000-000000000003"
+                }
+            },
+            "value": "de"
+        }
+    },
+    {
+        "name": "languagePolicy",
+        "kind": "setting-policy",
+        "constructor": {
+            "package": {
+                "id": "package-019f5530-8000-7000-8000-000000000001",
+                "name": "@destack/setting",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/policy.ts",
+                "name": "defineSettingPolicy"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "@example/stack",
+                "version": "1.0.0"
+            },
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "languagePolicy"
+            }
+        },
+        "source": {
+            "file": "src/index.ts",
+            "line": 38,
+            "column": 30
+        },
+        "description": {
+            "setting": {
+                "packageId": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "language"
+            },
+            "authority": {
+                "kind": "space",
+                "spaceId": "space-019f5530-8000-7000-8000-000000000003"
+            },
+            "mode": "recommended",
+            "value": "en"
+        }
+    }
+]

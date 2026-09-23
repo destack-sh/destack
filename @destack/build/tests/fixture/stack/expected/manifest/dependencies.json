@@ -711,6 +711,70 @@
             }
         ]
     },
+    "@destack/setting@2026.9.0": {
+        "kind": "source",
+        "package": {
+            "id": "package-019f5530-8000-7000-8000-000000000001",
+            "name": "@destack/setting",
+            "version": "2026.9.0"
+        },
+        "files": [
+            {
+                "path": "destack.json",
+                "digest": "881f86a502f885b50485017cbb91c814be5b9729bf0c7e8848283987afa50619",
+                "size": 176,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "package.json",
+                "digest": "8df59a082480ae0bc3e3736bec580c2f9707b8dc4fa11a4ab0bd8b2d4a44832c",
+                "size": 1187,
+                "mediaType": "application/json"
+            },
+            {
+                "path": "src/declare/assignment.ts",
+                "digest": "1bef4b4b82edefc9f0710e954b3a575acc4d51d2622affd8fac207633228e2f5",
+                "size": 1253,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/index.ts",
+                "digest": "9cfd8c745c77f72200c694efda1d59fcd4cd538682193bbea14295adc5195c47",
+                "size": 92,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/policy.ts",
+                "digest": "e0cb01c86d0b2c0ea66367a34789326b3de89ff89f3965cd5663255c8f76df92",
+                "size": 1547,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/setting.ts",
+                "digest": "bc42f37864c41277647aa7b8b23f6dc7d7fd299a283378f00e8029b763ce2f8b",
+                "size": 3333,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/error/error.ts",
+                "digest": "7afe21e38df266342574efa94c12cb8ed1a359fd32ed10eede2c367366a147fb",
+                "size": 469,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/setting/setting.ts",
+                "digest": "515ac63c0ac3e2efad6082cfee6991f7b2e5afa68d401d9820e5b6e08558a293",
+                "size": 3581,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/setting/target.ts",
+                "digest": "f1c44c34142e8448fd577b57dfce37674295228755140a3833979ad45ac1f468",
+                "size": 3965,
+                "mediaType": "application/octet-stream"
+            }
+        ]
+    },
     "@destack/space@2026.9.0": {
         "kind": "source",
         "package": {
@@ -833,8 +897,8 @@
             },
             {
                 "path": "package.json",
-                "digest": "14b409f49c4d711b4c495b317677e01391560b02f8f270307cdbe1ce7e67058e",
-                "size": 849,
+                "digest": "6a1db0a28f736817b6364e292233bd32273df955a7bc8bff845766cc9072a0ad",
+                "size": 976,
                 "mediaType": "application/json"
             },
             {

@@ -2,17 +2,19 @@
     "path": "src/index.ts",
     "source": {
         "path": "src/index.ts",
-        "digest": "29c6e80edde45240d0d41078d06189a507b7b38d5d21687b8320abce78353276",
-        "size": 1053,
+        "digest": "edfb715b927daa4867ca3d8a5349d76bf7ab54daa0c0fbd82433ae69f38f9438",
+        "size": 2283,
         "mediaType": "text/plain"
     },
-    "length": 1053,
+    "length": 2283,
     "imports": [
         "@destack/space",
         "@destack/package/import-meta",
         "@destack/model/declare",
         "@destack/access",
         "@destack/template-stack",
+        "@destack/setting/declare",
+        "@destack/schema",
         "@destack/template-stack"
     ],
     "globals": [],
@@ -21,15 +23,172 @@
             "source": {
                 "file": "src/index.ts",
                 "start": 0,
-                "end": 1053
+                "end": 2283
             },
             "throws": [],
             "calls": [
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 478,
-                        "end": 546
+                        "start": 525,
+                        "end": 821
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-019f5530-8000-7000-8000-000000000001",
+                            "name": "@destack/setting",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/setting.ts",
+                            "name": "defineSetting"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 696,
+                        "end": 721
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "_enum"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 931,
+                        "end": 1142
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-019f5530-8000-7000-8000-000000000001",
+                            "name": "@destack/setting",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/assignment.ts",
+                            "name": "defineSettingAssignment"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1040,
+                        "end": 1111
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodType.parse"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1040,
+                        "end": 1059
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739b-bf41-8570d1151a11",
+                            "name": "@destack/schema",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/identifier/identifier.ts",
+                            "name": "identifier"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1251,
+                        "end": 1492
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-019f5530-8000-7000-8000-000000000001",
+                            "name": "@destack/setting",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/policy.ts",
+                            "name": "defineSettingPolicy"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1361,
+                        "end": 1432
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodType.parse"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1361,
+                        "end": 1380
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739b-bf41-8570d1151a11",
+                            "name": "@destack/schema",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/identifier/identifier.ts",
+                            "name": "identifier"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1708,
+                        "end": 1776
                     },
                     "target": {
                         "package": {
@@ -48,8 +207,8 @@
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 621,
-                        "end": 836
+                        "start": 1851,
+                        "end": 2066
                     },
                     "target": {
                         "package": {
@@ -68,8 +227,8 @@
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 813,
-                        "end": 830
+                        "start": 2043,
+                        "end": 2060
                     },
                     "target": {
                         "package": {
@@ -88,8 +247,8 @@
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 939,
-                        "end": 1051
+                        "start": 2169,
+                        "end": 2281
                     },
                     "target": {
                         "package": {
@@ -112,56 +271,160 @@
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 478,
-                        "end": 546
+                        "start": 525,
+                        "end": 821
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 621,
-                        "end": 836
+                        "start": 554,
+                        "end": 581
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 554,
+                        "end": 573
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 696,
+                        "end": 721
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 651,
-                        "end": 681
+                        "start": 696,
+                        "end": 707
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 651,
-                        "end": 678
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/index.ts",
-                        "start": 651,
-                        "end": 670
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/index.ts",
-                        "start": 813,
-                        "end": 830
+                        "start": 931,
+                        "end": 1142
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/index.ts",
-                        "start": 939,
-                        "end": 1051
+                        "start": 1040,
+                        "end": 1111
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1040,
+                        "end": 1065
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1040,
+                        "end": 1059
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1251,
+                        "end": 1492
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1361,
+                        "end": 1432
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1361,
+                        "end": 1386
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1361,
+                        "end": 1380
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1708,
+                        "end": 1776
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1851,
+                        "end": 2066
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1881,
+                        "end": 1911
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1881,
+                        "end": 1908
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1881,
+                        "end": 1900
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 2043,
+                        "end": 2060
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 2169,
+                        "end": 2281
                     },
                     "reason": "call"
                 }
@@ -176,8 +439,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/index.ts",
-                        "start": 468,
-                        "end": 546
+                        "start": 1698,
+                        "end": 1776
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -230,14 +493,165 @@
             "indexes": []
         },
         {
+            "name": "language",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 514,
+                        "end": 821
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Describe a shared setting without reading runtime values.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "import(\"../node_modules/@destack/setting/src/setting/setting\").Setting<import(\"zod\").ZodEnum<{ de: \"de\"; en: \"en\"; }>>",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-019f5530-8000-7000-8000-000000000001",
+                            "name": "@destack/setting",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/setting/setting.ts",
+                            "name": "Setting"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodEnum"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
+            "name": "languageAssignment",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 910,
+                        "end": 1142
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Configure the same declared value through typed source authoring.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "{ setting: { packageId: string & import(\"zod\").$brand<\"package\">; name: string; }; target: { kind: \"user\"; user: { authority: string; id: string; kind: \"user\"; }; packageId?: (string & import(\"zod\").$brand<\"package\">) | undefined; location?: { spaceId: string & import(\"zod\").$brand<\"space\">; installationId?: (string & import(\"zod\").$brand<\"installation\">) | undefined; } | undefined; deviceId?: (string & import(\"zod\").$brand<\"device\">) | undefined; } | { kind: \"space\"; location: { spaceId: string & import(\"zod\").$brand<\"space\">; installationId?: (string & import(\"zod\").$brand<\"installation\">) | undefined; }; } | { kind: \"host\"; hostId: string & import(\"zod\").$brand<\"host\">; }; value: import(\"zod\").JSONType; }",
+                "references": [
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$brand"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/util.d.cts",
+                            "name": "JSONType"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
+            "name": "languagePolicy",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/index.ts",
+                        "start": 1234,
+                        "end": 1492
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Describe a recommendation independently of the persisted assignment.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "{ setting: { packageId: string & import(\"zod\").$brand<\"package\">; name: string; }; authority: { kind: \"account\"; accountId: string & import(\"zod\").$brand<\"account\">; } | { kind: \"space\"; spaceId: string & import(\"zod\").$brand<\"space\">; } | { kind: \"host\"; hostId: string & import(\"zod\").$brand<\"host\">; }; installationId?: (string & import(\"zod\").$brand<\"installation\">) | undefined; mode: \"recommended\" | \"required\"; value: import(\"zod\").JSONType; }",
+                "references": [
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$brand"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/util.d.cts",
+                            "name": "JSONType"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
             "name": "note",
             "declarations": [
                 {
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/index.ts",
-                        "start": 614,
-                        "end": 836
+                        "start": 1844,
+                        "end": 2066
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -368,8 +782,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/index.ts",
-                        "start": 928,
-                        "end": 1051
+                        "start": 2158,
+                        "end": 2281
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -453,6 +867,30 @@
                     "module": "src/database/database.ts",
                     "name": "database"
                 }
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "language",
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "language"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "languageAssignment",
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "languageAssignment"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "languagePolicy",
+            "symbol": {
+                "module": "src/index.ts",
+                "name": "languagePolicy"
             },
             "isTypeOnly": false
         },

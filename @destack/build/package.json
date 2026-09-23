@@ -21,6 +21,7 @@
         "test": "vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/setting": "workspace:*",
         "@destack/model": "workspace:*",
         "@destack/access": "workspace:*",
         "@destack/audit": "workspace:*",

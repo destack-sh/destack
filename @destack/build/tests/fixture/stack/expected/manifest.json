@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "ecf00ee38ff53cd63ebe624d8c24e1080b84fddc224fcea940a95384a127d0f9",
-        "size": 38641,
+        "digest": "ccb98fa62647194fee287f90b2ea3a43025569c26824b35cf80c583c2025daa0",
+        "size": 41195,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -52,6 +52,19 @@
                 "mediaType": "application/json"
             }
         },
+        "setting": {
+            "package": {
+                "id": "package-019f5530-8000-7000-8000-000000000001",
+                "name": "@destack/setting",
+                "version": "2026.9.0"
+            },
+            "file": {
+                "path": "manifest/setting.json",
+                "digest": "c5816513f9dec5a036ccaacf8ab2708c7fa99ba803a1e9328d805ab7c3f10cce",
+                "size": 4261,
+                "mediaType": "application/json"
+            }
+        },
         "model": {
             "package": {
                 "id": "package-01a0c80b-614f-73f3-b32b-12779e5cd20a",
@@ -60,7 +73,7 @@
             },
             "file": {
                 "path": "manifest/model.json",
-                "digest": "d96d321ddcc6deed7dd80742fe20714828218107312407413b59845dd5a84e79",
+                "digest": "4518610209da4334f8db5d2be6bda3dddf3054449847f3bce4705ac199d8986a",
                 "size": 1021,
                 "mediaType": "application/json"
             }
@@ -73,7 +86,7 @@
             },
             "file": {
                 "path": "manifest/access.json",
-                "digest": "2e81283b46241d26ae8e107f854fabc544cd8b1aeeeb1472bef18017e3c32046",
+                "digest": "af1b0f70011ff2763b30f3e71514b36a854ff234f3b15b40400d3ad253a0ba05",
                 "size": 1407,
                 "mediaType": "application/json"
             }
@@ -86,7 +99,7 @@
             },
             "file": {
                 "path": "manifest/space.json",
-                "digest": "1b6fd062a58f8b2435007dfba5e399e4f53ba0e86c4cdf0a8d40ae32e7f8fb1e",
+                "digest": "3aaa84911b19efb7660ef8776f4e437f03c201720ec698ca5179e37d6f986f1a",
                 "size": 1354,
                 "mediaType": "application/json"
             }
@@ -108,6 +121,11 @@
                 "vault": [
                     0
                 ],
+                "setting": [
+                    0,
+                    1,
+                    2
+                ],
                 "model": [
                     0
                 ],
@@ -120,20 +138,20 @@
             },
             "directory": "output/stack",
             "exports": {
-                ".": "output/stack/index-ClyNLJHz.js"
+                ".": "output/stack/index-DzV3fsEz.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "ffe23abcbcdcb0baa4de842c4c7a01f9b4ce5494500794f248ef7ebb37c545ed",
+        "digest": "ce633f929a1c16044a463f855949c14f2413f1813718d141626cba2a177ef545",
         "size": 1697,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "3f289b03760b07c2b8ec18230bbcccf19ddd1918e1531985b9d2cb7eacc29c18",
+        "digest": "c34a9d73dc45127c6ef39712b55a915653e27de6353e5b4baac6eb2d024f6b0c",
         "size": 123,
         "mediaType": "application/json"
     }
