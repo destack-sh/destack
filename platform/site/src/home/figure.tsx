@@ -91,21 +91,18 @@ const layers: readonly Layer[] = [
     },
     {
         name: "Hosts",
-        claim: { today: "Pay their markup", destack: "Run everywhere" },
+        claim: { today: "Pay double markup", destack: "Run everywhere" },
         topic: { today: "Vendor lock-in", destack: "Simple deployment" },
         detail: { today: "Their cloud", destack: "Node, Worker" },
     },
 ];
 
-/// The vendor that owns each column's layers under water.
-const owners = ["Notion", "Slack", "GitHub"];
-
 /// The layers each vendor keeps under water, one per submerged row.
 const locked: readonly Entity[] = [
-    { label: "Services", icon: "services", role: "Vendor" },
-    { label: "Data", icon: "storage", role: "Vendor" },
-    { label: "Source", icon: "source", role: "Vendor" },
-    { label: "Cloud", icon: "cloud", role: "Vendor" },
+    { label: "Rate-limited API", icon: "services", role: "Theirs" },
+    { label: "CSV export", icon: "storage", role: "Theirs" },
+    { label: "Not available", icon: "source", role: "Theirs" },
+    { label: "us-east-1 only", icon: "cloud", role: "Theirs" },
 ];
 
 /// The layers every Destack app shares, one per band row, with what each holds and shows inside.
@@ -675,7 +672,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
                 ))}
 
                 {/* place every entity on its row and column */}
-                {columnLefts.map((left, column) =>
+                {columnLefts.map((left) =>
                     locked.map((entity, index) => (
                         <div
                             style={{
@@ -686,7 +683,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
                             {...stylex.attrs(styles.column)}
                         >
                             <Card
-                                entity={{ ...entity, role: `${owners[column]}'s` }}
+                                entity={entity}
                                 kind="locked"
                                 reveal={{ kind: "cipher" }}
                                 style={styles.fill}
