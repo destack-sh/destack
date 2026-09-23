@@ -11,7 +11,7 @@
 
 </div>
 
-Destack is a personal software platform that lets you own, manage and run your personal software stack.
+Destack unifies all your apps and agents with one open stack.
 Instead of clobbering together a variety of mismatched tools and services, Destack lets you own, manage, access, and share your personal software kingdom.
 
 Destack is built around _one_ standardized approach to modern TypeScript and the web that enables seamless integration and customisation of _all_ apps built within it.

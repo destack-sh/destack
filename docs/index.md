@@ -5,4 +5,4 @@ description: The Destack computing stack.
 
 # Documentation
 
-Destack is an absurdly integrated fully hackable open source computing stack.
+Destack unifies all your apps and agents with one open stack.
