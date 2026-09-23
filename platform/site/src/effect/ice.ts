@@ -29,13 +29,6 @@ vec2 hash2(vec2 p) {
     return vec2(hash(p), hash(p + 17.3));
 }
 
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
-}
-
 // fold one polygon edge into a running distance and inside sign
 void edge(vec2 p, vec2 a, vec2 b, inout float nearest, inout float sign) {
     vec2 along = b - a;
@@ -50,7 +43,7 @@ void edge(vec2 p, vec2 a, vec2 b, inout float nearest, inout float sign) {
     }
 }
 
-// return the signed distance to one berg: a broad low ridge of peaks above water, a wider angular mass below
+// return the signed distance to one berg: a low ridge of hard-planed peaks above water, a lean faceted mass below that keeps clear of its neighbours
 float berg(vec2 p, float index) {
     // vary the bergs: mirror the middle one and narrow the last
     p.x *= index == 1.0 ? -1.0 : 1.0;
@@ -59,34 +52,41 @@ float berg(vec2 p, float index) {
     float h = min(column * 0.42, waterline * 0.62);
     float b = bulk;
 
-    // trace the ridge above the waterline in a few broad planes, slightly overlapping the mass below
+    // trace the ridge above the waterline in a few hard planes up to two peaks, slightly overlapping the mass below
     float nearest = 1e9;
     float sign = 1.0;
-    vec2 a0 = vec2(-0.44 * w, 6.0);
-    vec2 a1 = vec2(-0.3 * w, -0.48 * h);
-    vec2 a2 = vec2(-0.08 * w, -h);
-    vec2 a3 = vec2(0.12 * w, -0.8 * h);
-    vec2 a4 = vec2(0.3 * w, -0.46 * h);
-    vec2 a5 = vec2(0.47 * w, 6.0);
+    vec2 a0 = vec2(-0.4 * w, 6.0);
+    vec2 a1 = vec2(-0.33 * w, -0.36 * h);
+    vec2 a2 = vec2(-0.17 * w, -0.7 * h);
+    vec2 a3 = vec2(-0.05 * w, -h);
+    vec2 a4 = vec2(0.09 * w, -0.6 * h);
+    vec2 a5 = vec2(0.23 * w, -0.76 * h);
+    vec2 a6 = vec2(0.35 * w, -0.3 * h);
+    vec2 a7 = vec2(0.42 * w, 6.0);
     edge(p, a0, a1, nearest, sign);
     edge(p, a1, a2, nearest, sign);
     edge(p, a2, a3, nearest, sign);
     edge(p, a3, a4, nearest, sign);
     edge(p, a4, a5, nearest, sign);
-    edge(p, a5, a0, nearest, sign);
+    edge(p, a5, a6, nearest, sign);
+    edge(p, a6, a7, nearest, sign);
+    edge(p, a7, a0, nearest, sign);
     float ridge = sign * sqrt(nearest);
 
-    // trace the mass below, flaring past the ridge before tapering away unevenly
+    // trace the mass below in straight cuts: steep shouldered walls stepping in to a chiselled, off-centre keel
     nearest = 1e9;
     sign = 1.0;
-    vec2 b0 = vec2(-0.46 * w, -2.0);
-    vec2 b1 = vec2(-0.62 * w, 0.2 * b);
-    vec2 b2 = vec2(-0.57 * w, 0.52 * b);
-    vec2 b3 = vec2(-0.34 * w, 0.86 * b);
-    vec2 b4 = vec2(0.04 * w, 0.97 * b);
-    vec2 b5 = vec2(0.38 * w, 0.8 * b);
-    vec2 b6 = vec2(0.63 * w, 0.36 * b);
-    vec2 b7 = vec2(0.49 * w, -2.0);
+    vec2 b0 = vec2(-0.4 * w, -2.0);
+    vec2 b1 = vec2(-0.43 * w, 0.1 * b);
+    vec2 b2 = vec2(-0.42 * w, 0.38 * b);
+    vec2 b3 = vec2(-0.33 * w, 0.6 * b);
+    vec2 b4 = vec2(-0.27 * w, 0.84 * b);
+    vec2 b5 = vec2(-0.06 * w, 0.99 * b);
+    vec2 b6 = vec2(0.17 * w, 0.9 * b);
+    vec2 b7 = vec2(0.36 * w, 0.57 * b);
+    vec2 b8 = vec2(0.41 * w, 0.3 * b);
+    vec2 b9 = vec2(0.43 * w, 0.08 * b);
+    vec2 b10 = vec2(0.41 * w, -2.0);
     edge(p, b0, b1, nearest, sign);
     edge(p, b1, b2, nearest, sign);
     edge(p, b2, b3, nearest, sign);
@@ -94,12 +94,12 @@ float berg(vec2 p, float index) {
     edge(p, b4, b5, nearest, sign);
     edge(p, b5, b6, nearest, sign);
     edge(p, b6, b7, nearest, sign);
-    edge(p, b7, b0, nearest, sign);
+    edge(p, b7, b8, nearest, sign);
+    edge(p, b8, b9, nearest, sign);
+    edge(p, b9, b10, nearest, sign);
+    edge(p, b10, b0, nearest, sign);
     float mass = sign * sqrt(nearest);
-
-    // roughen both with small crags
-    float crag = noise(p * 0.04 + index * 7.0) * 3.0;
-    return min(ridge, mass) + crag - 2.0;
+    return min(ridge, mass) - 1.0;
 }
 
 // return the facet cell nearest a point in facet space, and the distance to its border
@@ -240,15 +240,15 @@ export class Ice {
     offset: number;
     /// The centre of each berg as a fraction of the canvas width.
     centres: readonly number[];
-    /// Receive each berg's lift in pixels and tilt in degrees after every frame.
-    onBob: (lifts: number[], tilts: number[]) => void;
+    /// Run after every drawn frame, so things floating beside the ice move in step with it.
+    onFrame: () => void;
 
     /// Create ice on a canvas, or throw when WebGL is unavailable.
     constructor(
         canvas: HTMLCanvasElement,
         centres: readonly number[],
         isMoving: boolean,
-        onBob: (lifts: number[], tilts: number[]) => void,
+        onFrame: () => void,
     ) {
         this.shader = new Shader(canvas, fragmentSource, 1.5, (now) => this.draw(now));
         this.waterline = 0;
@@ -258,7 +258,7 @@ export class Ice {
         this.broke = -breakTime;
         this.isMoving = isMoving;
         this.start = performance.now();
-        this.onBob = onBob;
+        this.onFrame = onFrame;
         this.offset = 0;
         this.centres = centres;
     }
@@ -316,7 +316,7 @@ export class Ice {
             (tilts[1] * Math.PI) / 180,
             (tilts[2] * Math.PI) / 180,
         );
-        this.onBob(lifts, tilts);
+        this.onFrame();
 
         // stop once the ice is fully gone; keep bobbing while it stands
         const isBreaking = now - this.broke < breakTime;
