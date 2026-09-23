@@ -1,0 +1,22 @@
+{
+    "name": "@destack/sandbox",
+    "version": "2026.9.2",
+    "license": "MIT",
+    "private": true,
+    "type": "module",
+    "description": "Launch processes with operating system filesystem and network restrictions.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./error": "./src/error/index.ts"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "dependencies": {
+        "@anthropic-ai/sandbox-runtime": "0.0.77"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
+    }
+}

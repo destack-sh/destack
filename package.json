@@ -8,6 +8,7 @@
         "@destack/access",
         "@destack/audit",
         "@destack/fs",
+        "@destack/sandbox",
         "@destack/check",
         "@destack/account",
         "@destack/repository",
