@@ -1,6 +1,7 @@
 import type { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { createRequestId } from "@destack/service/request";
+import { Watch } from "@destack/service/watch";
 import type { SettingContext, SettingBatch, SettingResult } from "../setting/context.ts";
 import type { Setting } from "../setting/setting.ts";
 import type { SettingTarget } from "../setting/target.ts";
@@ -59,11 +60,12 @@ export class SettingClient implements SettingContext {
         };
 
         // reconnect a normally completed subscription through fresh server authentication
-        while (!cancellation.aborted) {
-            const stream = await this.client.setting.watch(query, { signal: cancellation });
-            for await (const value of stream) {
-                yield decode(settings, value);
-            }
+        const stream = Watch.observe(
+            (signal) => this.client.setting.watch(query, { signal }),
+            cancellation,
+        );
+        for await (const value of stream) {
+            yield decode(settings, value);
         }
     }
 

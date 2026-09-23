@@ -51,18 +51,20 @@ export function settingRouter(store: SettingStore, options: SettingServerOptions
         resolve: implementation.setting.resolve.handler(({ input, context }) =>
             resolveSettings(input, store, options, context),
         ),
-        watch: implementation.setting.watch.handler(async function* ({ input, context, signal }) {
-            // bound the stream by its authenticated caller lifetime
+        watch: implementation.setting.watch.handler(async function* ({ input, context }) {
+            // combine the verified caller lifetime with setting policy expiry and shutdown
             const lifetime = new AbortController();
-            const cancellation = signal
-                ? AbortSignal.any([signal, lifetime.signal])
-                : lifetime.signal;
+            const cancellation = AbortSignal.any([
+                lifetime.signal,
+                context.signal,
+                ...(options.signal ? [options.signal] : []),
+            ]);
             const authentication = context.requireCaller().authentication;
             const expiresAt = Math.min(
                 authentication.expiresAt,
                 authentication.verifiedAt + CALLER_LIFETIME_MS,
             );
-            let timer = setTimeout(() => lifetime.abort(), Math.max(0, expiresAt - Date.now()));
+            let timer: ReturnType<typeof setTimeout> | undefined;
             let previous: string | undefined;
             try {
                 for await (const _notification of store.watch(input.settings, cancellation)) {

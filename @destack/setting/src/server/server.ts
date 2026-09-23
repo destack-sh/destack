@@ -19,6 +19,8 @@ import { policyRouter } from "./policy.ts";
 
 /** Host bindings required to resolve and edit settings under verified identity. */
 export interface SettingServerOptions {
+    /** End subscriptions when the hosting service begins shutdown. */
+    readonly signal?: AbortSignal;
     /** Verify the issuing account, space or host before policy administration. */
     readonly authorizePolicy: (
         context: ServiceContext,

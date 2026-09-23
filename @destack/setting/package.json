@@ -8,6 +8,7 @@
     "description": "Declare, resolve and administer scoped settings.",
     "exports": {
         ".": "./src/index.ts",
+        "./destack.json": "./destack.json",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./service": "./src/service/index.ts",
