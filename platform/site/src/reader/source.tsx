@@ -75,18 +75,27 @@ export function SourceActions(props: SourceActionsProps) {
                 href={commands.source.markdownRoute}
                 rel="alternate noopener"
                 target="_blank"
+                title="Open as Markdown"
+                aria-label="Open as Markdown"
                 type="text/markdown"
             >
-                md
+                <svg aria-hidden="true" viewBox="0 0 22 16" {...stylex.attrs(styles.icon)}>
+                    <rect x="0.75" y="0.75" width="20.5" height="14.5" rx="2" />
+                    <path d="M4 11.5v-7l2.75 3.5 2.75-3.5v7M15.5 4.5v6.5M13 8.75l2.5 2.5 2.5-2.5" />
+                </svg>
             </a>
             <a
                 {...stylex.attrs(styles.action)}
                 href={commands.source.textRoute}
                 rel="alternate noopener"
                 target="_blank"
+                title="Open as plain text"
+                aria-label="Open as plain text"
                 type="text/plain"
             >
-                txt
+                <svg aria-hidden="true" viewBox="0 0 16 16" {...stylex.attrs(styles.icon)}>
+                    <path d="M3.5 1.75h6.25l3 3v9.5H3.5ZM9.5 1.75v3.25h3.25M5.75 8h4.5M5.75 10.75h4.5" />
+                </svg>
             </a>
         </nav>
     );
@@ -95,13 +104,23 @@ export function SourceActions(props: SourceActionsProps) {
 const styles = stylex.create({
     action: {
         color: color.foreground,
+        display: "flex",
         textDecoration: "none",
         ":hover": {
             color: color.primary,
         },
     },
+    icon: {
+        fill: "none",
+        height: "1rem",
+        stroke: "currentColor",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        strokeWidth: 1.5,
+        width: "auto",
+    },
     controls: {
-        alignItems: "baseline",
+        alignItems: "center",
         display: "flex",
         fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
