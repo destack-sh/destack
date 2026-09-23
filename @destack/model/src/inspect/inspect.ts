@@ -5,7 +5,6 @@ import { ModuleGraph, SymbolReference } from "@destack/package/code";
 import { schema } from "@destack/schema";
 import { globalSchema } from "../global/schema/index.ts";
 import { regionalSchema } from "../regional/schema/index.ts";
-import { spaceSchema } from "../space/schema/index.ts";
 import { auditSchema } from "../audit/index.ts";
 
 /** SQL dialects supported by the administrative models. */
@@ -15,7 +14,6 @@ const DIALECTS: readonly Dialect[] = ["sqlite", "postgresql"];
 const DATABASES = [
     { database: "global", entrypoint: "src/global/index.ts", tables: globalSchema.tables },
     { database: "regional", entrypoint: "src/regional/index.ts", tables: regionalSchema.tables },
-    { database: "space", entrypoint: "src/space/index.ts", tables: spaceSchema.tables },
     { database: "audit", entrypoint: "src/audit/index.ts", tables: auditSchema.tables },
 ] as const;
 

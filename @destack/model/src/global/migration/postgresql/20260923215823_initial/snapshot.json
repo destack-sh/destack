@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "4752903b-93e2-466b-a503-b2ec258db24f",
+  "id": "395ebad2-53c2-4cfd-809f-92971681a2bb",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -5652,19 +5652,6 @@
       "table": "space"
     },
     {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "authority_host_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "space"
-    },
-    {
       "type": "bigint",
       "typeSchema": null,
       "notNull": true,
@@ -9352,25 +9339,6 @@
       "onUpdate": "NO ACTION",
       "onDelete": "RESTRICT",
       "name": "space_account_id_environment_id_environment_account_id_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "space"
-    },
-    {
-      "nameExplicit": false,
-      "columns": [
-        "account_id",
-        "authority_host_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "host",
-      "columnsTo": [
-        "account_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "RESTRICT",
-      "name": "space_account_id_authority_host_id_host_account_id_id_fkey",
       "entityType": "fks",
       "schema": "public",
       "table": "space"

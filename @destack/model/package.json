@@ -11,7 +11,6 @@
         "./inspect": "./src/inspect/index.ts",
         "./global": "./src/global/index.ts",
         "./regional": "./src/regional/index.ts",
-        "./space": "./src/space/index.ts",
         "./source": "./src/source/index.ts",
         "./audit": "./src/audit/index.ts",
         "./declare": "./src/declare/index.ts"

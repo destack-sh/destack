@@ -2,7 +2,7 @@ import { defineDatabaseSchema } from "@destack/db";
 import { tables } from "./tables.ts";
 import { relations } from "./relation.ts";
 
-/** Repository and registry records retained in their assigned region. */
+/** Regional space administration, resources, repositories and registry records. */
 export const regionalSchema = defineDatabaseSchema({
     name: "destack-regional",
     tables,

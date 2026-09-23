@@ -16,7 +16,6 @@ import { region } from "../host/region.ts";
 import { RESIDENCIES } from "../host/residency.ts";
 import { reconciliationChecks, reconciliationColumns } from "../../record/index.ts";
 import { environment } from "../account/environment.ts";
-import { host } from "../host/host.ts";
 
 /** The globally reserved space name and regional database location. */
 export const space = table(
@@ -28,8 +27,6 @@ export const space = table(
         residency: text("residency", { enum: RESIDENCIES }).notNull(),
         /** The region coordinating this registered space within its residency. */
         regionId: identifier("region_id", "region").notNull(),
-        /** The administrative host, absent when the region administers this space. */
-        authorityHostId: identifier("authority_host_id", "host"),
         /** The current administration epoch, matched by the authoritative space records. */
         authorityEpoch: integer("authority_epoch").notNull(),
         /** The account owning this space. */
@@ -50,10 +47,6 @@ export const space = table(
         }).onDelete("restrict"),
         unique("space_name").on(entry.accountId, entry.name),
         unique("space_account").on(entry.accountId, entry.id),
-        foreignKey({
-            columns: [entry.accountId, entry.authorityHostId],
-            foreignColumns: [host.accountId, host.id],
-        }).onDelete("restrict"),
         foreignKey({
             columns: [entry.regionId, entry.residency],
             foreignColumns: [region.id, region.residency],

@@ -6,7 +6,6 @@
         "src/index.ts",
         "src/global/index.ts",
         "src/regional/index.ts",
-        "src/space/index.ts",
         "src/source/index.ts",
         "src/audit/index.ts",
         "src/inspect/index.ts"

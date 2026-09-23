@@ -12,10 +12,9 @@ import {
 } from "@destack/db";
 import { Subject } from "@destack/access";
 import { Conditions } from "../../record/index.ts";
-import { SpaceAuthority } from "./authority.ts";
 import { space } from "./space.ts";
 
-/** A durable handoff of administrative authority, independent of resource migration. */
+/** A durable regional relocation of administration, independent of resource migration. */
 export const spaceTransfer = table(
     "space_transfer",
     {
@@ -24,10 +23,10 @@ export const spaceTransfer = table(
         spaceId: identifier("space_id", "space")
             .notNull()
             .references(() => space.id, { onDelete: "restrict" }),
-        /** The authority responsible until it durably fences its writes. */
-        source: json("source", SpaceAuthority).notNull(),
-        /** The authority receiving the complete administrative state. */
-        target: json("target", SpaceAuthority).notNull(),
+        /** The region responsible until it durably fences its writes. */
+        sourceRegionId: identifier("source_region_id", "region").notNull(),
+        /** The region receiving the complete administrative state. */
+        targetRegionId: identifier("target_region_id", "region").notNull(),
         /** The epoch checked by the source before accepting this transfer. */
         sourceEpoch: integer("source_epoch").notNull(),
         /** The destination epoch, reserved before the source is fenced. */
@@ -54,6 +53,10 @@ export const spaceTransfer = table(
             .default(sql`'{}'`),
     },
     (transfer) => [
+        check(
+            "space_transfer_region",
+            sql`${transfer.sourceRegionId} <> ${transfer.targetRegionId}`,
+        ),
         uniqueIndex("space_transfer_active")
             .on(transfer.spaceId)
             .where(sql`${transfer.completedAt} IS NULL`),

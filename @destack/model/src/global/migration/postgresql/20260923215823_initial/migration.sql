@@ -593,7 +593,6 @@ CREATE TABLE "space" (
 	"finalizers" jsonb DEFAULT '[]' NOT NULL,
 	"residency" text NOT NULL,
 	"region_id" text NOT NULL,
-	"authority_host_id" text,
 	"authority_epoch" bigint NOT NULL,
 	"account_id" text NOT NULL,
 	"name" text NOT NULL,
@@ -880,7 +879,6 @@ ALTER TABLE "tunnel" ADD CONSTRAINT "tunnel_device_id_device_key_id_device_key_d
 ALTER TABLE "tunnel" ADD CONSTRAINT "tunnel_host_id_host_id_fkey" FOREIGN KEY ("host_id") REFERENCES "host"("id");--> statement-breakpoint
 ALTER TABLE "tunnel" ADD CONSTRAINT "tunnel_device_id_device_id_fkey" FOREIGN KEY ("device_id") REFERENCES "device"("id");--> statement-breakpoint
 ALTER TABLE "space" ADD CONSTRAINT "space_account_id_environment_id_environment_account_id_id_fkey" FOREIGN KEY ("account_id","environment_id") REFERENCES "environment"("account_id","id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "space" ADD CONSTRAINT "space_account_id_authority_host_id_host_account_id_id_fkey" FOREIGN KEY ("account_id","authority_host_id") REFERENCES "host"("account_id","id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "space" ADD CONSTRAINT "space_region_id_residency_region_id_residency_fkey" FOREIGN KEY ("region_id","residency") REFERENCES "region"("id","residency") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "space" ADD CONSTRAINT "space_account_id_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "repository" ADD CONSTRAINT "repository_region_id_residency_region_id_residency_fkey" FOREIGN KEY ("region_id","residency") REFERENCES "region"("id","residency") ON DELETE RESTRICT;--> statement-breakpoint

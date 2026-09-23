@@ -7,5 +7,4 @@ export * from "./relation.ts";
 export * from "./space.ts";
 export * from "./source.ts";
 export * from "./schedule.ts";
-export * from "./authority.ts";
 export * from "./transfer.ts";

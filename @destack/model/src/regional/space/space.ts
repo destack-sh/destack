@@ -17,14 +17,12 @@ export const space = table(
     "space",
     {
         ...recordColumns("space"),
-        /** Global ownership association, absent until the space is registered. */
-        accountId: identifier("account_id", "account"),
+        /** Account registered by the universe before this space is created. */
+        accountId: identifier("account_id", "account").notNull(),
         /** The display name, independent of its globally reserved address. */
         name: text("name").notNull(),
-        /** The host administering this space when administration is local. */
-        authorityHostId: identifier("authority_host_id", "host"),
         /** The region administering this space when administration is regional. */
-        authorityRegionId: identifier("authority_region_id", "region"),
+        authorityRegionId: identifier("authority_region_id", "region").notNull(),
         /** The fencing epoch changed only by an explicit administration transfer. */
         authorityEpoch: integer("authority_epoch").notNull(),
         /** Whether applications should be available or suspended. */
@@ -48,15 +46,7 @@ export const space = table(
         ...reconciliationChecks("space", space),
         unique("space_account_id").on(space.accountId, space.id),
         check("space_name", sql`length(${space.name}) > 0`),
-        check(
-            "space_authority",
-            sql`(${space.authorityHostId} IS NULL) <> (${space.authorityRegionId} IS NULL)`,
-        ),
         check("space_authority_epoch", sql`${space.authorityEpoch} > 0`),
-        check(
-            "space_regional_account",
-            sql`${space.authorityRegionId} IS NULL OR ${space.accountId} IS NOT NULL`,
-        ),
         check("space_status", sql`${space.status} IN ('enabled', 'suspended')`),
         check(
             "space_placement",
@@ -69,5 +59,5 @@ export const space = table(
     ],
 );
 
-/** A space administered locally or regionally. */
+/** A regionally administered space with local or hosted execution. */
 export type Space = Select<typeof space>;

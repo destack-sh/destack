@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "507cf0a0-acbf-440b-839a-3b86a261da42",
+  "id": "a4f784df-16d6-448d-8561-be754d2674c0",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -4321,16 +4321,6 @@
       "table": "space"
     },
     {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "authority_host_id",
-      "entityType": "columns",
-      "table": "space"
-    },
-    {
       "type": "integer",
       "notNull": true,
       "autoincrement": false,
@@ -6338,23 +6328,6 @@
       "onDelete": "RESTRICT",
       "nameExplicit": false,
       "name": "fk_space_account_id_environment_id_environment_account_id_id_fk",
-      "entityType": "fks",
-      "table": "space"
-    },
-    {
-      "columns": [
-        "account_id",
-        "authority_host_id"
-      ],
-      "tableTo": "host",
-      "columnsTo": [
-        "account_id",
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "RESTRICT",
-      "nameExplicit": false,
-      "name": "fk_space_account_id_authority_host_id_host_account_id_id_fk",
       "entityType": "fks",
       "table": "space"
     },

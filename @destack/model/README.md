@@ -33,7 +33,7 @@ export function listSpaces(accountId: Account["id"]) {
 ```ts
 import { connect } from "@destack/db/turso";
 import { prepare } from "@destack/db/migration";
-import { spaceSchema } from "@destack/model/space";
+import { regionalSchema } from "@destack/model/regional";
 
-const database = await prepare(await connect("daemon.db", spaceSchema), [spaceSchema]);
+const database = await prepare(await connect("regional.db", regionalSchema), [regionalSchema]);
 ```

@@ -1,64 +1,142 @@
-CREATE TABLE `space_transfer` (
+CREATE TABLE `repository` (
+	`id` text PRIMARY KEY,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`tags` text DEFAULT '{}' NOT NULL,
+	`generation` integer DEFAULT 1 NOT NULL,
+	`observed_generation` integer DEFAULT 0 NOT NULL,
+	`conditions` text DEFAULT '{}' NOT NULL,
+	`deletion_requested_at` integer,
+	`finalizers` text DEFAULT '[]' NOT NULL,
+	`account_id` text NOT NULL,
+	`hosting` text NOT NULL,
+	`host_id` text,
+	`provider` text,
+	`provider_repository_id` text,
+	`remote` text,
+	`default_reference` text,
+	`authentication` text,
+	`connected_account_id` text,
+	`secret_space_id` text,
+	`secret_id` text,
+	CONSTRAINT `repository_account_id` UNIQUE(`account_id`,`id`),
+	CONSTRAINT "repository_revision" CHECK("revision" >= 1),
+	CONSTRAINT "repository_generation" CHECK("generation" >= 1),
+	CONSTRAINT "repository_observed_generation" CHECK("observed_generation" BETWEEN 0 AND "generation"),
+	CONSTRAINT "repository_origin" CHECK(("hosting" = 'platform' AND "provider" IS NOT NULL AND "host_id" IS NULL)
+            OR ("hosting" = 'external' AND "provider" IS NOT NULL AND "remote" IS NOT NULL AND "host_id" IS NULL)
+            OR ("hosting" = 'host' AND "host_id" IS NOT NULL AND "provider" IS NULL AND "provider_repository_id" IS NULL AND "remote" IS NULL)),
+	CONSTRAINT "repository_authentication" CHECK(("hosting" IN ('platform', 'host') AND "authentication" IS NULL AND "connected_account_id" IS NULL AND "secret_space_id" IS NULL AND "secret_id" IS NULL)
+            OR ("hosting" = 'external' AND "authentication" IS NOT NULL AND (
+                ("authentication" = 'anonymous' AND "connected_account_id" IS NULL AND "secret_space_id" IS NULL AND "secret_id" IS NULL)
+                OR ("authentication" = 'connection' AND "connected_account_id" IS NOT NULL AND "secret_space_id" IS NULL AND "secret_id" IS NULL)
+                OR ("authentication" = 'secret' AND "connected_account_id" IS NULL AND "secret_space_id" IS NOT NULL AND "secret_id" IS NOT NULL)))),
+	CONSTRAINT "repository_default_reference" CHECK("default_reference" IS NULL OR "default_reference" LIKE 'refs/heads/%'),
+	CONSTRAINT "repository_remote" CHECK("remote" IS NULL OR length("remote") > 0),
+	CONSTRAINT "repository_provider" CHECK(("provider" IS NULL OR length("provider") > 0)
+            AND ("provider_repository_id" IS NULL OR length("provider_repository_id") > 0)),
+	CONSTRAINT "repository_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
+CREATE TABLE `repository_ref` (
+	`repository_id` text NOT NULL,
+	`name` text NOT NULL,
+	`object` text NOT NULL,
+	`commit` text,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`observed_at` integer NOT NULL,
+	`deleted_at` integer,
+	CONSTRAINT `repository_ref_pk` PRIMARY KEY(`repository_id`, `name`),
+	CONSTRAINT `fk_repository_ref_repository_id_repository_id_fk` FOREIGN KEY (`repository_id`) REFERENCES `repository`(`id`) ON DELETE CASCADE,
+	CONSTRAINT "repository_ref_name" CHECK("name" LIKE 'refs/%'),
+	CONSTRAINT "repository_ref_object" CHECK(length("object") IN (40, 64) AND "object" NOT GLOB '*[^0-9a-f]*'),
+	CONSTRAINT "repository_ref_commit" CHECK("commit" IS NULL OR (length("commit") IN (40, 64) AND "commit" NOT GLOB '*[^0-9a-f]*')),
+	CONSTRAINT "repository_ref_revision" CHECK("revision" >= 1)
+);
+--> statement-breakpoint
+CREATE TABLE `instance` (
 	`id` text PRIMARY KEY,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`revision` integer DEFAULT 1 NOT NULL,
 	`tags` text DEFAULT '{}' NOT NULL,
 	`space_id` text NOT NULL,
-	`source` text NOT NULL,
-	`target` text NOT NULL,
-	`source_epoch` integer NOT NULL,
-	`target_epoch` integer NOT NULL,
-	`requested_by` text NOT NULL,
-	`source_revision` integer,
-	`snapshot_digest` text,
-	`fenced_at` integer,
-	`prepared_at` integer,
-	`activated_at` integer,
-	`outcome` text,
-	`completed_at` integer,
+	`deployment_id` text NOT NULL,
+	`host_id` text NOT NULL,
+	`host_epoch` integer NOT NULL,
+	`reference` text,
+	`status` text NOT NULL,
 	`conditions` text DEFAULT '{}' NOT NULL,
-	CONSTRAINT `fk_space_transfer_space_id_space_id_fk` FOREIGN KEY (`space_id`) REFERENCES `space`(`id`) ON DELETE RESTRICT,
-	CONSTRAINT "space_transfer_epoch" CHECK("source_epoch" > 0 AND "target_epoch" = "source_epoch" + 1),
-	CONSTRAINT "space_transfer_snapshot" CHECK(("source_revision" IS NULL) = ("snapshot_digest" IS NULL) AND ("source_revision" IS NULL OR ("source_revision" > 0 AND "fenced_at" IS NOT NULL))),
-	CONSTRAINT "space_transfer_prepare" CHECK("prepared_at" IS NULL OR ("source_revision" IS NOT NULL AND "prepared_at" >= "fenced_at")),
-	CONSTRAINT "space_transfer_activation" CHECK("activated_at" IS NULL OR ("prepared_at" IS NOT NULL AND "activated_at" >= "prepared_at")),
-	CONSTRAINT "space_transfer_completion" CHECK(("outcome" IS NULL) = ("completed_at" IS NULL)),
-	CONSTRAINT "space_transfer_outcome" CHECK("outcome" IS NULL OR ("outcome" = 'succeeded' AND "activated_at" IS NOT NULL) OR ("outcome" = 'cancelled' AND "fenced_at" IS NULL)),
-	CONSTRAINT "space_transfer_times" CHECK(("fenced_at" IS NULL OR "fenced_at" >= "created_at") AND ("completed_at" IS NULL OR ("completed_at" >= "created_at" AND ("activated_at" IS NULL OR "completed_at" >= "activated_at")))),
-	CONSTRAINT "space_transfer_id_not_null" CHECK("id" IS NOT NULL)
+	`observed_at` integer NOT NULL,
+	`lease_expires_at` integer,
+	`started_at` integer,
+	`stopped_at` integer,
+	CONSTRAINT `fk_instance_space_id_deployment_id_deployment_space_id_id_fk` FOREIGN KEY (`space_id`,`deployment_id`) REFERENCES `deployment`(`space_id`,`id`) ON DELETE RESTRICT,
+	CONSTRAINT `fk_instance_space_id_host_id_space_host_space_id_host_id_fk` FOREIGN KEY (`space_id`,`host_id`) REFERENCES `space_host`(`space_id`,`host_id`) ON DELETE RESTRICT,
+	CONSTRAINT "instance_epoch" CHECK("host_epoch" > 0),
+	CONSTRAINT "instance_status" CHECK("status" IN ('starting', 'running', 'draining', 'stopped', 'failed')),
+	CONSTRAINT "instance_times" CHECK("stopped_at" IS NULL OR "started_at" IS NULL OR "stopped_at" >= "started_at"),
+	CONSTRAINT "instance_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
-CREATE TABLE `space_migration` (
+CREATE TABLE `space_source` (
+	`space_id` text PRIMARY KEY,
+	`selection` text NOT NULL,
+	`directory` text NOT NULL,
+	`entrypoint` text NOT NULL,
+	`export` text NOT NULL,
+	`parameters` text NOT NULL,
+	`generation` integer DEFAULT 1 NOT NULL,
+	`applied_revision_id` text,
+	CONSTRAINT `fk_space_source_space_id_applied_revision_id_space_revision_space_id_id_fk` FOREIGN KEY (`space_id`,`applied_revision_id`) REFERENCES `space_revision`(`space_id`,`id`) ON DELETE RESTRICT,
+	CONSTRAINT `fk_space_source_space_id_space_id_fk` FOREIGN KEY (`space_id`) REFERENCES `space`(`id`),
+	CONSTRAINT "space_source_generation" CHECK("generation" > 0),
+	CONSTRAINT "space_source_directory" CHECK(length("directory") > 0 AND substr("directory", 1, 1) <> '/' AND "directory" <> '..' AND "directory" NOT LIKE '../%' AND "directory" NOT LIKE '%/../%' AND "directory" NOT LIKE '%/..'),
+	CONSTRAINT "space_source_export" CHECK(length("export") > 0 AND ("entrypoint" = '.' OR "entrypoint" LIKE './_%')),
+	CONSTRAINT "space_source_space_id_not_null" CHECK("space_id" IS NOT NULL)
+);
+--> statement-breakpoint
+CREATE TABLE `space_revision` (
 	`id` text PRIMARY KEY,
 	`space_id` text NOT NULL,
-	`generation` integer NOT NULL,
-	`source_host_id` text NOT NULL,
-	`target_host_id` text NOT NULL,
-	`source_epoch` integer NOT NULL,
-	`target_epoch` integer,
-	`requested_by` text,
+	`source_generation` integer NOT NULL,
+	`source` text NOT NULL,
+	`parameters` text NOT NULL,
+	`definition` text NOT NULL,
+	`releases` text NOT NULL,
+	`digest` text NOT NULL,
 	`created_at` integer NOT NULL,
+	CONSTRAINT `fk_space_revision_space_id_space_id_fk` FOREIGN KEY (`space_id`) REFERENCES `space`(`id`),
+	CONSTRAINT `space_revision_space_id` UNIQUE(`space_id`,`id`),
+	CONSTRAINT "space_revision_generation" CHECK("source_generation" > 0),
+	CONSTRAINT "space_revision_digest" CHECK(length("digest") = 64 AND "digest" NOT GLOB '*[^a-f0-9]*'),
+	CONSTRAINT "space_revision_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
+CREATE TABLE `restoration` (
+	`id` text PRIMARY KEY,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`tags` text DEFAULT '{}' NOT NULL,
+	`space_id` text NOT NULL,
+	`snapshot_id` text NOT NULL,
+	`destination_resource_id` text NOT NULL,
 	`started_at` integer,
-	`cancellation_requested_at` integer,
-	`source_revoked_at` integer,
-	`activated_at` integer,
-	`outcome` text,
 	`completed_at` integer,
-	`conditions` text DEFAULT '{}' NOT NULL,
-	CONSTRAINT `fk_space_migration_space_id_space_id_fk` FOREIGN KEY (`space_id`) REFERENCES `space`(`id`) ON DELETE RESTRICT,
-	CONSTRAINT `space_migration_space_id` UNIQUE(`space_id`,`id`),
-	CONSTRAINT "space_migration_generation" CHECK("generation" >= 1),
-	CONSTRAINT "space_migration_epoch" CHECK("source_epoch" >= 1 AND ("target_epoch" IS NULL OR "target_epoch" > "source_epoch")),
-	CONSTRAINT "space_migration_outcome" CHECK("outcome" IS NULL OR "outcome" IN ('succeeded', 'failed', 'cancelled')),
-	CONSTRAINT "space_migration_completion" CHECK(("outcome" IS NULL) = ("completed_at" IS NULL)),
-	CONSTRAINT "space_migration_activation" CHECK(("activated_at" IS NULL) = ("target_epoch" IS NULL) AND ("activated_at" IS NULL OR ("source_revoked_at" IS NOT NULL AND "started_at" IS NOT NULL AND "activated_at" >= "source_revoked_at"))),
-	CONSTRAINT "space_migration_success" CHECK("outcome" IS NULL OR "outcome" <> 'succeeded' OR "activated_at" IS NOT NULL),
-	CONSTRAINT "space_migration_cancel" CHECK("outcome" IS NULL OR "outcome" <> 'cancelled' OR ("activated_at" IS NULL AND "cancellation_requested_at" IS NOT NULL)),
-	CONSTRAINT "space_migration_time" CHECK(("started_at" IS NULL OR "started_at" >= "created_at") AND ("completed_at" IS NULL OR "completed_at" >= "created_at")),
-	CONSTRAINT "space_migration_revoke_time" CHECK("source_revoked_at" IS NULL OR ("started_at" IS NOT NULL AND "source_revoked_at" >= "started_at")),
-	CONSTRAINT "space_migration_complete_time" CHECK("completed_at" IS NULL OR (("started_at" IS NULL OR "completed_at" >= "started_at") AND ("activated_at" IS NULL OR "completed_at" >= "activated_at"))),
-	CONSTRAINT "space_migration_id_not_null" CHECK("id" IS NOT NULL)
+	`outcome` text,
+	`error` text,
+	CONSTRAINT `fk_restoration_space_id_snapshot_id_snapshot_space_id_id_fk` FOREIGN KEY (`space_id`,`snapshot_id`) REFERENCES `snapshot`(`space_id`,`id`) ON DELETE RESTRICT,
+	CONSTRAINT `fk_restoration_space_id_destination_resource_id_resource_space_id_id_fk` FOREIGN KEY (`space_id`,`destination_resource_id`) REFERENCES `resource`(`space_id`,`id`) ON DELETE RESTRICT,
+	CONSTRAINT `fk_restoration_snapshot_id_snapshot_id_fk` FOREIGN KEY (`snapshot_id`) REFERENCES `snapshot`(`id`),
+	CONSTRAINT `fk_restoration_destination_resource_id_resource_id_fk` FOREIGN KEY (`destination_resource_id`) REFERENCES `resource`(`id`),
+	CONSTRAINT "restoration_completion" CHECK(("completed_at" IS NULL) = ("outcome" IS NULL)),
+	CONSTRAINT "restoration_outcome" CHECK("outcome" IS NULL OR "outcome" IN ('succeeded', 'failed', 'cancelled')),
+	CONSTRAINT "restoration_success" CHECK("outcome" IS NULL OR "outcome" <> 'succeeded' OR ("started_at" IS NOT NULL AND "error" IS NULL)),
+	CONSTRAINT "restoration_finish" CHECK("completed_at" IS NULL OR "started_at" IS NULL OR "completed_at" >= "started_at"),
+	CONSTRAINT "restoration_time" CHECK(("started_at" IS NULL OR "started_at" >= "created_at") AND ("completed_at" IS NULL OR "completed_at" >= "created_at")),
+	CONSTRAINT "restoration_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE `snapshot` (
@@ -187,6 +265,24 @@ CREATE TABLE `secret_version` (
 	CONSTRAINT "secret_version_expiry" CHECK("expires_at" IS NULL OR "expires_at" > "created_at")
 );
 --> statement-breakpoint
+CREATE TABLE `release` (
+	`package_id` text NOT NULL,
+	`version` text NOT NULL,
+	`manifest` text NOT NULL,
+	`repository_id` text NOT NULL,
+	`directory` text NOT NULL,
+	`commit` text NOT NULL,
+	`created_at` integer NOT NULL,
+	CONSTRAINT `release_pk` PRIMARY KEY(`package_id`, `version`),
+	CONSTRAINT `fk_release_repository_id_package_id_package_repository_id_id_fk` FOREIGN KEY (`repository_id`,`package_id`) REFERENCES `package`(`repository_id`,`id`) ON DELETE RESTRICT,
+	CONSTRAINT `fk_release_package_id_package_id_fk` FOREIGN KEY (`package_id`) REFERENCES `package`(`id`) ON DELETE RESTRICT,
+	CONSTRAINT `fk_release_repository_id_repository_id_fk` FOREIGN KEY (`repository_id`) REFERENCES `repository`(`id`) ON DELETE RESTRICT,
+	CONSTRAINT `release_manifest_version` UNIQUE(`package_id`,`version`,`manifest`),
+	CONSTRAINT "release_commit" CHECK(length("commit") IN (40, 64) AND "commit" NOT GLOB '*[^0-9a-f]*'),
+	CONSTRAINT "release_directory" CHECK(length("directory") > 0 AND substr("directory", 1, 1) <> '/' AND "directory" <> '..' AND "directory" NOT LIKE '../%' AND "directory" NOT LIKE '%/../%' AND "directory" NOT LIKE '%/..'),
+	CONSTRAINT "release_manifest" CHECK(length("manifest") = 64 AND "manifest" NOT GLOB '*[^0-9a-f]*')
+);
+--> statement-breakpoint
 CREATE TABLE `secret_binding` (
 	`space_id` text NOT NULL,
 	`installation_id` text NOT NULL,
@@ -272,41 +368,6 @@ CREATE TABLE `deployment_binding` (
 	CONSTRAINT `fk_deployment_binding_space_id_deployment_id_deployment_space_id_id_fk` FOREIGN KEY (`space_id`,`deployment_id`) REFERENCES `deployment`(`space_id`,`id`) ON DELETE RESTRICT,
 	CONSTRAINT `fk_deployment_binding_space_id_resource_id_resource_space_id_id_fk` FOREIGN KEY (`space_id`,`resource_id`) REFERENCES `resource`(`space_id`,`id`) ON DELETE RESTRICT,
 	CONSTRAINT "deployment_binding_generation" CHECK("generation" > 0)
-);
---> statement-breakpoint
-CREATE TABLE `space` (
-	`id` text PRIMARY KEY,
-	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	`revision` integer DEFAULT 1 NOT NULL,
-	`tags` text DEFAULT '{}' NOT NULL,
-	`account_id` text,
-	`name` text NOT NULL,
-	`authority_host_id` text,
-	`authority_region_id` text,
-	`authority_epoch` integer NOT NULL,
-	`status` text DEFAULT 'enabled' NOT NULL,
-	`placement` text DEFAULT 'automatic' NOT NULL,
-	`requested_primary_host_id` text,
-	`primary_host_id` text,
-	`primary_host_epoch` integer DEFAULT 0 NOT NULL,
-	`generation` integer DEFAULT 1 NOT NULL,
-	`observed_generation` integer DEFAULT 0 NOT NULL,
-	`conditions` text DEFAULT '{}' NOT NULL,
-	`deletion_requested_at` integer,
-	`finalizers` text DEFAULT '[]' NOT NULL,
-	CONSTRAINT `space_account_id` UNIQUE(`account_id`,`id`),
-	CONSTRAINT "space_revision" CHECK("revision" >= 1),
-	CONSTRAINT "space_generation" CHECK("generation" >= 1),
-	CONSTRAINT "space_observed_generation" CHECK("observed_generation" BETWEEN 0 AND "generation"),
-	CONSTRAINT "space_name" CHECK(length("name") > 0),
-	CONSTRAINT "space_authority" CHECK(("authority_host_id" IS NULL) <> ("authority_region_id" IS NULL)),
-	CONSTRAINT "space_authority_epoch" CHECK("authority_epoch" > 0),
-	CONSTRAINT "space_regional_account" CHECK("authority_region_id" IS NULL OR "account_id" IS NOT NULL),
-	CONSTRAINT "space_status" CHECK("status" IN ('enabled', 'suspended')),
-	CONSTRAINT "space_placement" CHECK(("placement" = 'automatic' AND "requested_primary_host_id" IS NULL) OR ("placement" = 'host' AND "requested_primary_host_id" IS NOT NULL)),
-	CONSTRAINT "space_host_epoch" CHECK("primary_host_epoch" >= 0 AND ("primary_host_id" IS NULL OR "primary_host_epoch" > 0)),
-	CONSTRAINT "space_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE `package_policy` (
@@ -442,6 +503,23 @@ CREATE TABLE `service_account` (
 	CONSTRAINT "service_account_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
+CREATE TABLE `package` (
+	`id` text PRIMARY KEY,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`tags` text DEFAULT '{}' NOT NULL,
+	`account_id` text NOT NULL,
+	`visibility` text NOT NULL,
+	`repository_id` text NOT NULL,
+	`directory` text NOT NULL,
+	CONSTRAINT `fk_package_account_id_repository_id_repository_account_id_id_fk` FOREIGN KEY (`account_id`,`repository_id`) REFERENCES `repository`(`account_id`,`id`) ON DELETE RESTRICT,
+	CONSTRAINT `package_repository_id` UNIQUE(`repository_id`,`id`),
+	CONSTRAINT "package_visibility" CHECK("visibility" IN ('public', 'unlisted', 'private')),
+	CONSTRAINT "package_directory" CHECK(length("directory") > 0 AND substr("directory", 1, 1) <> '/' AND "directory" NOT LIKE '../%' AND "directory" NOT LIKE '%/../%' AND "directory" <> '..' AND "directory" NOT LIKE '%/..'),
+	CONSTRAINT "package_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
 CREATE TABLE `service_token` (
 	`id` text PRIMARY KEY,
 	`created_at` integer NOT NULL,
@@ -549,6 +627,102 @@ CREATE TABLE `network_policy_revision` (
 	CONSTRAINT "network_policy_revision_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
+CREATE TABLE `space_transfer` (
+	`id` text PRIMARY KEY,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`tags` text DEFAULT '{}' NOT NULL,
+	`space_id` text NOT NULL,
+	`source_region_id` text NOT NULL,
+	`target_region_id` text NOT NULL,
+	`source_epoch` integer NOT NULL,
+	`target_epoch` integer NOT NULL,
+	`requested_by` text NOT NULL,
+	`source_revision` integer,
+	`snapshot_digest` text,
+	`fenced_at` integer,
+	`prepared_at` integer,
+	`activated_at` integer,
+	`outcome` text,
+	`completed_at` integer,
+	`conditions` text DEFAULT '{}' NOT NULL,
+	CONSTRAINT `fk_space_transfer_space_id_space_id_fk` FOREIGN KEY (`space_id`) REFERENCES `space`(`id`) ON DELETE RESTRICT,
+	CONSTRAINT "space_transfer_region" CHECK("source_region_id" <> "target_region_id"),
+	CONSTRAINT "space_transfer_epoch" CHECK("source_epoch" > 0 AND "target_epoch" = "source_epoch" + 1),
+	CONSTRAINT "space_transfer_snapshot" CHECK(("source_revision" IS NULL) = ("snapshot_digest" IS NULL) AND ("source_revision" IS NULL OR ("source_revision" > 0 AND "fenced_at" IS NOT NULL))),
+	CONSTRAINT "space_transfer_prepare" CHECK("prepared_at" IS NULL OR ("source_revision" IS NOT NULL AND "prepared_at" >= "fenced_at")),
+	CONSTRAINT "space_transfer_activation" CHECK("activated_at" IS NULL OR ("prepared_at" IS NOT NULL AND "activated_at" >= "prepared_at")),
+	CONSTRAINT "space_transfer_completion" CHECK(("outcome" IS NULL) = ("completed_at" IS NULL)),
+	CONSTRAINT "space_transfer_outcome" CHECK("outcome" IS NULL OR ("outcome" = 'succeeded' AND "activated_at" IS NOT NULL) OR ("outcome" = 'cancelled' AND "fenced_at" IS NULL)),
+	CONSTRAINT "space_transfer_times" CHECK(("fenced_at" IS NULL OR "fenced_at" >= "created_at") AND ("completed_at" IS NULL OR ("completed_at" >= "created_at" AND ("activated_at" IS NULL OR "completed_at" >= "activated_at")))),
+	CONSTRAINT "space_transfer_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
+CREATE TABLE `space_migration` (
+	`id` text PRIMARY KEY,
+	`space_id` text NOT NULL,
+	`generation` integer NOT NULL,
+	`source_host_id` text NOT NULL,
+	`target_host_id` text NOT NULL,
+	`source_epoch` integer NOT NULL,
+	`target_epoch` integer,
+	`requested_by` text,
+	`created_at` integer NOT NULL,
+	`started_at` integer,
+	`cancellation_requested_at` integer,
+	`source_revoked_at` integer,
+	`activated_at` integer,
+	`outcome` text,
+	`completed_at` integer,
+	`conditions` text DEFAULT '{}' NOT NULL,
+	CONSTRAINT `fk_space_migration_space_id_space_id_fk` FOREIGN KEY (`space_id`) REFERENCES `space`(`id`) ON DELETE RESTRICT,
+	CONSTRAINT `space_migration_space_id` UNIQUE(`space_id`,`id`),
+	CONSTRAINT "space_migration_generation" CHECK("generation" >= 1),
+	CONSTRAINT "space_migration_epoch" CHECK("source_epoch" >= 1 AND ("target_epoch" IS NULL OR "target_epoch" > "source_epoch")),
+	CONSTRAINT "space_migration_outcome" CHECK("outcome" IS NULL OR "outcome" IN ('succeeded', 'failed', 'cancelled')),
+	CONSTRAINT "space_migration_completion" CHECK(("outcome" IS NULL) = ("completed_at" IS NULL)),
+	CONSTRAINT "space_migration_activation" CHECK(("activated_at" IS NULL) = ("target_epoch" IS NULL) AND ("activated_at" IS NULL OR ("source_revoked_at" IS NOT NULL AND "started_at" IS NOT NULL AND "activated_at" >= "source_revoked_at"))),
+	CONSTRAINT "space_migration_success" CHECK("outcome" IS NULL OR "outcome" <> 'succeeded' OR "activated_at" IS NOT NULL),
+	CONSTRAINT "space_migration_cancel" CHECK("outcome" IS NULL OR "outcome" <> 'cancelled' OR ("activated_at" IS NULL AND "cancellation_requested_at" IS NOT NULL)),
+	CONSTRAINT "space_migration_time" CHECK(("started_at" IS NULL OR "started_at" >= "created_at") AND ("completed_at" IS NULL OR "completed_at" >= "created_at")),
+	CONSTRAINT "space_migration_revoke_time" CHECK("source_revoked_at" IS NULL OR ("started_at" IS NOT NULL AND "source_revoked_at" >= "started_at")),
+	CONSTRAINT "space_migration_complete_time" CHECK("completed_at" IS NULL OR (("started_at" IS NULL OR "completed_at" >= "started_at") AND ("activated_at" IS NULL OR "completed_at" >= "activated_at"))),
+	CONSTRAINT "space_migration_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
+CREATE TABLE `space` (
+	`id` text PRIMARY KEY,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	`revision` integer DEFAULT 1 NOT NULL,
+	`tags` text DEFAULT '{}' NOT NULL,
+	`account_id` text NOT NULL,
+	`name` text NOT NULL,
+	`authority_region_id` text NOT NULL,
+	`authority_epoch` integer NOT NULL,
+	`status` text DEFAULT 'enabled' NOT NULL,
+	`placement` text DEFAULT 'automatic' NOT NULL,
+	`requested_primary_host_id` text,
+	`primary_host_id` text,
+	`primary_host_epoch` integer DEFAULT 0 NOT NULL,
+	`generation` integer DEFAULT 1 NOT NULL,
+	`observed_generation` integer DEFAULT 0 NOT NULL,
+	`conditions` text DEFAULT '{}' NOT NULL,
+	`deletion_requested_at` integer,
+	`finalizers` text DEFAULT '[]' NOT NULL,
+	CONSTRAINT `space_account_id` UNIQUE(`account_id`,`id`),
+	CONSTRAINT "space_revision" CHECK("revision" >= 1),
+	CONSTRAINT "space_generation" CHECK("generation" >= 1),
+	CONSTRAINT "space_observed_generation" CHECK("observed_generation" BETWEEN 0 AND "generation"),
+	CONSTRAINT "space_name" CHECK(length("name") > 0),
+	CONSTRAINT "space_authority_epoch" CHECK("authority_epoch" > 0),
+	CONSTRAINT "space_status" CHECK("status" IN ('enabled', 'suspended')),
+	CONSTRAINT "space_placement" CHECK(("placement" = 'automatic' AND "requested_primary_host_id" IS NULL) OR ("placement" = 'host' AND "requested_primary_host_id" IS NOT NULL)),
+	CONSTRAINT "space_host_epoch" CHECK("primary_host_epoch" >= 0 AND ("primary_host_id" IS NULL OR "primary_host_epoch" > 0)),
+	CONSTRAINT "space_id_not_null" CHECK("id" IS NOT NULL)
+);
+--> statement-breakpoint
 CREATE TABLE `installation` (
 	`id` text PRIMARY KEY,
 	`created_at` integer NOT NULL,
@@ -631,93 +805,8 @@ CREATE TABLE `deployment` (
 	CONSTRAINT "deployment_id_not_null" CHECK("id" IS NOT NULL)
 );
 --> statement-breakpoint
-CREATE TABLE `instance` (
-	`id` text PRIMARY KEY,
-	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	`revision` integer DEFAULT 1 NOT NULL,
-	`tags` text DEFAULT '{}' NOT NULL,
-	`space_id` text NOT NULL,
-	`deployment_id` text NOT NULL,
-	`host_id` text NOT NULL,
-	`host_epoch` integer NOT NULL,
-	`reference` text,
-	`status` text NOT NULL,
-	`conditions` text DEFAULT '{}' NOT NULL,
-	`observed_at` integer NOT NULL,
-	`lease_expires_at` integer,
-	`started_at` integer,
-	`stopped_at` integer,
-	CONSTRAINT `fk_instance_space_id_deployment_id_deployment_space_id_id_fk` FOREIGN KEY (`space_id`,`deployment_id`) REFERENCES `deployment`(`space_id`,`id`) ON DELETE RESTRICT,
-	CONSTRAINT `fk_instance_space_id_host_id_space_host_space_id_host_id_fk` FOREIGN KEY (`space_id`,`host_id`) REFERENCES `space_host`(`space_id`,`host_id`) ON DELETE RESTRICT,
-	CONSTRAINT "instance_epoch" CHECK("host_epoch" > 0),
-	CONSTRAINT "instance_status" CHECK("status" IN ('starting', 'running', 'draining', 'stopped', 'failed')),
-	CONSTRAINT "instance_times" CHECK("stopped_at" IS NULL OR "started_at" IS NULL OR "stopped_at" >= "started_at"),
-	CONSTRAINT "instance_id_not_null" CHECK("id" IS NOT NULL)
-);
---> statement-breakpoint
-CREATE TABLE `space_source` (
-	`space_id` text PRIMARY KEY,
-	`selection` text NOT NULL,
-	`directory` text NOT NULL,
-	`entrypoint` text NOT NULL,
-	`export` text NOT NULL,
-	`parameters` text NOT NULL,
-	`generation` integer DEFAULT 1 NOT NULL,
-	`applied_revision_id` text,
-	CONSTRAINT `fk_space_source_space_id_applied_revision_id_space_revision_space_id_id_fk` FOREIGN KEY (`space_id`,`applied_revision_id`) REFERENCES `space_revision`(`space_id`,`id`) ON DELETE RESTRICT,
-	CONSTRAINT `fk_space_source_space_id_space_id_fk` FOREIGN KEY (`space_id`) REFERENCES `space`(`id`),
-	CONSTRAINT "space_source_generation" CHECK("generation" > 0),
-	CONSTRAINT "space_source_directory" CHECK(length("directory") > 0 AND substr("directory", 1, 1) <> '/' AND "directory" <> '..' AND "directory" NOT LIKE '../%' AND "directory" NOT LIKE '%/../%' AND "directory" NOT LIKE '%/..'),
-	CONSTRAINT "space_source_export" CHECK(length("export") > 0 AND ("entrypoint" = '.' OR "entrypoint" LIKE './_%')),
-	CONSTRAINT "space_source_space_id_not_null" CHECK("space_id" IS NOT NULL)
-);
---> statement-breakpoint
-CREATE TABLE `space_revision` (
-	`id` text PRIMARY KEY,
-	`space_id` text NOT NULL,
-	`source_generation` integer NOT NULL,
-	`source` text NOT NULL,
-	`parameters` text NOT NULL,
-	`definition` text NOT NULL,
-	`releases` text NOT NULL,
-	`digest` text NOT NULL,
-	`created_at` integer NOT NULL,
-	CONSTRAINT `fk_space_revision_space_id_space_id_fk` FOREIGN KEY (`space_id`) REFERENCES `space`(`id`),
-	CONSTRAINT `space_revision_space_id` UNIQUE(`space_id`,`id`),
-	CONSTRAINT "space_revision_generation" CHECK("source_generation" > 0),
-	CONSTRAINT "space_revision_digest" CHECK(length("digest") = 64 AND "digest" NOT GLOB '*[^a-f0-9]*'),
-	CONSTRAINT "space_revision_id_not_null" CHECK("id" IS NOT NULL)
-);
---> statement-breakpoint
-CREATE TABLE `restoration` (
-	`id` text PRIMARY KEY,
-	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	`revision` integer DEFAULT 1 NOT NULL,
-	`tags` text DEFAULT '{}' NOT NULL,
-	`space_id` text NOT NULL,
-	`snapshot_id` text NOT NULL,
-	`destination_resource_id` text NOT NULL,
-	`started_at` integer,
-	`completed_at` integer,
-	`outcome` text,
-	`error` text,
-	CONSTRAINT `fk_restoration_space_id_snapshot_id_snapshot_space_id_id_fk` FOREIGN KEY (`space_id`,`snapshot_id`) REFERENCES `snapshot`(`space_id`,`id`) ON DELETE RESTRICT,
-	CONSTRAINT `fk_restoration_space_id_destination_resource_id_resource_space_id_id_fk` FOREIGN KEY (`space_id`,`destination_resource_id`) REFERENCES `resource`(`space_id`,`id`) ON DELETE RESTRICT,
-	CONSTRAINT `fk_restoration_snapshot_id_snapshot_id_fk` FOREIGN KEY (`snapshot_id`) REFERENCES `snapshot`(`id`),
-	CONSTRAINT `fk_restoration_destination_resource_id_resource_id_fk` FOREIGN KEY (`destination_resource_id`) REFERENCES `resource`(`id`),
-	CONSTRAINT "restoration_completion" CHECK(("completed_at" IS NULL) = ("outcome" IS NULL)),
-	CONSTRAINT "restoration_outcome" CHECK("outcome" IS NULL OR "outcome" IN ('succeeded', 'failed', 'cancelled')),
-	CONSTRAINT "restoration_success" CHECK("outcome" IS NULL OR "outcome" <> 'succeeded' OR ("started_at" IS NOT NULL AND "error" IS NULL)),
-	CONSTRAINT "restoration_finish" CHECK("completed_at" IS NULL OR "started_at" IS NULL OR "completed_at" >= "started_at"),
-	CONSTRAINT "restoration_time" CHECK(("started_at" IS NULL OR "started_at" >= "created_at") AND ("completed_at" IS NULL OR "completed_at" >= "created_at")),
-	CONSTRAINT "restoration_id_not_null" CHECK("id" IS NOT NULL)
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `space_transfer_active` ON `space_transfer` (`space_id`) WHERE "space_transfer"."completed_at" IS NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX `space_migration_active` ON `space_migration` (`space_id`) WHERE "space_migration"."completed_at" IS NULL;--> statement-breakpoint
-CREATE INDEX `space_migration_history` ON `space_migration` (`space_id`,`created_at`);--> statement-breakpoint
+CREATE INDEX `instance_deployment_status` ON `instance` (`deployment_id`,`status`);--> statement-breakpoint
+CREATE INDEX `instance_host_status` ON `instance` (`host_id`,`status`);--> statement-breakpoint
 CREATE INDEX `resource_binding_resource` ON `resource_binding` (`space_id`,`resource_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `resource_migration_active` ON `resource_migration` (`resource_id`) WHERE "resource_migration"."completed_at" IS NULL;--> statement-breakpoint
 CREATE INDEX `resource_migration_history` ON `resource_migration` (`resource_id`,`created_at`);--> statement-breakpoint
@@ -739,8 +828,9 @@ CREATE UNIQUE INDEX `network_policy_installation` ON `network_policy` (`installa
 CREATE UNIQUE INDEX `network_policy_workload` ON `network_policy` (`installation_id`,`workload`) WHERE "network_policy"."scope" = 'workload';--> statement-breakpoint
 CREATE UNIQUE INDEX `network_policy_account` ON `network_policy` (`account_id`) WHERE "network_policy"."scope" = 'account';--> statement-breakpoint
 CREATE UNIQUE INDEX `network_policy_space` ON `network_policy` (`space_id`) WHERE "network_policy"."scope" = 'space';--> statement-breakpoint
+CREATE UNIQUE INDEX `space_transfer_active` ON `space_transfer` (`space_id`) WHERE "space_transfer"."completed_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `space_migration_active` ON `space_migration` (`space_id`) WHERE "space_migration"."completed_at" IS NULL;--> statement-breakpoint
+CREATE INDEX `space_migration_history` ON `space_migration` (`space_id`,`created_at`);--> statement-breakpoint
 CREATE UNIQUE INDEX `installation_provenance` ON `installation` (json_extract("provenance", '$.kind'),coalesce(json_extract("provenance", '$.accountId'), json_extract("provenance", '$.spaceId'), json_extract("provenance", '$.installationId')),json_extract("provenance", '$.name')) WHERE "installation"."provenance" IS NOT NULL AND "installation"."detached_at" IS NULL;--> statement-breakpoint
 CREATE INDEX `installation_release` ON `installation` (`package_id`,`version`);--> statement-breakpoint
-CREATE INDEX `deployment_installation_status` ON `deployment` (`installation_id`,`status`);--> statement-breakpoint
-CREATE INDEX `instance_deployment_status` ON `instance` (`deployment_id`,`status`);--> statement-breakpoint
-CREATE INDEX `instance_host_status` ON `instance` (`host_id`,`status`);
+CREATE INDEX `deployment_installation_status` ON `deployment` (`installation_id`,`status`);

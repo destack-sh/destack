@@ -1,60 +1,127 @@
-CREATE TABLE "space_transfer" (
+CREATE TABLE "repository" (
+	"id" text PRIMARY KEY,
+	"created_at" bigint NOT NULL,
+	"updated_at" bigint NOT NULL,
+	"revision" bigint DEFAULT 1 NOT NULL,
+	"tags" jsonb DEFAULT '{}' NOT NULL,
+	"generation" bigint DEFAULT 1 NOT NULL,
+	"observed_generation" bigint DEFAULT 0 NOT NULL,
+	"conditions" jsonb DEFAULT '{}' NOT NULL,
+	"deletion_requested_at" bigint,
+	"finalizers" jsonb DEFAULT '[]' NOT NULL,
+	"account_id" text NOT NULL,
+	"hosting" text NOT NULL,
+	"host_id" text,
+	"provider" text,
+	"provider_repository_id" text,
+	"remote" text,
+	"default_reference" text,
+	"authentication" text,
+	"connected_account_id" text,
+	"secret_space_id" text,
+	"secret_id" text,
+	CONSTRAINT "repository_account_id" UNIQUE("account_id","id"),
+	CONSTRAINT "repository_revision" CHECK ("revision" >= 1),
+	CONSTRAINT "repository_generation" CHECK ("generation" >= 1),
+	CONSTRAINT "repository_observed_generation" CHECK ("observed_generation" BETWEEN 0 AND "generation"),
+	CONSTRAINT "repository_origin" CHECK (("hosting" = 'platform' AND "provider" IS NOT NULL AND "host_id" IS NULL)
+            OR ("hosting" = 'external' AND "provider" IS NOT NULL AND "remote" IS NOT NULL AND "host_id" IS NULL)
+            OR ("hosting" = 'host' AND "host_id" IS NOT NULL AND "provider" IS NULL AND "provider_repository_id" IS NULL AND "remote" IS NULL)),
+	CONSTRAINT "repository_authentication" CHECK (("hosting" IN ('platform', 'host') AND "authentication" IS NULL AND "connected_account_id" IS NULL AND "secret_space_id" IS NULL AND "secret_id" IS NULL)
+            OR ("hosting" = 'external' AND "authentication" IS NOT NULL AND (
+                ("authentication" = 'anonymous' AND "connected_account_id" IS NULL AND "secret_space_id" IS NULL AND "secret_id" IS NULL)
+                OR ("authentication" = 'connection' AND "connected_account_id" IS NOT NULL AND "secret_space_id" IS NULL AND "secret_id" IS NULL)
+                OR ("authentication" = 'secret' AND "connected_account_id" IS NULL AND "secret_space_id" IS NOT NULL AND "secret_id" IS NOT NULL)))),
+	CONSTRAINT "repository_default_reference" CHECK ("default_reference" IS NULL OR "default_reference" LIKE 'refs/heads/%'),
+	CONSTRAINT "repository_remote" CHECK ("remote" IS NULL OR length("remote") > 0),
+	CONSTRAINT "repository_provider" CHECK (("provider" IS NULL OR length("provider") > 0)
+            AND ("provider_repository_id" IS NULL OR length("provider_repository_id") > 0))
+);
+--> statement-breakpoint
+CREATE TABLE "repository_ref" (
+	"repository_id" text,
+	"name" text,
+	"object" text NOT NULL,
+	"commit" text,
+	"revision" bigint DEFAULT 1 NOT NULL,
+	"observed_at" bigint NOT NULL,
+	"deleted_at" bigint,
+	CONSTRAINT "repository_ref_pkey" PRIMARY KEY("repository_id","name"),
+	CONSTRAINT "repository_ref_name" CHECK ("name" LIKE 'refs/%'),
+	CONSTRAINT "repository_ref_object" CHECK (length("object") IN (40, 64) AND ("object" COLLATE "C") !~ '[^0-9a-f]'),
+	CONSTRAINT "repository_ref_commit" CHECK ("commit" IS NULL OR (length("commit") IN (40, 64) AND ("commit" COLLATE "C") !~ '[^0-9a-f]')),
+	CONSTRAINT "repository_ref_revision" CHECK ("revision" >= 1)
+);
+--> statement-breakpoint
+CREATE TABLE "instance" (
 	"id" text PRIMARY KEY,
 	"created_at" bigint NOT NULL,
 	"updated_at" bigint NOT NULL,
 	"revision" bigint DEFAULT 1 NOT NULL,
 	"tags" jsonb DEFAULT '{}' NOT NULL,
 	"space_id" text NOT NULL,
-	"source" jsonb NOT NULL,
-	"target" jsonb NOT NULL,
-	"source_epoch" bigint NOT NULL,
-	"target_epoch" bigint NOT NULL,
-	"requested_by" jsonb NOT NULL,
-	"source_revision" bigint,
-	"snapshot_digest" text,
-	"fenced_at" bigint,
-	"prepared_at" bigint,
-	"activated_at" bigint,
-	"outcome" text,
-	"completed_at" bigint,
+	"deployment_id" text NOT NULL,
+	"host_id" text NOT NULL,
+	"host_epoch" bigint NOT NULL,
+	"reference" text,
+	"status" text NOT NULL,
 	"conditions" jsonb DEFAULT '{}' NOT NULL,
-	CONSTRAINT "space_transfer_epoch" CHECK ("source_epoch" > 0 AND "target_epoch" = "source_epoch" + 1),
-	CONSTRAINT "space_transfer_snapshot" CHECK (("source_revision" IS NULL) = ("snapshot_digest" IS NULL) AND ("source_revision" IS NULL OR ("source_revision" > 0 AND "fenced_at" IS NOT NULL))),
-	CONSTRAINT "space_transfer_prepare" CHECK ("prepared_at" IS NULL OR ("source_revision" IS NOT NULL AND "prepared_at" >= "fenced_at")),
-	CONSTRAINT "space_transfer_activation" CHECK ("activated_at" IS NULL OR ("prepared_at" IS NOT NULL AND "activated_at" >= "prepared_at")),
-	CONSTRAINT "space_transfer_completion" CHECK (("outcome" IS NULL) = ("completed_at" IS NULL)),
-	CONSTRAINT "space_transfer_outcome" CHECK ("outcome" IS NULL OR ("outcome" = 'succeeded' AND "activated_at" IS NOT NULL) OR ("outcome" = 'cancelled' AND "fenced_at" IS NULL)),
-	CONSTRAINT "space_transfer_times" CHECK (("fenced_at" IS NULL OR "fenced_at" >= "created_at") AND ("completed_at" IS NULL OR ("completed_at" >= "created_at" AND ("activated_at" IS NULL OR "completed_at" >= "activated_at"))))
+	"observed_at" bigint NOT NULL,
+	"lease_expires_at" bigint,
+	"started_at" bigint,
+	"stopped_at" bigint,
+	CONSTRAINT "instance_epoch" CHECK ("host_epoch" > 0),
+	CONSTRAINT "instance_status" CHECK ("status" IN ('starting', 'running', 'draining', 'stopped', 'failed')),
+	CONSTRAINT "instance_times" CHECK ("stopped_at" IS NULL OR "started_at" IS NULL OR "stopped_at" >= "started_at")
 );
 --> statement-breakpoint
-CREATE TABLE "space_migration" (
+CREATE TABLE "space_source" (
+	"space_id" text PRIMARY KEY,
+	"selection" jsonb NOT NULL,
+	"directory" text NOT NULL,
+	"entrypoint" text NOT NULL,
+	"export" text NOT NULL,
+	"parameters" jsonb NOT NULL,
+	"generation" bigint DEFAULT 1 NOT NULL,
+	"applied_revision_id" text,
+	CONSTRAINT "space_source_generation" CHECK ("generation" > 0),
+	CONSTRAINT "space_source_directory" CHECK (length("directory") > 0 AND substr("directory", 1, 1) <> '/' AND "directory" <> '..' AND "directory" NOT LIKE '../%' AND "directory" NOT LIKE '%/../%' AND "directory" NOT LIKE '%/..'),
+	CONSTRAINT "space_source_export" CHECK (length("export") > 0 AND ("entrypoint" = '.' OR "entrypoint" LIKE './_%'))
+);
+--> statement-breakpoint
+CREATE TABLE "space_revision" (
 	"id" text PRIMARY KEY,
 	"space_id" text NOT NULL,
-	"generation" bigint NOT NULL,
-	"source_host_id" text NOT NULL,
-	"target_host_id" text NOT NULL,
-	"source_epoch" bigint NOT NULL,
-	"target_epoch" bigint,
-	"requested_by" text,
+	"source_generation" bigint NOT NULL,
+	"source" jsonb NOT NULL,
+	"parameters" jsonb NOT NULL,
+	"definition" jsonb NOT NULL,
+	"releases" jsonb NOT NULL,
+	"digest" text NOT NULL,
 	"created_at" bigint NOT NULL,
+	CONSTRAINT "space_revision_space_id" UNIQUE("space_id","id"),
+	CONSTRAINT "space_revision_generation" CHECK ("source_generation" > 0),
+	CONSTRAINT "space_revision_digest" CHECK (("digest" COLLATE "C") ~ '^[a-f0-9]{64}$')
+);
+--> statement-breakpoint
+CREATE TABLE "restoration" (
+	"id" text PRIMARY KEY,
+	"created_at" bigint NOT NULL,
+	"updated_at" bigint NOT NULL,
+	"revision" bigint DEFAULT 1 NOT NULL,
+	"tags" jsonb DEFAULT '{}' NOT NULL,
+	"space_id" text NOT NULL,
+	"snapshot_id" text NOT NULL,
+	"destination_resource_id" text NOT NULL,
 	"started_at" bigint,
-	"cancellation_requested_at" bigint,
-	"source_revoked_at" bigint,
-	"activated_at" bigint,
-	"outcome" text,
 	"completed_at" bigint,
-	"conditions" jsonb DEFAULT '{}' NOT NULL,
-	CONSTRAINT "space_migration_space_id" UNIQUE("space_id","id"),
-	CONSTRAINT "space_migration_generation" CHECK ("generation" >= 1),
-	CONSTRAINT "space_migration_epoch" CHECK ("source_epoch" >= 1 AND ("target_epoch" IS NULL OR "target_epoch" > "source_epoch")),
-	CONSTRAINT "space_migration_outcome" CHECK ("outcome" IS NULL OR "outcome" IN ('succeeded', 'failed', 'cancelled')),
-	CONSTRAINT "space_migration_completion" CHECK (("outcome" IS NULL) = ("completed_at" IS NULL)),
-	CONSTRAINT "space_migration_activation" CHECK (("activated_at" IS NULL) = ("target_epoch" IS NULL) AND ("activated_at" IS NULL OR ("source_revoked_at" IS NOT NULL AND "started_at" IS NOT NULL AND "activated_at" >= "source_revoked_at"))),
-	CONSTRAINT "space_migration_success" CHECK ("outcome" IS NULL OR "outcome" <> 'succeeded' OR "activated_at" IS NOT NULL),
-	CONSTRAINT "space_migration_cancel" CHECK ("outcome" IS NULL OR "outcome" <> 'cancelled' OR ("activated_at" IS NULL AND "cancellation_requested_at" IS NOT NULL)),
-	CONSTRAINT "space_migration_time" CHECK (("started_at" IS NULL OR "started_at" >= "created_at") AND ("completed_at" IS NULL OR "completed_at" >= "created_at")),
-	CONSTRAINT "space_migration_revoke_time" CHECK ("source_revoked_at" IS NULL OR ("started_at" IS NOT NULL AND "source_revoked_at" >= "started_at")),
-	CONSTRAINT "space_migration_complete_time" CHECK ("completed_at" IS NULL OR (("started_at" IS NULL OR "completed_at" >= "started_at") AND ("activated_at" IS NULL OR "completed_at" >= "activated_at")))
+	"outcome" text,
+	"error" text,
+	CONSTRAINT "restoration_completion" CHECK (("completed_at" IS NULL) = ("outcome" IS NULL)),
+	CONSTRAINT "restoration_outcome" CHECK ("outcome" IS NULL OR "outcome" IN ('succeeded', 'failed', 'cancelled')),
+	CONSTRAINT "restoration_success" CHECK ("outcome" IS NULL OR "outcome" <> 'succeeded' OR ("started_at" IS NOT NULL AND "error" IS NULL)),
+	CONSTRAINT "restoration_finish" CHECK ("completed_at" IS NULL OR "started_at" IS NULL OR "completed_at" >= "started_at"),
+	CONSTRAINT "restoration_time" CHECK (("started_at" IS NULL OR "started_at" >= "created_at") AND ("completed_at" IS NULL OR "completed_at" >= "created_at"))
 );
 --> statement-breakpoint
 CREATE TABLE "snapshot" (
@@ -167,6 +234,21 @@ CREATE TABLE "secret_version" (
 	CONSTRAINT "secret_version_expiry" CHECK ("expires_at" IS NULL OR "expires_at" > "created_at")
 );
 --> statement-breakpoint
+CREATE TABLE "release" (
+	"package_id" text,
+	"version" text,
+	"manifest" text NOT NULL,
+	"repository_id" text NOT NULL,
+	"directory" text NOT NULL,
+	"commit" text NOT NULL,
+	"created_at" bigint NOT NULL,
+	CONSTRAINT "release_pkey" PRIMARY KEY("package_id","version"),
+	CONSTRAINT "release_manifest_version" UNIQUE("package_id","version","manifest"),
+	CONSTRAINT "release_commit" CHECK (length("commit") IN (40, 64) AND ("commit" COLLATE "C") !~ '[^0-9a-f]'),
+	CONSTRAINT "release_directory" CHECK (length("directory") > 0 AND substr("directory", 1, 1) <> '/' AND "directory" <> '..' AND "directory" NOT LIKE '../%' AND "directory" NOT LIKE '%/../%' AND "directory" NOT LIKE '%/..'),
+	CONSTRAINT "release_manifest" CHECK (length("manifest") = 64 AND ("manifest" COLLATE "C") !~ '[^0-9a-f]')
+);
+--> statement-breakpoint
 CREATE TABLE "secret_binding" (
 	"space_id" text NOT NULL,
 	"installation_id" text,
@@ -242,40 +324,6 @@ CREATE TABLE "deployment_binding" (
 	"generation" bigint NOT NULL,
 	CONSTRAINT "deployment_binding_pkey" PRIMARY KEY("deployment_id","package_id","name"),
 	CONSTRAINT "deployment_binding_generation" CHECK ("generation" > 0)
-);
---> statement-breakpoint
-CREATE TABLE "space" (
-	"id" text PRIMARY KEY,
-	"created_at" bigint NOT NULL,
-	"updated_at" bigint NOT NULL,
-	"revision" bigint DEFAULT 1 NOT NULL,
-	"tags" jsonb DEFAULT '{}' NOT NULL,
-	"account_id" text,
-	"name" text NOT NULL,
-	"authority_host_id" text,
-	"authority_region_id" text,
-	"authority_epoch" bigint NOT NULL,
-	"status" text DEFAULT 'enabled' NOT NULL,
-	"placement" text DEFAULT 'automatic' NOT NULL,
-	"requested_primary_host_id" text,
-	"primary_host_id" text,
-	"primary_host_epoch" bigint DEFAULT 0 NOT NULL,
-	"generation" bigint DEFAULT 1 NOT NULL,
-	"observed_generation" bigint DEFAULT 0 NOT NULL,
-	"conditions" jsonb DEFAULT '{}' NOT NULL,
-	"deletion_requested_at" bigint,
-	"finalizers" jsonb DEFAULT '[]' NOT NULL,
-	CONSTRAINT "space_account_id" UNIQUE("account_id","id"),
-	CONSTRAINT "space_revision" CHECK ("revision" >= 1),
-	CONSTRAINT "space_generation" CHECK ("generation" >= 1),
-	CONSTRAINT "space_observed_generation" CHECK ("observed_generation" BETWEEN 0 AND "generation"),
-	CONSTRAINT "space_name" CHECK (length("name") > 0),
-	CONSTRAINT "space_authority" CHECK (("authority_host_id" IS NULL) <> ("authority_region_id" IS NULL)),
-	CONSTRAINT "space_authority_epoch" CHECK ("authority_epoch" > 0),
-	CONSTRAINT "space_regional_account" CHECK ("authority_region_id" IS NULL OR "account_id" IS NOT NULL),
-	CONSTRAINT "space_status" CHECK ("status" IN ('enabled', 'suspended')),
-	CONSTRAINT "space_placement" CHECK (("placement" = 'automatic' AND "requested_primary_host_id" IS NULL) OR ("placement" = 'host' AND "requested_primary_host_id" IS NOT NULL)),
-	CONSTRAINT "space_host_epoch" CHECK ("primary_host_epoch" >= 0 AND ("primary_host_id" IS NULL OR "primary_host_epoch" > 0))
 );
 --> statement-breakpoint
 CREATE TABLE "package_policy" (
@@ -395,6 +443,21 @@ CREATE TABLE "service_account" (
 	CONSTRAINT "service_account_workload_name" CHECK (length("workload") > 0)
 );
 --> statement-breakpoint
+CREATE TABLE "package" (
+	"id" text PRIMARY KEY,
+	"created_at" bigint NOT NULL,
+	"updated_at" bigint NOT NULL,
+	"revision" bigint DEFAULT 1 NOT NULL,
+	"tags" jsonb DEFAULT '{}' NOT NULL,
+	"account_id" text NOT NULL,
+	"visibility" text NOT NULL,
+	"repository_id" text NOT NULL,
+	"directory" text NOT NULL,
+	CONSTRAINT "package_repository_id" UNIQUE("repository_id","id"),
+	CONSTRAINT "package_visibility" CHECK ("visibility" IN ('public', 'unlisted', 'private')),
+	CONSTRAINT "package_directory" CHECK (length("directory") > 0 AND substr("directory", 1, 1) <> '/' AND "directory" NOT LIKE '../%' AND "directory" NOT LIKE '%/../%' AND "directory" <> '..' AND "directory" NOT LIKE '%/..')
+);
+--> statement-breakpoint
 CREATE TABLE "service_token" (
 	"id" text PRIMARY KEY,
 	"created_at" bigint NOT NULL,
@@ -491,6 +554,97 @@ CREATE TABLE "network_policy_revision" (
     )
 );
 --> statement-breakpoint
+CREATE TABLE "space_transfer" (
+	"id" text PRIMARY KEY,
+	"created_at" bigint NOT NULL,
+	"updated_at" bigint NOT NULL,
+	"revision" bigint DEFAULT 1 NOT NULL,
+	"tags" jsonb DEFAULT '{}' NOT NULL,
+	"space_id" text NOT NULL,
+	"source_region_id" text NOT NULL,
+	"target_region_id" text NOT NULL,
+	"source_epoch" bigint NOT NULL,
+	"target_epoch" bigint NOT NULL,
+	"requested_by" jsonb NOT NULL,
+	"source_revision" bigint,
+	"snapshot_digest" text,
+	"fenced_at" bigint,
+	"prepared_at" bigint,
+	"activated_at" bigint,
+	"outcome" text,
+	"completed_at" bigint,
+	"conditions" jsonb DEFAULT '{}' NOT NULL,
+	CONSTRAINT "space_transfer_region" CHECK ("source_region_id" <> "target_region_id"),
+	CONSTRAINT "space_transfer_epoch" CHECK ("source_epoch" > 0 AND "target_epoch" = "source_epoch" + 1),
+	CONSTRAINT "space_transfer_snapshot" CHECK (("source_revision" IS NULL) = ("snapshot_digest" IS NULL) AND ("source_revision" IS NULL OR ("source_revision" > 0 AND "fenced_at" IS NOT NULL))),
+	CONSTRAINT "space_transfer_prepare" CHECK ("prepared_at" IS NULL OR ("source_revision" IS NOT NULL AND "prepared_at" >= "fenced_at")),
+	CONSTRAINT "space_transfer_activation" CHECK ("activated_at" IS NULL OR ("prepared_at" IS NOT NULL AND "activated_at" >= "prepared_at")),
+	CONSTRAINT "space_transfer_completion" CHECK (("outcome" IS NULL) = ("completed_at" IS NULL)),
+	CONSTRAINT "space_transfer_outcome" CHECK ("outcome" IS NULL OR ("outcome" = 'succeeded' AND "activated_at" IS NOT NULL) OR ("outcome" = 'cancelled' AND "fenced_at" IS NULL)),
+	CONSTRAINT "space_transfer_times" CHECK (("fenced_at" IS NULL OR "fenced_at" >= "created_at") AND ("completed_at" IS NULL OR ("completed_at" >= "created_at" AND ("activated_at" IS NULL OR "completed_at" >= "activated_at"))))
+);
+--> statement-breakpoint
+CREATE TABLE "space_migration" (
+	"id" text PRIMARY KEY,
+	"space_id" text NOT NULL,
+	"generation" bigint NOT NULL,
+	"source_host_id" text NOT NULL,
+	"target_host_id" text NOT NULL,
+	"source_epoch" bigint NOT NULL,
+	"target_epoch" bigint,
+	"requested_by" text,
+	"created_at" bigint NOT NULL,
+	"started_at" bigint,
+	"cancellation_requested_at" bigint,
+	"source_revoked_at" bigint,
+	"activated_at" bigint,
+	"outcome" text,
+	"completed_at" bigint,
+	"conditions" jsonb DEFAULT '{}' NOT NULL,
+	CONSTRAINT "space_migration_space_id" UNIQUE("space_id","id"),
+	CONSTRAINT "space_migration_generation" CHECK ("generation" >= 1),
+	CONSTRAINT "space_migration_epoch" CHECK ("source_epoch" >= 1 AND ("target_epoch" IS NULL OR "target_epoch" > "source_epoch")),
+	CONSTRAINT "space_migration_outcome" CHECK ("outcome" IS NULL OR "outcome" IN ('succeeded', 'failed', 'cancelled')),
+	CONSTRAINT "space_migration_completion" CHECK (("outcome" IS NULL) = ("completed_at" IS NULL)),
+	CONSTRAINT "space_migration_activation" CHECK (("activated_at" IS NULL) = ("target_epoch" IS NULL) AND ("activated_at" IS NULL OR ("source_revoked_at" IS NOT NULL AND "started_at" IS NOT NULL AND "activated_at" >= "source_revoked_at"))),
+	CONSTRAINT "space_migration_success" CHECK ("outcome" IS NULL OR "outcome" <> 'succeeded' OR "activated_at" IS NOT NULL),
+	CONSTRAINT "space_migration_cancel" CHECK ("outcome" IS NULL OR "outcome" <> 'cancelled' OR ("activated_at" IS NULL AND "cancellation_requested_at" IS NOT NULL)),
+	CONSTRAINT "space_migration_time" CHECK (("started_at" IS NULL OR "started_at" >= "created_at") AND ("completed_at" IS NULL OR "completed_at" >= "created_at")),
+	CONSTRAINT "space_migration_revoke_time" CHECK ("source_revoked_at" IS NULL OR ("started_at" IS NOT NULL AND "source_revoked_at" >= "started_at")),
+	CONSTRAINT "space_migration_complete_time" CHECK ("completed_at" IS NULL OR (("started_at" IS NULL OR "completed_at" >= "started_at") AND ("activated_at" IS NULL OR "completed_at" >= "activated_at")))
+);
+--> statement-breakpoint
+CREATE TABLE "space" (
+	"id" text PRIMARY KEY,
+	"created_at" bigint NOT NULL,
+	"updated_at" bigint NOT NULL,
+	"revision" bigint DEFAULT 1 NOT NULL,
+	"tags" jsonb DEFAULT '{}' NOT NULL,
+	"account_id" text NOT NULL,
+	"name" text NOT NULL,
+	"authority_region_id" text NOT NULL,
+	"authority_epoch" bigint NOT NULL,
+	"status" text DEFAULT 'enabled' NOT NULL,
+	"placement" text DEFAULT 'automatic' NOT NULL,
+	"requested_primary_host_id" text,
+	"primary_host_id" text,
+	"primary_host_epoch" bigint DEFAULT 0 NOT NULL,
+	"generation" bigint DEFAULT 1 NOT NULL,
+	"observed_generation" bigint DEFAULT 0 NOT NULL,
+	"conditions" jsonb DEFAULT '{}' NOT NULL,
+	"deletion_requested_at" bigint,
+	"finalizers" jsonb DEFAULT '[]' NOT NULL,
+	CONSTRAINT "space_account_id" UNIQUE("account_id","id"),
+	CONSTRAINT "space_revision" CHECK ("revision" >= 1),
+	CONSTRAINT "space_generation" CHECK ("generation" >= 1),
+	CONSTRAINT "space_observed_generation" CHECK ("observed_generation" BETWEEN 0 AND "generation"),
+	CONSTRAINT "space_name" CHECK (length("name") > 0),
+	CONSTRAINT "space_authority_epoch" CHECK ("authority_epoch" > 0),
+	CONSTRAINT "space_status" CHECK ("status" IN ('enabled', 'suspended')),
+	CONSTRAINT "space_placement" CHECK (("placement" = 'automatic' AND "requested_primary_host_id" IS NULL) OR ("placement" = 'host' AND "requested_primary_host_id" IS NOT NULL)),
+	CONSTRAINT "space_host_epoch" CHECK ("primary_host_epoch" >= 0 AND ("primary_host_id" IS NULL OR "primary_host_epoch" > 0))
+);
+--> statement-breakpoint
 CREATE TABLE "installation" (
 	"id" text PRIMARY KEY,
 	"created_at" bigint NOT NULL,
@@ -566,80 +720,8 @@ CREATE TABLE "deployment" (
 	CONSTRAINT "deployment_times" CHECK ("retired_at" IS NULL OR "activated_at" IS NULL OR "retired_at" >= "activated_at")
 );
 --> statement-breakpoint
-CREATE TABLE "instance" (
-	"id" text PRIMARY KEY,
-	"created_at" bigint NOT NULL,
-	"updated_at" bigint NOT NULL,
-	"revision" bigint DEFAULT 1 NOT NULL,
-	"tags" jsonb DEFAULT '{}' NOT NULL,
-	"space_id" text NOT NULL,
-	"deployment_id" text NOT NULL,
-	"host_id" text NOT NULL,
-	"host_epoch" bigint NOT NULL,
-	"reference" text,
-	"status" text NOT NULL,
-	"conditions" jsonb DEFAULT '{}' NOT NULL,
-	"observed_at" bigint NOT NULL,
-	"lease_expires_at" bigint,
-	"started_at" bigint,
-	"stopped_at" bigint,
-	CONSTRAINT "instance_epoch" CHECK ("host_epoch" > 0),
-	CONSTRAINT "instance_status" CHECK ("status" IN ('starting', 'running', 'draining', 'stopped', 'failed')),
-	CONSTRAINT "instance_times" CHECK ("stopped_at" IS NULL OR "started_at" IS NULL OR "stopped_at" >= "started_at")
-);
---> statement-breakpoint
-CREATE TABLE "space_source" (
-	"space_id" text PRIMARY KEY,
-	"selection" jsonb NOT NULL,
-	"directory" text NOT NULL,
-	"entrypoint" text NOT NULL,
-	"export" text NOT NULL,
-	"parameters" jsonb NOT NULL,
-	"generation" bigint DEFAULT 1 NOT NULL,
-	"applied_revision_id" text,
-	CONSTRAINT "space_source_generation" CHECK ("generation" > 0),
-	CONSTRAINT "space_source_directory" CHECK (length("directory") > 0 AND substr("directory", 1, 1) <> '/' AND "directory" <> '..' AND "directory" NOT LIKE '../%' AND "directory" NOT LIKE '%/../%' AND "directory" NOT LIKE '%/..'),
-	CONSTRAINT "space_source_export" CHECK (length("export") > 0 AND ("entrypoint" = '.' OR "entrypoint" LIKE './_%'))
-);
---> statement-breakpoint
-CREATE TABLE "space_revision" (
-	"id" text PRIMARY KEY,
-	"space_id" text NOT NULL,
-	"source_generation" bigint NOT NULL,
-	"source" jsonb NOT NULL,
-	"parameters" jsonb NOT NULL,
-	"definition" jsonb NOT NULL,
-	"releases" jsonb NOT NULL,
-	"digest" text NOT NULL,
-	"created_at" bigint NOT NULL,
-	CONSTRAINT "space_revision_space_id" UNIQUE("space_id","id"),
-	CONSTRAINT "space_revision_generation" CHECK ("source_generation" > 0),
-	CONSTRAINT "space_revision_digest" CHECK (("digest" COLLATE "C") ~ '^[a-f0-9]{64}$')
-);
---> statement-breakpoint
-CREATE TABLE "restoration" (
-	"id" text PRIMARY KEY,
-	"created_at" bigint NOT NULL,
-	"updated_at" bigint NOT NULL,
-	"revision" bigint DEFAULT 1 NOT NULL,
-	"tags" jsonb DEFAULT '{}' NOT NULL,
-	"space_id" text NOT NULL,
-	"snapshot_id" text NOT NULL,
-	"destination_resource_id" text NOT NULL,
-	"started_at" bigint,
-	"completed_at" bigint,
-	"outcome" text,
-	"error" text,
-	CONSTRAINT "restoration_completion" CHECK (("completed_at" IS NULL) = ("outcome" IS NULL)),
-	CONSTRAINT "restoration_outcome" CHECK ("outcome" IS NULL OR "outcome" IN ('succeeded', 'failed', 'cancelled')),
-	CONSTRAINT "restoration_success" CHECK ("outcome" IS NULL OR "outcome" <> 'succeeded' OR ("started_at" IS NOT NULL AND "error" IS NULL)),
-	CONSTRAINT "restoration_finish" CHECK ("completed_at" IS NULL OR "started_at" IS NULL OR "completed_at" >= "started_at"),
-	CONSTRAINT "restoration_time" CHECK (("started_at" IS NULL OR "started_at" >= "created_at") AND ("completed_at" IS NULL OR "completed_at" >= "created_at"))
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX "space_transfer_active" ON "space_transfer" ("space_id") WHERE "completed_at" IS NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX "space_migration_active" ON "space_migration" ("space_id") WHERE "completed_at" IS NULL;--> statement-breakpoint
-CREATE INDEX "space_migration_history" ON "space_migration" ("space_id","created_at");--> statement-breakpoint
+CREATE INDEX "instance_deployment_status" ON "instance" ("deployment_id","status");--> statement-breakpoint
+CREATE INDEX "instance_host_status" ON "instance" ("host_id","status");--> statement-breakpoint
 CREATE INDEX "resource_binding_resource" ON "resource_binding" ("space_id","resource_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "resource_migration_active" ON "resource_migration" ("resource_id") WHERE "completed_at" IS NULL;--> statement-breakpoint
 CREATE INDEX "resource_migration_history" ON "resource_migration" ("resource_id","created_at");--> statement-breakpoint
@@ -661,13 +743,22 @@ CREATE UNIQUE INDEX "network_policy_installation" ON "network_policy" ("installa
 CREATE UNIQUE INDEX "network_policy_workload" ON "network_policy" ("installation_id","workload") WHERE "scope" = 'workload';--> statement-breakpoint
 CREATE UNIQUE INDEX "network_policy_account" ON "network_policy" ("account_id") WHERE "scope" = 'account';--> statement-breakpoint
 CREATE UNIQUE INDEX "network_policy_space" ON "network_policy" ("space_id") WHERE "scope" = 'space';--> statement-breakpoint
+CREATE UNIQUE INDEX "space_transfer_active" ON "space_transfer" ("space_id") WHERE "completed_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "space_migration_active" ON "space_migration" ("space_id") WHERE "completed_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "space_migration_history" ON "space_migration" ("space_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "installation_provenance" ON "installation" (("provenance"::jsonb ->> 'kind'),coalesce(("provenance"::jsonb ->> 'accountId'), ("provenance"::jsonb ->> 'spaceId'), ("provenance"::jsonb ->> 'installationId')),("provenance"::jsonb ->> 'name')) WHERE "provenance" IS NOT NULL AND "detached_at" IS NULL;--> statement-breakpoint
 CREATE INDEX "installation_release" ON "installation" ("package_id","version");--> statement-breakpoint
 CREATE INDEX "deployment_installation_status" ON "deployment" ("installation_id","status");--> statement-breakpoint
-CREATE INDEX "instance_deployment_status" ON "instance" ("deployment_id","status");--> statement-breakpoint
-CREATE INDEX "instance_host_status" ON "instance" ("host_id","status");--> statement-breakpoint
-ALTER TABLE "space_transfer" ADD CONSTRAINT "space_transfer_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "space_migration" ADD CONSTRAINT "space_migration_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "repository_ref" ADD CONSTRAINT "repository_ref_repository_id_repository_id_fkey" FOREIGN KEY ("repository_id") REFERENCES "repository"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "instance" ADD CONSTRAINT "instance_space_id_deployment_id_deployment_space_id_id_fkey" FOREIGN KEY ("space_id","deployment_id") REFERENCES "deployment"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "instance" ADD CONSTRAINT "instance_space_id_host_id_space_host_space_id_host_id_fkey" FOREIGN KEY ("space_id","host_id") REFERENCES "space_host"("space_id","host_id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "space_source" ADD CONSTRAINT "space_source_zinV70I2WSDL_fkey" FOREIGN KEY ("space_id","applied_revision_id") REFERENCES "space_revision"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "space_source" ADD CONSTRAINT "space_source_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id");--> statement-breakpoint
+ALTER TABLE "space_revision" ADD CONSTRAINT "space_revision_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id");--> statement-breakpoint
+ALTER TABLE "restoration" ADD CONSTRAINT "restoration_space_id_snapshot_id_snapshot_space_id_id_fkey" FOREIGN KEY ("space_id","snapshot_id") REFERENCES "snapshot"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "restoration" ADD CONSTRAINT "restoration_hQnAjCrvAs2d_fkey" FOREIGN KEY ("space_id","destination_resource_id") REFERENCES "resource"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "restoration" ADD CONSTRAINT "restoration_snapshot_id_snapshot_id_fkey" FOREIGN KEY ("snapshot_id") REFERENCES "snapshot"("id");--> statement-breakpoint
+ALTER TABLE "restoration" ADD CONSTRAINT "restoration_destination_resource_id_resource_id_fkey" FOREIGN KEY ("destination_resource_id") REFERENCES "resource"("id");--> statement-breakpoint
 ALTER TABLE "snapshot" ADD CONSTRAINT "snapshot_space_id_resource_id_resource_space_id_id_fkey" FOREIGN KEY ("space_id","resource_id") REFERENCES "resource"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "snapshot" ADD CONSTRAINT "snapshot_resource_id_resource_id_fkey" FOREIGN KEY ("resource_id") REFERENCES "resource"("id");--> statement-breakpoint
 ALTER TABLE "resource_binding" ADD CONSTRAINT "resource_binding_JsKTzo9Bzlk4_fkey" FOREIGN KEY ("space_id","installation_id") REFERENCES "installation"("space_id","id") ON DELETE CASCADE;--> statement-breakpoint
@@ -680,6 +771,9 @@ ALTER TABLE "vault" ADD CONSTRAINT "vault_space_id_resource_id_kind_resource_spa
 ALTER TABLE "secret" ADD CONSTRAINT "secret_space_id_vault_id_vault_space_id_resource_id_fkey" FOREIGN KEY ("space_id","vault_id") REFERENCES "vault"("space_id","resource_id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "secret" ADD CONSTRAINT "secret_id_current_version_secret_version_secret_id_version_fkey" FOREIGN KEY ("id","current_version") REFERENCES "secret_version"("secret_id","version") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "secret_version" ADD CONSTRAINT "secret_version_secret_id_secret_id_fkey" FOREIGN KEY ("secret_id") REFERENCES "secret"("id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "release" ADD CONSTRAINT "release_repository_id_package_id_package_repository_id_id_fkey" FOREIGN KEY ("repository_id","package_id") REFERENCES "package"("repository_id","id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "release" ADD CONSTRAINT "release_package_id_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "package"("id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "release" ADD CONSTRAINT "release_repository_id_repository_id_fkey" FOREIGN KEY ("repository_id") REFERENCES "repository"("id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "secret_binding" ADD CONSTRAINT "secret_binding_x2dtNhi3BR70_fkey" FOREIGN KEY ("space_id","installation_id") REFERENCES "installation"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "secret_binding" ADD CONSTRAINT "secret_binding_space_id_secret_id_secret_space_id_id_fkey" FOREIGN KEY ("space_id","secret_id") REFERENCES "secret"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "secret_binding" ADD CONSTRAINT "secret_binding_gNNr9zduKkzC_fkey" FOREIGN KEY ("secret_id","version") REFERENCES "secret_version"("secret_id","version") ON DELETE RESTRICT;--> statement-breakpoint
@@ -699,6 +793,7 @@ ALTER TABLE "role_binding" ADD CONSTRAINT "role_binding_9Gt5N7hzvGhC_fkey" FOREI
 ALTER TABLE "role_permission" ADD CONSTRAINT "role_permission_role_id_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "role"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "service_account" ADD CONSTRAINT "service_account_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id");--> statement-breakpoint
 ALTER TABLE "service_account" ADD CONSTRAINT "service_account_uhEfsIBjdTbR_fkey" FOREIGN KEY ("space_id","installation_id") REFERENCES "installation"("space_id","id");--> statement-breakpoint
+ALTER TABLE "package" ADD CONSTRAINT "package_account_id_repository_id_repository_account_id_id_fkey" FOREIGN KEY ("account_id","repository_id") REFERENCES "repository"("account_id","id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "service_token" ADD CONSTRAINT "service_token_service_account_id_service_account_id_fkey" FOREIGN KEY ("service_account_id") REFERENCES "service_account"("id");--> statement-breakpoint
 ALTER TABLE "schedule" ADD CONSTRAINT "schedule_space_id_installation_id_installation_space_id_id_fkey" FOREIGN KEY ("space_id","installation_id") REFERENCES "installation"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "schedule" ADD CONSTRAINT "schedule_gzBE4fhR2j7T_fkey" FOREIGN KEY ("space_id","service_account_id") REFERENCES "service_account"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
@@ -706,17 +801,10 @@ ALTER TABLE "network_policy" ADD CONSTRAINT "network_policy_space_id_space_id_fk
 ALTER TABLE "network_policy" ADD CONSTRAINT "network_policy_4Y2hWTY0wng8_fkey" FOREIGN KEY ("id","current_revision_id") REFERENCES "network_policy_revision"("policy_id","id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "network_policy" ADD CONSTRAINT "network_policy_7AS7x8uXLs0z_fkey" FOREIGN KEY ("space_id","installation_id") REFERENCES "installation"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "network_policy_revision" ADD CONSTRAINT "network_policy_revision_policy_id_network_policy_id_fkey" FOREIGN KEY ("policy_id") REFERENCES "network_policy"("id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "space_transfer" ADD CONSTRAINT "space_transfer_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id") ON DELETE RESTRICT;--> statement-breakpoint
+ALTER TABLE "space_migration" ADD CONSTRAINT "space_migration_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "installation" ADD CONSTRAINT "installation_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "space_host" ADD CONSTRAINT "space_host_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "deployment" ADD CONSTRAINT "deployment_ISYznpIySk33_fkey" FOREIGN KEY ("space_id","installation_id","package_id") REFERENCES "installation"("space_id","id","package_id") ON DELETE RESTRICT;--> statement-breakpoint
 ALTER TABLE "deployment" ADD CONSTRAINT "deployment_space_id_host_id_space_host_space_id_host_id_fkey" FOREIGN KEY ("space_id","host_id") REFERENCES "space_host"("space_id","host_id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "deployment" ADD CONSTRAINT "deployment_FSmeh0YY8Wj3_fkey" FOREIGN KEY ("installation_id","workload","service_account_id") REFERENCES "service_account"("installation_id","workload","id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "instance" ADD CONSTRAINT "instance_space_id_deployment_id_deployment_space_id_id_fkey" FOREIGN KEY ("space_id","deployment_id") REFERENCES "deployment"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "instance" ADD CONSTRAINT "instance_space_id_host_id_space_host_space_id_host_id_fkey" FOREIGN KEY ("space_id","host_id") REFERENCES "space_host"("space_id","host_id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "space_source" ADD CONSTRAINT "space_source_zinV70I2WSDL_fkey" FOREIGN KEY ("space_id","applied_revision_id") REFERENCES "space_revision"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "space_source" ADD CONSTRAINT "space_source_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id");--> statement-breakpoint
-ALTER TABLE "space_revision" ADD CONSTRAINT "space_revision_space_id_space_id_fkey" FOREIGN KEY ("space_id") REFERENCES "space"("id");--> statement-breakpoint
-ALTER TABLE "restoration" ADD CONSTRAINT "restoration_space_id_snapshot_id_snapshot_space_id_id_fkey" FOREIGN KEY ("space_id","snapshot_id") REFERENCES "snapshot"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "restoration" ADD CONSTRAINT "restoration_hQnAjCrvAs2d_fkey" FOREIGN KEY ("space_id","destination_resource_id") REFERENCES "resource"("space_id","id") ON DELETE RESTRICT;--> statement-breakpoint
-ALTER TABLE "restoration" ADD CONSTRAINT "restoration_snapshot_id_snapshot_id_fkey" FOREIGN KEY ("snapshot_id") REFERENCES "snapshot"("id");--> statement-breakpoint
-ALTER TABLE "restoration" ADD CONSTRAINT "restoration_destination_resource_id_resource_id_fkey" FOREIGN KEY ("destination_resource_id") REFERENCES "resource"("id");
+ALTER TABLE "deployment" ADD CONSTRAINT "deployment_FSmeh0YY8Wj3_fkey" FOREIGN KEY ("installation_id","workload","service_account_id") REFERENCES "service_account"("installation_id","workload","id") ON DELETE RESTRICT;
