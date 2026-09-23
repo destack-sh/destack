@@ -38,6 +38,24 @@ export const drainAt = 0.875;
 /// The milliseconds a full drain or fill takes.
 export const travel = 2400;
 
+/// The most ripples the surface carries at once.
+const rippleCapacity = 8;
+/// How fast ripples run outward along the surface, in CSS pixels per second.
+const rippleSpeed = 90;
+/// The seconds a ripple takes to die away.
+const rippleLife = 3;
+
+/// Recent stirs of the surface: where across the water canvas, when in seconds, and how hard.
+const ripples: { x: number; at: number; strength: number }[] = [];
+
+/// Stir the surface at a position across the water canvas, sending ripples outward.
+export function stir(x: number, strength: number) {
+    ripples.push({ x, at: performance.now() / 1000, strength });
+    if (ripples.length > rippleCapacity) {
+        ripples.shift();
+    }
+}
+
 /// The water fragment shader.
 const fragmentSource = `
 precision mediump float;
@@ -54,6 +72,7 @@ uniform vec3 caustic;
 uniform vec3 foam;
 uniform vec3 ink;
 uniform vec3 lens;
+uniform vec4 ripples[${rippleCapacity}];
 
 const vec3 signal = vec3(1.0, 0.475, 0.18);
 
@@ -85,6 +104,21 @@ float cells(vec2 p, float t) {
     return second - nearest;
 }
 
+// return how far the ripples running along the surface lift it at a position
+float rippleAt(float x) {
+    float lift = 0.0;
+    for (int i = 0; i < ${rippleCapacity}; i++) {
+        vec4 ripple = ripples[i];
+        float age = time - ripple.y;
+        if (age < 0.0 || age > ${rippleLife.toFixed(1)}) {
+            continue;
+        }
+        float gap = abs(x - ripple.x) - age * ${rippleSpeed.toFixed(1)};
+        lift += ripple.z * exp(-age * 1.4) * exp(-gap * gap / 484.0) * sin(gap * 0.25);
+    }
+    return lift;
+}
+
 void main() {
     // work in CSS pixels from the top left
     vec2 size = resolution / scale;
@@ -97,7 +131,8 @@ void main() {
     float surface = level
         + sin(x * 0.017 + time * 1.1) * 1.8 * swell
         + sin(x * 0.043 - time * 1.6) * 0.8 * swell
-        + sin(x * 0.11 + time * 2.3) * 0.3;
+        + sin(x * 0.11 + time * 2.3) * 0.3
+        + rippleAt(x);
     float drain = size.x * ${drainAt};
     float spread = (x - drain) / (size.x * 0.05);
     float lean = 1.0 - abs(x - drain) / size.x;
@@ -115,6 +150,12 @@ void main() {
 
     // brighten softly just under the surface
     color = mix(color, caustic, (1.0 - smoothstep(4.0, 26.0, below)) * 0.14);
+
+    // slant faint shafts of light down from the surface, fading with depth
+    float slant = x + below * 0.35;
+    float shafts = smoothstep(0.55, 1.0, sin(slant * 0.018 + time * 0.15))
+        + smoothstep(0.6, 1.0, sin(slant * 0.031 - time * 0.11 + 1.7)) * 0.7;
+    color = mix(color, caustic, shafts * 0.07 * (1.0 - smoothstep(0.0, 0.8, depth)));
 
     // streak the whirlpool over the drain with spiralling foam
     float whirl = (funnel + fill) * exp(-spread * spread * 0.4);
@@ -250,6 +291,11 @@ export class Water {
         context.uniform3fv(shader.uniform("caustic"), this.palette.caustic);
         context.uniform3fv(shader.uniform("foam"), this.palette.foam);
         context.uniform3fv(shader.uniform("ink"), this.palette.ink);
+        const packed = new Float32Array(rippleCapacity * 4).fill(-1000);
+        ripples.forEach((ripple, index) =>
+            packed.set([ripple.x, ripple.at, ripple.strength, 0], index * 4),
+        );
+        context.uniform4fv(shader.uniform("ripples"), packed);
         this.onLevel(level);
 
         // keep animating while water shows or the surface still moves
@@ -266,7 +312,22 @@ export function waveAt(x: number, seconds: number) {
     const middle = Math.sin(x * 0.043 - seconds * 1.6) * 0.8;
     const short = Math.sin(x * 0.11 + seconds * 2.3) * 0.3;
 
-    return long + middle + short;
+    // add the ripples running along the surface, exactly as the shader does
+    let lift = 0;
+    for (const ripple of ripples) {
+        const age = seconds - ripple.at;
+        if (age < 0 || age > rippleLife) {
+            continue;
+        }
+        const gap = Math.abs(x - ripple.x) - age * rippleSpeed;
+        lift +=
+            ripple.strength *
+            Math.exp(-age * 1.4) *
+            Math.exp(-(gap * gap) / 484) *
+            Math.sin(gap * 0.25);
+    }
+
+    return long + middle + short + lift;
 }
 
 /// Ease in and out, slow at both ends.

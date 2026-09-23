@@ -2,7 +2,7 @@ import * as stylex from "@destack/style";
 import { type JSX, onSettled } from "@destack/view";
 
 import { sound } from "../effect/sound";
-import { waveAt } from "../effect/water";
+import { stir, waveAt } from "../effect/water";
 import { tokens } from "../style/tokens.stylex";
 
 /// The slowest and fastest drift, in CSS pixels per second.
@@ -18,6 +18,14 @@ const leastGap = 0.6;
 const wireLength = 44;
 /// The stretch at either edge of the water over which pieces and tags fade, in CSS pixels.
 const edgeFade = 70;
+/// The pull of gravity on a thrown piece, in CSS pixels per second squared.
+const gravity = 1400;
+/// The fastest a piece can be thrown, in CSS pixels per second.
+const fastestThrow = 900;
+/// The seconds a sinking piece takes to go under.
+const sinkTime = 1.4;
+/// The seconds a sunk piece's tag drifts alone before the piece returns.
+const strandTime = 4;
 /// The steepest a floating tag tilts, in degrees, so it stays readable.
 const steepestTag = 6;
 
@@ -38,7 +46,7 @@ type Piece = {
 };
 
 /// The flotsam of vendor software.
-const pieces: readonly Piece[] = [
+const vendorFlotsam: readonly Piece[] = [
     {
         art: Unicorn,
         width: 72,
@@ -137,8 +145,18 @@ const pieces: readonly Piece[] = [
 type Drift = {
     /// Where the piece is across the water, in CSS pixels.
     x: number;
-    /// How fast it drifts, in CSS pixels per second.
+    /// How fast the current carries it, in CSS pixels per second.
+    pace: number;
+    /// How fast it actually moves across, easing back to the current's pace after a throw.
     speed: number;
+    /// How high it is thrown above the surface, in CSS pixels.
+    lift: number;
+    /// How fast it rises, in CSS pixels per second, falling back under gravity.
+    climb: number;
+    /// The seconds since it started to sink, when sinking.
+    sunk: number | undefined;
+    /// Where it was grabbed, relative to its top left, while held.
+    grab: { x: number; y: number } | undefined;
     /// The tag it wears on this pass.
     tag: number;
     /// How far it still has to bob up after being tossed onto the water, from 1 to 0.
@@ -149,8 +167,24 @@ type Drift = {
     tagSpeed: number;
 };
 
-/// Float the flotsam of vendor software along the waterline, each piece riding the waves at its own pace.
-export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterline: string }) {
+/// The lone bottle that drifts past a missing page.
+export const strandedBottle: Piece = {
+    art: Bottle,
+    width: 52,
+    height: 22,
+    draft: 9,
+    tie: [3, 12],
+    tags: ["This page was sunset"],
+};
+
+/// Float flotsam along the waterline, the vendor software by default.
+export function Flotsam(props: {
+    isAdrift: boolean;
+    surfacedAt: number;
+    waterline: string;
+    pieces?: readonly Piece[];
+}) {
+    const pieces = props.pieces ?? vendorFlotsam;
     let water!: HTMLDivElement;
     const elements: HTMLDivElement[] = [];
     const tags: HTMLSpanElement[] = [];
@@ -162,14 +196,118 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
 
         // start each piece somewhere random, some already on the water and some still to come
         const width = () => water.clientWidth;
-        const launch = (piece: Piece, x: number): Drift => ({
-            x,
-            speed: slowest + Math.random() * (fastest - slowest),
-            tag: Math.floor(Math.random() * piece.tags.length),
-            rise: 0,
-            tagX: undefined,
-            tagSpeed: 0,
-        });
+        const launch = (piece: Piece, x: number): Drift => {
+            const pace = slowest + Math.random() * (fastest - slowest);
+            return {
+                x,
+                pace,
+                speed: pace,
+                lift: 0,
+                climb: 0,
+                sunk: undefined,
+                grab: undefined,
+                tag: Math.floor(Math.random() * piece.tags.length),
+                rise: 0,
+                tagX: undefined,
+                tagSpeed: 0,
+            };
+        };
+
+        // track the held piece and the recent path of the pointer holding it
+        let held:
+            | { index: number; path: { x: number; y: number; at: number }[]; downAt: number }
+            | undefined;
+        let pointer = { x: 0, y: 0 };
+
+        // locate a pointer event on the water
+        const locate = (event: PointerEvent) => {
+            const bounds = water.getBoundingClientRect();
+            return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+        };
+
+        // pick up a floating piece where it was grabbed
+        const grab = (index: number, event: PointerEvent) => {
+            // leave sinking pieces alone
+            const drift = drifts[index];
+            if (drift.sunk !== undefined) {
+                return;
+            }
+
+            // capture the pointer and hold the piece by the grabbed spot
+            event.preventDefault();
+            (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+            pointer = locate(event);
+            const box = elements[index].getBoundingClientRect();
+            const bounds = water.getBoundingClientRect();
+            drift.grab = { x: pointer.x - drift.x, y: pointer.y - (box.top - bounds.top) };
+
+            // start the path to throw with
+            held = {
+                index,
+                path: [{ ...pointer, at: performance.now() }],
+                downAt: performance.now(),
+            };
+        };
+
+        // follow the pointer, keeping only the last moments of its path
+        const drag = (event: PointerEvent) => {
+            if (!held) {
+                return;
+            }
+            pointer = locate(event);
+            held.path.push({ ...pointer, at: performance.now() });
+            held.path = held.path.filter((point) => performance.now() - point.at < 90);
+        };
+
+        // let go of the held piece
+        const release = () => {
+            if (!held) {
+                return;
+            }
+
+            // measure the last moments of the path
+            const drift = drifts[held.index];
+            const first = held.path[0];
+            const last = held.path[held.path.length - 1];
+            const span = Math.max(16, last.at - first.at) / 1000;
+            const travelled = Math.hypot(last.x - first.x, last.y - first.y);
+            drift.grab = undefined;
+
+            // sink the piece on a quick tap
+            if (performance.now() - held.downAt < 250 && travelled < 6 && drift.lift <= 0) {
+                drift.sunk = 0;
+                bubble(drift.x + pieces[held.index].width / 2);
+                sound.play("splash");
+            }
+            // throw it at the pointer's last speed otherwise
+            else {
+                const clamp = (value: number) =>
+                    Math.max(-fastestThrow, Math.min(fastestThrow, value));
+                drift.speed = clamp((last.x - first.x) / span);
+                drift.climb = clamp(-(last.y - first.y) / span);
+            }
+            held = undefined;
+        };
+
+        // listen for grabs on every piece
+        for (const [index, element] of elements.entries()) {
+            element.addEventListener("pointerdown", (event) => grab(index, event));
+            element.addEventListener("pointermove", drag);
+            element.addEventListener("pointerup", release);
+            element.addEventListener("pointercancel", release);
+        }
+
+        // send a few bubbles up from where a piece goes under
+        const bubble = (x: number) => {
+            for (let index = 0; index < 6; index++) {
+                const element = document.createElement("span");
+                element.className = stylex.attrs(styles.bubble).class ?? "";
+                const size = 3 + Math.random() * 4;
+                element.style.cssText = `left:${(x + (Math.random() - 0.5) * 24).toFixed(1)}px;top:${(20 + Math.random() * 20).toFixed(1)}px;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;animation-delay:${(index * 0.15).toFixed(2)}s`;
+                water.append(element);
+                setTimeout(() => element.remove(), 2400);
+            }
+        };
 
         // spread the first pieces out with room between them, the rest queued up off the left edge
         let behind = width() * (0.2 + Math.random() * 0.5);
@@ -218,13 +356,37 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
                 const ahead = drifts.filter((other) => other.x > drift.x);
                 const nearest = ahead.reduce((best, other) => (other.x < best.x ? other : best), {
                     x: Infinity,
-                    speed: drift.speed,
+                    pace: drift.pace,
                 });
                 if (nearest.x - drift.x < width() * leastGap) {
-                    drift.speed = Math.min(drift.speed, nearest.speed);
+                    drift.pace = Math.min(drift.pace, nearest.pace);
                 }
-                drift.x += drift.speed * elapsed;
-                if (drift.x > width() + wireLength + tags[index].offsetWidth + 20) {
+
+                // carry the piece: held, flying, sinking, or drifting with the current
+                if (drift.grab) {
+                    const next = pointer.x - drift.grab.x;
+                    drift.speed = (next - drift.x) / Math.max(elapsed, 0.001);
+                    drift.x = next;
+                } else {
+                    drift.x += drift.speed * elapsed;
+                    if (drift.lift > 0 || drift.climb > 0) {
+                        drift.climb -= gravity * elapsed;
+                        drift.lift += drift.climb * elapsed;
+                        if (drift.lift <= 0) {
+                            stir(drift.x + piece.width / 2, Math.min(8, 1.5 - drift.climb / 150));
+                            sound.play("splash");
+                            drift.lift = 0;
+                            drift.climb = 0;
+                        }
+                    } else {
+                        drift.speed += (drift.pace - drift.speed) * Math.min(1, elapsed * 1.5);
+                    }
+                }
+                if (drift.sunk !== undefined) {
+                    drift.sunk += elapsed;
+                }
+                const isGone = drift.sunk !== undefined && drift.sunk > sinkTime + strandTime;
+                if (isGone || drift.x > width() + wireLength + tags[index].offsetWidth + 20) {
                     const trailing = Math.min(...drifts.map((other) => other.x));
                     const start = Math.min(-piece.width, trailing - width() * leastGap);
                     const next = launch(piece, start - Math.random() * longestCalm * fastest);
@@ -245,8 +407,27 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
                 const rise = waveAt(middle, seconds);
                 const slope = waveAt(middle + 6, seconds) - waveAt(middle - 6, seconds);
                 drifts[index].rise *= 0.965;
-                const y = rise - piece.height + piece.draft + drifts[index].rise * 48;
-                const lean = Math.atan2(slope, 12);
+                const grip = drifts[index].grab;
+                const sinking = drifts[index].sunk;
+                const depth =
+                    sinking === undefined
+                        ? 0
+                        : (piece.height + 24) * Math.min(1, (sinking / sinkTime) ** 2);
+                if (grip) {
+                    const floatTop = rise - piece.height + piece.draft;
+                    drifts[index].lift = Math.max(0, floatTop - (pointer.y - grip.y));
+                }
+                const y =
+                    rise -
+                    piece.height +
+                    piece.draft +
+                    drifts[index].rise * 48 -
+                    drifts[index].lift +
+                    depth;
+                const lean =
+                    drifts[index].lift > 0
+                        ? Math.max(-0.6, Math.min(0.6, drifts[index].speed * 0.0012))
+                        : Math.atan2(slope, 12);
                 elements[index].style.transform =
                     `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${lean.toFixed(4)}rad)`;
 
@@ -263,9 +444,15 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
                 const tether = drifts[index];
                 const goal = tie.x - wireLength * 0.6 + Math.sin(seconds * 0.7 + index * 2.1) * 6;
                 tether.tagX ??= goal;
-                tether.tagSpeed += ((goal - tether.tagX) * 7 - tether.tagSpeed * 2.6) * elapsed;
-                tether.tagX += tether.tagSpeed * elapsed;
-                tether.tagX = Math.max(tie.x - wireLength, Math.min(tie.x - 4, tether.tagX));
+                if (sinking === undefined) {
+                    tether.tagSpeed += ((goal - tether.tagX) * 7 - tether.tagSpeed * 2.6) * elapsed;
+                    tether.tagX += tether.tagSpeed * elapsed;
+                    tether.tagX = Math.max(tie.x - wireLength, Math.min(tie.x - 4, tether.tagX));
+                } else {
+                    tether.tagSpeed +=
+                        (tether.pace * 0.7 - tether.tagSpeed) * Math.min(1, elapsed * 2);
+                    tether.tagX += tether.tagSpeed * elapsed;
+                }
 
                 // float the tag on the wave under it, tilting gently with the slope
                 const tagWidth = tag.offsetWidth;
@@ -284,14 +471,21 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
                             Math.PI,
                     ),
                 );
-                const top = surface - tagHeight + 3 + tether.rise * 48;
+                const dip =
+                    sinking === undefined ? 0 : 16 * Math.sin(Math.min(1, sinking / 1.1) * Math.PI);
+                const top = surface - tagHeight + 3 + tether.rise * 48 + dip;
 
                 // fade the piece, its tag, and the wire in and out at the edges of the water
                 const pieceFade = fade(x, x + piece.width);
                 const tagFade = fade(left, left + tagWidth);
-                elements[index].style.opacity = String(pieceFade);
-                tag.style.opacity = String(tagFade);
-                wires[index].style.opacity = String(Math.min(pieceFade, tagFade));
+                const sinkFade = sinking === undefined ? 1 : Math.max(0, 1 - sinking / sinkTime);
+                const strandFade =
+                    sinking === undefined
+                        ? 1
+                        : Math.max(0, Math.min(1, (sinkTime + strandTime - sinking) / 1.2));
+                elements[index].style.opacity = String(pieceFade * sinkFade);
+                tag.style.opacity = String(tagFade * strandFade);
+                wires[index].style.opacity = String(Math.min(pieceFade, tagFade) * sinkFade);
                 tag.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px) rotate(${tilt.toFixed(2)}deg)`;
 
                 // run the wire from the tie to the tag's grommet, sagging while slack
@@ -488,6 +682,12 @@ function Duck() {
     );
 }
 
+const rise = stylex.keyframes({
+    "0%": { opacity: 0, transform: "translateY(0)" },
+    "20%": { opacity: 0.9 },
+    "100%": { opacity: 0, transform: "translateY(-44px)" },
+});
+
 const styles = stylex.create({
     water: {
         clipPath: "inset(-100vh 0 -100vh 0)",
@@ -505,11 +705,27 @@ const styles = stylex.create({
         opacity: 1,
     },
     piece: {
+        cursor: "grab",
         left: 0,
+        pointerEvents: "auto",
         position: "absolute",
         top: 0,
+        touchAction: "none",
         transformOrigin: "50% 100%",
         willChange: "transform",
+        ":active": { cursor: "grabbing" },
+    },
+    bubble: {
+        animationDuration: "1.2s",
+        animationFillMode: "both",
+        animationName: rise,
+        animationTimingFunction: "ease-out",
+        borderColor: "#ffffff",
+        borderRadius: "50%",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        pointerEvents: "none",
+        position: "absolute",
     },
     art: {
         display: "block",

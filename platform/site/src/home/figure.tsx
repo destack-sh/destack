@@ -5,7 +5,7 @@ import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/vie
 import { Ice } from "../effect/ice";
 import { sound } from "../effect/sound";
 import { Sparks } from "../effect/sparks";
-import { drainAt, nightWater, paperWater, travel, Water, waveAt } from "../effect/water";
+import { drainAt, nightWater, paperWater, stir, travel, Water, waveAt } from "../effect/water";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { Band, Card, DuctTape, type Entity, type Reveal } from "./card";
@@ -18,6 +18,10 @@ const still = "@media (prefers-reduced-motion: reduce)";
 
 /// The rows above the waterline today.
 const dryRows = 2;
+/// How close to the surface the pointer stirs it, in CSS pixels.
+const stirReach = 50;
+/// How far the pointer moves along the surface between ripples, in CSS pixels.
+const stirStep = 26;
 /// The share of a vendor card's height that sinks below the surface, so it barely floats.
 const cardDraft = 0.1;
 /// The switch's name for the stack today, set in crooked letters.
@@ -366,11 +370,23 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
     };
 
     // aim the searchlight at the pointer
+    let stirredAt: number | undefined;
     const aim = (event: PointerEvent) => {
         const bounds = figure.getBoundingClientRect();
         light.target = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
         const isControl = (event.target as Element).closest("button, a") !== null;
         light.isOn = event.pointerType === "mouse" && event.buttons === 0 && !isControl;
+
+        // stir the surface when skimming it, harder the closer the pointer
+        const reach = Math.abs(light.target.y - light.waterline);
+        if (!isOpen() && reach < stirReach) {
+            if (stirredAt === undefined || Math.abs(light.target.x - stirredAt) > stirStep) {
+                stir(light.target.x, 4 * (1 - reach / stirReach));
+                stirredAt = light.target.x;
+            }
+        } else {
+            stirredAt = undefined;
+        }
     };
 
     // put the searchlight out
@@ -1148,6 +1164,7 @@ const styles = stylex.create({
         transition: `opacity 300ms ${easing}`,
         whiteSpace: "nowrap",
         zIndex: 3,
+        [mobile]: { bottom: "auto", right: "5.5rem", top: "calc(50% - 0.75rem)" },
     },
     swoosh: {
         bottom: "-0.875rem",
@@ -1159,6 +1176,7 @@ const styles = stylex.create({
         transition: `opacity 300ms ${easing}`,
         width: "90px",
         zIndex: 3,
+        [mobile]: { display: "none" },
     },
     swooshOutline: {
         fill: "none",
