@@ -86,6 +86,9 @@ match extracted {
 ### Factoring and Boundaries
 
 - Put public service procedures in `service/` and their implementation in `server/`.
+- Put consumed service declarations in `connection/`, with `index.ts` re-exports.
+- Keep connection declarations inert; bind runtime clients during application startup or host invocation setup.
+- Keep endpoint discovery and credential renewal in host/client transport code, outside connection declarations.
 - Export `implementService(...)` from `server/index.ts`, returning `ServiceImplementation`.
 - Host implementations through `@destack/service`'s `Server.start(...)`.
 - Keep domain operations in noun modules; reserve `*Store` for persistence responsibilities.

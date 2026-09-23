@@ -1,5 +1,23 @@
 /** A current value with bounded, coalesced change notifications. */
 export class Watch<Value> {
+    /** Reopen completed snapshot subscriptions with fresh authentication until cancellation. */
+    static async *observe<Value>(
+        open: (signal: AbortSignal) => Promise<AsyncIterable<Value>>,
+        signal: AbortSignal,
+    ): AsyncGenerator<Value> {
+        while (!signal.aborted) {
+            // each successful subscription must publish its current snapshot
+            let received = false;
+            for await (const value of await open(signal)) {
+                received = true;
+                yield value;
+            }
+            if (!received && !signal.aborted) {
+                throw new Error("snapshot subscription closed without a value");
+            }
+        }
+    }
+
     /** The latest value. */
     #value: Value;
     /** The current change number. */

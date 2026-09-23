@@ -159,7 +159,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                 const allowed = new Access(model, snapshot).check(
                     access.permission,
                     note.ref(spaceId, id),
-                    context.access,
+                    context.access(),
                 );
                 if (!allowed) {
                     throw new ServiceError("FORBIDDEN");

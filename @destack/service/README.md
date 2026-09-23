@@ -23,9 +23,27 @@ export const service = defineService(
     notesService,
 );
 
-const description = await inspectService(service, {
-    info: { title: "Notes", version: "2026.9.0" },
-});
+const description = inspectService(service);
+```
+
+## Connections
+
+```ts
+// connection/notes.ts
+import { defineServiceConnection } from "@destack/service/declare";
+import { ClientContext } from "@destack/service/client";
+import { notesService } from "@example/notes/service";
+
+export const notes = defineServiceConnection({
+    packageId: import.meta.destack.package.id,
+    name: "notes",
+    service: { packageId: notesPackageId, name: "notes" },
+}, notesService);
+
+// application or host startup
+const context = new ClientContext(configuration, transport);
+context.bind(notes);
+const result = await notes.get(context.resources).list();
 ```
 
 ```ts
@@ -79,7 +97,7 @@ export function implementService(notebook: Notebook): ServiceImplementation {
 
     return {
         router: service.router({
-            list: service.list.handler(({ context }) => notebook.list(context.access)),
+            list: service.list.handler(({ context }) => notebook.list(context.access())),
         }),
         authorize: async ({ context }) => { context.requireCaller(); },
     };
@@ -174,7 +192,7 @@ const router = implementation.router({
         database
             .select()
             .from(note)
-            .where(noteAccess.where(noteRead, spaceId, context.access)),
+            .where(noteAccess.where(noteRead, spaceId, context.access())),
     ),
 });
 const server = await Server.start({

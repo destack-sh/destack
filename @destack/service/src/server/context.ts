@@ -1,7 +1,7 @@
 import type { PackageId } from "@destack/package";
 import type { AccessContext } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
-import type { Caller } from "../authentication/index.ts";
+import { type Caller, CALLER_LIFETIME_MS } from "../authentication/index.ts";
 import { ServiceError } from "../error/index.ts";
 
 /** Verified identity and installation resources supplied to a user service invocation. */
@@ -20,6 +20,8 @@ export class ServiceContext {
     readonly authenticationError?: unknown;
     /** Server-generated correlation identity shared by request and domain audit events. */
     readonly requestId = crypto.randomUUID();
+    /** Cancellation when the request closes or its verified identity expires. */
+    readonly signal: AbortSignal;
 
     /** Retain host-selected scope independently of request input. */
     constructor(
@@ -36,6 +38,25 @@ export class ServiceContext {
         this.caller = caller;
         this.resources = resources;
         this.authenticationError = authenticationError;
+
+        // preserve verified context methods when oRPC merges middleware context objects
+        this.requireCaller = this.requireCaller.bind(this);
+        this.access = this.access.bind(this);
+
+        // retain cancellation as an own property across service middleware context copies
+        const deadline =
+            caller &&
+            Math.min(
+                caller.authentication.expiresAt,
+                caller.authentication.verifiedAt + CALLER_LIFETIME_MS,
+            );
+        this.signal =
+            deadline === null
+                ? this.request.signal
+                : AbortSignal.any([
+                      this.request.signal,
+                      AbortSignal.timeout(Math.max(0, Math.ceil(deadline - Date.now()))),
+                  ]);
     }
 
     /** Require a current authenticated caller before performing identity-dependent work. */
@@ -53,7 +74,7 @@ export class ServiceContext {
     }
 
     /** Read authorization inputs with a fresh time for each operation or stream event. */
-    get access(): AccessContext {
+    access(): AccessContext {
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         }

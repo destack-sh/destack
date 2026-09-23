@@ -6,6 +6,64 @@ import { createClient } from "../client/index.ts";
 import { eventIterator, defineProcedure } from "../service/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
 import { hosting } from "./tests/fixture.ts";
+import { Watch } from "../watch/index.ts";
+import { ServiceError } from "../error/index.ts";
+import type { ServiceContext } from "./context.ts";
+
+test("reauthenticate completed snapshot subscriptions and report revoked access", async () => {
+    // expose a finite snapshot subscription through the real service transport
+    let requests = 0;
+    const service = {
+        watch: defineProcedure({ authentication: "identity", permission: null, audit: false })
+            .route({ method: "GET", path: "/watch" })
+            .output(eventIterator(schema.number())),
+    };
+    const implementation = implement(service)
+        .$context<ServiceContext>()
+        .use(({ next }) => next({ context: { application: "snapshot" } }));
+    const server = await Server.start({
+        ...hosting,
+        health: new Health("snapshot"),
+        drainTimeout: 1000,
+        authenticate: async (request) => {
+            requests++;
+            if (requests === 3) {
+                throw new ServiceError("UNAUTHORIZED");
+            }
+
+            return hosting.authenticate(request);
+        },
+        router: implementation.router({
+            watch: implementation.watch.handler(async function* ({ context }) {
+                expect(context.requireCaller().authentication.subject.id).toBe("alice");
+                expect(context.access().subject?.id).toBe("alice");
+                expect(context.application).toBe("snapshot");
+                yield requests;
+            }),
+        }),
+    });
+    const controller = new AbortController();
+    try {
+        const client = createClient(service, {
+            url: "https://test.local",
+            headers: { authorization: "alice" },
+            fetch: (request) => server.fetch(request),
+        });
+        const stream = Watch.observe(
+            (signal) => client.watch(undefined, { signal }),
+            controller.signal,
+        );
+
+        // renew successful subscriptions without retrying an authorization failure
+        expect(await stream.next()).toEqual({ done: false, value: 1 });
+        expect(await stream.next()).toEqual({ done: false, value: 2 });
+        await expect(stream.next()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+        expect(requests).toBe(3);
+    } finally {
+        controller.abort();
+        await server.close();
+    }
+});
 
 test("drain complete HTTP response streams before disposing service resources", async () => {
     // declare health and a stream whose completion the caller controls

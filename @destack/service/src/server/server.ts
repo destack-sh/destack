@@ -187,7 +187,7 @@ export class Server implements AsyncDisposable {
         options: ServerOptions,
     ): Promise<void> {
         // reject invalid credentials on public routes and require identity on protected routes
-        let access = call.context.access;
+        let access = call.context.access();
         if (call.access.authentication !== "public") {
             call.context.requireCaller();
         }
