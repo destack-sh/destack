@@ -14,6 +14,7 @@ export function BlogPage() {
         href: post.route,
         summary: post.subtitle,
         date: post.date,
+        image: post.cover,
     }));
     const directory = createDirectory(() => entries);
 

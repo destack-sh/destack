@@ -5,6 +5,8 @@ export type Post = {
     author: string;
     /// The static rendered HTML route.
     contentRoute: string;
+    /// The post's first figure image, shown on its directory entry.
+    cover: { src: string; alt: string } | null;
     /// The publication date.
     date: string;
     /// The authored Markdown route.
@@ -51,6 +53,10 @@ export const posts = [
         author: "Florian",
         contentRoute:
             "/_content/html/acca948815a7912f8d74b72420c89cbd275527b3dffa1a7fe90f41a8b8aaf1ea.html",
+        cover: {
+            src: "/_content/assets/aade6fe26c510ace.jpg",
+            alt: "Illustration of Cambrian marine life, with Opabinia swimming above trilobites, spiny animals, and sponges.",
+        },
         date: "2026-09-21",
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",

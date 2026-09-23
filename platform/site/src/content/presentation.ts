@@ -9,6 +9,7 @@ export type ContentEntry = {
     date?: string;
     external?: boolean;
     code?: boolean;
+    image?: { src: string; alt: string } | null;
 };
 
 /// Display publication dates consistently without shifting calendar days by time zone.
@@ -40,13 +41,18 @@ export function renderContentList(entries: readonly ContentEntry[]): string {
                   ? `<span class="content-entry-meta">${escapeAttribute(entry.meta)}</span>`
                   : "";
             const titleTag = entry.code ? "code" : "span";
+            const image = entry.image
+                ? `<img class="content-entry-image" src="${escapeAttribute(entry.image.src)}" alt="${escapeAttribute(
+                      entry.image.alt,
+                  )}" loading="lazy">`
+                : "";
             const arrow = `<svg class="content-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
             return `<li><a class="content-entry"${entry.date ? ' data-dated="true"' : ""}${
                 entry.external ? ' data-external="true"' : ""
             } href="${escapeAttribute(
                 entry.href,
-            )}"${relation}><${titleTag} class="content-entry-title">${escapeAttribute(
+            )}"${relation}>${image}<${titleTag} class="content-entry-title">${escapeAttribute(
                 entry.title,
             )}</${titleTag}>${meta}${arrow}${summary}</a></li>`;
         })

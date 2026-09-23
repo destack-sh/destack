@@ -273,11 +273,7 @@ function writePageContent(pages: RenderedPage[]) {
 
                 // copy each source asset once under its content hash
                 if (route == undefined) {
-                    const digest = createHash("sha256")
-                        .update(readFileSync(asset.path))
-                        .digest("hex")
-                        .slice(0, 16);
-                    route = `/_content/assets/${digest}${extname(asset.path)}`;
+                    route = assetRouteFor(asset.path);
                     const file = join(publicDirectory, route.slice(1));
                     mkdirSync(dirname(file), { recursive: true });
                     if (!existsSync(file)) {
@@ -296,6 +292,13 @@ function writePageContent(pages: RenderedPage[]) {
         mkdirSync(dirname(file), { recursive: true });
         writeGeneratedFile(file, html);
     }
+}
+
+/// Return the content-addressed route an asset is published under.
+function assetRouteFor(path: string) {
+    const digest = createHash("sha256").update(readFileSync(path)).digest("hex").slice(0, 16);
+
+    return `/_content/assets/${digest}${extname(path)}`;
 }
 
 /// Generate or check the metadata for every documentation page.
@@ -672,15 +675,33 @@ function renderPosts(sources: ReturnType<typeof readPostSources>) {
             sourceRoutes,
         };
 
+        const html = renderMarkdown(source.markdown, context);
+
         return {
             ...source,
             assets: context.assets,
-            html: renderMarkdown(source.markdown, context),
+            cover: coverFor(html, context.assets),
+            html,
             searchSections: searchSectionsFor(source.markdown),
             searchText: searchTextFor(source.markdown),
             tableOfContents: source.headings,
         };
     });
+}
+
+/// Return the first image of a rendered post at its published route, if it has one.
+function coverFor(html: string, assets: MarkdownContext["assets"]) {
+    const image = /<img\b[^>]*>/.exec(html)?.[0];
+    const src = image && /\ssrc="([^"]+)"/.exec(image)?.[1];
+    if (!src) {
+        return null;
+    }
+    const asset = assets.find((asset) => asset.placeholder === src);
+
+    return {
+        src: asset ? assetRouteFor(asset.path) : src,
+        alt: /\salt="([^"]*)"/.exec(image)?.[1] ?? "",
+    };
 }
 
 /// Publish the blog directory in the same portable formats as documentation indexes.
@@ -721,6 +742,8 @@ export type Post = {
     author: string;
     /// The static rendered HTML route.
     contentRoute: string;
+    /// The post's first figure image, shown on its directory entry.
+    cover: { src: string; alt: string } | null;
     /// The publication date.
     date: string;
     /// The authored Markdown route.
@@ -785,6 +808,7 @@ function renderPostRecord(post: ReturnType<typeof renderPosts>[number]) {
     return `    {
         author: ${JSON.stringify(post.author)},
         contentRoute: ${JSON.stringify(contentRouteFor(post))},
+        cover: ${JSON.stringify(post.cover)},
         date: ${JSON.stringify(post.date)},
         markdownRoute: ${JSON.stringify(post.markdownRoute)},
         route: ${JSON.stringify(post.route)},

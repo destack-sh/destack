@@ -84,6 +84,16 @@
     color: var(--publication-soft);
 }
 
+.content-entry-image {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    aspect-ratio: 21 / 9;
+    object-fit: cover;
+    border: 1px solid var(--publication-line);
+    margin-bottom: 0.5rem;
+}
+
 .content-entry-summary {
     grid-column: 1 / 3;
     font-size: var(--content-summary-size);
@@ -156,6 +166,24 @@
 .content-entry[data-dated] .content-arrow {
     grid-column: 2;
     grid-row: 1;
+}
+
+/* A leading image takes the first row and moves every other part down one. */
+
+.content-entry:has(> .content-entry-image) > :is(.content-entry-title, .content-arrow) {
+    grid-row: 2;
+}
+
+.content-entry:has(> .content-entry-image):not([data-dated]) > .content-entry-meta {
+    grid-row: 2;
+}
+
+.content-entry:has(> .content-entry-image) > .content-entry-summary {
+    grid-row: 3;
+}
+
+.content-entry[data-dated]:has(> .content-entry-image) > .content-entry-meta {
+    grid-row: 4;
 }
 
 .content-entry-summary {

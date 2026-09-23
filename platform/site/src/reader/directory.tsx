@@ -36,7 +36,7 @@ export function DirectoryArchive(props: { directory: Directory }) {
         directory.entries().filter((entry) => entry.date?.startsWith(year)).length;
 
     return (
-        <Show when={directory.years().length > 0}>
+        <Show when={directory.years().length > 1}>
             <section aria-label="Archive" {...stylex.attrs(publicationStyles.collectionList)}>
                 <button
                     type="button"
