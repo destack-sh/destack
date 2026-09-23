@@ -14,7 +14,6 @@ type PostPageProps = {
 /// Render one generated blog post.
 export function PostPage(props: PostPageProps) {
     const post = () => postBySlug.get(props.slug);
-    const orderedPosts = [...posts].sort(comparePosts);
     const content = createMemo(() => loadPost(props.slug));
 
     return (
@@ -34,11 +33,7 @@ export function PostPage(props: PostPageProps) {
                         <Loading>
                             <Show when={content()}>
                                 {(content) => (
-                                    <BlogArticle
-                                        content={content()}
-                                        post={post}
-                                        posts={orderedPosts}
-                                    />
+                                    <BlogArticle content={content()} post={post} posts={posts} />
                                 )}
                             </Show>
                         </Loading>
@@ -47,11 +42,6 @@ export function PostPage(props: PostPageProps) {
             </Show>
         </Shell>
     );
-}
-
-/// Sort newer posts before older posts.
-function comparePosts(left: Post, right: Post) {
-    return right.date.localeCompare(left.date) || left.title.localeCompare(right.title);
 }
 
 /// Render an unknown blog route.

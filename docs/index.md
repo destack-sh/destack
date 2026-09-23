@@ -1,8 +1,8 @@
 ---
-title: Docs
+title: Documentation
 description: The Destack computing stack.
 ---
 
-# Docs
+# Documentation
 
 Destack is an absurdly integrated fully hackable open source computing stack.

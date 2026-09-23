@@ -5,6 +5,7 @@ import * as stylex from "@destack/style";
 
 import type { PageSource } from "../content/source";
 import { createPageSourceCommands, type PageSourceCommands, SourceActions } from "./source";
+import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { playVideo } from "./media";
 import { renderDiagrams } from "./diagram";
@@ -27,11 +28,11 @@ type ReaderProps = {
     /// The portable source files for the current page.
     source: PageSource;
 
-    /// Publication metadata displayed above the page title.
-    metadata?: () => JSX.Element;
-
     /// The approximate token count shown for authored pages.
     tokenCount?: number;
+
+    /// The adjacent page links shown below the article.
+    pagination?: () => JSX.Element;
 };
 
 /// Properties for one responsive reader toolbar.
@@ -44,9 +45,6 @@ type ReaderToolbarProps = {
 
     /// The shared page source commands.
     sourceCommands: PageSourceCommands;
-
-    /// Publication metadata displayed above the page title.
-    metadata?: () => JSX.Element;
 
     /// The approximate token count shown for authored pages.
     tokenCount?: number;
@@ -84,8 +82,13 @@ export function Reader(props: ReaderProps) {
     });
 
     return (
-        <div {...stylex.attrs(publicationStyles.layout)} data-publication={props.publication}>
-            <aside {...stylex.attrs(publicationStyles.sidebar)}>{props.navigation()}</aside>
+        <div
+            {...stylex.attrs(lattice.frame, lattice.ruleBottom, publicationStyles.layout)}
+            data-publication={props.publication}
+        >
+            <aside {...stylex.attrs(lattice.ruleRight, publicationStyles.sidebar)}>
+                <div {...stylex.attrs(publicationStyles.sidebarContent)}>{props.navigation()}</div>
+            </aside>
 
             <article
                 ref={article}
@@ -96,14 +99,14 @@ export function Reader(props: ReaderProps) {
                 onClick={playVideo}
             >
                 <ReaderToolbar
-                    metadata={props.metadata}
                     location={props.location}
                     navigation={props.navigation}
                     sourceCommands={sourceCommands}
                     tokenCount={props.tokenCount}
                 />
 
-                {props.children}
+                <div {...stylex.attrs(publicationStyles.body)}>{props.children}</div>
+                {props.pagination?.()}
             </article>
         </div>
     );
@@ -112,13 +115,7 @@ export function Reader(props: ReaderProps) {
 /// Render one toolbar at its responsive DOM position.
 function ReaderToolbar(props: ReaderToolbarProps) {
     return (
-        <header
-            {...stylex.attrs(
-                styles.toolbar,
-                styles.toolbarPublication,
-                props.metadata !== undefined && styles.toolbarWithMetadata,
-            )}
-        >
+        <header {...stylex.attrs(styles.toolbar)}>
             <details
                 {...stylex.attrs(styles.menu)}
                 name="reader-tools"
@@ -161,7 +158,6 @@ function ReaderToolbar(props: ReaderToolbarProps) {
             </details>
 
             <div {...stylex.attrs(styles.location)}>{props.location()}</div>
-            {props.metadata && <div {...stylex.attrs(styles.metadata)}>{props.metadata()}</div>}
             <div {...stylex.attrs(styles.toolbarTools)}>
                 {props.tokenCount !== undefined && (
                     <>
@@ -192,7 +188,7 @@ function formatTokenCount(tokenCount: number) {
     return `${thousands}k tokens`;
 }
 
-const narrow = "@media (width < 80rem)";
+const narrow = "@media (width < 60rem)";
 const compact = "@media (width < 52rem)";
 
 /// Shared reader styles.
@@ -203,7 +199,7 @@ const styles = stylex.create({
     },
     menu: {
         minWidth: 0,
-        "@media (min-width: 80rem)": { display: "none" },
+        "@media (min-width: 60rem)": { display: "none" },
     },
     menuBody: {
         backgroundColor: color.background,
@@ -244,28 +240,14 @@ const styles = stylex.create({
         borderBottomWidth: tokens.hairline,
         color: color.foreground,
         display: "grid",
-        gap: "0.75rem",
-        gridTemplateColumns: "minmax(0, 1fr) auto",
-        minHeight: "var(--content-context-height)",
-        position: "relative",
-        [narrow]: { gridTemplateColumns: "auto minmax(0, 1fr) auto" },
-    },
-    toolbarWithMetadata: {
-        gridTemplateColumns: "minmax(0, 1fr) auto auto",
-        [narrow]: { gridTemplateColumns: "auto minmax(0, 1fr) auto auto" },
-        "@media (max-width: 600px)": { gridTemplateColumns: "auto minmax(0, 1fr) auto", rowGap: 0 },
-    },
-    metadata: {
-        display: "flex",
-        alignItems: "baseline",
-        flexWrap: "wrap",
-        gap: "0.5rem 1rem",
-        color: color.mutedForeground,
-        "@media (max-width: 600px)": { gridColumn: "1 / -1", gridRow: 2, paddingBottom: "0.75rem" },
-    },
-    toolbarPublication: {
         fontFamily: fontFamily.default,
         fontSize: "var(--size-label)",
+        gap: "0.75rem",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+        height: tokens.bar,
+        paddingInline: tokens.inset,
+        position: "relative",
+        [narrow]: { gridTemplateColumns: "auto minmax(0, 1fr) auto" },
     },
     toolbarTools: {
         gridColumn: "-2 / -1",

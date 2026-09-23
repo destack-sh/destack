@@ -3,6 +3,7 @@ import { color, fontFamily } from "@destack/theme/tokens.stylex";
 import { httpStatus } from "@destack/view";
 import * as stylex from "@destack/style";
 
+import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { Seo } from "./seo";
 
@@ -31,53 +32,58 @@ export function MissingPage(props: MissingPageProps) {
         <>
             <Seo title="404" description={props.description} />
 
-            <section {...stylex.attrs(styles.page)}>
-                <p {...stylex.attrs(styles.label)}>{props.label}</p>
-                <h1 {...stylex.attrs(styles.title)}>{props.title}</h1>
-                <a {...stylex.attrs(styles.action)} href={props.backHref}>
-                    ← {props.backLabel}
-                </a>
+            <section {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.page)}>
+                <p {...stylex.attrs(lattice.ruleRight, styles.label)}>{props.label}</p>
+                <div {...stylex.attrs(styles.message)}>
+                    <h1 {...stylex.attrs(styles.title)}>{props.title}</h1>
+                    <a {...stylex.attrs(styles.action)} href={props.backHref}>
+                        ← {props.backLabel}
+                    </a>
+                </div>
             </section>
         </>
     );
 }
 
+const mobile = "@media (max-width: 767px)";
+
 const styles = stylex.create({
-    action: {
-        alignItems: "center",
-        display: "inline-flex",
-        fontFamily: fontFamily.default,
-        fontWeight: 500,
-        fontSize: "var(--size-navigation)",
-        color: color.foreground,
-        paddingBlock: "0.625rem",
-        textTransform: "none",
-        width: "max-content",
-        ":hover": {
-            color: color.primary,
-        },
+    page: {
+        flexGrow: 1,
+        minHeight: `calc(${tokens.column} * 3)`,
     },
     label: {
-        color: color.foreground,
-        fontFamily: fontFamily.default,
-        fontSize: "var(--size-navigation)",
+        color: color.mutedForeground,
+        fontFamily: tokens.monoFont,
+        fontSize: "0.75rem",
+        gridColumn: "1 / span 3",
+        letterSpacing: "0.12em",
         margin: 0,
+        padding: tokens.inset,
+        textTransform: "uppercase",
+        [mobile]: { borderRightWidth: 0, gridColumn: "1 / -1" },
     },
-    page: {
-        alignContent: "center",
+    message: {
+        alignContent: "end",
         display: "grid",
         gap: "1.25rem",
-        marginInline: "auto",
-        maxWidth: tokens.siteWidth,
-        padding: `var(--content-section-gap) ${tokens.gutterRight} 3rem ${tokens.gutterLeft}`,
-        width: "100%",
+        gridColumn: "4 / span 9",
+        padding: tokens.inset,
+        [mobile]: { gridColumn: "1 / -1" },
     },
     title: {
         fontFamily: fontFamily.default,
-        fontSize: "var(--content-title-size)",
+        fontSize: "clamp(2.25rem, 3.8vw, 3rem)",
         fontWeight: 500,
-        letterSpacing: "-0.04em",
-        lineHeight: 1.25,
+        letterSpacing: "-0.025em",
+        lineHeight: 1.08,
         margin: 0,
+    },
+    action: {
+        color: color.foreground,
+        fontSize: "var(--size-navigation)",
+        fontWeight: 600,
+        width: "max-content",
+        ":hover": { color: color.primary },
     },
 });

@@ -1,17 +1,15 @@
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
-
+import { color } from "@destack/theme/tokens.stylex";
 import { type Accessor, Show } from "@destack/view";
 import * as stylex from "@destack/style";
 
-import { publicationStyles } from "./publication.stylex";
-
 import { type Post, type PostContent } from "../generated/posts";
-import { Breadcrumbs } from "./breadcrumbs";
 import { tokens } from "../style/tokens.stylex";
+import { Breadcrumbs } from "./breadcrumbs";
+import { publicationStyles } from "./publication.stylex";
 import { Reader } from "./reader";
 import { type ContentsEntry, ContentsTree, trackActiveHeading } from "./contents";
 import { PageHeader } from "./header";
-import { formatDate, formatReadTime } from "../content/presentation";
+import { formatDate } from "../content/presentation";
 
 /// Properties for one rendered blog article.
 type BlogArticleProps = {
@@ -38,25 +36,28 @@ export function BlogArticle(props: BlogArticleProps) {
                     activeHeading={activeHeading}
                 />
             )}
+            pagination={() => <PostNavigation post={props.post} posts={props.posts} />}
             publication="journal"
             source={props.post}
+            tokenCount={props.post.tokens}
         >
             <BlogArticleHeader post={props.post} />
             <div class="markdown" innerHTML={props.content.html} />
-            <PostNavigation post={props.post} posts={props.posts} />
         </Reader>
     );
 }
 
-/// Blog articles use their heading outline as the primary reading navigation.
+/// Render the article outline as the reading navigation.
 function BlogNavigation(props: {
     contents: readonly ContentsEntry[];
     activeHeading: Accessor<string>;
 }) {
     return (
-        <nav aria-label="Article contents" {...stylex.attrs(styles.book)}>
-            <div class="collection-context">
-                <a href="/blog/">← Blog</a>
+        <nav aria-label="Article contents">
+            <div {...stylex.attrs(publicationStyles.context)}>
+                <a href="/blog/" {...stylex.attrs(publicationStyles.contextTitle)}>
+                    Blog
+                </a>
             </div>
             <div {...stylex.attrs(publicationStyles.collectionList)}>
                 <ContentsTree entries={props.contents} activeId={props.activeHeading} />
@@ -75,10 +76,9 @@ type BlogArticleHeaderProps = {
 function BlogArticleHeader(props: BlogArticleHeaderProps) {
     return (
         <PageHeader title={props.post.title} variant="article" description={props.post.subtitle}>
-            <div class="article-metadata">
+            <div {...stylex.attrs(styles.metadata)}>
                 <span>{props.post.author}</span>
                 <time datetime={props.post.date}>{formatDate(props.post.date)}</time>
-                <span>{formatReadTime(props.post.tokens)} read</span>
             </div>
         </PageHeader>
     );
@@ -102,7 +102,7 @@ function PostNavigation(props: PostNavigationProps) {
 
     return (
         <Show when={newer() || older()}>
-            <nav aria-label="post navigation" {...stylex.attrs(styles.pagination)}>
+            <nav aria-label="Post pagination" {...stylex.attrs(publicationStyles.pagination)}>
                 <Show when={newer()}>
                     {(post) => <PostNavigationLink direction="newer" post={post()} />}
                 </Show>
@@ -129,37 +129,21 @@ function PostNavigationLink(props: PostNavigationLinkProps) {
     const isNewer = props.direction === "newer";
 
     return (
-        <a {...stylex.attrs(styles.paginationLink)} href={props.post.route}>
+        <a {...stylex.attrs(publicationStyles.paginationLink)} href={props.post.route}>
             {isNewer ? `← ${props.post.title}` : `${props.post.title} →`}
         </a>
     );
 }
 
-/// Journal navigation and article styles.
+/// Journal article styles.
 const styles = stylex.create({
-    book: {
-        alignContent: "start",
-        display: "grid",
-        gap: 0,
-    },
-    pagination: {
-        borderTopColor: color.border,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
+    metadata: {
+        color: color.mutedForeground,
         display: "flex",
         flexWrap: "wrap",
-        fontFamily: fontFamily.default,
-        fontSize: "var(--size-navigation)",
-        fontWeight: 600,
-        gap: "1rem 2rem",
-        justifyContent: "space-between",
-        marginTop: "2rem",
-        paddingTop: "var(--content-section-gap)",
-    },
-    paginationLink: {
-        color: color.foreground,
-        ":hover": {
-            color: color.primary,
-        },
+        fontFamily: tokens.monoFont,
+        fontSize: "0.75rem",
+        gap: "0.5rem 1.25rem",
+        paddingTop: "0.375rem",
     },
 });

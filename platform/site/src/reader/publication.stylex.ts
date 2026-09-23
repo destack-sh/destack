@@ -3,78 +3,102 @@ import * as stylex from "@destack/style";
 
 import { tokens } from "../style/tokens.stylex";
 
-const narrow = "@media (width < 80rem)";
-const mobile = "@media (max-width: 767px)";
+const narrow = "@media (width < 60rem)";
 
-/** Shared typography for articles, chapters, and their navigation. */
+/// Shared layout and navigation styles for articles, chapters, and directories.
 export const publicationStyles = stylex.create({
     layout: {
-        display: "grid",
+        flexGrow: 1,
         fontFamily: fontFamily.default,
         fontSize: "var(--size-body)",
-        columnGap: "2.5rem",
-        gridTemplateColumns: "16rem minmax(0, 1fr)",
-        marginInline: "auto",
-        maxWidth: tokens.siteWidth,
-        padding: `0 ${tokens.gutterRight} 3rem ${tokens.gutterLeft}`,
-        width: "100%",
-        [narrow]: {
-            display: "block",
-            maxWidth: tokens.siteWidth,
-            padding: `0 ${tokens.gutterRight} 3rem ${tokens.gutterLeft}`,
-        },
-        [mobile]: {
-            paddingTop: 0,
-            paddingBottom: "2rem",
-        },
+    },
+    sidebar: {
+        fontSize: "var(--size-navigation)",
+        gridColumn: "1 / span 3",
+        [narrow]: { display: "none" },
+    },
+    sidebarContent: {
+        maxHeight: "100svh",
+        overflowY: "auto",
+        overscrollBehaviorY: "contain",
+        position: "sticky",
+        scrollbarWidth: "thin",
+        top: 0,
     },
     article: {
         alignContent: "start",
         color: color.foreground,
         display: "grid",
-        gridColumn: 2,
+        gridColumn: "4 / span 9",
+        minWidth: 0,
+        [narrow]: { gridColumn: "1 / -1" },
+    },
+    body: {
+        display: "grid",
+        justifySelf: "center",
+        maxWidth: `calc(44rem + ${tokens.inset} * 2)`,
         minWidth: 0,
         width: "100%",
+        paddingBottom: "4rem",
+        paddingInline: tokens.inset,
     },
-    sidebar: {
-        alignSelf: "start",
-        display: "none",
-        fontFamily: fontFamily.default,
-        fontSize: "var(--size-navigation)",
-        gridColumn: 1,
-        "@media (min-width: 80rem)": {
-            display: "block",
-            position: "sticky",
-            top: "1.5rem",
-            maxHeight: "calc(100svh - 3rem)",
-            overflowY: "auto",
-            overscrollBehaviorY: "contain",
-            scrollbarWidth: "thin",
-        },
+    context: {
+        alignItems: "center",
+        borderBottomColor: color.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        display: "flex",
+        gap: "1rem",
+        height: tokens.bar,
+        justifyContent: "space-between",
+        paddingInline: tokens.inset,
     },
-    active: {
+    contextTitle: {
         color: color.foreground,
         fontWeight: 600,
-        textDecorationLine: "underline",
-        textDecorationColor: color.primary,
-        textDecorationThickness: "1px",
-        textUnderlineOffset: "0.3em",
+        ":hover": { color: color.primary },
+    },
+    contextBack: {
+        color: color.mutedForeground,
+        ":hover": { color: color.primary },
+    },
+    collectionList: {
+        display: "grid",
+        listStyle: "none",
+        margin: 0,
+        padding: `2.5rem ${tokens.inset}`,
     },
     collectionLink: {
         color: color.mutedForeground,
         display: "block",
-        fontSize: "var(--size-navigation)",
         lineHeight: 1.3,
         paddingBlock: "0.25rem",
-        ":hover": {
-            color: color.primary,
-        },
+        ":hover": { color: color.primary },
     },
-    collectionList: {
-        display: "grid",
-        gap: 0,
-        listStyle: "none",
-        margin: 0,
-        padding: "var(--content-section-gap) 0 0",
+    active: {
+        color: color.foreground,
+        fontWeight: 600,
+        textDecorationColor: color.primary,
+        textDecorationLine: "underline",
+        textDecorationThickness: "1px",
+        textUnderlineOffset: "0.3em",
+    },
+    pagination: {
+        alignItems: "center",
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: tokens.hairline,
+        display: "flex",
+        flexWrap: "wrap",
+        fontSize: "var(--size-navigation)",
+        fontWeight: 600,
+        gap: "1rem 2rem",
+        justifyContent: "space-between",
+        minHeight: tokens.column,
+        paddingInline: tokens.inset,
+    },
+    paginationLink: {
+        color: color.foreground,
+        ":hover": { color: color.primary },
     },
 });

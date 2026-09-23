@@ -1,7 +1,12 @@
+import { color } from "@destack/theme/tokens.stylex";
+import * as stylex from "@destack/style";
 import { type Accessor, createMemo, For, type JSX, Show } from "@destack/view";
 import { useSearchParams } from "@destack/view/router";
+
 import { type ContentEntry, renderContentList } from "../content/presentation";
-import "./directory.css";
+import { tokens } from "../style/tokens.stylex";
+import { PageHeader } from "./header";
+import { publicationStyles } from "./publication.stylex";
 
 /// Keep collection filters in the URL so Back restores the previous view.
 export function createDirectory(entries: Accessor<readonly ContentEntry[]>) {
@@ -26,15 +31,25 @@ type Directory = ReturnType<typeof createDirectory>;
 export function DirectoryArchive(props: { directory: Directory }) {
     const directory = props.directory;
 
+    // count the entries published in one year
+    const countIn = (year: string) =>
+        directory.entries().filter((entry) => entry.date?.startsWith(year)).length;
+
     return (
         <Show when={directory.years().length > 0}>
-            <section aria-label="Archive">
+            <section aria-label="Archive" {...stylex.attrs(publicationStyles.collectionList)}>
                 <button
                     type="button"
                     aria-pressed={!directory.year() ? "true" : "false"}
                     onClick={() => directory.setParameters({ year: undefined })}
+                    {...stylex.attrs(
+                        publicationStyles.collectionLink,
+                        styles.year,
+                        !directory.year() && publicationStyles.active,
+                    )}
                 >
-                    All time <span>{directory.entries().length}</span>
+                    All time{" "}
+                    <span {...stylex.attrs(styles.count)}>{directory.entries().length}</span>
                 </button>
                 <For each={directory.years()}>
                     {(year) => (
@@ -42,15 +57,13 @@ export function DirectoryArchive(props: { directory: Directory }) {
                             type="button"
                             aria-pressed={directory.year() === year ? "true" : "false"}
                             onClick={() => directory.setParameters({ year })}
+                            {...stylex.attrs(
+                                publicationStyles.collectionLink,
+                                styles.year,
+                                directory.year() === year && publicationStyles.active,
+                            )}
                         >
-                            {year}
-                            <span>
-                                {
-                                    directory
-                                        .entries()
-                                        .filter((entry) => entry.date?.startsWith(year)).length
-                                }
-                            </span>
+                            {year} <span {...stylex.attrs(styles.count)}>{countIn(year)}</span>
                         </button>
                     )}
                 </For>
@@ -59,13 +72,15 @@ export function DirectoryArchive(props: { directory: Directory }) {
     );
 }
 
-/// Align collection headings, controls, and content.
-export function DirectorySection(props: { title: string; children: JSX.Element }) {
+/// Render a collection title above its content.
+export function DirectorySection(props: {
+    title: string;
+    description?: string;
+    children: JSX.Element;
+}) {
     return (
-        <section class="directory">
-            <header class="directory-heading">
-                <h1>{props.title}</h1>
-            </header>
+        <section {...stylex.attrs(styles.section)}>
+            <PageHeader title={props.title} variant="chapter" description={props.description} />
             {props.children}
         </section>
     );
@@ -74,39 +89,39 @@ export function DirectorySection(props: { title: string; children: JSX.Element }
 /// Render collection controls and navigable entries.
 export function DirectoryContent(props: {
     title: string;
+    description?: string;
     directory: Directory;
     children?: JSX.Element;
 }) {
     return (
-        <DirectorySection title={props.title}>
+        <DirectorySection title={props.title} description={props.description}>
+            {/* offer the year filter inline when the sidebar archive is hidden */}
             <Show when={props.directory.years().length > 1 || props.directory.year()}>
-                <div class="collection-mobile-filters">
-                    <Show when={props.directory.years().length > 1 || props.directory.year()}>
-                        <select
-                            aria-label="Archive year"
-                            value={props.directory.year()}
-                            onChange={(event) =>
-                                props.directory.setParameters({
-                                    year: event.currentTarget.value || undefined,
-                                })
-                            }
-                        >
-                            <option value="">All time</option>
-                            <For each={props.directory.years()}>
-                                {(year) => <option value={year}>{year}</option>}
-                            </For>
-                        </select>
-                    </Show>
-                </div>
+                <select
+                    aria-label="Archive year"
+                    value={props.directory.year()}
+                    onChange={(event) =>
+                        props.directory.setParameters({
+                            year: event.currentTarget.value || undefined,
+                        })
+                    }
+                    {...stylex.attrs(styles.filter)}
+                >
+                    <option value="">All time</option>
+                    <For each={props.directory.years()}>
+                        {(year) => <option value={year}>{year}</option>}
+                    </For>
+                </select>
             </Show>
             {props.children}
             <div innerHTML={renderContentList(props.directory.filtered())} />
             <Show when={props.directory.filtered().length === 0}>
-                <p class="directory-empty">
+                <p {...stylex.attrs(styles.empty)}>
                     No matching entries.{" "}
                     <button
                         type="button"
                         onClick={() => props.directory.setParameters({ year: undefined })}
+                        {...stylex.attrs(styles.clear)}
                     >
                         Clear filters
                     </button>
@@ -115,3 +130,42 @@ export function DirectoryContent(props: {
         </DirectorySection>
     );
 }
+
+const styles = stylex.create({
+    section: {
+        minWidth: 0,
+    },
+    year: {
+        alignItems: "baseline",
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        cursor: "pointer",
+        display: "flex",
+        font: "inherit",
+        justifyContent: "space-between",
+        paddingInline: 0,
+        textAlign: "left",
+        width: "100%",
+    },
+    count: {
+        color: color.mutedForeground,
+        display: "inline-block",
+        fontVariantNumeric: "tabular-nums",
+    },
+    filter: {
+        justifySelf: "start",
+        marginBottom: "1.5rem",
+        "@media (width >= 60rem)": { display: "none" },
+    },
+    empty: {
+        margin: 0,
+        paddingBlock: "1.5rem",
+    },
+    clear: {
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: color.primary,
+        cursor: "pointer",
+        textDecorationLine: "underline",
+    },
+});

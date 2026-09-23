@@ -596,7 +596,7 @@ function renderDocuments(sources: ReturnType<typeof readDocumentSources>): Docum
     });
 }
 
-/// Read and order blog posts.
+/// Read blog posts, newest first.
 function readPostSources() {
     if (!existsSync(contentDirectory)) {
         return [];
@@ -643,7 +643,10 @@ function readPostSources() {
             textRoute: `/blog/${slug}.txt`,
             tokens: tokenEstimateFor(plainTextFor(markdown)),
         };
-    });
+    }).sort(
+        (left, right) =>
+            right.date.localeCompare(left.date) || left.title.localeCompare(right.title),
+    );
 }
 
 /// Render blog sources against the complete post graph.

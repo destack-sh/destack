@@ -5,42 +5,10 @@
     --content-cell-gutter: 0.75rem;
     --content-row-inset: var(--content-gutter);
     --content-section-gap: 1.5rem;
-    --content-title-size: 2rem;
     --content-entry-size: 1.25rem;
     --content-code-size: 1rem;
     --content-summary-size: var(--size-body);
     --content-metadata-size: var(--size-label);
-    --content-context-height: 2.75rem;
-}
-
-.content-header,
-.directory-heading {
-    padding-top: var(--content-section-gap);
-}
-
-.content-header {
-    display: grid;
-    gap: 0.875rem;
-}
-
-.content-header h1,
-.directory-heading h1 {
-    margin: 0;
-    min-width: 0;
-    color: var(--publication-ink);
-    font:
-        500 var(--content-title-size)/1.25 "IBM Plex Sans Variable",
-        sans-serif;
-    letter-spacing: -0.025em;
-    overflow-wrap: anywhere;
-}
-
-.content-description {
-    margin: 0;
-    max-width: var(--width-prose);
-    color: var(--publication-ink);
-    font-size: var(--size-body);
-    line-height: 1.5;
 }
 
 /* Navigation lists use separators; code and data tables own framed surfaces. */
@@ -231,42 +199,32 @@
 /* Give mobile page identity and metadata room without loosening the navigation. */
 
 @media (max-width: 767px) {
-    .content-header,
-    .directory-heading {
-        padding-top: 2rem;
-    }
-
     .lint-metadata {
         margin-bottom: 0.5rem;
     }
 }
 
-[data-publication] article > .content-header[data-variant="article"] + .markdown {
-    padding-top: 2rem;
+/* keep manual listings compact */
+[data-publication="manual"] .content-list {
+    --content-inset: 0.875rem;
+    --content-gap: 0.25rem;
 }
 
-/* Shared sidebar context for article outlines and collection navigation. */
-
-.collection-context {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    min-height: var(--content-context-height);
-    padding-block: 0.625rem;
-    border-bottom: 1px solid var(--publication-line);
-    font-size: var(--content-metadata-size);
+/* hide the source title of an introduction the directory already shows */
+.directory-intro {
+    padding-bottom: var(--content-section-gap);
 }
-
-.collection-context a {
-    color: var(--publication-ink);
+.directory-intro > .markdown {
+    padding: 0;
+    line-height: 1.5;
 }
-
-.collection-context a:hover {
-    color: var(--publication-accent);
+/* set the first intro paragraph as the page lead, like a collection description */
+.directory-intro .markdown > p:first-of-type {
+    color: var(--destack-color-mutedForeground);
+    font-size: 1.25rem;
+    margin-top: 0;
 }
-
-.collection-context .collection-back {
-    font-weight: 400;
-    color: var(--publication-soft);
+.directory-intro .markdown > h1:first-child,
+.directory-intro:has(.markdown > h1:only-child) {
+    display: none;
 }

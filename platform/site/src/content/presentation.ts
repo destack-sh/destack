@@ -26,9 +26,12 @@ export function renderContentList(entries: readonly ContentEntry[]): string {
     return `<ul class="content-list">${entries
         .map((entry) => {
             const relation = entry.external ? ' target="_blank" rel="noopener noreferrer"' : "";
-            const summary = entry.summary
-                ? `<span class="content-entry-summary">${escapeAttribute(entry.summary)}</span>`
-                : "";
+            // omit placeholder descriptions that repeat the link title
+            const isRepeatedTitle = entry.summary?.replace(/\.$/, "") === entry.title;
+            const summary =
+                entry.summary && !isRepeatedTitle
+                    ? `<span class="content-entry-summary">${escapeAttribute(entry.summary)}</span>`
+                    : "";
             const meta = entry.date
                 ? `<time class="content-entry-meta" datetime="${escapeAttribute(entry.date)}">${escapeAttribute(
                       entry.meta ?? formatDate(entry.date),

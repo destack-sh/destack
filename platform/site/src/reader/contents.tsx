@@ -1,4 +1,3 @@
-import { color } from "@destack/theme/tokens.stylex";
 import { type Accessor, createMemo, createSignal, For, onSettled, Show } from "@destack/view";
 import * as stylex from "@destack/style";
 
@@ -67,7 +66,7 @@ function ContentsList(props: ContentsListProps) {
                         <li>
                             <a
                                 {...stylex.attrs(
-                                    styles.link,
+                                    publicationStyles.collectionLink,
                                     props.activeId() === node.id && publicationStyles.active,
                                 )}
                                 href={`#${node.id}`}
@@ -116,15 +115,6 @@ function outlineFor(entries: readonly ContentsEntry[]) {
 }
 
 const styles = stylex.create({
-    link: {
-        color: color.mutedForeground,
-        display: "block",
-        lineHeight: 1.3,
-        paddingBlock: "0.25rem",
-        ":hover": {
-            color: color.primary,
-        },
-    },
     list: {
         display: "grid",
         gap: 0,

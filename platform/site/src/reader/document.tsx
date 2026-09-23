@@ -1,13 +1,10 @@
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
-
+import { color } from "@destack/theme/tokens.stylex";
 import { For, Match, onSettled, Show, Switch } from "@destack/view";
 import * as stylex from "@destack/style";
 
-import { publicationStyles } from "./publication.stylex";
-
 import { type Document, type DocumentContent } from "../content/document";
 import { Breadcrumbs } from "./breadcrumbs";
-import { tokens } from "../style/tokens.stylex";
+import { publicationStyles } from "./publication.stylex";
 import { Reader } from "./reader";
 import { enhanceRuleCatalog } from "./rules";
 import "./rules.css";
@@ -26,7 +23,6 @@ type DocumentArticleProps = {
 /// Render a document with its collection navigation.
 export function DocumentArticle(props: DocumentArticleProps) {
     let body: HTMLDivElement | undefined;
-    const directory = createDirectory(() => props.document.entries ?? []);
 
     // activate controls only after the complete static directory is mounted
     onSettled(() => {
@@ -41,49 +37,57 @@ export function DocumentArticle(props: DocumentArticleProps) {
         <Reader
             location={() => <DocumentLocation document={props.document} />}
             navigation={() => <DocumentNavigation current={props.document} />}
+            pagination={() => <DocumentPagination current={props.document} />}
             publication="manual"
             source={props.document}
             tokenCount={tokenCount}
         >
             <Switch>
                 <Match when={props.document.entries}>
-                    <DirectoryContent title={props.document.title} directory={directory}>
-                        <div class="directory-intro">
-                            <div class="markdown" innerHTML={props.content.html} />
-                        </div>
-                    </DirectoryContent>
+                    {(entries) => (
+                        <DocumentDirectory
+                            document={props.document}
+                            entries={entries()}
+                            html={props.content.html}
+                        />
+                    )}
                 </Match>
                 <Match when={props.document.kind === "catalog"}>
                     <DirectorySection title={props.document.title}>
-                        <div
-                            ref={body}
-                            data-document-kind="catalog"
-                            class="markdown directory-body"
-                            innerHTML={props.content.html}
-                        />
+                        <div ref={body} class="markdown" innerHTML={props.content.html} />
                     </DirectorySection>
                 </Match>
                 <Match when={true}>
                     <PageHeader
                         title={props.document.title}
                         variant={props.document.kind === "chapter" ? "chapter" : "reference"}
-                        description={
-                            props.document.kind === "chapter" ? props.document.lead : undefined
-                        }
+                        description={props.document.lead}
                     />
-                    <Show when={props.document.kind !== "chapter" && props.document.lead}>
-                        <p class="content-description">{props.document.lead}</p>
-                    </Show>
-                    <div
-                        ref={body}
-                        data-document-kind={props.document.kind}
-                        class="markdown"
-                        innerHTML={props.content.html}
-                    />
+                    <div ref={body} class="markdown" innerHTML={props.content.html} />
                 </Match>
             </Switch>
-            <DocumentPagination current={props.document} />
         </Reader>
+    );
+}
+
+/// Render an index document: its intro above its filterable entries.
+function DocumentDirectory(props: {
+    document: Document;
+    entries: NonNullable<Document["entries"]>;
+    html: string;
+}) {
+    const directory = createDirectory(() => props.entries);
+
+    return (
+        <DirectoryContent
+            title={props.document.title}
+            description={props.document.lead}
+            directory={directory}
+        >
+            <div class="directory-intro">
+                <div class="markdown" innerHTML={props.html} />
+            </div>
+        </DirectoryContent>
     );
 }
 
@@ -109,12 +113,14 @@ function DocumentNavigation(props: DocumentNavigationProps) {
     };
 
     return (
-        <nav aria-label="manual" {...stylex.attrs(styles.book)}>
-            <div class="collection-context">
-                <a href={navigation().root.route}>{navigation().root.title}</a>
+        <nav aria-label="Manual contents">
+            <div {...stylex.attrs(publicationStyles.context)}>
+                <a href={navigation().root.route} {...stylex.attrs(publicationStyles.contextTitle)}>
+                    {navigation().root.title}
+                </a>
                 <Show when={parent()}>
                     {(parent) => (
-                        <a class="collection-back" href={parent().route}>
+                        <a href={parent().route} {...stylex.attrs(publicationStyles.contextBack)}>
                             ← {parent().title}
                         </a>
                     )}
@@ -122,13 +128,14 @@ function DocumentNavigation(props: DocumentNavigationProps) {
             </div>
             <ol {...stylex.attrs(publicationStyles.collectionList)}>
                 <For each={navigation().entries}>
-                    {(entry) => (
+                    {(entry, index) => (
                         <li>
                             <a
                                 {...stylex.attrs(
                                     publicationStyles.collectionLink,
                                     documentIndent(entry.depth),
                                     entry.depth === 0 && styles.section,
+                                    entry.depth === 0 && index() > 0 && styles.sectionGap,
                                     entry.route === activeRoute() && publicationStyles.active,
                                 )}
                                 href={entry.route}
@@ -167,17 +174,17 @@ function DocumentPagination(props: { current: Document }) {
 
     return (
         <Show when={props.current.kind !== "catalog" && (previous() || next())}>
-            <nav aria-label="chapter navigation" {...stylex.attrs(styles.pagination)}>
+            <nav aria-label="Chapter pagination" {...stylex.attrs(publicationStyles.pagination)}>
                 <Show when={previous()}>
                     {(link) => (
-                        <a {...stylex.attrs(styles.paginationLink)} href={link().route}>
+                        <a {...stylex.attrs(publicationStyles.paginationLink)} href={link().route}>
                             ← {link().title}
                         </a>
                     )}
                 </Show>
                 <Show when={next()}>
                     {(link) => (
-                        <a {...stylex.attrs(styles.paginationLink)} href={link().route}>
+                        <a {...stylex.attrs(publicationStyles.paginationLink)} href={link().route}>
                             {link().title} →
                         </a>
                     )}
@@ -189,48 +196,15 @@ function DocumentPagination(props: { current: Document }) {
 
 /// Manual navigation styles.
 const styles = stylex.create({
-    book: {
-        alignContent: "start",
-        color: color.foreground,
-        display: "grid",
-        gap: 0,
-    },
-
-    depth0: {
-        paddingLeft: 0,
-    },
-    depth1: {
-        paddingLeft: "1rem",
-    },
-    depth2: {
-        paddingLeft: "2rem",
-    },
-    depth3: {
-        paddingLeft: "3rem",
-    },
-    pagination: {
-        borderTopColor: color.border,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
-        display: "flex",
-        flexWrap: "wrap",
-        fontFamily: fontFamily.default,
-        fontSize: "var(--size-navigation)",
-        fontWeight: 600,
-        gap: "1rem 2rem",
-        justifyContent: "space-between",
-        marginTop: "2rem",
-        paddingTop: "var(--content-section-gap)",
-    },
-    paginationLink: {
-        color: color.foreground,
-        ":hover": {
-            color: color.primary,
-        },
-    },
+    depth0: { paddingLeft: 0 },
+    depth1: { paddingLeft: "1rem" },
+    depth2: { paddingLeft: "2rem" },
+    depth3: { paddingLeft: "3rem" },
     section: {
         color: color.foreground,
         fontWeight: 500,
-        paddingTop: `calc(${tokens.publicationSpace} * 1.5)`,
+    },
+    sectionGap: {
+        paddingTop: "0.75rem",
     },
 });

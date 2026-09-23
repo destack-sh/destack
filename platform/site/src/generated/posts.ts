@@ -50,7 +50,7 @@ export const posts = [
     {
         author: "Florian",
         contentRoute:
-            "/_content/html/402ac88730cd0fe2f0620c2a86175920daceba7ec7e26343806fa4dfc3fbf6f1.html",
+            "/_content/html/acca948815a7912f8d74b72420c89cbd275527b3dffa1a7fe90f41a8b8aaf1ea.html",
         date: "2026-09-21",
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",
@@ -68,7 +68,7 @@ export const posts = [
         ],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 3364,
+        tokens: 3353,
     },
 ] as const satisfies readonly Post[];
 
