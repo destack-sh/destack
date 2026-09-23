@@ -75,7 +75,7 @@ export function DownloadCell(props: { isLit: boolean; style?: stylex.Styles }) {
                         {...stylex.attrs(styles.action)}
                     >
                         <SystemIcon target={download().target} />
-                        Download
+                        Download for {download().label.split(" · ")[0]}
                     </a>
                 )}
             </Show>
@@ -208,7 +208,6 @@ const styles = stylex.create({
 
     action: {
         alignItems: "center",
-        gap: "0.625rem",
         backgroundColor: "transparent",
         borderWidth: 0,
         color: "inherit",
@@ -216,12 +215,14 @@ const styles = stylex.create({
         display: "flex",
         flexGrow: 1,
         fontFamily: fontFamily.default,
-        fontSize: "0.9375rem",
-        fontWeight: 500,
+        fontSize: "1rem",
+        fontWeight: 600,
+        gap: "0.625rem",
+        justifyContent: "center",
+        paddingInlineEnd: 0,
+        paddingInlineStart: "2.5rem",
         position: "relative",
         zIndex: 1,
-        paddingInline: tokens.inset,
-        ":hover": { backgroundColor: "#ffffff26" },
     },
     system: {
         flexShrink: 0,
@@ -233,10 +234,9 @@ const styles = stylex.create({
     },
     toggle: {
         alignItems: "center",
-        borderLeftColor: "color-mix(in srgb, currentColor 25%, transparent)",
-        borderLeftStyle: "solid",
-        borderLeftWidth: tokens.hairline,
         cursor: "pointer",
+        position: "relative",
+        zIndex: 1,
         display: "flex",
         justifyContent: "center",
         listStyle: "none",

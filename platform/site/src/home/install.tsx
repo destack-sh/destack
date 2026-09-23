@@ -22,6 +22,7 @@ export function Install(props: { isLit: boolean }) {
 
     return (
         <section {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.install)}>
+            <DownloadCell isLit={props.isLit} style={[lattice.ruleRight, styles.download]} />
             <div {...stylex.attrs(lattice.ruleRight, styles.command)}>
                 <code {...stylex.attrs(styles.code)}>
                     <span {...stylex.attrs(styles.prompt)}>$</span> {installCommand}
@@ -55,7 +56,6 @@ export function Install(props: { isLit: boolean }) {
                     </svg>
                 </button>
             </div>
-            <DownloadCell isLit={props.isLit} style={[lattice.ruleRight, styles.download]} />
             <a href="/docs/setup/#ask-your-agent" {...stylex.attrs(styles.agent)}>
                 Ask your agent
                 <span aria-hidden="true">↗</span>
@@ -73,7 +73,7 @@ const styles = stylex.create({
         alignItems: "center",
         display: "flex",
         gap: "1rem",
-        gridColumn: "1 / span 4",
+        gridColumn: "5 / span 4",
         justifyContent: "center",
         minWidth: 0,
         paddingInline: tokens.inset,
@@ -109,7 +109,7 @@ const styles = stylex.create({
         ":hover": { color: color.primary },
     },
     download: {
-        gridColumn: "5 / span 4",
+        gridColumn: "1 / span 4",
         [mobile]: { gridColumn: "1 / span 2", gridRow: 2, minHeight: tokens.column },
     },
     agent: {
@@ -119,8 +119,9 @@ const styles = stylex.create({
         fontFamily: fontFamily.default,
         fontSize: "0.9375rem",
         fontWeight: 500,
+        gap: "0.5rem",
         gridColumn: "9 / span 4",
-        justifyContent: "space-between",
+        justifyContent: "center",
         paddingInline: tokens.inset,
         ":hover": { color: color.primary },
         [mobile]: { borderRightWidth: 0, gridColumn: "3 / span 2", gridRow: 2 },

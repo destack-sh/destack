@@ -7,6 +7,9 @@ import { Plate } from "./plate";
 
 const mobile = "@media (max-width: 767px)";
 
+/// The promise's width in ems, so its size can be set to span the wordmark exactly.
+const promiseMeasure = 23.66;
+
 /// The wordmark's syllables, set apart by a dictionary dot.
 const syllables = ["DE", "STACK"];
 
@@ -74,10 +77,11 @@ const styles = stylex.create({
         paddingTop: "0.12em",
         [mobile]: {
             borderRightWidth: 0,
-            fontSize: "clamp(3rem, 19vw, 5.5rem)",
+            fontSize: "min(13vw, 5.5rem)",
             gridColumn: "1 / -1",
             gridRow: "auto",
-            paddingTop: "3rem",
+            paddingBlock: "2.5rem 1.5rem",
+            whiteSpace: "nowrap",
         },
     },
     promise: {
@@ -131,11 +135,13 @@ const styles = stylex.create({
         fontStyle: "italic",
     },
     line: {
-        fontSize: `clamp(1.125rem, calc(${tokens.row} * 0.42), 1.75rem)`,
+        fontSize: `calc((${tokens.column} * 8 - ${tokens.inset} * 2) / ${promiseMeasure})`,
         fontWeight: 500,
         letterSpacing: "-0.01em",
         lineHeight: 1.2,
         margin: 0,
+        whiteSpace: "nowrap",
+        [mobile]: { fontSize: "clamp(1.125rem, 6vw, 1.75rem)", whiteSpace: "normal" },
     },
     to: {
         color: color.mutedForeground,
@@ -149,6 +155,6 @@ const styles = stylex.create({
     plate: {
         gridColumn: "9 / span 4",
         gridRow: "1 / span 2",
-        [mobile]: { aspectRatio: "1", gridColumn: "1 / -1", gridRow: "auto" },
+        [mobile]: { aspectRatio: "3 / 2", gridColumn: "1 / -1", gridRow: "auto" },
     },
 });
