@@ -13,7 +13,7 @@ import {
     type DatabaseConnection,
     type SQL,
 } from "@destack/db";
-import { AuditEvent } from "../event/index.ts";
+import { AuditEvent, actorKey } from "../event/index.ts";
 import { encodeEvent, canonical } from "../event/encode.ts";
 import { AuditProducerId, AuditEntry, type AuditAcknowledgement } from "../outbox/delivery.ts";
 import { AuditError } from "../error/index.ts";
@@ -151,12 +151,7 @@ export class AuditHistory {
         }
 
         // extract query columns and retain the complete historical event
-        const actor =
-            "id" in event.context.actor
-                ? event.context.actor.id
-                : event.context.actor.type === "system"
-                  ? event.context.actor.name
-                  : "anonymous";
+        const actor = actorKey(event.context.actor);
         const inserted = await transaction
             .insert(auditEvent)
             .values({
@@ -236,7 +231,7 @@ export class AuditHistory {
 
         // select an actor or occurrence
         if (query.actor) {
-            filters.push(eq(auditEvent.actor, query.actor));
+            filters.push(eq(auditEvent.actor, actorKey(query.actor)));
         }
         if (query.attemptId) {
             filters.push(

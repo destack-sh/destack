@@ -52,23 +52,26 @@ await context.audit.append(result);
 ## Host
 
 ```ts
-import { AuditRecorder } from "@destack/audit";
 import { AuditOutbox, auditOutboxSchema } from "@destack/audit/outbox";
 import { AuditHistory, auditSchema } from "@destack/audit/history";
-import { implementService, createProcedureAudit } from "@destack/audit/server";
+import { implementService, createProcedureAudit, createRecorder } from "@destack/audit/server";
 import { Server } from "@destack/service/server";
 import { createAuditClient } from "@destack/audit/client";
 
 // migrate auditOutboxSchema alongside each application's schema
 const outbox = new AuditOutbox(database);
-const audit = new AuditRecorder(verifiedContext, outbox);
+const record = (context) => createRecorder(context, outbox, {
+    package: import.meta.destack.package,
+    service: "notes",
+    spaceId,
+});
 
 // migrate auditSchema in the local or regional history database
 const history = new AuditHistory(historyDatabase);
 const server = await Server.start({
-    ...implementService(history, { authorize: authorizeAudit, record: createAuditRecorder }),
+    ...implementService(history, { authorize: authorizeAudit, record }),
     audience: receivingPackageId,
-    spaceId,
+    scope: spaceId,
     resources,
     health,
     authenticate,
@@ -80,13 +83,13 @@ const response = await server.fetch(request);
 const client = createAuditClient({ url, headers: authenticatedHeaders });
 await outbox.run(client, { signal, report: reportDeliveryFailure });
 
-const procedureAudit = createProcedureAudit((call) => call.context.audit);
+const procedureAudit = createProcedureAudit(({ context }) => record(context));
 ```
 
 ## History
 
 ```ts
-const query = { scope: { type: "space", accountId, spaceId }, limit: 100 };
+const query = { scope: { type: "space", spaceId }, limit: 100 };
 const page = await client.list(query);
 const next = page.cursor && (await client.list({ ...query, cursor: page.cursor }));
 

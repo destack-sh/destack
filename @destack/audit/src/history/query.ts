@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { identifier } from "@destack/schema/identifier";
-import { AuditEvent } from "../event/index.ts";
+import { AuditEvent, AuditActor } from "../event/index.ts";
 import { AuditActionName } from "../action/index.ts";
 import { PackageId } from "@destack/package";
 
@@ -32,7 +32,7 @@ export const AuditQuery = defineSchema(
         scope: AuditScope,
         action: AuditActionName.optional(),
         packageId: PackageId.optional(),
-        actor: schema.string().min(1).optional(),
+        actor: AuditActor.optional(),
         target: schema
             .object({ type: schema.string().min(1), id: schema.string().min(1) })
             .optional(),

@@ -6,7 +6,7 @@ import { Health } from "@destack/service/health";
 import { AuditRecorder } from "../src/record/index.ts";
 import { defineAuditAction } from "../src/action/index.ts";
 import { createAuditClient } from "../src/client/index.ts";
-import { implementService } from "../src/server/index.ts";
+import { implementService, createRecorder } from "../src/server/index.ts";
 import { auditList } from "../src/history/index.ts";
 import { Server } from "@destack/service/server";
 import { Caller } from "@destack/service/authentication";
@@ -44,13 +44,14 @@ test("authorize producers and readers, stream history, and record denied access"
             accountId: "account-01995da9-7223-7000-8000-000000000001",
         });
         const recorder = new AuditRecorder(context, outbox);
-        const reader = new AuditRecorder(
-            { ...context, service: "audit", actor: { type: "system", name: "reader" } },
-            outbox,
-        );
         await using server = await Server.start({
             ...implementService(history, {
-                record: () => reader,
+                record: (request) =>
+                    createRecorder(request, outbox, {
+                        package: publishDocument.package,
+                        service: "audit",
+                        accountId: context.accountId,
+                    }),
                 authorize: async (access) => {
                     if (access.action === "ingest") {
                         if (
@@ -70,7 +71,7 @@ test("authorize producers and readers, stream history, and record denied access"
                 },
             }),
             audience: publishDocument.package.id,
-            spaceId: "global",
+            scope: "global",
             resources: new ResourceContext(),
             health: new Health("audit"),
             authenticate: async () =>

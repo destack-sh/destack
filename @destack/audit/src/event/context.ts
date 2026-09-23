@@ -8,6 +8,8 @@ export const AuditContext = defineSchema(
     schema.object({
         /** The authenticated actor performing the action. */
         actor: AuditActor,
+        /** The represented identity when authenticated work acts on its behalf. */
+        subject: AuditActor.optional(),
         /** Verified delegators, from the original initiator to the immediate delegator. */
         delegation: schema.array(AuditActor),
         /** The account and space whose history receives this event. */

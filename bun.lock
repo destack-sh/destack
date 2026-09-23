@@ -48,10 +48,12 @@
       "name": "@destack/audit",
       "version": "2026.9.0",
       "dependencies": {
+        "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "uuid": "14.0.2",
       },
       "devDependencies": {
