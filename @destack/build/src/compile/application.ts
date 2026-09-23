@@ -24,9 +24,9 @@ import { type DependencyResolution } from "@destack/package/package";
 import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
 import { describeAssets, directoryPlugin } from "./asset.ts";
 import { externalModule, runtimeConditions, checkRuntime } from "./runtime.ts";
-import { type DirectoryReference } from "../inspect/directory.ts";
+import { type DirectoryReference } from "../typescript/index.ts";
 import { type ModuleDescription } from "@destack/package/code";
-import { type RuntimeCompiler } from "../inspect/runtime.ts";
+import { type RuntimeCompiler } from "../compile/runtime.ts";
 import { tmpdir } from "node:os";
 import { linkDependencies } from "../source/dependency.ts";
 

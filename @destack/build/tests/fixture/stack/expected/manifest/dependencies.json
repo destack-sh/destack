@@ -739,7 +739,7 @@
             },
             {
                 "path": "package.json",
-                "digest": "a9bdc4ad687d00f80f8c90af982aef5ee4f108baf3ac6c9738f0a54511d369cd",
+                "digest": "065d04aa8b8368ec745f76bf9ac8e2b03095520e3d0fb5885361f12334a10a2c",
                 "size": 1231,
                 "mediaType": "application/json"
             },

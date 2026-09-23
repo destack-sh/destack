@@ -8,7 +8,7 @@ import type { Declaration } from "./declaration.ts";
 import type { PackageSource } from "../source/index.ts";
 import { metadataPlugin } from "../compile/source.ts";
 import { BuildError } from "../error/index.ts";
-import { stringifyInspection } from "./inspection.ts";
+import { stringifyInspection } from "../build/serialization.ts";
 import { runtimeConditions } from "../compile/runtime.ts";
 
 /** Evaluate exported declarations together in the current build worker. */
@@ -32,14 +32,14 @@ export async function evaluateDeclarations(
     // call each registered inspector with its declaring package
     const descriptions = declarations.map(
         (declaration, index) =>
-            `inspectDeclaration(${JSON.stringify(declaration.inspector)}, declaration${index}, ${JSON.stringify(
+            `INSPECTORS[${JSON.stringify(declaration.inspector)}].describe(declaration${index}, ${JSON.stringify(
                 declaration.description.symbol.package,
             )})`,
     );
 
     // collect all descriptions through one generated entry
     const source = [
-        `import { inspectDeclaration } from ${JSON.stringify(inspector)};`,
+        `import { INSPECTORS } from ${JSON.stringify(inspector)};`,
         ...imports,
         `export default await Promise.all([${descriptions.join(",\n")}]);`,
     ].join("\n");

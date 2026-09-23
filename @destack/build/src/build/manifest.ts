@@ -4,7 +4,7 @@ import type { PackageManifest, PackageOutput, FileDescription } from "@destack/p
 import type { ModuleDescription } from "@destack/package/code";
 import type { TestDeclaration } from "@destack/test/inspect";
 import type { DeclarationDescription } from "@destack/package/inspect";
-import { stringifyInspection } from "../inspect/inspection.ts";
+import { stringifyInspection } from "./serialization.ts";
 import { BuildError } from "../error/index.ts";
 
 /** Shared descriptions collected across build targets. */

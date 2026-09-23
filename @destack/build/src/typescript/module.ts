@@ -1,10 +1,8 @@
 import { BuildError } from "../error/index.ts";
-import { realpathSync } from "node:fs";
-import { readFile, realpath } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { version } from "typescript";
 import {
-    API,
     type Project,
     type Symbol as TypeScriptSymbol,
     SymbolFlags,
@@ -23,7 +21,8 @@ import { describeFile } from "@destack/package/file";
 import type { TestDeclaration } from "@destack/test/inspect";
 import { inspectErrors } from "@destack/check/inspect";
 import { collectTests } from "./test.ts";
-import { collectDeclarations, type Declaration } from "./declaration.ts";
+import { collectDeclarations } from "./declaration.ts";
+import type { Declaration } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
 import { collectDirectories, type DirectoryReference } from "./directory.ts";
 import { modulePackage } from "../source/dependency.ts";
@@ -42,81 +41,11 @@ export interface TypeScriptInspection {
     tests: TestDeclaration[];
 }
 
-/** Retain TypeScript compiler state across inspections of one package. */
-export class TypeScriptCompiler implements AsyncDisposable {
-    /** The source package directory. */
-    readonly directory: string;
-    /** The compiler process and retained project state. */
-    readonly #api: API;
-
-    /** Start the native compiler for a source package. */
-    constructor(directory: string) {
-        this.directory = realpathSync(directory);
-        this.#api = new API({
-            cwd: this.directory,
-        });
-    }
-
-    /** Inspect a configuration after notifying the compiler of changed files. */
-    async inspect(configuration: string): Promise<TypeScriptInspection> {
-        // refresh the selected configuration
-        configuration = await realpath(resolve(this.directory, configuration));
-
-        // refresh client ASTs while the native compiler retains incremental project state
-        this.#api.clearSourceFileCache();
-        const invalidated = await this.#api.updateSnapshot({
-            fileChanges: { invalidateAll: true },
-        });
-        await invalidated.dispose();
-
-        // reread configured include patterns so added and removed modules change the inventory
-        const snapshot = await this.#api.updateSnapshot({
-            openProjects: [configuration],
-            fileChanges: { changed: [configuration] },
-        });
-
-        try {
-            // require the requested compiler project
-            const project = snapshot.getProject(configuration);
-            if (!project) {
-                throw new BuildError(
-                    "INSPECTION_FAILED",
-                    `TypeScript did not load ${configuration}`,
-                );
-            }
-
-            // collect configuration, source, and type diagnostics together
-            const diagnostics = (
-                await Promise.all([
-                    project.program.getConfigFileParsingDiagnostics(),
-                    project.program.getSyntacticDiagnostics(),
-                    project.program.getBindDiagnostics(),
-                    project.program.getProgramDiagnostics(),
-                    project.program.getGlobalDiagnostics(),
-                    project.program.getSemanticDiagnostics(),
-                ])
-            ).flat();
-            if (diagnostics.length) {
-                throw new BuildError(
-                    "INSPECTION_FAILED",
-                    `TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
-                );
-            }
-
-            return await describeProject(project, this.directory);
-        } finally {
-            await snapshot.dispose();
-        }
-    }
-
-    /** Close the compiler and release retained projects. */
-    async [Symbol.asyncDispose](): Promise<void> {
-        await this.#api.close();
-    }
-}
-
 /** Describe source modules and associate reexports with their defining symbols. */
-async function describeProject(project: Project, root: string): Promise<TypeScriptInspection> {
+export async function describeProject(
+    project: Project,
+    root: string,
+): Promise<TypeScriptInspection> {
     // collect package descriptions and exact source bytes
     const modules = new Map<string, ModuleDescription>();
     const sources = new Map<string, Uint8Array<ArrayBuffer>>();
@@ -142,13 +71,20 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
         (file) => contains(root, file) && !relative(root, file).split(sep).includes("node_modules"),
     );
     const authored = new Set(files);
+    const sourceFiles = new Map<string, SourceFile>();
 
     // preserve domain declarations imported from shared source packages
     for (const file of fileNames) {
-        if (/\.d\.[cm]?ts$/.test(file)) {
+        if (!authored.has(file) && /\.d\.[cm]?ts$/.test(file)) {
             continue;
         }
         const source = await project.program.getSourceFile(file);
+        if (authored.has(file)) {
+            if (!source) {
+                throw new BuildError("INSPECTION_FAILED", `Missing compiler source: ${file}`);
+            }
+            sourceFiles.set(file, source);
+        }
         if (!source || source.isDeclarationFile) {
             continue;
         }
@@ -170,12 +106,7 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
     }
 
     // collect modules before resolving declarations reached through reexports
-    for (const file of files) {
-        const source = await project.program.getSourceFile(file);
-        if (!source) {
-            throw new BuildError("INSPECTION_FAILED", `Missing compiler source: ${file}`);
-        }
-
+    for (const [file, source] of sourceFiles) {
         // retain each authored module under its package-relative path
         const path = relative(root, file).split(sep).join("/");
 
@@ -207,12 +138,7 @@ async function describeProject(project: Project, root: string): Promise<TypeScri
     }
 
     // preserve the compiler's resolution of aliases and merged declarations
-    for (const file of files) {
-        const source = await project.program.getSourceFile(file);
-        if (!source) {
-            throw new BuildError("INSPECTION_FAILED", `Missing compiler source: ${file}`);
-        }
-
+    for (const [file, source] of sourceFiles) {
         // resolve globals and errors after every authored module has been registered
         const module = modules.get(relative(root, file).split(sep).join("/"))!;
         module.globals = await collectGlobals(source, project, module.path, inspector.reference);

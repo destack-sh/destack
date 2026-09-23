@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep, resolve } from "node:path";
 import MagicString from "magic-string";
-import { type DirectoryReference } from "../inspect/directory.ts";
+import { type DirectoryReference } from "../typescript/index.ts";
 import { type Plugin, type Manifest } from "vite";
 import { BuildError } from "../error/index.ts";
 import { modulePackage } from "../source/dependency.ts";

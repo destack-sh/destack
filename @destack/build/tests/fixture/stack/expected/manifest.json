@@ -8,7 +8,7 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "a189c46d297a7f33f4d20eee0a4c933c98f23ae299df076cb13dfdd10da442de",
+        "digest": "016292769ed3e618e7317c772a4de09771b1a6e4b72cef818683d7cbaadd9d6e",
         "size": 41701,
         "mediaType": "application/json"
     },

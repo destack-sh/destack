@@ -13,7 +13,7 @@ import { sourcePlugin, mapSource } from "./source.ts";
 import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
 import { externalModule, runtimeConditions } from "./runtime.ts";
 import { directoryPlugin } from "./asset.ts";
-import { type DirectoryReference } from "../inspect/directory.ts";
+import { type DirectoryReference } from "../typescript/index.ts";
 import { type Target } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 
