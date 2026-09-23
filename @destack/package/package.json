@@ -19,6 +19,7 @@
             "types": "./src/package/import-meta.d.ts"
         },
         "./workload": "./src/workload/index.ts",
+        "./view": "./src/view/index.ts",
         "./runtime": "./src/runtime/index.ts"
     },
     "scripts": {

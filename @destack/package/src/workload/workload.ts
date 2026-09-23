@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 import { ResourceName } from "@destack/resource";
 import { ComputeDefinition } from "../package/compute.ts";
-import { PackageId } from "../package/package.ts";
+import { PackageId, Entrypoint } from "../package/package.ts";
 
 /** A declaration qualified by its source package. */
 export const DeclarationReference = defineSchema(
@@ -14,9 +14,6 @@ export const DeclarationReference = defineSchema(
 );
 /** A declaration qualified by its source package. */
 export type DeclarationReference = schema.Infer<typeof DeclarationReference>;
-
-/** A package export containing runnable code. */
-export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
 
 /** Code deployed and scaled together. */
 export const WorkloadDefinition = defineSchema(
@@ -52,6 +49,8 @@ export const WorkloadDescription = defineSchema(
         resources: schema.array(DeclarationReference),
         /** Secret declarations collected from the workload's module dependencies. */
         secrets: schema.array(DeclarationReference),
+        /** Service connection declarations collected from the workload's module dependencies. */
+        connections: schema.array(DeclarationReference),
         /** The effective compute settings. */
         compute: ComputeDefinition,
     }),

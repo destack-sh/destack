@@ -1,6 +1,9 @@
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { Digest } from "../file/file.ts";
 
+/** A concrete package export containing runnable code. */
+export const Entrypoint = defineSchema(schema.string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
+
 /** The immutable identity retained across package renames and releases. */
 export const PackageId = identifier("package");
 /** The immutable identity retained across package renames and releases. */

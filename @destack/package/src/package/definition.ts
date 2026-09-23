@@ -7,6 +7,7 @@ import { Runtime } from "../runtime/index.ts";
 import { ResourceName } from "@destack/resource";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId } from "./package.ts";
+import { ViewDefinition } from "../view/index.ts";
 
 /** The declarations authored in destack.json. */
 export const PackageDefinition = defineSchema(
@@ -19,6 +20,8 @@ export const PackageDefinition = defineSchema(
         template: TemplateDefinition.optional(),
         /** Named workloads deployed independently. */
         workloads: schema.record(ResourceName, WorkloadDefinition).optional(),
+        /** Named frontends opened independently by clients. */
+        views: schema.record(ResourceName, ViewDefinition).optional(),
         /** Supported targets inherited by package exports. */
         targets: schema.array(Target).min(1).optional(),
         /** Reviewed runtime compatibility shared by all exports. */

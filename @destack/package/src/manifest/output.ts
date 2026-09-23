@@ -14,6 +14,8 @@ export const PackageOutput = defineSchema(
         runtime: Runtime,
         /** Whether this output is distributed for execution. */
         emit: schema.boolean(),
+        /** The declared view compiled into this output. */
+        view: ResourceName.optional(),
         /** Validated workloads keyed by their declared names. */
         workloads: schema.record(ResourceName, WorkloadDescription),
         /** Domain collection names and selected record indices. */
