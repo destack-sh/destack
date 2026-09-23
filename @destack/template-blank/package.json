@@ -5,7 +5,8 @@
     "license": "MIT",
     "type": "module",
     "exports": {
-        ".": "./src/index.ts"
+        ".": "./src/index.ts",
+        "./settings": "./src/settings/index.ts"
     },
     "scripts": {
         "lint": "destack-check check",
@@ -16,6 +17,9 @@
         "@destack/check": "2026.9.0"
     },
     "dependencies": {
+        "@destack/package": "2026.9.0",
+        "@destack/schema": "2026.9.0",
+        "@destack/setting": "2026.9.0",
         "@destack/template-stack": "2026.9.0"
     }
 }

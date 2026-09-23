@@ -9,7 +9,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./space": "./src/space/index.ts",
-        "./account": "./src/account/index.ts"
+        "./account": "./src/account/index.ts",
+        "./settings": "./src/settings/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
@@ -20,6 +21,8 @@
         "@destack/check": "2026.9.0"
     },
     "dependencies": {
+        "@destack/setting": "2026.9.0",
+        "@destack/theme": "2026.9.0",
         "@destack/access": "2026.9.0",
         "@destack/space": "2026.9.0",
         "@destack/db": "2026.9.0",

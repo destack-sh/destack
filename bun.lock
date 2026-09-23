@@ -419,6 +419,9 @@
       "name": "@destack/template-blank",
       "version": "2026.9.0",
       "dependencies": {
+        "@destack/package": "2026.9.0",
+        "@destack/schema": "2026.9.0",
+        "@destack/setting": "2026.9.0",
         "@destack/template-stack": "2026.9.0",
       },
       "devDependencies": {
@@ -433,7 +436,9 @@
         "@destack/bucket": "2026.9.0",
         "@destack/db": "2026.9.0",
         "@destack/model": "2026.9.0",
+        "@destack/setting": "2026.9.0",
         "@destack/space": "2026.9.0",
+        "@destack/theme": "2026.9.0",
         "@destack/vault": "2026.9.0",
       },
       "devDependencies": {
@@ -455,6 +460,9 @@
       "name": "@destack/theme",
       "version": "2026.9.0",
       "dependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
         "@destack/style": "workspace:*",
       },
     },

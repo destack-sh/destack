@@ -28,6 +28,17 @@ Install the tools needed by the packages you are working on:
 We use `justfile`s as the source of truth for all commands. 
 See the relevant directories we're working on for the relevant just recipes.
 
+## Package declarations
+
+Use domain modules to separate declarations from configured values:
+
+- `src/settings/` declares package settings and re-exports shared declarations.
+- `src/stack/` declares resources and selects setting assignments and policies.
+- `src/inspect/` exposes serializable descriptions and inspection functions.
+- `index.ts` redirects exports; domain files contain the declarations.
+- Export `./settings` when downstream packages configure these settings.
+- Hosts discover declarations through package exports and inspection; directory names alone grant no access.
+
 ## Database fixtures
 
 Keep test database tables, schema declarations, and migrations together under `tests/stack/`.

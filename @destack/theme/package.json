@@ -8,6 +8,7 @@
     ],
     "exports": {
         ".": "./src/index.ts",
+        "./settings": "./src/settings/index.ts",
         "./theme.css": "./src/theme/theme.css",
         "./tokens.stylex": "./src/token/tokens.stylex.ts"
     },
@@ -15,6 +16,9 @@
         "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
         "@destack/style": "workspace:*"
     }
 }
