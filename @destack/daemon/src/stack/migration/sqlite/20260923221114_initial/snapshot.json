@@ -1,0 +1,528 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "040ca751-a373-468c-b292-0294016fabfd",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "ddl": [
+    {
+      "name": "host",
+      "entityType": "tables"
+    },
+    {
+      "name": "checkout",
+      "entityType": "tables"
+    },
+    {
+      "name": "login",
+      "entityType": "tables"
+    },
+    {
+      "name": "deployment",
+      "entityType": "tables"
+    },
+    {
+      "name": "instance",
+      "entityType": "tables"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "host"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "device_id",
+      "entityType": "columns",
+      "table": "host"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "host_id",
+      "entityType": "columns",
+      "table": "host"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "enrollment",
+      "entityType": "columns",
+      "table": "host"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "credential",
+      "entityType": "columns",
+      "table": "host"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'disabled'",
+      "generated": null,
+      "name": "execution",
+      "entityType": "columns",
+      "table": "host"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "host"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "host"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "checkout"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "repository_id",
+      "entityType": "columns",
+      "table": "checkout"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "path",
+      "entityType": "columns",
+      "table": "checkout"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "checkout"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "login"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "issuer",
+      "entityType": "columns",
+      "table": "login"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_id",
+      "entityType": "columns",
+      "table": "login"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "subject",
+      "entityType": "columns",
+      "table": "login"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "login"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "credential",
+      "entityType": "columns",
+      "table": "login"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "login"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "verified_at",
+      "entityType": "columns",
+      "table": "login"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "space_id",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "generation",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "host_epoch",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "authorized_until",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "instances",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "restart",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "verified_at",
+      "entityType": "columns",
+      "table": "deployment"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "deployment_id",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "host_epoch",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "observed_at",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "started_at",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "stopped_at",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "error",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "conditions",
+      "entityType": "columns",
+      "table": "instance"
+    },
+    {
+      "columns": [
+        "deployment_id"
+      ],
+      "tableTo": "deployment",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "nameExplicit": false,
+      "name": "fk_instance_deployment_id_deployment_id_fk",
+      "entityType": "fks",
+      "table": "instance"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "host_pk",
+      "table": "host",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "checkout_pk",
+      "table": "checkout",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "login_pk",
+      "table": "login",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "deployment_pk",
+      "table": "deployment",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "instance_pk",
+      "table": "instance",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "device_id"
+      ],
+      "nameExplicit": false,
+      "name": "host_device_id_unique",
+      "entityType": "uniques",
+      "table": "host"
+    },
+    {
+      "columns": [
+        "host_id"
+      ],
+      "nameExplicit": false,
+      "name": "host_host_id_unique",
+      "entityType": "uniques",
+      "table": "host"
+    },
+    {
+      "columns": [
+        "path"
+      ],
+      "nameExplicit": false,
+      "name": "checkout_path_unique",
+      "entityType": "uniques",
+      "table": "checkout"
+    },
+    {
+      "value": "\"id\" = 1",
+      "name": "host_singleton",
+      "entityType": "checks",
+      "table": "host"
+    },
+    {
+      "value": "\"id\" IS NOT NULL",
+      "name": "checkout_id_not_null",
+      "entityType": "checks",
+      "table": "checkout"
+    },
+    {
+      "value": "\"id\" IS NOT NULL",
+      "name": "login_id_not_null",
+      "entityType": "checks",
+      "table": "login"
+    },
+    {
+      "value": "\"id\" IS NOT NULL",
+      "name": "deployment_id_not_null",
+      "entityType": "checks",
+      "table": "deployment"
+    },
+    {
+      "value": "\"id\" IS NOT NULL",
+      "name": "instance_id_not_null",
+      "entityType": "checks",
+      "table": "instance"
+    }
+  ],
+  "renames": []
+}

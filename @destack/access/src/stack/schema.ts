@@ -20,7 +20,7 @@ export const accessGrant = table(
         objectId: text("object_id").notNull(),
         relation: text("relation").notNull(),
         subjectKind: text("subject_kind", {
-            enum: ["user", "service-account", "group", "share-token", "everyone"],
+            enum: ["user", "service-account", "group", "share-token", "host", "everyone"],
         }).notNull(),
         subjectAuthority: text("subject_authority").notNull(),
         subjectId: text("subject_id").notNull(),

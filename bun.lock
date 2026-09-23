@@ -192,11 +192,13 @@
       "name": "@destack/daemon",
       "version": "2026.9.2",
       "dependencies": {
+        "@destack/access": "workspace:*",
         "@destack/audit": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/fs": "workspace:*",
         "@destack/model": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/service": "workspace:*",
         "@destack/telemetry": "workspace:*",

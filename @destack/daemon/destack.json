@@ -1,0 +1,19 @@
+{
+    "id": "package-01a0c80b-6149-73fa-934f-85651a8587c2",
+    "language": "typescript",
+    "targets": ["server"],
+    "exports": {
+        "./error": {
+            "targets": ["browser", "server"]
+        },
+        ".": {
+            "targets": ["browser", "server"]
+        },
+        "./client": {
+            "targets": ["browser", "server"]
+        },
+        "./inspect": {
+            "targets": ["server"]
+        }
+    }
+}

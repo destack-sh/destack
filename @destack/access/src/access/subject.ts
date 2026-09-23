@@ -5,7 +5,7 @@ import type { Delegation, PermissionSelection } from "./policy.ts";
 export const Subject = defineSchema(
     schema.object({
         /** The authenticated identity category. */
-        kind: schema.enum(["user", "service-account", "group", "share-token"]),
+        kind: schema.enum(["user", "service-account", "group", "share-token", "host"]),
         /** The authority responsible for the identity. */
         authority: schema.string().min(1),
         /** The immutable identifier assigned by that authority. */

@@ -1,0 +1,13 @@
+set shell := ["bash", "-cu"]
+
+# check
+check:
+    bun run check
+
+# run
+run:
+    bun run src/main.ts
+
+# format
+format *args:
+    bun run destack-check format {{args}} src package.json destack.json

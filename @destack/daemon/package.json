@@ -1,0 +1,41 @@
+{
+    "name": "@destack/daemon",
+    "version": "2026.9.2",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "description": "Run and supervise Destack spaces headless, and optionally provide device tunneling.",
+    "exports": {
+        "./error": "./src/error/index.ts",
+        ".": "./src/service/index.ts",
+        "./client": "./src/client/index.ts",
+        "./service/credential": "./src/service/credential.ts",
+        "./client/local": "./src/client/local.ts",
+        "./endpoint": "./src/endpoint/index.ts",
+        "./process": "./src/process/index.ts",
+        "./run": "./src/daemon/daemon.ts",
+        "./destack.json": "./destack.json",
+        "./server": "./src/server/index.ts",
+        "./inspect": "./src/inspect/index.ts"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/audit": "workspace:*",
+        "@destack/fs": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/model": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/telemetry": "workspace:*",
+        "uuid": "14.0.2"
+    },
+    "devDependencies": {
+        "@destack/test": "workspace:*"
+    }
+}

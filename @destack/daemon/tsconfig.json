@@ -1,0 +1,11 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": { "types": ["bun"] },
+    "files": [
+        "src/main.ts",
+        "src/client/index.ts",
+        "src/client/local.ts",
+        "src/process/index.ts",
+        "src/inspect/index.ts"
+    ]
+}
