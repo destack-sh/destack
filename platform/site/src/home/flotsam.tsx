@@ -14,6 +14,12 @@ const longestCalm = 30;
 const splashChance = 0.12;
 /// The least room between two pieces on the water, as a share of its width, so at most two show at once.
 const leastGap = 0.6;
+/// The length of the wire between a piece and its tag, in CSS pixels.
+const wireLength = 44;
+/// The stretch at either edge of the water over which pieces and tags fade, in CSS pixels.
+const edgeFade = 70;
+/// The steepest a floating tag tilts, in degrees, so it stays readable.
+const steepestTag = 6;
 
 /// One piece of flotsam: its drawing, how it sits in the water, where its tag hangs, and the tags it wears.
 type Piece = {
@@ -34,30 +40,29 @@ type Piece = {
 /// The flotsam of vendor software.
 const pieces: readonly Piece[] = [
     {
-        art: Lifeboat,
-        width: 88,
-        height: 46,
-        draft: 17,
-        tie: [85, 20],
+        art: Unicorn,
+        width: 72,
+        height: 56,
+        draft: 14,
+        tie: [5, 32],
         tags: [
-            "Acquired by private equity",
+            "To the spoons",
             "Sunsetting in 30 days",
             "Our incredible journey",
-            "Now AI-first",
+            "Now with 3 AI buttons",
             "Pivoting to agents",
             "Read-only from Friday",
-            "Winding down, sorry",
         ],
     },
     {
-        art: LifeRing,
-        width: 40,
-        height: 40,
-        draft: 18,
-        tie: [37, 22],
+        art: Card,
+        width: 46,
+        height: 32,
+        draft: 12,
+        tie: [4, 22],
         tags: [
-            "New plan: +40% for you",
-            "Now usage-based",
+            "Updated pricing",
+            "Usage-based (surprise)",
             "SSO is Enterprise-only",
             "Free plan retired",
             "Renewed for 3 years",
@@ -70,13 +75,14 @@ const pieces: readonly Piece[] = [
         width: 30,
         height: 44,
         draft: 14,
-        tie: [25, 28],
+        tie: [6, 30],
         tags: [
             "Now deprecated",
             "Rate limited, try later",
             "API v1 retired today",
             "Breaking change (minor)",
-            "Webhooks paused",
+            "On our 73rd incident",
+            "Status: all green",
             "Feature moved to Pro",
             "Upgrade to Enterprise",
         ],
@@ -86,15 +92,43 @@ const pieces: readonly Piece[] = [
         width: 46,
         height: 40,
         draft: 12,
-        tie: [41, 28],
+        tie: [5, 24],
         tags: [
             "We value your feedback",
-            "Export ready in 3 days",
             "Closed as won't fix",
             "Works on our end",
             "Your call is important",
-            "Contact your admin",
+            "Contact your admin (you)",
             "Ticket #48213 auto-closed",
+        ],
+    },
+    {
+        art: Chest,
+        width: 46,
+        height: 38,
+        draft: 20,
+        tie: [4, 24],
+        tags: [
+            "Export ready in 3 days",
+            "CSV export only",
+            "Your data, our model",
+            "Data retained 30 days",
+            "Storage limit reached",
+            "Account under review",
+        ],
+    },
+    {
+        art: Bottle,
+        width: 52,
+        height: 22,
+        draft: 9,
+        tie: [3, 12],
+        tags: [
+            "We've updated our terms",
+            "Action required",
+            "Your export link expired",
+            "Price change notice",
+            "Your seat was removed",
         ],
     },
 ];
@@ -109,6 +143,10 @@ type Drift = {
     tag: number;
     /// How far it still has to bob up after being tossed onto the water, from 1 to 0.
     rise: number;
+    /// Where its tag's grommet floats across the water, in CSS pixels, once placed.
+    tagX: number | undefined;
+    /// How fast its tag drifts relative to the water, in CSS pixels per second.
+    tagSpeed: number;
 };
 
 /// Float the flotsam of vendor software along the waterline, each piece riding the waves at its own pace.
@@ -116,6 +154,7 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
     let water!: HTMLDivElement;
     const elements: HTMLDivElement[] = [];
     const tags: HTMLSpanElement[] = [];
+    const wires: SVGPathElement[] = [];
 
     onSettled(() => {
         let frame: number | undefined;
@@ -128,6 +167,8 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
             speed: slowest + Math.random() * (fastest - slowest),
             tag: Math.floor(Math.random() * piece.tags.length),
             rise: 0,
+            tagX: undefined,
+            tagSpeed: 0,
         });
 
         // spread the first pieces out with room between them, the rest queued up off the left edge
@@ -143,6 +184,10 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
         drifts.forEach((drift, index) => {
             tags[index].textContent = pieces[index].tags[drift.tag];
         });
+
+        // return how visible something spanning across the water is, fading out before it meets either edge
+        const fade = (start: number, end: number) =>
+            Math.max(0, Math.min(1, (width() - end) / edgeFade, start / edgeFade));
 
         // drift each piece along, riding and tilting with the waves, and send it round again with a new tag
         const loop = (now: number) => {
@@ -174,13 +219,12 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
                 const nearest = ahead.reduce((best, other) => (other.x < best.x ? other : best), {
                     x: Infinity,
                     speed: drift.speed,
-                    tag: 0,
                 });
                 if (nearest.x - drift.x < width() * leastGap) {
                     drift.speed = Math.min(drift.speed, nearest.speed);
                 }
                 drift.x += drift.speed * elapsed;
-                if (drift.x > width() + 20) {
+                if (drift.x > width() + wireLength + tags[index].offsetWidth + 20) {
                     const trailing = Math.min(...drifts.map((other) => other.x));
                     const start = Math.min(-piece.width, trailing - width() * leastGap);
                     const next = launch(piece, start - Math.random() * longestCalm * fastest);
@@ -202,9 +246,62 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
                 const slope = waveAt(middle + 6, seconds) - waveAt(middle - 6, seconds);
                 drifts[index].rise *= 0.965;
                 const y = rise - piece.height + piece.draft + drifts[index].rise * 48;
-                const lean = (Math.atan2(slope, 12) * 180) / Math.PI;
+                const lean = Math.atan2(slope, 12);
                 elements[index].style.transform =
-                    `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${lean.toFixed(2)}deg)`;
+                    `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${lean.toFixed(4)}rad)`;
+
+                // find the tie on the leaning piece, turning about its bottom middle
+                const pivot = { x: middle, y: y + piece.height };
+                const arm = { x: x + piece.tie[0] - pivot.x, y: y + piece.tie[1] - pivot.y };
+                const tie = {
+                    x: pivot.x + arm.x * Math.cos(lean) - arm.y * Math.sin(lean),
+                    y: pivot.y + arm.x * Math.sin(lean) + arm.y * Math.cos(lean),
+                };
+
+                // tow the floating tag behind the tie, springing toward a wandering spot and settling
+                const tag = tags[index];
+                const tether = drifts[index];
+                const goal = tie.x - wireLength * 0.6 + Math.sin(seconds * 0.7 + index * 2.1) * 6;
+                tether.tagX ??= goal;
+                tether.tagSpeed += ((goal - tether.tagX) * 7 - tether.tagSpeed * 2.6) * elapsed;
+                tether.tagX += tether.tagSpeed * elapsed;
+                tether.tagX = Math.max(tie.x - wireLength, Math.min(tie.x - 4, tether.tagX));
+
+                // float the tag on the wave under it, tilting gently with the slope
+                const tagWidth = tag.offsetWidth;
+                const tagHeight = tag.offsetHeight;
+                const left = tether.tagX + 5 - tagWidth;
+                const surface = waveAt(left + tagWidth / 2, seconds);
+                const tilt = Math.max(
+                    -steepestTag,
+                    Math.min(
+                        steepestTag,
+                        (Math.atan2(
+                            waveAt(left + tagWidth, seconds) - waveAt(left, seconds),
+                            tagWidth,
+                        ) *
+                            180) /
+                            Math.PI,
+                    ),
+                );
+                const top = surface - tagHeight + 3 + tether.rise * 48;
+
+                // fade the piece, its tag, and the wire in and out at the edges of the water
+                const pieceFade = fade(x, x + piece.width);
+                const tagFade = fade(left, left + tagWidth);
+                elements[index].style.opacity = String(pieceFade);
+                tag.style.opacity = String(tagFade);
+                wires[index].style.opacity = String(Math.min(pieceFade, tagFade));
+                tag.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px) rotate(${tilt.toFixed(2)}deg)`;
+
+                // run the wire from the tie to the tag's grommet, sagging while slack
+                const hole = { x: tether.tagX, y: top + tagHeight / 2 };
+                const span = Math.hypot(hole.x - tie.x, hole.y - tie.y);
+                const sag = Math.max(0, wireLength - span) * 0.5 + 1.5;
+                wires[index].setAttribute(
+                    "d",
+                    `M${tie.x.toFixed(1)} ${tie.y.toFixed(1)}Q${((tie.x + hole.x) / 2).toFixed(1)} ${((tie.y + hole.y) / 2 + sag).toFixed(1)} ${hole.x.toFixed(1)} ${hole.y.toFixed(1)}`,
+                );
             });
         };
         frame = requestAnimationFrame(loop);
@@ -232,64 +329,132 @@ export function Flotsam(props: { isAdrift: boolean; surfacedAt: number; waterlin
                     {...stylex.attrs(styles.piece)}
                 >
                     {piece.art()}
+                </div>
+            ))}
 
-                    {/* trail the tag on a slack string from its tie */}
-                    <svg {...stylex.attrs(styles.string)}>
+            {/* float each tag on its own, tied to its piece by a thin wire */}
+            {pieces.map((piece, index) => (
+                <>
+                    <svg {...stylex.attrs(styles.wire)}>
                         <path
-                            d={`M${piece.tie[0]} ${piece.tie[1]} Q${piece.tie[0] + 6} ${piece.tie[1] + 5} ${piece.tie[0] + 13} ${piece.tie[1] - 2}`}
+                            ref={(element) => {
+                                wires[index] = element;
+                            }}
                         />
                     </svg>
                     <span
                         ref={(element) => {
                             tags[index] = element;
                         }}
-                        style={{
-                            left: `${piece.tie[0] + 12}px`,
-                            top: `${piece.tie[1] - 12}px`,
-                        }}
                         {...stylex.attrs(styles.tag)}
                     >
                         {piece.tags[0]}
                     </span>
-                </div>
+                </>
             ))}
         </div>
     );
 }
 
-/// Draw a leaking orange lifeboat with a castaway bailing it out.
-function Lifeboat() {
+/// Draw a patched pool unicorn, deflating, its head drooping.
+function Unicorn() {
     return (
-        <svg width="88" height="46" viewBox="0 0 88 46" {...stylex.attrs(styles.art)}>
-            <circle cx="40" cy="11" r="5" {...stylex.attrs(styles.skin)} />
-            <path d="M40 16 V27 M40 19.5 L32 13.5 M40 22 L33 18" {...stylex.attrs(styles.limb)} />
+        <svg width="72" height="56" viewBox="0 0 72 56" {...stylex.attrs(styles.art)}>
+            <path d="M8 37 Q1 33 4 25 Q6 30 10 31" {...stylex.attrs(styles.outline, styles.pink)} />
+            <g transform="rotate(24 50 33)">
+                <path
+                    d="M44 34 Q45 20 52 15 Q58 11 63 15 Q67 18 66 22 Q64 25 60 24 Q56 23 55 27 L54 36 Z"
+                    {...stylex.attrs(styles.outline, styles.vinyl)}
+                />
+                <path
+                    d="M47 29 Q43 25 47 22 Q44 18 49 16 Q48 12 53 12"
+                    {...stylex.attrs(styles.mane)}
+                />
+                <path
+                    d="M57 13 Q57.5 8 60 4 L61.5 12.5 Z"
+                    transform="rotate(30 59 12)"
+                    {...stylex.attrs(styles.outline, styles.gold)}
+                />
+                <path d="M59.5 17.5 Q61 16.3 62.3 17.5" {...stylex.attrs(styles.lash)} />
+            </g>
             <path
-                d="M24 10 H32 L31 18 H25 Z"
-                transform="rotate(-35 28 14)"
-                {...stylex.attrs(styles.bucket)}
+                d="M7 42 Q5 31 17 30 H45 Q58 30 58 41 Q58 51 45 51 H17 Q7 51 7 42 Z"
+                {...stylex.attrs(styles.outline, styles.vinyl)}
             />
-            <path d="M22 9 Q17 7 13 11" {...stylex.attrs(styles.splashEdge)} />
-            <path d="M22 9 Q17 7 13 11" {...stylex.attrs(styles.splash)} />
-            <circle cx="11" cy="15" r="1.3" {...stylex.attrs(styles.drop)} />
-            <circle cx="9.5" cy="19.5" r="1" {...stylex.attrs(styles.drop)} />
-            <path
-                d="M3 22 Q10 26 20 26 H64 Q78 26 86 18 L80 36 Q76 44 68 44 H16 Q9 44 6 37 Z"
-                {...stylex.attrs(styles.hull)}
-            />
-            <path d="M5 27.5 Q11 31 20 31 H64 Q76.5 31 83.5 24" {...stylex.attrs(styles.stripe)} />
-            <path d="M58 34 l3 -4 l1.5 3 l3 -3" {...stylex.attrs(styles.crack)} />
+            <path d="M15 43 Q30 46 50 43" {...stylex.attrs(styles.seam)} />
+            <path d="M24 36 l7 -3 l1.5 3.5 l-7 3 Z" {...stylex.attrs(styles.patch)} />
+            <path d="M27.5 35.5 l1 2.2" {...stylex.attrs(styles.patchLine)} />
         </svg>
     );
 }
 
-/// Draw a red and white life ring.
-function LifeRing() {
+/// Draw a credit card floating on its edge.
+function Card() {
     return (
-        <svg width="40" height="40" viewBox="0 0 40 40" {...stylex.attrs(styles.art)}>
-            <circle cx="20" cy="22" r="13" {...stylex.attrs(styles.ring)} />
-            <circle cx="20" cy="22" r="13" pathLength="8" {...stylex.attrs(styles.ringStripes)} />
-            <circle cx="20" cy="22" r="17.5" {...stylex.attrs(styles.edge)} />
-            <circle cx="20" cy="22" r="8.5" {...stylex.attrs(styles.edge)} />
+        <svg width="46" height="32" viewBox="0 0 46 32" {...stylex.attrs(styles.art)}>
+            <g transform="rotate(-10 23 16)">
+                <rect
+                    x="3"
+                    y="4"
+                    width="40"
+                    height="25"
+                    rx="3.5"
+                    {...stylex.attrs(styles.outline, styles.plastic)}
+                />
+                <rect x="8" y="10" width="8" height="6" rx="1.2" {...stylex.attrs(styles.chip)} />
+                <path d="M8 22 H14 M17 22 H23 M26 22 H32" {...stylex.attrs(styles.digits)} />
+                <path
+                    d="M33 9.5 Q35.5 12 33 14.5 M36 8 Q39.5 12 36 16"
+                    {...stylex.attrs(styles.digits)}
+                />
+            </g>
+        </svg>
+    );
+}
+
+/// Draw a padlocked treasure chest, barely afloat.
+function Chest() {
+    return (
+        <svg width="46" height="38" viewBox="0 0 46 38" {...stylex.attrs(styles.art)}>
+            <path d="M4 17 Q4 5 23 5 Q42 5 42 17 Z" {...stylex.attrs(styles.outline, styles.lid)} />
+            <path d="M4 17 H42 V35 H4 Z" {...stylex.attrs(styles.outline, styles.timber)} />
+            <path d="M11 6.5 V35 M35 6.5 V35" {...stylex.attrs(styles.band)} />
+            <path
+                d="M19.5 17.5 Q19.5 12.5 23 12.5 Q26.5 12.5 26.5 17.5"
+                {...stylex.attrs(styles.outline)}
+            />
+            <rect
+                x="18"
+                y="17"
+                width="10"
+                height="8.5"
+                rx="1.2"
+                {...stylex.attrs(styles.outline, styles.gold)}
+            />
+            <path d="M23 20 V22.5" {...stylex.attrs(styles.keyhole)} />
+        </svg>
+    );
+}
+
+/// Draw a corked bottle with a rolled-up message inside.
+function Bottle() {
+    return (
+        <svg width="52" height="22" viewBox="0 0 52 22" {...stylex.attrs(styles.art)}>
+            <path
+                d="M3 11 Q3 3 10 3 H32 Q36 3 38.5 7.5 H44 V14.5 H38.5 Q36 19 32 19 H10 Q3 19 3 11 Z"
+                {...stylex.attrs(styles.outline, styles.glass)}
+            />
+            <rect
+                x="44"
+                y="7.8"
+                width="5.5"
+                height="6.4"
+                rx="1"
+                {...stylex.attrs(styles.outline, styles.cork)}
+            />
+            <rect x="9" y="7" width="22" height="8" rx="3.5" {...stylex.attrs(styles.scroll)} />
+            <path d="M12 10 H26 M12 12.5 H22" {...stylex.attrs(styles.scrollLine)} />
+            <path d="M7 6.5 Q10 5 14 5" {...stylex.attrs(styles.glint)} />
         </svg>
     );
 }
@@ -350,14 +515,111 @@ const styles = stylex.create({
         display: "block",
         overflow: "visible",
     },
-    string: {
+    outline: {
+        fill: "none",
+        stroke: tokens.signalInk,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        strokeWidth: 1.5,
+    },
+    vinyl: {
+        fill: "#fdfbf7",
+    },
+    pink: {
+        fill: "#f7a8c8",
+    },
+    mane: {
+        fill: "none",
+        stroke: "#f7a8c8",
+        strokeLinecap: "round",
+        strokeWidth: 3.2,
+    },
+    gold: {
+        fill: "#f4c542",
+    },
+    lash: {
+        fill: "none",
+        stroke: tokens.signalInk,
+        strokeLinecap: "round",
+        strokeWidth: 1.2,
+    },
+    seam: {
+        fill: "none",
+        stroke: "#e9dfe6",
+        strokeLinecap: "round",
+        strokeWidth: 2.5,
+    },
+    patch: {
+        fill: "#e7c7a0",
+        stroke: tokens.signalInk,
+        strokeWidth: 1,
+    },
+    patchLine: {
+        stroke: tokens.signalInk,
+        strokeWidth: 0.8,
+    },
+    plastic: {
+        fill: "#2e5a7a",
+    },
+    chip: {
+        fill: "#f4c542",
+        stroke: tokens.signalInk,
+        strokeWidth: 1,
+    },
+    digits: {
+        fill: "none",
+        stroke: tokens.cream,
+        strokeLinecap: "round",
+        strokeWidth: 1.5,
+    },
+    lid: {
+        fill: "#b07a45",
+    },
+    timber: {
+        fill: "#9a6636",
+    },
+    band: {
+        opacity: 0.55,
+        stroke: tokens.signalInk,
+        strokeWidth: 1.5,
+    },
+    keyhole: {
+        stroke: tokens.signalInk,
+        strokeLinecap: "round",
+        strokeWidth: 1.3,
+    },
+    glass: {
+        fill: "#cfe8dc",
+        fillOpacity: 0.85,
+    },
+    cork: {
+        fill: "#c89b66",
+    },
+    scroll: {
+        fill: tokens.cream,
+        stroke: tokens.signalInk,
+        strokeWidth: 1,
+    },
+    scrollLine: {
+        opacity: 0.6,
+        stroke: tokens.signalInk,
+        strokeWidth: 0.8,
+    },
+    glint: {
+        fill: "none",
+        stroke: "#ffffff",
+        strokeLinecap: "round",
+        strokeWidth: 1.3,
+    },
+    wire: {
         fill: "none",
         height: "1px",
         left: 0,
         overflow: "visible",
         position: "absolute",
         stroke: tokens.signalInk,
-        strokeWidth: 1,
+        strokeLinecap: "round",
+        strokeWidth: 0.9,
         top: 0,
         width: "1px",
     },
@@ -371,82 +633,30 @@ const styles = stylex.create({
         fontSize: "0.6875rem",
         fontWeight: 700,
         letterSpacing: "0.06em",
+        borderRadius: "2px 5px 5px 2px",
+        boxShadow: "0 1px 0 rgb(0 0 0 / 12%)",
+        left: 0,
         paddingBlock: "0.0625rem",
-        paddingInline: "0.375rem",
+        paddingInlineEnd: "0.875rem",
+        paddingInlineStart: "0.375rem",
         position: "absolute",
         textTransform: "uppercase",
-        transform: "rotate(-3deg)",
-        transformOrigin: "0 50%",
+        top: 0,
+        transformOrigin: "calc(100% - 5px) 50%",
         whiteSpace: "nowrap",
-    },
-    skin: {
-        fill: "#f2c9a0",
-        stroke: tokens.signalInk,
-        strokeWidth: 1.25,
-    },
-    limb: {
-        fill: "none",
-        stroke: tokens.signalInk,
-        strokeLinecap: "round",
-        strokeLinejoin: "round",
-        strokeWidth: 2.5,
-    },
-    bucket: {
-        fill: "#9fb4bd",
-        stroke: tokens.signalInk,
-        strokeLinejoin: "round",
-        strokeWidth: 1.25,
-    },
-    splash: {
-        fill: "none",
-        stroke: "#bfe3ee",
-        strokeLinecap: "round",
-        strokeWidth: 2.2,
-    },
-    splashEdge: {
-        fill: "none",
-        stroke: tokens.signalInk,
-        strokeLinecap: "round",
-        strokeWidth: 3.6,
-    },
-    drop: {
-        fill: "#bfe3ee",
-        stroke: tokens.signalInk,
-        strokeWidth: 0.7,
-    },
-    hull: {
-        fill: tokens.signal,
-        stroke: tokens.signalInk,
-        strokeLinejoin: "round",
-        strokeWidth: 1.5,
-    },
-    stripe: {
-        fill: "none",
-        stroke: tokens.cream,
-        strokeWidth: 2.5,
-    },
-    crack: {
-        fill: "none",
-        stroke: tokens.signalInk,
-        strokeLinecap: "round",
-        strokeLinejoin: "round",
-        strokeWidth: 1.2,
-    },
-    ring: {
-        fill: "none",
-        stroke: "#ffffff",
-        strokeWidth: 8,
-    },
-    ringStripes: {
-        fill: "none",
-        stroke: "#e2462c",
-        strokeDasharray: "1 1",
-        strokeWidth: 8,
-    },
-    edge: {
-        fill: "none",
-        stroke: tokens.signalInk,
-        strokeWidth: 1.25,
+        willChange: "transform",
+        "::before": {
+            borderColor: tokens.signalInk,
+            borderRadius: "50%",
+            borderStyle: "solid",
+            borderWidth: "1.25px",
+            content: "''",
+            height: "4px",
+            position: "absolute",
+            right: "3px",
+            top: "calc(50% - 3.25px)",
+            width: "4px",
+        },
     },
     glow: {
         fill: "#ffe7a3",
