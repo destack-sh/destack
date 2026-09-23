@@ -48,6 +48,9 @@ const adriftDelay = 20000;
 /// The milliseconds the shattered ice waits before it clumps back together as the water returns.
 const reformDelay = 1100;
 
+/// A point in drawing pixels.
+type Point = { x: number; y: number };
+
 /// The two configurations the figure compares.
 type Stack = "today" | "destack";
 
@@ -442,7 +445,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         sound.play(next === "destack" ? "destack" : "restack");
         sound.follow(next);
 
-        // shatter the ice as the water drains, or clump it back together just before the water returns
+        // shatter the ice as the water drains, or clump it together just before it returns
         ice?.breakTo(next === "destack" ? 1 : 0, next === "destack" ? 0 : reformDelay);
 
         // bring the open stack to life only once the water has fully drained
@@ -477,10 +480,20 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         const shift = () =>
             drawing.getBoundingClientRect().left - canvas.getBoundingClientRect().left;
         let riders: { element: HTMLElement; berg: number; lift: number }[] | undefined;
+
+        // return the bottom of a card's resting slot, ignoring drag and float offsets
+        const restingBottom = (element: HTMLElement) => {
+            let bottom = element.offsetHeight;
+            for (let node: HTMLElement | null = element; node && node !== drawing;) {
+                bottom += node.offsetTop;
+                node = node.offsetParent as HTMLElement | null;
+            }
+            return bottom;
+        };
         let strips: SVGElement[] | undefined;
 
-        // stick both ends of a tape strip to its cards, then span, turn, and stretch it
-        const stick = (tape: SVGElement, gap: number, lifts: number[], tilts: number[]) => {
+        // stick a tape to where its cards actually are, then span, turn, and stretch it
+        const stick = (tape: SVGElement, gap: number, centres: Point[], tilts: number[]) => {
             const cell = frame.width / boardCells;
             const middle = (frame.height / (rowCells * layers.length)) * rowCells * 1.5;
             const half = (cell * columnWidth) / 2 - tapeGrip;
@@ -488,8 +501,8 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
                 const angle = (tilts[berg] * Math.PI) / 180;
                 const x = side * half;
                 return {
-                    x: cell * columnCentres[berg] + x * Math.cos(angle) - drop * Math.sin(angle),
-                    y: middle + lifts[berg] + x * Math.sin(angle) + drop * Math.cos(angle),
+                    x: centres[berg].x + x * Math.cos(angle) - drop * Math.sin(angle),
+                    y: centres[berg].y + x * Math.sin(angle) + drop * Math.cos(angle),
                 };
             };
             const from = anchor(gap, 1, tapeDrops[gap][0]);
@@ -509,30 +522,35 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
                     (element) => ({ element, berg: Number(element.dataset.bob), lift: 0 }),
                 );
 
-                // float each vendor card low on the surface above its berg, heaving with the waves and leaning with their slope
+                // float each vendor card low above its berg, heaving and leaning with the waves
                 const seconds = performance.now() / 1000;
                 const cell = frame.width / boardCells;
-                const top = drawing.getBoundingClientRect().top;
-                const lifts: number[] = [];
+                const bounds = drawing.getBoundingClientRect();
+                const centres: Point[] = [];
                 const tilts: number[] = [];
                 for (const rider of riders) {
                     const x = shift() + cell * columnCentres[rider.berg];
-                    const box = rider.element.getBoundingClientRect();
-                    const rest = box.bottom - top - rider.lift;
-                    const sink = waterline() - rest + box.height * cardDraft;
+                    const rest = restingBottom(rider.element);
+                    const sink = waterline() - rest + rider.element.offsetHeight * cardDraft;
                     const heave = Math.sin(seconds * 0.9 + rider.berg * 2.1) * 2;
                     const slope = waveAt(x + 30, seconds) - waveAt(x - 30, seconds);
                     rider.lift = sink + waveAt(x, seconds) + heave;
-                    lifts[rider.berg] = rider.lift;
                     tilts[rider.berg] =
                         (Math.atan2(slope, 60) * 180) / Math.PI +
                         Math.sin(seconds * 0.6 + rider.berg * 1.4) * 1.2;
                     rider.element.style.setProperty("--lift", `${rider.lift.toFixed(2)}px`);
                     rider.element.style.setProperty("--tilt", `${tilts[rider.berg].toFixed(2)}deg`);
+
+                    // find where the card actually is, dragged or floating, for its tapes
+                    const box = rider.element.getBoundingClientRect();
+                    centres[rider.berg] = {
+                        x: (box.left + box.right) / 2 - bounds.left,
+                        y: (box.top + box.bottom) / 2 - bounds.top,
+                    };
                 }
                 strips ??= [...figure.querySelectorAll<SVGElement>("[data-tape]")];
                 for (const tape of strips) {
-                    stick(tape, Number(tape.dataset.tape), lifts, tilts);
+                    stick(tape, Number(tape.dataset.tape), centres, tilts);
                 }
             });
             ice.place(waterline(), frame.height - waterline(), shift());
@@ -558,7 +576,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         });
         resize.observe(drawing);
 
-        // swing the searchlight after the pointer, clear the water under it, and show inside the boxes it falls on
+        // swing the searchlight after the pointer and show inside the boxes it falls on
         let beam: number | undefined;
         let isLooking = false;
         const shine = () => {
