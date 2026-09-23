@@ -6,6 +6,7 @@
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
+        "./client": "./src/client/index.ts",
         "./router": "./src/router/index.ts",
         "./document": "./src/document/index.ts",
         "./render": "./src/render/index.ts",
@@ -15,9 +16,16 @@
         "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "test": "vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/test": "workspace:*"
     },
     "dependencies": {
+        "@destack/service": "workspace:*",
         "@destack/signals": "workspace:*",
         "@solidjs/router": "2.0.0-next.24",
         "@solidjs/meta": "1.0.0-next.2",

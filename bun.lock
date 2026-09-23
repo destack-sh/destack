@@ -506,11 +506,17 @@
       "name": "@destack/view",
       "version": "2026.9.0",
       "dependencies": {
+        "@destack/service": "workspace:*",
         "@destack/signals": "workspace:*",
         "@solidjs/meta": "1.0.0-next.2",
         "@solidjs/router": "2.0.0-next.24",
         "@solidjs/web": "2.0.0-rc.8",
         "solid-js": "2.0.0-rc.8",
+      },
+      "devDependencies": {
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/test": "workspace:*",
       },
     },
     "dev/release": {

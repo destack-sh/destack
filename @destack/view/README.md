@@ -7,6 +7,17 @@ import { createSignal } from "@destack/view";
 import { render } from "@destack/view/render";
 ```
 
+## Client
+
+```ts
+import { openClient } from "@destack/view/client";
+import { notes } from "./connection/index.ts";
+
+const context = await openClient(window, signal);
+context.bind(notes);
+const result = await notes.get(context.resources).list();
+```
+
 ## Router
 
 Define view routes with Solid Router 2.
@@ -36,9 +47,3 @@ export function Metadata() {
     );
 }
 ```
-
-## Conventions
-
-Use view primitives inside components and standalone signals in shared application models. Build JSX
-with `@destack/build`; `@destack/view/runtime` supplies compiler instructions. Import reactive
-diagnostics from `@destack/view/inspect`.

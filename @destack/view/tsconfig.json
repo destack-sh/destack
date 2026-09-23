@@ -3,6 +3,7 @@
     "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"] },
     "files": [
         "./src/index.ts",
+        "./src/client/index.ts",
         "./src/router/index.ts",
         "./src/document/index.ts",
         "./src/render/index.ts",
