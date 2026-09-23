@@ -1,0 +1,14 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="20"
+  height="20"
+  viewBox="0 0 20 20"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="square"
+  stroke-linejoin="miter"
+>
+  <path d="M10 3.5l6 3v7l-6 3-6-3v-7l6-3Z" />
+  <path d="M4 6.5l6 3 6-3M10 9.5v7" />
+</svg>
