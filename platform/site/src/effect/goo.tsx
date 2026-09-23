@@ -40,7 +40,9 @@ uniform float rest;
 uniform float wobble;
 uniform vec2 pointer;
 uniform float pull;
-uniform vec2 drift;
+uniform float shower;
+uniform vec2 far;
+uniform vec2 near;
 uniform vec3 hole;
 uniform float glow;
 uniform float flow;
@@ -77,8 +79,12 @@ vec3 starLayer(vec2 p, float cellSize, float density, float t) {
     float size = hash(cell + 5.1);
     float radius = size < 0.7 ? 0.7 : (size < 0.93 ? 1.1 : 1.6);
     float disc = 1.0 - smoothstep(radius - 0.5, radius + 0.5, length(local - centre));
-    float alpha = mix(0.35, 0.9, hash(cell + 7.7)) * (0.85 + 0.15 * sin(t * (0.4 + hash(cell + 9.0) * 0.6) + seed * 40.0));
-    return rimColor * disc * alpha;
+    float alpha = mix(0.35, 0.9, hash(cell + 7.7)) * (0.7 + 0.3 * sin(t * (0.5 + hash(cell + 9.0) * 0.9) + seed * 40.0));
+
+    // tint some stars in soft pastels
+    float hue = hash(cell + 3.3);
+    vec3 tint = hue < 0.18 ? vec3(0.98, 0.72, 0.84) : (hue < 0.36 ? vec3(0.66, 0.85, 1.0) : (hue < 0.5 ? vec3(1.0, 0.9, 0.62) : (hue < 0.6 ? vec3(0.7, 0.95, 0.84) : rimColor)));
+    return mix(rimColor, tint, 0.8) * disc * alpha;
 }
 
 // return one shooting star's light at a point, one streak per period on its own track
@@ -109,7 +115,7 @@ void main() {
     float swell = noise(frag * 0.013 - vec2(time * 0.03, time * 0.012)) - 0.5;
     d -= (slow * 2.0 + swell) * wobble;
 
-    // swell heavily toward the pointer
+    // swell heavily toward the pointer, reaching out as it comes close
     float away = length(frag - pointer);
     d -= pull * 10.0 * exp(-away * away / 9000.0);
 
@@ -129,24 +135,24 @@ void main() {
         sky += around / max(distance, 1.0) * hole.z * hole.z * 1.6 / max(distance, hole.z);
     }
 
-    // glow softly from the upper left, under two sparse depths of flat stars that drift against the pointer
+    // glow from the upper left under two depths of flat stars placed across the page
     float falloff = 1.0 - smoothstep(0.0, 1.0, length(frag - size * vec2(0.3, 0.2)) / max(size.x, size.y) * 1.8);
     vec3 nebula = (vec3(0.118, 0.259, 0.341) - space) * falloff * 0.55;
-    vec3 far = starLayer(sky + drift * 0.4 + vec2(time * 1.2, time * 0.3), 26.0, 0.32, time);
-    vec3 near = starLayer(sky + drift + 71.0 + vec2(time * 2.4, time * 0.6), 58.0, 0.35, time * 1.3) * 1.25;
+    vec3 distant = starLayer(sky + far + vec2(time * 1.2, time * 0.3), 26.0, 0.32, time);
+    vec3 close = starLayer(sky + near + 71.0 + vec2(time * 2.4, time * 0.6), 58.0, 0.35, time * 1.3) * 1.25;
 
     // shower shooting stars while the pointer is over the goo
     vec3 meteor = vec3(0.0);
-    if (pull > 0.01) {
+    if (shower > 0.01) {
         for (int i = 1; i < 4; i++) {
             float track = float(i);
-            meteor += streak(frag, size, time + track * 0.73, 0.9 + track * 0.35, track) * pull;
+            meteor += streak(frag, size, time + track * 0.73, 0.9 + track * 0.35, track) * shower;
         }
     }
 
     // glow faintly inside the rim so the edge reads as a surface
     float sheen = (1.0 - smoothstep(0.0, 14.0, -d)) * 0.05;
-    vec3 color = space + nebula + sheen + far * 0.6 + near * 0.8 + meteor;
+    vec3 color = space + nebula + sheen + distant * 0.6 + close * 0.8 + meteor;
 
     // swallow the light behind a black hole ringed by a swirling accretion disk seen nearly edge on,
     // faint at rest and blazing while lit
@@ -177,7 +183,28 @@ void main() {
 }
 `;
 
-/// A heavy goo field of quiet stars that swells toward the pointer.
+/// The pointer anywhere on the page in client coordinates, shared by every goo.
+const pagePointer = { x: 0, y: 0, isKnown: false };
+let isTrackingPagePointer = false;
+
+/// Start following the pointer across the whole page, once for every goo.
+function trackPagePointer() {
+    if (isTrackingPagePointer) {
+        return;
+    }
+    isTrackingPagePointer = true;
+    window.addEventListener(
+        "pointermove",
+        (event) => {
+            pagePointer.x = event.clientX;
+            pagePointer.y = event.clientY;
+            pagePointer.isKnown = true;
+        },
+        { passive: true },
+    );
+}
+
+/// A heavy goo window onto a quiet, dreamy sky that reaches toward the pointer.
 class Starfield {
     /// The shader that draws the goo.
     shader: Shader;
@@ -185,8 +212,10 @@ class Starfield {
     target: { x: number; y: number };
     /// The smoothed pointer position.
     pointer: { x: number; y: number };
-    /// The smoothed swell strength from 0 to 1.
+    /// The smoothed swell strength from 0 to 1, fading with the pointer's distance outside.
     pull: number;
+    /// The smoothed meteor shower strength from 0 to 1, while the pointer is over the goo.
+    shower: number;
     /// Whether the pointer is over the goo.
     isHovered: boolean;
     /// Whether the goo moves at all.
@@ -220,6 +249,7 @@ class Starfield {
         this.target = { x: 0, y: 0 };
         this.pointer = { x: 0, y: 0 };
         this.pull = 0;
+        this.shower = 0;
         this.isHovered = false;
         this.isMoving = isMoving;
         this.isPainted = false;
@@ -232,20 +262,9 @@ class Starfield {
         this.flare = 0;
     }
 
-    /// Follow the pointer, in client coordinates.
-    follow(clientX: number, clientY: number) {
-        const bounds = this.shader.canvas.getBoundingClientRect();
-        this.target = { x: clientX - bounds.left, y: clientY - bounds.top };
-        if (!this.isHovered) {
-            this.pointer = { ...this.target };
-        }
-        this.isHovered = true;
-        this.shader.request();
-    }
-
-    /// Let the swell settle after the pointer leaves.
-    release() {
-        this.isHovered = false;
+    /// Note whether the pointer is over the goo.
+    hover(isHovered: boolean) {
+        this.isHovered = isHovered;
         this.shader.request();
     }
 
@@ -254,22 +273,44 @@ class Starfield {
         const shader = this.shader;
         const context = shader.context;
 
-        // move heavily: the pointer and swell lag far behind their targets
+        // follow the pointer anywhere on the page, lagging heavily behind it
+        const bounds = shader.canvas.getBoundingClientRect();
+        if (pagePointer.isKnown) {
+            this.target = { x: pagePointer.x - bounds.left, y: pagePointer.y - bounds.top };
+        }
         this.pointer.x += (this.target.x - this.pointer.x) * 0.06;
         this.pointer.y += (this.target.y - this.pointer.y) * 0.06;
-        this.pull += ((this.isHovered ? 1 : 0) - this.pull) * 0.04;
 
-        // drift the stars against the pointer
-        const driftX = (this.pointer.x - shader.width / 2) * -0.03 * this.pull;
-        const driftY = (this.pointer.y - shader.height / 2) * -0.03 * this.pull;
+        // reach toward a pointer close outside, fully once it is over the goo
+        const outside = Math.hypot(
+            Math.max(0, -this.target.x, this.target.x - bounds.width),
+            Math.max(0, -this.target.y, this.target.y - bounds.height),
+        );
+        const reach = this.isHovered ? 1 : pagePointer.isKnown ? Math.exp(-outside / 60) * 0.8 : 0;
+        this.pull += (reach - this.pull) * 0.04;
+        this.shower += ((this.isHovered ? 1 : 0) - this.shower) * 0.04;
+
+        // place the sky by page position, far stars shifting less than near ones
+        const lookX = pagePointer.isKnown ? (pagePointer.x - window.innerWidth / 2) * -0.015 : 0;
+        const lookY = pagePointer.isKnown ? (pagePointer.y - window.innerHeight / 2) * -0.015 : 0;
 
         // upload the frame parameters
         context.uniform1f(shader.uniform("time"), this.isMoving ? (now - this.start) / 1000 : 0);
         context.uniform1f(shader.uniform("rest"), spill - 3);
-        context.uniform1f(shader.uniform("wobble"), this.isMoving ? 1.6 : 0);
+        context.uniform1f(shader.uniform("wobble"), this.isMoving ? 2.2 : 0);
         context.uniform2f(shader.uniform("pointer"), this.pointer.x, this.pointer.y);
         context.uniform1f(shader.uniform("pull"), this.isMoving ? this.pull : 0);
-        context.uniform2f(shader.uniform("drift"), driftX, driftY);
+        context.uniform1f(shader.uniform("shower"), this.isMoving ? this.shower : 0);
+        context.uniform2f(
+            shader.uniform("far"),
+            bounds.left + window.scrollX * 0.3 + lookX * 0.4,
+            bounds.top + window.scrollY * 0.3 + lookY * 0.4,
+        );
+        context.uniform2f(
+            shader.uniform("near"),
+            bounds.left + window.scrollX * 0.7 + lookX,
+            bounds.top + window.scrollY * 0.7 + lookY,
+        );
 
         // light the black hole's disk slowly
         const flow = this.flow();
@@ -333,10 +374,11 @@ export function Goo(props: {
         }
 
         // follow the pointer over the cell
-        const follow = (event: PointerEvent) => field.follow(event.clientX, event.clientY);
-        const release = () => field.release();
-        host.addEventListener("pointermove", follow);
-        host.addEventListener("pointerleave", release);
+        const enter = () => field.hover(true);
+        const leave = () => field.hover(false);
+        host.addEventListener("pointerenter", enter);
+        host.addEventListener("pointerleave", leave);
+        trackPagePointer();
 
         // pause while off screen
         const view = new IntersectionObserver(([entry]) => field.shader.show(entry.isIntersecting));
@@ -344,8 +386,8 @@ export function Goo(props: {
 
         return () => {
             view.disconnect();
-            host.removeEventListener("pointermove", follow);
-            host.removeEventListener("pointerleave", release);
+            host.removeEventListener("pointerenter", enter);
+            host.removeEventListener("pointerleave", leave);
             field.shader.dispose();
         };
     });
