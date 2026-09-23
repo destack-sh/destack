@@ -1,85 +1,10 @@
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_14_150)">
-<path d="M256 486C383.025 486 486 383.025 486 256C486 128.975 383.025 26 256 26C128.975 26 26 128.975 26 256C26 383.025 128.975 486 256 486Z" fill="url(#paint1_radial_14_150)"/>
-<mask id="mask0_14_150" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="-201" y="-201" width="792" height="579">
-<path d="M468.771 -200.29L-200.29 43.2286L-78.5306 377.759L590.531 134.241L468.771 -200.29Z" fill="white"/>
-</mask>
-<g mask="url(#mask0_14_150)">
-<path d="M273.785 304.863C369.796 269.918 439.666 219.713 429.843 192.726C420.021 165.739 334.226 172.19 238.215 207.135C142.204 242.08 72.3345 292.286 82.1569 319.273C91.9793 346.26 177.774 339.809 273.785 304.863Z" stroke="#8C7B70" stroke-width="10"/>
-<path d="M275.837 310.502C383.785 271.212 462.412 214.96 451.456 184.859C440.5 154.758 344.11 162.208 236.163 201.497C128.215 240.787 49.5882 297.039 60.544 327.14C71.4997 357.24 167.89 349.791 275.837 310.502Z" stroke="#C2A68C" stroke-width="12"/>
-<g filter="url(#filter0_f_14_150)">
-<path d="M278.573 318.019C401.052 273.44 490.234 209.535 477.767 175.283C465.301 141.03 355.905 149.401 233.427 193.98C110.948 238.558 21.7657 302.464 34.2326 336.716C46.6995 370.969 156.095 362.598 278.573 318.019Z" stroke="#EBE0D6" stroke-width="20"/>
-</g>
-<g filter="url(#filter1_d_14_150)">
-<path d="M278.573 318.019C401.052 273.44 490.234 209.535 477.767 175.283C465.301 141.03 355.905 149.401 233.427 193.98C110.948 238.558 21.7657 302.464 34.2326 336.716C46.6995 370.969 156.095 362.598 278.573 318.019Z" stroke="white" stroke-width="8" shape-rendering="crispEdges"/>
-</g>
-</g>
-<path d="M258 408C346.366 408 418 336.366 418 248C418 159.634 346.366 88 258 88C169.634 88 98 159.634 98 248C98 336.366 169.634 408 258 408Z" fill="url(#paint2_linear_14_150)"/>
-<mask id="mask1_14_150" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="98" y="88" width="320" height="320">
-<path d="M258 408C346.366 408 418 336.366 418 248C418 159.634 346.366 88 258 88C169.634 88 98 159.634 98 248C98 336.366 169.634 408 258 408Z" fill="white"/>
-</mask>
-<g mask="url(#mask1_14_150)">
-<path opacity="0.5" d="M8.30304 131.636C165.879 204.364 347.697 204.364 505.273 131.636V161.939C347.697 234.667 165.879 234.667 8.30304 161.939V131.636Z" fill="#BF360C"/>
-<path opacity="0.4" d="M8.30304 186.182C165.879 246.788 347.697 246.788 505.273 186.182V198.303C347.697 258.909 165.879 258.909 8.30304 198.303V186.182Z" fill="#BF360C"/>
-<path opacity="0.6" d="M8.30304 228.606C165.879 289.212 347.697 289.212 505.273 228.606V264.97C347.697 325.576 165.879 325.576 8.30304 264.97V228.606Z" fill="#BF360C"/>
-<path opacity="0.5" d="M8.30304 295.273C165.879 343.758 347.697 343.758 505.273 295.273V307.394C347.697 355.879 165.879 355.879 8.30304 307.394V295.273Z" fill="#BF360C"/>
-<g opacity="0.25" filter="url(#filter2_f_14_150)">
-<path d="M282.045 314.063C392.131 273.995 472.279 216.526 461.06 185.701C449.841 154.877 351.504 162.371 241.417 202.439C131.331 242.507 51.1834 299.977 62.4024 330.801C73.6215 361.625 171.959 354.131 282.045 314.063Z" stroke="#4A1808" stroke-width="26"/>
-</g>
-</g>
-<mask id="mask2_14_150" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="-79" y="134" width="773" height="526">
-<path d="M590.531 134.241L-78.5305 377.759L24.0755 659.667L693.137 416.149L590.531 134.241Z" fill="white"/>
-</mask>
-<g mask="url(#mask2_14_150)">
-<path d="M273.785 304.864C369.796 269.919 439.666 219.713 429.843 192.726C420.021 165.739 334.226 172.191 238.215 207.136C142.204 242.081 72.3345 292.287 82.1569 319.274C91.9793 346.261 177.774 339.809 273.785 304.864Z" stroke="#8C7B70" stroke-width="10"/>
-<path d="M275.837 310.502C383.785 271.213 462.412 214.961 451.456 184.86C440.5 154.759 344.11 162.208 236.163 201.498C128.215 240.787 49.5882 297.039 60.544 327.14C71.4997 357.241 167.89 349.792 275.837 310.502Z" stroke="#C2A68C" stroke-width="12"/>
-<g filter="url(#filter3_f_14_150)">
-<path d="M278.573 318.02C401.052 273.441 490.234 209.536 477.767 175.283C465.301 141.031 355.905 149.402 233.427 193.98C110.948 238.559 21.7657 302.464 34.2326 336.717C46.6995 370.969 156.095 362.598 278.573 318.02Z" stroke="#EBE0D6" stroke-width="20"/>
-</g>
-<path d="M278.573 318.02C401.052 273.441 490.234 209.536 477.767 175.283C465.301 141.031 355.905 149.402 233.427 193.98C110.948 238.559 21.7657 302.464 34.2326 336.717C46.6995 370.969 156.095 362.598 278.573 318.02Z" stroke="white" stroke-width="8"/>
-</g>
-</g>
-<defs>
-<filter id="filter0_f_14_150" x="13.0547" y="134.202" width="485.891" height="243.595" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-<feGaussianBlur stdDeviation="5" result="effect1_foregroundBlur_14_150"/>
-</filter>
-<filter id="filter1_d_14_150" x="25.0636" y="150.202" width="461.873" height="228.595" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-<feOffset dy="13"/>
-<feGaussianBlur stdDeviation="2"/>
-<feComposite in2="hardAlpha" operator="out"/>
-<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.25 0"/>
-<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_14_150"/>
-<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_14_150" result="shape"/>
-</filter>
-<filter id="filter2_f_14_150" x="41.3354" y="146.712" width="440.792" height="223.077" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-<feGaussianBlur stdDeviation="3.5" result="effect1_foregroundBlur_14_150"/>
-</filter>
-<filter id="filter3_f_14_150" x="13.0547" y="134.203" width="485.891" height="243.595" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-<feGaussianBlur stdDeviation="5" result="effect1_foregroundBlur_14_150"/>
-</filter>
-<linearGradient id="paint0_linear_14_150" x1="256" y1="0" x2="256" y2="660" gradientUnits="userSpaceOnUse">
-<stop stop-color="#052E40"/>
-<stop offset="0.55" stop-color="#126269"/>
-<stop offset="1" stop-color="#E08B48"/>
-</linearGradient>
-<radialGradient id="paint1_radial_14_150" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 256) scale(230)">
-<stop offset="0.4" stop-color="#FFD166" stop-opacity="0.15"/>
-<stop offset="1" stop-color="#FFD166" stop-opacity="0"/>
-</radialGradient>
-<linearGradient id="paint2_linear_14_150" x1="93.1515" y1="83.1515" x2="408.303" y2="398.303" gradientUnits="userSpaceOnUse">
-<stop stop-color="#FFC107"/>
-<stop offset="1" stop-color="#D84315"/>
-</linearGradient>
-<clipPath id="clip0_14_150">
-<rect width="512" height="512" fill="white"/>
-</clipPath>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="3.4" fill="#11293b"/><defs>
+<clipPath id="fofront"><path d="M-60 8.1H76V88.1H-60Z" transform="rotate(-28 8 8.1)"/></clipPath>
+<clipPath id="foglobe"><circle cx="8" cy="8.1" r="4.8"/></clipPath>
+<mask id="focut" maskUnits="userSpaceOnUse" x="-60" y="-60" width="136" height="136.2"><rect x="-60" y="-60" width="136" height="136.2" fill="#fff"/>
+<g clip-path="url(#fofront)"><ellipse cx="8" cy="8.1" rx="7.4" ry="2.0" transform="rotate(-28 8 8.1)" fill="none" stroke="#000" stroke-width="3.8"/></g></mask>
 </defs>
-</svg>
+<ellipse cx="8" cy="8.1" rx="7.4" ry="2.0" transform="rotate(-28 8 8.1)" fill="none" stroke="#ff792e" stroke-width="1.5"/>
+<g mask="url(#focut)"><circle cx="8" cy="8.1" r="4.8" fill="#ff792e"/>
+<g clip-path="url(#foglobe)"><circle cx="10.02" cy="10.12" r="4.90" fill="#ff792e"/></g></g>
+<g clip-path="url(#fofront)"><ellipse cx="8" cy="8.1" rx="7.4" ry="2.0" transform="rotate(-28 8 8.1)" fill="none" stroke="#ff792e" stroke-width="1.5"/></g></svg>
