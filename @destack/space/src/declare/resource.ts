@@ -15,8 +15,8 @@ export const SpaceResource = defineSchema(
             .object({
                 /** The provider adapter. */
                 provider: schema.string().min(1),
-                /** The provider region registered by the platform. */
-                region: identifier("region").optional(),
+                /** The location code accepted by the provider adapter. */
+                location: schema.string().min(1).optional(),
                 /** The host administering the resource. */
                 host: identifier("host").optional(),
             })

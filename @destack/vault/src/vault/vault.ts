@@ -9,7 +9,7 @@ import {
     sql,
     type DatabaseConnection,
 } from "@destack/db";
-import { secret, secretVersion, vault } from "@destack/model/regional";
+import { secret, secretVersion, vault } from "@destack/model/space";
 import { identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { v7 } from "uuid";

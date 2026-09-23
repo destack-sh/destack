@@ -5,7 +5,6 @@ import { hostAccess } from "./access.ts";
 import { deviceKey } from "./key.ts";
 import { device } from "./device.ts";
 import { host } from "./host.ts";
-import { region } from "./region.ts";
 import { tunnel } from "./tunnel.ts";
 
 /** Query relationships for host records. */
@@ -17,7 +16,6 @@ export const hostRelations = defineRelationsPart(
         user,
         device,
         deviceKey,
-        region,
         tunnel,
     },
     (relation) => ({
@@ -62,11 +60,6 @@ export const hostRelations = defineRelationsPart(
                 from: [relation.host.accountId],
                 to: [relation.account.id],
                 optional: false,
-            }),
-            region: relation.one.region({
-                from: [relation.host.regionId],
-                to: [relation.region.id],
-                optional: true,
             }),
         },
         tunnel: {

@@ -7,6 +7,8 @@ Stack exports compose space configuration without provisioning resources.
 ```ts
 import { defineSpace, type SpaceDefinition } from "@destack/space";
 import { defineDatabase } from "@destack/db/declare";
+import { PackageId } from "@destack/package";
+import type {} from "@destack/package/import-meta";
 
 export const database = defineDatabase({
     name: "main",
@@ -17,10 +19,14 @@ const personal = {
     resources: { main: { declaration: database, retention: "retain", tags: {} } },
     installations: {
         notes: {
-            package: { name: "@florian/notes", version: "2026.9.0" },
+            package: {
+                id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
+                name: "@florian/notes",
+                version: "2026.9.0",
+            },
             alias: "notes",
-            state: "enabled",
-            resources: { "@florian/stack": { main: { resource: "main" } } },
+            status: "enabled",
+            resources: { [import.meta.destack.package.id]: { main: { resource: "main" } } },
             secrets: {},
             compute: {},
             tags: {},
@@ -56,7 +62,11 @@ export const restricted = defineSpace({
             default: "deny",
             rules: {
                 api: {
-                    destination: { kind: "hostname", hostname: "api.example.com", subdomains: false },
+                    destination: {
+                        kind: "hostname",
+                        hostname: "api.example.com",
+                        subdomains: false,
+                    },
                     protocol: "https",
                     decision: "allow",
                 },
@@ -105,9 +115,7 @@ Parameterised space configuration exports accept explicit values and export thei
 ```ts
 import { defineSchema, schema } from "@destack/schema";
 
-export const Parameters = defineSchema(
-    schema.object({ alias: schema.string().min(1) }),
-);
+export const Parameters = defineSchema(schema.object({ alias: schema.string().min(1) }));
 
 export function preview(input: schema.Infer<typeof Parameters>) {
     const parameters = Parameters.parse(input);

@@ -11,13 +11,61 @@ import {
     deployment,
     serviceAccount,
     deploymentSecretBinding,
-} from "@destack/model/regional";
+} from "@destack/model/space";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { connect } from "../../secret/client.ts";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { VaultFixture } from "./fixture.ts";
 import { vaultPackage } from "../../audit/index.ts";
+
+/** Authorize standalone space secrets through an exact local user identity. */
+test("retain local vault access independently of global account membership", async () => {
+    await using fixture = await VaultFixture.open();
+    const { database, client, context, spaceId } = fixture;
+    const { key } = await fixture.createSecret();
+    const authority = identifier("host").parse(`host-${v7()}`);
+    const subject = { kind: "user" as const, authority, id: fixture.userId };
+
+    // use standalone administration and a direct grant without a global account
+    await database
+        .update(space)
+        .set({
+            accountId: null,
+            authorityRegionId: null,
+            authorityHostId: authority,
+        })
+        .where(eq(space.id, spaceId));
+    await database
+        .update(roleBinding)
+        .set({
+            accountId: null,
+            accountMembershipId: null,
+            userAuthority: authority,
+            userId: subject.id,
+        })
+        .where(eq(roleBinding.roleId, fixture.roleId));
+    const authentication = {
+        ...context.caller.authentication,
+        subject,
+        subjects: [subject],
+        memberships: [],
+    };
+    context.caller = new Caller(authentication);
+    expect((await client.version.read(key)).value).toEqual({
+        encoding: "text",
+        value: "credential",
+    });
+
+    // reject the same identifier authenticated by another authority
+    const otherSubject = { ...subject, authority: identifier("host").parse(`host-${v7()}`) };
+    context.caller = new Caller({
+        ...authentication,
+        subject: otherSubject,
+        subjects: [otherSubject],
+    });
+    await expect(client.version.read(key)).rejects.toMatchObject({ code: "FORBIDDEN" });
+});
 
 /** Preserve authorized administration while blocking suspended-space plaintext. */
 test("deny plaintext while preserving suspended space administration", async () => {
@@ -28,7 +76,7 @@ test("deny plaintext while preserving suspended space administration", async () 
     const plaintext = await client.version.read(key);
 
     // suspend the space without deleting its resources or granting new permissions
-    await database.update(space).set({ state: "suspended" }).where(eq(space.id, spaceId));
+    await database.update(space).set({ status: "suspended" }).where(eq(space.id, spaceId));
     await expect(client.version.read(key)).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(await client.secret.get(key)).toEqual(metadata);
 
@@ -40,7 +88,7 @@ test("deny plaintext while preserving suspended space administration", async () 
     await fixture.allow(true);
 
     // restore the same secret and binding without replacing their identities
-    await database.update(space).set({ state: "enabled" }).where(eq(space.id, spaceId));
+    await database.update(space).set({ status: "enabled" }).where(eq(space.id, spaceId));
     const restored = await client.version.read(key);
     expect(restored).toEqual(plaintext);
 });
@@ -227,7 +275,6 @@ test("restrict workload reads to live deployment secret bindings", async () => {
 
     // provision a running workload and grant its identity the same regional role
     const now = Date.now();
-    const accountId = context.caller.authentication.memberships![0].accountId;
     const installationId = identifier("installation").parse(`installation-${v7()}`);
     const serviceAccountId = identifier("service-account").parse(`service-account-${v7()}`);
     const deploymentId = identifier("deployment").parse(`deployment-${v7()}`);
@@ -242,7 +289,6 @@ test("restrict workload reads to live deployment secret bindings", async () => {
     });
     await database.insert(serviceAccount).values({
         id: serviceAccountId,
-        accountId,
         spaceId,
         installationId,
         name: "consumer",
@@ -269,14 +315,13 @@ test("restrict workload reads to live deployment secret bindings", async () => {
             compute: {},
         },
         policies: { packages: [], network: [] },
-        state: "active",
+        status: "active",
         activatedAt: now,
         createdAt: now,
         updatedAt: now,
     });
     await database.insert(roleBinding).values({
         id: identifier("role-binding").parse(`role-binding-${v7()}`),
-        accountId,
         roleId: fixture.roleId,
         spaceId,
         serviceAccountId,
@@ -331,21 +376,21 @@ test("restrict workload reads to live deployment secret bindings", async () => {
     // suspension, retirement and identity revocation take effect on the next read
     await database
         .update(installation)
-        .set({ state: "suspended" })
+        .set({ status: "suspended" })
         .where(eq(installation.id, installationId));
     await expect(client.version.read(key)).rejects.toMatchObject({ code: "FORBIDDEN" });
     await database
         .update(installation)
-        .set({ state: "enabled" })
+        .set({ status: "enabled" })
         .where(eq(installation.id, installationId));
     await database
         .update(deployment)
-        .set({ state: "retired", retiredAt: Date.now() })
+        .set({ status: "retired", retiredAt: Date.now() })
         .where(eq(deployment.id, deploymentId));
     await expect(client.version.read(key)).rejects.toMatchObject({ code: "FORBIDDEN" });
     await database
         .update(deployment)
-        .set({ state: "active", retiredAt: null })
+        .set({ status: "active", retiredAt: null })
         .where(eq(deployment.id, deploymentId));
     await database
         .update(serviceAccount)

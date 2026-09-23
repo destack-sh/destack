@@ -9,11 +9,9 @@ import { group, groupMembership } from "./group.ts";
 import { accountInvitation } from "./invitation.ts";
 import { accountMembership } from "./membership.ts";
 import { rolePermission } from "./permission.ts";
-import { preference } from "./preference.ts";
 import { role } from "./role.ts";
 import { serviceAccount, serviceToken } from "./service.ts";
 import { user } from "./user.ts";
-import { device } from "../host/device.ts";
 import { region } from "../host/region.ts";
 import { repository } from "../package/repository.ts";
 
@@ -37,8 +35,6 @@ export const accountRelations = defineRelationsPart(
         groupMembership,
         accountInvitation,
         rolePermission,
-        preference,
-        device,
         serviceToken,
         region,
         repository,
@@ -241,23 +237,6 @@ export const accountRelations = defineRelationsPart(
                 from: [relation.rolePermission.roleId],
                 to: [relation.role.id],
                 optional: false,
-            }),
-        },
-        preference: {
-            account: relation.one.account({
-                from: [relation.preference.accountId],
-                to: [relation.account.id],
-                optional: false,
-            }),
-            user: relation.one.user({
-                from: [relation.preference.userId],
-                to: [relation.user.id],
-                optional: true,
-            }),
-            device: relation.one.device({
-                from: [relation.preference.deviceId],
-                to: [relation.device.id],
-                optional: true,
             }),
         },
         role: {

@@ -378,10 +378,7 @@ function scopeFilter(scope: AuditScope): SQL {
         case "account":
             return eq(auditEvent.accountId, scope.accountId);
         case "space":
-            return and(
-                eq(auditEvent.accountId, scope.accountId),
-                eq(auditEvent.spaceId, scope.spaceId),
-            )!;
+            return eq(auditEvent.spaceId, scope.spaceId);
         case "host":
             return eq(auditEvent.hostId, scope.hostId);
     }

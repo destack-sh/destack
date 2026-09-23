@@ -56,6 +56,10 @@ export const accountSource = table(
             foreignColumns: [accountRevision.accountId, accountRevision.id],
         }).onDelete("restrict"),
         ...sourceChecks("account_source", source),
+        check(
+            "account_source_reference",
+            sql`${source.reference} LIKE 'refs/heads/_%' OR ${source.reference} LIKE 'refs/tags/_%'`,
+        ),
     ],
 );
 

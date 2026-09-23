@@ -8,10 +8,7 @@ const MAX_EVENT_BYTES = 65536;
 export function encodeEvent(value: AuditEvent): { event: AuditEvent; content: string } {
     const event = AuditEvent.parse(value);
 
-    // require complete scope and occurrence references before persistence
-    if (event.context.spaceId && !event.context.accountId) {
-        throw new AuditError("INVALID_EVENT", "space audit requires an account");
-    }
+    // require a distinct occurrence reference before persistence
     if (event.attemptId && (event.result.stage === "attempt" || event.attemptId === event.id)) {
         throw new AuditError("INVALID_EVENT", "only a result can refer to a distinct attempt");
     }

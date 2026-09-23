@@ -13,7 +13,6 @@ import {
 } from "@destack/db";
 import { account } from "../account/account.ts";
 import { device } from "./device.ts";
-import { region } from "./region.ts";
 import { schema } from "@destack/schema";
 import { Runtime } from "@destack/package/runtime";
 
@@ -32,10 +31,12 @@ export const host = table(
         kind: text("kind", { enum: ["device", "cloud"] }).notNull(),
         /** The device running a local host. */
         deviceId: identifier("device_id", "device"),
-        /** The hosting provider region, when known. */
-        regionId: identifier("region_id", "region").references(() => region.id),
+        /** The infrastructure provider, when known. */
+        providerCode: text("provider"),
+        /** The location code assigned by the infrastructure provider. */
+        location: text("location"),
         /** Whether the host accepts work, drains existing work, or is disabled. */
-        state: text("state", { enum: ["enabled", "draining", "disabled"] })
+        status: text("status", { enum: ["enabled", "draining", "disabled"] })
             .notNull()
             .default("enabled"),
         /** The running host software version reported by the host. */
@@ -50,7 +51,11 @@ export const host = table(
     (host) => [
         unique("host_device_id").on(host.deviceId, host.id),
         unique("host_account_id").on(host.accountId, host.id),
-        check("host_state", sql`${host.state} IN ('enabled', 'draining', 'disabled')`),
+        check("host_status", sql`${host.status} IN ('enabled', 'draining', 'disabled')`),
+        check(
+            "host_location",
+            sql`${host.location} IS NULL OR (${host.providerCode} IS NOT NULL AND length(${host.location}) > 0)`,
+        ),
         foreignKey({
             columns: [host.accountId, host.deviceId],
             foreignColumns: [device.accountId, device.id],

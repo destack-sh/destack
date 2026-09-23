@@ -1,4 +1,5 @@
 import { ResourceName } from "@destack/resource";
+import { PermissionReference } from "@destack/access/declare";
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { SpaceInstallationReference } from "./installation.ts";
 
@@ -24,11 +25,7 @@ export const SpacePermissionTarget = defineSchema(
 
 /** An exact API action granted within the space. */
 export const SpacePermission = defineSchema(
-    schema.object({
-        /** The namespaced API resource type. */
-        resource: schema.string().regex(/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/),
-        /** The declared API action; wildcards are not accepted. */
-        action: ResourceName,
+    PermissionReference.extend({
         /** A selected object; absence grants all objects of the type within the space. */
         target: SpacePermissionTarget.optional(),
     }),

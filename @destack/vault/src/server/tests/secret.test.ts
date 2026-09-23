@@ -2,7 +2,7 @@ import { readVersion } from "../../secret/version.ts";
 import { expect, test } from "@destack/test";
 import { createRequestId } from "@destack/service/request";
 import { and, eq } from "@destack/db";
-import { secret } from "@destack/model/regional";
+import { secret } from "@destack/model/space";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { VaultFixture } from "./fixture.ts";
 import { vaultValue } from "../../stack/index.ts";

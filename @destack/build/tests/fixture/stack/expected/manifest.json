@@ -8,7 +8,7 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "69d4b3775bf91ad21c7be6045016b74489f2a1dd6fabef808fdae9e06ef7ef2d",
+        "digest": "ecf00ee38ff53cd63ebe624d8c24e1080b84fddc224fcea940a95384a127d0f9",
         "size": 38641,
         "mediaType": "application/json"
     },
@@ -120,20 +120,20 @@
             },
             "directory": "output/stack",
             "exports": {
-                ".": "output/stack/index-BnrFzKrC.js"
+                ".": "output/stack/index-ClyNLJHz.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "1d933488be372b713f44299f0f230d7f29756449eac676a64a3a8c50cc815114",
+        "digest": "ffe23abcbcdcb0baa4de842c4c7a01f9b4ce5494500794f248ef7ebb37c545ed",
         "size": 1697,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "c14a1416044bfd0a1b56873a40e28d043c9cd13d5c0f8f94ea376c0c5e501c71",
+        "digest": "3f289b03760b07c2b8ec18230bbcccf19ddd1918e1531985b9d2cb7eacc29c18",
         "size": 123,
         "mediaType": "application/json"
     }

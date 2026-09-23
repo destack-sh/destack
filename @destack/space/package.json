@@ -11,10 +11,13 @@
         "./inspect": "./src/inspect/index.ts",
         "./error": "./src/error/index.ts"
     },
-    "scripts": { "check": "deno check src/index.ts src/inspect/index.ts" },
+    "scripts": {
+        "check": "deno check src/index.ts src/inspect/index.ts"
+    },
     "dependencies": {
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
-        "@destack/schema": "workspace:*"
+        "@destack/schema": "workspace:*",
+        "@destack/access": "workspace:*"
     }
 }

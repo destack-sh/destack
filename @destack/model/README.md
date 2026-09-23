@@ -29,3 +29,11 @@ export function listSpaces(accountId: Account["id"]) {
     return database.select().from(space).where(eq(space.accountId, accountId));
 }
 ```
+
+```ts
+import { connect } from "@destack/db/turso";
+import { prepare } from "@destack/db/migration";
+import { spaceSchema } from "@destack/model/space";
+
+const database = await prepare(await connect("daemon.db", spaceSchema), [spaceSchema]);
+```

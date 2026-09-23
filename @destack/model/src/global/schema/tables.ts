@@ -32,7 +32,6 @@ import { rolePermission } from "../account/permission.ts";
 import { deviceAuthorization } from "../authentication/device.ts";
 import { user } from "../account/user.ts";
 import { serviceAccount, serviceToken, serviceTokenPermission } from "../account/service.ts";
-import { preference } from "../account/preference.ts";
 import { tunnel } from "../host/tunnel.ts";
 import { hostAccess } from "../host/access.ts";
 import { region } from "../host/region.ts";
@@ -62,7 +61,6 @@ export const tables = {
     role,
     roleBinding,
     rolePermission,
-    preference,
     connectedAccount,
     serviceAccount,
     serviceToken,

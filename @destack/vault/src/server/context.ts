@@ -2,7 +2,7 @@ import { AuditRecorder, AuditActor } from "@destack/audit";
 import { AuditOutbox } from "@destack/audit/outbox";
 import type { DatabaseConnection } from "@destack/db";
 import type { ServiceContext } from "@destack/service/server";
-import type { space } from "@destack/model/regional";
+import type { space } from "@destack/model/space";
 import { vaultPackage } from "../audit/index.ts";
 import { sameSubject } from "@destack/access";
 import { trace, context, isSpanContextValid } from "@destack/telemetry";
@@ -37,7 +37,7 @@ export function vaultAudit(
             package: vaultPackage,
             service: "vault",
             spaceId: selected?.id,
-            accountId: selected?.accountId,
+            accountId: selected?.accountId ?? undefined,
             requestId: request.requestId,
             deploymentId,
             traceId: span && isSpanContextValid(span) ? span.traceId : undefined,

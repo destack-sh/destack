@@ -6,15 +6,15 @@
         "mediaType": "application/json"
     },
     {
-        "path": "output/stack/index-BnrFzKrC.js",
-        "digest": "75845c7ebdc4ac8a2bfab14b666c553b0418f034995129e62f7b5f66c09b8a46",
-        "size": 219448,
+        "path": "output/stack/index-ClyNLJHz.js",
+        "digest": "044ecae236ecb01821f80bf0d07168c9f356fd2ae1f00166c9a4c23d7a771a6f",
+        "size": 219450,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/stack/index-BnrFzKrC.js.map",
-        "digest": "839f5e6aecd374f1210db0a9655c541921fd09869f6176ce156cb040fd4bbe57",
-        "size": 603603,
+        "path": "output/stack/index-ClyNLJHz.js.map",
+        "digest": "ae998e1d986fda98f251898ebaedc4f758741d61ef8a4e775fa42a1be49b0713",
+        "size": 603625,
         "mediaType": "application/json"
     },
     {
@@ -41,8 +41,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/index.ts.json",
-                    "digest": "c735c5ffa50b3c2c68dd32ec72fe761bc73aca9e00617459bc3eda06e902345c",
-                    "size": 21524,
+                    "digest": "2cbcbc434020b5052c64802c40faaf7a828fe0bd0097e0550ea10486fb224d22",
+                    "size": 21488,
                     "mediaType": "application/json"
                 }
             }

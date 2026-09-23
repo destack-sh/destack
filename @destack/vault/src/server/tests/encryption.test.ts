@@ -2,7 +2,7 @@ import { writeVersion, readVersion } from "../../secret/version.ts";
 import { expect, test } from "@destack/test";
 import { createRequestId } from "@destack/service/request";
 import { eq } from "@destack/db";
-import { space } from "@destack/model/regional";
+import { space } from "@destack/model/space";
 import { connect } from "../../secret/client.ts";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { AuditRecorder } from "@destack/audit";
@@ -127,7 +127,7 @@ test("recover persisted values and exact retries after reopening the database", 
                         package: vaultPackage,
                         service: "vault",
                         spaceId: fixture.spaceId,
-                        accountId: owner!.accountId,
+                        accountId: owner!.accountId ?? undefined,
                     },
                     new AuditOutbox(database),
                 ),

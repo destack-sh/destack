@@ -321,8 +321,8 @@
             },
             {
                 "path": "package.json",
-                "digest": "48b912e108eb6145b5fbfc15cadbd6e1c10b1a0a4315d80a7cd12a7af9d62f3f",
-                "size": 944,
+                "digest": "872e5c1c56978602d6b335aabb0a6dfa70609c2311b925de07491805a86729ee",
+                "size": 987,
                 "mediaType": "application/json"
             },
             {
@@ -739,8 +739,8 @@
             },
             {
                 "path": "src/declare/installation.ts",
-                "digest": "4f666c9a8c5ca6762824286d7c4d436c75e5f06049d3d3dfe4c7070c68ff5ed9",
-                "size": 2072,
+                "digest": "83bd18ad661a08ec9676e1479733a54e635968ede4e8f7e1a031fca64d92c99f",
+                "size": 2073,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -751,8 +751,8 @@
             },
             {
                 "path": "src/declare/resource.ts",
-                "digest": "2504cac6c5a290f7a6fe8be794ca9650ad50616ec5bac152244fb06b6dd09bcb",
-                "size": 3098,
+                "digest": "2ce6623c60cfff4fb0d275a0265543df8cdef7009246a817469b9a247c2c795d",
+                "size": 3106,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -763,8 +763,8 @@
             },
             {
                 "path": "src/declare/source.ts",
-                "digest": "556f320a76c2c69b757f982404bbd771d3db9eae4f9789d7527fbe6f73bcc0ad",
-                "size": 1813,
+                "digest": "5f1ab1563cb49333a862be6ccbabcf7ca8236a0ed23138edbb2233880bbb89a6",
+                "size": 3105,
                 "mediaType": "application/octet-stream"
             },
             {

@@ -2,7 +2,7 @@ import * as turso from "@destack/db/turso";
 import * as postgres from "@destack/db/postgres";
 import { orderSchemas, sql, eq, and, type DatabaseConnection } from "@destack/db";
 import { migrate } from "@destack/db/migration";
-import { space, resource, vault, role, roleBinding, rolePermission } from "@destack/model/regional";
+import { space, resource, vault, role, roleBinding, rolePermission } from "@destack/model/space";
 import { vaultService } from "../../service/index.ts";
 import { identifier } from "@destack/schema";
 import { AuditRecorder } from "@destack/audit";
@@ -224,12 +224,17 @@ export class VaultFixture implements AsyncDisposable {
             // provision resource metadata as the space controller would
             const now = Date.now();
             const accountId = identifier("account").parse(`account-${v7()}`);
-            await database
-                .insert(space)
-                .values({ id: fixture.spaceId, accountId, createdAt: now, updatedAt: now });
+            await database.insert(space).values({
+                id: fixture.spaceId,
+                accountId,
+                name: "vault fixture",
+                authorityRegionId: identifier("region").parse(`region-${v7()}`),
+                authorityEpoch: 1,
+                createdAt: now,
+                updatedAt: now,
+            });
             await database.insert(resource).values({
                 id: fixture.vaultId,
-                accountId,
                 spaceId: fixture.spaceId,
                 name: "credentials",
                 kind: "vault",
@@ -247,7 +252,6 @@ export class VaultFixture implements AsyncDisposable {
             // grant each declared operation explicitly through persisted regional RBAC
             await database.insert(role).values({
                 id: fixture.roleId,
-                accountId,
                 spaceId: fixture.spaceId,
                 name: "vault-owner",
                 description: "manage the fixture vault",

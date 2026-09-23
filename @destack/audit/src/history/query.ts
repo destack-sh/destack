@@ -11,7 +11,6 @@ export const AuditScope = defineSchema(
         schema.object({ type: schema.literal("account"), accountId: identifier("account") }),
         schema.object({
             type: schema.literal("space"),
-            accountId: identifier("account"),
             spaceId: identifier("space"),
         }),
         schema.object({ type: schema.literal("host"), hostId: identifier("host") }),

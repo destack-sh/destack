@@ -7,7 +7,6 @@ export * from "./group.ts";
 export * from "./invitation.ts";
 export * from "./membership.ts";
 export * from "./permission.ts";
-export * from "./preference.ts";
 export * from "./relation.ts";
 export * from "./role.ts";
 export * from "./service.ts";

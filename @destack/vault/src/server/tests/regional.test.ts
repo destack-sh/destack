@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { Caller, TokenIssuer, TokenVerifier } from "@destack/service/authentication";
 import { createRequestId } from "@destack/service/request";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { space, resource, vault, role, roleBinding, rolePermission } from "@destack/model/regional";
+import { space, resource, vault, role, roleBinding, rolePermission } from "@destack/model/space";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { connect } from "../../secret/client.ts";
 import { vaultPackage } from "../../audit/index.ts";

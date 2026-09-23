@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, type DatabaseConnection } from "@destack/db";
-import { secret, secretVersion } from "@destack/model/regional";
+import { secret, secretVersion } from "@destack/model/space";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { Page } from "@destack/service/page";

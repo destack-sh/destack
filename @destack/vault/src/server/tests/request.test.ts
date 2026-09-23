@@ -5,7 +5,7 @@ import { createRequestId, REQUEST_LIFETIME_MS } from "@destack/service/request";
 import { IdempotencyStore } from "@destack/service/database";
 import { Caller } from "@destack/service/authentication";
 import { and, eq } from "@destack/db";
-import { secretVersion } from "@destack/model/regional";
+import { secretVersion } from "@destack/model/space";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { ResourceContext } from "@destack/resource/context";

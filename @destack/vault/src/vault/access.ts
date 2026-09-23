@@ -9,12 +9,12 @@ import {
     installation,
     deploymentSecretBinding,
     secret,
-} from "@destack/model/regional";
+} from "@destack/model/space";
 import { ServiceError } from "@destack/service/error";
 import { vaultPackage } from "../audit/index.ts";
 import type { VaultAccess, VaultContext } from "./context.ts";
 
-/** Require current regional grants, delegation restrictions and workload secret bindings. */
+/** Require current space grants, delegation restrictions and workload secret bindings. */
 export async function authorizeVault(
     context: VaultContext,
     request: VaultAccess,
@@ -58,7 +58,7 @@ export async function authorizeVault(
             .where(
                 and(
                     eq(space.id, request.spaceId),
-                    request.operation === "version.read" ? eq(space.state, "enabled") : undefined,
+                    request.operation === "version.read" ? eq(space.status, "enabled") : undefined,
                     allowed,
                 ),
             )
@@ -82,22 +82,30 @@ export async function authorizeVault(
 
 /** Select bindings for a verified subject within its administering authority. */
 function bindingPredicate(subject: Subject, spaceId: string, context: VaultContext): SQL {
+    // match a user grant against its complete authenticated identity
+    const direct = sql`${roleBinding.userAuthority} = ${subject.authority} AND ${roleBinding.userId} = ${subject.id}`;
+
     // resolve users through verified global membership records
     if (subject.kind === "user" && subject.authority === "global") {
         const memberships = (context.caller.authentication.memberships ?? []).filter((membership) =>
             sameSubject(membership.subject, subject),
         );
 
-        return memberships.length
-            ? or(
-                  ...memberships.map((membership) =>
-                      and(
-                          sql`${roleBinding.accountId} = ${membership.accountId}`,
-                          sql`${roleBinding.accountMembershipId} = ${membership.id}`,
+        return or(
+            direct,
+            memberships.length
+                ? or(
+                      ...memberships.map((membership) =>
+                          and(
+                              sql`${roleBinding.accountId} = ${membership.accountId}`,
+                              sql`${roleBinding.accountMembershipId} = ${membership.id}`,
+                          ),
                       ),
-                  ),
-              )!
-            : sql`false`;
+                  )!
+                : sql`false`,
+        )!;
+    } else if (subject.kind === "user") {
+        return direct;
     }
     // qualify groups and global software identities by their administering account
     else if (subject.kind === "group") {
@@ -137,8 +145,8 @@ async function authorizeDeployment(
                 sql`${deployment.id} = ${deploymentId}`,
                 eq(deployment.spaceId, request.spaceId),
                 isNull(serviceAccount.revokedAt),
-                eq(installation.state, "enabled"),
-                or(eq(deployment.state, "active"), eq(deployment.state, "draining")),
+                eq(installation.status, "enabled"),
+                or(eq(deployment.status, "active"), eq(deployment.status, "draining")),
             ),
         )
         .get();

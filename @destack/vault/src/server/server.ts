@@ -19,7 +19,7 @@ import { Vault } from "../vault/index.ts";
 import { ServiceError } from "@destack/service/error";
 import { vaultAudit } from "./context.ts";
 import { identifier } from "@destack/schema";
-import { space } from "@destack/model/regional";
+import { space } from "@destack/model/space";
 import { eq, sql } from "@destack/db";
 
 /** Space and object selectors shared by the vault procedures. */
