@@ -7,8 +7,13 @@ import { DatabaseSchemaDescription, describeSchema } from "@destack/db/inspect";
 import type { DatabaseSchema } from "@destack/db";
 import { SecretDeclaration, VaultDeclaration } from "@destack/vault/inspect";
 import { ScheduleDeclaration } from "@destack/service/schedule";
-import { inspectService, ServiceInspection } from "@destack/service/inspect";
-import type { ServiceDefinition } from "@destack/service";
+import {
+    inspectService,
+    ServiceInspection,
+    ServiceConnectionDeclaration,
+    describeServiceConnection,
+} from "@destack/service/inspect";
+import type { ServiceDefinition, ServiceConnection } from "@destack/service";
 import type { Package } from "@destack/package";
 import { SpaceDefinition } from "@destack/space";
 import { AccountDefinition } from "@destack/model/declare";
@@ -26,6 +31,11 @@ import type { Setting } from "@destack/setting";
 
 /** Declaration constructors and their serialized descriptions. */
 export const INSPECTORS = {
+    defineServiceConnection: {
+        package: "@destack/service",
+        kind: "service-connection",
+        schema: ServiceConnectionDeclaration,
+    },
     defineSetting: { package: "@destack/setting", kind: "setting", schema: SettingDescription },
     defineSettingAssignment: {
         package: "@destack/setting",
@@ -71,6 +81,19 @@ export async function inspectDeclaration(
     value: unknown,
     owner: Package,
 ): Promise<Record<string, unknown>> {
+    // qualify connection dependencies by their actual declaring package
+    if (name === "defineServiceConnection") {
+        const declaration = describeServiceConnection(value as ServiceConnection);
+        if (declaration.packageId !== owner.id) {
+            throw new BuildError(
+                "INSPECTION_FAILED",
+                "service connection declares a different package",
+            );
+        }
+
+        return declaration;
+    }
+
     // retain the native declaration's schema and verify its immutable package identity
     if (name === "defineSetting") {
         const description = describeSetting(value as Setting);

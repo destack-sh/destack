@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "ccb98fa62647194fee287f90b2ea3a43025569c26824b35cf80c583c2025daa0",
-        "size": 41195,
+        "digest": "a189c46d297a7f33f4d20eee0a4c933c98f23ae299df076cb13dfdd10da442de",
+        "size": 41701,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -138,20 +138,20 @@
             },
             "directory": "output/stack",
             "exports": {
-                ".": "output/stack/index-DzV3fsEz.js"
+                ".": "output/stack/index-BujnDoQo.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "ce633f929a1c16044a463f855949c14f2413f1813718d141626cba2a177ef545",
+        "digest": "04e2436720846ee2b14d727b6779c6b7aacb6a42ffa511c4b8f7eb46130948b5",
         "size": 1697,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "c34a9d73dc45127c6ef39712b55a915653e27de6353e5b4baac6eb2d024f6b0c",
+        "digest": "e9fde722c63108c35af7c116c49a2bc5cd4cda80c184653a3a8e3a4e28153b06",
         "size": 123,
         "mediaType": "application/json"
     }

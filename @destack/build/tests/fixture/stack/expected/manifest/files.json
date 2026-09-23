@@ -6,15 +6,15 @@
         "mediaType": "application/json"
     },
     {
-        "path": "output/stack/index-DzV3fsEz.js",
-        "digest": "e6d471fb05df61dc07002e316d1534448783748f1c91ccc7000e306a44d44291",
-        "size": 234900,
+        "path": "output/stack/index-BujnDoQo.js",
+        "digest": "1994941b2fbd35ee0b642384a6ca74af0d726412fd19632d518f8b67f3844df5",
+        "size": 233623,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/stack/index-DzV3fsEz.js.map",
-        "digest": "e104528ff6c746bcc8c2c87f5924d129bae1c8acfa6f7c349a17c331e9ec210d",
-        "size": 628074,
+        "path": "output/stack/index-BujnDoQo.js.map",
+        "digest": "453ed367b4911eda936f3d24a5105edf0ee0bfb257fe46a66f75d9767541c262",
+        "size": 624960,
         "mediaType": "application/json"
     },
     {

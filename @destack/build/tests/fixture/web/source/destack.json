@@ -1,8 +1,6 @@
 {
     "id": "package-01a0c80b-6150-71b0-a85f-d5e647206c9a",
     "language": "typescript",
-    "targets": [
-        "browser",
-        "server"
-    ]
+    "views": { "main": { "entrypoint": "." } },
+    "targets": ["browser", "server"]
 }

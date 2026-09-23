@@ -19,6 +19,7 @@ import { PackageBuild, type BuildOptions } from "./build.ts";
 import { type ApplicationOptions, compileApplication } from "../compile/application.ts";
 import { describeWorkloads } from "../inspect/workload.ts";
 import { Template } from "../template/index.ts";
+import { resolveView } from "../source/view.ts";
 import { checkRuntime } from "../compile/runtime.ts";
 import { checkPackage, formatPackage } from "@destack/check";
 import { RuntimeCompiler } from "../inspect/runtime.ts";
@@ -81,7 +82,9 @@ export class BuildCompiler implements AsyncDisposable {
         >();
 
         // expand web applications into browser and server outputs
-        for (const [name, output] of Object.entries(options.outputs)) {
+        for (const [name, selected] of Object.entries(options.outputs)) {
+            const output =
+                selected.kind === "web" ? await resolveView(options.directory, selected) : selected;
             if (!/^[a-z][a-z0-9-]*$/.test(name)) {
                 throw new BuildError("BUILD_FAILED", `Invalid output name: ${name}`);
             }

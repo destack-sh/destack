@@ -6,7 +6,8 @@
     "type": "module",
     "exports": {
         ".": "./src/index.ts",
-        "./settings": "./src/settings/index.ts"
+        "./settings": "./src/settings/index.ts",
+        "./connection": "./src/connection/index.ts"
     },
     "scripts": {
         "lint": "destack-check check",
@@ -17,6 +18,8 @@
         "@destack/check": "2026.9.0"
     },
     "dependencies": {
+        "@destack/resource": "2026.9.0",
+        "@destack/service": "2026.9.0",
         "@destack/package": "2026.9.0",
         "@destack/schema": "2026.9.0",
         "@destack/setting": "2026.9.0",

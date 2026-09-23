@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "882af00d810094a0a0fee0a832233bf8d34cba50da12d415eec897eab9332344",
-        "size": 47126,
+        "digest": "626ff74098b4dc75303cbd73ab77e3b43c3bb72f0ec6d3ae833465b301d7cb28",
+        "size": 49264,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -60,8 +60,8 @@
             },
             "file": {
                 "path": "manifest/service.json",
-                "digest": "b516f6b02e0dc7747531cf54c25c348bfb12bc2772c8b55c97f4063bc7142f68",
-                "size": 7216,
+                "digest": "f28ddfdbd3f73954e75456f42f06f5e08c236035c481596219a426854bb42296",
+                "size": 8416,
                 "mediaType": "application/json"
             }
         }
@@ -104,6 +104,12 @@
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
                             "name": "mail-token"
                         }
+                    ],
+                    "connections": [
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "notes"
+                        }
                     ]
                 }
             },
@@ -122,12 +128,13 @@
                     0,
                     1,
                     2,
-                    3
+                    3,
+                    4
                 ]
             },
             "directory": "output/bun",
             "exports": {
-                "./server": "output/bun/server-BMfOZOuX.js"
+                "./server": "output/bun/server-umCVDsJM.js"
             },
             "dependencies": {}
         },
@@ -168,6 +175,12 @@
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
                             "name": "mail-token"
                         }
+                    ],
+                    "connections": [
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "notes"
+                        }
                     ]
                 }
             },
@@ -186,25 +199,26 @@
                     0,
                     1,
                     2,
-                    3
+                    3,
+                    4
                 ]
             },
             "directory": "output/worker",
             "exports": {
-                "./server": "output/worker/server-BMfOZOuX.js"
+                "./server": "output/worker/server-umCVDsJM.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "272addcc3eb26121beb998f951bea4d5297dfb0cc86818e5d03271ed2fdef104",
-        "size": 2159,
+        "digest": "4b41bf43b1f8ef9c32b328687a0079e4ab20c9f2a8fb0351ab2247b8f6336c4b",
+        "size": 2161,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "e63e65ad2d3ab1793f11f6971575391d6e5612ee77689f70c8c0c1973b2eb7c6",
+        "digest": "b8e2c678c692cd8e63a9c5c7f119378ec01ddacf93c50bbf9758b58dc3828141",
         "size": 245,
         "mediaType": "application/json"
     }

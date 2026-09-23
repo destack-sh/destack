@@ -5,6 +5,7 @@ import { compilationPlugins } from "../compile/compiler.ts";
 import { resolutionPlugin } from "../compile/dependency.ts";
 import { runtimeConditions } from "../compile/runtime.ts";
 import type { DependencyResolution } from "@destack/package/package";
+import { resolveView } from "../source/view.ts";
 
 /** A local application server with Vite's watcher and module graph. */
 export class LocalServer implements AsyncDisposable {
@@ -25,7 +26,7 @@ export class LocalServer implements AsyncDisposable {
 
     /** Start the application with the build's JSX, style, and metadata transforms. */
     static async start(options: LocalServerOptions): Promise<LocalServer> {
-        const application = options.application;
+        const application = await resolveView(options.directory, options.application);
         const runtime = application.ssr === false ? "browser" : application.ssr.runtime;
         const source = await openPackage({
             directory: options.directory,

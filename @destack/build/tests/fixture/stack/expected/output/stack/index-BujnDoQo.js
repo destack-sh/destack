@@ -6046,6 +6046,8 @@ defineSchema(strictObject({
 	/** The file's media type. */
 	mediaType: string().min(1)
 }));
+/** A concrete package export containing runnable code. */
+var Entrypoint = defineSchema(string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
 /** The immutable identity retained across package renames and releases. */
 var PackageId = identifier("package");
 /** A scoped Destack package name. */
@@ -6097,39 +6099,6 @@ var ComputeDefinition = defineSchema(strictObject({
 	shutdownTimeout: number().int().positive().optional(),
 	/** CPU time allowed per invocation in milliseconds. */
 	cpuTime: number().int().positive().optional()
-}));
-/** A declaration qualified by its source package. */
-var DeclarationReference = defineSchema(strictObject({
-	/** The immutable identity of the declaring package. */
-	packageId: PackageId,
-	/** The name assigned by the domain declaration. */
-	name: ResourceName
-}));
-/** A package export containing runnable code. */
-var Entrypoint = defineSchema(string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
-defineSchema(defineSchema(strictObject({
-	/** The exported module containing the workload handlers. */
-	entrypoint: Entrypoint,
-	/** Named services collected from code. */
-	services: array(ResourceName).optional(),
-	/** Named schedules delivered by the host scheduler. */
-	schedules: array(ResourceName).optional(),
-	/** Instance startup and shutdown exports. */
-	lifecycle: strictObject({
-		/** Start background activity and resolve when ready. */
-		start: string().min(1).optional(),
-		/** Drain background activity before stopping. */
-		stop: string().min(1).optional()
-	}).optional(),
-	/** Workload overrides of package compute defaults. */
-	compute: ComputeDefinition.optional()
-}).strict()).extend({
-	/** Resource declarations collected from the workload's module dependencies. */
-	resources: array(DeclarationReference),
-	/** Secret declarations collected from the workload's module dependencies. */
-	secrets: array(DeclarationReference),
-	/** The effective compute settings. */
-	compute: ComputeDefinition
 }));
 /** A resource created by the configuration or explicitly adopted into its administration. */
 var SpaceResource = defineSchema(strictObject({
@@ -6982,4 +6951,4 @@ var personal = defineSpace({ resources: { main: {
 } } });
 export { account, database, language, languageAssignment, languagePolicy, note, personal };
 
-//# sourceMappingURL=index-DzV3fsEz.js.map
+//# sourceMappingURL=index-BujnDoQo.js.map

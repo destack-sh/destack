@@ -124,6 +124,20 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
 /** Invalid declarations rejected before framework compilation or rendering. */
 const invalid = [
     {
+        file: "unused.ts",
+        source: "export {};\n",
+        code: "BUILD_FAILED",
+        message: "unknown browser view: missing",
+        application: { ...requests.browser, view: "missing" },
+    },
+    {
+        file: "unused.ts",
+        source: "export {};\n",
+        code: "BUILD_FAILED",
+        message: "select a view or an app source path",
+        application: { ...requests.browser, app: "src/App.tsx" },
+    },
+    {
         file: "server.ts",
         source: "export function render(): string {\n    return document.title;\n}\n",
         code: "BUILD_FAILED",

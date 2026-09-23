@@ -273,8 +273,8 @@
             },
             {
                 "path": "package.json",
-                "digest": "ab1dca13b08a398ea9045fbb7c83ca647636cc48397176c380be17fbb67d3629",
-                "size": 995,
+                "digest": "53a28ba52c39c86b92fb970446c71af7bc9755a4699af6ce7ecbd24a0dc38db2",
+                "size": 1036,
                 "mediaType": "application/json"
             },
             {
@@ -393,8 +393,8 @@
             },
             {
                 "path": "src/manifest/output.ts",
-                "digest": "aba311d56c6a6c02b1deaf84e3f7217430301e1fc8d0fd787ea851f2664bed2c",
-                "size": 1508,
+                "digest": "238cd1c1d87c47acc1a3c003eae6503f174f066f1a78d553482ae170022e940a",
+                "size": 1607,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -417,8 +417,8 @@
             },
             {
                 "path": "src/package/definition.ts",
-                "digest": "fcaecae540cdd0328d0c127c249480f13bf62522165bd818f926539b7c57a0b0",
-                "size": 2053,
+                "digest": "640c449cbeb2fe3d5394c4b15885b34d10de0f550d2eddc8fc7d94ba46f08d03",
+                "size": 2239,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -447,8 +447,8 @@
             },
             {
                 "path": "src/package/package.ts",
-                "digest": "047286e738264358d8252f0ec9f2719afc8f1627654ce16e83e91812fa5aea91",
-                "size": 2055,
+                "digest": "9cfa8450cd44cb4e18d4605ded727d8987a57339b3c4b83a57602de43edba69e",
+                "size": 2210,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -494,6 +494,18 @@
                 "mediaType": "application/octet-stream"
             },
             {
+                "path": "src/view/index.ts",
+                "digest": "512185345a4d2e105010f8d2e34f571c98255ef65c838b128177adbedfde7b67",
+                "size": 27,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/view/view.ts",
+                "digest": "4f9195faf7517665b9ce156e6612665b17ef99bd142dcec2731b7b15fcc6ec1e",
+                "size": 1195,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/workload/index.ts",
                 "digest": "859ae6037aa4b8e38dfbc13bc30174d68817c6c4c09131e09d449dc40ce740ae",
                 "size": 31,
@@ -501,8 +513,8 @@
             },
             {
                 "path": "src/workload/workload.ts",
-                "digest": "38afcc9ea63d9ac3bcb48fbdedbe036a61bec3eb6c23700be76743f420429edc",
-                "size": 2666,
+                "digest": "bd86d0e24f54ddb449be4df2faea3834a815f6a389f65458743dfa37f278078c",
+                "size": 2687,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -674,9 +686,39 @@
                 "mediaType": "application/json"
             },
             {
+                "path": "src/authentication/caller.ts",
+                "digest": "2b89991232138bc075251987909c5dccea67577558d7612cf5839800fc11bc7e",
+                "size": 5578,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/authentication/index.ts",
+                "digest": "bbbe8cb0cd6bca990cef4da4c015aa58e7df80d410d68a0f7fb5e24f5ffd7711",
+                "size": 86,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/authentication/issuer.ts",
+                "digest": "83ab4ee1f15f18357acfe67fc1a830c6fc1d7b954626e34ff578497674827721",
+                "size": 3188,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/authentication/token.ts",
+                "digest": "3376980de44816e58269dea253c1825134a7149147a56be88a78408e8f4d21d3",
+                "size": 13196,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/declare/connection.ts",
+                "digest": "25d1281e34fdd946b27ae7ad3cf03cfab4db90f71f422195bed41df73ef1699d",
+                "size": 1976,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/declare/index.ts",
-                "digest": "846f8aa599043c1e79f1ba809908cac686ba541af7e969ae7ef7f6722821c008",
-                "size": 30,
+                "digest": "00389900949119dd9bfa7022227eba153de3eceb2df7f3d0cdd22b9241266511",
+                "size": 63,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -795,8 +837,8 @@
             },
             {
                 "path": "src/server/context.ts",
-                "digest": "223760dd3eca7ac0449a432ca05faa4438e1c80b43890c7fe7f81424ad668dc5",
-                "size": 2594,
+                "digest": "12f64e1c72f9e52e26fc952194f9a13ff21dfa2bf4df4d02b32b737889a9cd0a",
+                "size": 3499,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -825,8 +867,8 @@
             },
             {
                 "path": "src/server/server.ts",
-                "digest": "c1db175f240902ff5643b0793682d660ffa57f4379973385e692403d38a2d727",
-                "size": 14819,
+                "digest": "a8ee9de382bed144214f3d49d52d14ef68aa03f8506c582570a01fe4b77056a7",
+                "size": 14821,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -861,8 +903,8 @@
             },
             {
                 "path": "src/watch/watch.ts",
-                "digest": "5b750a9ea6485dcdfe691d35be491b290b2dc9062b4a8648af71cc4dd0cfb172",
-                "size": 2272,
+                "digest": "7d0d4d721232d9f071600107052fbac019df8c67448cbf19fe65bb8fbdd6cb18",
+                "size": 2975,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -1117,6 +1159,15 @@
         },
         "registry": "https://registry.npmjs.org/",
         "integrity": "sha512-9DapOKyrEWqIAWQ0iZRTJ+AG7W70YXKhOBwlIlVv9ip7GeBytEcwghNtezNvIW5xwchkiCpNjSE91bW3Iw2txw=="
+    },
+    "jose@6.2.12": {
+        "kind": "npm",
+        "package": {
+            "name": "jose",
+            "version": "6.2.12"
+        },
+        "registry": "https://registry.npmjs.org/",
+        "integrity": "sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw=="
     },
     "json-schema-typed@8.0.2": {
         "kind": "npm",

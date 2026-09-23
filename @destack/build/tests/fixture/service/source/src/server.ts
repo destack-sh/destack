@@ -1,7 +1,7 @@
 import { defineDatabase } from "@destack/db/declare";
 import { defineSecret, defineVault } from "@destack/vault";
 import { defineSchedule } from "@destack/service/schedule";
-import { defineService, defineProcedure } from "@destack/service";
+import { defineService, defineProcedure, defineServiceConnection } from "@destack/service";
 import { implement, Server, type ServiceImplementation } from "@destack/service/server";
 import { ResourceContext } from "@destack/resource/context";
 import { ServiceError } from "@destack/service/error";
@@ -40,6 +40,16 @@ export const router = {
         .route({ method: "GET", path: "/notes" })
         .output(schema.object({ path: schema.string() })),
 };
+/** A dependency on the installation's notes service. */
+export const notes = defineServiceConnection(
+    {
+        packageId: import.meta.destack.package.id,
+        name: "notes",
+        service: { packageId: import.meta.destack.package.id, name: "notes" },
+    },
+    router,
+);
+
 /** The public HTTP service. */
 export const service = defineService(
     {

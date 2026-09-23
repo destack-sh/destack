@@ -7211,6 +7211,8 @@ defineSchema(strictObject({
 	/** The file's media type. */
 	mediaType: string().min(1)
 }));
+/** A concrete package export containing runnable code. */
+var Entrypoint = defineSchema(string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
 /** The immutable identity retained across package renames and releases. */
 var PackageId = identifier("package");
 /** A scoped Destack package name. */
@@ -7233,6 +7235,66 @@ defineSchema(strictObject({
 	package: Package,
 	/** The digest of its immutable build manifest. */
 	manifest: Digest
+}));
+/** CPU and memory capacity assigned to one running instance. */
+var ComputeResources = defineSchema(strictObject({
+	/** CPU capacity in cores. */
+	cpu: number().positive().optional(),
+	/** Memory capacity in MiB. */
+	memory: number().int().positive().optional()
+}));
+/** Capacity and lifecycle policy for a workload. */
+var ComputeDefinition = defineSchema(strictObject({
+	/** Minimum capacity requested when scheduling an instance. */
+	requests: ComputeResources.optional(),
+	/** Maximum capacity allowed for an instance. */
+	limits: ComputeResources.optional(),
+	/** Scaling bounds, including whether idle execution may stop. */
+	scaling: strictObject({
+		/** Minimum warm instances; zero permits stopping all idle instances. */
+		minInstances: number().int().nonnegative().optional(),
+		/** Maximum simultaneous instances. */
+		maxInstances: number().int().positive().optional()
+	}).optional(),
+	/** Time in milliseconds to retain an idle instance. */
+	idleTimeout: number().int().nonnegative().optional(),
+	/** Time in milliseconds allowed for graceful shutdown. */
+	shutdownTimeout: number().int().positive().optional(),
+	/** CPU time allowed per invocation in milliseconds. */
+	cpuTime: number().int().positive().optional()
+}));
+/** A declaration qualified by its source package. */
+var DeclarationReference = defineSchema(strictObject({
+	/** The immutable identity of the declaring package. */
+	packageId: PackageId,
+	/** The name assigned by the domain declaration. */
+	name: ResourceName
+}));
+defineSchema(defineSchema(strictObject({
+	/** The exported module containing the workload handlers. */
+	entrypoint: Entrypoint,
+	/** Named services collected from code. */
+	services: array(ResourceName).optional(),
+	/** Named schedules delivered by the host scheduler. */
+	schedules: array(ResourceName).optional(),
+	/** Instance startup and shutdown exports. */
+	lifecycle: strictObject({
+		/** Start background activity and resolve when ready. */
+		start: string().min(1).optional(),
+		/** Drain background activity before stopping. */
+		stop: string().min(1).optional()
+	}).optional(),
+	/** Workload overrides of package compute defaults. */
+	compute: ComputeDefinition.optional()
+}).strict()).extend({
+	/** Resource declarations collected from the workload's module dependencies. */
+	resources: array(DeclarationReference),
+	/** Secret declarations collected from the workload's module dependencies. */
+	secrets: array(DeclarationReference),
+	/** Service connection declarations collected from the workload's module dependencies. */
+	connections: array(DeclarationReference),
+	/** The effective compute settings. */
+	compute: ComputeDefinition
 }));
 defineSchema(strictObject({
 	/** The authenticated identity category. */
@@ -7333,6 +7395,35 @@ function defineService(declaration, router) {
 		...ServiceDeclaration.parse(declaration),
 		...router ? { router } : {}
 	};
+}
+/** A named dependency on a provided service. */
+var ServiceConnectionDeclaration = defineSchema(strictObject({
+	/** The immutable identity of the declaring package. */
+	packageId: PackageId,
+	/** The package-local connection name. */
+	name: ResourceName,
+	/** The required service declaration. */
+	service: DeclarationReference
+}));
+/** An inert service dependency with a host-bound typed client. */
+var ServiceConnection = class extends ResourceHandle {
+	/** The immutable identity of the declaring package. */
+	packageId;
+	/** The required service declaration. */
+	service;
+	/** The procedure definitions used to construct the client. */
+	router;
+	/** Retain the dependency description and its typed API without opening a connection. */
+	constructor(declaration, router) {
+		super(declaration.name);
+		this.packageId = declaration.packageId;
+		this.service = declaration.service;
+		this.router = router;
+	}
+};
+/** Define a service dependency collected by package inspection. */
+function defineServiceConnection(declaration, router) {
+	return new ServiceConnection(ServiceConnectionDeclaration.parse(declaration), router);
 }
 var VERSION = "1.9.1";
 var re = /^(\d+)\.(\d+)\.(\d+)(-(.+))?$/;
@@ -10795,6 +10886,8 @@ var ServiceContext = class {
 	authenticationError;
 	/** Server-generated correlation identity shared by request and domain audit events. */
 	requestId = crypto.randomUUID();
+	/** Cancellation when the request closes or its verified identity expires. */
+	signal;
 	/** Retain host-selected scope independently of request input. */
 	constructor(request, audience, spaceId, caller, resources, authenticationError) {
 		this.request = request;
@@ -10803,6 +10896,10 @@ var ServiceContext = class {
 		this.caller = caller;
 		this.resources = resources;
 		this.authenticationError = authenticationError;
+		this.requireCaller = this.requireCaller.bind(this);
+		this.access = this.access.bind(this);
+		const deadline = caller && Math.min(caller.authentication.expiresAt, caller.authentication.verifiedAt + 6e4);
+		this.signal = deadline === null ? this.request.signal : AbortSignal.any([this.request.signal, AbortSignal.timeout(Math.max(0, Math.ceil(deadline - Date.now())))]);
 	}
 	/** Require a current authenticated caller before performing identity-dependent work. */
 	requireCaller() {
@@ -10812,7 +10909,7 @@ var ServiceContext = class {
 		return this.caller;
 	}
 	/** Read authorization inputs with a fresh time for each operation or stream event. */
-	get access() {
+	access() {
 		if (this.authenticationError !== void 0) throw this.authenticationError;
 		return this.caller ? this.caller.context(this.audience, Date.now(), this.spaceId) : {
 			subjects: [],
@@ -10930,7 +11027,7 @@ var Server = class Server {
 	}
 	/** Enforce identity, credential restrictions and current installation policy. */
 	static async #authorize(call, options) {
-		let access = call.context.access;
+		let access = call.context.access();
 		if (call.access.authentication !== "public") call.context.requireCaller();
 		const permission = call.access.permission;
 		const target = options.target ? await options.target(call) : { scope: options.spaceId };
@@ -11021,6 +11118,17 @@ var Server = class Server {
 };
 /** A current value with bounded, coalesced change notifications. */
 var Watch = class {
+	/** Reopen completed snapshot subscriptions with fresh authentication until cancellation. */
+	static async *observe(open, signal) {
+		while (!signal.aborted) {
+			let received = false;
+			for await (const value of await open(signal)) {
+				received = true;
+				yield value;
+			}
+			if (!received && !signal.aborted) throw new Error("snapshot subscription closed without a value");
+		}
+	}
 	/** The latest value. */
 	#value;
 	/** The current change number. */
@@ -11219,6 +11327,23 @@ var router = { list: defineProcedure({
 	method: "GET",
 	path: "/notes"
 }).output(strictObject({ path: string() })) };
+/** A dependency on the installation's notes service. */
+var notes = defineServiceConnection({
+	packageId: { "package": {
+		"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+		"name": "@destack/build-service-fixture",
+		"version": "2026.9.0"
+	} }.package.id,
+	name: "notes",
+	service: {
+		packageId: { "package": {
+			"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+			"name": "@destack/build-service-fixture",
+			"version": "2026.9.0"
+		} }.package.id,
+		name: "notes"
+	}
+}, router);
 /** The public HTTP service. */
 var service = defineService({
 	name: "notes",
@@ -11294,6 +11419,6 @@ var appointment = defineSchedule({
 function remind(occurrence) {
 	return occurrence.id;
 }
-export { appointment, database, fetch, implementService, publishNote, refresh, remind, reminders, router, service, token, vault };
+export { appointment, database, fetch, implementService, notes, publishNote, refresh, remind, reminders, router, service, token, vault };
 
-//# sourceMappingURL=server-BMfOZOuX.js.map
+//# sourceMappingURL=server-umCVDsJM.js.map

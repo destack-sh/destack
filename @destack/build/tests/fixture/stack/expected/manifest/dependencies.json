@@ -367,8 +367,8 @@
             },
             {
                 "path": "package.json",
-                "digest": "ab1dca13b08a398ea9045fbb7c83ca647636cc48397176c380be17fbb67d3629",
-                "size": 995,
+                "digest": "53a28ba52c39c86b92fb970446c71af7bc9755a4699af6ce7ecbd24a0dc38db2",
+                "size": 1036,
                 "mediaType": "application/json"
             },
             {
@@ -475,8 +475,8 @@
             },
             {
                 "path": "src/manifest/output.ts",
-                "digest": "aba311d56c6a6c02b1deaf84e3f7217430301e1fc8d0fd787ea851f2664bed2c",
-                "size": 1508,
+                "digest": "238cd1c1d87c47acc1a3c003eae6503f174f066f1a78d553482ae170022e940a",
+                "size": 1607,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -499,8 +499,8 @@
             },
             {
                 "path": "src/package/definition.ts",
-                "digest": "fcaecae540cdd0328d0c127c249480f13bf62522165bd818f926539b7c57a0b0",
-                "size": 2053,
+                "digest": "640c449cbeb2fe3d5394c4b15885b34d10de0f550d2eddc8fc7d94ba46f08d03",
+                "size": 2239,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -529,8 +529,8 @@
             },
             {
                 "path": "src/package/package.ts",
-                "digest": "047286e738264358d8252f0ec9f2719afc8f1627654ce16e83e91812fa5aea91",
-                "size": 2055,
+                "digest": "9cfa8450cd44cb4e18d4605ded727d8987a57339b3c4b83a57602de43edba69e",
+                "size": 2210,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -576,6 +576,18 @@
                 "mediaType": "application/octet-stream"
             },
             {
+                "path": "src/view/index.ts",
+                "digest": "512185345a4d2e105010f8d2e34f571c98255ef65c838b128177adbedfde7b67",
+                "size": 27,
+                "mediaType": "application/octet-stream"
+            },
+            {
+                "path": "src/view/view.ts",
+                "digest": "4f9195faf7517665b9ce156e6612665b17ef99bd142dcec2731b7b15fcc6ec1e",
+                "size": 1195,
+                "mediaType": "application/octet-stream"
+            },
+            {
                 "path": "src/workload/index.ts",
                 "digest": "859ae6037aa4b8e38dfbc13bc30174d68817c6c4c09131e09d449dc40ce740ae",
                 "size": 31,
@@ -583,8 +595,8 @@
             },
             {
                 "path": "src/workload/workload.ts",
-                "digest": "38afcc9ea63d9ac3bcb48fbdedbe036a61bec3eb6c23700be76743f420429edc",
-                "size": 2666,
+                "digest": "bd86d0e24f54ddb449be4df2faea3834a815f6a389f65458743dfa37f278078c",
+                "size": 2687,
                 "mediaType": "application/octet-stream"
             }
         ]
@@ -727,8 +739,8 @@
             },
             {
                 "path": "package.json",
-                "digest": "8df59a082480ae0bc3e3736bec580c2f9707b8dc4fa11a4ab0bd8b2d4a44832c",
-                "size": 1187,
+                "digest": "a9bdc4ad687d00f80f8c90af982aef5ee4f108baf3ac6c9738f0a54511d369cd",
+                "size": 1231,
                 "mediaType": "application/json"
             },
             {
@@ -821,14 +833,14 @@
             },
             {
                 "path": "src/declare/route.ts",
-                "digest": "ba2bad657313335d745ad78036e52b881529cd0b4f65eca0509daa83ee3e47c0",
-                "size": 1676,
+                "digest": "9471aa3617ed1b7b65437fc177f12187d6dba88e9fdd0999d7a1bd26fd49a12b",
+                "size": 1667,
                 "mediaType": "application/octet-stream"
             },
             {
                 "path": "src/declare/source.ts",
-                "digest": "5f1ab1563cb49333a862be6ccbabcf7ca8236a0ed23138edbb2233880bbb89a6",
-                "size": 3105,
+                "digest": "e57b0f085a095eabccc306db90f457d855229d37e3a29bb5d284a34729ed2a45",
+                "size": 3096,
                 "mediaType": "application/octet-stream"
             },
             {

@@ -44,6 +44,8 @@ export interface ApplicationOptions extends Pick<
 > {
     /** Compile a browser application and its server handler. */
     kind: "web";
+    /** Named view declared in destack.json, mutually exclusive with app. */
+    view?: string;
     /** Server runtime and whether to distribute the handler. */
     ssr: false | { runtime: "bun" | "workerd"; emit?: boolean };
     /** Public URL prefix used by browser assets. */
@@ -295,6 +297,7 @@ export async function compileApplication(
                 target: target as "browser" | "server",
                 runtime: side === "client" ? "browser" : (server?.runtime ?? "bun"),
                 emit: true,
+                ...(start.view === undefined ? {} : { view: start.view }),
                 workloads: {},
                 descriptions: {},
                 directory,

@@ -1,6 +1,45 @@
 [
     {
         "name": "notes",
+        "kind": "service-connection",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                "name": "@destack/service",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/connection.ts",
+                "name": "defineServiceConnection"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "notes"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 43,
+            "column": 21
+        },
+        "description": {
+            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+            "name": "notes",
+            "service": {
+                "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "notes"
+            }
+        }
+    },
+    {
+        "name": "notes",
         "kind": "service",
         "constructor": {
             "package": {
@@ -26,7 +65,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 43,
+            "line": 53,
             "column": 23
         },
         "description": {
@@ -128,7 +167,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 90,
+            "line": 100,
             "column": 25
         },
         "description": {
@@ -169,7 +208,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 102,
+            "line": 112,
             "column": 23
         },
         "description": {
@@ -211,7 +250,7 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 115,
+            "line": 125,
             "column": 27
         },
         "description": {

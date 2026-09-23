@@ -26,7 +26,11 @@ export async function describeWorkloads(
     // index domain declarations and reject ambiguous names
     const declared = new Map<string, DeclarationDescription>();
     for (const declaration of declarations) {
-        if (!["resource", "secret", "service", "schedule"].includes(declaration.kind)) {
+        if (
+            !["resource", "secret", "service", "schedule", "service-connection"].includes(
+                declaration.kind,
+            )
+        ) {
             continue;
         }
         const key = `${declaration.symbol.package.id}:${declaration.kind}:${declaration.name}`;
@@ -157,6 +161,7 @@ export async function describeWorkloads(
         const paths = new Map<string, Set<string>>();
         const resources: DeclarationReference[] = [];
         const secrets: DeclarationReference[] = [];
+        const connections: DeclarationReference[] = [];
         for (const id of sources) {
             if (reachable.has(id)) {
                 continue;
@@ -191,7 +196,11 @@ export async function describeWorkloads(
 
         // retain qualified references once per declaration
         for (const declaration of declared.values()) {
-            if (declaration.kind !== "resource" && declaration.kind !== "secret") {
+            if (
+                declaration.kind !== "resource" &&
+                declaration.kind !== "secret" &&
+                declaration.kind !== "service-connection"
+            ) {
                 continue;
             }
 
@@ -205,8 +214,10 @@ export async function describeWorkloads(
             const reference = { packageId: owner.id, name: declaration.name };
             if (declaration.kind === "resource") {
                 resources.push(reference);
-            } else {
+            } else if (declaration.kind === "secret") {
                 secrets.push(reference);
+            } else {
+                connections.push(reference);
             }
         }
 
@@ -224,7 +235,13 @@ export async function describeWorkloads(
             throw invalid(`Workload ${name} requires instance management unavailable in workerd.`);
         }
 
-        result[name] = WorkloadDescription.parse({ ...definition, resources, secrets, compute });
+        result[name] = WorkloadDescription.parse({
+            ...definition,
+            resources,
+            secrets,
+            connections,
+            compute,
+        });
     }
 
     return result;

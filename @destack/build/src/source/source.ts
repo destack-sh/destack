@@ -171,6 +171,18 @@ export async function readPackageDeclaration(
               ? []
               : ["."];
     mergeCompute(definition.compute);
+
+    // require named views to reference explicit browser exports
+    for (const [name, view] of Object.entries(definition.views ?? {})) {
+        const targets = definition.exports?.[view.entrypoint]?.targets ?? definition.targets;
+        if (!names.includes(view.entrypoint) || !targets?.includes("browser")) {
+            throw new PackageError(
+                "INVALID_DEFINITION",
+                `view ${name} requires a browser export: ${view.entrypoint}`,
+            );
+        }
+    }
+
     for (const [name, workload] of Object.entries(definition.workloads ?? {})) {
         if (!names.includes(workload.entrypoint)) {
             throw new PackageError(
