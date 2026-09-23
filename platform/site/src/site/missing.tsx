@@ -6,6 +6,7 @@ import * as stylex from "@destack/style";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { Seo } from "./seo";
+import { Shallows } from "./shallows";
 
 type MissingPageProps = {
     /// The destination offered after the missing route.
@@ -40,6 +41,7 @@ export function MissingPage(props: MissingPageProps) {
                         ← {props.backLabel}
                     </a>
                 </div>
+                <Shallows style={styles.shallows} />
             </section>
         </>
     );
@@ -50,6 +52,7 @@ const mobile = "@media (max-width: 767px)";
 const styles = stylex.create({
     page: {
         flexGrow: 1,
+        gridTemplateRows: "1fr auto",
         minHeight: `calc(${tokens.column} * 3)`,
     },
     label: {
@@ -70,6 +73,9 @@ const styles = stylex.create({
         gridColumn: "4 / span 9",
         padding: tokens.inset,
         [mobile]: { gridColumn: "1 / -1" },
+    },
+    shallows: {
+        gridColumn: "1 / -1",
     },
     title: {
         fontFamily: fontFamily.default,
