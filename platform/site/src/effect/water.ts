@@ -104,7 +104,8 @@ void main() {
     surface += funnel * ((size.y - level) * exp(-spread * spread) + 60.0 * lean);
     surface -= fill * (size.y * 0.24 * exp(-spread * spread * 0.3) + 50.0 * lean);
     float below = y - surface;
-    if (below < 0.0) {
+    float cover = smoothstep(-0.6, 0.6, below);
+    if (cover <= 0.0) {
         discard;
     }
 
@@ -131,17 +132,17 @@ void main() {
     float clear = (1.0 - smoothstep(lens.z - 1.5, lens.z + 0.5, offset)) * step(1.0, lens.z);
     color = mix(color, caustic, clear * 0.08);
 
-    // outline the surface and sides in ink, with a foam line under the surface ink that thickens while the water moves
-    float crest = 3.0 + agitation * 1.5;
+    // edge the surface with one foam line that thickens while the water moves, and outline the sides in ink
+    float crest = 2.0 + agitation * 1.5;
     float sides = min(min(x, size.x - x), size.y - y);
-    float outline = max(1.0 - smoothstep(0.8, 1.6, below), 1.0 - smoothstep(0.6, 1.4, sides));
+    float outline = 1.0 - smoothstep(0.6, 1.4, sides);
     float froth = 1.0 - smoothstep(crest, crest + 0.8, below);
     color = mix(color, mix(foam, signal, agitation * 0.45), froth);
     color = mix(color, ink, outline * 0.55);
 
     // keep the water nearly opaque so the submerged stack reads only as shapes, except through the searchlight
     float alpha = mix(mix(0.74, 0.88, smoothstep(0.0, 0.8, depth)), 0.04, clear);
-    alpha = max(alpha, max(froth, outline));
+    alpha = max(alpha, max(froth, outline)) * cover;
     gl_FragColor = vec4(color * alpha, alpha);
 }
 `;
@@ -175,7 +176,7 @@ export class Water {
         isMoving: boolean,
         onLevel: (level: number) => void,
     ) {
-        this.shader = new Shader(canvas, fragmentSource, 1.25, (now) => this.draw(now));
+        this.shader = new Shader(canvas, fragmentSource, 1.5, (now) => this.draw(now));
         this.palette = palette;
         this.from = level;
         this.to = level;

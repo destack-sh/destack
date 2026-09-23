@@ -146,9 +146,9 @@ float surfaceAt(float x) {
 const vec3 ink = vec3(0.07, 0.19, 0.235);
 
 // shade a facet in flat cel tones lit from the upper left: white and a faint blue above water, two close blues below
-vec3 shade(vec2 local, vec2 cell) {
+vec3 shade(vec2 local, vec2 cell, bool isAbove) {
     float light = 0.55 + 0.45 * hash(cell) - local.x / column * 0.5;
-    if (local.y < 0.0) {
+    if (isAbove) {
         return light > 0.62 ? vec3(1.0) : vec3(0.9, 0.955, 0.98);
     }
     return light > 0.6 ? vec3(0.5, 0.76, 0.85) : vec3(0.43, 0.7, 0.8);
@@ -177,17 +177,13 @@ void main() {
             float d = berg(p, index);
             float inside = 1.0 - smoothstep(-edge, edge, d);
             if (inside > 0.001) {
+                // split the berg at the moving water surface, then pencil the creases above it and ink the outline
+                bool isAbove = frag.y < surfaceAt(frag.x) + 1.0;
                 vec3 cell = facet(p * grain + index * 11.0);
-                vec3 color = shade(p, cell.xy);
-
-                // pencil the facet creases above water, then ink the outline
-                float crease = (1.0 - smoothstep(0.0, 0.04, cell.z)) * step(p.y, 0.0);
+                vec3 color = shade(p, cell.xy, isAbove);
+                float crease = (1.0 - smoothstep(0.0, 0.04, cell.z)) * (isAbove ? 1.0 : 0.0);
                 color = mix(color, ink, crease * 0.08);
                 color = mix(color, ink, smoothstep(-1.6, -0.8, d) * 0.6);
-
-                // wrap a foam collar where the water surface meets the ice
-                float collar = 1.0 - smoothstep(1.2, 2.2, abs(frag.y - surfaceAt(frag.x) - 3.0));
-                color = mix(color, vec3(1.0), collar);
                 gl_FragColor = vec4(color * inside, inside);
                 return;
             }
@@ -204,14 +200,12 @@ void main() {
                 vec3 cell = facet(origin * grain + index * 11.0);
                 float d = berg(origin, index);
                 if (cell.x == shard.x && cell.y == shard.y && d < 0.0) {
-                    // ink the cracks as the ice breaks, easing back to whole-ice creases, outline, and collar as it settles
+                    // ink the cracks as the ice breaks, easing back to whole-ice creases and outline as it settles
                     float apart = smoothstep(0.0, 0.25, shatter);
                     float crack = 1.0 - smoothstep(0.012, 0.03, cell.z);
                     float crease = (1.0 - smoothstep(0.0, 0.04, cell.z)) * step(origin.y, 0.0) * 0.08;
-                    vec3 color = mix(shade(origin, shard), ink, mix(crease, crack * 0.6, apart));
+                    vec3 color = mix(shade(origin, shard, origin.y < 0.0), ink, mix(crease, crack * 0.6, apart));
                     color = mix(color, ink, smoothstep(-1.6, -0.8, d) * 0.6);
-                    float collar = 1.0 - smoothstep(1.2, 2.2, abs(frag.y - surfaceAt(frag.x) - 3.0));
-                    color = mix(color, vec3(1.0), collar * (1.0 - apart));
                     float alpha = 1.0 - smoothstep(0.55, 1.0, shatter);
                     gl_FragColor = vec4(color * alpha, alpha);
                     return;
