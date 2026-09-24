@@ -151,17 +151,6 @@ impl CheckState<'_> {
         Ok(Some(collector.nodes))
     }
 
-    /// Return the definition declaring one member symbol in its loaded module.
-    pub(in crate::sema) fn member_owner(
-        &self,
-        member: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        Ok(self
-            .committed(member.module_id)?
-            .and_then(|committed| committed.definitions.member(member))
-            .map(|(owner, _, _)| owner))
-    }
-
     /// Return the interface declaring one interface member symbol.
     pub(in crate::sema) fn interface_member_owner(
         &self,

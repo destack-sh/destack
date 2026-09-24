@@ -1,5 +1,6 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::sema::{
     Bound, BoundList, BoundSide, Cause, CauseArena, CauseId, GenericParameterId, Origin,
@@ -25,6 +26,9 @@ pub(in crate::sema) struct InferContext {
     pub(in crate::sema) scope_depth: usize,
     /// Open variables standing for uninferred symbol types.
     pub(in crate::sema) symbol_variables: FxIndexMap<dir::GlobalSymbolId, dir::TypeVariableId>,
+    /// The completed form of each application given fewer arguments than parameters.
+    pub(in crate::sema) filled_applications:
+        FxIndexMap<(ModuleId, dir::GenericApplication), dir::GlobalTypeId>,
 
     // regions
     /// Interned check origins.
@@ -73,6 +77,7 @@ impl InferContext {
             sealed: false,
             scope_depth: 0,
             symbol_variables: FxIndexMap::default(),
+            filled_applications: FxIndexMap::default(),
             snapshots: Vec::new(),
             trail: Vec::new(),
         }
@@ -96,8 +101,7 @@ impl InferContext {
         snapshot
     }
 
-    /// Close the innermost decision, restoring the state older than it and returning the node
-    /// types it committed.
+    /// Close the innermost decision, returning the node types it committed.
     pub(in crate::sema) fn rollback(&mut self) -> CompilerResult<Vec<dir::GlobalNodeIdAny>> {
         let Some(snapshot) = self.snapshots.pop() else {
             return Err(CompilerError::Internal {

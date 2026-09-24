@@ -1,12 +1,13 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use super::instance::InstanceWorklist;
-use crate::CompilerResult;
 use crate::sema::{CheckState, Origin};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Record what one type graph reaches: an instance per application, members per union.
+    /// Record the reductions, representations, and instances one type graph names.
     pub(in crate::sema) fn walk_type_graph(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -14,15 +15,15 @@ impl CheckState<'_> {
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
         let mut pending = vec![ty];
-        let mut visited = FxIndexSet::default();
         while let Some(id) = pending.pop() {
-            if !visited.insert(id) {
+            if !worklist.walked.insert(id) {
                 continue;
             }
 
-            // record this type's reduction and the instance its application names
+            // record this type's reduction, representation and the instance its application names
             let ty = self.ty(id)?;
             self.write_reduction(id, &ty)?;
+            self.write_representation(id, source)?;
             if let Some(reduced) = self.module.reduction(id) {
                 pending.push(reduced);
             }
@@ -51,8 +52,12 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Record the reductions of every written head one type graph names.
-    pub(super) fn walk_reduction_graph(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<()> {
+    /// Record the reduction and representation of every head one type graph names.
+    pub(super) fn walk_reduction_graph(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
         let mut pending = vec![ty];
         let mut visited = FxIndexSet::default();
         while let Some(id) = pending.pop() {
@@ -61,8 +66,28 @@ impl CheckState<'_> {
             }
             let ty = self.ty(id)?;
             self.write_reduction(id, &ty)?;
+            self.write_representation(id, source)?;
             self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
         }
+
+        Ok(())
+    }
+
+    /// Record whether one type of this module copies and the ownership its head defaults to.
+    fn write_representation(
+        &mut self,
+        id: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
+        if id.module_id != self.module_id {
+            return Ok(());
+        }
+        let origin = self.anchored_origin(source)?;
+        self.decide_copy(origin, id, &mut SmallVec::new())?;
+        let ownership = self.ownership(id)?;
+        self.module
+            .representations_tail
+            .set_ownership(id, ownership.into());
 
         Ok(())
     }
@@ -96,8 +121,7 @@ impl CheckState<'_> {
                 };
                 is_union = matches!(self.ty(body)?, dir::Type::Union(_));
 
-                // a bare alias name lowers through its symbol, an applied alias through its
-                // identity unless its value computes
+                // lower a bare alias through its symbol, an applied alias through its identity
                 let is_bare = match ty {
                     dir::Type::Application(application) => application.arguments.is_empty(),
                     _ => true,
@@ -195,10 +219,27 @@ impl CheckState<'_> {
         {
             return Ok(None);
         }
-        // skip an application that pairs with no instance
-        let Ok(substitution) = self.instance_substitution(id.module_id, application) else {
-            return Ok(None);
-        };
+        // pair a bare generic head with no instance while a parameter lacks its default
+        if application.arguments.is_empty()
+            && let Some(template) = self.symbol_template(application.symbol)?
+        {
+            for parameter in self.generic_template_parameters(template)? {
+                let binding =
+                    self.generic_parameter(parameter)?
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!(
+                                "a template parameter {parameter:?} without its binding"
+                            ),
+                        })?;
+                if binding.is_writable()
+                    && binding.default.is_none()
+                    && binding.memory_parameter() != Some(dir::MemoryParameter::Region)
+                {
+                    return Ok(None);
+                }
+            }
+        }
+        let substitution = self.instance_substitution(id.module_id, application)?;
 
         // intern the instance the application pairs with
         let instance = self.intern_instance(
@@ -220,8 +261,7 @@ impl CheckState<'_> {
         Ok(instance)
     }
 
-    /// Rewrite one instance argument with every region bound to its positional literal, the
-    /// instance key erasing the regions it was reached with.
+    /// Rewrite one instance argument with every region bound to its positional literal.
     pub(super) fn erase_argument_regions(
         &mut self,
         id: dir::GlobalTypeId,
@@ -233,12 +273,32 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // bind a region term to the next position
-        if self.memory_kind(id)? == Some(dir::MemoryParameter::Region) {
+        // bind a region term's extent to the next position, a union member by member
+        if self.memory_kind(id)? == Some(dir::MemoryParameter::Region)
+            && !matches!(self.ty(id)?, dir::Type::Union(_))
+        {
+            // keep a declared region parameter, bound early by its declaration
+            if let dir::Type::Parameter(parameter) = self.ty(id)?
+                && self.generic_parameter(parameter)?.is_some_and(|binding| {
+                    binding.kind == dir::GenericParameterKind::Memory(dir::MemoryParameter::Region)
+                })
+            {
+                return Ok(id);
+            }
+
+            // bind the next position to each region argument
             let position = *next_position;
             *next_position += 1;
+            let extent = self.lifetime_literal(dir::Lifetime::Bound(position))?;
 
-            return self.lifetime_literal(dir::Lifetime::Bound(position));
+            return match self.ty(id)? {
+                dir::Type::Region(pair) => self.intern_type(dir::Type::Region(dir::RegionType {
+                    extent,
+                    space: pair.space,
+                })),
+                _ if matches!(self.lifetime_of(id)?, Some(dir::Lifetime::Bound(_))) => Ok(extent),
+                _ => Ok(id),
+            };
         }
 
         // rebuild the children with their lifetimes bound
@@ -250,45 +310,5 @@ impl CheckState<'_> {
         visiting.pop();
 
         self.intern_type(rebuilt)
-    }
-
-    /// Ground the induced place and space parameters one argument carries at local.
-    pub(super) fn ground_induced_memory_argument(
-        &mut self,
-        argument: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // collect the induced place terms the argument reaches
-        let mut induced = Vec::new();
-        let mut pending = vec![argument];
-        let mut visited = FxIndexSet::default();
-        while let Some(id) = pending.pop() {
-            if !visited.insert(id) {
-                continue;
-            }
-
-            // keep each parameter its binding induces a place or space for
-            let kind = self.ty(id)?;
-            if let dir::Type::Parameter(parameter) = &kind
-                && self.generic_parameter(*parameter)?.is_some_and(|binding| {
-                    matches!(
-                        binding.induced_memory_parameter(),
-                        Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space)
-                    )
-                })
-            {
-                induced.push(id);
-            }
-
-            self.for_each_type_child(id.module_id, &kind, |child| pending.push(child))?;
-        }
-
-        // replace each induced place term with the ambient local space
-        let mut argument = argument;
-        for from in induced {
-            let to = self.local_place()?;
-            argument = self.replace_type(argument, from, to)?;
-        }
-
-        Ok(argument)
     }
 }

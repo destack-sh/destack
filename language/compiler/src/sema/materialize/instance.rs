@@ -1,5 +1,6 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
+use rustc_hash::FxHashSet;
 
 use crate::sema::{CheckState, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
@@ -15,6 +16,8 @@ pub(in crate::sema) struct InstanceWorklist {
     pub(super) reaching: Option<usize>,
     /// Whether a chain already exceeded the depth limit, reported once.
     overflowed: bool,
+    /// The types whose graphs this pass walked.
+    pub(super) walked: FxHashSet<dir::GlobalTypeId>,
 }
 
 impl InstanceWorklist {
@@ -107,12 +110,6 @@ impl CheckState<'_> {
         arguments: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<bool> {
         for binding in arguments {
-            let is_memory = self
-                .generic_parameter(binding.parameter)?
-                .is_some_and(|parameter| parameter.memory_parameter().is_some());
-            if is_memory {
-                continue;
-            }
             if !self.binds_itself(binding)? {
                 return Ok(false);
             }
@@ -161,8 +158,7 @@ impl CheckState<'_> {
         Ok(!self.ty(value)?.is_structural())
     }
 
-    /// Close one instance argument at its source, none when it stays open past the source's
-    /// templates.
+    /// Close one instance argument at its source, none when it stays open.
     fn close_argument(
         &mut self,
         origin: Origin,
@@ -172,7 +168,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let argument = self.deeply_resolve(origin, argument)?;
         let argument = self.erase_argument_regions(argument, &mut Vec::new(), next_position)?;
-        let argument = self.ground_induced_memory_argument(argument)?;
         let flags = self.type_flags(argument)?;
         if flags.has_variable() || flags.has_infer() {
             return Ok(None);
@@ -202,9 +197,6 @@ impl CheckState<'_> {
         let mut arguments = Vec::new();
         let mut next_position = 0;
         for binding in bindings {
-            if self.is_lifetime_parameter(binding.parameter)? {
-                continue;
-            }
             let Some(argument) =
                 self.close_argument(origin, binding.argument, source, &mut next_position)?
             else {
@@ -225,21 +217,13 @@ impl CheckState<'_> {
             None => None,
         };
 
-        // require a receiver or one type argument to close on
-        if arguments.is_empty() && receiver.is_none() {
-            return Ok(None);
-        }
-
-        // close unbound place parameters at local, dropping every other unbound selection
+        // drop every selection leaving a parameter unbound
         if let Some(template_id) = self.symbol_template(template)?
             && let Some(declared) = self.generic_template(template_id)?
         {
             let parameters = declared.parameters.clone();
             for parameter in parameters.iter().copied() {
                 let parameter = parameter.into_global(template_id.module_id);
-                if self.is_lifetime_parameter(parameter)? {
-                    continue;
-                }
                 if arguments
                     .iter()
                     .any(|binding| binding.parameter == parameter)
@@ -247,27 +231,10 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                // close an unbound ambient place parameter at local
-                let (is_place, is_implicit) = self
-                    .generic_parameter(parameter)?
-                    .map(|binding| {
-                        (
-                            matches!(
-                                binding.memory_parameter(),
-                                Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space)
-                            ),
-                            binding.origin == dir::GenericParameterOrigin::Receiver,
-                        )
-                    })
-                    .unwrap_or((false, false));
-                if is_place {
-                    let local = self.local_place()?;
-                    arguments.push(dir::GenericArgumentBinding::new(parameter, local));
-
-                    continue;
-                }
-
                 // the receiver binds through the key, dependents close below
+                let is_implicit = self
+                    .generic_parameter(parameter)?
+                    .is_some_and(|binding| binding.origin == dir::GenericParameterOrigin::Receiver);
                 if is_implicit {
                     continue;
                 }
@@ -275,6 +242,11 @@ impl CheckState<'_> {
                 // an instantiation binding the owner's parameters alone names no instance
                 return Ok(None);
             }
+        }
+
+        // require a receiver or one argument to close on
+        if arguments.is_empty() && receiver.is_none() {
+            return Ok(None);
         }
 
         // answer an interface requirement through the receiver's witness

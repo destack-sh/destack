@@ -89,20 +89,41 @@ impl<'a> CheckState<'a> {
             return Ok(SmallVec::new());
         }
 
-        // select implementations and track the interface projection
-        let symbols = self
-            .artifacts
-            .project::<ModuleGraph, _, _>(self.profile, |graph| {
-                let symbols = graph
-                    .interface_implementations(interface)
-                    .iter()
-                    .map(|implementation| (implementation.symbol, implementation.root))
-                    .collect::<SmallVec<[_; 4]>>();
-                let projection = ArtifactProjectionKey::ModuleGraphImplementations(interface);
+        // read the remembered implementations
+        if let Some(symbols) = self.program_implementations.get(&interface) {
+            return Ok(symbols.clone());
+        }
 
-                (symbols, [projection])
-            })
+        // select implementations from the graph of every package this module sees
+        let packages = self
+            .artifacts
+            .package_closure(self.module_id.package_id)
             .map_err(CompilerError::from)?;
+        let mut symbols = SmallVec::new();
+        for package in packages {
+            let selected = self
+                .artifacts
+                .project::<ModuleGraph, _, _>((package, self.profile), |graph| {
+                    let symbols = graph
+                        .interface_implementations(interface)
+                        .iter()
+                        .map(|implementation| (implementation.symbol, implementation.root))
+                        .collect::<SmallVec<[_; 4]>>();
+                    let projection = ArtifactProjectionKey::ModuleGraphImplementations(interface);
+
+                    (symbols, [projection])
+                })
+                .map_err(CompilerError::from)?;
+            for symbol in selected {
+                if !symbols.contains(&symbol) {
+                    symbols.push(symbol);
+                }
+            }
+        }
+
+        // remember the implementations for later queries
+        self.program_implementations
+            .insert(interface, symbols.clone());
 
         Ok(symbols)
     }
@@ -159,9 +180,6 @@ impl<'a> CheckState<'a> {
     }
 
     /// Return one import binder's resolved target symbol, when one exists.
-    ///
-    /// A binder's target lives in the module's import resolutions or in its
-    /// resolved global names.
     pub(in crate::sema) fn import_binder_target(
         &mut self,
         symbol: dir::GlobalSymbolId,

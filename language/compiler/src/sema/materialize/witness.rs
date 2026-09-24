@@ -96,6 +96,11 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
+        // resolve witness identities into this module's type table
+        let origin = self.anchored_origin(source)?;
+        let ty = self.deeply_resolve(origin, ty)?;
+        let interface = self.deeply_resolve(origin, interface)?;
+
         // read the interface at its full parameter list
         let interface = match self.ty(interface)? {
             dir::Type::Application(application) => self
@@ -114,7 +119,6 @@ impl CheckState<'_> {
         }
 
         // an erased value dispatches itself
-        let origin = self.anchored_origin(source)?;
         let dir::Type::Application(application) = self.ty(interface)? else {
             return Err(CompilerError::Internal {
                 message: "a witness interface outside an application".to_string(),
@@ -129,15 +133,16 @@ impl CheckState<'_> {
         if self.is_marker_interface(application.symbol)? {
             let closure = self.heritage_closure(origin, interface)?;
             for base in closure.applications {
-                let Some(symbol) = self.ty(base.ty)?.symbol() else {
+                let interface = self.deeply_resolve(origin, base.ty)?;
+                let Some(symbol) = self.ty(interface)?.symbol() else {
                     continue;
                 };
                 if self.is_marker_interface(symbol)?
-                    || self.module.generics_tail.witness(ty, base.ty).is_some()
+                    || self.module.generics_tail.witness(ty, interface).is_some()
                 {
                     continue;
                 }
-                self.write_conformance_witness(ty, base.ty, &conformance, source, worklist)?;
+                self.write_conformance_witness(ty, interface, &conformance, source, worklist)?;
             }
 
             return Ok(());
@@ -162,10 +167,7 @@ impl CheckState<'_> {
             });
         };
 
-        // admit the applications the answering type reaches
-        self.walk_type_graph(ty, source, worklist)?;
-
-        // reserve the pair before resolving its members
+        // reserve the pair before following recursive types and resolving its members
         self.module.generics_tail.bind_witness(
             ty,
             interface,
@@ -176,15 +178,16 @@ impl CheckState<'_> {
             },
         );
 
-        // resolve each member through the conformance
-        let owner_bindings = self
-            .instance_substitution(interface.module_id, &application)?
-            .bindings
-            .to_vec();
+        // admit the applications the answering type names
+        self.walk_type_graph(ty, source, worklist)?;
+
+        // resolve each member at its declaring interface's arguments
         let mut functions = Vec::new();
         let mut types = Vec::new();
         let mut constants = Vec::new();
-        for requirement in self.witness_members(application.symbol)? {
+        for (declaring, requirement) in self.witness_members(interface, ty)? {
+            let (module, owner) = self.nominal_application(declaring)?;
+            let owner_bindings = self.instance_substitution(module, &owner)?.bindings;
             match requirement {
                 Requirement::Function(requirement, key, space) => {
                     let answer = self.resolve_requirement(
@@ -197,16 +200,17 @@ impl CheckState<'_> {
                         source,
                         worklist,
                     )?;
-                    if let Some(implementer) = answer {
+                    if let Some((implementer, witness_source)) = answer {
                         functions.push(dir::WitnessFunction {
                             member: requirement,
                             function: implementer,
+                            source: witness_source,
                         });
                     }
                 }
                 Requirement::Type(key) => {
                     let answer = self.resolve_associated_type(
-                        application.symbol,
+                        owner.symbol,
                         key,
                         ty,
                         conformance,
@@ -241,32 +245,36 @@ impl CheckState<'_> {
         // answer each interface the interface extends by the members it inherits
         let closure = self.heritage_closure(origin, interface)?;
         for base in closure.applications {
-            let Some(symbol) = self.ty(base.ty)?.symbol() else {
+            let interface = self.deeply_resolve(origin, base.ty)?;
+            let Some(symbol) = self.ty(interface)?.symbol() else {
                 continue;
             };
             if symbol == application.symbol
                 || self.is_marker_interface(symbol)?
-                || self.module.generics_tail.witness(ty, base.ty).is_some()
+                || self.module.generics_tail.witness(ty, interface).is_some()
             {
                 continue;
             }
-            let members = self.witness_members(symbol)?;
+            let members = self.witness_members(interface, ty)?;
             let inherited = Self::witness_restricted_to(&witness, &members);
             self.module
                 .generics_tail
-                .bind_witness(ty, base.ty, inherited);
+                .bind_witness(ty, interface, inherited);
         }
 
         Ok(())
     }
 
     /// Return the part of one witness answering the members one interface declares.
-    fn witness_restricted_to(witness: &dir::Witness, members: &[Requirement]) -> dir::Witness {
+    fn witness_restricted_to(
+        witness: &dir::Witness,
+        members: &[(dir::GlobalTypeId, Requirement)],
+    ) -> dir::Witness {
         let functions = witness
             .functions
             .iter()
             .filter(|function| {
-                members.iter().any(|member| {
+                members.iter().any(|(_, member)| {
                     matches!(member, Requirement::Function(symbol, ..) if *symbol == function.member)
                 })
             })
@@ -278,7 +286,7 @@ impl CheckState<'_> {
             .filter(|witness_type| {
                 members
                     .iter()
-                    .any(|member| matches!(member, Requirement::Type(key) if *key == witness_type.member))
+                    .any(|(_, member)| matches!(member, Requirement::Type(key) if *key == witness_type.member))
             })
             .copied()
             .collect();
@@ -286,7 +294,7 @@ impl CheckState<'_> {
             .constants
             .iter()
             .filter(|constant| {
-                members.iter().any(|member| {
+                members.iter().any(|(_, member)| {
                     matches!(member, Requirement::Const(declared) if declared.key == constant.member)
                 })
             })
@@ -303,10 +311,11 @@ impl CheckState<'_> {
     /// Return the members one interface witness answers, inherited first, in declaration order.
     fn witness_members(
         &mut self,
-        interface: dir::GlobalSymbolId,
-    ) -> CompilerResult<Vec<Requirement>> {
+        interface: dir::GlobalTypeId,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<(dir::GlobalTypeId, Requirement)>> {
         let mut requirements = FxIndexMap::default();
-        self.collect_witness_members(interface, &mut requirements)?;
+        self.collect_witness_members(interface, receiver, &mut requirements)?;
 
         Ok(requirements.into_values().collect())
     }
@@ -314,24 +323,25 @@ impl CheckState<'_> {
     /// Collect one interface's witness members keyed by member key, bases ahead of own members.
     fn collect_witness_members(
         &mut self,
-        interface: dir::GlobalSymbolId,
-        requirements: &mut FxIndexMap<dir::StaticKey, Requirement>,
+        interface: dir::GlobalTypeId,
+        receiver: dir::GlobalTypeId,
+        requirements: &mut FxIndexMap<dir::StaticKey, (dir::GlobalTypeId, Requirement)>,
     ) -> CompilerResult<()> {
-        let declared = self.definition(interface)?;
+        let (_, application) = self.nominal_application(interface)?;
+        let declared = self.definition(application.symbol)?;
         let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "a witness over the non-interface '{}'",
-                    self.format_symbol(interface)
+                    self.format_type(interface)
                 ),
             });
         };
 
         // inherit the base requirements first
         for heritage in &definition.extends {
-            if let Some(base) = self.ty(heritage.ty)?.symbol() {
-                self.collect_witness_members(base, requirements)?;
-            }
+            let base = self.instantiate_interface_type(heritage.ty, interface, receiver)?;
+            self.collect_witness_members(base, receiver, requirements)?;
         }
 
         // add the own methods and associated types by key
@@ -351,7 +361,7 @@ impl CheckState<'_> {
                 }
                 _ => continue,
             };
-            requirements.insert(key, requirement);
+            requirements.insert(key, (interface, requirement));
         }
 
         Ok(())

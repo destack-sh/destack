@@ -6,7 +6,7 @@ use crate::{CompilerError, CompilerResult};
 
 use super::instance::InstanceWorklist;
 
-/// One materialization: the substitution committed types close under and the instance recording them.
+/// The substitution committed types close under, with the node their entries anchor at.
 pub(super) struct Materialization<'a> {
     /// The substitution closing parameters and the receiver, absent over the module's own entries.
     pub(super) substitution: Option<&'a TypeSubstitution>,
@@ -78,10 +78,9 @@ impl CheckState<'_> {
         for (source, definition) in definitions {
             entries.push(Entry::Definition(source, Box::new(definition)));
         }
+        // the symbol types at their declarations
         let module = &self.module;
         let bindings = module.binding_table();
-
-        // the symbol types at their declarations
         for (symbol, ty) in module.types.symbol_types() {
             let declaration = bindings.get_symbol(symbol.local_id).declaration;
             entries.push(Entry::Symbol(symbol, ty, declaration));
@@ -228,70 +227,113 @@ impl CheckState<'_> {
                 self.symbol_dependents(*symbol)?;
             }
 
-            match entry {
-                Entry::Symbol(symbol, ty, declaration) => {
-                    let Some(anchor) = materialization.anchor.or(declaration) else {
-                        continue;
-                    };
-                    let resolved = self.materialize_type(materialization, anchor, ty, worklist)?;
-                    if resolved != ty {
-                        self.module.types_tail.set_symbol_type(symbol, resolved);
-                    }
-                }
-                Entry::Node(node, ty) => {
-                    let anchor = materialization.anchor.unwrap_or(node);
-                    let resolved = self.materialize_type(materialization, anchor, ty, worklist)?;
-                    if resolved != ty {
-                        self.module.types_tail.set_node_type(node, resolved);
-                    }
-                }
-                Entry::Definition(source, definition) => {
-                    let anchor = materialization.anchor.unwrap_or(source);
+            // name the entry in an internal failure, a symbol by its name
+            let (kind, symbol) = match &entry {
+                Entry::Symbol(symbol, ..) => ("symbol", Some(*symbol)),
+                Entry::Node(..) => ("node", None),
+                Entry::Definition(..) => ("definition", None),
+                Entry::Decision(..) => ("decision", None),
+                Entry::Place(..) => ("place", None),
+                Entry::Coercion(..) => ("coercion", None),
+            };
+            self.materialize_entry(materialization, entry, worklist)
+                .map_err(|error| match error {
+                    CompilerError::Internal { message } => {
+                        let name = symbol
+                            .map(|symbol| format!(" '{}'", self.format_symbol(symbol)))
+                            .unwrap_or_default();
 
-                    // lowering reads the module's own definitions as written, keyed at their heads
-                    if materialization.substitution.is_none() {
-                        dir::TypeVisit::visit_types(&*definition, &mut |ty| {
-                            self.walk_type_graph(ty, anchor, worklist)
-                        })?;
+                        CompilerError::Internal {
+                            message: format!("materializing the {kind}{name} entry: {message}"),
+                        }
                     }
-
-                    self.materialize_payload(materialization, anchor, *definition, worklist)?;
-                }
-                Entry::Decision(node, decision) => {
-                    let anchor = materialization.anchor.unwrap_or(node);
-                    let moved = self.materialize_payload(
-                        materialization,
-                        anchor,
-                        (*decision).clone(),
-                        worklist,
-                    )?;
-                    self.intern_selections(moved.as_ref().unwrap_or(&decision), anchor, worklist)?;
-                    if let Some(moved) = moved {
-                        self.module.decisions_tail.set_decision(node, moved);
-                    }
-                }
-                Entry::Place(node, place) => {
-                    let anchor = materialization.anchor.unwrap_or(node);
-                    if let Some(resolved) =
-                        self.materialize_payload(materialization, anchor, place, worklist)?
-                    {
-                        self.module
-                            .decisions_tail
-                            .set_place_resolution(node, resolved);
-                    }
-                }
-                Entry::Coercion(node, coercion) => {
-                    let anchor = materialization.anchor.unwrap_or(node);
-                    if let Some(resolved) =
-                        self.materialize_payload(materialization, anchor, coercion, worklist)?
-                    {
-                        self.module.coercions_tail.bind_coercion(node, resolved);
-                    }
-                }
-            }
+                    error => error,
+                })?;
         }
 
         Ok(())
+    }
+
+    /// Materialize the types of one entry.
+    fn materialize_entry(
+        &mut self,
+        materialization: &Materialization<'_>,
+        entry: Entry,
+        worklist: &mut InstanceWorklist,
+    ) -> CompilerResult<()> {
+        match entry {
+            Entry::Symbol(symbol, ty, declaration) => {
+                let Some(anchor) = materialization.anchor.or(declaration) else {
+                    return Ok(());
+                };
+                let resolved = self.materialize_type(materialization, anchor, ty, worklist)?;
+                if resolved != ty {
+                    self.module.types_tail.set_symbol_type(symbol, resolved);
+                }
+
+                Ok(())
+            }
+            Entry::Node(node, ty) => {
+                let anchor = materialization.anchor.unwrap_or(node);
+                let resolved = self.materialize_type(materialization, anchor, ty, worklist)?;
+                if resolved != ty {
+                    self.module.types_tail.set_node_type(node, resolved);
+                }
+
+                Ok(())
+            }
+            Entry::Definition(source, definition) => {
+                let anchor = materialization.anchor.unwrap_or(source);
+
+                // lowering reads the module's own definitions unreduced, keyed at their heads
+                if materialization.substitution.is_none() {
+                    dir::TypeVisit::visit_types(&*definition, &mut |ty| {
+                        self.walk_type_graph(ty, anchor, worklist)
+                    })?;
+                }
+
+                self.materialize_payload(materialization, anchor, *definition, worklist)?;
+
+                Ok(())
+            }
+            Entry::Decision(node, decision) => {
+                let anchor = materialization.anchor.unwrap_or(node);
+                let moved = self.materialize_payload(
+                    materialization,
+                    anchor,
+                    (*decision).clone(),
+                    worklist,
+                )?;
+                self.intern_selections(moved.as_ref().unwrap_or(&decision), anchor, worklist)?;
+                if let Some(moved) = moved {
+                    self.module.decisions_tail.set_decision(node, moved);
+                }
+
+                Ok(())
+            }
+            Entry::Place(node, place) => {
+                let anchor = materialization.anchor.unwrap_or(node);
+                if let Some(resolved) =
+                    self.materialize_payload(materialization, anchor, place, worklist)?
+                {
+                    self.module
+                        .decisions_tail
+                        .set_place_resolution(node, resolved);
+                }
+
+                Ok(())
+            }
+            Entry::Coercion(node, coercion) => {
+                let anchor = materialization.anchor.unwrap_or(node);
+                if let Some(resolved) =
+                    self.materialize_payload(materialization, anchor, coercion, worklist)?
+                {
+                    self.module.coercions_tail.bind_coercion(node, resolved);
+                }
+
+                Ok(())
+            }
+        }
     }
 
     /// Materialize the types one payload carries, returning the payload when the module takes it.
@@ -326,7 +368,7 @@ impl CheckState<'_> {
         let mut ty = ty;
         let mut flags = self.type_flags(ty)?;
 
-        // resolve the module's own solved variables into the committed spelling
+        // resolve the module's own solved variables into the committed type
         if materialization.substitution.is_none() && flags.has_variable() {
             ty = self.deeply_resolve(origin, ty)?;
             flags = self.type_flags(ty)?;
@@ -349,10 +391,10 @@ impl CheckState<'_> {
             }
         };
 
-        // admit the applications the type reaches
+        // record the types the resolved and the unreduced graphs name
         self.walk_type_graph(resolved, anchor, worklist)?;
         if resolved != ty {
-            self.walk_reduction_graph(ty)?;
+            self.walk_reduction_graph(ty, anchor)?;
         }
 
         Ok(resolved)

@@ -1,5 +1,4 @@
 use std::mem::take;
-use std::slice::from_ref;
 
 use destack_artifact::DiagnosticControlLevel;
 use destack_core::FxIndexSet;
@@ -105,10 +104,8 @@ impl CheckState<'_> {
                 .collect::<Vec<_>>()
         } else {
             // walk each declared use's expression nodes to commit flows
-            let input = self.module(module);
-            let parsed = input.parsed.clone();
-            let expanded = input.expanded.clone();
-            let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+            let (parsed, expanded) = self.patched_inputs(module);
+            let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
             let mut walk = WalkState::new(module, tree, self);
             for decorator_use in declared.decorators.iter_uses() {
                 walk.enter_node(decorator_use.source.local_id)?;

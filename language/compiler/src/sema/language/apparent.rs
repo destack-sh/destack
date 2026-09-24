@@ -169,8 +169,6 @@ impl CheckState<'_> {
     }
 
     /// Return the declaration instance owning one receiver's apparent members.
-    ///
-    /// A structural type roots at the language item its representation names.
     pub(in crate::sema) fn apparent_instance(
         &mut self,
         receiver: dir::GlobalTypeId,
@@ -235,8 +233,6 @@ impl CheckState<'_> {
     }
 
     /// Return the `Function` instance one signature writes.
-    ///
-    /// Its arguments are the parameter tuple, the return type, and the receiver mode.
     fn function_instance(
         &mut self,
         signature: dir::GlobalTypeId,
@@ -287,7 +283,24 @@ impl CheckState<'_> {
             SmallVec<[dir::TypeIndexSignature; 2]>,
         )>,
     > {
-        // read the members by the target's own head
+        // read the members of the object beneath the target's handle
+        let object = self.normalize(origin, target)?;
+
+        self.object_members(origin, object)
+    }
+
+    /// Return the members one object type declares by its head.
+    fn object_members(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<
+        Option<(
+            SmallVec<[dir::TypeProperty; 8]>,
+            SmallVec<[dir::TypeIndexSignature; 2]>,
+        )>,
+    > {
+        // read the members by the head of the target
         match self.ty(target)? {
             // read fields and index signatures straight off a structural target
             dir::Type::Object(shape) => {
@@ -321,8 +334,7 @@ impl CheckState<'_> {
                 for element in elements {
                     // read the members this arm accepts
                     let element = self.structurally_normalize(origin, *element)?;
-                    let Some((arm_fields, arm_indexes)) =
-                        self.apparent_object_members(origin, element)?
+                    let Some((arm_fields, arm_indexes)) = self.object_members(origin, element)?
                     else {
                         return Ok(None);
                     };

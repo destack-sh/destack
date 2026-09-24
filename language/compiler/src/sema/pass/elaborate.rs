@@ -11,8 +11,7 @@ use crate::sema::{
 };
 
 impl CheckState<'_> {
-    /// Run the elaborate pass: translate the declared surface, derive the module-wide template
-    /// facts, then elaborate every declaration once.
+    /// Run the elaborate pass over every declaration of one module.
     pub(in crate::sema) fn run_elaborate(&mut self) -> CompilerResult<()> {
         let recorder = self.recorder;
         self.with_scope(|state| {
@@ -20,8 +19,7 @@ impl CheckState<'_> {
                 state.import_external_modules()
             })?;
 
-            // translate the declared types into the semantic tables and flatten every owner's
-            // bindings, which the decorator walk reads
+            // translate the declared types and flatten every owner's bindings
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "translate", || {
                 state.translate_declared_types()?;
                 state.flatten_declared_owners()
@@ -30,12 +28,11 @@ impl CheckState<'_> {
                 state.apply_decorators()
             })?;
 
-            // derive the template facts every declaration reads across the module
+            // derive the template properties every declaration reads across the module
             let module = state.module_id;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "derive", || {
                 state.derive_module_variances(module)?;
-                state.derive_module_dependents()?;
-                state.derive_native_cardinalities(module)
+                state.derive_module_dependents()
             })?;
 
             // elaborate each declaration once
@@ -59,8 +56,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Elaborate one declaration: its implementation winners, constructors, checks, and layout
-    /// policies.
+    /// Elaborate one declaration.
     fn elaborate_declaration(
         &mut self,
         module: ModuleId,
@@ -70,10 +66,16 @@ impl CheckState<'_> {
             return Ok(());
         };
         let is_nominal = definition.is_nominal();
-        let is_value = matches!(
-            *definition,
-            dir::Definition::Struct(_) | dir::Definition::Enum(_) | dir::Definition::Newtype(_)
-        );
+        let is_value = match &*definition {
+            dir::Definition::Struct(_) | dir::Definition::Enum(_) | dir::Definition::Newtype(_) => {
+                true
+            }
+            // count an alias as a value unless it names a managed handle
+            dir::Definition::TypeAlias(alias) => {
+                self.ownership(alias.value)? != Some(dir::Ownership::Managed)
+            }
+            _ => false,
+        };
         let is_newtype = matches!(*definition, dir::Definition::Newtype(_));
         let is_extension = matches!(*definition, dir::Definition::Extension(_));
         let is_alias = matches!(*definition, dir::Definition::TypeAlias(_));
@@ -84,18 +86,19 @@ impl CheckState<'_> {
             self.decide_declared_implementations(symbol)?;
         }
 
-        // derive the constructors beside a newtype
+        // derive the constructors beside a newtype or a class
         if is_newtype {
             self.derive_newtype_constructors(symbol)?;
+        }
+        if matches!(*definition, dir::Definition::Class(_)) {
+            self.derive_class_constructors(symbol)?;
         }
 
         // check the declaration against its declared shape
         self.check_declaration(module, symbol, scope, is_extension, is_alias)?;
 
         // commit the layout policies the lowered representation reads
-        if is_value {
-            self.commit_copy_derivation(symbol)?;
-        }
+        self.commit_copy_derivation(symbol, is_value)?;
         if is_nominal {
             self.commit_nominal_space(symbol)?;
         }
@@ -139,7 +142,6 @@ impl CheckState<'_> {
         let conformances: Vec<_> = match self.definition(symbol)?.as_deref() {
             Some(definition) => definition
                 .implementations()
-                .iter()
                 .map(|conformance| conformance.interface)
                 .collect(),
             None => Vec::new(),

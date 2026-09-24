@@ -1,9 +1,8 @@
-use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{
     DiagnosticBuilder, DiagnosticControlTable, DirBound, DirChecked, DirDeclared, DirElaborated,
-    DirExpanded, DirImported, DirParsed, DirResolved, DirView, ProfileKey,
+    DirExpanded, DirImported, DirMaterialized, DirParsed, DirResolved, DirView, ProfileKey,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -13,8 +12,8 @@ use destack_source::{ModuleId, ProfileId, Span};
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Capture, Cause, CauseKind, CheckError, CheckEvent, CheckState, CheckWarning, FlowPoint,
-    FlowPointId, FlowSite, Origin, Pass, Relation, RelationCheck, StaticPresence,
+    Capture, Cause, CauseKind, CheckError, CheckEvent, CheckState, CheckWarning, Expectation,
+    FlowPoint, FlowPointId, FlowSite, Origin, Pass, Relation, RelationCheck, StaticPresence,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -29,11 +28,14 @@ impl Pass {
         let declared = (self != Pass::Declare)
             .then(|| artifacts.read::<DirDeclared>(key))
             .transpose()?;
-        let elaborated = matches!(self, Pass::Check | Pass::Materialize)
+        let elaborated = matches!(self, Pass::Check | Pass::Materialize | Pass::Analyze)
             .then(|| artifacts.read::<DirElaborated>(key))
             .transpose()?;
-        let checked = (self == Pass::Materialize)
+        let checked = matches!(self, Pass::Materialize | Pass::Analyze)
             .then(|| artifacts.read::<DirChecked>(key))
+            .transpose()?;
+        let materialized = (self == Pass::Analyze)
+            .then(|| artifacts.read::<DirMaterialized>(key))
             .transpose()?;
 
         Ok(DirView::new(
@@ -45,6 +47,7 @@ impl Pass {
             declared,
             elaborated,
             checked,
+            materialized,
             None,
         ))
     }
@@ -97,8 +100,8 @@ pub(in crate::sema) struct CheckModuleState<'a> {
     pub(in crate::sema) members: Vec<Arc<dir::MemberSegment>>,
 
     // open tails this pass writes over the committed bases
-    /// The expansion patch and the nodes this pass synthesizes beyond it.
-    pub(in crate::sema) patches: [dir::Patch; 2],
+    /// The patch this pass writes over the expansion patch.
+    pub(in crate::sema) patch: dir::Patch,
     /// Checked symbols synthesized from resolved language features.
     pub(in crate::sema) bindings_tail: dir::BindingSegment,
     /// Open inference types layered over the committed base.
@@ -161,16 +164,6 @@ pub(in crate::sema) struct CheckModuleState<'a> {
 }
 
 impl<'a> CheckModuleState<'a> {
-    /// Return the patch this pass synthesizes nodes into.
-    pub(in crate::sema) fn materialize_patch(&self) -> &dir::Patch {
-        &self.patches[1]
-    }
-
-    /// Return the patch this pass synthesizes nodes into, for writing.
-    pub(in crate::sema) fn materialize_patch_mut(&mut self) -> &mut dir::Patch {
-        &mut self.patches[1]
-    }
-
     /// Load the working state of one pass over the stages one view read.
     pub(in crate::sema) fn load(
         compiler: &Compiler,
@@ -265,13 +258,10 @@ impl<'a> CheckModuleState<'a> {
         .flatten()
         .collect();
         let bindings_tail = dir::BindingSegment::from_table(view.bindings());
-        let patches = [
-            expanded.patch.clone(),
-            dir::Patch::following(
-                &dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch)),
-                "materialize",
-            ),
-        ];
+        let patch = dir::Patch::following(
+            &dir::View::new(&parsed.tree).patched(&expanded.patch),
+            "materialize",
+        );
         let definitions_tail = dir::DefinitionSegment::new(module.id);
         let members_tail = dir::MemberSegment::new(module.id);
         let representations_tail = dir::RepresentationSegment::new(module.id);
@@ -282,7 +272,8 @@ impl<'a> CheckModuleState<'a> {
         let coercions_tail = dir::CoercionSegment::new(module.id);
         let captures = dir::CaptureSegment::new(module.id);
         let flows = dir::FlowSegment::new(module.id);
-        // carry the diagnostic controls the latest stage wrote
+
+        // keep the diagnostic controls the latest stage wrote
         let controls = match (checked, elaborated) {
             (Some(checked), _) => (*checked.controls).clone(),
             (None, Some(elaborated)) => (*elaborated.controls).clone(),
@@ -313,7 +304,7 @@ impl<'a> CheckModuleState<'a> {
             coercions,
             members,
             bindings_tail,
-            patches,
+            patch,
             types_tail,
             statics_tail,
             definitions_tail,
@@ -343,7 +334,9 @@ impl<'a> CheckModuleState<'a> {
 
     /// Return the post-expansion DIR tree view visible to check.
     pub(in crate::sema) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, &self.patches)
+        dir::View::new(&self.parsed.tree)
+            .patched(&self.expanded.patch)
+            .patched(&self.patch)
     }
 
     /// Return the full source span of one visible node's authored origin.
@@ -477,25 +470,6 @@ impl<'a> CheckModuleState<'a> {
                 .as_ref()
                 .and_then(|declared| declared.generics.template_by_scope(scope))
         })
-    }
-
-    /// Return the cardinality one parameter records, reading the pass tail over its seed stages.
-    pub(in crate::sema) fn parameter_cardinality(
-        &self,
-        id: dir::LocalGenericParameterId,
-    ) -> Option<dir::Cardinality> {
-        self.generics_tail
-            .cardinality(id)
-            .or_else(|| {
-                self.elaborated
-                    .as_ref()
-                    .and_then(|elaborated| elaborated.generics.cardinality(id))
-            })
-            .or_else(|| {
-                self.declared
-                    .as_ref()
-                    .and_then(|declared| declared.generics.cardinality(id))
-            })
     }
 
     /// Return one symbol, reading the pass tail over the committed base.
@@ -797,7 +771,7 @@ impl<'a> CheckState<'a> {
         match self.committed_node_type(node) {
             Some(ty) => Ok(ty),
             None => Err(CompilerError::Internal {
-                message: format!("node type read before checking {node:?}"),
+                message: format!("node type read before checking {}", self.node_label(node)),
             }),
         }
     }
@@ -837,6 +811,14 @@ impl<'a> CheckState<'a> {
         Ok(ty)
     }
 
+    /// Return the raw row the declare pass wrote for one node.
+    pub(in crate::sema) fn declared_node_type(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> Option<dir::GlobalTypeId> {
+        self.module.declared.as_ref()?.types.get_node_type_id(node)
+    }
+
     /// Return one node type this pass committed, a hole reading through its solution.
     pub(in crate::sema) fn own_node_type(
         &self,
@@ -872,6 +854,47 @@ impl<'a> CheckState<'a> {
         self.node_types.insert(node, ty);
 
         Ok(())
+    }
+
+    /// Intern the owned form over one value.
+    pub(in crate::sema) fn owned_type(
+        &mut self,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.intern_type(dir::Type::Form(dir::FormType {
+            form: dir::Form::Owned,
+            value,
+        }))
+    }
+
+    /// Type one constructed value at the form its context takes, owned under an owned arm.
+    pub(in crate::sema) fn contextual_form(
+        &mut self,
+        value: dir::GlobalTypeId,
+        context: Option<Expectation>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the target the context converts toward
+        let Some(context) = context else {
+            return Ok(value);
+        };
+        let Some(target) = context.contextual_target() else {
+            return Ok(value);
+        };
+
+        // own the value under a target with an owned arm
+        let origin = self.cause_origin(context.cause);
+        let arms = match self.union_arms(origin, target)? {
+            Some(arms) => arms,
+            None => SmallVec::from_slice(&[target]),
+        };
+        for arm in arms {
+            let arm = self.normalize(origin, arm)?;
+            if matches!(self.ty(arm)?, dir::Type::Form(form) if form.form == dir::Form::Owned) {
+                return self.owned_type(value);
+            }
+        }
+
+        Ok(value)
     }
 
     /// Commit the error type for one refused source node.
@@ -1159,18 +1182,6 @@ impl<'a> CheckState<'a> {
         variable
     }
 
-    /// Return the field symbols this module's definitions declare, their rows kept as written.
-    pub(in crate::sema) fn field_symbols(&self) -> FxIndexSet<dir::GlobalSymbolId> {
-        self.module
-            .iter_definitions()
-            .flat_map(|(_, definition)| definition.members())
-            .filter_map(|member| match member {
-                dir::DefinitionMember::Field(field) => Some(field.symbol),
-                _ => None,
-            })
-            .collect()
-    }
-
     /// Adopt one symbol's declared-stage value as its binding, returning the written type.
     pub(in crate::sema) fn adopt_symbol_type_maybe(
         &mut self,
@@ -1180,18 +1191,24 @@ impl<'a> CheckState<'a> {
             return Ok(None);
         };
 
-        // copy own declared-stage values into the check tables once, types stay written
-        if self.is_own_module(symbol.module_id)
-            && self.binding_type_maybe(symbol).is_none()
-            && self.declaration_type_maybe(symbol).is_none()
-            && !self.symbol_kind(symbol)?.is_type_definition()
+        // adopt each value into the check tables once, types staying unreduced
+        let kind = self.symbol_kind(symbol)?;
+        let is_adopted = self.binding_type_maybe(symbol).is_some()
+            || self.declaration_type_maybe(symbol).is_some();
+        if matches!(self.pass, Pass::Declare | Pass::Materialize)
+            || is_adopted
+            || kind.is_type_definition()
         {
-            if self.symbol_kind(symbol)?.is_binding() {
-                self.binding_types.insert(symbol, ty);
-            } else {
-                self.declaration_types.insert(symbol, ty);
-            }
+            return Ok(Some(ty));
         }
+
+        // adopt every declaration unreduced
+        let is_own = self.is_own_module(symbol.module_id);
+        match kind.is_binding() {
+            true if is_own => self.binding_types.insert(symbol, ty),
+            true => None,
+            false => self.declaration_types.insert(symbol, ty),
+        };
 
         Ok(Some(ty))
     }

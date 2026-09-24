@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, Origin};
+use crate::sema::{CheckState, Origin, Pass};
 use crate::{CompilerError, CompilerResult};
 
 /// Memory forms stacked over one base type.
@@ -187,19 +187,23 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::Space>> {
-        // read the remembered space
-        if let Some(space) = self.nominal_spaces.get(&symbol) {
-            return Ok(*space);
+        // read the space elaborating committed for the module's own declarations
+        let space = if self.is_own_module(symbol.module_id)
+            && let Some(elaborated) = &self.module.elaborated
+        {
+            elaborated.representations.space(symbol)
         }
-
-        // derive the space through the heritage walk
-        let mut active = FxIndexSet::default();
-        let space = self.nominal_space_guarded(symbol, &mut active)?;
-
-        // remember the space once every definition exists
-        if !self.is_declaring() {
-            self.nominal_spaces.insert(symbol, space);
+        // read the space a dependency committed once its elaborated stage loads
+        else if matches!(self.pass, Pass::Check | Pass::Materialize | Pass::Analyze)
+            && let Some(external) = self.external(symbol.module_id)?
+        {
+            external.representations().space(symbol)
         }
+        // derive the space through the heritage walk while declaring and elaborating
+        else {
+            let mut active = FxIndexSet::default();
+            self.nominal_space_guarded(symbol, &mut active)?
+        };
 
         Ok(space)
     }
@@ -1099,19 +1103,14 @@ impl CheckState<'_> {
         Ok(text)
     }
 
-    /// Push one reserved string literal type, interned once per text.
+    /// Intern one reserved string literal type.
     pub(in crate::sema) fn text_literal_type(
         &mut self,
         text: &str,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(id) = self.memory_literals.get(text) {
-            return Ok(*id);
-        }
         let value = self.strings().intern(text);
-        let id = self.intern_type(dir::Type::Literal(dir::Literal::String(value)))?;
-        self.memory_literals.insert(text.to_string(), id);
 
-        Ok(id)
+        self.intern_type(dir::Type::Literal(dir::Literal::String(value)))
     }
 
     /// Settle one type to its readable value.

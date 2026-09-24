@@ -80,7 +80,7 @@ impl CheckState<'_> {
                     && let dir::ConstructTarget::Class { key, arguments, .. } =
                         &mut construction.target
                 {
-                    key.arguments = self.own_instance_bindings(key.symbol, arguments)?;
+                    key.arguments = self.instance_key_bindings(key.symbol, arguments)?;
                 }
                 let value = dir::FunctionValue {
                     target,

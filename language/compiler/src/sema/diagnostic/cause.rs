@@ -1,8 +1,14 @@
 use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
-use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, Relation};
+use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, PropertySource, Relation};
 use crate::{CompilerResult, DiagnosticAnchor};
+
+/// The deepest structural slot the blame walk descends into.
+const BLAME_DEPTH_LIMIT: u32 = 16;
+
+/// The number of leading slot labels a deep path keeps before eliding.
+const PATH_HEAD_LABELS: usize = 3;
 
 /// The blamed origin of one failed closed relation.
 pub(in crate::sema) enum Blame {
@@ -188,7 +194,7 @@ impl CheckState<'_> {
             target,
             descended: false,
         };
-        if depth >= 16 {
+        if depth >= BLAME_DEPTH_LIMIT {
             return Ok(leaf);
         }
 
@@ -264,9 +270,12 @@ impl CheckState<'_> {
                     let Some(source_field) = source_field else {
                         continue;
                     };
-                    let Some(relations) =
-                        self.shape_property_relations(relation, source_field, &target_field)
-                    else {
+                    let Some(relations) = Self::shape_property_relations(
+                        relation,
+                        PropertySource::Stored,
+                        source_field,
+                        &target_field,
+                    ) else {
                         continue;
                     };
                     for (field_relation, source_ty, target_ty) in relations {
@@ -537,8 +546,8 @@ fn join_path(slots: &[String]) -> String {
     // elide the middle of a deep path
     match slots {
         [.., _, _, _, _, last] => {
-            let head = slots[..3].join(" of ");
-            let elided = slots.len() - 4;
+            let head = slots[..PATH_HEAD_LABELS].join(" of ");
+            let elided = slots.len() - PATH_HEAD_LABELS - 1;
 
             format!("{head} of … ({elided} elided) … {last}")
         }

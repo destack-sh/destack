@@ -81,8 +81,9 @@ impl CheckState<'_> {
         }
 
         // decide the auto interface the compiler implements
+        let symbol = self.resolve_symbol_alias(application.symbol)?;
         let auto = self
-            .language_item(application.symbol)?
+            .language_item(symbol)?
             .and_then(dir::AutoInterface::from_language_item);
         if let Some(auto) = auto
             && self.decide_intrinsic_interface(origin, receiver, interface, auto)? == Verdict::Holds
@@ -91,12 +92,12 @@ impl CheckState<'_> {
         }
 
         // decide an interface a builtin-implemented interface extends
-        if self.inherits_intrinsic_interface(origin, receiver, application.symbol)? {
+        if self.inherits_intrinsic_interface(origin, receiver, symbol)? {
             return Ok(ConformanceSource::Intrinsic);
         }
 
         // a structural interface is answered by the receiver's own members
-        let is_nominal = match self.definition(application.symbol)?.as_deref() {
+        let is_nominal = match self.definition(symbol)?.as_deref() {
             Some(dir::Definition::Interface(definition)) => definition.is_nominal,
             _ => true,
         };
@@ -124,7 +125,7 @@ impl CheckState<'_> {
         owner_bindings: &[dir::GenericArgumentBinding],
         source: dir::GlobalNodeIdAny,
         worklist: &mut InstanceWorklist,
-    ) -> CompilerResult<Option<dir::InstanceKey>> {
+    ) -> CompilerResult<Option<(dir::InstanceKey, dir::WitnessSource)>> {
         match conformance {
             // instantiate the member the conforming declaration selected for the requirement
             ConformanceSource::Declared {
@@ -149,7 +150,7 @@ impl CheckState<'_> {
                     worklist,
                 )?;
 
-                Ok(Some(key))
+                Ok(Some((key, dir::WitnessSource::Declared)))
             }
             // a structural interface takes the receiver's own member under the requirement's key
             ConformanceSource::Structural { receiver } => {
@@ -158,6 +159,7 @@ impl CheckState<'_> {
                 let candidates =
                     self.lookup_inherent_member(origin, module, *receiver, space, key)?;
                 let declared = candidates
+                    .candidates
                     .iter()
                     .find_map(|candidate| candidate.declaration())
                     .map(|declared| (declared.symbol, declared.generic_arguments.clone()));
@@ -180,7 +182,7 @@ impl CheckState<'_> {
                     worklist,
                 )?;
 
-                Ok(Some(key))
+                Ok(Some((key, dir::WitnessSource::Declared)))
             }
             // synthesize the member a derivable interface supplies at a composite receiver
             ConformanceSource::Intrinsic => {
@@ -210,7 +212,12 @@ impl CheckState<'_> {
                         generics.bind_instance_symbol(redirected, parameter, ty);
                     }
 
-                    // close the instance each recorded call dispatches through
+                    // close each recorded call's instance under the body's own template
+                    let Some(body) = synthesized.body else {
+                        return Err(CompilerError::Internal {
+                            message: "a derived member without its body".to_owned(),
+                        });
+                    };
                     for call in synthesized.calls {
                         let dir::CallableTarget::Symbol { function, .. } = call.target else {
                             continue;
@@ -219,14 +226,14 @@ impl CheckState<'_> {
                             function.key.symbol,
                             function.key.receiver,
                             function.key.arguments,
-                            source,
+                            body,
                             dir::InstanceOrigin::Instantiation,
                             worklist,
                         )?;
                     }
                 }
 
-                Ok(Some(key))
+                Ok(Some((key, dir::WitnessSource::Derived)))
             }
         }
     }

@@ -42,6 +42,9 @@ impl EventFormatter<'_, '_> {
             Obligation::RestParameter(obligation) => {
                 event.text("type", self.type_label(obligation.ty))
             }
+            Obligation::SharedStorage(obligation) => {
+                event.text("type", self.type_label(obligation.ty))
+            }
         }
     }
 
@@ -54,6 +57,7 @@ impl EventFormatter<'_, '_> {
             Obligation::WellFormedType(_) => "wellformed.type",
             Obligation::RangeElement(_) => "range.element",
             Obligation::RestParameter(_) => "rest.parameter",
+            Obligation::SharedStorage(_) => "shared.storage",
         }
     }
 
