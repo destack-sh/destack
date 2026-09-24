@@ -5,25 +5,15 @@ Define Destack HTTP services.
 ```ts
 import { schema } from "@destack/schema";
 import { defineService, defineProcedure } from "@destack/service";
-import { inspectService } from "@destack/service/inspect";
+import { describeService } from "@destack/service/inspect";
 
-export const notesService = {
+export const notesService = defineService("notes", {
     list: defineProcedure({ authentication: "identity", permission: null, audit: false })
         .route({ method: "GET", path: "/notes" })
         .output(schema.array(schema.object({ id: schema.string(), title: schema.string() }))),
-};
+});
 
-export const service = defineService(
-    {
-        name: "notes",
-        version: 1,
-        protocol: "http",
-        handler: "fetch",
-    },
-    notesService,
-);
-
-const description = inspectService(service);
+const description = describeService(notesService);
 ```
 
 ## Connections
@@ -34,11 +24,7 @@ import { defineServiceConnection } from "@destack/service/declare";
 import { ClientContext } from "@destack/service/client";
 import { notesService } from "@example/notes/service";
 
-export const notes = defineServiceConnection({
-    packageId: import.meta.destack.package.id,
-    name: "notes",
-    service: { packageId: notesPackageId, name: "notes" },
-}, notesService);
+export const notes = defineServiceConnection("notes", notesService);
 
 // application or host startup
 const context = new ClientContext(configuration, transport);
@@ -117,7 +103,7 @@ await using server = await Server.start({
     ...implementService(notebook),
     health,
     audience: servicePackageId,
-    spaceId,
+    scope: spaceId,
     resources,
     authenticate,
     authorizeHost: authorizeInstallation,
@@ -154,13 +140,41 @@ const administration = {
 ## Workloads
 
 ```ts
-import { defineService } from "@destack/service";
+// workload/workload.ts
+import type { WorkloadContext, WorkloadImplementation } from "@destack/service/workload";
+import { implementService } from "../server/index.ts";
+import { database } from "../stack/db.ts";
+import { Notebook } from "../notebook/index.ts";
 
-export const web = defineService({ name: "web", version: 1, protocol: "http", handler: "fetch" });
+export async function start(context: WorkloadContext): Promise<WorkloadImplementation> {
+    const notebook = new Notebook(database.get(context.resources));
 
-export function fetch(request: Request): Response {
-    return Response.json({ path: new URL(request.url).pathname });
+    return { services: { notes: implementService(notebook) } };
 }
+```
+
+```json
+{
+    "workloads": {
+        "main": { "entrypoint": "./workload", "services": ["notes"] }
+    }
+}
+```
+
+```ts
+// host startup, with authentication and resources selected by the host
+import { Workload } from "@destack/service/workload";
+import { runWorkload } from "@destack/service/workload/bun";
+import { start } from "@example/notes/workload";
+
+await using workload = await Workload.start(start, { resources, service: serviceOptions });
+await runWorkload(workload, { services: { notes: { hostname: "127.0.0.1", port: 8080 } } });
+```
+
+```ts
+// a request-driven host dispatches directly without opening a listener
+const workload = await Workload.start(start, { resources, service: serviceOptions });
+const response = await workload.fetch("notes", request);
 ```
 
 ## Schedules
@@ -198,7 +212,7 @@ const router = implementation.router({
 const server = await Server.start({
     router,
     audience: servicePackageId,
-    spaceId,
+    scope: spaceId,
     resources,
     authenticate,
     authorizeHost: authorizeInstallation,
