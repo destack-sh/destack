@@ -97,8 +97,7 @@ export extension<T> of BinaryHeap<T> {
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &immutable T) => boolean): void
-        where T: Compare<T> {
+    retain(&exclusive this, predicate: (value: &immutable T) => boolean): void where T: Compare<T> {
         todo("BinaryHeap.retain");
     }
 

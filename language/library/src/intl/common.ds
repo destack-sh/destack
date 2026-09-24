@@ -33,7 +33,7 @@ export function getCanonicalLocales(): ^string[] {
 }
 
 /// Return canonical locale identifiers without duplicates.
-export function getCanonicalLocales(locales?: Locales): Result<^string[], IntlError> {
+export function getCanonicalLocales(locales?: &readonly Locales): Result<^string[], IntlError> {
     todo("intl.getCanonicalLocales")
 }
 

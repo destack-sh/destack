@@ -68,14 +68,17 @@ export class Collator {
     }
 
     /// Create a collator.
-    static create(locales?: Locales, options?: CollatorOptions): Result<Collator, IntlError> {
+    static create(
+        locales?: &readonly Locales,
+        options?: &readonly CollatorOptions,
+    ): Result<Collator, IntlError> {
         todo("Collator.create")
     }
 
     /// Return the supported requested locales.
     static supportedLocalesOf(
-        locales: Locales,
-        options?: SupportedLocalesOptions,
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
     ): Result<^string[], IntlError> {
         todo("Collator.supportedLocalesOf")
     }

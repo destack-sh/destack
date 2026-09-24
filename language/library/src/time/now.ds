@@ -31,7 +31,7 @@ export function plainDateTimeISO(): Result<PlainDateTime, HostError> {
 
 /// Return the current ISO plain date-time in `timeZone`.
 export function plainDateTimeISO(
-    timeZone: TimeZoneLike,
+    timeZone: &readonly TimeZoneLike,
 ): Result<PlainDateTime, HostError | TimeError> {
     todo("Temporal.Now.plainDateTimeISO")
 }
@@ -42,7 +42,9 @@ export function plainDateISO(): Result<PlainDate, HostError> {
 }
 
 /// Return the current ISO plain date in `timeZone`.
-export function plainDateISO(timeZone: TimeZoneLike): Result<PlainDate, HostError | TimeError> {
+export function plainDateISO(
+    timeZone: &readonly TimeZoneLike,
+): Result<PlainDate, HostError | TimeError> {
     todo("Temporal.Now.plainDateISO")
 }
 
@@ -52,7 +54,9 @@ export function plainTimeISO(): Result<PlainTime, HostError> {
 }
 
 /// Return the current ISO plain time in `timeZone`.
-export function plainTimeISO(timeZone: TimeZoneLike): Result<PlainTime, HostError | TimeError> {
+export function plainTimeISO(
+    timeZone: &readonly TimeZoneLike,
+): Result<PlainTime, HostError | TimeError> {
     todo("Temporal.Now.plainTimeISO")
 }
 

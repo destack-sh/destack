@@ -20,7 +20,7 @@ export type FailureCleanup = ^Function<
 @languageItem("test.Output")
 export newtype interface Output {
     /// Write one output line.
-    line(value: string): void;
+    line(value: &readonly string): void;
 
     /// Attach one durable artifact.
     attach(artifact: Artifact): void;

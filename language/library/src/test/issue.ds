@@ -37,7 +37,7 @@ export struct Issue {
     location?: SourceLocation;
 
     /// Uncaught panic when this issue ended a Worker.
-    panic?: shared readonly Panic;
+    panic?: readonly Panic;
 
     /// Structured fields attached to this issue.
     fields?: { readonly [key: string]: Json };

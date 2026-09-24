@@ -139,10 +139,7 @@ export extension<T, const N: usize, const A: "immutable" | "exclusive"> of Fixed
     type Output<const R: Region> = Borrowed<T, R, A>;
 
     /// Borrow the indexed storage.
-    index<const R: Region>(
-        this: Borrowed<FixedArray<T, N>, R, A>,
-        key: isize,
-    ): Borrowed<T, R, A> {
+    index<const R: Region>(this: Borrowed<FixedArray<T, N>, R, A>, key: isize): Borrowed<T, R, A> {
         todo("FixedArray.index")
     }
 }

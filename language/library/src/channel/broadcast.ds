@@ -4,27 +4,27 @@ import { Copy, SharedSafe } from "destack:memory";
 import { AsyncReceiver, AsyncSender, ChannelOptions, Receiver, Sender } from "./channel.ds";
 
 /// Create a local blocking broadcast channel.
-export function channel<T: Copy>(options?: ChannelOptions): (Sender<T>, Receiver<T>) {
+export function channel<T: Copy>(options?: &readonly ChannelOptions): (Sender<T>, Receiver<T>) {
     todo("broadcast.channel")
 }
 
 /// Create a shared blocking broadcast channel.
 export function sharedChannel<T: Copy & SharedSafe>(
-    options?: ChannelOptions,
-): (Sender<shared T>, Receiver<shared T>) {
+    options?: &readonly ChannelOptions,
+): (Sender<T>, Receiver<T>) {
     todo("broadcast.sharedChannel")
 }
 
 /// Create a local suspending broadcast channel.
 export function asyncChannel<T: Copy>(
-    options?: ChannelOptions,
+    options?: &readonly ChannelOptions,
 ): (AsyncSender<T>, AsyncReceiver<T>) {
     todo("broadcast.async")
 }
 
 /// Create a shared suspending broadcast channel.
 export function sharedAsyncChannel<T: Copy & SharedSafe>(
-    options?: ChannelOptions,
-): (AsyncSender<shared T>, AsyncReceiver<shared T>) {
+    options?: &readonly ChannelOptions,
+): (AsyncSender<T>, AsyncReceiver<T>) {
     todo("broadcast.sharedAsyncChannel")
 }

@@ -1,5 +1,4 @@
-import { Result, todo } from "destack:error";
-import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "destack:intl";
+import { todo } from "destack:error";
 
 /// The positive float infinity.
 @languageItem("math.Infinity")
@@ -11,7 +10,7 @@ export const NaN: number = 0.0 / 0.0;
 
 /// Number constants and parsing functions.
 @languageItem("math.Number")
-export class Number implements ToLocaleString {
+export class Number {
     /// Difference between 1 and the next representable float64 value.
     static readonly EPSILON: number = 2.220446049250313e-16;
 
@@ -39,45 +38,6 @@ export class Number implements ToLocaleString {
     @languageItem("math.Number.NaN")
     static readonly NaN: number = NaN;
 
-    /// Return this number as a string.
-    toString(&readonly this, radix?: number): string {
-        todo("Number.toString")
-    }
-
-    /// Return this number in fixed-point notation.
-    toFixed(&readonly this, fractionDigits?: number): string {
-        todo("Number.toFixed")
-    }
-
-    /// Return this number in exponential notation.
-    toExponential(&readonly this, fractionDigits?: number): string {
-        todo("Number.toExponential")
-    }
-
-    /// Return this number with the requested precision.
-    toPrecision(&readonly this, precision?: number): string {
-        todo("Number.toPrecision")
-    }
-
-    /// Return this number as a locale-aware string.
-    toLocaleString(&readonly this): string {
-        todo("Number.toLocaleStringDefault")
-    }
-
-    /// Return this number as a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
-        todo("Number.toLocaleStringLocales")
-    }
-
-    /// Return this number as a locale-aware string with explicit options.
-    toLocaleString(
-        &readonly this,
-        locales?: Locales,
-        options?: NumberFormatOptions,
-    ): Result<string, IntlError> {
-        todo("Number.toLocaleString")
-    }
-
     /// Return the primitive number value.
     valueOf(&readonly this): number {
         todo("Number.valueOf")
@@ -104,12 +64,12 @@ export class Number implements ToLocaleString {
     }
 
     /// Parse a float64 from `text`.
-    static parseFloat(text: string): number {
+    static parseFloat(text: &readonly string): number {
         todo("Number.parseFloat")
     }
 
     /// Parse an integer from `text`.
-    static parseInt(text: string, radix?: number): number {
+    static parseInt(text: &readonly string, radix?: number): number {
         todo("Number.parseInt")
     }
 }

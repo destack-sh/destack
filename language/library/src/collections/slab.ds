@@ -164,10 +164,7 @@ export extension<T> of Slab<T>
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(
-        &exclusive this,
-        predicate: (key: SlabKey, value: &exclusive T) => boolean,
-    ): void {
+    retain(&exclusive this, predicate: (key: SlabKey, value: &exclusive T) => boolean): void {
         todo("Slab.retain");
     }
 

@@ -218,16 +218,16 @@ export class DateTimeFormat {
 
     /// Create a date-time formatter.
     static create(
-        locales?: Locales,
-        options?: DateTimeFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
     ): Result<DateTimeFormat, IntlError> {
         todo("DateTimeFormat.create")
     }
 
     /// Return the supported requested locales.
     static supportedLocalesOf(
-        locales: Locales,
-        options?: SupportedLocalesOptions,
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
     ): Result<^string[], IntlError> {
         todo("DateTimeFormat.supportedLocalesOf")
     }
@@ -238,7 +238,10 @@ export class DateTimeFormat {
     }
 
     /// Format a validated Temporal value.
-    format(&readonly this, value: TemporalDateTimeFormatValue): Result<string, IntlError> {
+    format(
+        &readonly this,
+        value: &readonly TemporalDateTimeFormatValue,
+    ): Result<string, IntlError> {
         todo("DateTimeFormat.formatTemporal")
     }
 
@@ -255,7 +258,7 @@ export class DateTimeFormat {
     /// Format a validated Temporal value into separate parts.
     formatToParts(
         &readonly this,
-        value: TemporalDateTimeFormatValue,
+        value: &readonly TemporalDateTimeFormatValue,
     ): Result<^DateTimeFormatPart[], IntlError> {
         todo("DateTimeFormat.formatTemporalToParts")
     }
@@ -273,8 +276,8 @@ export class DateTimeFormat {
     /// Format a date-time range.
     formatRange(
         &readonly this,
-        start: DateTimeFormatValue,
-        end: DateTimeFormatValue,
+        start: &readonly DateTimeFormatValue,
+        end: &readonly DateTimeFormatValue,
     ): Result<string, IntlError> {
         todo("DateTimeFormat.formatRange")
     }
@@ -282,8 +285,8 @@ export class DateTimeFormat {
     /// Format a date-time range into separate parts.
     formatRangeToParts(
         &readonly this,
-        start: DateTimeFormatValue,
-        end: DateTimeFormatValue,
+        start: &readonly DateTimeFormatValue,
+        end: &readonly DateTimeFormatValue,
     ): Result<^DateTimeRangeFormatPart[], IntlError> {
         todo("DateTimeFormat.formatRangeToParts")
     }

@@ -92,9 +92,9 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the iterable value to contain `expected`.
-    toContain<U>(this, expected: &immutable U): void
+    toContain<U>(this, expected: U): void
         where Borrowed<T, 'a, "immutable">: Iterable<U>, U: StrictEqual<U> {
-        const contains = this.value.iterator().some((value) => value === *expected);
+        const contains = this.value.iterator().some((value) => value === expected);
 
         const condition = contains;
 
@@ -284,12 +284,12 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to match a stored snapshot.
-    toMatchSnapshot(this, name?: string, options?: SnapshotOptions): void {
+    toMatchSnapshot(this, name?: &readonly string, options?: SnapshotOptions): void {
         todo("test.Expectation.toMatchSnapshot");
     }
 
     /// Require the value to match an inline snapshot.
-    toMatchInlineSnapshot(this, expected?: string): void {
+    toMatchInlineSnapshot(this, expected?: &readonly string): void {
         todo("test.Expectation.toMatchInlineSnapshot");
     }
 
@@ -346,7 +346,7 @@ export struct PanicExpectation<R> {
     }
 
     /// Require the callable to panic.
-    toPanic(this, expected?: string | RegExp): void {
+    toPanic(this, expected?: &readonly string | RegExp): void {
         // retain matcher configuration before consuming the callable
         const isNegated = this.isNegated;
         const isSoft = this.isSoft;
@@ -361,8 +361,8 @@ export struct PanicExpectation<R> {
     /// Record whether the callable produced the expected panic.
     private checkPanic(
         this,
-        panic: Panic | undefined,
-        expected: string | RegExp | undefined,
+        panic: &readonly Panic | undefined,
+        expected: &readonly string | RegExp | undefined,
         isNegated: boolean,
         isSoft: boolean,
         message: ^string | undefined,
@@ -385,4 +385,3 @@ function fail(issue: Issue): never {
 function report(issue: Issue): void {
     todo("test.report");
 }
-

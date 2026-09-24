@@ -99,16 +99,16 @@ export class RelativeTimeFormat {
 
     /// Create a relative-time formatter.
     static create(
-        locales?: Locales,
-        options?: RelativeTimeFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly RelativeTimeFormatOptions,
     ): Result<RelativeTimeFormat, IntlError> {
         todo("RelativeTimeFormat.create")
     }
 
     /// Return the supported requested locales.
     static supportedLocalesOf(
-        locales: Locales,
-        options?: SupportedLocalesOptions,
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
     ): Result<^string[], IntlError> {
         todo("RelativeTimeFormat.supportedLocalesOf")
     }

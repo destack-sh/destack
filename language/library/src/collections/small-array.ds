@@ -1,14 +1,7 @@
 import { As, Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import {
-    Access,
-    Borrowed,
-    Copy,
-    Default,
-    MaybeUninit,
-    Region,
-} from "destack:memory";
+import { Access, Borrowed, Copy, Default, MaybeUninit, Region } from "destack:memory";
 import { Compare, Index, IndexSet, Ordering } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
@@ -341,10 +334,7 @@ export extension<T, const N: usize, const A: "immutable" | "exclusive"> of Small
     type Output<const R: Region> = Borrowed<T, R, A>;
 
     /// Borrow the indexed storage.
-    index<const R: Region>(
-        this: Borrowed<SmallArray<T, N>, R, A>,
-        key: isize,
-    ): Borrowed<T, R, A> {
+    index<const R: Region>(this: Borrowed<SmallArray<T, N>, R, A>, key: isize): Borrowed<T, R, A> {
         todo("SmallArray.index")
     }
 }

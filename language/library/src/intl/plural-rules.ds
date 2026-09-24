@@ -87,14 +87,17 @@ export class PluralRules {
     }
 
     /// Create plural selection rules.
-    static create(locales?: Locales, options?: PluralRulesOptions): Result<PluralRules, IntlError> {
+    static create(
+        locales?: &readonly Locales,
+        options?: &readonly PluralRulesOptions,
+    ): Result<PluralRules, IntlError> {
         todo("PluralRules.create")
     }
 
     /// Return the supported requested locales.
     static supportedLocalesOf(
-        locales: Locales,
-        options?: SupportedLocalesOptions,
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
     ): Result<^string[], IntlError> {
         todo("PluralRules.supportedLocalesOf")
     }

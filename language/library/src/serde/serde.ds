@@ -20,7 +20,7 @@ export newtype interface Serializer {
     serializeNumber(&this, value: number): Result<void, this.Error>;
 
     /// Serialize a string value.
-    serializeString(&this, value: string): Result<void, this.Error>;
+    serializeString(&this, value: &readonly string): Result<void, this.Error>;
 
     /// Serialize an array value.
     serializeArray<T, const A: "readonly" | "immutable">(
@@ -32,7 +32,7 @@ export newtype interface Serializer {
     /// Serialize an object field.
     serializeField<T>(
         &this,
-        key: string,
+        key: &readonly string,
         value: &immutable T,
     ): Result<void, this.Error> where T: Serialize<this>;
 }
@@ -59,7 +59,10 @@ export newtype interface Deserializer {
     deserializeArray<T: Deserialize<this>>(&this): Result<^T[], this.Error>;
 
     /// Deserialize an object field.
-    deserializeField<T: Deserialize<this>>(&this, key: string): Result<T | undefined, this.Error>;
+    deserializeField<T: Deserialize<this>>(
+        &this,
+        key: &readonly string,
+    ): Result<T | undefined, this.Error>;
 }
 
 /// Value that can serialize itself through `S`.

@@ -1,14 +1,7 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import {
-    Borrowed,
-    Copy,
-    Default,
-    MaybeUninit,
-    Region,
-    WithAccess,
-} from "destack:memory";
+import { Borrowed, Copy, Default, MaybeUninit, Region, WithAccess } from "destack:memory";
 import { Equality, Equate, Index, IndexSet } from "destack:ops";
 
 import { Array } from "./array.ds";
@@ -123,13 +116,10 @@ export extension<K, V, E> of Map<K, V, E> where V: Copy {
 }
 
 export extension<K, V, 'a, const A: "immutable" | "exclusive", E> of Borrowed<Map<K, V, E>, 'a, A>
-    implements
-        Iterable<MapEntry<Borrowed<K, 'a, "immutable">, Borrowed<V, 'a, A>>>
+    implements Iterable<MapEntry<Borrowed<K, 'a, "immutable">, Borrowed<V, 'a, A>>>
 {
     /// Return an iterator over borrowed entries.
-    iterator(
-        this,
-    ): this.Iterator {
+    iterator(this): this.Iterator {
         todo("Map.iterator")
     }
 
@@ -144,9 +134,7 @@ export extension<K, V, 'a, const A: "immutable" | "exclusive", E> of Borrowed<Ma
     }
 
     /// Return borrowed entries.
-    entries(
-        this,
-    ): Iterator<MapEntry<Borrowed<K, 'a, "immutable">, Borrowed<V, 'a, A>>> {
+    entries(this): Iterator<MapEntry<Borrowed<K, 'a, "immutable">, Borrowed<V, 'a, A>>> {
         todo("Map.entries")
     }
 
@@ -156,8 +144,7 @@ export extension<K, V, 'a, const A: "immutable" | "exclusive", E> of Borrowed<Ma
     }
 
     /// Look up a borrowed value using the stored comparer.
-    get<Q>(this, key: &immutable Q): Borrowed<V, 'a, A> | undefined
-        where E: Equate<K, Q> {
+    get<Q>(this, key: &immutable Q): Borrowed<V, 'a, A> | undefined where E: Equate<K, Q> {
         todo("Map.get")
     }
 
@@ -372,10 +359,7 @@ export extension<K, V, E> of Map<K, V, E> where E: Equate<K> {
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(
-        &exclusive this,
-        predicate: (key: &immutable K, value: &exclusive V) => boolean,
-    ): void {
+    retain(&exclusive this, predicate: (key: &immutable K, value: &exclusive V) => boolean): void {
         todo("Map.retain");
     }
 
@@ -424,7 +408,10 @@ export extension<K, V, E> of ^Map<K, V, E>
     }
 }
 
-export extension<K, V, E> of Map<K, V, E> implements Index<&immutable K> where V: Copy, E: Equate<K> {
+export extension<K, V, E, Q> of Map<K, V, E>
+    implements Index<&immutable Q>
+    where V: Copy, E: Equate<K, Q>
+{
     /// The copied indexed value.
     type Output<const R: Region> = V;
 
@@ -432,14 +419,17 @@ export extension<K, V, E> of Map<K, V, E> implements Index<&immutable K> where V
     type Missing = undefined;
 
     /// Copy the indexed value.
-    index<const R: Region>(this: Borrowed<Map<K, V, E>, R, "readonly">, key: &immutable K): V | undefined {
+    index<const R: Region>(
+        this: Borrowed<Map<K, V, E>, R, "readonly">,
+        key: &immutable Q,
+    ): V | undefined {
         todo("Map.index")
     }
 }
 
-export extension<K, V, const A: "immutable" | "exclusive", E> of Map<K, V, E>
-    implements Index<&immutable K, A>
-    where E: Equate<K>
+export extension<K, V, const A: "immutable" | "exclusive", E, Q> of Map<K, V, E>
+    implements Index<&immutable Q, A>
+    where E: Equate<K, Q>
 {
     /// The protected element storage.
     type Output<const R: Region> = Borrowed<V, R, A>;
@@ -450,7 +440,7 @@ export extension<K, V, const A: "immutable" | "exclusive", E> of Map<K, V, E>
     /// Borrow the indexed storage.
     index<const R: Region>(
         this: Borrowed<Map<K, V, E>, R, A>,
-        key: &immutable K,
+        key: &immutable Q,
     ): Borrowed<V, R, A> | undefined {
         todo("Map.index")
     }

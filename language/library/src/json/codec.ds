@@ -34,7 +34,7 @@ export class JsonSerializer implements Serializer {
     }
 
     /// Serialize a string value.
-    serializeString(&this, value: string): Result<void, JsonError> {
+    serializeString(&this, value: &readonly string): Result<void, JsonError> {
         todo("JsonSerializer.serializeString")
     }
 
@@ -48,7 +48,7 @@ export class JsonSerializer implements Serializer {
     }
 
     /// Serialize an object field.
-    serializeField<T>(&this, key: string, value: &immutable T): Result<void, JsonError>
+    serializeField<T>(&this, key: &readonly string, value: &immutable T): Result<void, JsonError>
         where T: Serialize<this> {
         todo("JsonSerializer.serializeField")
     }
@@ -86,7 +86,10 @@ export class JsonDeserializer implements Deserializer {
     }
 
     /// Deserialize an object field.
-    deserializeField<T: Deserialize<this>>(&this, key: string): Result<T | undefined, JsonError> {
+    deserializeField<T: Deserialize<this>>(
+        &this,
+        key: &readonly string,
+    ): Result<T | undefined, JsonError> {
         todo("JsonDeserializer.deserializeField")
     }
 }
@@ -98,16 +101,16 @@ export type JsonSerialize = Serialize<JsonSerializer>;
 export type JsonDeserialize = Deserialize<JsonDeserializer>;
 
 /// Decode typed JSON text.
-export function decode<T: JsonDeserialize>(text: string): Result<T, JsonError> {
+export function decode<T: JsonDeserialize>(text: &readonly string): Result<T, JsonError> {
     todo("json.decode")
 }
 
 /// Encode a typed value as JSON text.
-export function encode<T>(value: T): Result<^string, JsonError> where T: JsonSerialize {
+export function encode<T>(value: &immutable T): Result<^string, JsonError> where T: JsonSerialize {
     todo("json.encode")
 }
 
 /// Serialize an already materialized JSON value.
-export function encodeJson(value: Json): Result<^string, JsonError> {
+export function encodeJson(value: &readonly Json): Result<^string, JsonError> {
     JSON.stringify(value)
 }

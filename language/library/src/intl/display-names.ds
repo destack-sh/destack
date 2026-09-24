@@ -61,14 +61,17 @@ export struct ResolvedDisplayNamesOptions {
 @languageItem("intl.DisplayNames")
 export class DisplayNames {
     /// Create a display-name formatter.
-    static create(locales: Locales, options: DisplayNamesOptions): Result<DisplayNames, IntlError> {
+    static create(
+        locales: &readonly Locales,
+        options: &readonly DisplayNamesOptions,
+    ): Result<DisplayNames, IntlError> {
         todo("DisplayNames.create")
     }
 
     /// Return the supported requested locales.
     static supportedLocalesOf(
-        locales: Locales,
-        options?: SupportedLocalesOptions,
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
     ): Result<^string[], IntlError> {
         todo("DisplayNames.supportedLocalesOf")
     }

@@ -89,14 +89,17 @@ export class Segmenter {
     }
 
     /// Create a text segmenter.
-    static create(locales?: Locales, options?: SegmenterOptions): Result<Segmenter, IntlError> {
+    static create(
+        locales?: &readonly Locales,
+        options?: &readonly SegmenterOptions,
+    ): Result<Segmenter, IntlError> {
         todo("Segmenter.create")
     }
 
     /// Return the supported requested locales.
     static supportedLocalesOf(
-        locales: Locales,
-        options?: SupportedLocalesOptions,
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
     ): Result<^string[], IntlError> {
         todo("Segmenter.supportedLocalesOf")
     }

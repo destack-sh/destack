@@ -121,9 +121,7 @@ export extension<T, 'a, E> of Borrowed<Set<T, E>, 'a, "immutable">
     }
 
     /// Return borrowed value-value entries.
-    entries(
-        this,
-    ): Iterator<(Borrowed<T, 'a, "immutable">, Borrowed<T, 'a, "immutable">)> {
+    entries(this): Iterator<(Borrowed<T, 'a, "immutable">, Borrowed<T, 'a, "immutable">)> {
         todo("Set.entries")
     }
 

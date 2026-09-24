@@ -63,12 +63,12 @@ export class Console {
     }
 
     /// Write and stop a named timer.
-    timeEnd(label?: string): Result<void, HostError> {
+    timeEnd(label?: &readonly string): Result<void, HostError> {
         todo("Console.timeEnd")
     }
 
     /// Write a named timer without stopping it.
-    timeLog(label?: string, ...values: unknown[]): Result<void, HostError> {
+    timeLog(label?: &readonly string, ...values: unknown[]): Result<void, HostError> {
         todo("Console.timeLog")
     }
 
@@ -142,12 +142,12 @@ export function time(label?: string): Result<void, HostError> {
 }
 
 /// Write and stop a named timer.
-export function timeEnd(label?: string): Result<void, HostError> {
+export function timeEnd(label?: &readonly string): Result<void, HostError> {
     defaultConsole().timeEnd(label)
 }
 
 /// Write a named timer without stopping it.
-export function timeLog(label?: string, ...values: unknown[]): Result<void, HostError> {
+export function timeLog(label?: &readonly string, ...values: unknown[]): Result<void, HostError> {
     defaultConsole().timeLog(label, ...values)
 }
 

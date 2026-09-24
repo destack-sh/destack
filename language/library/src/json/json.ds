@@ -23,30 +23,30 @@ export type JsonReplacer = (key: string, value: Json) => Json | undefined;
 @languageItem("json.JSON")
 export class JSON {
     /// Parse JSON text.
-    static parse(text: string, reviver?: JsonReviver): Result<Json, JsonError> {
+    static parse(text: &readonly string, reviver?: JsonReviver): Result<Json, JsonError> {
         todo("JSON.parse")
     }
 
     /// Serialize a JSON value.
     static stringify(
-        value: Json,
+        value: &readonly Json,
         replacer?: JsonReplacer | readonly string[],
-        space?: string | int32,
+        space?: &readonly string | int32,
     ): Result<^string, JsonError> {
         todo("JSON.stringify")
     }
 }
 
 /// Parse JSON text.
-export function parse(text: string, reviver?: JsonReviver): Result<Json, JsonError> {
+export function parse(text: &readonly string, reviver?: JsonReviver): Result<Json, JsonError> {
     JSON.parse(text, reviver)
 }
 
 /// Serialize a JSON value.
 export function stringify(
-    value: Json,
+    value: &readonly Json,
     replacer?: JsonReplacer | readonly string[],
-    space?: string | int32,
+    space?: &readonly string | int32,
 ): Result<^string, JsonError> {
     JSON.stringify(value, replacer, space)
 }
