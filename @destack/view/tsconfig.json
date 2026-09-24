@@ -1,15 +1,7 @@
 {
     "extends": "../../tsconfig.json",
-    "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"] },
-    "files": [
-        "./src/index.ts",
-        "./src/client/index.ts",
-        "./src/router/index.ts",
-        "./src/document/index.ts",
-        "./src/render/index.ts",
-        "./src/runtime.ts",
-        "./src/inspect/index.ts",
-        "./src/jsx-runtime.ts",
-        "./src/jsx-dev-runtime.ts"
-    ]
+    "compilerOptions": {
+        "lib": ["ESNext", "DOM", "DOM.Iterable"]
+    },
+    "include": ["src"]
 }
