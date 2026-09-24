@@ -3,7 +3,6 @@ import { CheckError } from "../error/index.ts";
 
 /** Judgment rules that source may disable with a stated reason. */
 const DISABLEABLE = [
-    "destack/no-sludge",
     "destack/prevent-abbreviations",
     "destack/boolean-prefix",
     "destack/no-silent-fallback",

@@ -19,7 +19,6 @@ export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
             Object.entries(definition.columns).map(([property, column]) => {
                 // build a custom column from the definition's codec
                 const definition = column.definition;
-                // oxlint-disable-next-line destack/no-sludge -- Drizzle custom type keys
                 const builder = sqlite.customType<{ data: unknown; driverData: unknown }>({
                     dataType: () => definition.types.sqlite,
                     toDriver: (value) => definition.encode(value, "sqlite"),

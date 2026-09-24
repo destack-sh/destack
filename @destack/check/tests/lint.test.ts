@@ -20,7 +20,7 @@ tester.run("require-jsdoc", rules["require-jsdoc"], {
         "/** The note title. */\nexport const title = 1;",
         "/** A note. */\nclass Note {\n    /** The title. */\n    title = 1;\n}",
         'export * from "./note.ts";',
-        "/** The data key. */\n// oxlint-disable-next-line destack/no-sludge -- data key is the cryptographic term\nexport const dataKey = 1;",
+        "/** The identifier. */\n// oxlint-disable-next-line destack/prevent-abbreviations -- external identifier\nexport const id = 1;",
     ],
     invalid: [
         { code: "export const title = 1;", errors: [{ messageId: "missing" }] },
@@ -125,19 +125,6 @@ tester.run("require-block-comment", rules["require-block-comment"], {
             code: "function f() {\n    // read\n    a();\n    b();\n\n    c();\n    d();\n}",
             errors: [{ messageId: "missing" }],
         },
-    ],
-});
-
-tester.run("no-sludge", rules["no-sludge"], {
-    valid: [
-        "const notes = 1;",
-        "// read each note",
-        "// oxlint-disable-next-line destack/no-sludge -- data key is the cryptographic term",
-    ],
-    invalid: [
-        { code: "const noteInfo = 1;", errors: [{ messageId: "word" }] },
-        { code: "// build the data", errors: [{ messageId: "word" }] },
-        { code: "function parseHelper() {}", errors: [{ messageId: "word" }] },
     ],
 });
 

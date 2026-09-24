@@ -180,14 +180,14 @@ Write code and prose that read plainly.
 - **WN04** Names SHOULD use shorter, stronger nouns and verbs.
 - **WN05** Names SHOULD follow modern prior art terminology where it exists.
 - **WN06** Names MUST describe actual behavior or purpose: a function that creates or updates is `upsert*`, one that allocates conditionally is `allocate*_maybe` or `allocate*_if*`.
-- **WN07** Names and prose MUST NOT use abstraction sludge words unless the topic literally requires them: seam, lane, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint. (`destack/no-sludge`)
+- **WN07** Retired.
 - **WN08** Names MUST write words out, including variables: `extension`, not `ext`; `directory`, not `dir`. (`destack/prevent-abbreviations`)
 - **WN09** Names of related logic SHOULD be symmetric.
 - **WN10** Variables MUST NOT use single letters unless obvious, such as `i`, `x` or `Vector.x`. (`eslint/id-length`)
 - **WN11** Booleans SHOULD start with `is` unless already clear or required by context. (`destack/boolean-prefix`)
 - **WN12** Booleans SHOULD give way to enums where an enum fits.
 - **WN13** File and module names SHOULD be single words. (`unicorn/filename-case`)
-- **WN14** File and module names MUST NOT be sludge such as `support`, `helper` or `utils`. (`destack/no-sludge`)
+- **WN14** File and module names MUST describe their domain or purpose.
 - **WN15** Names SHOULD NOT take the shape `x_for_y`; it usually means the invariants are not generalised yet.
 - **WN16** Generalisations MUST NOT introduce arbitrary interfaces only to avoid `x_for_y`.
 - **WN17** Names MAY keep `x_for_y` in data transcription.
@@ -256,7 +256,7 @@ Write code and prose that read plainly.
 - **WC05** Continued comment lines MUST start with one extra space. (`destack/comment-style`)
 - **WC06** Continued comments SHOULD read naturally line by line, even when that splits a sentence.
 - **WC07** Comments SHOULD separate clauses with colons or commas instead of hyphens, except in compound words. (`destack/comment-style`)
-- **WC08** Comments MUST NOT contain sludge words (WN07), LLM slop, statements about what things are not, or negative parallelisms such as "listed rather than omitted so the absence is a decision". (`destack/no-sludge`)
+- **WC08** Comments MUST NOT contain LLM slop, statements about what things are not, or negative parallelisms.
 - **WC09** Comments MUST state plainly what is.
 - **WC10** Comments MAY consist of a single word or phrase when their scope is clear.
 - **WC11** Comments SHOULD organise the reader's mental model, as a one-word summary, a short phrase or a short explanatory note.

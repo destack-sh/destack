@@ -11,20 +11,17 @@ const ENCRYPTION_FORMAT = 1;
 export const SecretEnvelope = schema.object({
     /** Encoding and algorithm version. */
     format: schema.literal(ENCRYPTION_FORMAT),
-    // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
     /** Root key version used to protect the data key. */
     keyId: schema.string().min(1),
     /** Base64 ciphertext including its authentication tag. */
     ciphertext: schema.base64(),
     /** Base64 value nonce. */
     nonce: schema.base64(),
-    // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
     /** Base64 encrypted data key including its authentication tag. */
     wrappedKey: schema.base64(),
     /** Base64 key nonce. */
     keyNonce: schema.base64().optional(),
 });
-// oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
 /** Authenticated ciphertext and its protected data key. */
 export type SecretEnvelope = schema.Infer<typeof SecretEnvelope>;
 
@@ -57,7 +54,6 @@ export type EncryptionContext = {
       }
 );
 
-// oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
 /** Encrypt immutable secret values and rewrap their data keys. */
 export class EnvelopeEncryption {
     /** Trusted root-key implementation. */

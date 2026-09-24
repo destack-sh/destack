@@ -83,7 +83,6 @@ export class SelectQuery<
     }
 
     /** Include matching rows from another table. */
-    /* oxlint-disable-next-line destack/no-sludge -- SQL join kind */
     innerJoin<Joined extends QuerySource>(
         table: Joined,
         on: SQL,
@@ -527,7 +526,6 @@ interface NativeSelect extends PromiseLike<unknown[]>, SQLWrapper {
     /** Read selected fields and their native decoders. */
     getSelectedFields(): Selection;
     /** Join matching rows. */
-    // oxlint-disable-next-line destack/no-sludge -- SQL join kind
     innerJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): NativeSelect;
     /** Join matching or null rows. */
     leftJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): NativeSelect;

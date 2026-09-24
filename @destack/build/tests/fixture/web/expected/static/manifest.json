@@ -8,7 +8,7 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "45f80aa7c239c8fa5f3cd1e35029977613e3ba6a4d7b0f76056a74676f32d329",
+        "digest": "a3a46866d7eaae8cde9d7b3eb36957cfbc7b55656ee057d3b0a78dc183688939",
         "size": 14671,
         "mediaType": "application/json"
     },
@@ -65,7 +65,7 @@
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "6de6cf2c206d7a6a94b646fc5885d64bb61ec2296748fbad411b64772278c4e3",
+        "digest": "e4370918eb2e63e7ab65f423d2ee749f5aa72c4cd726c19fcedf94fe0a1ab83d",
         "size": 4762,
         "mediaType": "application/json"
     },

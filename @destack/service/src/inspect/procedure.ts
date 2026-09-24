@@ -84,7 +84,6 @@ function visit(
         const definition = service["~orpc"];
         const errors = Object.fromEntries(
             Object.entries(definition.errorMap).map(([code, value]) => {
-                // oxlint-disable-next-line destack/no-sludge -- oRPC error map field name
                 const error = value as { status?: number; message?: string; data?: AnySchema };
 
                 return [

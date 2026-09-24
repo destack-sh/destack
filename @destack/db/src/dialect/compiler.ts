@@ -195,9 +195,7 @@ function bindRelationColumns(
 
 /** The Drizzle configuration of a custom column. */
 type CustomColumnConfiguration = {
-    // oxlint-disable-next-line destack/no-sludge -- Drizzle configuration key
     dataType: "custom";
-    // oxlint-disable-next-line destack/no-sludge -- Drizzle configuration key
     data: unknown;
     // oxlint-disable-next-line destack/prevent-abbreviations -- Drizzle configuration key
     driverParam: unknown;

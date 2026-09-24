@@ -33,7 +33,6 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
             Object.entries(definition.columns).map(([property, column]) => {
                 // build a custom column from the definition's codec
                 const definition = column.definition;
-                // oxlint-disable-next-line destack/no-sludge -- Drizzle custom type keys
                 const builder = postgres.customType<{ data: unknown; driverData: unknown }>({
                     dataType: () => definition.types.postgresql,
                     toDriver: (value) => definition.encode(value, "postgresql"),

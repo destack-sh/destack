@@ -60,7 +60,6 @@ type NativeColumn<Definition extends Column> = Omit<
     ColumnBaseConfig<"custom">,
     "data" | "notNull" | "hasDefault" | "tableName" | "generated" | "identity"
 > & {
-    // oxlint-disable-next-line destack/no-sludge -- Drizzle column configuration key
     data: Definition["_"]["value"];
     notNull: Definition["_"]["required"];
     hasDefault: Definition["_"]["default"];

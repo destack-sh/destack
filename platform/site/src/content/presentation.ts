@@ -4,7 +4,6 @@ import { escapeAttribute } from "./html.ts";
 export type ContentEntry = {
     title: string;
     href: string;
-    // oxlint-disable-next-line destack/no-sludge -- summary is the entry field in the generated content JSON
     summary?: string;
     meta?: string;
     date?: string;

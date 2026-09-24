@@ -1,16 +1,13 @@
 import { VaultError } from "../error/index.ts";
 import type { SecretEnvelope } from "./envelope.ts";
 
-// oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
 /** Versioned wrapping keys used to encrypt and decrypt data keys. */
 export interface Keyring {
-    // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
     /** Encrypt a data key under the active root key. */
     wrap(
         key: Uint8Array<ArrayBuffer>,
         context: Uint8Array<ArrayBuffer>,
     ): Promise<Pick<SecretEnvelope, "keyId" | "wrappedKey" | "keyNonce">>;
-    // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
     /** Recover a data key under its recorded root key. */
     unwrap(
         envelope: Pick<SecretEnvelope, "keyId" | "wrappedKey" | "keyNonce">,
@@ -18,7 +15,6 @@ export interface Keyring {
     ): Promise<Uint8Array<ArrayBuffer>>;
 }
 
-// oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
 /** Wrap data keys locally using root keys supplied by the host. */
 export class LocalKeyring implements Keyring {
     /** Active version for new encryption. */
@@ -59,7 +55,6 @@ export class LocalKeyring implements Keyring {
         return new LocalKeyring(active, keys);
     }
 
-    // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
     /** Protect a fresh data key under the active root key. */
     async wrap(value: Uint8Array<ArrayBuffer>, context: Uint8Array<ArrayBuffer>) {
         // encrypt the key with a fresh nonce under the active root key

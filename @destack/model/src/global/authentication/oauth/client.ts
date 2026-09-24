@@ -55,7 +55,6 @@ export const oauthClient = table(
         /** The signed software statement. */
         softwareStatement: text("software_statement"),
 
-        // oxlint-disable-next-line destack/no-sludge -- term from the OpenID Connect logout specification
         /** The back-channel logout endpoint. */
         backchannelLogoutUri: text("backchannel_logout_uri"),
         /** The token-endpoint authentication method. */

@@ -21,7 +21,6 @@ export const vaultValue = table(
         ciphertext: text("ciphertext").notNull(),
         /** Value encryption nonce, encoded as base64. */
         nonce: text("nonce").notNull(),
-        // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
         /** Protected data key, encoded as base64. */
         wrappedKey: text("wrapped_key").notNull(),
         /** Key protection nonce, encoded as base64. */
