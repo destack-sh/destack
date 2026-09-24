@@ -121,6 +121,11 @@ pub enum Error {
         /// The out-of-bounds byte offset.
         offset: u32,
     },
+    /// A frame address points outside every moved frame segment.
+    StrayFrameAddress {
+        /// The stray frame address.
+        address: u64,
+    },
     /// A compact trace table operation failed.
     Trace {
         /// The trace table failure.
@@ -275,6 +280,12 @@ impl fmt::Display for Error {
                 formatter,
                 "frame slot at byte {offset} exceeds layout {frame_layout:?} for state {frame_state:?}"
             ),
+            Self::StrayFrameAddress { address } => {
+                write!(
+                    formatter,
+                    "frame address {address:#x} lies outside every moved frame"
+                )
+            }
             Self::Trace { error } => error.fmt(formatter),
             Self::Heap { error } => error.fmt(formatter),
             Self::Memory { error } => error.fmt(formatter),

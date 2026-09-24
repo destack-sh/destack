@@ -4,8 +4,8 @@ use std::sync::Arc;
 use destack_bytecode as bytecode;
 use destack_core::{Blob, SectionImage, SectionStorage, StringId};
 use destack_heap::{
-    AllocationPlan, AllocationShape, DropId, HeapOptions, HeapResult, ReferenceRange, RootSlot,
-    SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
+    AllocationPlan, AllocationShape, DropId, FrameWord, HeapOptions, HeapResult, ReferenceRange,
+    RootSlot, SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
 };
 use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
 use destack_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
@@ -498,9 +498,7 @@ impl Program {
                 let plan = match site.space {
                     Space::Local => local.allocation_plan(&shape),
                     Space::Shared => shared.allocation_plan(&shape),
-                    Space::Constant | Space::Parameter(_) | Space::Join(_) | Space::Of(_) => {
-                        return Err(Error::ConstantAllocationSite);
-                    }
+                    Space::Constant => return Err(Error::ConstantAllocationSite),
                 };
 
                 Ok(plan)
@@ -777,34 +775,67 @@ impl Program {
         Ok(())
     }
 
-    /// Visit mutable frame addresses from one byte range.
-    pub fn visit_byte_frame_addresses(
-        &self,
-        ty: TypeId,
+    /// Move every frame address inside packed canonical frames, keeping borrows that address no frame.
+    pub fn relocate_frame_addresses<'a>(
+        &'a self,
+        frames: impl IntoIterator<Item = (usize, &'a FrameLayout)>,
         bytes: &mut [u8],
-        visit: &mut dyn FnMut(&mut [u8]) -> HeapResult<()>,
+        mut relocate: impl FnMut(u64) -> Result<Option<u64>>,
     ) -> Result<()> {
-        let layout_id = self
-            .layout_id(ty)
-            .ok_or_else(|| Error::undefined_type(ty))?;
-        let layout = self
-            .layout_by_id(layout_id)
-            .ok_or_else(|| Error::undefined_layout(layout_id))?;
+        let traces = self.traces.view(self.sections());
+        for (frame_offset, layout) in frames {
+            for slot in self.frame_slots(layout) {
+                // borrow the slot's exact value bytes
+                let start = frame_offset + slot.offset as usize;
+                let end = start + slot.byte_len as usize;
+                let actual = bytes.len();
+                let value = bytes.get_mut(start..end).ok_or(Error::ByteLengthMismatch {
+                    ty: slot.ty,
+                    expected: end,
+                    actual,
+                })?;
+                let layout_id = self
+                    .layout_id(slot.ty)
+                    .ok_or_else(|| Error::undefined_type(slot.ty))?;
+                let trace = self
+                    .layout_by_id(layout_id)
+                    .ok_or_else(|| Error::undefined_layout(layout_id))?
+                    .trace;
 
-        // require one complete value representation
-        let layout_bytes = layout.size as usize;
-        if bytes.len() != layout_bytes {
-            return Err(Error::ByteLengthMismatch {
-                ty,
-                expected: layout_bytes,
-                actual: bytes.len(),
-            });
+                // move each live address word, stopping at the first failure
+                let mut failure = None;
+                traces.visit_frame_address_slots(trace, value, &mut |address, word| {
+                    let bits = Word::from_bytes(address)
+                        .unwrap_or_else(|| unreachable!("frame address slots are one word"))
+                        .bits();
+                    if Word::from_bits(bits).is_nullish() || failure.is_some() {
+                        return Ok(());
+                    }
+                    let moved = match (relocate(bits), word) {
+                        (Ok(Some(moved)), _) => moved,
+                        (Ok(None), FrameWord::Borrow) => return Ok(()),
+                        (Ok(None), FrameWord::Frame) => {
+                            failure = Some(Error::StrayFrameAddress { address: bits });
+
+                            return Ok(());
+                        }
+                        (Err(error), _) => {
+                            failure = Some(error);
+
+                            return Ok(());
+                        }
+                    };
+                    address.copy_from_slice(&Word::from_bits(moved).to_bytes());
+
+                    Ok(())
+                })?;
+                if let Some(error) = failure {
+                    return Err(error);
+                }
+            }
         }
 
-        self.traces
-            .view(self.sections())
-            .visit_frame_address_slots(layout.trace, bytes, visit)
-            .map_err(Error::from)
+        Ok(())
     }
 
     /// Visit mutable heap root slots from one static space.

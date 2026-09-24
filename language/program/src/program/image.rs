@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::sync::Arc;
 
 use destack_memory::{MemoryMap, MemoryRange};
@@ -31,10 +32,41 @@ pub enum Completion {
     Cancel,
 }
 
+/// The tag bit that separates encoded frame addresses from world offsets and nullish words.
+const FRAME_ADDRESS_TAG: u64 = 1 << 63;
+
+/// One contiguous segment of frame bytes and the address it moves to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FrameSegment {
+    /// The addresses before the move.
+    pub source: Range<usize>,
+    /// The address of the first byte after the move.
+    pub target: usize,
+}
+
+impl FrameSegment {
+    /// Move one address inside this segment.
+    pub fn relocate(&self, address: usize) -> Option<usize> {
+        self.source
+            .contains(&address)
+            .then(|| self.target + address - self.source.start)
+    }
+}
+
 impl ActivationImage {
-    /// Bias added to canonical frame addresses so live offsets never collide
-    /// with the nullish words.
-    pub const FRAME_ADDRESS_BIAS: u64 = 2;
+    /// Encode one canonical frame offset as an image frame address.
+    pub const fn encode_frame_address(offset: usize) -> u64 {
+        offset as u64 | FRAME_ADDRESS_TAG
+    }
+
+    /// Decode one image frame address into its canonical frame offset.
+    pub const fn decode_frame_address(address: u64) -> Option<usize> {
+        if address & FRAME_ADDRESS_TAG == 0 {
+            return None;
+        }
+
+        Some((address & !FRAME_ADDRESS_TAG) as usize)
+    }
 
     /// Create one retained activation image.
     pub fn new(
