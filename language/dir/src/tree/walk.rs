@@ -412,8 +412,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Const => {}
         TypeExpression::This => {}
         TypeExpression::Readonly { target_type }
-        | TypeExpression::Local { target_type }
-        | TypeExpression::Shared { target_type }
         | TypeExpression::KeyOf { target_type }
         | TypeExpression::Must { target_type }
         | TypeExpression::Not { target_type }
@@ -797,7 +795,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             mutability: _,
             export: _,
             is_ambient: _,
-            place: _,
+            is_shared: _,
             declarators,
         } => {
             for declarator_id in declarators {
@@ -1669,7 +1667,6 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
     visitor.visit_type_expression(tree, where_clause.right, right_expression);
 }
 
-/// Walk the UseClause.
 /// Walk the DependencyItem.
 pub fn walk_dependency_item<V: NodeVisitor + ?Sized>(
     visitor: &mut V,

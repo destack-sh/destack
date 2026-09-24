@@ -6,14 +6,13 @@ use destack_source::ModuleId;
 use crate::{
     Access, AutoInterface, AwaitTarget, BinaryOperator, CaptureMode, CastOrigin, EnumBackingType,
     EnumVariantValue, FunctionRole, FunctionSignature, GenericParameterKey, GenericParameterOrigin,
-    MemoryParameter, GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId,
-    GlobalStaticId, GlobalSymbolId, GlobalTypeId, InstanceOrigin, IntegerType, LanguageItem,
-    Literal, LocalCaptureFrameId, LocalGenericParameterId, LocalGenericTemplateId, LocalNodeId,
+    GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId, GlobalStaticId,
+    GlobalSymbolId, GlobalTypeId, InstanceOrigin, IntegerType, LanguageItem, Literal,
+    LocalCaptureFrameId, LocalGenericParameterId, LocalGenericTemplateId, LocalNodeId,
     LocalScopeId, MappedTypeModifiers, MemberKind, MemberOrigin, MemberRole, MemberSlot,
-    MemberSpace, MethodAbstraction, Node, PrimitiveType, RangeEnd, ScalarFamilySet, Space,
-    StaticBinaryOperator, StaticKey, StaticUnaryOperator, UnaryOperator, VarianceModifier,
-    WitnessSource,
-    Visibility, WhereRelation,
+    MemberSpace, MemoryParameter, MethodAbstraction, Node, PrimitiveType, RangeEnd,
+    ScalarFamilySet, Space, StaticBinaryOperator, StaticKey, StaticUnaryOperator, UnaryOperator,
+    VarianceModifier, Visibility, WhereRelation, WitnessSource,
 };
 
 /// Read every type id embedded in a checked value.
@@ -299,7 +298,6 @@ type_leaves!(
     FunctionRole,
     GenericParameterKey,
     GenericParameterOrigin,
-    MemoryParameter,
     IntegerType,
     LanguageItem,
     MemberKind,
@@ -307,6 +305,7 @@ type_leaves!(
     MemberRole,
     MemberSlot,
     MemberSpace,
+    MemoryParameter,
     MethodAbstraction,
     PrimitiveType,
     RangeEnd,

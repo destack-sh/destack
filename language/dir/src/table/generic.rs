@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use destack_core::FxIndexMap as IndexMap;
 
 use crate::{
-    Arena, GenericParameterBinding, GenericParameterKey, GenericParameterUse, GenericTemplate,
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceKey, InstanceOrigin,
-    Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
-    LocalSymbolId, MemoryParameter, SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
+    Arena, GenericParameterBinding, GenericParameterKey, GenericTemplate, GlobalNodeIdAny,
+    GlobalSymbolId, GlobalTypeId, Instance, InstanceKey, InstanceOrigin, Instantiation,
+    LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId, LocalSymbolId,
+    MemoryParameter, SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
     free_region_name,
 };
 
@@ -68,17 +68,6 @@ impl<'a> GenericTable<'a> {
         }
 
         None
-    }
-
-    /// Return the derived use recorded for one parameter.
-    pub fn parameter_use(
-        &self,
-        parameter_id: LocalGenericParameterId,
-    ) -> Option<GenericParameterUse> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.parameter_use(parameter_id))
     }
 
     /// Create a generic table by appending a borrowed tail segment.
@@ -399,8 +388,6 @@ pub struct GenericSegment {
     pub(crate) parameters: Arena<GenericParameterBinding>,
     /// Variances derived from declared member types.
     pub(crate) variances: Vec<(LocalGenericParameterId, VarianceModifier)>,
-    /// Uses derived from declared member types.
-    pub(crate) uses: Vec<(LocalGenericParameterId, GenericParameterUse)>,
     /// The first generic instance id owned by this table segment.
     pub(crate) first_instance_id: u32,
     /// Generic instances closed by this segment.
@@ -435,7 +422,6 @@ impl GenericSegment {
             templates_by_scope: Vec::new(),
             parameters: Arena::new(),
             variances: Vec::new(),
-            uses: Vec::new(),
             first_instance_id: 0,
             instances: Arena::new(),
             application_instances: IndexMap::default(),
@@ -459,7 +445,6 @@ impl GenericSegment {
             templates_by_scope: Vec::new(),
             parameters: Arena::new(),
             variances: Vec::new(),
-            uses: Vec::new(),
             first_instance_id: base.instance_count(),
             instances: Arena::new(),
             application_instances: IndexMap::default(),
@@ -488,26 +473,6 @@ impl GenericSegment {
             .iter()
             .find(|(recorded, _)| *recorded == parameter_id)
             .map(|(_, variance)| *variance)
-    }
-
-    /// Record one derived use for a type parameter.
-    pub fn set_use(
-        &mut self,
-        parameter_id: LocalGenericParameterId,
-        parameter_use: GenericParameterUse,
-    ) {
-        self.uses.push((parameter_id, parameter_use));
-    }
-
-    /// Return the derived use recorded for one parameter.
-    pub fn parameter_use(
-        &self,
-        parameter_id: LocalGenericParameterId,
-    ) -> Option<GenericParameterUse> {
-        self.uses
-            .iter()
-            .find(|(recorded, _)| *recorded == parameter_id)
-            .map(|(_, parameter_use)| *parameter_use)
     }
 
     /// Append a generic template to this segment.

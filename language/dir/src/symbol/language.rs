@@ -126,11 +126,7 @@ macro_rules! define_language_items {
             pub fn is_memory_form(&self) -> bool {
                 matches!(
                     self,
-                    Self::Managed
-                        | Self::Owned
-                        | Self::Raw
-                        | Self::Borrowed
-                        | Self::Readonly
+                    Self::Owned | Self::Raw | Self::Borrowed | Self::Readonly
                 )
             }
 
@@ -1874,18 +1870,10 @@ define_language_items! {
             MaybeUninit => (Newtype, "memory/init", "MaybeUninit"),
         }
 
-        /// `destack:memory/lifetime`.
-        lifetime {
-            /// Lifetime marker.
-            Lifetime => (Newtype, "memory/lifetime", "Lifetime"),
+        /// `destack:memory/region`.
+        region {
             /// Reference region: one lifetime extent paired with one referent space.
             Region => (Newtype, "memory/region", "Region"),
-        }
-
-        /// `destack:memory/managed`.
-        managed {
-            /// Default managed form.
-            Managed => (Newtype, "memory/managed", "Managed"),
         }
 
         /// `destack:memory/owned`.
@@ -1904,15 +1892,6 @@ define_language_items! {
         pin {
             /// Address-stable storage wrapper.
             Pin => (Newtype, "memory/pin", "Pin"),
-        }
-
-        /// `destack:memory/place`.
-        place {
-            /// Placement tag kind.
-            Place => (Type, "memory/place", "Place"),
-
-            /// Concrete memory space tag kind.
-            Space => (Type, "memory/place", "Space"),
         }
 
         /// `destack:memory/raw`.
@@ -1935,16 +1914,11 @@ define_language_items! {
 
         /// `destack:memory/type`.
         type {
-            /// Make the default value form explicit.
-
             /// Project the access mode of a memory form.
             AccessOf => (Type, "memory/type", "AccessOf"),
 
             /// Ownership kind for qualified storage.
             Ownership => (Type, "memory/type", "Ownership"),
-
-            /// Project the space of a placed type.
-            PlaceOf => (Type, "memory/type", "PlaceOf"),
 
             /// Reborrow with an access mode.
             WithAccess => (Type, "memory/type", "WithAccess"),

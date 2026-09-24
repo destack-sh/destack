@@ -2,37 +2,10 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExportKind, Expression, FunctionSignature, GenericParameter, Keyword, LocalNodeId, Member,
-    Mutability, Name, Node, NodeFold, NodeType, ScopeKind, Space, SymbolKind, SymbolRole,
-    TypeExpression, TypeMember, Visibility, WhereClause,
+    ExportKind, Expression, FunctionSignature, GenericParameter, LocalNodeId, Member, Mutability,
+    Name, Node, NodeFold, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression, TypeMember,
+    Visibility, WhereClause,
 };
-
-/// Explicit source placement modifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum PlaceModifier {
-    /// Local placement.
-    Local,
-    /// Shared placement.
-    Shared,
-}
-
-impl PlaceModifier {
-    /// Return the keyword text of this placement modifier.
-    pub const fn keyword(self) -> Keyword {
-        match self {
-            Self::Local => Keyword::Local,
-            Self::Shared => Keyword::Shared,
-        }
-    }
-
-    /// Return the concrete memory space selected by this modifier.
-    pub const fn space(self) -> Space {
-        match self {
-            Self::Local => Space::Local,
-            Self::Shared => Space::Shared,
-        }
-    }
-}
 
 /// A global declaration block.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, NodeFold)]
@@ -57,8 +30,8 @@ pub struct TypeDeclaration {
     pub name: Name,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
-    /// The explicit placement modifier.
-    pub place: Option<PlaceModifier>,
+    /// Whether the declaration places its values in shared storage.
+    pub is_shared: bool,
     /// The optional mutability qualifier.
     pub mutability: Option<Mutability>,
     /// The generic parameters of the declaration.
@@ -82,8 +55,8 @@ pub struct StructDeclaration {
     pub name: Name,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
-    /// The explicit placement modifier.
-    pub place: Option<PlaceModifier>,
+    /// Whether the declaration places its values in shared storage.
+    pub is_shared: bool,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -103,8 +76,8 @@ pub struct ClassDeclaration {
     pub name: Option<Name>,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
-    /// The explicit placement modifier.
-    pub place: Option<PlaceModifier>,
+    /// Whether the declaration places its values in shared storage.
+    pub is_shared: bool,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -130,8 +103,8 @@ pub struct EnumDeclaration {
     pub name: Option<Name>,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
-    /// The explicit placement modifier.
-    pub place: Option<PlaceModifier>,
+    /// Whether the declaration places its values in shared storage.
+    pub is_shared: bool,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -153,8 +126,8 @@ pub struct InterfaceDeclaration {
     pub name: Option<Name>,
     /// The export kind of the declaration.
     pub export: Option<ExportKind>,
-    /// The explicit placement modifier.
-    pub place: Option<PlaceModifier>,
+    /// Whether the declaration places its values in shared storage.
+    pub is_shared: bool,
     /// The generic parameters of the declaration.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
@@ -262,18 +235,18 @@ impl Declaration {
         }
     }
 
-    /// Return the explicit placement modifier on this declaration.
-    pub fn place(&self) -> Option<PlaceModifier> {
+    /// Return whether this declaration places its values in shared storage.
+    pub fn is_shared(&self) -> bool {
         match self {
-            Declaration::Type(declaration) => declaration.place,
-            Declaration::Struct(declaration) => declaration.place,
-            Declaration::Class(declaration) => declaration.place,
-            Declaration::Enum(declaration) => declaration.place,
-            Declaration::Interface(declaration) => declaration.place,
+            Declaration::Type(declaration) => declaration.is_shared,
+            Declaration::Struct(declaration) => declaration.is_shared,
+            Declaration::Class(declaration) => declaration.is_shared,
+            Declaration::Enum(declaration) => declaration.is_shared,
+            Declaration::Interface(declaration) => declaration.is_shared,
             Declaration::Global(_)
             | Declaration::Module(_)
             | Declaration::Extension(_)
-            | Declaration::Function(_) => None,
+            | Declaration::Function(_) => false,
         }
     }
 

@@ -526,28 +526,6 @@ pub enum TypeExpression {
         target_type: LocalNodeId<TypeExpression>,
     },
 
-    /// `local T`.
-    ///
-    /// Examples:
-    /// ```
-    /// local User
-    /// local ^User
-    /// ```
-    Local {
-        target_type: LocalNodeId<TypeExpression>,
-    },
-
-    /// `shared T`.
-    ///
-    /// Examples:
-    /// ```
-    /// shared User
-    /// shared ^User
-    /// ```
-    Shared {
-        target_type: LocalNodeId<TypeExpression>,
-    },
-
     /// `keyof T`.
     ///
     /// Examples:

@@ -24,8 +24,6 @@ pub enum Keyword {
     Immutable,
     /// Exclusive borrow modifier.
     Exclusive,
-    /// Local placement modifier.
-    Local,
     /// Shared placement modifier.
     Shared,
     /// Static modifier (reserved).
@@ -247,7 +245,6 @@ impl Keyword {
             Keyword::Readonly => "readonly",
             Keyword::Immutable => "immutable",
             Keyword::Exclusive => "exclusive",
-            Keyword::Local => "local",
             Keyword::Shared => "shared",
             Keyword::Static => "static",
             Keyword::Final => "final",
@@ -347,7 +344,6 @@ impl FromStr for Keyword {
             "readonly" => Ok(Keyword::Readonly),
             "immutable" => Ok(Keyword::Immutable),
             "exclusive" => Ok(Keyword::Exclusive),
-            "local" => Ok(Keyword::Local),
             "shared" => Ok(Keyword::Shared),
             "static" => Ok(Keyword::Static),
             "final" => Ok(Keyword::Final),

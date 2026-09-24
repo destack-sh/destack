@@ -257,13 +257,8 @@ impl<'a> TypeTable<'a> {
 
     /// Get one interned type operation payload.
     pub fn operation(&self, id: TypeOperationId) -> &TypeOperation {
-        for segment in self.segments.iter().rev() {
-            if let Some(operation) = segment.operation(id) {
-                return operation;
-            }
-        }
-
-        panic!("DIR type operation {id:?} is not visible")
+        self.operation_maybe(id)
+            .unwrap_or_else(|| panic!("DIR type operation {id:?} is not visible"))
     }
 
     /// Get one type id list.
@@ -383,7 +378,6 @@ impl<'a> TypeTable<'a> {
                         visit(borrow.region);
                         visit(borrow.access);
                     }
-                    Form::Managed { place } => visit(*place),
                     Form::Owned | Form::Raw | Form::Readonly => {}
                 }
             }
@@ -435,9 +429,10 @@ impl<'a> TypeTable<'a> {
                         visit(*argument);
                     }
                 }
-                TypeOperation::KeyOf(unary) => visit(unary.target),
-                TypeOperation::NoInfer(unary) => visit(unary.target),
-                TypeOperation::Awaited(unary) => visit(unary.target),
+                TypeOperation::KeyOf(unary)
+                | TypeOperation::NoInfer(unary)
+                | TypeOperation::Awaited(unary)
+                | TypeOperation::SpaceOf(unary) => visit(unary.target),
                 TypeOperation::TryOutput { value }
                 | TypeOperation::TryResidual { value }
                 | TypeOperation::TryFailure { value } => visit(*value),
@@ -980,8 +975,6 @@ pub(crate) struct ListInterner {
     index: FxHashMap<u64, SmallVec<[TypeListId; 1]>>,
     /// The intern index over the committed segments beneath this tail.
     committed: FxHashMap<u64, SmallVec<[TypeListId; 1]>>,
-    /// The intern log of owned list ids, in allocation order.
-    log: Vec<(u64, TypeListId)>,
 }
 
 impl<T> ListPool<T> {
@@ -1173,7 +1166,6 @@ impl ListInterner {
         // append and index the new list
         let list = arena.allocate_list(values);
         self.index.entry(hash).or_default().push(list);
-        self.log.push((hash, list));
 
         list
     }
@@ -1196,8 +1188,6 @@ pub struct TypeTail<'a> {
     lists: &'a TypeListArena,
     /// The intern index from value hash to owned type slots.
     index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
-    /// The value hash per owned type, parallel to the segment's types.
-    hashes: Vec<u64>,
     /// The committed segments beneath this tail.
     committed: Vec<Arc<TypeSegment>>,
     /// The intern index over the committed segments' types.
@@ -1360,7 +1350,6 @@ impl<'a> TypeTail<'a> {
             segment,
             lists,
             index: FxHashMap::default(),
-            hashes: Vec::new(),
             committed,
             committed_index: FxHashMap::default(),
             type_ids: ListInterner::default(),
@@ -1416,7 +1405,6 @@ impl<'a> TypeTail<'a> {
 
         // allocate and index the new slot
         let type_id = self.segment.allocate_type(ty, child_flags);
-        self.hashes.push(hash);
         self.index.entry(hash).or_default().push(type_id);
 
         (type_id, true)

@@ -6,8 +6,8 @@ use crate::{
     Access, Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block,
     Declaration, Declarator, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
     InferForm, Keyword, Literal, LocalNodeId, MatchArm, Mutability, Node, NodeFold, NodeType,
-    OperatorPrecedence, Pattern, PlaceModifier, Property, RangeEnd, StaticKey, SwitchCase,
-    TemplateLiteral, TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
+    OperatorPrecedence, Pattern, Property, RangeEnd, StaticKey, SwitchCase, TemplateLiteral,
+    TreeAttribute, TreeChild, TypeExpression, UnaryOperator,
 };
 
 /// A catch branch.
@@ -96,7 +96,7 @@ pub enum Expression {
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
         is_ambient: bool,
-        place: Option<PlaceModifier>,
+        is_shared: bool,
     },
 
     /// Let-else binding with an early-exit branch.
