@@ -46,6 +46,7 @@ members = [
 	"language/rpc",
 	"language/rpc/macros",
 	"language/runtime",
+	"language/signal",
 	"language/session",
 	"language/lsp",
 	"language/lsp/server",
@@ -98,6 +99,7 @@ destack_query = { path = "language/query" }
 destack_rpc = { path = "language/rpc" }
 destack_rpc_macros = { path = "language/rpc/macros" }
 destack_runtime = { path = "language/runtime" }
+destack_signal = { path = "language/signal" }
 destack_session = { path = "language/session", default-features = false }
 destack_serde = { path = "language/serde" }
 destack_serde_macros = { path = "language/serde/macros" }
@@ -192,6 +194,7 @@ rustls-pemfile = "2.2.0"
 security-framework-sys = "2.17.0"
 serde_repr = "0.1.20"
 stacker = "0.1.22"
+psm = "0.1.30"
 sha2 = { version = "0.10.9", default-features = false }
 sha1 = "0.10.6"
 crossbeam-channel = "0.5.15"

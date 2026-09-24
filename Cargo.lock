@@ -1190,6 +1190,7 @@ name = "destack_memory"
 version = "2026.9.0"
 dependencies = [
  "destack_serde",
+ "destack_signal",
  "libc",
  "parking_lot",
  "serde",
@@ -1206,6 +1207,8 @@ dependencies = [
  "destack_source",
  "destack_unicode",
  "indexmap",
+ "parking_lot",
+ "rustc-hash 2.1.2",
  "serde",
  "smallvec",
 ]
@@ -1361,11 +1364,13 @@ dependencies = [
  "destack_repository",
  "destack_rpc",
  "destack_serde",
+ "destack_signal",
  "destack_source",
  "destack_vm",
  "io-uring",
  "libc",
  "parking_lot",
+ "psm",
  "rustc-hash 2.1.2",
  "serde",
  "windows-sys 0.52.0",
@@ -1413,6 +1418,13 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "toml",
+]
+
+[[package]]
+name = "destack_signal"
+version = "2026.9.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
