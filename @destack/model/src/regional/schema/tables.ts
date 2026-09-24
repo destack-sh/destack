@@ -1,5 +1,5 @@
 import { repository } from "../package/repository.ts";
-import { repositoryRef } from "../package/ref.ts";
+import { repositoryReference } from "../package/ref.ts";
 import { release } from "../package/release.ts";
 import { packageTable } from "../package/package.ts";
 
@@ -35,7 +35,7 @@ import { networkPolicy, networkPolicyRevision } from "../access/network.ts";
 /** Tables managed by regional administration and package services. */
 export const tables = {
     repository,
-    repositoryRef,
+    repositoryReference,
     release,
     package: packageTable,
     spaceTransfer,

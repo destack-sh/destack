@@ -1,6 +1,6 @@
 import { PermissionReference } from "@destack/access/declare";
 import { Tags } from "@destack/db";
-import { ResourceName } from "@destack/resource";
+import { DeclarationName } from "@destack/package";
 import { defineSchema, identifier, schema } from "@destack/schema";
 import { ModelError } from "../error/index.ts";
 
@@ -34,7 +34,7 @@ export const AccountRole = defineSchema(
 export const AccountRoleBinding = defineSchema(
     schema.object({
         /** A declared role name or an existing role in this account. */
-        role: schema.union([ResourceName, schema.object({ id: identifier("role") })]),
+        role: schema.union([DeclarationName, schema.object({ id: identifier("role") })]),
         /** The existing subject in this account. */
         subject: schema.union([
             schema.object({ membership: identifier("account-membership") }),
@@ -52,11 +52,11 @@ export const AccountRoleBinding = defineSchema(
 export const AccountDefinition = defineSchema(
     schema.object({
         /** Account-local environment names. */
-        environments: schema.record(ResourceName, EnvironmentDefinition).optional(),
+        environments: schema.record(DeclarationName, EnvironmentDefinition).optional(),
         /** Account roles available to bindings. */
-        roles: schema.record(ResourceName, AccountRole).optional(),
+        roles: schema.record(DeclarationName, AccountRole).optional(),
         /** Grants applied using the caller's existing authority. */
-        bindings: schema.record(ResourceName, AccountRoleBinding).optional(),
+        bindings: schema.record(DeclarationName, AccountRoleBinding).optional(),
     }),
 );
 

@@ -12,7 +12,7 @@ import {
 import { repository } from "./repository.ts";
 
 /** A Git ref last observed during repository reconciliation. */
-export const repositoryRef = table(
+export const repositoryReference = table(
     "repository_ref",
     {
         /** The repository containing this ref. */
@@ -32,26 +32,26 @@ export const repositoryRef = table(
         /** The time a complete ref listing confirmed deletion. */
         deletedAt: integer("deleted_at"),
     },
-    (ref) => [
-        primaryKey({ columns: [ref.repositoryId, ref.name] }),
-        check("repository_ref_name", sql`${ref.name} LIKE 'refs/%'`),
+    (reference) => [
+        primaryKey({ columns: [reference.repositoryId, reference.name] }),
+        check("repository_ref_name", sql`${reference.name} LIKE 'refs/%'`),
         check(
             "repository_ref_object",
             dialectSQL({
-                sqlite: sql`length(${ref.object}) IN (40, 64) AND ${ref.object} NOT GLOB '*[^0-9a-f]*'`,
-                postgresql: sql`length(${ref.object}) IN (40, 64) AND (${ref.object} COLLATE "C") !~ '[^0-9a-f]'`,
+                sqlite: sql`length(${reference.object}) IN (40, 64) AND ${reference.object} NOT GLOB '*[^0-9a-f]*'`,
+                postgresql: sql`length(${reference.object}) IN (40, 64) AND (${reference.object} COLLATE "C") !~ '[^0-9a-f]'`,
             }),
         ),
         check(
             "repository_ref_commit",
             dialectSQL({
-                sqlite: sql`${ref.commit} IS NULL OR (length(${ref.commit}) IN (40, 64) AND ${ref.commit} NOT GLOB '*[^0-9a-f]*')`,
-                postgresql: sql`${ref.commit} IS NULL OR (length(${ref.commit}) IN (40, 64) AND (${ref.commit} COLLATE "C") !~ '[^0-9a-f]')`,
+                sqlite: sql`${reference.commit} IS NULL OR (length(${reference.commit}) IN (40, 64) AND ${reference.commit} NOT GLOB '*[^0-9a-f]*')`,
+                postgresql: sql`${reference.commit} IS NULL OR (length(${reference.commit}) IN (40, 64) AND (${reference.commit} COLLATE "C") !~ '[^0-9a-f]')`,
             }),
         ),
-        check("repository_ref_revision", sql`${ref.revision} >= 1`),
+        check("repository_ref_revision", sql`${reference.revision} >= 1`),
     ],
 );
 
 /** An indexed Git ref. */
-export type RepositoryRef = Select<typeof repositoryRef>;
+export type RepositoryReference = Select<typeof repositoryReference>;

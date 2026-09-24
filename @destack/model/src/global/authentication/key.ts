@@ -22,19 +22,19 @@ export const signingKey = table(
     (key) => [index("signing_key_created").on(key.createdAt)],
 );
 
-/** A consumed DPoP proof retained for replay protection across service instances. */
+/** A consumed DPoP JWT retained for replay protection across service instances. */
 export const authenticationReplay = table(
     "authentication_replay",
     {
-        /** The verifier's digest of the proof key and JWT identifier. */
+        /** The verifier's digest of the DPoP public key and JWT identifier. */
         id: text("id").primaryKey(),
         /** The earliest safe deletion time in epoch milliseconds. */
         expiresAt: integer("expires_at").notNull(),
     },
-    (proof) => [index("authentication_replay_expiry").on(proof.expiresAt)],
+    (replay) => [index("authentication_replay_expiry").on(replay.expiresAt)],
 );
 
 /** A persisted authentication signing key. */
 export type SigningKey = Select<typeof signingKey>;
-/** A persisted consumed authentication proof. */
+/** A persisted consumed DPoP JWT. */
 export type AuthenticationReplay = Select<typeof authenticationReplay>;

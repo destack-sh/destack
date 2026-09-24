@@ -15,7 +15,7 @@ import {
 } from "@destack/db";
 import { SpaceDefinition, StackSource, StackSelection } from "@destack/space";
 import { PackageRelease } from "@destack/package";
-import { ResourceName } from "@destack/resource";
+import { DeclarationName } from "@destack/package";
 import { schema } from "@destack/schema";
 import { sourceChecks } from "../../source/index.ts";
 import { space } from "./space.ts";
@@ -72,7 +72,7 @@ export const spaceRevision = table(
         /** The source-managed objects after composition and parameter evaluation. */
         definition: json("definition", SpaceDefinition).notNull(),
         /** Exact releases selected for each source-managed installation. */
-        releases: json("releases", schema.record(ResourceName, PackageRelease)).notNull(),
+        releases: json("releases", schema.record(DeclarationName, PackageRelease)).notNull(),
         /** The SHA-256 digest of the canonical source, parameters, definition, and releases. */
         digest: text("digest").notNull(),
         /** Creation time in UTC epoch milliseconds. */

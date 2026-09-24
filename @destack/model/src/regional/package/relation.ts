@@ -1,7 +1,7 @@
 import { defineRelationsPart } from "@destack/db";
 
 import { packageTable } from "./package.ts";
-import { repositoryRef } from "./ref.ts";
+import { repositoryReference } from "./ref.ts";
 import { release } from "./release.ts";
 import { repository } from "./repository.ts";
 
@@ -10,7 +10,7 @@ export const packageRelations = defineRelationsPart(
     {
         repository,
         package: packageTable,
-        repositoryRef,
+        repositoryReference,
         release,
     },
     (relation) => ({
@@ -21,9 +21,9 @@ export const packageRelations = defineRelationsPart(
                 optional: false,
             }),
         },
-        repositoryRef: {
+        repositoryReference: {
             repository: relation.one.repository({
-                from: [relation.repositoryRef.repositoryId],
+                from: [relation.repositoryReference.repositoryId],
                 to: [relation.repository.id],
                 optional: false,
             }),

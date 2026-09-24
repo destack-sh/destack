@@ -1,6 +1,6 @@
 import { check, type Column, dialectSQL, integer, json, sql, uniqueIndex } from "@destack/db";
 import { defineSchema, identifier, schema } from "@destack/schema";
-import { PackageRelease } from "@destack/package/package";
+import { PackageRelease } from "@destack/package";
 
 /** The declaration and immutable revision last applied to a record. */
 export const RecordProvenance = defineSchema(
