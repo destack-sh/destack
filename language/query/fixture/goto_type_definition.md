@@ -141,11 +141,11 @@ type Integer = bigint;
 ```
 
 ```query goto_type_definition main.ds#reference:string
-@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:15:1-18:2 selection=destack://string/string:15:14-15:20 symbol=destack://string/string#String@24
+@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:16:1-19:2 selection=destack://string/string:16:14-16:20 symbol=destack://string/string#String@28
 ```
 
 ```query goto_type_definition main.ds#reference:bigint
-@goto_type_definition.target origin=main.ds#reference:bigint location=destack://math/bigint:27:1-36:2 selection=destack://math/bigint:27:14-27:20 symbol=destack://math/bigint#BigInt@27
+@goto_type_definition.target origin=main.ds#reference:bigint location=destack://math/bigint:27:1-36:2 selection=destack://math/bigint:27:14-27:20 symbol=destack://math/bigint#BigInt@26
 ```
 
 ### Resolve a direct type reference

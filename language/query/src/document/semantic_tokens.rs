@@ -362,6 +362,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
             };
 
             let modifiers = self.binding_modifiers(pattern_id.into_any())?;
+
             self.tokens.push(SemanticToken::new(
                 main_span,
                 SemanticTokenType::Variable,
@@ -708,7 +709,8 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         site: dir::MemberSite,
         key: dir::StaticKey,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
-        let Some(binding) = self.module.members()?.binding(site, key) else {
+        let members = self.module.members()?;
+        let Some(binding) = members.binding(site, key) else {
             return Ok(None);
         };
         if binding.declarations.is_empty() {
@@ -921,7 +923,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
             )));
         }
 
-        // namespace values have module rather than symbol identity
+        // give namespace values their module identity
         if matches!(
             self.module.resolved()?.references.get(node_id),
             Some(dir::Reference::Namespace { .. })
@@ -1197,6 +1199,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 continue;
             };
             let modifiers = modifiers.union(self.node_symbol_modifiers(member_id.into_any())?);
+
             self.tokens
                 .push(SemanticToken::new(main_span, token_type, modifiers));
         }
@@ -1539,6 +1542,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 dir::GenericParameter::Error => continue,
             };
             let modifiers = modifiers.union(self.node_symbol_modifiers(parameter_id.into_any())?);
+
             self.tokens
                 .push(SemanticToken::new(main_span, token_type, modifiers));
         }
@@ -1628,7 +1632,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 _ => continue,
             }
 
-            // collect only segments carrying exact symbol targets
+            // collect segments with exact symbol targets
             for span in spans {
                 let Some(occurrence) = self
                     .module
@@ -1713,7 +1717,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let view = self.module.view()?;
         let mut current_id = expression_id;
 
-        // ascend through decorator call callee slots
+        // ascend through decorator call callees
         while let Some(parent_id) = view.get_parent_for(current_id) {
             if parent_id.ty == dir::NodeType::Decorator {
                 let decorator_id = dir::LocalNodeId::<dir::Decorator>::new(parent_id.id);

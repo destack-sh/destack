@@ -368,7 +368,7 @@ function create(): User {
 ```
 
 ```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=User kind=constructor signature="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+@outgoing_calls.call index=0 name=User kind=constructor signature="User(): User" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
 @outgoing_calls.site call=0 range=main.ds#call
 ```
 

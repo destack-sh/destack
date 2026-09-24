@@ -26,7 +26,6 @@ impl CompletionCollector<'_, '_, '_> {
         let members = module.members()?;
         let interfaces = definition
             .implementations()
-            .iter()
             .filter(|conformance| {
                 members
                     .conformance_members(conformance.source)

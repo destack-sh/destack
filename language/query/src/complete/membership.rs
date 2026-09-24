@@ -34,7 +34,8 @@ pub(crate) fn membership_members(
     let mut results = Vec::new();
     for source in &membership.sources {
         let owner = program.module(source.owner.module_id)?;
-        let Some(bindings) = owner.members()?.bindings(source.owner, subject.space) else {
+        let owner_members = owner.members()?;
+        let Some(bindings) = owner_members.bindings(source.owner, subject.space) else {
             continue;
         };
         let bindings = bindings.to_vec();

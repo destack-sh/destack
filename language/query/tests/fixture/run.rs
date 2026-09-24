@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::slice;
 
 use destack_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirParsed,
@@ -792,7 +791,7 @@ impl<'a> QueryRun<'a> {
         let expanded = artifacts
             .read::<DirExpanded>((node_id.module_id, profile_id))
             .map_err(|error| format!("failed to read expanded DIR for query node: {error}"))?;
-        let view = View::with_patches(&parsed.tree, slice::from_ref(&expanded.patch));
+        let view = View::new(&parsed.tree).patched(&expanded.patch);
         if !view.is_visible(node_id.local_id) {
             return Err(format!("query response names unknown node {node_id:?}"));
         }

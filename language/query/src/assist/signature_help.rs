@@ -343,9 +343,9 @@ impl ModuleQueryContext<'_> {
         resolution: &dir::ConstructDecision,
     ) -> QueryResult<Vec<SignatureItem>> {
         let item = match &resolution.target {
-            dir::ConstructTarget::Class { key, constructor } => {
-                self.class_signature_item(program, key, constructor, resolution)?
-            }
+            dir::ConstructTarget::Class {
+                key, constructor, ..
+            } => self.class_signature_item(program, key, constructor, resolution)?,
             dir::ConstructTarget::Newtype { key, .. } => {
                 let Some(name) = program.symbol_name(key.symbol)? else {
                     return Err(QueryError::missing(format!(

@@ -98,8 +98,7 @@ pub fn rename_files(
             artifacts.read::<DirExpanded>(key)?,
         );
         let parsed = &stages.parsed;
-        let expanded = &stages.expanded;
-        let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let view = stages.tree();
         let source_index = &parsed.tree.source_index;
         let module_table = stages.modules();
 

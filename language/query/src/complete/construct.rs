@@ -12,26 +12,14 @@ impl CompletionCollector<'_, '_, '_> {
         expanded: &mut Vec<CompletionCandidate>,
     ) -> QueryResult<()> {
         let module = self.program.module(symbol.module_id)?;
-        let definition = module
-            .definitions()?
-            .definition(symbol)
-            .ok_or(QueryError::missing(format!(
-                "completion definition: {symbol:?}"
-            )))?;
-        let dir::Definition::Class(definition) = definition else {
-            return Err(QueryError::invalid(format!(
-                "completion class definition: {symbol:?}"
-            )));
-        };
-        if definition.constructors.is_empty() {
-            return Err(QueryError::missing(format!(
-                "completion class constructor: {symbol:?}"
-            )));
-        }
-        expanded.reserve(definition.constructors.len());
+        let members = module.members()?;
+        let constructors = members.class_constructors(symbol).ok_or_else(|| {
+            QueryError::missing(format!("completion class constructors: {symbol:?}"))
+        })?;
+        expanded.reserve(constructors.len());
 
-        // retain constructor identity for each overload
-        for constructor in &definition.constructors {
+        // retain constructor identity for each declared, forwarded, or default overload
+        for constructor in constructors {
             let completion = completion.clone().with_class_constructor(
                 symbol,
                 constructor.ty,
@@ -58,9 +46,9 @@ impl CompletionCollector<'_, '_, '_> {
             Some(constructor_symbol) => self
                 .program
                 .symbol_parameter_names(constructor_symbol)?
-                .ok_or(QueryError::missing(format!(
-                    "completion parameters: {constructor_symbol:?}"
-                )))?,
+                .ok_or_else(|| {
+                    QueryError::missing(format!("completion parameters: {constructor_symbol:?}"))
+                })?,
             None => Vec::new(),
         };
         let suffix = Formatter::new(&module, self.program)
@@ -84,9 +72,7 @@ impl CompletionCollector<'_, '_, '_> {
         let definition = module
             .definitions()?
             .definition(symbol)
-            .ok_or(QueryError::missing(format!(
-                "completion definition: {symbol:?}"
-            )))?;
+            .ok_or_else(|| QueryError::missing(format!("completion definition: {symbol:?}")))?;
         let dir::Definition::Struct(definition) = definition else {
             return Err(QueryError::invalid(format!(
                 "completion struct definition: {symbol:?}"
@@ -131,18 +117,15 @@ impl CompletionCollector<'_, '_, '_> {
         let definition = module
             .definitions()?
             .definition(symbol)
-            .ok_or(QueryError::missing(format!(
-                "completion definition: {symbol:?}"
-            )))?;
+            .ok_or_else(|| QueryError::missing(format!("completion definition: {symbol:?}")))?;
         let dir::Definition::Newtype(_) = definition else {
             return Err(QueryError::invalid(format!(
                 "completion newtype definition: {symbol:?}"
             )));
         };
-        let constructors = module
-            .members()?
-            .newtype_constructors(symbol)
-            .unwrap_or_default();
+
+        let members = module.members()?;
+        let constructors = members.newtype_constructors(symbol).unwrap_or_default();
         expanded.reserve(constructors.len());
 
         // retain constructor identity for each overload

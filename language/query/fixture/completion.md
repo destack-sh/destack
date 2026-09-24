@@ -407,7 +407,7 @@ function read(point: Point): void {
 ```query completion main.ds#cursor trigger=.
 @completion.item label=x kind=field replace=main.ds#cursor suffix=": int32"
 @completion.item label=y kind=field replace=main.ds#cursor suffix=": int32"
-@completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): WithAccess<&'a Point, A>" description="as Borrow<Point, A>" insert="borrow()"
+@completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): Borrowed<Point, R, A>" description="as Borrow<Point, A>" insert="borrow()"
 @completion.item label=into kind=method replace=main.ds#cursor suffix="(): U" description="as Into<U>" insert="into()"
 @completion.item label=tryInto kind=method replace=main.ds#cursor suffix="(): Result<U, U.Error>" description="as TryInto<U>" insert="tryInto()"
 ```
@@ -445,7 +445,7 @@ class User {
 ```query completion main.ds#cursor trigger=.
 @completion.item label=name kind=field replace=main.ds#cursor suffix=": string"
 @completion.item label=age kind=field replace=main.ds#cursor suffix=": uint64"
-@completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): WithAccess<&'a User, A>" description="as Borrow<User, A>" insert="borrow()"
+@completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): Borrowed<User, R, A>" description="as Borrow<User, A>" insert="borrow()"
 @completion.item label=into kind=method replace=main.ds#cursor suffix="(): U" description="as Into<U>" insert="into()"
 @completion.item label=tryInto kind=method replace=main.ds#cursor suffix="(): Result<U, U.Error>" description="as TryInto<U>" insert="tryInto()"
 ```
@@ -1336,6 +1336,7 @@ function identity<Value>(value: Value): Value {
 
 ```query completion main.ds#prefix@end
 @completion.item label=Value kind=type_parameter replace=main.ds#prefix matches=0,1,2,3,4
+@completion.item label=ValueEquality kind=struct replace=main.ds#prefix suffix="<T>" matches=0,1,2,3,4
 ```
 
 ### Complete a type with an explicit lifetime
@@ -1472,7 +1473,7 @@ const point = FixturePoint { x: 1 };
 ```
 
 ```query completion main.ds#constructor@end
-@completion.item label=FixturePlayer kind=class replace=main.ds#constructor suffix="(name: string): this" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
+@completion.item label=FixturePlayer kind=class replace=main.ds#constructor suffix="(name: string): FixturePlayer" matches=0,1,2,3,4,5,6,7,8,9,10,11,12
 ```
 
 ```query completion main.ds#method@end
@@ -1502,7 +1503,43 @@ const widget = new Widget;
 ```
 
 ```query completion main.ds#prefix@end
-@completion.item label=Widget kind=class replace=main.ds#token suffix="(name: string): this" insert="Widget(${1:name})$0" snippet=true matches=0,1,2
+@completion.item label=Widget kind=class replace=main.ds#token suffix="(name: string): Widget" insert="Widget(${1:name})$0" snippet=true matches=0,1,2
+```
+
+### Complete a class through its default constructor
+
+A class declaring no constructor completes as its default `new` form.
+
+```ds main.ds
+class Gadget {}
+
+const gadget = new Gadge;
+                   ^^^^^ prefix
+                   ^^^^^^ token
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=Gadget kind=class replace=main.ds#prefix suffix="(): Gadget" insert="Gadget()" matches=0,1,2,3,4
+```
+
+### Complete a derived class through its base constructor
+
+A derived class declaring no constructor completes with its base class's parameters.
+
+```ds main.ds
+class Base {
+    constructor(name: string) {}
+}
+
+class Derived extends Base {}
+
+const derived = new Derive;
+                    ^^^^^^ prefix
+                    ^^^^^^^ token
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=Derived kind=class replace=main.ds#prefix suffix="(name: string): Derived" insert="Derived(${1:name})$0" snippet=true matches=0,1,2,3,4,5
 ```
 
 ### Complete a struct expression
@@ -2132,7 +2169,7 @@ const id = FixtureKe;
 ```
 
 ```query completion main.ds#player@end include_auto_imports=true
-@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): this" description="from ./library" insert="FixturePlayer(${1:name})$0" snippet=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): FixturePlayer" description="from ./library" insert="FixturePlayer(${1:name})$0" snippet=true auto_import=true matches=0,1,2,3,4,5,6,7,8,9,10
 @completion.additional_edit item=0 range=main.ds#insertion text="import { FixturePlayer } from \"./library\";\n"
 ```
 
@@ -2159,7 +2196,7 @@ const id = FixtureKe;
 ```
 
 ```query completion main.ds#player@end include_auto_imports=true
-@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): this" insert="FixturePlayer(${1:name})$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): FixturePlayer" insert="FixturePlayer(${1:name})$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ```query completion main.ds#id@end include_auto_imports=true
@@ -2184,7 +2221,7 @@ const id = library.FixtureKe;
 ```
 
 ```query completion main.ds#player@end
-@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): this" insert="FixturePlayer(${1:name})$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
+@completion.item label=FixturePlayer kind=class replace=main.ds#player suffix="(name: string): FixturePlayer" insert="FixturePlayer(${1:name})$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
 ```query completion main.ds#id@end

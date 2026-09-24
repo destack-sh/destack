@@ -252,11 +252,11 @@ const user = new User();
 ```
 
 ```query call_item main.ds#name
-@call_item.item name=User kind=constructor signature="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+@call_item.item name=User kind=constructor signature="User(): User" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
 ```
 
 ```query call_item main.ds#call
-@call_item.item name=User kind=constructor signature="User()" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+@call_item.item name=User kind=constructor signature="User(): User" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
 ```
 
 ## Newtype Constructors

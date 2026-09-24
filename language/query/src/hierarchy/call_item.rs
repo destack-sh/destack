@@ -61,7 +61,7 @@ impl ModuleQueryContext<'_> {
         let position = request.position;
         let cursor = self.cursor(position.file_id, position.offset)?;
 
-        // use only the exact callable key at a call head
+        // take the exact callable key at a call head
         if let Some(key) = cursor.callable()? {
             let item = CallItem::from_selection(program, key)?;
 
@@ -157,7 +157,7 @@ impl CallItem {
         let symbols = target_module.bindings()?;
         let symbol = symbols.get_symbol(target_id.local_id);
 
-        // build only declaration-backed callable kinds
+        // build declaration-backed callable kinds
         match symbol.kind {
             dir::SymbolKind::Function => {
                 target_module.function_call_item(program, target_id, symbol)
@@ -206,7 +206,7 @@ impl CallItem {
 
         let module = program.module(entry.callee.module_id)?;
 
-        // format only the exact generated constructor selected at this call
+        // format the exact generated constructor selected at this call
         match &resolution.target {
             dir::ConstructTarget::Newtype { key, .. } => {
                 let call = ConstructorCall::new(&key.arguments, resolution);
@@ -309,7 +309,9 @@ impl CallableSelection<'_> {
     /// Return the callable represented by one construction.
     fn from_resolution(resolution: &dir::ConstructDecision) -> QueryResult<CallableSelection<'_>> {
         match &resolution.target {
-            dir::ConstructTarget::Class { key, constructor } => match constructor.call_symbol() {
+            dir::ConstructTarget::Class {
+                key, constructor, ..
+            } => match constructor.call_symbol() {
                 Some(symbol) => Ok(CallableSelection::Symbol(symbol)),
                 None => Ok(CallableSelection::Symbol(key.symbol)),
             },
@@ -431,27 +433,17 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> QueryResult<Option<CallItem>> {
-        let Some(definition) = self.definitions()?.definition(symbol_id) else {
-            return Err(QueryError::invalid(format!(
-                "call item symbol: {symbol_id:?}"
-            )));
-        };
-        let dir::Definition::Class(definition) = definition else {
-            return Err(QueryError::invalid(format!(
-                "call item symbol: {symbol_id:?}"
-            )));
-        };
-
-        // retain only the implicit constructor
-        let has_default = definition
-            .constructors
-            .iter()
-            .any(|candidate| candidate.constructor.call_symbol().is_none());
-        let has_declared = definition
-            .constructors
-            .iter()
-            .any(|candidate| candidate.constructor.call_symbol().is_some());
-        if !has_default || has_declared {
+        // leave declared constructors to their own items
+        let members = self.members()?;
+        let constructors = members
+            .class_constructors(symbol_id)
+            .ok_or_else(|| QueryError::missing(format!("call item constructors: {symbol_id:?}")))?;
+        if constructors.iter().any(|constructor| {
+            matches!(
+                constructor.constructor,
+                dir::ClassConstructor::Declared { .. }
+            )
+        }) {
             return Ok(None);
         }
 
@@ -466,12 +458,19 @@ impl ModuleQueryContext<'_> {
             )));
         };
         let target = self.call_item_target(source.local_id)?;
-        let signature = format!("{name}()");
+
+        // format the one implicit constructor, forwarded or default
+        let signature = match constructors {
+            [constructor] => {
+                Some(Formatter::new(self, program).callable_signature(&name, constructor.ty)?)
+            }
+            _ => None,
+        };
 
         Ok(Some(CallItem {
             name,
             kind: CallItemKind::Constructor,
-            signature: Some(signature),
+            signature,
             target,
             symbol_id,
         }))
@@ -500,6 +499,7 @@ impl ModuleQueryContext<'_> {
                 "newtype definition: {symbol_id:?}"
             )));
         };
+
         // format a selected construction or the one declared constructor
         let signature = match call {
             Some(call) => Some(self.construct_call_signature(program, &name, call)?),

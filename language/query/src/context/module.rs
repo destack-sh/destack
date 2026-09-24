@@ -1,10 +1,9 @@
 use std::fmt::{self, Debug, Formatter};
-use std::slice;
 use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
-    ArtifactKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported,
-    DirParsed, DirParsedFile, DirResolved, DirView,
+    ArtifactKey, DirAnalyzed, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
+    DirImported, DirMaterialized, DirParsed, DirParsedFile, DirResolved, DirView,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -29,14 +28,12 @@ pub struct ModuleQueryContext<'a> {
     strings: &'a StringPool,
     /// The parsed module artifact.
     parsed: OnceLock<Result<Arc<DirParsed>, ProviderError>>,
-    /// The bound module artifact.
-    bound: OnceLock<Result<Arc<DirBound>, ProviderError>>,
-    /// The expanded module artifact.
-    expanded: OnceLock<Result<Arc<DirExpanded>, ProviderError>>,
     /// The resolved import and source-reference artifact.
     resolved: OnceLock<Result<Arc<DirResolved>, ProviderError>>,
-    /// The checked stages with their tables stacked once.
-    view: OnceLock<Result<DirView, ProviderError>>,
+    /// The stages through expansion, read once.
+    expanded_stages: OnceLock<Result<DirView, ProviderError>>,
+    /// The stages through the analyzed one with their tables stacked once.
+    stages: OnceLock<Result<DirView, ProviderError>>,
 }
 
 impl Debug for ModuleQueryContext<'_> {
@@ -68,10 +65,9 @@ impl<'a> ModuleQueryContext<'a> {
             require_artifacts,
             strings: repository.string_pool().as_ref(),
             parsed: OnceLock::new(),
-            bound: OnceLock::new(),
-            expanded: OnceLock::new(),
             resolved: OnceLock::new(),
-            view: OnceLock::new(),
+            expanded_stages: OnceLock::new(),
+            stages: OnceLock::new(),
         }
     }
 
@@ -109,24 +105,6 @@ impl<'a> ModuleQueryContext<'a> {
             ArtifactKey::dir_parsed(self.module_id),
             &self.parsed,
             |reader| reader.read::<DirParsed>(self.module_id),
-        )
-    }
-
-    /// Return the bound module artifact.
-    fn bound(&self) -> QueryResult<&DirBound> {
-        self.read_artifact(
-            ArtifactKey::dir_bound(self.module_id, self.profile_id),
-            &self.bound,
-            |reader| reader.read::<DirBound>((self.module_id, self.profile_id)),
-        )
-    }
-
-    /// Return the expanded module artifact.
-    fn expanded(&self) -> QueryResult<&DirExpanded> {
-        self.read_artifact(
-            ArtifactKey::dir_expanded(self.module_id, self.profile_id),
-            &self.expanded,
-            |reader| reader.read::<DirExpanded>((self.module_id, self.profile_id)),
         )
     }
 
@@ -218,15 +196,9 @@ impl<'a> ModuleQueryContext<'a> {
         Ok(&file.roots)
     }
 
-    /// Return the visible DIR tree view.
+    /// Return the tree through expansion.
     pub(crate) fn view(&self) -> QueryResult<dir::View<'_>> {
-        let parsed = self.parsed()?;
-        let expanded = self.expanded()?;
-
-        Ok(dir::View::with_patches(
-            &parsed.tree,
-            slice::from_ref(&expanded.patch),
-        ))
+        Ok(self.expanded_stages()?.tree())
     }
 
     /// Return the resolved import and source-reference DIR.
@@ -298,7 +270,33 @@ impl<'a> ModuleQueryContext<'a> {
         Ok(self.stages()?.modules())
     }
 
-    /// Return the checked stages with their tables stacked, read once.
+    /// Return the stages through expansion, read once.
+    fn expanded_stages(&self) -> QueryResult<&DirView> {
+        let key = (self.module_id, self.profile_id);
+        (self.require_artifacts)(&[
+            ArtifactKey::dir_parsed(self.module_id),
+            ArtifactKey::dir_bound(self.module_id, self.profile_id),
+            ArtifactKey::dir_imported(self.module_id, self.profile_id),
+            ArtifactKey::dir_expanded(self.module_id, self.profile_id),
+        ])?;
+        let stages = self.expanded_stages.get_or_init(|| {
+            let reader = ArtifactReader::new(self.repository, self.revision);
+
+            Ok(DirView::expanded(
+                reader.read::<DirParsed>(self.module_id)?,
+                reader.read::<DirBound>(key)?,
+                reader.read::<DirImported>(key)?,
+                reader.read::<DirExpanded>(key)?,
+            ))
+        });
+
+        match stages {
+            Ok(stages) => Ok(stages),
+            Err(error) => Err(QueryError::from(error.clone())),
+        }
+    }
+
+    /// Return the stages through the analyzed one with their tables stacked, read once.
     fn stages(&self) -> QueryResult<&DirView> {
         let key = (self.module_id, self.profile_id);
         (self.require_artifacts)(&[
@@ -310,11 +308,13 @@ impl<'a> ModuleQueryContext<'a> {
             ArtifactKey::dir_declared(self.module_id, self.profile_id),
             ArtifactKey::dir_elaborated(self.module_id, self.profile_id),
             ArtifactKey::dir_checked(self.module_id, self.profile_id),
+            ArtifactKey::dir_materialized(self.module_id, self.profile_id),
+            ArtifactKey::dir_analyzed(self.module_id, self.profile_id),
         ])?;
-        let view = self.view.get_or_init(|| {
+        let view = self.stages.get_or_init(|| {
             let reader = ArtifactReader::new(self.repository, self.revision);
 
-            Ok(DirView::checked(
+            Ok(DirView::analyzed(
                 reader.read::<DirParsed>(self.module_id)?,
                 reader.read::<DirBound>(key)?,
                 reader.read::<DirImported>(key)?,
@@ -323,6 +323,8 @@ impl<'a> ModuleQueryContext<'a> {
                 reader.read::<DirDeclared>(key)?,
                 reader.read::<DirElaborated>(key)?,
                 reader.read::<DirChecked>(key)?,
+                reader.read::<DirMaterialized>(key)?,
+                reader.read::<DirAnalyzed>(key)?,
             ))
         });
 
@@ -339,7 +341,7 @@ impl<'a> ModuleQueryContext<'a> {
 
     /// Return the namespace scope for this module.
     pub(crate) fn namespace_scope(&self) -> QueryResult<dir::LocalScopeId> {
-        Ok(self.bound()?.namespace_scope)
+        Ok(self.expanded_stages()?.bound.namespace_scope)
     }
 
     /// Return the declared or inferred type id for a node.
