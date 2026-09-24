@@ -31,6 +31,8 @@ pub(crate) enum Pass {
     Check,
     /// Close the module's instances and evaluate their resolved types.
     Materialize,
+    /// Project the memberships tooling reads over the settled module.
+    Analyze,
 }
 
 /// One goal on the active decision path.
@@ -179,8 +181,14 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) binding_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Checked source node occurrence types.
     pub(in crate::sema) node_types: NodeTable,
-    /// Interned memory component literal types, keyed by their reserved text.
-    pub(in crate::sema) memory_literals: FxHashMap<String, dir::GlobalTypeId>,
+    /// The requirements taking a receiver per interface, derived once per symbol.
+    pub(in crate::sema) receiver_requirements:
+        FxHashMap<dir::GlobalSymbolId, SmallVec<[dir::GlobalTypeId; 4]>>,
+    /// The implementations of each interface across the program, read once per interface.
+    pub(in crate::sema) program_implementations: FxHashMap<
+        dir::GlobalSymbolId,
+        SmallVec<[(dir::GlobalSymbolId, Option<dir::GlobalSymbolId>); 4]>,
+    >,
     /// Constructor exit branches per initialized class, each with its constructor, filled at check.
     pub(in crate::sema) constructor_branches:
         FxIndexMap<dir::GlobalSymbolId, Vec<(dir::GlobalSymbolId, FlowBranch)>>,
@@ -275,7 +283,8 @@ impl<'a> CheckState<'a> {
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
             node_types: NodeTable::default(),
-            memory_literals: FxHashMap::default(),
+            receiver_requirements: FxHashMap::default(),
+            program_implementations: FxHashMap::default(),
             constructor_branches: FxIndexMap::default(),
             field_initializations: Vec::new(),
             // stats
@@ -303,10 +312,8 @@ impl<'a> CheckState<'a> {
     pub(in crate::sema) fn commit_underivable_exports(&mut self) -> CompilerResult<()> {
         // view the module tree with its expansion patches
         let module = self.module_id;
-        let input = self.module(module);
-        let parsed = input.parsed.clone();
-        let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let (parsed, expanded) = self.patched_inputs(module);
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
 
         // collect every exported module-scope declarator
         let mut exported = Vec::new();
@@ -455,8 +462,6 @@ impl<'a> CheckState<'a> {
 
 impl<'a> CheckState<'a> {
     /// Return one type head from this module's open overlay or external tables.
-    ///
-    /// Reading a solved variable is an internal error, its payloads belong to its solution.
     #[track_caller]
     pub(in crate::sema) fn ty(&self, id: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
         let ty = self.ty_raw(id)?;
@@ -477,9 +482,7 @@ impl<'a> CheckState<'a> {
         Ok(ty)
     }
 
-    /// Return one type head as written, solved variables included.
-    ///
-    /// Return one type through its solution.
+    /// Return one type head through its solution.
     pub(in crate::sema) fn resolved_ty(&self, id: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
         let id = self.shallow_resolve(id)?;
 
@@ -696,15 +699,27 @@ impl<'a> CheckState<'a> {
                 });
         }
 
-        // keep written alias and collection applications intact, normalizing them lazily
-        let is_alias = match &ty {
+        // an intrinsic alias application computes like an operation
+        let alias_body = match &ty {
             dir::Type::Application(dir::GenericApplication { symbol, .. })
-            | dir::Type::Reference(dir::TypeReference { symbol, .. }) => matches!(
-                self.definition(*symbol)?.as_deref(),
-                Some(dir::Definition::TypeAlias(_))
-            ),
-            _ => false,
+            | dir::Type::Reference(dir::TypeReference { symbol, .. }) => {
+                match self.definition(*symbol)?.as_deref() {
+                    Some(dir::Definition::TypeAlias(alias)) => Some(alias.value),
+                    _ => None,
+                }
+            }
+            _ => None,
         };
+        let is_intrinsic = match alias_body {
+            Some(body) => matches!(self.ty(body)?, dir::Type::Intrinsic),
+            None => false,
+        };
+        if is_intrinsic {
+            child_flags |= dir::TypeFlags::HAS_OPERATION;
+        }
+
+        // keep alias and collection applications intact
+        let is_alias = alias_body.is_some() && !is_intrinsic;
         let is_written_alias = is_alias
             || match &ty {
                 dir::Type::Application(instance) => matches!(
@@ -814,28 +829,13 @@ impl<'a> CheckState<'a> {
         self.intern_type(dir::Type::Region(dir::RegionType { extent, space }))
     }
 
-    /// Intern one region keeping an existing region's extent under a new space.
-    pub(in crate::sema) fn with_region_space(
-        &mut self,
-        region: dir::GlobalTypeId,
-        space: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let region = self.shallow_resolve(region)?;
-        let extent = match self.ty(region)? {
-            dir::Type::Region(pair) => pair.extent,
-            _ => region,
-        };
-
-        self.intern_region(extent, space)
+    /// Intern the literal naming the local space.
+    pub(in crate::sema) fn local_space(&mut self) -> CompilerResult<dir::GlobalTypeId> {
+        self.space_literal(dir::Space::Local)
     }
 
-    /// Intern the local place singleton, the place bare pointer types elide.
-    pub(in crate::sema) fn local_place(&mut self) -> CompilerResult<dir::GlobalTypeId> {
-        self.place_literal(dir::Space::Local)
-    }
-
-    /// Intern the canonical singleton naming one space.
-    pub(in crate::sema) fn place_literal(
+    /// Intern the literal naming one space.
+    pub(in crate::sema) fn space_literal(
         &mut self,
         space: dir::Space,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -862,6 +862,15 @@ impl<'a> CheckState<'a> {
         let value = self.strings().intern(access.text());
 
         self.intern_type(dir::Type::Literal(dir::Literal::String(value)))
+    }
+
+    /// Intern the union of every access a shared borrow may have.
+    pub(in crate::sema) fn shared_accesses(&mut self) -> CompilerResult<dir::GlobalTypeId> {
+        let readonly = self.access_literal(dir::Access::Readonly)?;
+        let mutable = self.access_literal(dir::Access::Mutable)?;
+        let immutable = self.access_literal(dir::Access::Immutable)?;
+
+        self.normalized_union_type([readonly, mutable, immutable])
     }
 
     /// Adopt one memory form's module-local borrow entry into this module.
@@ -999,13 +1008,13 @@ impl<'a> CheckState<'a> {
         &mut self,
         signature: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let place = self.local_place()?;
-        let receiver = self.receiver_literal(dir::ReceiverMode::Borrowed(dir::Access::Readonly))?;
+        let receiver = self.receiver_literal(dir::ReceiverMode::Borrowed {
+            access: dir::Access::Readonly,
+        })?;
 
         self.intern_type(dir::Type::Function(dir::FunctionType {
             signature,
             receiver,
-            place,
         }))
     }
 
@@ -1278,8 +1287,8 @@ impl<'a> CheckState<'a> {
         self.intern_type(dir::Type::Key(key))
     }
 
-    /// Intern the type read from an optional index signature.
-    pub(in crate::sema) fn index_signature_read_type(
+    /// Intern the type an optional member holds: its value or undefined.
+    pub(in crate::sema) fn optional_type(
         &mut self,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -1357,6 +1366,30 @@ impl<'a> CheckState<'a> {
             .external(symbol.module_id)?
             .and_then(|external| external.definitions().definition_handle(symbol))
             .cloned())
+    }
+
+    /// Return the definition declaring one member symbol.
+    pub(in crate::sema) fn member_owner(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        if self.is_own_module(symbol.module_id) {
+            return Ok(self
+                .module
+                .definitions_tail
+                .definition_by_member(symbol)
+                .or_else(|| {
+                    self.module
+                        .definitions
+                        .member(symbol)
+                        .map(|(owner, _, _)| owner)
+                }));
+        }
+
+        Ok(self
+            .external(symbol.module_id)?
+            .and_then(|external| external.definitions().member(symbol))
+            .map(|(owner, _, _)| owner))
     }
 
     /// Return the members selected to satisfy one `implements` clause.
@@ -1494,9 +1527,10 @@ impl<'a> CheckState<'a> {
             dir::Type::Refined(refined) => {
                 let mut refined = self.type_refined(source, refined)?;
                 refined.map_types(&mut |ty| map(self, ty))?;
-                let refined = self.module.types_tail.intern_refined(refined);
+                let canonical =
+                    self.intern_refinements(refined.base, &[(refined.key, refined.value)])?;
 
-                dir::Type::Refined(refined)
+                self.ty(canonical)?
             }
             dir::Type::Member(member) => {
                 let mut member = self.type_member(source, member)?;
@@ -1525,10 +1559,8 @@ impl<'a> CheckState<'a> {
                         resolved.map_types(&mut |ty| map(self, ty))?;
                         *borrow = self.module.types_tail.intern_borrow(resolved);
                     }
-                    dir::Form::Managed { place } => *place = map(self, *place)?,
                     dir::Form::Owned | dir::Form::Raw | dir::Form::Readonly => {}
                 }
-
                 dir::Type::Form(form)
             }
             dir::Type::Dynamic(mut dynamic) => {
@@ -1601,10 +1633,18 @@ impl<'a> CheckState<'a> {
 
                         dir::TypeOperation::Awaited(unary)
                     }
+                    dir::TypeOperation::SpaceOf(mut unary) => {
+                        unary.map_types(&mut |ty| map(self, ty))?;
+
+                        dir::TypeOperation::SpaceOf(unary)
+                    }
                     dir::TypeOperation::TryOutput { value } => dir::TypeOperation::TryOutput {
                         value: map(self, value)?,
                     },
                     dir::TypeOperation::TryResidual { value } => dir::TypeOperation::TryResidual {
+                        value: map(self, value)?,
+                    },
+                    dir::TypeOperation::TryFailure { value } => dir::TypeOperation::TryFailure {
                         value: map(self, value)?,
                     },
                     dir::TypeOperation::StaticBinary(mut binary) => {
@@ -1816,10 +1856,16 @@ impl<'a> CheckState<'a> {
     pub(in crate::sema) fn intern_refinements(
         &mut self,
         base: dir::GlobalTypeId,
-        bindings: &[(dir::StaticKey, dir::GlobalTypeId)],
+        new_bindings: &[(dir::StaticKey, dir::GlobalTypeId)],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // merge the bindings over the base's own refinements, the new binding of a key winning
+        let (base, mut bindings) = self.refinements(base)?;
+        for (key, value) in new_bindings {
+            bindings.retain(|(existing, _)| existing != key);
+            bindings.push((*key, *value));
+        }
+
         // sort the bindings, so equal refinement sets intern identically
-        let mut bindings = SmallVec::<[_; 2]>::from_slice(bindings);
         bindings.sort_by_key(|(key, _)| *key);
         let mut ty = base;
 

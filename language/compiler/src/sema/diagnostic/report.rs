@@ -49,14 +49,33 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report one placement qualifier written over an owned value.
-    pub(in crate::sema) fn report_placement_on_owned(
+    /// Report one construction whose storage the constructor receiver refuses.
+    pub(in crate::sema) fn report_construct_receiver_not_assignable(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) {
+        let module = node.module_id;
+        let anchor = self.diagnostic_anchor(module, node.local_id);
+        let diagnostic = CheckError::ReceiverNotAssignable {
+            anchor,
+            module,
+            source: self.format_type_at(module, source),
+            target: self.format_type_at(module, target),
+        };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report one space modifier on a type alias.
+    pub(in crate::sema) fn report_space_on_alias(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::PlacementOnOwned { anchor, module };
+        let diagnostic = CheckError::SpaceOnAlias { anchor, module };
 
         self.report(module, diagnostic);
     }
@@ -121,14 +140,14 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report a constructor receiver annotation.
-    pub(in crate::sema) fn report_constructor_receiver_annotation(
+    /// Report a constructor receiver other than a borrow.
+    pub(in crate::sema) fn report_constructor_receiver_not_borrow(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::ConstructorReceiverAnnotation { anchor, module };
+        let diagnostic = CheckError::ConstructorReceiverNotBorrow { anchor, module };
 
         self.report(module, diagnostic);
     }
@@ -273,7 +292,7 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report a yield delegation without a delegated value.
+    /// Report a parking call outside the parking protocol.
     pub(in crate::sema) fn report_park_outside_protocol(
         &mut self,
         module: ModuleId,
@@ -285,6 +304,7 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report a yield delegation without a delegated value.
     pub(in crate::sema) fn report_yield_delegate_missing_value(
         &mut self,
         module: ModuleId,
@@ -304,7 +324,25 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report a using resource without a disposal protocol.
+    /// Report an awaited value that has no awaitable implementation.
+    pub(in crate::sema) fn report_source_not_awaitable(&mut self, source: dir::GlobalNodeIdAny) {
+        let (module, anchor) = self.source_anchor(source);
+        let diagnostic = CheckError::SourceNotAwaitable { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a rest pattern its sequence supports no rest for.
+    pub(in crate::sema) fn report_sequence_rest_unsupported(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let diagnostic = CheckError::SequenceRestUnsupported { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report one template span whose value implements no display protocol.
     pub(in crate::sema) fn report_template_span_not_displayable(
         &mut self,
@@ -316,6 +354,7 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report a using resource that implements no disposal protocol.
     pub(in crate::sema) fn report_using_resource_not_disposable(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -445,24 +484,6 @@ impl CheckState<'_> {
             anchor,
             module,
             argument: self.format_type(argument),
-            parameter: self.parameter_label(parameter)?,
-        };
-
-        self.report(module, error);
-
-        Ok(())
-    }
-
-    /// Report one body read of a parameter value the signature leaves open.
-    pub(in crate::sema) fn report_value_read_not_fixed(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        parameter: dir::GlobalGenericParameterId,
-    ) -> CompilerResult<()> {
-        let (module, anchor) = self.source_anchor(source);
-        let error = CheckError::ValueReadNotFixed {
-            anchor,
-            module,
             parameter: self.parameter_label(parameter)?,
         };
 
@@ -673,6 +694,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::NoMatchingDecorator { anchor, module };
+
         // note why each candidate refused
         let mut diagnostic = DiagnosticBuilder::new(error);
         for rejection in rejections {
@@ -1178,6 +1200,7 @@ impl CheckState<'_> {
             key,
             visibility: visibility.label().to_string(),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1197,6 +1220,7 @@ impl CheckState<'_> {
             name,
             visibility: visibility.label().to_string(),
         };
+
         self.report(module, error);
 
         Ok(())
@@ -1289,6 +1313,7 @@ impl CheckState<'_> {
             module,
             arguments: self.format_types(arguments),
         };
+
         // note why each candidate refused
         let mut diagnostic = DiagnosticBuilder::new(error);
         for rejection in rejections {
@@ -1364,6 +1389,7 @@ impl CheckState<'_> {
             module,
             arguments: self.format_types(arguments),
         };
+
         // note why each candidate refused
         let mut diagnostic = DiagnosticBuilder::new(error);
         for rejection in rejections {
@@ -2129,9 +2155,9 @@ impl CheckState<'_> {
         let root_kind = self.root_cause(cause).kind;
         if root_kind == CauseKind::Receiver
             && let dir::Type::Literal(dir::Literal::String(requested)) = self.ty(resolved_source)?
-            && let Some(required) = dir::Access::from_text(requested)
+            && let Some(required) = dir::Access::from_text(self.strings().get(requested))
             && let dir::Type::Literal(dir::Literal::String(taken)) = self.ty(resolved_target)?
-            && let Some(granted) = dir::ReceiverMode::from_text(taken)
+            && let Some(granted) = dir::ReceiverMode::from_text(self.strings().get(taken))
         {
             self.report_receiver_access_not_granted(origin, required, granted)?;
 
@@ -2166,8 +2192,6 @@ impl CheckState<'_> {
             CheckFailure::Relation => self.blame_relation(origin, relation, source, target)?,
             _ => None,
         };
-        let is_place_relabel = matches!(failure, CheckFailure::Relation)
-            && self.is_place_relabel(origin, source, target)?;
 
         // render both operands at the reporting module
         let source = self.format_type_at(module, source);
@@ -2185,18 +2209,7 @@ impl CheckState<'_> {
                     source,
                     target,
                 );
-                let diagnostic = DiagnosticBuilder::new(error);
-
-                // explain that a value keeps its original space
-                if is_place_relabel {
-                    diagnostic.note("a value never changes its space").help(
-                        "use a value in the destination placement or create a new value there",
-                    )
-                }
-                // otherwise report the mismatch on its own
-                else {
-                    diagnostic
-                }
+                DiagnosticBuilder::new(error)
             }
             // ask for the annotation that decides an ambiguous relation
             CheckFailure::Undecided => {
@@ -2478,36 +2491,6 @@ impl CheckState<'_> {
 
                 self.report(module, error);
             }
-            ObligationFailure::ConflictingPlacement {
-                source,
-                written,
-                declared,
-                declaration,
-            } => {
-                let (module, anchor) = self.source_anchor(source);
-                let error = CheckError::PlacementConflict {
-                    anchor,
-                    module,
-                    written: written.text().to_string(),
-                    declared: declared.text().to_string(),
-                };
-                let help = match written {
-                    dir::Space::Local => "remove 'local' or use a local type",
-                    dir::Space::Shared => "remove 'shared' or use a shared type",
-                    dir::Space::Constant => "remove the placement or use a constant value",
-                };
-                let mut diagnostic = DiagnosticBuilder::new(error).help(help);
-
-                // point at the declaration when it carries the conflicting space
-                if let Some(symbol) = declaration {
-                    diagnostic = diagnostic.declaration(
-                        symbol,
-                        format!("'{}' is {}", self.format_symbol(symbol), declared.text()),
-                    );
-                }
-
-                self.report(module, diagnostic);
-            }
             ObligationFailure::AutoInterfaceNotSatisfied {
                 source,
                 ty,
@@ -2567,9 +2550,9 @@ impl CheckState<'_> {
                 source,
                 conflict,
                 interface,
-                ty,
+                witness,
             } => {
-                self.report_conflicting_implementation(source, conflict, interface, ty)?;
+                self.report_conflicting_implementation(source, conflict, interface, witness)?;
             }
             ObligationFailure::ConflictingHeritage {
                 source,
@@ -2596,7 +2579,7 @@ impl CheckState<'_> {
 
                 self.report(module, error);
             }
-            ObligationFailure::ConflictingHeritagePlacement {
+            ObligationFailure::ConflictingHeritageSpace {
                 source,
                 symbol,
                 conflict_source,
@@ -2604,9 +2587,9 @@ impl CheckState<'_> {
             } => {
                 let (module, anchor) = self.source_anchor(source);
                 let (_, conflict_anchor) = self.source_anchor(conflict_source);
-                let error = CheckError::HeritagePlacementConflict { anchor, module };
+                let error = CheckError::HeritageSpaceConflict { anchor, module };
                 let diagnostic = DiagnosticBuilder::new(error)
-                    .label(conflict_anchor, "conflicting placement")
+                    .label(conflict_anchor, "conflicting space")
                     .declaration(
                         symbol,
                         format!("'{}' is declared here", self.format_symbol(symbol)),
@@ -2615,7 +2598,7 @@ impl CheckState<'_> {
                         conflict,
                         format!("'{}' is declared here", self.format_symbol(conflict)),
                     )
-                    .help("make every base and implemented interface use the same placement");
+                    .help("make every base and implemented interface use the same space");
 
                 self.report(module, diagnostic);
             }
@@ -2792,7 +2775,6 @@ impl CheckState<'_> {
             | dir::AutoInterface::Serialize
             | dir::AutoInterface::Deserialize
             | dir::AutoInterface::SharedSafe
-            | dir::AutoInterface::SuspendSafe
             | dir::AutoInterface::StrictEqual
             | dir::AutoInterface::Unpin
             | dir::AutoInterface::Drop
@@ -2873,7 +2855,7 @@ impl CheckState<'_> {
         Ok(interface == Some(dir::AutoInterface::DynamicSafe))
     }
 
-    /// Return the diagnostic for one ordinary relation failure.
+    /// Return the diagnostic one relation failure takes from its role.
     fn constraint_relation_error(
         &self,
         anchor: DiagnosticAnchor,
@@ -2974,12 +2956,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
     ) -> CompilerResult<()> {
-        // report once the checking pass evaluates the template
-        if self.is_declaring() {
-            return Ok(());
-        }
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::TemplateLiteralTooComplex { anchor, module };
+
         self.report(module, error);
 
         Ok(())
@@ -3042,6 +3021,7 @@ impl CheckState<'_> {
             source: self.format_symbol(template),
             limit: INSTANCE_DEPTH_LIMIT,
         };
+
         self.report(module, error);
 
         Ok(())
@@ -3162,14 +3142,14 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         conflict: dir::GlobalSymbolId,
         interface: dir::GlobalSymbolId,
-        ty: dir::GlobalTypeId,
+        witness: String,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.source_anchor(source);
         let error = CheckError::ConflictingImplementation {
             anchor,
             module,
             interface: self.format_symbol(interface),
-            ty: self.format_type(ty),
+            ty: witness,
         };
         let diagnostic =
             DiagnosticBuilder::new(error).declaration(conflict, "conflicting implementation");
@@ -3240,6 +3220,24 @@ impl CheckState<'_> {
     ) {
         let (module, anchor) = self.source_anchor(target_source);
         let error = CheckError::ImplementationTargetNotInterface {
+            anchor,
+            module,
+            source,
+            target: self.format_symbol(target),
+        };
+
+        self.report(module, error);
+    }
+
+    /// Report one negative implementation clause that names an interface without a compiler rule.
+    pub(in crate::sema) fn report_negative_implementation_not_auto(
+        &mut self,
+        source: String,
+        target: dir::GlobalSymbolId,
+        target_source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.source_anchor(target_source);
+        let error = CheckError::NegativeImplementationNotAuto {
             anchor,
             module,
             source,

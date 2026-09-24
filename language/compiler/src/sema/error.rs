@@ -148,18 +148,18 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Constructor declares its receiver.
+    /// Constructor declares a receiver other than a borrow.
     ///
     /// ```ds
     /// class User {
-    ///     constructor(&readonly this) {}
+    ///     constructor(this: User) {}
     /// }
     /// ```
     #[diagnostic(
-        id = "constructor-receiver-annotation",
-        message = "constructor cannot declare its receiver"
+        id = "constructor-receiver-not-borrow",
+        message = "constructor receiver must be a borrow"
     )]
-    ConstructorReceiverAnnotation {
+    ConstructorReceiverNotBorrow {
         /// Report the receiver annotation.
         anchor: DiagnosticAnchor,
         /// The module being checked.
@@ -2179,6 +2179,37 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// An awaited value is not awaitable.
+    ///
+    /// ```ds
+    /// async function run(): Promise<void> {
+    ///     await 1;
+    /// }
+    /// ```
+    #[diagnostic(id = "source-not-awaitable", message = "source must be awaitable")]
+    SourceNotAwaitable {
+        /// Report the awaited expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A rest pattern reads past what its sequence supports.
+    ///
+    /// ```ds
+    /// const [first, ...rest] = pair;
+    /// ```
+    #[diagnostic(
+        id = "sequence-rest-unsupported",
+        message = "sequence supports no rest at this position"
+    )]
+    SequenceRestUnsupported {
+        /// Report the rest pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// An argument leaves a value-consumed const parameter unfixed.
     ///
     /// ```ds
@@ -2190,35 +2221,13 @@ pub enum CheckError {
         message = "type '{argument}' does not fix const parameter '{parameter}' to one exact value"
     )]
     ArgumentNotExactValue {
-        /// Report the written argument.
+        /// Report the argument.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-        /// The written argument type.
+        /// The argument type.
         argument: String,
         /// The parameter whose value the declaration consumes.
-        parameter: String,
-    },
-
-    /// A body reads a parameter value the signature never fixes.
-    ///
-    /// ```ds
-    /// struct Holder<const N: uint> {
-    ///     get length(): usize {
-    ///         N
-    ///     }
-    /// }
-    /// ```
-    #[diagnostic(
-        id = "value-read-not-fixed",
-        message = "'{parameter}' is read as a value, but no signature position fixes it to one exact value"
-    )]
-    ValueReadNotFixed {
-        /// Report the body read.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The parameter the body reads.
         parameter: String,
     },
 
@@ -3222,6 +3231,27 @@ pub enum CheckError {
         target: String,
     },
 
+    /// Negative implementation names an interface without a compiler rule.
+    ///
+    /// ```ds
+    /// interface Shape {}
+    /// struct Point implements !Shape {}
+    /// ```
+    #[diagnostic(
+        id = "negative-implementation-not-auto",
+        message = "type '{source}' can only negatively implement compiler-known interfaces, not '{target}'"
+    )]
+    NegativeImplementationNotAuto {
+        /// Report the negated interface.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The implementing type.
+        source: String,
+        /// The negated interface.
+        target: String,
+    },
+
     /// Implementation inheritance names a non-interface declaration.
     ///
     /// ```ds
@@ -3331,7 +3361,7 @@ pub enum CheckError {
         message = "dereferencing '{source}' exceeds the depth limit of {limit}"
     )]
     DereferenceDepthExceeded {
-        /// The access that requires further dereferencing.
+        /// Report the access that requires further dereferencing.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
@@ -3377,57 +3407,36 @@ pub enum CheckError {
         target: String,
     },
 
-    /// A written placement conflicts with the type's declared placement.
+    /// A space modifier on a type alias, which has no identity to fix a space on.
     ///
     /// ```ds
-    /// shared class Registry {}
-    ///
-    /// declare const registry: local Registry;
+    /// shared type Config = { size: int32 };
     /// ```
     #[diagnostic(
-        id = "placement-conflict",
-        message = "placement '{written}' conflicts with the declaration placement '{declared}'"
+        id = "space-on-alias",
+        message = "a type alias takes no space",
+        help = "declare a newtype or a class to fix the space of a type"
     )]
-    PlacementConflict {
-        /// Report the conflicting placement requirement.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// The written placement.
-        written: String,
-        /// The declared placement.
-        declared: String,
-    },
-
-    /// A written placement qualifies an owned value, which lives in its container's space.
-    ///
-    /// ```ds
-    /// declare const boxed: shared ^Buffer;
-    /// ```
-    #[diagnostic(
-        id = "placement-on-owned",
-        message = "an owned value lives in its container's space and takes no placement"
-    )]
-    PlacementOnOwned {
-        /// Report the misplaced qualifier.
+    SpaceOnAlias {
+        /// Report the alias declaration.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
     },
 
-    /// A declaration's heritage requires inconsistent placements.
+    /// A declaration's heritage requires two spaces.
     ///
     /// ```ds
-    /// local class Base {}
+    /// class Base {}
     /// shared interface Service {}
     /// class Invalid extends Base implements Service {}
     /// ```
     #[diagnostic(
-        id = "heritage-placement-conflict",
-        message = "heritage declarations require one consistent placement"
+        id = "heritage-space-conflict",
+        message = "heritage declarations require one space"
     )]
-    HeritagePlacementConflict {
-        /// Report the conflicting heritage placement.
+    HeritageSpaceConflict {
+        /// Report the conflicting heritage space.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
