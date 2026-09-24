@@ -1,6 +1,0 @@
-/// Builtin lifetime root for static storage.
-export type StaticLifetime = "static";
-
-/// Lifetime marker for borrowed validity.
-@languageItem("memory.Lifetime")
-export newtype Lifetime = intrinsic;

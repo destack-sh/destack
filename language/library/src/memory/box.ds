@@ -9,7 +9,6 @@ import { AllocationError } from "./error.ds";
 import { MaybeUninit } from "./init.ds";
 import { Owned } from "./owned.ds";
 import { Pin } from "./pin.ds";
-import { Space } from "./place.ds";
 import { Region } from "./region.ds";
 import { WithAccess } from "./type.ds";
 
@@ -120,7 +119,7 @@ export extension<T> of Box<T> implements Unpin {}
 
 export extension<T> of Box<T> implements Clone where T: Clone {
     /// Clone the boxed value into a new box.
-    clone(this: &immutable this): Box<T> {
+    clone(this: &immutable this): ^this {
         todo("Box.clone")
     }
 
@@ -139,6 +138,4 @@ export extension<T> of Box<T> implements Default where T: Default {
 
 /// Leak one unique allocation and borrow it for static lifetime.
 @intrinsic("memory.unique.leak")
-declare function leakUnique<T, const S: Space>(
-    unique: Unique<Owned<T>>,
-): Borrowed<T, 'static & S, "mutable">;
+declare function leakUnique<T>(unique: Unique<Owned<T>>): Borrowed<T, 'static, "mutable">;

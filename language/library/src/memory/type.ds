@@ -8,10 +8,6 @@ export type Ownership = "managed" | "owned" | "borrowed" | "raw";
 @languageItem("memory.WithAccess")
 export type WithAccess<Q, const A: Access> = intrinsic;
 
-/// Project the space `T` occupies.
-@languageItem("memory.PlaceOf")
-export type PlaceOf<T> = intrinsic;
-
 /// Project the access mode `T` grants.
 @languageItem("memory.AccessOf")
 export type AccessOf<T> = intrinsic;

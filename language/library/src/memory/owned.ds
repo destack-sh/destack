@@ -1,16 +1,14 @@
-import { Managed } from "./managed.ds";
-
 /// Unique ownership form for exactly `T`.
 @languageItem("memory.Owned")
 export newtype Owned<out T> = intrinsic;
 
 export extension<T> of Owned<T> {
     /// Move this owned value into managed storage.
-    intoManaged(this: ^T): Managed<T> {
+    intoManaged(this: ^T): T {
         return intoManaged<T>(this);
     }
 }
 
 /// Move one owned value into managed storage.
 @intrinsic("memory.owned.intoManaged")
-export declare function intoManaged<T>(value: ^T): Managed<T>;
+export declare function intoManaged<T>(value: ^T): T;

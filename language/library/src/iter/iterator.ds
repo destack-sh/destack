@@ -1,12 +1,5 @@
 import { todo } from "destack:error";
-import {
-    Access,
-    Clone,
-    Copy,
-    Managed,
-    Owned,
-    WithAccess,
-} from "destack:memory";
+import { Access, Clone, Copy, Owned, WithAccess } from "destack:memory";
 import { Try } from "destack:ops";
 
 /// The union of iterator yield and completion results.
@@ -159,10 +152,7 @@ export newtype interface Iterator<T> {
     }
 
     /// Observe each yielded value without changing the sequence.
-    inspect(
-        this,
-        observe: (value: &immutable T, index: isize) => void,
-    ): InspectIterator<this, T> {
+    inspect(this, observe: (value: &immutable T, index: isize) => void): InspectIterator<this, T> {
         todo("Iterator.inspect")
     }
 
@@ -261,16 +251,16 @@ export newtype interface Iterator<T> {
     }
 
     /// Copy each borrowed value.
-    copied<U: Copy, 'a, const A: Access>(this): CopyIterator<this, U>
-        where this: Iterator<Borrowed<U, 'a, A>>
-    {
+    copied<U: Copy, 'a, const A: Access>(
+        this,
+    ): CopyIterator<this, U> where this: Iterator<Borrowed<U, 'a, A>> {
         todo("Iterator.copied")
     }
 
     /// Clone each borrowed value.
-    cloned<U: Clone, 'a, const A: "immutable" | "exclusive">(this): CloneIterator<this, U>
-        where this: Iterator<Borrowed<U, 'a, A>>
-    {
+    cloned<U: Clone, 'a, const A: "immutable" | "exclusive">(
+        this,
+    ): CloneIterator<this, U> where this: Iterator<Borrowed<U, 'a, A>> {
         todo("Iterator.cloned")
     }
 }
@@ -319,9 +309,7 @@ export struct EnumeratedIterator<I, out T> {
     private index: isize = 0;
 }
 
-export extension<T, I: Iterator<T>> of EnumeratedIterator<I, T>
-    implements Iterator<(isize, T)>
-{
+export extension<T, I: Iterator<T>> of EnumeratedIterator<I, T> implements Iterator<(isize, T)> {
     /// The source iterator's completion value.
     type Return = I.Return;
 
@@ -343,9 +331,7 @@ export struct MapIterator<I, T, U> {
     private index: isize = 0;
 }
 
-export extension<T, U, I: Iterator<T>> of MapIterator<I, T, U>
-    implements Iterator<U>
-{
+export extension<T, U, I: Iterator<T>> of MapIterator<I, T, U> implements Iterator<U> {
     /// Advance and map the next yielded value.
     next(&this): IteratorResult<U> {
         todo("MapIterator.next")
@@ -364,9 +350,7 @@ export struct FilterIterator<I, T> {
     private index: isize = 0;
 }
 
-export extension<T, I: Iterator<T>> of FilterIterator<I, T>
-    implements Iterator<T>
-{
+export extension<T, I: Iterator<T>> of FilterIterator<I, T> implements Iterator<T> {
     /// Advance to the next accepted value.
     next(&this): IteratorResult<T> {
         todo("FilterIterator.next")
@@ -385,9 +369,7 @@ export struct FilterMapIterator<I, T, U> {
     private index: isize = 0;
 }
 
-export extension<T, U, I: Iterator<T>> of FilterMapIterator<I, T, U>
-    implements Iterator<U>
-{
+export extension<T, U, I: Iterator<T>> of FilterMapIterator<I, T, U> implements Iterator<U> {
     /// Advance to the next defined mapped value.
     next(&this): IteratorResult<U> {
         todo("FilterMapIterator.next")
@@ -403,9 +385,7 @@ export struct TakeIterator<I, out T> {
     private remaining: isize;
 }
 
-export extension<T, I: Iterator<T>> of TakeIterator<I, T>
-    implements Iterator<T>
-{
+export extension<T, I: Iterator<T>> of TakeIterator<I, T> implements Iterator<T> {
     /// Advance while the configured limit remains.
     next(&this): IteratorResult<T> {
         todo("TakeIterator.next")
@@ -427,9 +407,7 @@ export struct TakeWhileIterator<I, T> {
     private isDone: boolean = false;
 }
 
-export extension<T, I: Iterator<T>> of TakeWhileIterator<I, T>
-    implements Iterator<T>
-{
+export extension<T, I: Iterator<T>> of TakeWhileIterator<I, T> implements Iterator<T> {
     /// Advance while the predicate accepts source values.
     next(&this): IteratorResult<T> {
         todo("TakeWhileIterator.next")
@@ -445,9 +423,7 @@ export struct DropIterator<I, out T> {
     private remaining: isize;
 }
 
-export extension<T, I: Iterator<T>> of DropIterator<I, T>
-    implements Iterator<T>
-{
+export extension<T, I: Iterator<T>> of DropIterator<I, T> implements Iterator<T> {
     /// Skip the configured prefix and advance.
     next(&this): IteratorResult<T> {
         todo("DropIterator.next")
@@ -469,9 +445,7 @@ export struct DropWhileIterator<I, T> {
     private isDropping: boolean = true;
 }
 
-export extension<T, I: Iterator<T>> of DropWhileIterator<I, T>
-    implements Iterator<T>
-{
+export extension<T, I: Iterator<T>> of DropWhileIterator<I, T> implements Iterator<T> {
     /// Skip accepted source values and advance through the remainder.
     next(&this): IteratorResult<T> {
         todo("DropWhileIterator.next")
@@ -495,10 +469,7 @@ export struct FlatMapIterator<I, T, V, J, out U> {
 
 export extension<T, U, I, J, V> of FlatMapIterator<I, T, V, J, U>
     implements Iterator<U>
-    where
-        I: Iterator<T>,
-        J: Iterator<U>,
-        V: Iterable<U, type Iterator = J>
+    where I: Iterator<T>, J: Iterator<U>, V: Iterable<U, type Iterator = J>
 {
     /// Advance through the current nested iterator or map the next source value.
     next(&this): IteratorResult<U> {
@@ -517,9 +488,7 @@ export struct FlattenIterator<I, J, out T> {
 
 export extension<T, I, J> of FlattenIterator<I, J, T>
     implements Iterator<T>
-    where
-        I: Iterable<Iterable<T, type Iterator = J>, type Iterator = I>,
-        J: Iterator<T>
+    where I: Iterable<Iterable<T, type Iterator = J>, type Iterator = I>, J: Iterator<T>
 {
     /// Advance through the current nested iterator or the next iterable.
     next(&this): IteratorResult<T> {
@@ -539,8 +508,7 @@ export struct ChainIterator<I, J, out T> {
     private isFirst: boolean = true;
 }
 
-export extension<T, I: Iterator<T>, J: Iterator<T>> of
-    ChainIterator<I, J, T>
+export extension<T, I: Iterator<T>, J: Iterator<T>> of ChainIterator<I, J, T>
     implements Iterator<T>
 {
     /// Advance through the first source and then the second.
@@ -558,8 +526,7 @@ export struct ZipIterator<I, J, out T, out U> {
     private right: J;
 }
 
-export extension<T, U, I: Iterator<T>, J: Iterator<U>> of
-    ZipIterator<I, J, T, U>
+export extension<T, U, I: Iterator<T>, J: Iterator<U>> of ZipIterator<I, J, T, U>
     implements Iterator<(T, U)>
 {
     /// Advance both sources and return their next pair.
@@ -583,9 +550,7 @@ export struct MapWhileIterator<I, T, U> {
     private isDone: boolean = false;
 }
 
-export extension<T, U, I: Iterator<T>> of MapWhileIterator<I, T, U>
-    implements Iterator<U>
-{
+export extension<T, U, I: Iterator<T>> of MapWhileIterator<I, T, U> implements Iterator<U> {
     /// Advance until the transformation returns undefined.
     next(&this): IteratorResult<U> {
         todo("MapWhileIterator.next")
@@ -610,9 +575,7 @@ export struct ScanIterator<I, T, S, U> {
     private isDone: boolean = false;
 }
 
-export extension<T, S, U, I: Iterator<T>> of ScanIterator<I, T, S, U>
-    implements Iterator<U>
-{
+export extension<T, S, U, I: Iterator<T>> of ScanIterator<I, T, S, U> implements Iterator<U> {
     /// Advance with the current state until the transformation returns undefined.
     next(&this): IteratorResult<U> {
         todo("ScanIterator.next")
@@ -631,9 +594,7 @@ export struct InspectIterator<I, T> {
     private index: isize = 0;
 }
 
-export extension<T, I: Iterator<T>> of InspectIterator<I, T>
-    implements Iterator<T>
-{
+export extension<T, I: Iterator<T>> of InspectIterator<I, T> implements Iterator<T> {
     /// The source iterator's completion value.
     type Return = I.Return;
 
@@ -652,9 +613,7 @@ export struct PeekableIterator<I, T> {
     private buffered?: IteratorResult<T, I.Return>;
 }
 
-export extension<T, I: Iterator<T>> of PeekableIterator<I, T>
-    implements Iterator<T>
-{
+export extension<T, I: Iterator<T>> of PeekableIterator<I, T> implements Iterator<T> {
     /// The source iterator's completion value.
     type Return = I.Return;
 
@@ -706,4 +665,3 @@ export extension<T, 'a, const A: "immutable" | "exclusive", I> of CloneIterator<
         todo("CloneIterator.next")
     }
 }
-

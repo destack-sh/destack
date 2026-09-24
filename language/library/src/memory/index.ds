@@ -1,13 +1,10 @@
 export { MemoryBinding, memory } from "./binding/memory.ds";
-export { Lifetime, StaticLifetime } from "./lifetime.ds";
 export { Region } from "./region.ds";
 export { Access } from "./access.ds";
-export { Place, Space } from "./place.ds";
-export { Managed } from "./managed.ds";
 export { Owned } from "./owned.ds";
 export { Borrowed, MutableBorrowed, ReadonlyBorrowed } from "./borrow.ds";
 export { Dynamic } from "./dynamic.ds";
-export { AccessOf, Ownership, PlaceOf, WithAccess } from "./type.ds";
+export { AccessOf, Ownership, WithAccess } from "./type.ds";
 export { Box } from "./box.ds";
 export {
     AllocationCapacityOverflow,

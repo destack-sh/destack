@@ -69,11 +69,16 @@ export struct EntityByLabels {
 }
 
 /// Selector that chooses one deterministic entity from another selector.
-export struct EntityChooseOne {
+export class EntityChooseOne {
     /// Selector discriminator.
-    kind: "chooseOne";
-    /// Source selector, managed to break the recursive layout.
-    selector: Managed<EntitySelector, "local">;
+    kind: "chooseOne" = "chooseOne";
+    /// Source selector.
+    selector: EntitySelector;
+
+    /// Create one selector choosing from a source selector.
+    constructor(selector: EntitySelector) {
+        this.selector = selector;
+    }
 }
 
 /// Topology entity selector.

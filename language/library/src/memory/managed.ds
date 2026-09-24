@@ -1,5 +1,0 @@
-import { Place } from "./place.ds";
-
-/// Managed form for exactly `T`, its referent living in place `P`.
-@languageItem("memory.Managed")
-export newtype Managed<T, const P: Place = "local"> = intrinsic;

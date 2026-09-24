@@ -1,7 +1,0 @@
-/// Concrete memory space tag kind.
-@languageItem("memory.Space")
-export type Space = "local" | "shared";
-
-/// Placement tag kind for qualified storage.
-@languageItem("memory.Place")
-export type Place = "constant" | Space;
