@@ -9,10 +9,10 @@ const publicFile = join(repositoryDirectory, "platform/site/public/release.json"
 const isCheck = process.argv.includes("--check");
 
 // read the repository version and release configuration
-const manifestFile = join(repositoryDirectory, "package.json");
+const manifestFile = join(repositoryDirectory, "@destack/desktop/package.json");
 const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
 const { version } = manifest;
-const configurationFile = join(repositoryDirectory, "dev/release/config.json");
+const configurationFile = join(repositoryDirectory, "platform/release/config.json");
 const { stability } = JSON.parse(readFileSync(configurationFile, "utf8"));
 
 // require one canonical calendar version

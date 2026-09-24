@@ -30,33 +30,55 @@ export async function readDownloads(): Promise<Download[]> {
     const catalog = await response.json();
 
     // validate addresses before placing links in the page
-    const downloads = Object.entries(catalog.downloads).map(([target, value]) => {
-        // check each entry's target, address, and version
-        const { url, version } = value as { url: string; version: string };
+    const downloads = Object.entries(catalog.downloads).flatMap(([target, value]) => {
+        // require a known platform and its native download choices
+        const distribution = value as {
+            installers: Record<string, { url: string; version: string }>;
+            archive?: { url: string; version: string };
+        };
         if (
             !(target in platforms) ||
-            typeof url !== "string" ||
-            typeof version !== "string" ||
-            !/^\d{4}\.\d+\.\d+$/.test(version)
+            !distribution.installers ||
+            typeof distribution.installers !== "object"
         ) {
-            throw new Error("invalid download catalog");
-        }
-        const address = new URL(url);
-        if (
-            address.origin !== "https://download.destack.sh" ||
-            address.search ||
-            address.hash ||
-            !/^\/targets\/[a-f0-9]{64}\.[a-z0-9_-]+\.(tar\.gz|dmg|exe)$/.test(address.pathname)
-        ) {
-            throw new Error("invalid download address");
+            throw new Error("invalid download platform");
         }
 
-        return {
-            target: target as Download["target"],
-            label: platforms[target as Download["target"]],
-            version,
-            url,
-        };
+        // offer the per-user application archive for Linux
+        const choices =
+            target.endsWith("unknown-linux-gnu") && distribution.archive
+                ? { "tar.gz": distribution.archive }
+                : distribution.installers;
+
+        return Object.entries(choices).map(([format, { url, version }]) => {
+            // check each entry's target, address, and version
+            if (
+                !["dmg", "exe", "tar.gz"].includes(format) ||
+                typeof url !== "string" ||
+                typeof version !== "string" ||
+                !/^\d{4}\.\d+\.\d+$/.test(version)
+            ) {
+                throw new Error("invalid download catalog");
+            }
+            const address = new URL(url);
+            if (
+                address.origin !== "https://download.destack.sh" ||
+                address.search ||
+                address.hash ||
+                !/^\/stable\/targets\/[a-f0-9]{64}\.[a-z0-9_-]+\.(dmg|exe|tar\.gz)$/.test(
+                    address.pathname,
+                )
+            ) {
+                throw new Error("invalid download address");
+            }
+
+            return {
+                target: target as Download["target"],
+                label: platforms[target as Download["target"]],
+                version,
+                url,
+            };
+        });
     });
     if (!downloads.length) {
         throw new Error("no downloads published");
