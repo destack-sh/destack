@@ -4,7 +4,6 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirExported,
     DirImported, DirParsed, DirView, EnvironmentBound,
 };
-use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError};
 use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
@@ -55,9 +54,7 @@ impl Compiler {
 
         // build expanded resolve inputs
         let parsed = stages.parsed();
-        let expanded = &stages.expanded;
-        let patches = std::slice::from_ref(&expanded.patch);
-        let view = dir::View::with_patches(&parsed.tree, patches);
+        let view = stages.tree();
 
         let mut state = ResolveState::new(
             artifacts,
@@ -69,8 +66,8 @@ impl Compiler {
             self.strings(),
         );
 
-        // collect source references, module clauses, and syntax language items
-        state.walk(&expanded.roots);
+        // collect source references, module clauses, and implied language items
+        state.walk(&stages.expanded.roots);
 
         // resolve every collected reference over the declared export closure
         state.resolve(&environment, &exported)?;

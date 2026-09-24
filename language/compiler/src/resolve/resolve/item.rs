@@ -33,7 +33,7 @@ impl ResolveState<'_> {
         }
     }
 
-    /// Use language items implied by try propagation syntax.
+    /// Use the language items `?` propagation implies.
     ///
     /// Example:
     /// ```ds

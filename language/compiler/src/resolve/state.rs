@@ -299,8 +299,6 @@ impl<'a> ResolveState<'a> {
                     return symbols.first().copied();
                 }
                 dir::TypeExpression::Readonly { target_type }
-                | dir::TypeExpression::Local { target_type }
-                | dir::TypeExpression::Shared { target_type }
                 | dir::TypeExpression::OwnedOf { target_type, .. }
                 | dir::TypeExpression::BorrowedOf { target_type, .. }
                 | dir::TypeExpression::PointerOf { target_type, .. } => node = *target_type,

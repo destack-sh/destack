@@ -6,7 +6,7 @@ use destack_artifact::{
     SourceDependencyKey,
 };
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
-use destack_source::ModuleId;
+use destack_source::{ModuleId, PackageId};
 use indexmap::{IndexMap, IndexSet};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -105,7 +105,8 @@ impl ModuleGraphDependencies {
                     }
                 }
                 ArtifactDependency::Source(source)
-                    if source.key() == SourceDependencyKey::Modules && !is_module_set_observed =>
+                    if matches!(source.key(), SourceDependencyKey::PackageModules(_))
+                        && !is_module_set_observed =>
                 {
                     is_module_set_observed = true;
                 }
@@ -129,17 +130,20 @@ impl ModuleGraphDependencies {
 }
 
 impl Compiler {
-    /// Collect inputs for the module graph of one profile.
+    /// Collect inputs for the module graph of one package under one profile.
     pub(crate) fn collect_module_graph(
         &self,
+        package: PackageId,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
         let mut dependencies = ArtifactDependencySet::default();
 
-        // import edges read every module's resolved relationships
-        let modules = self.repository.module_ids(context.revision())?;
-        dependencies.observe_modules(&modules);
+        // read the resolved imports of every module in the package
+        let modules = self
+            .repository
+            .package_module_ids(context.revision(), package)?;
+        dependencies.observe_package_modules(package, &modules);
         for module in modules {
             dependencies.require_projection(
                 ArtifactKey::dir_resolved(module, profile),
@@ -176,15 +180,18 @@ impl Compiler {
         Ok(Some(base))
     }
 
-    /// Build the module graph for one profile.
+    /// Build the module graph of one package under one profile.
     pub(crate) fn provide_module_graph(
         &self,
+        package: PackageId,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let artifacts = self.artifact_reader(context);
         let started = self.repository.host().clock().now();
-        let modules = self.repository.module_ids(context.revision())?;
+        let modules = self
+            .repository
+            .package_module_ids(context.revision(), package)?;
         if let Some(started) = started {
             context.record_span("provide.modules", started);
         }
@@ -192,15 +199,16 @@ impl Compiler {
 
         // build or reuse the profile graph
         let base = self.module_graph_base(context)?;
-        let graph = self.module_graph(&artifacts, profile, context, &modules, base)?;
+        let graph = self.module_graph(&artifacts, package, profile, context, &modules, base)?;
 
         Ok(ArtifactPayload::ModuleGraph(graph))
     }
 
-    /// Return the module graph for one profile.
+    /// Return the module graph of one package under one profile.
     fn module_graph(
         &self,
         artifacts: &ArtifactReader<'_>,
+        package: PackageId,
         profile: ProfileId,
         context: &dyn ProviderContext,
         modules: &[ModuleId],
@@ -208,7 +216,6 @@ impl Compiler {
     ) -> CompilerResult<Arc<ModuleGraph>> {
         let started = self.repository.host().clock().now();
         let mut edge_count = 0u64;
-        let module_set = modules.iter().copied().collect::<FxHashSet<_>>();
 
         // build all edges when no predecessor graph is available
         let Some(base) = base else {
@@ -219,7 +226,7 @@ impl Compiler {
             for module in modules.iter().copied() {
                 let selected = self.collect_implementations(artifacts, profile, module)?;
                 implementations.extend(selected);
-                let edges = self.module_edges(artifacts, profile, module, &module_set)?;
+                let edges = self.module_edges(artifacts, profile, module)?;
 
                 edge_count += edges.len() as u64;
                 edges_by_module.insert(module, edges);
@@ -230,11 +237,9 @@ impl Compiler {
             }
             context.record_counter("graph.edges", edge_count);
 
-            let graph = ModuleGraph::from_edges(profile, edges_by_module, implementations)
+            let graph = ModuleGraph::from_edges(package, profile, edges_by_module, implementations)
                 .map_err(|module| CompilerError::Internal {
-                    message: format!(
-                        "module graph edge references a module outside its profile: {module:?}"
-                    ),
+                    message: format!("module graph edge references an unknown module: {module:?}"),
                 })?;
 
             return Ok(Arc::new(graph));
@@ -273,7 +278,7 @@ impl Compiler {
         let mut is_edges_changed =
             !base.added_modules.is_empty() || !base.removed_modules.is_empty();
         for module in changed_modules.iter().copied() {
-            let edges = self.module_edges(artifacts, profile, module, &module_set)?;
+            let edges = self.module_edges(artifacts, profile, module)?;
 
             edge_count += edges.len() as u64;
             is_edges_changed |= !base.graph.edges_equal(module, edges.as_ref());
@@ -301,9 +306,7 @@ impl Compiler {
             .graph
             .derive(changed_edges, base.removed_modules, implementations)
             .map_err(|module| CompilerError::Internal {
-                message: format!(
-                    "derived module graph references a module outside its profile: {module:?}"
-                ),
+                message: format!("derived module graph references an unknown module: {module:?}"),
             })?;
 
         Ok(Arc::new(graph))
@@ -343,14 +346,13 @@ impl Compiler {
         artifacts: &ArtifactReader<'_>,
         profile: ProfileId,
         module: ModuleId,
-        modules: &FxHashSet<ModuleId>,
     ) -> CompilerResult<Arc<[ModuleId]>> {
         // select defining modules from the resolved relationships
         artifacts
             .project::<DirResolved, _, _>((module, profile), |resolved| {
                 let edges = resolved
                     .target_modules()
-                    .filter(|target| modules.contains(target) && *target != module)
+                    .filter(|target| *target != module)
                     .collect::<IndexSet<_>>();
                 let edges = edges.into_iter().collect::<Arc<[ModuleId]>>();
 

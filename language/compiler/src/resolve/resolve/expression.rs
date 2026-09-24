@@ -4,7 +4,7 @@ use smallvec::smallvec;
 use crate::resolve::state::{PathReference, ResolveState};
 
 impl ResolveState<'_> {
-    /// Walk one expression and collect references and syntax language items.
+    /// Walk one expression and collect references and implied language items.
     ///
     /// Example:
     /// ```ds
@@ -78,7 +78,7 @@ impl ResolveState<'_> {
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::BorrowOf { .. } => {
-                self.use_language_item(dir::LanguageItem::Lifetime);
+                self.use_language_item(dir::LanguageItem::Region);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::RangeExpression {
@@ -143,7 +143,7 @@ impl ResolveState<'_> {
         }
     }
 
-    /// Walk one type expression and collect references and syntax language items.
+    /// Walk one type expression and collect references and implied language items.
     ///
     /// Example:
     /// ```ds
@@ -183,7 +183,7 @@ impl ResolveState<'_> {
                 }
             }
             dir::TypeExpression::BorrowedOf { .. } => {
-                self.use_language_item(dir::LanguageItem::Lifetime);
+                self.use_language_item(dir::LanguageItem::Region);
                 dir::walk_type_expression(self, tree, id, ty);
             }
             dir::TypeExpression::Array { .. } => {

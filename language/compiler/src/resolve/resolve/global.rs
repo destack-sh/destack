@@ -12,7 +12,7 @@ impl ResolveState<'_> {
     /// async function load() {
     ///     await task;
     /// }
-    /// // Promise is used by async syntax even when source does not name it
+    /// // `async` uses Promise without naming it
     /// ```
     pub(in crate::resolve) fn resolve_language_items(
         &mut self,
@@ -32,7 +32,7 @@ impl ResolveState<'_> {
     /// Example:
     /// ```ds
     /// const value = first + second;
-    /// // Add is used by operator syntax
+    /// // `+` uses Add
     /// ```
     fn resolve_language_item_use(
         &mut self,
