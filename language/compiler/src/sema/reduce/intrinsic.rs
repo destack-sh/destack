@@ -63,9 +63,7 @@ impl CheckState<'_> {
             dir::LanguageItem::Awaited => self.reduce_awaited_application(origin, module, instance),
 
             // evaluate memory accessors over closed form chains
-            dir::LanguageItem::AccessOf
-            | dir::LanguageItem::PlaceOf
-            | dir::LanguageItem::WithAccess => {
+            dir::LanguageItem::AccessOf | dir::LanguageItem::WithAccess => {
                 self.reduce_memory_accessor(origin, module, item, instance)
             }
 
@@ -180,11 +178,8 @@ impl CheckState<'_> {
         let [element] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
-
         let element = *element;
-        let place = self.local_place()?;
-        let ty = dir::Type::Slice(dir::SliceType { element, place });
-        let ty = self.intern_type(ty)?;
+        let ty = self.intern_type(dir::Type::Slice(dir::SliceType { element }))?;
 
         Ok(Some(ty))
     }
@@ -219,11 +214,8 @@ impl CheckState<'_> {
         let [constraint] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
-
         let constraint = *constraint;
-        let place = self.local_place()?;
-        let ty = dir::Type::Dynamic(dir::DynamicType { constraint, place });
-        let ty = self.intern_type(ty)?;
+        let ty = self.intern_type(dir::Type::Dynamic(dir::DynamicType { constraint }))?;
 
         Ok(Some(ty))
     }
@@ -238,13 +230,13 @@ impl CheckState<'_> {
         let [parameters, return_type, receiver] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
+        let (parameters, return_type, receiver) = (*parameters, *return_type, *receiver);
 
         // require a receiver mode literal or an open receiver term
-        let (parameters, return_type, receiver) = (*parameters, *return_type, *receiver);
         let receiver = self.normalize(origin, receiver)?;
         match self.ty(receiver)? {
             dir::Type::Literal(dir::Literal::String(text)) => {
-                if dir::ReceiverMode::from_text(text).is_none() {
+                if dir::ReceiverMode::from_text(self.strings().get(text)).is_none() {
                     return Ok(None);
                 }
             }
@@ -258,11 +250,11 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let place = self.local_place()?;
+
+        // intern the callable over the read signature
         let function = dir::Type::Function(dir::FunctionType {
             signature,
             receiver,
-            place,
         });
         let ty = self.intern_type(function)?;
 

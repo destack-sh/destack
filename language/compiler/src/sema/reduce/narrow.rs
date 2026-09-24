@@ -71,17 +71,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         is_positive: bool,
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
-        let source = self.normalize(origin, source)?;
-
-        // read the cases beneath one managed form, rewrapping it after the filter
-        let mut managed = None;
-        let mut subject = source;
-        if let dir::Type::Form(form) = self.ty(subject)?
-            && matches!(form.form, dir::Form::Managed { .. })
-        {
-            managed = Some(source);
-            subject = self.normalize(origin, form.value)?;
-        }
+        let subject = self.normalize(origin, source)?;
 
         // enumerate the cases an enum owner names
         let mut newtype = None;
@@ -116,7 +106,6 @@ impl CheckState<'_> {
         }
 
         // join the surviving arms back into one type
-        let kept_count = kept.len();
         let narrowed = match (kept.as_slice(), newtype) {
             ([], _) => self.intern_type(dir::Type::Never)?,
             (_, Some(newtype)) if kept.len() == arm_count => newtype,
@@ -134,14 +123,6 @@ impl CheckState<'_> {
             }
             ([single], None) => *single,
             (_, None) => self.normalized_union_type(kept)?,
-        };
-
-        // rewrap the surviving cases in the managed form they came from
-        let narrowed = match managed {
-            Some(placed) if kept_count == arm_count => placed,
-            Some(_) if matches!(self.ty(narrowed)?, dir::Type::Never) => narrowed,
-            Some(placed) => self.replace_form_value(origin, placed, narrowed)?,
-            None => narrowed,
         };
 
         Ok(Ok(Some(narrowed)))
@@ -349,7 +330,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         is_positive: bool,
     ) -> CompilerResult<Result<dir::GlobalTypeId, dir::TypeVariableId>> {
-        // test the reached value once the chain ends
+        // test the final value once the chain ends
         let [key, rest @ ..] = keys else {
             return self.narrow_arm(origin, source, target, is_positive);
         };
@@ -393,7 +374,7 @@ impl CheckState<'_> {
             return Ok(Ok(narrowed));
         }
 
-        // leave open member sets undecided
+        // keep the whole arm for an open member set
         Ok(Ok(source))
     }
 

@@ -21,5 +21,6 @@ pub(in crate::sema) use union::NullishPart;
 
 pub(in crate::sema) use key::{InvalidOperation, OperationReduction};
 pub(in crate::sema) use memory::BorrowConversion;
-pub(in crate::sema) use substitute::TypeSubstitution;
+pub(in crate::sema) use substitute::{InferSubstitution, TypeSubstitution};
 pub(in crate::sema) use r#try::TryProjection;
+pub(in crate::sema) use r#type::ProjectionMemo;

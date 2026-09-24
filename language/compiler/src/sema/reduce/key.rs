@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, MemberLookup, Origin, TypeSubstitution, member_arms};
+use crate::sema::{CheckState, MemberLookup, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
 
 /// One broad property-key domain.
@@ -164,9 +164,9 @@ impl CheckState<'_> {
 
         // project every runtime arm, joining several as one union
         let mut types = Vec::new();
-        for (_, group) in member_arms(&lookup) {
+        for group in lookup.arms() {
             // overloaded members stay symbolic
-            let [candidate] = group.as_slice() else {
+            let [candidate] = group.candidates.as_slice() else {
                 return Ok(OperationReduction::Rigid);
             };
 
@@ -461,7 +461,7 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<KeySet>> {
-        // collect the keys by the target's own head
+        // collect the keys by the head of the target
         let set = match self.ty(target)? {
             // structural object keys come from fields and index signatures
             dir::Type::Object(shape) => {

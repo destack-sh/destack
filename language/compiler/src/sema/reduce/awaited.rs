@@ -2,28 +2,29 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::reduce::substitute::TypeSubstitution;
-use crate::sema::{CheckState, CoroutineBody, CoroutineForm, Origin};
+use crate::sema::{CheckState, CoroutineBody, CoroutineForm, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Return the completed value carried by one async function result type.
     pub(in crate::sema) fn async_completion_type(
         &mut self,
+        origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut active = FxIndexSet::default();
 
-        self.async_completion_type_guarded(target, &mut active)
+        self.async_completion_type_guarded(origin, target, &mut active)
     }
 
-    /// Settle one async completion type while guarding transparent recursion.
+    /// Settle one async completion type, stopping at a transparent cycle.
     fn async_completion_type_guarded(
         &mut self,
+        origin: Origin,
         target: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let target = self.shallow_resolve(target)?;
+        let target = self.normalize(origin, target)?;
         if !active.insert(target) {
             return Ok(None);
         }
@@ -60,7 +61,7 @@ impl CheckState<'_> {
             None
         };
         let completed = match backing {
-            Some(backing) => self.async_completion_type_guarded(backing, active)?,
+            Some(backing) => self.async_completion_type_guarded(origin, backing, active)?,
             None => None,
         };
         active.swap_remove(&target);
@@ -137,8 +138,9 @@ impl CheckState<'_> {
             return Ok(Some(target));
         }
 
-        // unwrap compiler-recognized async result representations
-        let instance = match self.ty(target)? {
+        // unwrap compiler-recognized async result representations, an object beneath its handle
+        let object = self.normalize(origin, target)?;
+        let instance = match self.ty(object)? {
             dir::Type::Application(instance) => Some(instance),
             _ => None,
         };
@@ -150,7 +152,7 @@ impl CheckState<'_> {
                     Some(dir::LanguageItem::Promise | dir::LanguageItem::Task)
                 ) =>
             {
-                self.type_id_at(target.module_id, instance.arguments, 0)?
+                self.type_id_at(object.module_id, instance.arguments, 0)?
             }
             _ => None,
         };
@@ -205,7 +207,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // leave failed and open targets to their own reports
+            // leave failed and open targets to the reports they raise
             let mut resolved: SmallVec<[dir::GlobalTypeId; 4]> = SmallVec::new();
             let mut open = false;
             for target in body.form.targets() {
@@ -222,7 +224,9 @@ impl CheckState<'_> {
             let Some(item) = self.coroutine_creation_item(body)? else {
                 continue;
             };
-            let create = self.coroutine_creation_call(item, &resolved)?;
+            let origin = Origin::Node(node, None);
+            let create =
+                self.coroutine_creation_call(origin, item, &resolved, TypeSubstitution::default())?;
             self.commit_decision(
                 node,
                 dir::Decision::Call(dir::OperationResolution::One(create)),
@@ -303,7 +307,34 @@ impl CheckState<'_> {
             dir::Asynchrony::Sync => dir::LanguageItem::GeneratorYield,
             dir::Asynchrony::Async => dir::LanguageItem::AsyncGeneratorYield,
         };
-        let mut call = self.coroutine_creation_call(item, targets)?;
+        let origin = self.node_origin(node)?;
+
+        // instantiate the yield at the producer its creation hands the body
+        let producer = self.coroutine_producer_type(origin, asynchrony, targets)?;
+        let dir::Type::Application(application) = self.ty(producer)? else {
+            return Err(CompilerError::Internal {
+                message: "a generator producer outside an applied struct".to_string(),
+            });
+        };
+        let arguments = self
+            .type_ids(producer.module_id, application.arguments)?
+            .to_vec();
+        let symbol = self.language_symbol(item)?;
+        let Some(template) = self.symbol_template(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "a yield method without a template".to_string(),
+            });
+        };
+        let owners = self.owner_template_parameters(template)?;
+        let bound = TypeSubstitution {
+            bindings: owners
+                .iter()
+                .zip(arguments)
+                .map(|(parameter, argument)| dir::GenericArgumentBinding::new(*parameter, argument))
+                .collect(),
+            receiver: Some(producer),
+        };
+        let mut call = self.coroutine_creation_call(origin, item, &[], bound)?;
 
         // bind the yielded value as the provided argument
         if let Some(value) = value
@@ -311,49 +342,6 @@ impl CheckState<'_> {
         {
             binding.source = dir::ArgumentSource::Provided(value);
         }
-
-        // bind the owner's parameters positionally at the producer its creation hands the body
-        let producer = self.coroutine_producer_type(asynchrony, targets)?;
-        let dir::CallableTarget::Symbol { function, .. } = &mut call.target else {
-            return Err(CompilerError::Internal {
-                message: "a yield call outside a direct symbol target".to_string(),
-            });
-        };
-        let dir::Type::Application(application) = self.ty(producer)? else {
-            return Err(CompilerError::Internal {
-                message: "a generator producer outside an applied struct".to_string(),
-            });
-        };
-        let arguments = self.type_ids(producer.module_id, application.arguments)?;
-        let Some(template) = self.symbol_template(function.key.symbol)? else {
-            return Err(CompilerError::Internal {
-                message: "a yield method without a template".to_string(),
-            });
-        };
-        let owners = self.owner_template_parameters(template)?;
-        if owners.len() != arguments.len() {
-            return Err(CompilerError::Internal {
-                message: "a generator producer application outrunning its owner parameters"
-                    .to_string(),
-            });
-        }
-        for (parameter, argument) in owners.iter().zip(arguments) {
-            function
-                .key
-                .arguments
-                .push(dir::GenericArgumentBinding::new(*parameter, *argument));
-        }
-
-        // close the signature at the producer and the key's bindings
-        let substitution = TypeSubstitution {
-            bindings: function.key.arguments.iter().copied().collect(),
-            receiver: Some(producer),
-        };
-        for binding in &mut call.arguments {
-            binding.parameter_type = self.substitute_type(binding.parameter_type, &substitution)?;
-            binding.argument_type = self.substitute_type(binding.argument_type, &substitution)?;
-        }
-        call.return_type = self.substitute_type(call.return_type, &substitution)?;
 
         self.commit_decision(
             node,
@@ -364,15 +352,17 @@ impl CheckState<'_> {
     /// Return the producer type one generator creation hands its body closure.
     fn coroutine_producer_type(
         &mut self,
+        origin: Origin,
         asynchrony: dir::Asynchrony,
         targets: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // read the creation call's body closure slot
+        // read the body closure argument of the creation call
         let item = match asynchrony {
             dir::Asynchrony::Sync => dir::LanguageItem::GeneratorCreate,
             dir::Asynchrony::Async => dir::LanguageItem::AsyncGeneratorCreate,
         };
-        let create = self.coroutine_creation_call(item, targets)?;
+        let create =
+            self.coroutine_creation_call(origin, item, targets, TypeSubstitution::default())?;
         let Some(slot) = create
             .arguments
             .iter()
@@ -383,26 +373,18 @@ impl CheckState<'_> {
             });
         };
 
+        // strip the body closure down to its signature
+        let closure = self.normalize(origin, slot.parameter_type)?;
+        let closure = self.shallow_strip_forms(closure)?;
+        let Some((module, head)) = self.callable_signature_head(closure)? else {
+            return Err(CompilerError::Internal {
+                message: "a generator body slot outside a callable".to_string(),
+            });
+        };
+
         // take the closure's first parameter, the producer
-        let closure = self.shallow_strip_forms(slot.parameter_type)?;
-        let dir::Type::Application(application) = self.ty(closure)? else {
-            return Err(CompilerError::Internal {
-                message: "a generator body slot outside a function application".to_string(),
-            });
-        };
-        let arguments = self.type_ids(closure.module_id, application.arguments)?;
-        let Some(parameters) = arguments.first().copied() else {
-            return Err(CompilerError::Internal {
-                message: "a generator body slot without its parameter list".to_string(),
-            });
-        };
-        let dir::Type::Tuple(tuple) = self.ty(parameters)? else {
-            return Err(CompilerError::Internal {
-                message: "a generator body slot outside a parameter tuple".to_string(),
-            });
-        };
-        let elements = self.tuple_elements(parameters.module_id, tuple.elements)?;
-        let Some(producer) = elements.first().map(|element| element.ty) else {
+        let parameters = self.signature_parameters(module, head.parameters)?;
+        let Some(producer) = parameters.first().map(|parameter| parameter.ty) else {
             return Err(CompilerError::Internal {
                 message: "a generator body slot without its producer parameter".to_string(),
             });
@@ -411,90 +393,25 @@ impl CheckState<'_> {
         Ok(producer)
     }
 
-    /// Build one creation call instantiated at the body's solved targets.
+    /// Return the call creating one coroutine object through its language item.
     fn coroutine_creation_call(
         &mut self,
+        origin: Origin,
         item: dir::LanguageItem,
         targets: &[dir::GlobalTypeId],
+        bound: TypeSubstitution,
     ) -> CompilerResult<dir::Call> {
-        // bind the item's type parameters to the targets in declaration order
         let symbol = self.language_symbol(item)?;
-        let Some(template) = self.symbol_template(symbol)? else {
-            return Err(CompilerError::Internal {
-                message: "a coroutine creation item declares no template".to_string(),
-            });
-        };
-        let parameters = self.generic_template_parameters(template)?;
-        let mut bindings = Vec::with_capacity(parameters.len());
-        let mut index = 0;
-        for parameter in parameters {
-            // bind memory parameters to the local place the machinery runs in
-            if self.is_memory_parameter(parameter)? || self.is_lifetime_parameter(parameter)? {
-                let local = self.local_place()?;
-                bindings.push(dir::GenericArgumentBinding::new(parameter, local));
-
-                continue;
-            }
-            let Some(target) = targets.get(index).copied() else {
-                return Err(CompilerError::Internal {
-                    message: "a coroutine creation item outruns its targets".to_string(),
-                });
-            };
-            bindings.push(dir::GenericArgumentBinding::new(parameter, target));
-            index += 1;
+        let mut resolved = SmallVec::<[dir::GlobalTypeId; 4]>::with_capacity(targets.len());
+        for target in targets {
+            resolved.push(self.fully_resolve(*target)?);
         }
-        let key = dir::InstanceKey::new(symbol, bindings);
-        let substitution = TypeSubstitution {
-            bindings: key.arguments.iter().copied().collect(),
-            receiver: None,
-        };
-
-        // bind the body closure slot the lowered function supplies, closed at the bound arguments
-        let Some(callable_type) = self.adopt_symbol_type_maybe(symbol)? else {
+        let Some(call) = self.instantiate_symbol_call(origin, symbol, &resolved, bound)? else {
             return Err(CompilerError::Internal {
-                message: "a coroutine creation item declares no type".to_string(),
+                message: "a coroutine creation item declares no callable".to_string(),
             });
-        };
-        let signature = match self.ty(callable_type)? {
-            dir::Type::FunctionSignature(signature) => {
-                self.type_signature(callable_type.module_id, signature)?
-            }
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: "a coroutine creation item declares no signature".to_string(),
-                });
-            }
-        };
-        let parameters =
-            self.signature_parameters(callable_type.module_id, signature.parameters)?;
-        let mut arguments = Vec::with_capacity(parameters.len());
-        for (index, parameter) in parameters.iter().enumerate() {
-            let ty = self.substitute_type(parameter.ty, &substitution)?;
-            arguments.push(dir::ArgumentBinding {
-                coercion: None,
-                parameter_type: ty,
-                argument_type: ty,
-                source: dir::ArgumentSource::Supplied(index as u32),
-            });
-        }
-        let return_type = match signature.return_type {
-            Some(return_type) => self.substitute_type(return_type, &substitution)?,
-            None => callable_type,
         };
 
-        Ok(dir::Call {
-            regions: self.resolved_region_bindings(&substitution.bindings)?,
-            target: dir::CallableTarget::Symbol {
-                function: dir::FunctionTarget {
-                    receiver: None,
-                    generic_scope: None,
-                    key,
-                },
-                dispatch: dir::FunctionDispatch::Direct,
-            },
-            callable_type,
-            arguments,
-            return_type,
-        })
+        Ok(call)
     }
 }

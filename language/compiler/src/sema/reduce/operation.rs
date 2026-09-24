@@ -65,11 +65,14 @@ impl CheckState<'_> {
             // keyof projects the key union of one closed type
             dir::TypeOperation::KeyOf(unary) => self.reduce_keyof(origin, id, unary.target),
 
-            // inference barriers erase only in the signature that owns inference
+            // erase inference barriers only in the signature that infers
             dir::TypeOperation::NoInfer(_) => Ok(None),
 
             // awaited types unwrap promise representations recursively
             dir::TypeOperation::Awaited(unary) => self.reduce_awaited(origin, unary.target),
+
+            // spaces settle by the declaration of the value stored
+            dir::TypeOperation::SpaceOf(unary) => self.reduce_space_of(origin, unary.target),
 
             // try projections split nullish values from representations
             dir::TypeOperation::TryOutput { value } => {
@@ -77,6 +80,9 @@ impl CheckState<'_> {
             }
             dir::TypeOperation::TryResidual { value } => {
                 self.reduce_try_projection(origin, *value, TryProjection::Residual)
+            }
+            dir::TypeOperation::TryFailure { value } => {
+                self.reduce_try_projection(origin, *value, TryProjection::Failure)
             }
 
             // static operations evaluate over literal operands

@@ -11,6 +11,8 @@ pub(in crate::sema) enum TryProjection {
     Output,
     /// The value propagated when evaluation stops.
     Residual,
+    /// The error a `catch` binds when evaluation stops.
+    Failure,
 }
 
 impl CheckState<'_> {
@@ -81,6 +83,7 @@ impl CheckState<'_> {
         let name = match projection {
             TryProjection::Output => "Output",
             TryProjection::Residual => "Residual",
+            TryProjection::Failure => "Failure",
         };
         let key = dir::StaticKey::Name(self.strings().intern(name));
 
@@ -106,7 +109,7 @@ impl CheckState<'_> {
 
         // join the projected type with propagated nullish values
         let mut elements = Vec::new();
-        if projection == TryProjection::Residual {
+        if projection != TryProjection::Output {
             elements.extend(nullish);
         }
         elements.extend(projected);

@@ -13,8 +13,6 @@ pub(in crate::sema) struct FormChain {
     forms: SmallVec<[dir::FormType; 2]>,
     /// The unqualified base type under every memory form.
     base: dir::GlobalTypeId,
-    /// The outermost reference form's referent place, or the declared nominal space.
-    place: Option<dir::GlobalTypeId>,
     /// The outermost borrow form's region.
     region: Option<dir::GlobalTypeId>,
     /// Whether the base can still gain forms at instantiation.
@@ -23,7 +21,7 @@ pub(in crate::sema) struct FormChain {
 
 /// One normalized managed or owned conversion to borrowed form.
 pub(in crate::sema) struct BorrowConversion {
-    /// The module that owns the normalized borrow constructor.
+    /// The module that interns the normalized borrow constructor.
     pub(in crate::sema) module: ModuleId,
     /// The source memory form.
     pub(in crate::sema) source: FormChain,
@@ -39,14 +37,9 @@ impl FormChain {
         self.base
     }
 
-    /// Return the outermost referent place the chain records.
+    /// Return the outermost borrow form's region.
     pub(in crate::sema) fn region(&self) -> Option<dir::GlobalTypeId> {
         self.region
-    }
-
-    /// Return the outermost reference form's referent place.
-    pub(in crate::sema) fn place(&self) -> Option<dir::GlobalTypeId> {
-        self.place
     }
 
     /// Return the memory forms, outermost first.
@@ -158,11 +151,11 @@ impl CheckState<'_> {
         }
 
         // require a placeable value, a borrow only targets owned storage
-        if !self.ty(source.base())?.is_placeable() {
+        if !self.ty(source.base())?.has_runtime_value() {
             return Ok(None);
         }
 
-        // note when a borrow-shaped target payload acquires the handle itself
+        // acquire the handle when the payload is itself a borrow
         let payload = self.normalize(origin, borrow.value)?;
         let payload = self.form_chain(origin, payload)?;
         let acquires_handle = payload
@@ -189,34 +182,26 @@ impl CheckState<'_> {
         }))
     }
 
-    /// Return the space one nominal declaration writes, reading committed space across modules.
-    pub(in crate::sema) fn declared_space(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::Space>> {
-        // read the committed space when the declaring module is out of reach
-        let Some(module) = self.module_maybe(symbol.module_id) else {
-            return self.nominal_space(symbol);
-        };
-
-        // read the place the declaration writes
-        let source = module.symbol_declaration_node(symbol.local_id)?;
-        let Ok(declaration) = source.try_into_typed::<dir::Declaration>() else {
-            return Ok(None);
-        };
-        let place = module.parsed.tree.get(declaration).place();
-
-        Ok(place.map(dir::PlaceModifier::space))
-    }
-
     /// Return the concrete space required by a nominal declaration and its heritage.
     pub(in crate::sema) fn nominal_space(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::Space>> {
-        let mut active = FxIndexSet::default();
+        // read the remembered space
+        if let Some(space) = self.nominal_spaces.get(&symbol) {
+            return Ok(*space);
+        }
 
-        self.nominal_space_guarded(symbol, &mut active)
+        // derive the space through the heritage walk
+        let mut active = FxIndexSet::default();
+        let space = self.nominal_space_guarded(symbol, &mut active)?;
+
+        // remember the space once every definition exists
+        if !self.is_declaring() {
+            self.nominal_spaces.insert(symbol, space);
+        }
+
+        Ok(space)
     }
 
     /// Return one nominal space while terminating invalid heritage cycles.
@@ -258,233 +243,135 @@ impl CheckState<'_> {
 
         active.shift_remove(&symbol);
 
+        // place a class in local space unless its declaration or heritage says otherwise
+        if space.is_none() && matches!(*definition, dir::Definition::Class(_)) {
+            space = Some(dir::Space::Local);
+        }
+
         Ok(space)
     }
 
-    /// Return the outer placement term of one type.
-    pub(in crate::sema) fn type_place(
-        &self,
-        ty: dir::GlobalTypeId,
+    /// Return the extent one region names, a bare region term naming itself.
+    pub(in crate::sema) fn region_extent(
+        &mut self,
+        region: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let region = self.shallow_resolve(region)?;
+        let extent = match self.ty(region)? {
+            // read the extent of a region pair
+            dir::Type::Region(pair) => pair.extent,
+            // join the extents of every arm
+            dir::Type::Union(union) => {
+                let regions: SmallVec<[_; 8]> =
+                    self.type_ids(region.module_id, union.elements)?.into();
+                let mut extents = SmallVec::<[_; 8]>::with_capacity(regions.len());
+                for region in regions {
+                    extents.push(self.region_extent(region)?);
+                }
+
+                self.normalized_union_type(extents)?
+            }
+            // read a bare region term as its own extent
+            _ => region,
+        };
+
+        self.shallow_resolve(extent)
+    }
+
+    /// Return the space one region names, none while the region is open.
+    pub(in crate::sema) fn region_space(
+        &mut self,
+        region: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let mut current = ty;
-        while let dir::Type::Form(form) = self.ty(current)? {
-            match form.form {
-                // a managed form writes its referent place directly
-                dir::Form::Managed { place } => return Ok(Some(place)),
-                // a borrow keeps its referent space inside the region
-                dir::Form::Borrowed(borrow) => {
-                    let borrow = self.type_borrow(current.module_id, borrow)?;
-
-                    // read the spaces a written region pair exposes
-                    let region = self.shallow_resolve(borrow.region)?;
-
-                    return Ok(match self.ty(region)? {
-                        dir::Type::Region(region) => Some(region.space),
-                        _ => None,
-                    });
-                }
-                // every other form leaves placement to the value beneath
-                dir::Form::Owned | dir::Form::Readonly | dir::Form::Raw => {}
+        let region = self.shallow_resolve(region)?;
+        let space = match self.ty(region)? {
+            // read the space of a region pair
+            dir::Type::Region(pair) => pair.space,
+            // join the spaces of every arm
+            dir::Type::Union(union) => {
+                return self.map_union_arms(region, union, |state, arm| state.region_space(arm));
             }
+            // leave an open region without a space
+            _ => return Ok(None),
+        };
 
-            current = form.value;
-        }
-
-        Ok(None)
+        Ok(Some(space))
     }
 
-    /// Return whether one value passes to a call in an immediate representation.
-    pub(in crate::sema) fn is_immediate_value(
+    /// Map each arm of one union and join the results, none when any arm maps to none.
+    fn map_union_arms(
+        &mut self,
+        union_type: dir::GlobalTypeId,
+        union: dir::UnionType,
+        mut map: impl FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<Option<dir::GlobalTypeId>>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // map each arm, stopping at the first arm without a result
+        let arms: SmallVec<[_; 8]> = self.type_ids(union_type.module_id, union.elements)?.into();
+        let mut mapped = SmallVec::<[_; 8]>::with_capacity(arms.len());
+        for arm in arms {
+            let Some(arm) = map(self, arm)? else {
+                return Ok(None);
+            };
+            mapped.push(arm);
+        }
+
+        self.normalized_union_type(mapped).map(Some)
+    }
+
+    /// Normalize one type naming an alias or an operation, keeping every other type.
+    pub(in crate::sema) fn normalize_named(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // read whether the value passes in registers
-        let ty = self.normalize(origin, ty)?;
-        let is_immediate = match self.ty(ty)? {
-            // the scalar-shaped types pass in registers
-            dir::Type::Null
-            | dir::Type::Undefined
-            | dir::Type::Key(_)
-            | dir::Type::Static(_)
-            | dir::Type::Range(_) => true,
-            // a variant travels the way its owning enum does
-            dir::Type::Variant(variant) => {
-                return self.is_immediate_value(origin, variant.owner);
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let resolved = self.shallow_resolve(ty)?;
+        if !self.is_named_type(resolved)? {
+            return Ok(ty);
+        }
+        let expanded = self.normalize(origin, resolved)?;
+        let expanded = self.shallow_resolve(expanded)?;
+        if expanded != resolved {
+            return Ok(expanded);
+        }
+
+        // expand an alias to the value it names
+        let instance = match self.ty(resolved)? {
+            dir::Type::Application(instance) => Some(instance),
+            dir::Type::Reference(reference) => Some(self.declaration_instance(reference.symbol)?),
+            _ => None,
+        };
+        let body = match instance {
+            Some(instance) => self.type_alias_body(origin, resolved.module_id, &instance)?,
+            None => None,
+        };
+        match body {
+            Some(body) => self.normalize(origin, body),
+            None => Ok(resolved),
+        }
+    }
+
+    /// Return whether one head names a type through an alias or a projection.
+    fn is_named_type(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        Ok(match self.ty(ty)? {
+            dir::Type::Reference(dir::TypeReference { symbol, .. })
+            | dir::Type::Application(dir::GenericApplication { symbol, .. }) => {
+                let symbol = self.resolve_symbol_alias(symbol)?;
+
+                self.symbol_kind(symbol)? == dir::SymbolKind::TypeAlias
             }
-            // a primitive is immediate until it names a representation item
-            dir::Type::Primitive(primitive) => primitive.representation_item().is_none(),
-            // a literal travels the way the scalar it widens to does
-            dir::Type::Literal(literal) => matches!(
-                literal.widen(),
-                dir::Type::Primitive(primitive) if primitive.representation_item().is_none()
-            ),
-            // every remaining type passes behind a handle
+            dir::Type::Member(_) | dir::Type::Operation(_) => true,
             _ => false,
-        };
-
-        Ok(is_immediate)
+        })
     }
 
-    /// Place one binding value in its explicitly declared storage space.
-    pub(in crate::sema) fn place_binding_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // leave a binding without a written space at its inferred type
-        let space = self
-            .module(symbol.module_id)
-            .binding_table()
-            .get_symbol(symbol.local_id)
-            .binding_space;
-        let Some(space) = space else {
-            return Ok(ty);
-        };
-
-        // place the value at the space the binding writes
-        let place = self.place_literal(space)?;
-
-        self.placed_type(Origin::Symbol(symbol), ty, place)
-    }
-
-    /// Place one value type without requiring its payload to be solved.
-    pub(in crate::sema) fn placed_type(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-        place: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // open types retain the complete placement supplied by their solution
-        let resolved = self.shallow_resolve(ty)?;
-        if self.ty(resolved)?.is_open() || !self.ty(resolved)?.is_placeable() {
-            return Ok(ty);
-        }
-
-        self.with_referent_place(origin, resolved, place)
-    }
-
-    /// Write one referent place onto a type's outermost reference constructor.
-    pub(in crate::sema) fn with_referent_place(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-        place: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // place the form the type carries
-        let resolved = self.shallow_resolve(ty)?;
-        match self.ty(resolved)? {
-            dir::Type::Form(form) => match form.form {
-                dir::Form::Managed { .. } => self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed { place },
-                    value: form.value,
-                })),
-                // access views pass the place through to their payloads
-                dir::Form::Readonly => {
-                    let value = self.with_referent_place(origin, form.value, place)?;
-
-                    self.intern_type(dir::Type::Form(dir::FormType {
-                        form: dir::Form::Readonly,
-                        value,
-                    }))
-                }
-                // borrow referent spaces live inside the region itself
-                dir::Form::Borrowed(_) | dir::Form::Owned | dir::Form::Raw => Ok(ty),
-            },
-            dir::Type::Slice(slice) => self.intern_type(dir::Type::Slice(dir::SliceType {
-                element: slice.element,
-                place,
-            })),
-            dir::Type::Dynamic(dynamic) => self.intern_type(dir::Type::Dynamic(dir::DynamicType {
-                constraint: dynamic.constraint,
-                place,
-            })),
-            dir::Type::Function(function) => {
-                self.intern_type(dir::Type::Function(dir::FunctionType { place, ..function }))
-            }
-            // managed-family bases materialize their implicit managed form
-            _ if self.default_ownership(origin, resolved)? == Some(dir::Ownership::Managed) => self
-                .intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed { place },
-                    value: resolved,
-                })),
-            // hand every value family back as written
-            _ => Ok(ty),
-        }
-    }
-
-    /// Settle one type's relative placement in the requested space.
-    pub(in crate::sema) fn resolve_relative_place(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-        place: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let chain = self.form_chain(origin, ty)?;
-
-        // return an open form chain unchanged
-        if chain.is_open {
-            return Ok(ty);
-        }
-
-        // keep a type without runtime values as it is
-        if chain.forms.is_empty() && !self.ty(chain.base)?.is_placeable() {
-            return Ok(ty);
-        }
-
-        // leave an immediate value unplaced, it passes in registers
-        if self.is_immediate_value(origin, ty)? {
-            return Ok(ty);
-        }
-
-        // preserve placement the chain already carries
-        if chain.place().is_some() {
-            return Ok(ty);
-        }
-
-        // apply placement around the written type so aliases stay visible
-        self.placed_type(origin, ty, place)
-    }
-
-    /// Return the first pair of contradicting concrete places in one form chain.
-    pub(in crate::sema) fn conflicting_places(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<(dir::Space, dir::Space)>> {
-        // walk inward through aliases, keeping the outermost concrete place
-        let mut outer: Option<dir::Space> = None;
-        let mut current = self.normalize(origin, ty)?;
-        while let dir::Type::Form(form) = self.ty(current)? {
-            if let dir::Form::Managed { place } = form.form
-                && let Some(space) = self.place_space(place)?
-            {
-                match outer {
-                    None => outer = Some(space),
-                    Some(written) if written != space => return Ok(Some((written, space))),
-                    Some(_) => {}
-                }
-            }
-            current = self.normalize(origin, form.value)?;
-        }
-
-        Ok(None)
-    }
-
-    /// Return the component an elided memory position takes when nothing decides it: the frame
-    /// extent, readonly access, or the local place.
+    /// Return the component an elided memory position takes when nothing decides it.
     pub(in crate::sema) fn elided_memory_default(
         &mut self,
         kind: dir::MemoryParameter,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // elide each memory parameter at its default
         match kind {
             dir::MemoryParameter::Region => self.lifetime_literal(dir::Lifetime::Frame),
             dir::MemoryParameter::Access => self.access_literal(dir::Access::Readonly),
-            dir::MemoryParameter::Place | dir::MemoryParameter::Space => self.local_place(),
-            dir::MemoryParameter::Ownership => Err(CompilerError::Internal {
-                message: "an ownership position opened an elided memory hole".to_string(),
-            }),
         }
     }
 
@@ -507,6 +394,38 @@ impl CheckState<'_> {
         Ok(value)
     }
 
+    /// Borrow one value at a region and access, a readonly view clamping the access.
+    pub(in crate::sema) fn borrow_value(
+        &mut self,
+        region: dir::GlobalTypeId,
+        mut access: dir::GlobalTypeId,
+        mut value: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        loop {
+            value = self.shallow_resolve(value)?;
+            let dir::Type::Form(payload) = self.ty(value)? else {
+                break;
+            };
+            match payload.form {
+                dir::Form::Readonly => access = self.access_literal(dir::Access::Readonly)?,
+                // reborrow a borrowed payload at the clamped access
+                dir::Form::Borrowed(payload_borrow) => {
+                    let payload_access = self.type_borrow(value.module_id, payload_borrow)?.access;
+                    let payload_access = self.shallow_resolve(payload_access)?;
+                    if self.access_of(payload_access)? == Some(dir::Access::Readonly) {
+                        access = payload_access;
+                    }
+                }
+                dir::Form::Owned => {}
+                dir::Form::Raw => break,
+            }
+            value = payload.value;
+        }
+        let form = self.intern_borrow(region, access)?;
+
+        self.intern_type(dir::Type::Form(dir::FormType { form, value }))
+    }
+
     /// Return the value one type stores beneath its ownership forms, a borrow staying whole.
     pub(in crate::sema) fn ownership_payload(
         &mut self,
@@ -515,10 +434,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut value = self.normalize(origin, id)?;
         while let dir::Type::Form(form) = self.ty(value)?
-            && matches!(
-                form.form,
-                dir::Form::Owned | dir::Form::Managed { .. } | dir::Form::Readonly
-            )
+            && matches!(form.form, dir::Form::Owned | dir::Form::Readonly)
         {
             value = self.normalize(origin, form.value)?;
         }
@@ -532,7 +448,7 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // construction owns storage forms, stopping at a reference or an open variable
+        // keep the storage forms of a construction, stopping at a reference or an open variable
         let mut value = target;
         loop {
             value = self.shallow_resolve(value)?;
@@ -587,43 +503,6 @@ impl CheckState<'_> {
         self.text_literal_type(&text)
     }
 
-    /// Return whether one explicit ownership form redundantly repeats its payload's default.
-    ///
-    /// Only the ownership constructors participate: borrows and raw pointers always layer.
-    pub(in crate::sema) fn is_default_ownership_form(
-        &mut self,
-        origin: Origin,
-        form: dir::Form,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // only the ownership constructors can repeat a default
-        if !matches!(form, dir::Form::Owned | dir::Form::Managed { .. }) {
-            return Ok(false);
-        }
-
-        // a managed form is the default only at the value's own pinned space
-        if let dir::Form::Managed { place } = form {
-            let pinned = match self.resolved_ty(value)? {
-                dir::Type::Application(instance) => self.nominal_space(instance.symbol)?,
-                dir::Type::Reference(reference) => self.nominal_space(reference.symbol)?,
-                _ => None,
-            };
-            let Some(pinned) = pinned else {
-                return Ok(false);
-            };
-            if self.place_space(place)? != Some(pinned) {
-                return Ok(false);
-            }
-        }
-
-        // compare the written ownership against the payload's own default
-        let Some(default) = self.default_ownership(origin, value)? else {
-            return Ok(false);
-        };
-
-        Ok(form.ownership() == Some(default))
-    }
-
     /// Drop one type's redundant explicit forms, keeping its authored payload.
     pub(in crate::sema) fn reduce_redundant_forms(
         &mut self,
@@ -639,7 +518,7 @@ impl CheckState<'_> {
             // drop an ownership form repeating the payload's default
             let value = self.normalize(origin, form.value)?;
             let mut active = SmallVec::new();
-            let is_redundant = self.is_default_ownership_form(origin, form.form, value)?
+            let is_redundant = self.is_redundant_owned(origin, form.form, value)?
                 || (form.form == dir::Form::Readonly
                     && self.is_immutable(origin, value, &mut active)?);
             if !is_redundant {
@@ -664,7 +543,7 @@ impl CheckState<'_> {
         let value = self.reduce_default_ownership_chain(origin, form.value)?;
 
         // drop the constructor when it redundantly repeats the payload's default ownership
-        if self.is_default_ownership_form(origin, form.form, value)? {
+        if self.is_redundant_owned(origin, form.form, value)? {
             return Ok(value);
         }
 
@@ -705,7 +584,7 @@ impl CheckState<'_> {
             _ => SmallVec::from_slice(&[target]),
         };
 
-        // evaluate the accessor over each element on its own
+        // evaluate the accessor over each element separately
         let mut reduced = Vec::with_capacity(elements.len());
         for element in elements {
             let element = self.normalize(origin, element)?;
@@ -772,8 +651,6 @@ impl CheckState<'_> {
             dir::LanguageItem::WithAccess => {
                 self.with_access(origin, module, instance, chain, element)
             }
-            // project the chain's concrete referent space
-            dir::LanguageItem::PlaceOf => self.place_of_chain(chain),
             // project the chain's concrete access mode
             dir::LanguageItem::AccessOf => self.access_of_chain(chain),
             // leave every other item alone
@@ -781,21 +658,9 @@ impl CheckState<'_> {
         }
     }
 
-    /// Project one chain's referent space, staying stuck while the space is opaque.
-    fn place_of_chain(&mut self, chain: &FormChain) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(place) = chain.place() else {
-            return Ok(None);
-        };
-        let Some(space) = self.place_space(place)? else {
-            return Ok(None);
-        };
-
-        Ok(Some(self.text_literal_type(space.text())?))
-    }
-
     /// Project one chain's access mode, staying stuck while the chain is open.
     fn access_of_chain(&mut self, chain: &FormChain) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // borrows answer with their own concrete access
+        // answer a borrow with its concrete access
         let borrow = chain
             .forms
             .iter()
@@ -809,7 +674,7 @@ impl CheckState<'_> {
             Some(borrow) => self.access_of(borrow.access)?,
             // leave an open chain opaque, it can still gain forms
             None if chain.is_open => None,
-            // a readonly view answers with its own access
+            // answer a readonly view with its access
             None if chain.is_readonly() => Some(dir::Access::Readonly),
             // an owning value answers mutable
             None => Some(dir::Access::Mutable),
@@ -829,10 +694,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<FormChain> {
         let mut forms = SmallVec::<[dir::FormType; 2]>::new();
         let mut current = element;
-        let mut place = None;
         let mut region = None;
 
-        // collect memory forms outermost first, recording the first referent place and region
+        // collect memory forms outermost first, recording the outermost borrow region
         loop {
             let root = self.shallow_resolve(current)?;
 
@@ -859,24 +723,10 @@ impl CheckState<'_> {
                     if region.is_none() {
                         region = Some(borrow.region);
                     }
-                    if place.is_none()
-                        && let resolved = self.shallow_resolve(borrow.region)?
-                        && let dir::Type::Region(region) = self.ty(resolved)?
-                    {
-                        place = Some(region.space);
-                    }
 
                     self.intern_borrow(borrow.region, borrow.access)?
                 }
-                head => {
-                    if let dir::Form::Managed { place: managed } = head
-                        && place.is_none()
-                    {
-                        place = Some(managed);
-                    }
-
-                    head
-                }
+                head => head,
             };
             forms.push(dir::FormType {
                 form: head,
@@ -886,39 +736,12 @@ impl CheckState<'_> {
             current = form.value;
         }
 
-        // fat pointer bases carry their own referent place
-        if place.is_none() {
-            place = match self.ty(current)? {
-                dir::Type::Slice(slice) => Some(slice.place),
-                dir::Type::Dynamic(dynamic) => Some(dynamic.place),
-                dir::Type::Function(function) => Some(function.place),
-                _ => None,
-            };
-        }
-
         // open and unreduced bases can gain forms when inference settles
         let is_open = self.ty(current)?.is_open();
-
-        // nominal declarations contribute their intrinsic or inherited space
-        if place.is_none() {
-            let symbol = match self.ty(current)? {
-                dir::Type::Application(instance) => Some(instance.symbol),
-                dir::Type::Reference(reference) => Some(reference.symbol),
-                _ => None,
-            };
-            if let Some(space) = symbol
-                .map(|symbol| self.nominal_space(symbol))
-                .transpose()?
-                .flatten()
-            {
-                place = Some(self.text_literal_type(space.text())?);
-            }
-        }
 
         Ok(FormChain {
             forms,
             base: current,
-            place,
             region,
             is_open,
         })
@@ -932,11 +755,67 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::Ownership>> {
         let ownership = match chain.ownership_form() {
             Some(form) => form.form.ownership(),
-            None if chain.is_open => None,
             None => self.default_ownership(origin, chain.base)?,
         };
 
         Ok(ownership)
+    }
+
+    /// Return the space one type's declaration fixes, read through its forms.
+    pub(in crate::sema) fn type_space(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Space>> {
+        let ty = self.shallow_resolve(ty)?;
+        match self.ty(ty)? {
+            dir::Type::Application(instance) => self.nominal_space(instance.symbol),
+            dir::Type::Reference(reference) => self.nominal_space(reference.symbol),
+            dir::Type::Form(form) => self.type_space(form.value),
+            _ => Ok(None),
+        }
+    }
+
+    /// Return the space term one value type stores in, none while the type stays open.
+    pub(in crate::sema) fn reduce_space_of(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let target = self.normalize(origin, target)?;
+        match self.ty(target)? {
+            // open types settle their space once they close
+            dir::Type::Variable(_)
+            | dir::Type::Parameter(_)
+            | dir::Type::Member(_)
+            | dir::Type::Operation(_)
+            | dir::Type::This => Ok(None),
+            // forms store where their value does
+            dir::Type::Form(form) => self.reduce_space_of(origin, form.value),
+            // unions store in the space of every arm
+            dir::Type::Union(union) => self.map_union_arms(target, union, |state, arm| {
+                state.reduce_space_of(origin, arm)
+            }),
+            // nominals store where their declaration says, every other value locally
+            _ => {
+                let space = self.type_space(target)?.unwrap_or(dir::Space::Local);
+
+                self.space_literal(space).map(Some)
+            }
+        }
+    }
+
+    /// Return the space term one value type stores in, a `SpaceOf` operation while it stays open.
+    pub(in crate::sema) fn space_term(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the space of a closed type
+        if let Some(space) = self.reduce_space_of(origin, ty)? {
+            return Ok(space);
+        }
+
+        self.intern_operation(dir::TypeOperation::SpaceOf(dir::UnaryType { target: ty }))
     }
 
     /// Return one reduced type's default ownership.
@@ -945,16 +824,41 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Ownership>> {
-        // read the ownership each family defaults to
         let ty = self.normalize(origin, ty)?;
+
+        self.ownership(ty)
+    }
+
+    /// Return whether one form is an owned form its value already defaults to.
+    pub(in crate::sema) fn is_redundant_owned(
+        &mut self,
+        origin: Origin,
+        form: dir::Form,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // repeat a default with an owned form alone
+        if form != dir::Form::Owned {
+            return Ok(false);
+        }
+
+        Ok(self.default_ownership(origin, value)? == Some(dir::Ownership::Owned))
+    }
+
+    /// Return the ownership one type's head defaults to, read off the head as given.
+    pub(in crate::sema) fn ownership(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Ownership>> {
+        // read the default ownership of each head
         let default = match self.ty(ty)? {
-            // the object families live behind a managed handle
+            // the object heads and the erased top live behind a managed handle
             dir::Type::Unknown
             | dir::Type::Object(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Slice(_)
-            | dir::Type::Function(_) => Some(dir::Ownership::Managed),
-            // the value families sit in their holder's own storage
+            | dir::Type::Function(_)
+            | dir::Type::FunctionSignature(_) => Some(dir::Ownership::Managed),
+            // keep the value families in their holder's storage
             dir::Type::Never
             | dir::Type::Void
             | dir::Type::Undefined
@@ -975,47 +879,52 @@ impl CheckState<'_> {
                     Some(dir::Ownership::Owned)
                 }
             }
-            // a nominal follows the declaration it names
+            // a nominal follows its declaration kind, a newtype or alias the type it names
             dir::Type::Application(dir::GenericApplication { symbol, .. })
             | dir::Type::Reference(dir::TypeReference { symbol, .. }) => {
-                match self.definition(symbol)?.as_deref() {
-                    Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
-                        Some(dir::Ownership::Managed)
-                    }
-                    Some(dir::Definition::Struct(_) | dir::Definition::Enum(_)) => {
-                        Some(dir::Ownership::Owned)
-                    }
-                    Some(dir::Definition::Newtype(definition)) => {
-                        let backing = self.normalize(origin, definition.backing)?;
-
-                        return self.default_ownership(origin, backing);
+                match self.symbol_kind(symbol)? {
+                    dir::SymbolKind::Class
+                    | dir::SymbolKind::Interface
+                    | dir::SymbolKind::NewtypeInterface => Some(dir::Ownership::Managed),
+                    dir::SymbolKind::Struct | dir::SymbolKind::Enum => Some(dir::Ownership::Owned),
+                    dir::SymbolKind::Newtype | dir::SymbolKind::TypeAlias => {
+                        return match self.definition(symbol)?.as_deref() {
+                            Some(dir::Definition::Newtype(definition)) => {
+                                self.ownership(definition.backing)
+                            }
+                            Some(dir::Definition::TypeAlias(alias)) => self.ownership(alias.value),
+                            // stay open while an isolated declare pass cannot see the definition
+                            None if self.is_declaring() => Ok(None),
+                            _ => Err(CompilerError::Internal {
+                                message: format!(
+                                    "ownership read before the definition of '{}' exists",
+                                    self.format_symbol(symbol)
+                                ),
+                            }),
+                        };
                     }
                     _ => None,
                 }
             }
             // a variant follows its owning enum
             dir::Type::Variant(variant) => {
-                return self.default_ownership(origin, variant.owner);
+                return self.ownership(variant.owner);
             }
             dir::Type::Form(form) => match form.form {
                 // a readonly view leaves ownership to the value beneath
                 dir::Form::Readonly => {
-                    return self.default_ownership(origin, form.value);
+                    return self.ownership(form.value);
                 }
-                // take an explicit form as the value's own ownership
-                dir::Form::Managed { .. }
-                | dir::Form::Owned
-                | dir::Form::Borrowed(_)
-                | dir::Form::Raw => form.form.ownership(),
+                // take an explicit form as the value's ownership
+                dir::Form::Owned | dir::Form::Borrowed(_) | dir::Form::Raw => form.form.ownership(),
             },
-            // the open and symbolic types answer once inference settles them
+            // leave open, symbolic, and top types without a default ownership
             dir::Type::Parameter(_)
             | dir::Type::Erased(_)
             | dir::Type::Variable(_)
             | dir::Type::This
             | dir::Type::Member(_)
             | dir::Type::Operation(_)
-            | dir::Type::FunctionSignature(_)
             | dir::Type::Union(_)
             | dir::Type::Error => None,
             // intersections take the ownership their elements agree on
@@ -1023,7 +932,7 @@ impl CheckState<'_> {
                 let mut agreed = None;
                 let elements = self.type_ids(ty.module_id, intersection.elements)?;
                 for element in elements {
-                    let Some(default) = self.default_ownership(origin, *element)? else {
+                    let Some(default) = self.ownership(*element)? else {
                         continue;
                     };
                     match agreed {
@@ -1038,77 +947,17 @@ impl CheckState<'_> {
             dir::Type::Literal(literal) => {
                 let representation = self.intern_type(literal.widen())?;
 
-                return self.default_ownership(origin, representation);
+                return self.ownership(representation);
             }
             // refinements share their base's default form
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(ty.module_id, refined)?;
 
-                return self.default_ownership(origin, refined.base);
+                return self.ownership(refined.base);
             }
         };
 
         Ok(default)
-    }
-
-    /// Return whether two related types differ only by concrete placement.
-    pub(in crate::sema) fn is_place_relabel(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // require both chains to stand over the same base
-        let source_chain = self.form_chain(origin, source)?;
-        let target_chain = self.form_chain(origin, target)?;
-        if source_chain.base != target_chain.base {
-            return Ok(false);
-        }
-
-        // require two concrete places that actually differ
-        let (Some(source_place), Some(target_place)) = (source_chain.place(), target_chain.place())
-        else {
-            return Ok(false);
-        };
-        if source_place == target_place {
-            return Ok(false);
-        }
-
-        // require the chains to agree on every form other than placement
-        let local = self.local_place()?;
-        let placeless =
-            |state: &mut Self, chain: &FormChain| -> CompilerResult<Vec<dir::FormType>> {
-                let mut forms = Vec::with_capacity(chain.forms.len());
-                for entry in &chain.forms {
-                    let form = match entry.form {
-                        dir::Form::Managed { .. } => dir::Form::Managed { place: local },
-                        // rehome the borrow so it resolves in the checking module
-                        dir::Form::Borrowed(borrow) => {
-                            let borrow = state.type_borrow(state.module_id, borrow)?;
-                            let region = state.shallow_resolve(borrow.region)?;
-                            let region = match state.ty(region)? {
-                                dir::Type::Region(region) => {
-                                    state.intern_region(region.extent, local)?
-                                }
-                                _ => borrow.region,
-                            };
-
-                            state.intern_borrow(region, borrow.access)?
-                        }
-                        form => form,
-                    };
-                    forms.push(dir::FormType {
-                        form,
-                        value: entry.value,
-                    });
-                }
-
-                Ok(forms)
-            };
-        let source_forms = placeless(self, &source_chain)?;
-        let target_forms = placeless(self, &target_chain)?;
-
-        Ok(source_forms == target_forms)
     }
 
     /// Rebuild one form chain over a new base, innermost first.
@@ -1156,7 +1005,9 @@ impl CheckState<'_> {
 
         // outside a borrow, access rides on a readonly form over the same value
         let requested = match self.ty(access)? {
-            dir::Type::Literal(dir::Literal::String(value)) => dir::Access::from_text(value),
+            dir::Type::Literal(dir::Literal::String(value)) => {
+                dir::Access::from_text(self.strings().get(value))
+            }
             _ => None,
         };
         // layer the requested access over the chain
@@ -1249,7 +1100,10 @@ impl CheckState<'_> {
     }
 
     /// Push one reserved string literal type, interned once per text.
-    fn text_literal_type(&mut self, text: &str) -> CompilerResult<dir::GlobalTypeId> {
+    pub(in crate::sema) fn text_literal_type(
+        &mut self,
+        text: &str,
+    ) -> CompilerResult<dir::GlobalTypeId> {
         if let Some(id) = self.memory_literals.get(text) {
             return Ok(*id);
         }
@@ -1268,7 +1122,7 @@ impl CheckState<'_> {
         let mut current = self.shallow_resolve(ty)?;
         while let dir::Type::Form(form) = self.ty(current)? {
             // drop alias-transparent forms for reads
-            if !matches!(form.form, dir::Form::Managed { .. } | dir::Form::Readonly) {
+            if !matches!(form.form, dir::Form::Readonly) {
                 break;
             }
             current = self.shallow_resolve(form.value)?;
@@ -1294,28 +1148,6 @@ impl CheckState<'_> {
             return self.ty(payload);
         }
 
-        // collapse a managed form over a fat pointer onto the pointer's own place
-        if let dir::Form::Managed { place } = form.form {
-            match self.ty(payload)? {
-                dir::Type::Slice(slice) => {
-                    return Ok(dir::Type::Slice(dir::SliceType {
-                        element: slice.element,
-                        place,
-                    }));
-                }
-                dir::Type::Dynamic(dynamic) => {
-                    return Ok(dir::Type::Dynamic(dir::DynamicType {
-                        constraint: dynamic.constraint,
-                        place,
-                    }));
-                }
-                dir::Type::Function(function) => {
-                    return Ok(dir::Type::Function(dir::FunctionType { place, ..function }));
-                }
-                _ => {}
-            }
-        }
-
         // require a form standing beneath the outer form
         let dir::Type::Form(payload_form) = self.ty(payload)? else {
             return Ok(ty);
@@ -1323,39 +1155,15 @@ impl CheckState<'_> {
 
         // collapse the two forms where they compose
         match (form.form, payload_form.form) {
-            // a managed form over a borrow collapses onto the borrow
-            (dir::Form::Managed { place }, dir::Form::Borrowed(borrow)) => {
-                let Some(borrow) = self.borrow_maybe(borrow) else {
-                    return Ok(ty);
-                };
-                let region = self.with_region_space(borrow.region, place)?;
-                let form = self.intern_borrow(region, borrow.access)?;
-
-                Ok(dir::Type::Form(dir::FormType {
-                    form,
-                    value: payload_form.value,
-                }))
+            // readonly and owned forms are idempotent
+            (dir::Form::Readonly, dir::Form::Readonly) | (dir::Form::Owned, dir::Form::Owned) => {
+                Ok(dir::Type::Form(payload_form))
             }
-            // own the object beneath a managed value and let the container place it
-            (dir::Form::Owned, dir::Form::Managed { .. }) => Ok(dir::Type::Form(dir::FormType {
-                form: dir::Form::Owned,
+            // borrow the value beneath an owned form
+            (dir::Form::Borrowed(_), dir::Form::Owned) => Ok(dir::Type::Form(dir::FormType {
+                form: form.form,
                 value: payload_form.value,
             })),
-            // readonly views are idempotent
-            (dir::Form::Readonly, dir::Form::Readonly) => Ok(dir::Type::Form(payload_form)),
-            // absorb an ownership request into the equal ownership below it
-            (dir::Form::Managed { place }, dir::Form::Managed { place: existing }) => {
-                if place == existing {
-                    return Ok(dir::Type::Form(payload_form));
-                }
-
-                Ok(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed { place },
-                    value: payload_form.value,
-                }))
-            }
-            // owned forms are idempotent
-            (dir::Form::Owned, dir::Form::Owned) => Ok(dir::Type::Form(payload_form)),
             // absorb a readonly payload view into a readonly borrow
             (dir::Form::Borrowed(borrow), dir::Form::Readonly)
                 if let Some(row) = self.borrow_maybe(borrow)
@@ -1378,7 +1186,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::Access>> {
         let access = self.shallow_resolve(access)?;
         let literal = match self.ty(access)? {
-            dir::Type::Literal(dir::Literal::String(value)) => dir::Access::from_text(value),
+            dir::Type::Literal(dir::Literal::String(value)) => {
+                dir::Access::from_text(self.strings().get(value))
+            }
             _ => None,
         };
 
@@ -1401,17 +1211,19 @@ impl CheckState<'_> {
         Ok(literal)
     }
 
-    /// Return the concrete space one place singleton names.
-    pub(in crate::sema) fn place_space(
+    /// Return the space one space term names, none while the term stays open.
+    pub(in crate::sema) fn literal_space(
         &self,
-        place: dir::GlobalTypeId,
+        term: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Space>> {
-        // read the place through its solution
-        let place = self.shallow_resolve(place)?;
+        // read the term through its solution
+        let term = self.shallow_resolve(term)?;
 
-        // a closed place settles at the string literal naming its space
-        let space = match self.ty(place)? {
-            dir::Type::Literal(dir::Literal::String(value)) => dir::Space::from_text(value),
+        // read the space a closed term's string literal names
+        let space = match self.ty(term)? {
+            dir::Type::Literal(dir::Literal::String(value)) => {
+                dir::Space::from_text(self.strings().get(value))
+            }
             _ => None,
         };
 

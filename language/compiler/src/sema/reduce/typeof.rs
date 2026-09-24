@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, Origin};
+use crate::sema::{CheckState, MemoryGrounding, Origin};
 
 impl CheckState<'_> {
     /// Return the type of a value declaration once its declared type is available.
@@ -16,7 +16,11 @@ impl CheckState<'_> {
             }
             let reference =
                 self.intern_type(dir::Type::Reference(dir::TypeReference::new(symbol)))?;
-            let constructors = self.constructor_signatures(Origin::Symbol(symbol), reference)?;
+            let constructors = self.construct_signatures(
+                Origin::Symbol(symbol),
+                reference,
+                MemoryGrounding::Elided,
+            )?;
             let mut signatures = Vec::with_capacity(constructors.len());
             for constructor in constructors {
                 signatures.push(self.function_type(constructor.ty)?);

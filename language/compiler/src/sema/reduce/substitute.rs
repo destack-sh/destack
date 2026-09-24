@@ -110,15 +110,12 @@ enum SubstitutionRule<'a> {
         /// The generic arguments and qualified receiver.
         substitution: &'a TypeSubstitution,
     },
-    /// Rebuild the nodes flagged as reducible so construction normalizes each closed head, an
-    /// open row and a written alias application staying as written.
+    /// Rebuild the reducible nodes, normalizing each closed head.
     Normalize {
         /// The declaration whose entries normalize.
         origin: Origin,
     },
-    /// Rebuild the nodes flagged as reducible so construction reduces each head over rigid type
-    /// parameters as far as its reducer allows, a written alias application expanding to the
-    /// spelling lowering reads.
+    /// Rebuild the reducible nodes, reducing over rigid parameters and expanding aliases.
     Evaluate {
         /// The declaration whose entries evaluate.
         origin: Origin,
@@ -140,12 +137,17 @@ enum SubstitutionRule<'a> {
         /// The captured types keyed by binder symbol.
         captures: &'a [InferSubstitution],
         /// The origin closed rebuilt entries normalize under.
-        ///
-        /// A branch that tails into another conditional evaluates in place and leaves this open.
         origin: Option<Origin>,
     },
     /// Remove every inference barrier.
     EraseNoInfer,
+    /// Read the projections one implementation binds on its target.
+    BindProjections {
+        /// The implementing type whose projections bind.
+        owner: dir::GlobalTypeId,
+        /// The bound associated members by key.
+        bindings: &'a [(dir::StaticKey, dir::GlobalTypeId)],
+    },
 }
 
 impl SubstitutionRule<'_> {
@@ -162,7 +164,8 @@ impl SubstitutionRule<'_> {
             | Self::EraseNoInfer
             | Self::Normalize { .. }
             | Self::Evaluate { .. }
-            | Self::Translate { .. } => None,
+            | Self::Translate { .. }
+            | Self::BindProjections { .. } => None,
         }
     }
 
@@ -206,7 +209,8 @@ impl SubstitutionRule<'_> {
             | Self::EraseNoInfer
             | Self::Normalize { .. }
             | Self::Evaluate { .. }
-            | Self::Translate { .. } => None,
+            | Self::Translate { .. }
+            | Self::BindProjections { .. } => None,
         }
     }
 
@@ -222,7 +226,8 @@ impl SubstitutionRule<'_> {
             | Self::EraseNoInfer
             | Self::Normalize { .. }
             | Self::Evaluate { .. }
-            | Self::Translate { .. } => None,
+            | Self::Translate { .. }
+            | Self::BindProjections { .. } => None,
         }
     }
 }
@@ -278,6 +283,7 @@ impl CheckState<'_> {
                     || flags.has_member()
                     || flags.has_operation()
             }
+            SubstitutionRule::BindProjections { .. } => flags.has_member(),
             SubstitutionRule::Translate { .. }
             | SubstitutionRule::Replace { .. }
             | SubstitutionRule::SubstituteInfer { .. }
@@ -383,19 +389,20 @@ impl CheckState<'_> {
         let module = base.module_id;
         let substitution = self.qualified_instance_substitution(module, &application, receiver)?;
 
-        // replace the implemented application by its refined implementation
-        let id = self.substitute_type(id, &substitution)?;
-        let id = if implementation == base {
-            id
-        } else {
-            self.replace_type(id, base, implementation)?
-        };
+        // replace every module's copy of the implemented application by its refinement
+        let mut id = self.substitute_type(id, &substitution)?;
+        if implementation != base {
+            let base_arguments: SmallVec<[_; 8]> =
+                self.type_ids(module, application.arguments)?.into();
+            for occurrence in self.plain_applications_of(id, application.symbol, &base_arguments)? {
+                id = self.replace_type(id, occurrence, implementation)?;
+            }
+        }
 
         Ok(id)
     }
 
-    /// Normalize one type graph, reducing every closed head and keeping written alias
-    /// applications.
+    /// Normalize one type graph, reducing every closed head and keeping aliases.
     pub(in crate::sema) fn normalize_type(
         &mut self,
         origin: Origin,
@@ -404,8 +411,7 @@ impl CheckState<'_> {
         self.substitute_graph(id, SubstitutionRule::Normalize { origin })
     }
 
-    /// Evaluate one type graph to the spelling lowering reads, reducing over rigid type
-    /// parameters and expanding written aliases.
+    /// Evaluate one type graph to the form lowering reads, expanding aliases.
     pub(in crate::sema) fn evaluate_type(
         &mut self,
         origin: Origin,
@@ -416,19 +422,24 @@ impl CheckState<'_> {
 
     /// Translate the declared types into semantic types, normal by construction.
     pub(in crate::sema) fn translate_declared_types(&mut self) -> CompilerResult<()> {
-        // rebuild each declared symbol type over normalized heads, a field row staying as written
+        // rebuild each declared symbol type over normalized heads
         let module = self.module_id;
-        let fields = self.field_symbols();
         let symbol_types: Vec<_> = self
             .module
             .types
             .with_tail(&self.module.types_tail)
             .symbol_types()
-            .filter(|(symbol, _)| symbol.module_id == module && !fields.contains(symbol))
+            .filter(|(symbol, _)| symbol.module_id == module)
             .collect();
         for (symbol, ty) in symbol_types {
             let origin = Origin::Symbol(symbol);
             let normal = self.substitute_graph(ty, SubstitutionRule::Translate { origin })?;
+
+            // normalize an alias to the type it names
+            let normal = match self.symbol_kind(symbol)? {
+                dir::SymbolKind::TypeAlias => self.normalize(origin, normal)?,
+                _ => normal,
+            };
             if normal != ty {
                 self.module.types_tail.set_symbol_type(symbol, normal);
             }
@@ -596,6 +607,18 @@ impl CheckState<'_> {
         self.substitute_graph(id, rule)
     }
 
+    /// Bind the projections one implementation fixes on its target inside one type.
+    pub(in crate::sema) fn bind_projections(
+        &mut self,
+        id: dir::GlobalTypeId,
+        owner: dir::GlobalTypeId,
+        bindings: &[(dir::StaticKey, dir::GlobalTypeId)],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let owner = self.shallow_resolve(owner)?;
+
+        self.substitute_graph(id, SubstitutionRule::BindProjections { owner, bindings })
+    }
+
     /// Substitute conditional-infer captures inside one branch type.
     pub(in crate::sema) fn substitute_infer_captures(
         &mut self,
@@ -617,7 +640,7 @@ impl CheckState<'_> {
         rule: SubstitutionRule<'_>,
         substituting: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // break substitution cycles conservatively
+        // break a substitution cycle at its repeated head
         if !substituting.insert(id) {
             return Ok(id);
         }
@@ -662,6 +685,19 @@ impl CheckState<'_> {
         // preserve every graph without a leaf the rule rewrites
         if !self.rule_applies(id, rule)? {
             return Ok(id);
+        }
+
+        // bind one projection on the implementing type to the implementation's associated member
+        if let SubstitutionRule::BindProjections { owner, bindings } = rule
+            && let dir::Type::Member(member) = self.ty(id)?
+        {
+            let member = self.type_member(id.module_id, member)?;
+            if self.shallow_resolve(member.owner)? == owner
+                && self.type_ids(id.module_id, member.arguments)?.is_empty()
+                && let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key)
+            {
+                return Ok(*value);
+            }
         }
 
         // substitute one conditional-infer binder reference
@@ -740,8 +776,7 @@ impl CheckState<'_> {
                 return Ok(rebuilt);
             }
 
-            // normalize once every this and variable the entry holds is closed, a rigid type
-            // parameter reducing under evaluation alone
+            // normalize once every this and variable the entry holds is closed
             let flags = self.type_flags(rebuilt)?;
             let is_open = flags.has_this() || flags.has_type_parameter() && !evaluates;
             if !is_open && !flags.has_variable() {

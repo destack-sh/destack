@@ -94,7 +94,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<(dir::ConditionalType, Option<dir::GlobalSymbolId>)>> {
-        // walk through alias applications to the head the type reaches
+        // walk through alias applications to the head of the type
         let mut current = self.shallow_resolve(id)?;
         let mut expanded = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut alias = None;
@@ -203,6 +203,13 @@ impl CheckState<'_> {
         conditional: dir::ConditionalType,
         binders: &[InferBinder],
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // a bare pattern tests the object beneath every form, a form pattern tests the form
+        let pattern = self.shallow_resolve(conditional.right)?;
+        let element = match self.ty(pattern)? {
+            dir::Type::Form(_) => element,
+            _ => self.strip_form(origin, element)?,
+        };
+
         // decide a pattern without binders by the subtype relation alone
         if binders.is_empty() {
             let verdict =
@@ -274,7 +281,6 @@ impl CheckState<'_> {
             {
                 upper.push(bound.ty);
             }
-
             // leave binders whose bounds stay open or absent for a later pass
             if upper.is_empty()
                 || !self
@@ -359,8 +365,6 @@ impl CheckState<'_> {
     }
 
     /// Hold one binder solution to its declared constraint.
-    ///
-    /// Captured text reads as the constraint's literal kind.
     fn constrain_binder(
         &mut self,
         origin: Origin,
@@ -427,7 +431,7 @@ impl CheckState<'_> {
                         }),
                     }
                 }
-                // stop at a nested conditional, which owns its own binders
+                // stop at a nested conditional, which declares its binders
                 dir::Type::Operation(operation)
                     if id != pattern
                         && matches!(

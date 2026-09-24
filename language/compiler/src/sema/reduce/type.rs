@@ -6,6 +6,10 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::sema::{CheckState, Origin};
 
+/// Settled projections shared across nodes, keyed by their assuming scope.
+pub(in crate::sema) type ProjectionMemo =
+    FxIndexMap<(Option<dir::GlobalGenericTemplateId>, dir::GlobalTypeId), dir::GlobalTypeId>;
+
 impl CheckState<'_> {
     /// Return whether one value type is carried by the erased dynamic payload.
     pub(in crate::sema) fn is_erased_value(
@@ -43,11 +47,6 @@ impl CheckState<'_> {
             // explicit erasure names its constraint
             dir::Type::Dynamic(dynamic) => Ok(Some(dynamic.constraint)),
 
-            // erase a managed handle with its erased value
-            dir::Type::Form(form) if matches!(form.form, dir::Form::Managed { .. }) => {
-                self.erased_constraint(form.value)
-            }
-
             // carry an unknown dynamic payload directly
             dir::Type::Unknown => Ok(Some(ty)),
 
@@ -67,7 +66,7 @@ impl CheckState<'_> {
             )
             .then_some(ty)),
 
-            // leave every other value type at its own representation
+            // keep every other value type at its representation
             _ => Ok(None),
         }
     }
@@ -95,7 +94,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         // reuse the root this scope already resolved
         let id = self.shallow_resolve(id)?;
-        let scope = self.assuming_scope(origin)?;
+        let scope = self.origin_scope(origin)?;
         if let Some(resolved) = shared.get(&(scope, id)) {
             return Ok(*resolved);
         }
@@ -427,7 +426,11 @@ impl CheckState<'_> {
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(id.module_id, union.elements)?.into();
-                let normalized = self.normalized_union_type(elements)?;
+                let mut reduced = SmallVec::<[_; 8]>::with_capacity(elements.len());
+                for element in elements {
+                    reduced.push(self.normalize(origin, element)?);
+                }
+                let normalized = self.normalized_union_type(reduced)?;
                 if normalized == id {
                     return Ok(id);
                 }
@@ -477,7 +480,7 @@ impl CheckState<'_> {
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
 
-                // peel the resolved owner's forms for the projection
+                // read the owner whole, its forms shed for an unqualified projection
                 let owner = self.shallow_resolve(member.owner)?;
                 let peeled = self.strip_form(origin, owner)?;
 
@@ -490,9 +493,6 @@ impl CheckState<'_> {
 
                 // select one declaring interface for an unqualified projection
                 let mut qualifier = member.qualifier;
-                if qualifier.is_none() {
-                    qualifier = self.select_associated_qualifier(origin, owner, member.key)?;
-                }
                 if qualifier.is_none() {
                     qualifier = self.select_associated_qualifier(origin, peeled, member.key)?;
                 }
@@ -538,91 +538,15 @@ impl CheckState<'_> {
                 self.normalize_chain(origin, reduced, expanding)
             }
 
-            // collapse a managed form over a fat pointer onto the pointer's own place
-            dir::Type::Form(form)
-                if let dir::Form::Managed { place } = form.form
-                    && let value = {
-                        let reduced = self.normalize_chain(origin, form.value, expanding)?;
-
-                        self.shallow_resolve(reduced)?
-                    }
-                    && matches!(
-                        self.ty(value)?,
-                        dir::Type::Slice(_)
-                            | dir::Type::Dynamic(_)
-                            | dir::Type::Function(_)
-                            | dir::Type::Form(dir::FormType {
-                                form: dir::Form::Borrowed(_),
-                                ..
-                            })
-                    ) =>
-            {
-                // rebuild the fat pointer at the managed handle's place
-                let rebuilt = match self.ty(value)? {
-                    dir::Type::Slice(slice) => {
-                        self.intern_type(dir::Type::Slice(dir::SliceType {
-                            element: slice.element,
-                            place,
-                        }))?
-                    }
-                    dir::Type::Dynamic(dynamic) => {
-                        self.intern_type(dir::Type::Dynamic(dir::DynamicType {
-                            constraint: dynamic.constraint,
-                            place,
-                        }))?
-                    }
-                    dir::Type::Function(function) => {
-                        self.intern_type(dir::Type::Function(dir::FunctionType {
-                            place,
-                            ..function
-                        }))?
-                    }
-                    dir::Type::Form(payload_form)
-                        if let dir::Form::Borrowed(borrow) = payload_form.form =>
-                    {
-                        let borrow = self.type_borrow(value.module_id, borrow)?;
-                        let region = self.with_region_space(borrow.region, place)?;
-                        let form = self.intern_borrow(region, borrow.access)?;
-
-                        self.intern_type(dir::Type::Form(dir::FormType {
-                            form,
-                            value: payload_form.value,
-                        }))?
-                    }
-                    _ => value,
-                };
-
-                self.normalize(origin, rebuilt)
-            }
-
-            // absorb the view forms a borrow's payload carries
+            // rebuild a borrow over the payload forms it absorbs
             dir::Type::Form(form) if let dir::Form::Borrowed(borrow) = form.form => {
                 let borrow = self.type_borrow(id.module_id, borrow)?;
-
-                // absorb the payload forms the borrow carries itself
-                let (payload, access, place) =
-                    self.reduce_borrow_payload(form.value, borrow.access)?;
-                if payload == form.value && access == borrow.access && place.is_none() {
+                let rebuilt = self.borrow_value(borrow.region, borrow.access, form.value)?;
+                if rebuilt == id {
                     return Ok(id);
                 }
 
-                // rebuild the borrow
-                let resolved = self.shallow_resolve(borrow.region)?;
-                let region = match (place, self.ty(resolved)?) {
-                    (Some(spaces), dir::Type::Region(pair)) => {
-                        self.intern_region(pair.extent, spaces)?
-                    }
-                    _ => borrow.region,
-                };
-                let closed_form = self.intern_borrow(region, access)?;
-                let rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
-                    form: closed_form,
-                    value: payload,
-                }))?;
-
-                let headed = self.normalize(origin, rebuilt)?;
-
-                Ok(headed)
+                self.normalize(origin, rebuilt)
             }
 
             // reduce family-default ownership constructors anywhere in the form chain
@@ -647,58 +571,6 @@ impl CheckState<'_> {
             // return every other root unchanged, already at its simplest
             _ => Ok(id),
         }
-    }
-
-    /// Reduce forms that a borrow absorbs from its payload.
-    fn reduce_borrow_payload(
-        &mut self,
-        mut value: dir::GlobalTypeId,
-        mut access: dir::GlobalTypeId,
-    ) -> CompilerResult<(
-        dir::GlobalTypeId,
-        dir::GlobalTypeId,
-        Option<dir::GlobalTypeId>,
-    )> {
-        let mut place = None;
-
-        // absorb each value form exposed by alias reduction
-        loop {
-            value = self.shallow_resolve(value)?;
-            let dir::Type::Form(payload) = self.ty(value)? else {
-                break;
-            };
-            match payload.form {
-                // clamp the borrow access on a readonly payload
-                dir::Form::Readonly => {
-                    access = self.access_literal(dir::Access::Readonly)?;
-                    value = payload.value;
-                }
-
-                // reborrow a borrowed payload at the clamped access
-                dir::Form::Borrowed(payload_borrow) => {
-                    let payload_access = self.type_borrow(value.module_id, payload_borrow)?.access;
-                    let payload_access = self.shallow_resolve(payload_access)?;
-                    if self.access_of(payload_access)? == Some(dir::Access::Readonly) {
-                        access = payload_access;
-                    }
-                    value = payload.value;
-                }
-
-                // borrow through a managed handle at the handle's place
-                dir::Form::Managed { place: handle } => {
-                    place = Some(handle);
-                    value = payload.value;
-                }
-
-                // lend the inline payload of an owned value
-                dir::Form::Owned => value = payload.value,
-
-                // keep the written form of a raw payload
-                dir::Form::Raw => break,
-            }
-        }
-
-        Ok((value, access, place))
     }
 
     /// Reduce one type graph with the active reduction path tracked.
@@ -745,7 +617,9 @@ impl CheckState<'_> {
         // keep an unchanged local root as it stands
         let target = self.module_id;
         let is_union = matches!(root, dir::Type::Union(_));
-        let is_computation = matches!(root, dir::Type::Operation(_));
+        let is_computation = matches!(root, dir::Type::Operation(_) | dir::Type::Member(_))
+            || self.is_closed_intrinsic_application(id)?
+            || self.is_redundant_owned_form(id)?;
         if replacements.is_empty() && id.module_id == target && !is_union && !is_computation {
             active.swap_remove(&id);
             memo.insert(original, id);
@@ -777,12 +651,30 @@ impl CheckState<'_> {
         };
 
         // reduce a computation head once its operands close
+        let is_renormalized = matches!(self.ty(rebuilt)?, dir::Type::Member(_))
+            || self.is_redundant_owned_form(rebuilt)?;
         let rebuilt = match self.ty(rebuilt)? {
             dir::Type::Operation(operation) => {
                 let operation = self.type_operation(rebuilt.module_id, operation)?;
                 match self.reduce_operation(origin, rebuilt, &operation)? {
                     Some(reduced) => self.normalize_graph(origin, reduced, memo, active)?,
                     None => rebuilt,
+                }
+            }
+            dir::Type::Application(instance)
+                if self.is_closed_intrinsic_application(rebuilt)? =>
+            {
+                match self.reduce_intrinsic_reference(origin, rebuilt.module_id, &instance)? {
+                    Some(reduced) => self.normalize_graph(origin, reduced, memo, active)?,
+                    None => rebuilt,
+                }
+            }
+            // reduce a projection or a redundant owned form one normalize step further
+            _ if is_renormalized => {
+                let reduced = self.normalize(origin, rebuilt)?;
+                match reduced == rebuilt {
+                    true => rebuilt,
+                    false => self.normalize_graph(origin, reduced, memo, active)?,
                 }
             }
             _ => rebuilt,
@@ -793,8 +685,62 @@ impl CheckState<'_> {
         Ok(rebuilt)
     }
 
-    /// Complete one under-applied application with its elided arguments.
+    /// Reduce the member projections one type holds once their owners closed.
+    pub(in crate::sema) fn settle_projections(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+        memo: &mut ProjectionMemo,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // share settled types across nodes of one assuming scope
+        let scope = self.origin_scope(origin)?;
+        if let Some(done) = memo.get(&(scope, id)).copied() {
+            return Ok(done);
+        }
+        let resolved = self.shallow_resolve(id)?;
+        memo.insert((scope, id), resolved);
+
+        let settled = match self.ty(resolved)? {
+            dir::Type::Member(_) => self.normalize(origin, resolved)?,
+            dir::Type::Application(_) if self.is_closed_intrinsic_application(resolved)? => {
+                self.normalize(origin, resolved)?
+            }
+            head => {
+                let mapped =
+                    self.map_type_children(resolved.module_id, head, &mut |state, child| {
+                        state.settle_projections(origin, child, memo)
+                    })?;
+                match mapped == head {
+                    true => resolved,
+                    false => self.intern_type(mapped)?,
+                }
+            }
+        };
+        memo.insert((scope, id), settled);
+
+        Ok(settled)
+    }
+
+    /// Complete one under-applied application with its elided arguments, once per application.
     pub(in crate::sema) fn fill_elided_application(
+        &mut self,
+        module: ModuleId,
+        instance: &dir::GenericApplication,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let instance_key = (module, *instance);
+        if let Some(filled) = self.infer.filled_applications.get(&instance_key) {
+            return Ok(Some(*filled));
+        }
+        let filled = self.complete_elided_application(module, instance)?;
+        if let Some(filled) = filled {
+            self.infer.filled_applications.insert(instance_key, filled);
+        }
+
+        Ok(filled)
+    }
+
+    /// Complete one under-applied application with the arguments its template elides.
+    fn complete_elided_application(
         &mut self,
         module: ModuleId,
         instance: &dir::GenericApplication,
@@ -859,6 +805,38 @@ impl CheckState<'_> {
         let substituted = self.substitute_type(value, &substitution)?;
 
         Ok(Some(substituted))
+    }
+
+    /// Return whether one head is an owned form its value already defaults to.
+    pub(in crate::sema) fn is_redundant_owned_form(
+        &mut self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let dir::Type::Form(form) = self.ty(id)? else {
+            return Ok(false);
+        };
+        if !matches!(form.form, dir::Form::Owned) {
+            return Ok(false);
+        }
+        let value = self.shallow_resolve(form.value)?;
+        if matches!(self.ty(value)?, dir::Type::Form(_)) {
+            return Ok(false);
+        }
+
+        Ok(self.ownership(value)? == Some(dir::Ownership::Owned))
+    }
+
+    /// Return whether one head applies an intrinsic alias over closed arguments.
+    fn is_closed_intrinsic_application(&mut self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let dir::Type::Application(instance) = self.ty(id)? else {
+            return Ok(false);
+        };
+        let flags = self.type_flags(id)?;
+        if flags.has_this() || flags.has_type_parameter() || flags.has_variable() {
+            return Ok(false);
+        }
+
+        self.is_intrinsic_alias(instance.symbol)
     }
 
     /// Return whether one declared name is an alias whose body is the intrinsic type.

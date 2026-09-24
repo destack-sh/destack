@@ -36,18 +36,6 @@ impl NewtypeInstance {
 }
 
 impl CheckState<'_> {
-    /// Return one physical newtype payload.
-    pub(in crate::sema) fn newtype_payload(
-        &mut self,
-        origin: Origin,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<NewtypeInstance>> {
-        let Some(instance) = self.decompose_newtype(origin, value)? else {
-            return Ok(None);
-        };
-        Ok(Some(instance))
-    }
-
     /// Decompose one nominal newtype instance.
     pub(in crate::sema) fn decompose_newtype(
         &mut self,

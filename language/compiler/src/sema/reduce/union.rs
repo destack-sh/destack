@@ -6,6 +6,9 @@ use smallvec::SmallVec;
 use crate::sema::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
+/// The depth same type comparison descends into applications, forms, and unions.
+const SAME_TYPE_DEPTH: u32 = 8;
+
 /// One union type split around its nullish elements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) struct NullishSplit {
@@ -37,9 +40,6 @@ impl NullishPart {
     }
 }
 
-/// The depth same type comparison descends into applications, forms, and unions.
-const SAME_TYPE_DEPTH: u32 = 8;
-
 impl CheckState<'_> {
     /// Rebuild one union without the members a rejecting position strips.
     pub(in crate::sema) fn without_union_members(
@@ -53,7 +53,7 @@ impl CheckState<'_> {
 
         // keep the members the position accepts
         let mut kept = Vec::new();
-        // collect the members by the value's own head
+        // collect the members by the head of the value
         match self.ty(resolved)? {
             dir::Type::Union(union) => {
                 let elements = self.type_ids(resolved.module_id, union.elements)?;
@@ -75,18 +75,8 @@ impl CheckState<'_> {
         &mut self,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut elements = self.union_elements(elements)?;
-
-        // order the arms canonically, nullish arms last, so equal unions intern equal
-        let mut keyed = SmallVec::<[(bool, dir::GlobalTypeId); 4]>::new();
-        for element in elements.iter().copied() {
-            let is_nullish = matches!(self.ty(element)?, dir::Type::Null | dir::Type::Undefined);
-            keyed.push((is_nullish, element));
-        }
-        keyed.sort_by_key(|(is_nullish, element)| {
-            (*is_nullish, element.module_id, element.local_id)
-        });
-        elements = keyed.into_iter().map(|(_, element)| element).collect();
+        // keep the arms in declaration order, the physical case order every instance inherits
+        let elements = self.union_elements(elements)?;
 
         // join the deduplicated elements
         match elements.as_slice() {
@@ -138,7 +128,8 @@ impl CheckState<'_> {
         &mut self,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 4]>> {
-        let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        // keep each element beside whether it is a singleton key
+        let mut kept = SmallVec::<[(dir::GlobalTypeId, bool); 4]>::new();
         let mut keys = FxIndexSet::default();
         let mut key_domains = SmallVec::<[dir::PrimitiveType; 2]>::new();
         for element in elements {
@@ -155,28 +146,28 @@ impl CheckState<'_> {
 
             // drop the elements a broader element already covers
             for element in elements {
-                // singleton keys deduplicate by identity and their primitive domains
+                let element = self.shallow_resolve(element)?;
+
+                // deduplicate singleton keys by identity, primitive domain, and broader elements
                 if let Some(key) = self.static_key_from_type(element)? {
+                    let broader = kept.iter().filter(|(_, is_key)| !is_key);
                     let is_covered = !keys.insert(key)
                         || key_domains
                             .iter()
                             .any(|primitive| key.widens_to_primitive(*primitive))
-                        || self.union_contains(&kept, element)?;
+                        || self.union_contains(broader.map(|(kept, _)| *kept), element)?;
                     if !is_covered {
-                        kept.push(element);
+                        kept.push((element, true));
                     }
 
                     continue;
                 }
 
                 // skip the elements a kept element already covers or absorbs
-                if self.union_contains(&kept, element)? {
+                if self.union_contains(kept.iter().map(|(kept, _)| *kept), element)? {
                     continue;
                 }
                 if self.merge_borrowed_union_element(&mut kept, element)? {
-                    continue;
-                }
-                if self.merge_placed_union_element(&mut kept, element)? {
                     continue;
                 }
 
@@ -185,9 +176,15 @@ impl CheckState<'_> {
                 if let dir::Type::Primitive(primitive) = self.ty(element)? {
                     key_domains.push(primitive);
                 }
-                kept.push(element);
+                kept.push((element, false));
             }
         }
+
+        // drop the key flags
+        let mut kept = kept
+            .into_iter()
+            .map(|(element, _)| element)
+            .collect::<SmallVec<[dir::GlobalTypeId; 4]>>();
 
         // both boolean literals together are the boolean primitive
         let mut booleans = [false, false];
@@ -218,7 +215,7 @@ impl CheckState<'_> {
     /// Merge borrows of one payload and access by joining their lifetimes.
     fn merge_borrowed_union_element(
         &mut self,
-        kept: &mut SmallVec<[dir::GlobalTypeId; 4]>,
+        kept: &mut SmallVec<[(dir::GlobalTypeId, bool); 4]>,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let dir::Type::Form(form) = self.ty(element)? else {
@@ -229,8 +226,8 @@ impl CheckState<'_> {
         };
         let borrow = self.type_borrow(element.module_id, borrow)?;
 
-        // layer the borrow over each kept slot
-        for slot in kept.iter_mut() {
+        // layer the borrow over each kept arm
+        for (slot, _) in kept.iter_mut() {
             let dir::Type::Form(existing) = self.ty(*slot)? else {
                 continue;
             };
@@ -270,60 +267,14 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Merge one placed element into a kept element sharing its place.
-    ///
-    /// Place representations apply to the whole union, so same-place elements factor
-    /// into one representation over the joined values.
-    fn merge_placed_union_element(
-        &mut self,
-        kept: &mut SmallVec<[dir::GlobalTypeId; 4]>,
-        element: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let dir::Type::Form(form) = self.ty(element)? else {
-            return Ok(false);
-        };
-        let dir::Form::Managed { place } = form.form else {
-            return Ok(false);
-        };
-
-        for slot in kept.iter_mut() {
-            let dir::Type::Form(existing) = self.ty(*slot)? else {
-                continue;
-            };
-            let dir::Form::Managed {
-                place: existing_place,
-            } = existing.form
-            else {
-                continue;
-            };
-            if existing_place != place {
-                continue;
-            }
-            if existing.value == form.value {
-                return Ok(true);
-            }
-
-            // factor both values under the shared place
-            let joined = self.normalized_union_type([existing.value, form.value])?;
-            *slot = self.intern_type(dir::Type::Form(dir::FormType {
-                form: dir::Form::Managed { place },
-                value: joined,
-            }))?;
-
-            return Ok(true);
-        }
-
-        Ok(false)
-    }
-
     /// Return whether a union element list already covers one type.
     fn union_contains(
         &self,
-        kept: &[dir::GlobalTypeId],
+        kept: impl IntoIterator<Item = dir::GlobalTypeId>,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         for candidate in kept {
-            if self.union_element_covers(*candidate, element)? {
+            if self.union_element_covers(candidate, element)? {
                 return Ok(true);
             }
         }
@@ -334,12 +285,12 @@ impl CheckState<'_> {
     /// Remove elements covered by one broader union element.
     fn remove_covered_union_elements(
         &self,
-        kept: &mut SmallVec<[dir::GlobalTypeId; 4]>,
+        kept: &mut SmallVec<[(dir::GlobalTypeId, bool); 4]>,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let mut index = 0;
         while index < kept.len() {
-            if self.union_element_covers(element, kept[index])? {
+            if self.union_element_covers(element, kept[index].0)? {
                 kept.remove(index);
             } else {
                 index += 1;
@@ -450,7 +401,7 @@ impl CheckState<'_> {
             }
             (target, dir::Type::Literal(literal)) => literal.widens_to(&target),
             (target, dir::Type::Range(range)) => range.widens_to(&target),
-            // an enum covers each of its own variants
+            // cover each variant of an enum
             (_, dir::Type::Variant(variant)) => self.is_same_type(source, variant.owner)?,
             _ => false,
         };
@@ -548,22 +499,29 @@ impl CheckState<'_> {
             return Ok(member);
         }
 
-        // match the member stored beneath its enclosing forms
+        // match the member stored beneath its enclosing forms, canonicalized like the leaves
         let base = self.form_chain(origin, member)?.base();
+        let base = self.canonical_union_application(base)?;
         if leaves.contains(&base) {
             return Ok(base);
         }
 
-        // match the normalized member against each normalized leaf
+        // match the member against each leaf, both normalized and resolved through their solutions
         let normal = self.normalize(origin, base)?;
+        let resolved = self.fully_resolve(normal)?;
         for leaf in leaves {
-            if leaf == normal || self.normalize(origin, leaf)? == normal {
+            let leaf_normal = self.normalize(origin, leaf)?;
+            if leaf_normal == normal || self.fully_resolve(leaf_normal)? == resolved {
                 return Ok(leaf);
             }
         }
 
         Err(CompilerError::Internal {
-            message: format!("{site} selecting a member outside its union's canonical leaves"),
+            message: format!(
+                "{site} selecting the member '{}' outside the canonical leaves of '{}'",
+                self.format_type(member),
+                self.format_type(union)
+            ),
         })
     }
 
@@ -588,17 +546,13 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // order the members canonically by their bare identity, nullish members last
-        let mut keyed = Vec::with_capacity(leaves.len());
+        // keep the members in declaration order, each once
+        let mut members = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         for member in leaves {
-            let base = self.form_chain(origin, member)?.base();
-            let is_nullish = matches!(self.ty(base)?, dir::Type::Null | dir::Type::Undefined);
-            keyed.push(((is_nullish, base), member));
+            if !members.contains(&member) {
+                members.push(member);
+            }
         }
-        keyed.sort();
-        keyed.dedup();
-
-        let members: SmallVec<_> = keyed.into_iter().map(|(_, member)| member).collect();
         if is_closed {
             self.canonical_unions.insert(target, Some(members.clone()));
         }

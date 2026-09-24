@@ -57,7 +57,7 @@ impl CheckState<'_> {
         use_: ScalarUse,
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
     ) -> CompilerResult<Option<dir::ScalarFamilySet>> {
-        // read the families by the type's own head
+        // read the families by the head of the type
         let root = self.normalize(origin, ty)?;
         let families = match self.ty(root)? {
             // union alternatives contribute every possible family
@@ -172,7 +172,7 @@ impl CheckState<'_> {
 
         // runtime values inherit the physical family of transparent newtypes
         if matches!(use_, ScalarUse::Value)
-            && let Some(instance) = self.newtype_payload(origin, root)?
+            && let Some(instance) = self.decompose_newtype(origin, root)?
         {
             return self.type_scalar_families(origin, instance.backing, use_, parameters);
         }
