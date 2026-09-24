@@ -1,7 +1,4 @@
-use crate::{
-    FunctionId, Opcode, ReferenceKind, ReferenceType, RegisterId, RegisterSpan, RelocationTag,
-    Storage, ValueType,
-};
+use crate::{FunctionId, Opcode, RegisterId, RegisterSpan, RelocationTag, ValueType};
 
 use super::TestParser;
 
@@ -14,7 +11,7 @@ external function f0
 function f1 {
     memory.load r4, r0, 8
     memory.store r0, r4, 8
-    barrier r4, r3, r3: ref<managed, local>
+    barrier r4, r3, r3
     drop r0, f0
     release r2
     free r2
@@ -45,17 +42,15 @@ function f1 {
         vec![RelocationTag::FUNCTION]
     );
 
-    // retain the managed reference representation for collector operations
+    // encode the object address and the changed byte range
     let instruction = object
         .operation(FunctionId(1), 2)
         .expect("valid instruction")
         .expect("barrier instruction");
     let mut operands = instruction.operands();
     assert_eq!(operands.register().expect("object register"), RegisterId(4));
-    assert_eq!(
-        operands.reference().expect("object representation"),
-        ReferenceType::new(ReferenceKind::MANAGED, Storage::LOCAL)
-    );
+    assert_eq!(operands.register().expect("offset register"), RegisterId(3));
+    assert_eq!(operands.register().expect("length register"), RegisterId(3));
 
     // retain the complete logical value and direct destructor identity
     let instruction = object

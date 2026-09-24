@@ -1,6 +1,6 @@
 use crate::{
-    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, ReferenceType, RegisterSpan,
-    RelocationTag, Token, TokenType,
+    InstructionBuilder, Opcode, ParseError, ParseResult, Parser, RegisterSpan, RelocationTag,
+    Token, TokenType,
 };
 
 use super::function::FunctionParser;
@@ -25,7 +25,7 @@ impl Parser<'_> {
         match name {
             "release" | "free" => self.parse_owner(opcode, &results, function),
             "drop" => self.parse_drop(&results, function),
-            "barrier" => self.parse_barrier(token, &results, function),
+            "barrier" => self.parse_barrier(&results, function),
             _ => Err(ParseError::new("invalid reference operation", token.span)),
         }
     }
@@ -67,7 +67,6 @@ impl Parser<'_> {
     /// Parse one managed reference write barrier.
     fn parse_barrier(
         &mut self,
-        token: Token,
         results: &[RegisterSpan],
         function: &mut FunctionParser,
     ) -> ParseResult<()> {
@@ -77,23 +76,13 @@ impl Parser<'_> {
         let offset = self.parse_register()?;
         self.eat_token(TokenType::Comma)?;
         let byte_len = self.parse_register()?;
-        let reference = self.parse_reference_representation(token)?;
 
         // encode the write barrier
         let mut instruction = InstructionBuilder::new(Opcode::BARRIER);
         instruction.register(object);
-        instruction.reference(reference.kind(), reference.storage());
         instruction.register(offset);
         instruction.register(byte_len);
 
         function.emit(instruction, results, self.empty_span())
-    }
-
-    /// Parse one trailing reference representation.
-    fn parse_reference_representation(&mut self, token: Token) -> ParseResult<ReferenceType> {
-        let ty = self.parse_representation()?;
-
-        ty.reference_type()
-            .ok_or_else(|| ParseError::new("expected reference representation", token.span))
     }
 }

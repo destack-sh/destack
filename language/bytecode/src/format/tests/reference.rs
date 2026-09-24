@@ -10,7 +10,7 @@ external function f0
 function f1 {
     memory.load r4, r0,8
 memory.store r0,r4,8
-barrier r4,r3,r3: ref<managed, local>
+barrier r4,r3,r3
 drop r0,f0
 release r2
 free r2
@@ -23,7 +23,7 @@ external function f0
 function f1 {
     memory.load r4, r0, 8
     memory.store r0, r4, 8
-    barrier r4, r3, r3: ref<managed, local>
+    barrier r4, r3, r3
     drop r0, f0
     release r2
     free r2

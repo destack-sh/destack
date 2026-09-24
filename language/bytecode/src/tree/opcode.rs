@@ -352,8 +352,8 @@ opcodes! {
     // collector protocol
     BARRIER = 0x0090 {
         text: "barrier",
-        signature: "(object: ref<managed>, offset: uint64, byteLength: uint64) => void",
-        operands: [Register, Reference, Register, Register],
+        signature: "(object: address, offset: uint64, byteLength: uint64) => void",
+        operands: [Register, Register, Register],
     }
 
     // calls

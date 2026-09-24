@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{Opcode, RegisterSpan, RelocationTag, ValueType};
+use crate::{Opcode, RegisterSpan, RelocationTag};
 
 use super::instruction::InstructionFormatter;
 
@@ -51,7 +51,6 @@ impl InstructionFormatter<'_, '_, '_> {
     fn format_barrier(&mut self) -> FormatResult<()> {
         // decode the changed object byte range
         let object = self.register_id()?;
-        let reference = self.reference()?;
         let offset = self.register_id()?;
         let byte_len = self.register_id()?;
 
@@ -61,7 +60,6 @@ impl InstructionFormatter<'_, '_, '_> {
         write!(self.formatter, [token(","), space()])?;
         self.write_register(offset)?;
         write!(self.formatter, [token(","), space()])?;
-        self.write_register(byte_len)?;
-        self.write_representation(ValueType::reference(reference.kind(), reference.storage()))
+        self.write_register(byte_len)
     }
 }

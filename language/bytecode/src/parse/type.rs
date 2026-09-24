@@ -6,13 +6,6 @@ use crate::{
 };
 
 impl Parser<'_> {
-    /// Parse one trailing value representation.
-    pub(super) fn parse_representation(&mut self) -> ParseResult<ValueType> {
-        self.eat_token(TokenType::Colon)?;
-
-        self.parse_value_type()
-    }
-
     /// Parse one logical bytecode value type.
     pub(super) fn parse_value_type(&mut self) -> ParseResult<ValueType> {
         let token = self.eat_token(TokenType::Identifier)?;
