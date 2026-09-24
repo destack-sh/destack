@@ -1,5 +1,7 @@
 {
     "extends": "../../tsconfig.json",
-    "compilerOptions": { "lib": ["ESNext", "DOM", "DOM.Iterable"] },
-    "files": ["./src/index.ts", "./src/token/tokens.stylex.ts"]
+    "compilerOptions": {
+        "lib": ["ESNext", "DOM", "DOM.Iterable"]
+    },
+    "include": ["src"]
 }

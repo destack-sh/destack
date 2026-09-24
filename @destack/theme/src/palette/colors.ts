@@ -1038,7 +1038,8 @@ export const skyDark = {
     sky12: "#c2f3ff",
 } as const;
 
-/** Mint light scale. */
+/** Light scale of the teal-green Radix color. */
+/* oxlint-disable-next-line destack/no-sludge -- Radix color name */
 export const mint = {
     mint1: "#f9fefd",
     mint2: "#f2fbf9",
@@ -1054,7 +1055,8 @@ export const mint = {
     mint12: "#16433c",
 } as const;
 
-/** Mint dark scale. */
+/** Dark scale of the teal-green Radix color. */
+/* oxlint-disable-next-line destack/no-sludge -- Radix color name */
 export const mintDark = {
     mint1: "#0e1515",
     mint2: "#0f1b1b",
