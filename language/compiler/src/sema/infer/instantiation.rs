@@ -60,8 +60,8 @@ impl CheckState<'_> {
                         construction
                             .map_types(&mut |ty| self.substitute_type(ty, &substitution))?;
                         match &mut construction.target {
-                            dir::ConstructTarget::Class { key, .. }
-                            | dir::ConstructTarget::Newtype { key, .. } => &mut key.arguments,
+                            dir::ConstructTarget::Class { arguments, .. } => arguments,
+                            dir::ConstructTarget::Newtype { key, .. } => &mut key.arguments,
                         }
                     }
                     dir::CallableTarget::Symbol { function, .. } => &mut function.key.arguments,
@@ -74,6 +74,14 @@ impl CheckState<'_> {
                     .with_carried(arguments)?
                     .with_carried(&substitution.bindings)?;
                 *arguments = substitution.bindings.into_vec();
+
+                // keep the class key at the parameters of the class
+                if let dir::CallableTarget::Constructor(construction) = &mut target
+                    && let dir::ConstructTarget::Class { key, arguments, .. } =
+                        &mut construction.target
+                {
+                    key.arguments = self.own_instance_bindings(key.symbol, arguments)?;
+                }
                 let value = dir::FunctionValue {
                     target,
                     callable_type: ty,

@@ -5,7 +5,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseKind, CheckFailure, CheckState, Expectation, FailedCheck, FlowSite, InferMode,
-    MemberRole, Origin, PlaceUse, Relation, ValueUse, Verdict, WalkState,
+    MemberRole, Origin, PlaceUse, PropertySource, Relation, StoreTarget, ValueUse, Verdict,
+    WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -26,7 +27,6 @@ impl CheckState<'_> {
         let mut authored = IndexMap::<dir::StaticKey, dir::PropertyAccess>::new();
         let mut values = IndexMap::<dir::StaticKey, dir::GlobalNodeIdAny>::new();
         let mut refusals = SmallVec::<[CheckFailure; 2]>::new();
-        let field_mode = mode;
 
         // read the members the storage context declares for the authored keys
         let members = match context {
@@ -84,11 +84,11 @@ impl CheckState<'_> {
                 dir::Property::Field { name, value, .. } => {
                     let key = name.into();
 
-                    // store a contextual field's value into the declared member's slot
+                    // store a contextual field's value into the declared member
                     let value_site = self.visit_site(value.into_global_any(module))?;
                     let member = match (&members, context) {
                         (Some((fields, indexes, _)), Some(expectation))
-                            if field_mode == InferMode::Regular =>
+                            if mode == InferMode::Regular =>
                         {
                             let member = self.contextual_member(origin, fields, indexes, key)?;
                             if member.is_none() {
@@ -106,24 +106,29 @@ impl CheckState<'_> {
                             expectation.cause,
                         ));
                         let member_type = self.erase_inference_barriers(member.access.store())?;
+                        let store = match member.is_optional {
+                            true => StoreTarget::Optional,
+                            false => StoreTarget::Exact,
+                        };
                         let use_ = expectation.use_;
                         let expectation = Expectation {
                             target: member_type,
                             cause,
                             use_: ValueUse::Store,
+                            store,
                             ..expectation
                         };
                         match use_ {
-                            // keep a predicate's field at its own type, inferred under the member
+                            // keep a predicate's field at its inferred type
                             ValueUse::Satisfies => {
                                 let ty = self.infer_node_in(
                                     value_site,
                                     PlaceUse::Read,
-                                    field_mode,
+                                    mode,
                                     Some(expectation),
                                 )?;
                                 let ty = self.flow_type_at(value_site, ty)?;
-                                let mode = match self.type_keeps_literal(
+                                let stored_mode = match self.type_keeps_literal(
                                     origin,
                                     ty,
                                     member_type,
@@ -132,7 +137,7 @@ impl CheckState<'_> {
                                     true => InferMode::Literal,
                                     false => InferMode::Regular,
                                 };
-                                let slot = self.store_into_slot(value_site, ty, mode)?;
+                                let slot = self.store_into_slot(value_site, ty, stored_mode)?;
                                 self.constrain_type(
                                     origin,
                                     cause,
@@ -143,7 +148,7 @@ impl CheckState<'_> {
 
                                 slot
                             }
-                            // take the declared member as a stored field's slot
+                            // store a field into the declared member
                             _ => {
                                 self.check_node(value_site, expectation)?;
 
@@ -151,18 +156,18 @@ impl CheckState<'_> {
                             }
                         }
                     }
-                    // infer the written value into a mutable field's own slot
+                    // infer the written value into a mutable field
                     else {
-                        let ty = self.infer_node(value_site, PlaceUse::Read, field_mode)?;
+                        let ty = self.infer_node(value_site, PlaceUse::Read, mode)?;
                         let ty = self.flow_type_at(value_site, ty)?;
-                        match field_mode {
+                        match mode {
                             InferMode::Const => ty,
                             mode => self.store_into_slot(value_site, ty, mode)?,
                         }
                     };
                     values.insert(key, value_site.node);
 
-                    // record the field slot and the value that wrote it
+                    // record the field and the value that wrote it
                     let (typed_access, authored_access) =
                         Self::written_field_accesses(ty, mode.is_readonly());
                     let field = dir::TypeProperty {
@@ -186,14 +191,14 @@ impl CheckState<'_> {
                     };
                     let key = name.into();
 
-                    // read the slot the method's signature exposes
+                    // read the member type of the method's signature
                     let role = MemberRole::from(signature.role);
                     let (authored_access, field) =
                         self.method_property_slot(module, property, key, role, mode.is_readonly())?;
 
                     // check the accessor's operations against the member its context declares
                     if let (Some((members, indexes, _)), Some(expectation)) = (&members, context)
-                        && field_mode == InferMode::Regular
+                        && mode == InferMode::Regular
                         && let Some(member) =
                             self.contextual_member(origin, members, indexes, key)?
                     {
@@ -202,9 +207,12 @@ impl CheckState<'_> {
                             CauseKind::Field { key },
                             expectation.cause,
                         ));
-                        if let Some(relations) =
-                            self.shape_property_relations(expectation.relation, &field, &member)
-                        {
+                        if let Some(relations) = Self::shape_property_relations(
+                            expectation.relation,
+                            PropertySource::Constructed,
+                            &field,
+                            &member,
+                        ) {
                             self.relate_shape_fields(origin, cause, &relations)?;
                         }
                     }
@@ -230,7 +238,7 @@ impl CheckState<'_> {
                         return self.poison_node(node.into_any());
                     }
 
-                    // reject a source that carries no object fields
+                    // reject a source without object fields
                     let Some(spread_fields) =
                         self.spread_fields(Origin::Node(source, site.scope), module, spread)?
                     else {
@@ -262,7 +270,7 @@ impl CheckState<'_> {
                         // store a spread member into the member its context declares
                         if let (Some((members, indexes, _)), Some(expectation)) =
                             (&members, context)
-                            && field_mode == InferMode::Regular
+                            && mode == InferMode::Regular
                         {
                             match self.contextual_member(origin, members, indexes, field.key)? {
                                 Some(member) => {
@@ -292,7 +300,7 @@ impl CheckState<'_> {
         }
 
         // require every field one exact context declares
-        if let (Some((members, _, Some(_))), InferMode::Regular) = (&members, field_mode) {
+        if let (Some((members, _, Some(_))), InferMode::Regular) = (&members, mode) {
             for member in members {
                 if !member.is_optional && !fields.contains_key(&member.key) {
                     refusals.push(CheckFailure::MissingRequiredProperty { key: member.key });
@@ -319,20 +327,15 @@ impl CheckState<'_> {
         // construct the literal as the concrete object slot an exact context declares
         if let (Some((_, _, Some(stored))), Some(expectation)) = (&members, context)
             && !is_refused
-            && field_mode == InferMode::Regular
+            && mode == InferMode::Regular
             && expectation.use_ != ValueUse::Satisfies
             && self.is_constructed_object_slot(origin, *stored)?
         {
             return Ok(*stored);
         }
 
-        // wrap a stored literal in the forms its context declares
-        match context {
-            Some(expectation) if expectation.use_ != ValueUse::Satisfies => {
-                self.replace_form_value(site.origin(), expectation.target, shape)
-            }
-            _ => Ok(shape),
-        }
+        // type the literal as the handle its destination takes
+        self.contextual_form(shape, context)
     }
 
     /// Return whether one slot stores a signature-free object or intersection a literal constructs.
@@ -382,12 +385,14 @@ impl CheckState<'_> {
             Option<dir::GlobalTypeId>,
         )>,
     > {
-        // read the members the target itself declares
+        // read the members the target declares
         let Some(value) = self.construction_value(origin, target)? else {
             return Ok(None);
         };
-        if let Some((fields, indexes)) = self.apparent_object_members(origin, value)? {
-            return Ok(Some((fields, indexes, Some(target))));
+        if let Some((fields, indexes)) = self.apparent_object_members(origin, target)? {
+            let stored = self.replace_form_value(origin, target, value)?;
+
+            return Ok(Some((fields, indexes, Some(stored))));
         }
 
         // read the fields a struct constructs from
@@ -410,10 +415,10 @@ impl CheckState<'_> {
         let mut members = SmallVec::<[_; 4]>::new();
         let mut fitting = SmallVec::<[usize; 4]>::new();
         for arm in arms {
-            let Some(arm_value) = self.construction_value(origin, arm)? else {
+            let Some(constructed) = self.construction_value(origin, arm)? else {
                 continue;
             };
-            let Some((fields, indexes)) = self.apparent_object_members(origin, arm_value)? else {
+            let Some((fields, indexes)) = self.apparent_object_members(origin, arm)? else {
                 continue;
             };
             let mut fits = fields.iter().all(|field| {
@@ -437,12 +442,12 @@ impl CheckState<'_> {
             if fits {
                 fitting.push(members.len());
             }
-            members.push((arm, fields, indexes));
+            members.push((constructed, fields, indexes));
         }
         // take the sole arm the written literals fall within
         if let [index] = fitting.as_slice() {
-            let (arm, fields, indexes) = members.swap_remove(*index);
-            let stored = self.replace_form_value(origin, target, arm)?;
+            let (constructed, fields, indexes) = members.swap_remove(*index);
+            let stored = self.replace_form_value(origin, target, constructed)?;
 
             return Ok(Some((fields, indexes, Some(stored))));
         }
@@ -548,6 +553,7 @@ impl CheckState<'_> {
                 cause,
                 use_: ValueUse::Store,
                 mode,
+                store: StoreTarget::Exact,
             },
         )?;
 
@@ -574,7 +580,7 @@ impl CheckState<'_> {
         // walk methods inference discovers before their walk
         if self.symbol_type_maybe(symbol)?.is_none() {
             let (parsed, expanded) = self.patched_inputs(module);
-            let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+            let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
             let mut walk = WalkState::new(module, tree, self);
             walk.walk_property(property, &tree.get(property).clone())?;
             walk.flush_flows()?;

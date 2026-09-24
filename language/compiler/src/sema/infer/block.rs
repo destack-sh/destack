@@ -92,7 +92,7 @@ impl CheckState<'_> {
                 self.module_mut(module).flows.set_unreachable(node.local_id);
             }
 
-            // let each statement own the inference it opens
+            // scope the inference each statement opens to that statement
             self.attempt_node(site, PlaceUse::Read, None)?;
 
             // end the block unreachable on a never-typed statement, excluding unbound jumps
@@ -103,6 +103,7 @@ impl CheckState<'_> {
                 {
                     is_end_reachable = false;
                     self.module_mut(module).flows.set_diverging(node.local_id);
+                    self.flow.insert_diverge();
                 }
             }
         }
@@ -143,7 +144,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        // visit the statement at its own site
+        // visit the statement at its site
         let site = self.visit_site(expression.into_global_any(module))?;
 
         Ok(Some(site))

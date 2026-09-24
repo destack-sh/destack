@@ -16,7 +16,7 @@ pub(in crate::sema) enum InferMode {
     Const,
 }
 
-/// The syntax one node produces a value through.
+/// The node form one node produces a value through.
 pub(in crate::sema) enum NodeForm {
     /// A literal or template constant.
     Literal,
@@ -24,7 +24,7 @@ pub(in crate::sema) enum NodeForm {
     Composite,
     /// A block, conditional, or match producing the values of its branches.
     Branching(SmallVec<[dir::GlobalNodeIdAny; 4]>),
-    /// An expression producing another expression's value without a context of its own.
+    /// An expression producing another expression's value without a separate context.
     Forward(SmallVec<[dir::GlobalNodeIdAny; 4]>),
     /// A function value.
     FunctionValue,
@@ -34,7 +34,7 @@ pub(in crate::sema) enum NodeForm {
     Other,
 }
 
-/// The values the breaks of one loop carry.
+/// The values the breaks of one loop pass out.
 struct BreakValues {
     /// The loop's label.
     label: Option<dir::StringId>,
@@ -95,6 +95,7 @@ impl CheckState<'_> {
         value: dir::Literal,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match value {
+            // read a regex literal as a RegExp object
             dir::Literal::RegexString { .. } => self.language_type(dir::LanguageItem::RegExp, &[]),
             dir::Literal::Null => self.intern_type(dir::Type::Null),
             dir::Literal::Undefined => self.intern_type(dir::Type::Undefined),
@@ -115,14 +116,12 @@ impl CheckState<'_> {
     }
 
     /// Widen one fresh type onto the base its leaves name.
-    ///
-    /// A numeric literal widens into an open kind its uses decide.
     pub(in crate::sema) fn widen_fresh(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // widen by the head the type carries
+        // widen by the head of the type
         let ty = self.shallow_resolve(ty)?;
         match self.ty(ty)? {
             // widen a numeric literal into a variable its uses decide
@@ -134,7 +133,7 @@ impl CheckState<'_> {
             }
             // widen a variant literal to its enum
             dir::Type::Variant(variant) => Ok(variant.owner),
-            // widen a template expression to the string it prints
+            // widen a template expression to the string it prints, an object in constant space
             dir::Type::Operation(operation)
                 if matches!(
                     self.type_operation(ty.module_id, operation)?,
@@ -220,9 +219,9 @@ impl CheckState<'_> {
         Ok(Value { ty, ..value })
     }
 
-    /// Read the syntax one node produces a value through.
-    pub(in crate::sema) fn node_syntax(&self, node: dir::GlobalNodeIdAny) -> NodeForm {
-        // read the syntax standing at the node
+    /// Return the form one node produces its value through.
+    pub(in crate::sema) fn node_form(&self, node: dir::GlobalNodeIdAny) -> NodeForm {
+        // read the expression standing at the node
         let module = node.module_id;
         let view = self.module(module).view();
         match node.local_id.ty {
@@ -238,7 +237,7 @@ impl CheckState<'_> {
 
                 NodeForm::Branching(values)
             }
-            // an expression produces a value by its own form
+            // produce an expression's value by its form
             dir::NodeType::Expression => {
                 let expression = node.local_id.into_typed::<dir::Expression>();
                 match view.get(expression) {
@@ -256,7 +255,7 @@ impl CheckState<'_> {
                         }
                     }
                     dir::Expression::Identifier { .. } => NodeForm::Name,
-                    // produce the values a loop's breaks carry
+                    // produce the values a loop's breaks pass out
                     dir::Expression::Loop { label, body } => {
                         let mut breaks = BreakValues {
                             label: *label,
@@ -319,6 +318,15 @@ impl CheckState<'_> {
 
                         NodeForm::Branching(values)
                     }
+                    // produce either coalesce operand
+                    dir::Expression::Binary {
+                        operator: dir::BinaryOperator::Coalesce,
+                        left,
+                        right,
+                    } => NodeForm::Branching(SmallVec::from_slice(&[
+                        left.into_global_any(module),
+                        right.into_global_any(module),
+                    ])),
                     _ => NodeForm::Other,
                 }
             }
@@ -331,7 +339,7 @@ impl CheckState<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> Option<SmallVec<[dir::GlobalNodeIdAny; 4]>> {
-        match self.node_syntax(node) {
+        match self.node_form(node) {
             NodeForm::Branching(values) => Some(values),
             _ => None,
         }
@@ -342,7 +350,7 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<bool> {
-        Ok(match self.node_syntax(node) {
+        Ok(match self.node_form(node) {
             NodeForm::Literal | NodeForm::Composite | NodeForm::FunctionValue => true,
             NodeForm::Name => self.is_fresh_const_read(node)?,
             // keep a branching node fresh while every branch value is fresh
@@ -354,7 +362,7 @@ impl CheckState<'_> {
 
                 is_fresh
             }
-            // read a variant access as the literal syntax of its variant
+            // read a variant access as the literal form of its variant
             NodeForm::Other => match self.own_node_type(node) {
                 Some(ty) => matches!(self.ty_raw(ty)?, dir::Type::Variant(_)),
                 None => false,
@@ -365,9 +373,14 @@ impl CheckState<'_> {
     /// Return whether one node checks under its destination as context.
     pub(in crate::sema) fn is_composite_node(&self, node: dir::GlobalNodeIdAny) -> bool {
         matches!(
-            self.node_syntax(node),
+            self.node_form(node),
             NodeForm::Composite | NodeForm::Branching(_)
         )
+    }
+
+    /// Return whether one composite or function value node takes its type from its expectation.
+    pub(in crate::sema) fn is_contextually_typed(&self, node: dir::GlobalNodeIdAny) -> bool {
+        self.is_composite_node(node) || matches!(self.node_form(node), NodeForm::FunctionValue)
     }
 
     /// Return whether one name reads an unannotated const binding initialized by a fresh value.

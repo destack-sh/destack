@@ -5,7 +5,7 @@ use super::InferMode;
 use crate::CompilerResult;
 use crate::sema::{
     Cause, CauseKind, CheckState, ConditionBranch, Expectation, FlowSite, Obligation, PlaceUse,
-    RangeElementObligation, Relation, RelationCheck, Value, ValueUse, Verdict,
+    RangeElementObligation, Relation, RelationCheck, StoreTarget, Value, ValueUse, Verdict,
 };
 
 impl CheckState<'_> {
@@ -21,6 +21,7 @@ impl CheckState<'_> {
         left: dir::LocalNodeId<dir::Expression>,
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
+        context: Option<Expectation>,
     ) -> CompilerResult<()> {
         // infer the left operand
         let module = site.node.module_id;
@@ -56,6 +57,7 @@ impl CheckState<'_> {
             left_source,
             right_source,
             None,
+            context,
         )
     }
 
@@ -82,6 +84,7 @@ impl CheckState<'_> {
                 cause,
                 use_: ValueUse::Satisfies,
                 mode: InferMode::Regular,
+                store: StoreTarget::Exact,
             },
         )?;
         let value_type = check.source;
@@ -124,6 +127,7 @@ impl CheckState<'_> {
             cause,
             use_: ValueUse::Cast,
             mode: InferMode::Regular,
+            store: StoreTarget::Exact,
         };
         let check = self.check_node(value_site, expectation)?;
         let value_type = check.source;
@@ -151,7 +155,7 @@ impl CheckState<'_> {
             self.report_redundant_cast(node.into_any(), value.into_global_any(module), target);
         }
 
-        // take the cast target as the expression's own type
+        // take the cast target as the expression type
         self.commit_node_type(node.into_any(), target)?;
 
         Ok(())
@@ -286,8 +290,9 @@ impl CheckState<'_> {
             None => None,
         };
 
-        // collect the residual directly at a local try target
-        if let Some(target) = self.collect_try_residual(residual) {
+        // collect the failure directly at a local try target, the value its catch binds
+        let failure = self.intern_operation(dir::TypeOperation::TryFailure { value })?;
+        if let Some(target) = self.collect_try_failure(failure) {
             self.commit_decision(
                 node,
                 dir::Decision::Residual(Box::new(dir::ResidualDecision {
@@ -369,23 +374,60 @@ impl CheckState<'_> {
         // select and record the park call this await runs
         let flags = self.type_flags(result)?;
         if !flags.has_error() {
-            let receiver = self.expression_value(awaited_site, value)?;
+            // await a newtype through its backing, casting the operand down to it
+            let mut parked = value;
+            loop {
+                let object = self.strip_form(origin, parked)?;
+                let Some(instance) = self.decompose_newtype(origin, object)? else {
+                    break;
+                };
+                self.check_backing_access(origin, instance.symbol)?;
+                parked = instance.backing;
+            }
+            let operand = awaited.into_global_any(module);
+            let argument = match parked == value {
+                true => dir::ArgumentSource::Provided(operand),
+                false => {
+                    let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                    let expectation = Expectation {
+                        target: parked,
+                        relation: Relation::Storable,
+                        cause,
+                        use_: ValueUse::Cast,
+                        mode: InferMode::Regular,
+                        store: StoreTarget::Exact,
+                    };
+                    self.check_node(awaited_site, expectation)?;
+
+                    dir::ArgumentSource::Static(parked)
+                }
+            };
+
+            // select the park call at the parked value, the authored operand as its argument
+            let receiver = self.expression_value(awaited_site, parked)?;
             let key = dir::StaticKey::Name(self.strings().intern("park"));
             let selected = self.select_language_protocol_call(
                 origin,
                 receiver,
-                value,
+                parked,
                 dir::MemberSpace::Static,
                 key,
                 dir::LanguageItem::Awaitable,
                 &[result],
                 &[result],
-                &[dir::ArgumentSource::Provided(
-                    awaited.into_global_any(module),
-                )],
+                &[argument],
             )?;
-            if let Some((_, call)) = selected {
-                self.commit_decision(node.into_any(), dir::Decision::Call(call.resolution))?;
+            match selected {
+                Some((_, call)) => {
+                    let mut resolution = call.resolution;
+                    for call in resolution.arms_mut() {
+                        for binding in &mut call.arguments {
+                            binding.source = dir::ArgumentSource::Provided(operand);
+                        }
+                    }
+                    self.commit_decision(node.into_any(), dir::Decision::Call(resolution))?;
+                }
+                None => self.report_source_not_awaitable(operand),
             }
         }
 

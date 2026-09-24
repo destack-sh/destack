@@ -4,12 +4,13 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Answer, BorrowConversion, CandidateOutcome, CauseId, Check, CheckFailure, CheckOutcome,
-    CheckState, ConversionCheck, Expectation, FlowSite, Goal, InferMode, Origin, Relation, Value,
-    ValueConversion, ValueUse, Verdict,
+    CheckState, ConversionCheck, Expectation, FlowSite, Goal, InferMode, Origin, PropertySource,
+    Relation, StoreTarget, Value, ValueConversion, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
 /// The way one value stores into its slot.
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum StoreMode {
     /// The slot is open, the value flows in by inclusion until it closes.
     Open,
@@ -21,6 +22,16 @@ enum StoreMode {
     Materialize(dir::GlobalTypeId),
     /// The value stores as it is, its forms relating.
     Store,
+}
+
+/// One value stored into a destination, with its store mode and the destination beneath its views.
+struct Store {
+    /// The way the value stores.
+    mode: StoreMode,
+    /// The value as it stores, an owned value by its object.
+    value: dir::GlobalTypeId,
+    /// The slot beneath its readonly views.
+    slot: dir::GlobalTypeId,
 }
 
 impl CheckState<'_> {
@@ -67,8 +78,50 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return the family default form of one owned type, or `None` for every other type.
-    pub(in crate::sema) fn family_default_of_owned(
+    /// Extend one value's coercion from the target it checked against into optional storage.
+    pub(in crate::sema) fn store_coercion(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        coercion: Option<dir::Coercion>,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Coercion>> {
+        // keep a target that already holds undefined
+        let value = self.normalize(origin, target)?;
+        let storage = self.optional_type(value)?;
+        if storage == value {
+            return Ok(coercion);
+        }
+
+        // continue the value's coercion, or start one at its source
+        let (source, mut adjustments, cast) = match coercion {
+            Some(coercion) => (coercion.source, coercion.adjustments, coercion.origin),
+            None => (source, Vec::new(), dir::CastOrigin::Implicit),
+        };
+
+        // enter every case of the checked target into its leaf of the storage union
+        let sources = self
+            .conversion_source_cases(origin, value, storage)?
+            .unwrap_or_else(|| SmallVec::from_slice(&[value]));
+        let mut cases = Vec::with_capacity(sources.len());
+        for case in sources {
+            let target = self.canonical_union_leaf(origin, storage, case, "a store")?;
+            cases.push(dir::CoercionCase {
+                source: case,
+                target,
+                adjustments: Vec::new(),
+            });
+        }
+        adjustments.push(dir::CoercionAdjustment::Union {
+            target: storage,
+            cases,
+        });
+
+        Ok(Some(dir::Coercion::new(source, adjustments, cast)))
+    }
+
+    /// Return the value one owned form holds, none for every other type.
+    pub(in crate::sema) fn owned_value(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -157,8 +210,7 @@ impl CheckState<'_> {
         Ok(copies.then_some(payload))
     }
 
-    /// Return whether one source converts to the target whole: a pointer form on either side holds
-    /// one representation, so the cases never convert apart.
+    /// Return whether one source converts to the target whole.
     fn pointer_converts_whole(
         &mut self,
         origin: Origin,
@@ -169,10 +221,7 @@ impl CheckState<'_> {
         for side in [source, target] {
             if matches!(self.resolved_ty(side)?, dir::Type::Form(_))
                 && let Some(form) = self.form_chain(origin, side)?.ownership_form()
-                && matches!(
-                    form.form,
-                    dir::Form::Borrowed(_) | dir::Form::Managed { .. } | dir::Form::Raw
-                )
+                && matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw)
             {
                 return Ok(true);
             }
@@ -296,6 +345,7 @@ impl CheckState<'_> {
                     target,
                     use_,
                     mode,
+                    store: StoreTarget::Exact,
                 };
                 self.queue_pending_conversion(site, written, expectation)?;
                 let outcome = match verdict {
@@ -378,14 +428,14 @@ impl CheckState<'_> {
         })
     }
 
-    /// Commit the move one by-value conversion takes from a stable binding value: a value neither
-    /// borrowed nor read through a reference, and not copied.
+    /// Commit the move one by-value conversion takes from a stable binding value.
     fn commit_move_use(
         &mut self,
         site: FlowSite,
         source: dir::GlobalTypeId,
         coercion: Option<&dir::Coercion>,
     ) -> CompilerResult<()> {
+        // skip a decision and a value without an authored access path
         if self.infer.is_deciding()
             || self
                 .module(site.node.module_id)
@@ -395,6 +445,8 @@ impl CheckState<'_> {
         {
             return Ok(());
         }
+
+        // leave a borrow or a read, which keep the value in its place
         let keeps_value = coercion.is_some_and(|coercion| {
             coercion.adjustments.iter().any(|adjustment| {
                 matches!(
@@ -403,6 +455,8 @@ impl CheckState<'_> {
                 )
             })
         });
+
+        // leave a copied value, whose source stays valid after the conversion
         if keeps_value
             || self
                 .decide_copy(site.origin(), source, &mut SmallVec::new())?
@@ -410,6 +464,7 @@ impl CheckState<'_> {
         {
             return Ok(());
         }
+
         self.commit_access_use(site.node, dir::BindingUse::MOVE);
 
         Ok(())
@@ -432,8 +487,6 @@ impl CheckState<'_> {
     }
 
     /// Relate one fresh object value into the object shape its context constructs.
-    ///
-    /// A union context decides by the sole arm the value fits.
     fn relate_fresh_shape(
         &mut self,
         origin: Origin,
@@ -441,6 +494,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         slot: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Verdict>> {
+        let slot = self.normalize(origin, slot)?;
         let arms = match self.union_leaves(origin, slot)? {
             Some(arms) => arms,
             None => SmallVec::from_slice(&[slot]),
@@ -459,7 +513,7 @@ impl CheckState<'_> {
                 origin,
                 cause,
                 Relation::Storable,
-                true,
+                PropertySource::Constructed,
                 value,
                 *shape,
             )?)),
@@ -469,7 +523,14 @@ impl CheckState<'_> {
                 for shape in shapes {
                     let verdict = self.decide_candidate(|state| {
                         match state
-                            .relate_shape(origin, cause, Relation::Storable, true, value, shape)?
+                            .relate_shape(
+                                origin,
+                                cause,
+                                Relation::Storable,
+                                PropertySource::Constructed,
+                                value,
+                                shape,
+                            )?
                             .holds()
                         {
                             true => Ok(CandidateOutcome::Accepted(())),
@@ -485,7 +546,7 @@ impl CheckState<'_> {
                         origin,
                         cause,
                         Relation::Storable,
-                        true,
+                        PropertySource::Constructed,
                         value,
                         *shape,
                     )?)),
@@ -502,7 +563,7 @@ impl CheckState<'_> {
         site: FlowSite,
         cause: CauseId,
         relation: Relation,
-        mut source: Value,
+        source: Value,
         target: dir::GlobalTypeId,
         use_: ValueUse,
     ) -> CompilerResult<Verdict> {
@@ -525,21 +586,10 @@ impl CheckState<'_> {
             );
         }
 
-        // transfer an owned temporary into its family default form outside owned storage
-        if use_.requires_runtime_coercion()
-            && source.place.is_none()
-            && let Some(adopted) = self.family_default_of_owned(source.ty)?
-            && !self
-                .form_chain(origin, target)?
-                .ownership_form()
-                .is_some_and(|form| form.form == dir::Form::Owned)
-        {
-            source.ty = adopted;
-        }
-
         // flow a value into an open slot whole, converting once the slot closes
-        if let (StoreMode::Open, slot) = self.store_mode(origin, source.ty, target)? {
-            return self.constrain_type(origin, cause, Relation::Subtype, source.ty, slot);
+        let Store { mode, value, slot } = self.store_mode(origin, source.ty, target)?;
+        if mode == StoreMode::Open {
+            return self.constrain_type(origin, cause, Relation::Subtype, value, slot);
         }
 
         // read a borrowed value before relating its copied payload to a value slot
@@ -603,17 +653,40 @@ impl CheckState<'_> {
             return Ok(verdict);
         }
 
-        // store a fresh temporary beneath the forms its destination declares
+        // borrow explicitly and implicitly from the same value place
+        if relation == Relation::Storable
+            && use_.requires_runtime_coercion()
+            && let Some(conversion) = self.borrow_conversion(origin, source.ty, target)?
+        {
+            return self.constrain_borrow(origin, cause, Relation::Storable, source, &conversion);
+        }
+
+        // store a fresh temporary into the shape its destination constructs
         if source.is_fresh && source.place.is_none() && relation == Relation::Storable {
-            let slot = self.strip_form(origin, target)?;
-            let value = self.shallow_resolve(source.ty)?;
+            // fill owned storage with the object a fresh handle names
+            let resolved = self.shallow_resolve(target)?;
+            let (source, target) = match self.ty(resolved)? {
+                dir::Type::Form(form) if form.form == dir::Form::Owned => {
+                    let object = self.strip_form(origin, source.ty)?;
+
+                    (
+                        Value {
+                            ty: object,
+                            ..source
+                        },
+                        form.value,
+                    )
+                }
+                _ => (source, target),
+            };
+            let value = self.strip_form(origin, source.ty)?;
             if matches!(self.ty(value)?, dir::Type::Object(_))
-                && let Some(verdict) = self.relate_fresh_shape(origin, cause, value, slot)?
+                && let Some(verdict) = self.relate_fresh_shape(origin, cause, value, target)?
             {
                 return Ok(verdict);
             }
 
-            return self.constrain_edge(site, cause, source, slot, use_);
+            return self.constrain_edge(site, cause, source, target, use_);
         }
 
         // store a callable value only into a slot of its own parameter shape
@@ -625,22 +698,13 @@ impl CheckState<'_> {
             }
         }
 
-        // explicit and implicit borrowing use the same value place
-        if relation == Relation::Storable
-            && use_.requires_runtime_coercion()
-            && let Some(conversion) = self.borrow_conversion(origin, source.ty, target)?
-        {
-            return self.constrain_borrow(origin, cause, Relation::Storable, source, &conversion);
-        }
-
         // compare types alone at every check only relation
         if relation != Relation::Storable || !use_.requires_runtime_coercion() {
             return self.constrain_type(origin, cause, relation, source.ty, target);
         }
 
-        // classify source and target memory forms
+        // classify the source memory form
         let source_chain = self.form_chain(origin, source.ty)?;
-        let target_chain = self.form_chain(origin, target)?;
 
         // observe through a readonly value view, leaving its storage in place
         let may_observe = source_chain.is_readonly()
@@ -678,28 +742,6 @@ impl CheckState<'_> {
             self.commit_reborrow_access(origin, source, target)?;
         }
 
-        // transfer an owned value into managed storage at a consuming position
-        let is_owned = source_chain
-            .ownership_form()
-            .is_some_and(|form| form.form == dir::Form::Owned);
-        let target_ownership = self.form_ownership(origin, &target_chain)?;
-        if is_owned && target_ownership == Some(dir::Ownership::Managed) {
-            let source_value = source_chain
-                .ownership_form()
-                .map_or(source_chain.base(), |form| form.value);
-            let target_value = target_chain
-                .ownership_form()
-                .map_or(target_chain.base(), |form| form.value);
-
-            return self.constrain_type(
-                site.origin(),
-                cause,
-                Relation::Equal,
-                source_value,
-                target_value,
-            );
-        }
-
         self.constrain_edge(site, cause, source, target, use_)
     }
 
@@ -709,9 +751,9 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<(StoreMode, dir::GlobalTypeId)> {
+    ) -> CompilerResult<Store> {
         // read the source and peel readonly views off the slot
-        let source = self.shallow_resolve(source)?;
+        let mut source = self.shallow_resolve(source)?;
         let mut slot = self.structurally_normalize(origin, target)?;
         while let dir::Type::Form(form) = self.ty(slot)?
             && form.form == dir::Form::Readonly
@@ -719,7 +761,15 @@ impl CheckState<'_> {
             slot = self.structurally_normalize(origin, form.value)?;
         }
 
+        // store an owned value by its object into a slot deciding its holder
+        if let dir::Type::Form(form) = self.ty(source)?
+            && form.form == dir::Form::Owned
+            && self.ty(slot)?.takes_object()
+        {
+            source = self.normalize(origin, form.value)?;
+        }
         // classify the store by the source and slot heads
+        let base = self.shallow_strip_forms(slot)?;
         let mode = match (self.ty(source)?, self.ty(slot)?) {
             // flow into an open slot whole
             (_, dir::Type::Variable(_)) => StoreMode::Open,
@@ -760,20 +810,21 @@ impl CheckState<'_> {
                 StoreMode::Materialize(slot)
             }
             // materialize a constant into the primitive that holds it
-            (dir::Type::Key(key), dir::Type::Primitive(primitive))
-                if key.widens_to_primitive(primitive) =>
+            (dir::Type::Key(key), _)
+                if let dir::Type::Primitive(primitive) = self.ty(base)?
+                    && key.widens_to_primitive(primitive) =>
             {
-                StoreMode::Materialize(slot)
+                StoreMode::Materialize(base)
             }
             // materialize a union of constants into the primitive that holds them all
-            (dir::Type::Union(union), dir::Type::Primitive(primitive))
-                if self.union_materializes_into(source, union, primitive)? =>
+            (dir::Type::Union(union), _)
+                if let dir::Type::Primitive(primitive) = self.ty(base)?
+                    && self.union_materializes_into(source, union, primitive)? =>
             {
-                StoreMode::Materialize(slot)
+                StoreMode::Materialize(base)
             }
             // materialize a constant that widens into a runtime slot
             (dir::Type::Literal(_) | dir::Type::Range(_), _) => {
-                let base = self.shallow_strip_forms(slot)?;
                 let head = self.ty(base)?;
                 let is_runtime = matches!(head, dir::Type::Primitive(_) | dir::Type::Range(_));
                 let widens = match self.ty(source)? {
@@ -790,7 +841,11 @@ impl CheckState<'_> {
             _ => StoreMode::Store,
         };
 
-        Ok((mode, slot))
+        Ok(Store {
+            mode,
+            value: source,
+            slot,
+        })
     }
 
     /// Return whether every arm of one union is a constant the primitive holds.
@@ -865,8 +920,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Verdict> {
         // read the value and the way it stores into the slot
         let origin = site.origin();
-        let value = self.shallow_resolve(source.ty)?;
-        let (mode, slot) = self.store_mode(origin, value, target)?;
+        let Store { mode, value, slot } = self.store_mode(origin, source.ty, target)?;
 
         // constrain the value by its store mode
         match mode {
@@ -904,15 +958,70 @@ impl CheckState<'_> {
                     Err(verdict) => Ok(verdict),
                 }
             }
-            // require a materialized constant the slot's type includes
-            StoreMode::Materialize(_) => {
-                self.constrain_type(origin, cause, Relation::Subtype, value, slot)
+            // require a materialized constant the slot's object includes
+            StoreMode::Materialize(base) => {
+                let object = self.normalize(origin, base)?;
+
+                self.constrain_type(origin, cause, Relation::Subtype, value, object)
             }
             // store a value as it is
             StoreMode::Store => {
                 self.constrain_type(origin, cause, Relation::Storable, value, target)
             }
         }
+    }
+
+    /// Clone one fresh managed literal into an owned slot of the same type.
+    fn clone_into_owned(
+        &mut self,
+        origin: Origin,
+        value: Value,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::CoercionAdjustment>> {
+        // require an owned slot over the literal's managed family, an alias read through
+        let target = self.shallow_resolve(target)?;
+        let target = match self.ty(target)? {
+            dir::Type::Reference(_) | dir::Type::Application(_) => {
+                self.normalize(origin, target)?
+            }
+            _ => target,
+        };
+        let dir::Type::Form(form) = self.ty(target)? else {
+            return Ok(None);
+        };
+        if form.form != dir::Form::Owned
+            || self.default_ownership(origin, value.ty)? != Some(dir::Ownership::Managed)
+            || !self
+                .decide_relation(origin, Relation::Equal, value.ty, form.value)?
+                .holds()
+        {
+            return Ok(None);
+        }
+
+        // select the literal's clone
+        let item = dir::LanguageItem::Clone.member("clone");
+        let selected = self.select_language_protocol_call(
+            origin,
+            value,
+            value.ty,
+            dir::MemberSpace::Instance,
+            item.key,
+            item.owner,
+            &[],
+            &[],
+            &[],
+        )?;
+        let Some((_, call)) = selected else {
+            return Ok(None);
+        };
+        let dir::OperationResolution::One(call) = call.resolution else {
+            return Ok(None);
+        };
+
+        Ok(Some(dir::CoercionAdjustment::Clone {
+            target,
+            call: Box::new(call),
+        }))
     }
 
     /// Relate one value's members to the index signatures of the dictionary it erases into.
@@ -984,7 +1093,7 @@ impl CheckState<'_> {
         })
     }
 
-    /// Constrain one borrow from a checked value place.
+    /// Constrain one borrow from a value place.
     pub(in crate::sema) fn constrain_borrow(
         &mut self,
         origin: Origin,
@@ -993,28 +1102,31 @@ impl CheckState<'_> {
         source: Value,
         conversion: &BorrowConversion,
     ) -> CompilerResult<Verdict> {
-        // require the borrow constructor the conversion target carries
-        let place = self.value_place(origin, source)?;
+        // require the borrow constructor of the conversion target
         let dir::Form::Borrowed(target_borrow) = conversion.borrow.form else {
             return Err(CompilerError::Internal {
                 message: "borrow conversion has no borrow constructor".into(),
             });
         };
 
-        // require the placement a written target region names from the source storage
-        let mut verdict = Verdict::Holds;
+        // select the place the source lends at the requested access
         let borrow = self.type_borrow(conversion.module, target_borrow)?;
-        let target_place = match self.resolved_ty(borrow.region)? {
+        let requested = self.access_of(borrow.access)?;
+        let place = self.borrowed_place(origin, source, requested, conversion.acquires_handle)?;
+
+        // require the space of an annotated target region to admit the source storage
+        let mut verdict = Verdict::Holds;
+        let target_space = match self.resolved_ty(borrow.region)? {
             dir::Type::Region(region) => Some(region.space),
             _ => None,
         };
-        if let Some(target_place) = target_place {
+        if let Some(target_space) = target_space {
             let placement = self.constrain_type(
                 origin,
                 cause,
-                Relation::Equal,
+                Relation::Storable,
                 place.placement,
-                target_place,
+                target_space,
             )?;
             if placement == Verdict::Fails {
                 return Ok(Verdict::Fails);
@@ -1056,8 +1168,10 @@ impl CheckState<'_> {
             (_, None) => conversion.source.base(),
         };
 
-        // lend the converted payload by the access the borrow requires
-        let is_readonly = self.is_readonly_access(borrow.access)?;
+        // lend a shared borrow the converted payload, a writable borrow the exact payload
+        let is_readonly = self
+            .access_of(borrow.access)?
+            .is_some_and(|access| !access.writes());
         let payload = match is_readonly {
             true => {
                 let lent = Value {
@@ -1187,7 +1301,7 @@ impl CheckState<'_> {
         }
 
         // read the way the value stores into the slot
-        let (mode, slot) = self.store_mode(origin, source.ty, target)?;
+        let Store { mode, slot, .. } = self.store_mode(origin, source.ty, target)?;
         match mode {
             // reject an open slot at a closed conversion
             StoreMode::Open => {
@@ -1213,6 +1327,13 @@ impl CheckState<'_> {
                     )))));
                 }
                 let widened = Value { ty: base, ..source };
+                if let Some(clone) = self.clone_into_owned(origin, widened, target)? {
+                    return Ok(Ok(Some(Box::new(dir::Coercion::new(
+                        source.ty,
+                        vec![widen, clone],
+                        dir::CastOrigin::Implicit,
+                    )))));
+                }
                 let rest = self.convert_closed_value(site, origin, cause, widened, target, use_)?;
 
                 return Ok(match rest {
@@ -1313,8 +1434,7 @@ impl CheckState<'_> {
         self.convert_existing_value(site, origin, cause, source, target, use_)
     }
 
-    /// Return the one adjustment an explicit cast names: a newtype unwrapped to its backing or
-    /// wrapped over it, or a scalar converted between formats.
+    /// Return the one adjustment an explicit cast names.
     fn cast_adjustment(
         &mut self,
         origin: Origin,
@@ -1322,20 +1442,14 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::CoercionAdjustment>> {
-        // unwrap a newtype to its backing, or wrap a backing value into the newtype
-        if let Some(instance) = self.decompose_newtype(origin, source)?
-            && self
-                .decide_relation(origin, Relation::Equal, instance.backing, target)?
+        // step one newtype layer of the value or of a raw pointee
+        for (stepped_source, stepped_target) in self.newtype_steps(origin, source, target)? {
+            if self
+                .decide_relation(origin, Relation::Equal, stepped_source, stepped_target)?
                 .holds()
-        {
-            return Ok(Some(dir::CoercionAdjustment::Newtype { target }));
-        }
-        if let Some(instance) = self.decompose_newtype(origin, target)?
-            && self
-                .decide_relation(origin, Relation::Equal, source, instance.backing)?
-                .holds()
-        {
-            return Ok(Some(dir::CoercionAdjustment::Newtype { target }));
+            {
+                return Ok(Some(dir::CoercionAdjustment::Newtype { target }));
+            }
         }
 
         // convert between scalar formats
@@ -1501,9 +1615,12 @@ impl CheckState<'_> {
         if let Some(key) = self.goal_key(origin, subject, &operands)? {
             // reuse the recorded answer, which selects by target position
             match self.answers.get(&key) {
-                // reuse an exact case at its declared identity
+                // reuse an exact case at its declared identity, committing its equality
                 Some(Answer::Arm(Ok((arm, true)))) => {
-                    return Ok(Ok((targets[*arm as usize], None)));
+                    let target = targets[*arm as usize];
+                    self.constrain_type(origin, cause, Relation::Equal, source.ty, target)?;
+
+                    return Ok(Ok((target, None)));
                 }
                 // reuse a converted case through its recorded arm
                 Some(Answer::Arm(Ok((arm, false)))) => {
@@ -1524,11 +1641,12 @@ impl CheckState<'_> {
                 .decide_relation(origin, Relation::Equal, source.ty, target)?
                 .holds()
             {
-                // answer the arm as an exact case
+                // answer the arm as an exact case, committing the equality the decision found
                 if let Some(key) = arm_key {
                     self.answers
                         .insert(key, Answer::Arm(Ok((arm as u16, true))));
                 }
+                self.constrain_type(origin, cause, Relation::Equal, source.ty, target)?;
 
                 return Ok(Ok((target, None)));
             }
@@ -1640,7 +1758,8 @@ impl CheckState<'_> {
         // read a borrowed value's copied payload before converting it
         let source_chain = self.form_chain(origin, source.ty)?;
         let target_chain = self.form_chain(origin, target)?;
-        if let Some(payload) = self.borrow_read(origin, source.ty, target)? {
+        let read = self.borrow_read(origin, source.ty, target)?;
+        if let Some(payload) = read {
             let payload_value = Value {
                 ty: payload,
                 node: None,
@@ -1665,8 +1784,13 @@ impl CheckState<'_> {
             let source_head = self.ty(source_base)?;
             let target_head = self.ty(target_base)?;
 
-            // box erased values on entry and exit
-            if self.is_erased_value(source_base)? || self.is_erased_value(target_base)? {
+            // box erased values on entry and exit, except into the same dynamic
+            let is_source_erased = self.is_erased_value(source_base)?;
+            let is_target_erased = self.is_erased_value(target_base)?;
+            let is_same_erasure = is_source_erased
+                && is_target_erased
+                && self.normalize(origin, source_base)? == self.normalize(origin, target_base)?;
+            if !is_same_erasure && (is_source_erased || is_target_erased) {
                 if self.erased_index_signatures_admit(origin, cause, source_base, target_base)?
                     == Verdict::Fails
                 {
@@ -1677,13 +1801,13 @@ impl CheckState<'_> {
                     target: recorded_target,
                 })
             }
-            // base types select their explicit value operation
+            // apply the explicit value operation of a base type
             else if let Some(adjustment) =
                 dir::CoercionAdjustment::classify(&source_head, &target_head, recorded_target)
             {
                 Some(adjustment)
             }
-            // owned values transfer into managed storage
+            // manage an owned value into managed storage
             else if source_chain
                 .ownership_form()
                 .is_some_and(|form| form.form == dir::Form::Owned)
@@ -1693,7 +1817,7 @@ impl CheckState<'_> {
                     target: recorded_target,
                 })
             }
-            // an explicit ownership change selects a different runtime representation
+            // change representation across an explicit ownership change
             else if (source_chain.ownership_form().is_some()
                 || target_chain.ownership_form().is_some())
                 && self.form_ownership(origin, &source_chain)?
@@ -1703,13 +1827,13 @@ impl CheckState<'_> {
                     target: recorded_target,
                 })
             }
-            // accept every remaining distinction, which preserves representation
+            // keep the representation across every other distinction
             else {
                 None
             }
         };
 
-        // leave a representation preserving conversion unadjusted
+        // record no adjustment when the representation stays
         let Some(adjustment) = adjustment else {
             return Ok(Ok(None));
         };

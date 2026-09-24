@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::sema::{
     Cause, CauseKind, CheckState, Expectation, FlowSite, InferMode, Origin, PlaceUse, Relation,
-    RelationCheck, TypeSubstitution, ValueUse, Verdict,
+    RelationCheck, StoreTarget, TypeSubstitution, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -22,9 +22,7 @@ enum Sequence {
 }
 
 impl CheckState<'_> {
-    /// Infer one array literal from its elements.
-    ///
-    /// A stored literal fills the sequence its context declares.
+    /// Infer one array literal from its elements under the sequence its context declares.
     pub(in crate::sema) fn infer_array_expression(
         &mut self,
         site: FlowSite,
@@ -49,7 +47,7 @@ impl CheckState<'_> {
             return self.infer_fixed_array_literal(site, elements, element, count, expectation);
         }
 
-        // read the element slot the context declares, or open one
+        // read the element type the context declares, or open one
         let declared = match declared {
             Some((Sequence::Element(element), expectation)) => Some((element, expectation)),
             _ => None,
@@ -70,7 +68,7 @@ impl CheckState<'_> {
             }
         };
 
-        // store each element into the slot, a spread through its item, a hole as undefined
+        // store each element into the element type
         let mut has_hole = false;
         let mut sources = Vec::with_capacity(elements.len());
         for (index, argument) in elements.iter().enumerate() {
@@ -90,6 +88,7 @@ impl CheckState<'_> {
                             target: element,
                             cause,
                             use_: ValueUse::Store,
+                            store: StoreTarget::Exact,
                             ..expectation
                         },
                         None => Expectation {
@@ -98,6 +97,7 @@ impl CheckState<'_> {
                             cause,
                             use_: ValueUse::Store,
                             mode,
+                            store: StoreTarget::Exact,
                         },
                     };
                     self.check_node(value_site, expectation)?;
@@ -107,21 +107,24 @@ impl CheckState<'_> {
                 dir::Argument::Spread { value } => {
                     let value_site = self.visit_site(value.into_global_any(module))?;
 
-                    // read the spread source's sequence type
-                    if self.is_composite_node(value_site.node) {
-                        let target = self.language_type(dir::LanguageItem::Array, &[element])?;
-                        let expectation = Expectation {
-                            target,
-                            relation: Relation::Storable,
-                            cause,
-                            use_: ValueUse::Store,
-                            mode,
-                        };
-                        self.check_node(value_site, expectation)?;
-                    }
+                    // offer a spread source the fresh array it may build
+                    let array = self.language_type(dir::LanguageItem::Array, &[element])?;
+                    let target = self.intern_type(dir::Type::Form(dir::FormType {
+                        form: dir::Form::Owned,
+                        value: array,
+                    }))?;
+                    let context = Expectation {
+                        target,
+                        relation: Relation::Storable,
+                        cause,
+                        use_: ValueUse::Store,
+                        mode,
+                        store: StoreTarget::Exact,
+                    };
 
                     // relate the iterator's element to the destination element
-                    let source = self.argument_source(argument.into_global(module))?;
+                    let source =
+                        self.argument_source(argument.into_global(module), Some(context))?;
                     let item = match &source {
                         dir::ArgumentSource::Spread(spread) => spread.element,
                         dir::ArgumentSource::Error => self.intern_type(dir::Type::Error)?,
@@ -156,29 +159,26 @@ impl CheckState<'_> {
             });
         }
 
-        // holes read as undefined, joining the slot the elements store into
+        // join undefined into the element type for each hole
         if has_hole {
             let undefined = self.intern_type(dir::Type::Undefined)?;
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Element { index: 0 }));
             self.constrain_type(origin, cause, Relation::Subtype, undefined, element)?;
         }
 
-        // build the array over the element slot
+        // build the array over the element type
         let array = self.array_type(element)?;
         if self.is_checking() {
             self.commit_array_construction(site, sources, array, element)?;
         }
 
-        // freeze a const literal, else take the forms the context declares
+        // freeze a const literal, else type the handle its destination takes
         match (mode, declared) {
             (InferMode::Const, None) => self.intern_type(dir::Type::Form(dir::FormType {
                 form: dir::Form::Readonly,
                 value: array,
             })),
-            (_, Some((_, expectation))) if expectation.use_ != ValueUse::Satisfies => {
-                self.replace_form_value(origin, expectation.target, array)
-            }
-            _ => Ok(array),
+            _ => self.contextual_form(array, context),
         }
     }
 
@@ -217,6 +217,7 @@ impl CheckState<'_> {
                     target: element,
                     cause,
                     use_: ValueUse::Store,
+                    store: StoreTarget::Exact,
                     ..expectation
                 },
             )?;
@@ -246,7 +247,7 @@ impl CheckState<'_> {
         let module = node.module_id;
         let value_site = self.visit_site(value.into_global_any(module))?;
 
-        // store the repeated value into the declared element, or into its own slot
+        // store the repeated value into the declared or opened element type
         let element = match self.contextual_sequence(site.origin(), context)? {
             Some((Sequence::Fixed { element, .. }, expectation)) => {
                 let cause = self.intern_cause(Cause::child(
@@ -260,6 +261,7 @@ impl CheckState<'_> {
                         target: element,
                         cause,
                         use_: ValueUse::Store,
+                        store: StoreTarget::Exact,
                         ..expectation
                     },
                 )?;
@@ -276,7 +278,7 @@ impl CheckState<'_> {
             }
         };
 
-        // require a copyable element, every slot repeating the one written value
+        // require a copyable element for the repeated value
         let is_repeated = !matches!(
             self.ty(count)?,
             dir::Type::Literal(dir::Literal::Integer(0 | 1))
@@ -298,9 +300,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Infer one tuple literal from its elements.
-    ///
-    /// A stored literal fills the elements its context declares.
+    /// Infer one tuple literal from its elements under the elements its context declares.
     pub(in crate::sema) fn infer_tuple_expression(
         &mut self,
         site: FlowSite,
@@ -316,13 +316,13 @@ impl CheckState<'_> {
         let elements = self.walk_body_arguments(module, elements)?;
         let elements = elements.as_slice();
 
-        // read the tuple slots the context declares
+        // read the tuple elements the context declares
         let declared = match self.contextual_sequence(site.origin(), context)? {
             Some((Sequence::Tuple(slots), expectation)) => Some((slots, expectation)),
             _ => None,
         };
 
-        // store each element into the declared element at its position, or into its own slot
+        // store each element into the declared or opened element at its position
         let mut fields = Vec::with_capacity(elements.len());
         for (index, element) in elements.iter().enumerate() {
             let (value, is_rest) = match self.module(module).view().get(*element) {
@@ -364,6 +364,7 @@ impl CheckState<'_> {
                             target: slot,
                             cause,
                             use_: ValueUse::Store,
+                            store: StoreTarget::Exact,
                             ..expectation
                         },
                     )?;
@@ -415,7 +416,8 @@ impl CheckState<'_> {
         let Some(expectation) = context else {
             return Ok(None);
         };
-        let Some(value) = self.construction_value(origin, expectation.target)? else {
+        let target = self.erase_inference_barriers(expectation.target)?;
+        let Some(value) = self.construction_value(origin, target)? else {
             return Ok(None);
         };
         let sequence = match self.array_element(value)? {
@@ -434,7 +436,7 @@ impl CheckState<'_> {
             },
         };
 
-        // take the slots a stored value fills without their inference barriers
+        // read the element types a stored value fills without their inference barriers
         let sequence = match sequence {
             Sequence::Element(element) => {
                 Sequence::Element(self.erase_inference_barriers(element)?)

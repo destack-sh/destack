@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::sema::{
     Cause, CauseId, CauseKind, CheckState, Expectation, FlowSite, FlowSnapshot, InferMode,
-    PlaceUse, ReceiverBinding, Relation, ValueCheck, ValueUse,
+    PlaceUse, ReceiverBinding, Relation, StoreTarget, ValueCheck, ValueUse,
 };
 
 /// Yield targets for one generator body.
@@ -39,7 +39,7 @@ pub(in crate::sema) struct FunctionBody {
     pub(in crate::sema) enclosing_receiver: Option<ReceiverBinding>,
     /// The parameter sources assigned on entry.
     pub(in crate::sema) entries: SmallVec<[dir::LocalNodeIdAny; 4]>,
-    /// The enclosing flow at the function value, kept while its slots stay open.
+    /// The enclosing flow at the function value, kept while its parameter types stay open.
     pub(in crate::sema) flow: Option<FlowSnapshot>,
 }
 
@@ -67,6 +67,7 @@ impl FunctionBody {
                 cause,
                 use_: ValueUse::Output,
                 mode: output_mode,
+                store: StoreTarget::Exact,
             }
         });
 

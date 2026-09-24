@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 use crate::sema::{
     Cause, CauseKind, CheckAttempt, CheckOutcome, CheckState, ConditionBranch, ControlTargetForm,
     Expectation, ExpectedType, FlowBranch, FlowSite, InferMode, Obligation, Origin, PatternArm,
-    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, RelationCheck, Value,
-    ValueCheck, ValueUse,
+    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, RelationCheck, StoreTarget,
+    Value, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -66,10 +66,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Check one optional chain by contextualizing its accesses behind the nullish members.
-    ///
-    /// The context only guides inference.
-    /// A chain whose value meets the target adopts it, every other chain converts at its use.
+    /// Check one optional chain, contextualizing its accesses behind the nullish members.
     pub(in crate::sema) fn check_chain_expression(
         &mut self,
         site: FlowSite,
@@ -210,8 +207,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Convert each branch value into the type its branches join to, the expectation the arms
-    /// store into where no context supplies a narrower one.
+    /// Convert each branch value into the type its branches join to.
     fn widen_branch_values(
         &mut self,
         branches: impl IntoIterator<Item = dir::GlobalNodeIdAny>,
@@ -264,6 +260,7 @@ impl CheckState<'_> {
                 cause,
                 use_: ValueUse::Store,
                 mode: InferMode::Regular,
+                store: StoreTarget::Exact,
             },
         )?;
 
@@ -276,7 +273,7 @@ impl CheckState<'_> {
         site: FlowSite,
         context: Option<Expectation>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // check under the inherited context, else infer on its own
+        // check under the inherited context, else infer alone
         match context {
             Some(expectation) => {
                 let check = self.check_node(site, expectation)?;
@@ -331,7 +328,7 @@ impl CheckState<'_> {
             None
         };
 
-        // merge only branches that continue normally
+        // merge the branches that continue normally
         let has_normal_flow = match &catch_branch {
             // join the completing sides of body and catch
             Some((_, catch_can_complete, catch_flow)) => {
@@ -358,7 +355,7 @@ impl CheckState<'_> {
                     }
                 }
             }
-            // an uncaught body continues on its own
+            // continue an uncaught body alone
             None if body_can_complete => {
                 self.restore_flow_branch(before, &body_flow);
 
@@ -406,14 +403,14 @@ impl CheckState<'_> {
             return self.intern_type(dir::Type::Never);
         }
 
-        // read the catch clause's own parts
+        // read the parts of the catch clause
         let catch = self.module(module).view().get(id).clone();
         let (pattern, ty, body) = (catch.pattern, catch.ty, catch.body);
 
         // catch (error: T): the failure must match the annotation
         let expected = match ty {
             Some(ty) => {
-                self.walk_body_type_expression(module, ty)?;
+                self.walk_body_binding_type(module, ty, false)?;
 
                 Some(self.require_node_type(ty.into_global_any(module))?)
             }
@@ -601,7 +598,7 @@ impl CheckState<'_> {
         }
         self.merge_flow_branches_from(before, &exits);
 
-        // type the switch at the end its exits reach
+        // type the switch at the end its exits flow to
         let result = self.end_type(module, node.local_id.into_any())?;
         self.commit_node_type(node.into_any(), result)?;
 
@@ -644,7 +641,7 @@ impl CheckState<'_> {
             return Ok(());
         };
 
-        // look the name up outside the pattern's own binding scope
+        // look the name up outside the binding scope of the pattern
         let lookup =
             self.module
                 .binding_table()
@@ -709,7 +706,7 @@ impl CheckState<'_> {
         let mut merged: Option<FlowBranch> = None;
         let mut values = SmallVec::new();
 
-        // check each arm under its own narrowing
+        // check each arm under its narrowing
         for arm in arms {
             // apply exclusions from previous arms
             self.restore_flow(before);
@@ -953,14 +950,14 @@ impl CheckState<'_> {
         source_value: Value,
         asynchrony: dir::Asynchrony,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::IterationDecision)>> {
-        // open the async protocol first, falling back to the sync one as JS does
-        let mut protocols = match asynchrony {
-            dir::Asynchrony::Sync => vec![(
+        // open the async protocol first, falling back to the sync one
+        let protocols: &[(dir::LanguageItem, &str, dir::LanguageItem)] = match asynchrony {
+            dir::Asynchrony::Sync => &[(
                 dir::LanguageItem::Iterable,
                 "iterator",
                 dir::LanguageItem::Iterator,
             )],
-            dir::Asynchrony::Async => vec![
+            dir::Asynchrony::Async => &[
                 (
                     dir::LanguageItem::AsyncIterable,
                     "asyncIterator",
@@ -974,7 +971,7 @@ impl CheckState<'_> {
             ],
         };
         let mut opened = None;
-        for (iterable, iterator_key, iterator_item) in protocols.drain(..) {
+        for (iterable, iterator_key, iterator_item) in protocols.iter().copied() {
             let key = dir::StaticKey::Name(self.strings().intern(iterator_key));
             let selected = self.select_language_protocol_call(
                 origin,
@@ -1054,10 +1051,17 @@ impl CheckState<'_> {
                 message: "an iteration protocol selected on a union receiver".to_owned(),
             });
         };
-        let park = park.and_then(|(park, target)| match park.resolution {
-            dir::OperationResolution::One(call) => Some(dir::IterationAwait { call, target }),
-            _ => None,
-        });
+        let park = match park {
+            Some((park, target)) => match park.resolution {
+                dir::OperationResolution::One(call) => Some(dir::IterationAwait { call, target }),
+                _ => {
+                    return Err(CompilerError::Internal {
+                        message: "an iteration park selected on a union receiver".to_owned(),
+                    });
+                }
+            },
+            None => None,
+        };
         let iteration = dir::IterationDecision {
             iterator: iterator_call,
             next: next_call,

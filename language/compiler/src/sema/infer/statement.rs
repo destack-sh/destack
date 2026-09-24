@@ -8,8 +8,8 @@ use smallvec::SmallVec;
 use crate::sema::{
     Cause, CauseKind, CheckState, ConditionBranch, ControlTargetForm, ElisionSite, Expectation,
     ExpectedType, FlowBranch, FlowSite, GeneratorTargets, InferMode, NodeForm, Obligation, Origin,
-    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, RelationCheck, ValueUse,
-    WalkState,
+    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, RelationCheck,
+    SharedStorageObligation, StoreTarget, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -47,11 +47,19 @@ impl CheckState<'_> {
                 declarators,
                 export,
                 is_ambient,
+                is_shared,
                 ..
             } => {
-                let exported = export.is_some();
+                let is_exported = export.is_some();
                 for declarator in declarators {
-                    self.check_declarator(module, *declarator, Some(*kind), exported, *is_ambient)?;
+                    self.check_declarator(
+                        module,
+                        *declarator,
+                        Some(*kind),
+                        is_exported,
+                        *is_ambient,
+                        *is_shared,
+                    )?;
                 }
 
                 let void = self.intern_type(dir::Type::Void)?;
@@ -66,7 +74,7 @@ impl CheckState<'_> {
                 ..
             } => {
                 for declarator in declarators {
-                    self.check_declarator(module, *declarator, None, false, false)?;
+                    self.check_declarator(module, *declarator, None, false, false, false)?;
 
                     // select the disposal the binding runs at scope exit
                     let pattern = self.module(module).view().get(*declarator).pattern;
@@ -117,7 +125,7 @@ impl CheckState<'_> {
             }
             // continue
             dir::Expression::Continue { label } => self.infer_continue_statement(site, *label),
-            // expressions that own no statement rule
+            // leave expressions without a statement rule
             other => Err(CompilerError::Internal {
                 message: format!("cannot infer statement {node:?}: {other:?}"),
             }),
@@ -156,6 +164,7 @@ impl CheckState<'_> {
                 )),
                 use_: ValueUse::Output,
                 mode: self.current_output_mode(),
+                store: StoreTarget::Exact,
             });
             self.attempt_node(value_site, PlaceUse::Read, expectation)?;
         }
@@ -204,37 +213,6 @@ impl CheckState<'_> {
         Ok(Some(self.symbol_variable(symbol)))
     }
 
-    /// Transfer one owned temporary initializer into its family default form.
-    fn default_owned_initializer(
-        &mut self,
-        site: FlowSite,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // require an owned temporary
-        let Some(adopted) = self.family_default_of_owned(ty)? else {
-            return Ok(ty);
-        };
-
-        // store the temporary into its family default form
-        let cause = self.intern_cause(Cause::root(
-            site.origin(),
-            CauseKind::Initializer { annotation: None },
-        ));
-        self.check_value(
-            site,
-            ty,
-            Expectation {
-                target: adopted,
-                relation: Relation::Storable,
-                cause,
-                use_: ValueUse::Store,
-                mode: InferMode::Regular,
-            },
-        )?;
-
-        Ok(adopted)
-    }
-
     /// Infer one yield statement against the enclosing generator targets.
     fn infer_yield_statement(
         &mut self,
@@ -276,6 +254,7 @@ impl CheckState<'_> {
                     )),
                     use_: ValueUse::Output,
                     mode: self.current_output_mode(),
+                    store: StoreTarget::Exact,
                 });
                 self.attempt_node(value_site, PlaceUse::Read, expectation)?;
 
@@ -331,7 +310,7 @@ impl CheckState<'_> {
             return self.intern_type(dir::Type::Error);
         };
 
-        // open the yield's own output for the delegate return
+        // open the output of the yield for the delegate return
         let variable = self.open_variable(site.origin());
         let output = self.variable_type(variable)?;
 
@@ -350,6 +329,7 @@ impl CheckState<'_> {
             )),
             use_: ValueUse::Output,
             mode: self.current_output_mode(),
+            store: StoreTarget::Exact,
         };
         self.attempt_node(value_site, PlaceUse::Read, Some(expectation))?;
 
@@ -408,14 +388,14 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Record one loop whose body never reaches another iteration.
+    /// Record one loop whose body never runs another iteration.
     pub(in crate::sema) fn commit_single_pass_loop(
         &mut self,
         node: dir::GlobalNodeIdAny,
         body: dir::LocalNodeId<dir::Block>,
         continues: &[FlowBranch],
     ) -> CompilerResult<()> {
-        // mark a loop whose body reaches no second pass
+        // mark a loop whose body runs no second pass
         let repeats = !continues.is_empty() || self.block_can_complete_normally(body);
         if !repeats {
             self.module_mut(node.module_id)
@@ -457,7 +437,7 @@ impl CheckState<'_> {
         let continues = self.take_current_continue_branches();
         self.commit_single_pass_loop(node, body, &continues)?;
 
-        // restore only branches that leave the loop
+        // restore the branches that leave the loop
         let branches = self.leave_control_target();
 
         // close break-free loops to never
@@ -525,7 +505,7 @@ impl CheckState<'_> {
             let mut reaching = continues;
             reaching.extend(body_flow);
 
-            // reset to the pre-body flow when no path reaches the increment
+            // reset to the pre-body flow when no path runs the increment
             if reaching.is_empty() {
                 self.restore_flow(before_body);
             }
@@ -674,7 +654,7 @@ impl CheckState<'_> {
         let module = node.module_id;
 
         // check the matched declarator before the flow splits
-        self.check_declarator(module, declarator, Some(kind), false, false)?;
+        self.check_declarator(module, declarator, Some(kind), false, false, false)?;
 
         // check the diverging else branch in failed-match flow
         let before_else = self.fork_flow();
@@ -702,8 +682,9 @@ impl CheckState<'_> {
         module: ModuleId,
         id: dir::LocalNodeId<dir::Declarator>,
         binding_kind: Option<dir::LetKind>,
-        exported: bool,
+        is_exported: bool,
         is_ambient: bool,
+        is_shared: bool,
     ) -> CompilerResult<()> {
         // skip statically absent declarators, they keep no entries
         if self.is_absent(id.into_global_any(module)) {
@@ -716,7 +697,7 @@ impl CheckState<'_> {
 
         // walk the written annotation at its first typing visit
         if let Some(ty) = declarator.ty {
-            self.walk_body_type_expression(module, ty)?;
+            self.walk_body_binding_type(module, ty, is_ambient)?;
         }
 
         // read the written annotation as the binding type
@@ -741,7 +722,7 @@ impl CheckState<'_> {
                     site.origin(),
                     CauseKind::Initializer { annotation },
                 ));
-                let is_composite = matches!(self.node_syntax(site.node), NodeForm::Composite);
+                let is_composite = matches!(self.node_form(site.node), NodeForm::Composite);
                 let mode = match binding_kind {
                     Some(dir::LetKind::Const)
                         if !is_composite && self.root_variable(written)?.is_some() =>
@@ -756,15 +737,16 @@ impl CheckState<'_> {
                     cause,
                     use_: ValueUse::Store,
                     mode,
+                    store: StoreTarget::Exact,
                 };
                 self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
 
                 Some(written)
             }
             // leave unexported initializers to the body pass
-            (Some(_), None) if self.is_declaring() && !exported => None,
+            (Some(_), None) if self.is_declaring() && !is_exported => None,
             // report an exported value the declaration pass cannot read
-            (Some(value), None) if exported && !self.is_transcribable_literal(module, value) => {
+            (Some(value), None) if is_exported && !self.is_literal_initializer(module, value) => {
                 // infer the body while checking
                 if !self.is_declaring() {
                     let site = self.visit_site(value.into_global_any(module))?;
@@ -773,7 +755,7 @@ impl CheckState<'_> {
 
                 Some(self.intern_type(dir::Type::Error)?)
             }
-            // bind a destructured or existing value at its own type
+            // bind a destructured or existing value at its type
             (Some(value), None)
                 if Self::is_destructuring_pattern(self.module(module).view().get(pattern))
                     || !self.is_fresh_node(value.into_global_any(module))? =>
@@ -781,12 +763,6 @@ impl CheckState<'_> {
                 let site = self.visit_site(value.into_global_any(module))?;
                 let ty = self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
                 let ty = self.flow_type_at(site, ty)?;
-
-                // take the family default form for an owned temporary
-                let ty = match self.select_expression_place(site, ty)? {
-                    Some(_) => ty,
-                    None => self.default_owned_initializer(site, ty)?,
-                };
 
                 Some(ty)
             }
@@ -807,7 +783,7 @@ impl CheckState<'_> {
                 };
                 let slot = self.variable_type(slot)?;
                 let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
-                let is_composite = matches!(self.node_syntax(site.node), NodeForm::Composite);
+                let is_composite = matches!(self.node_form(site.node), NodeForm::Composite);
                 let mode = match binding_kind {
                     Some(dir::LetKind::Const) if !is_composite => InferMode::Literal,
                     _ => InferMode::Regular,
@@ -820,18 +796,11 @@ impl CheckState<'_> {
                         cause,
                         use_: ValueUse::Store,
                         mode,
+                        store: StoreTarget::Exact,
                     },
                 )?;
 
-                // place the checked value, taking the family default form for a temporary
-                let ty = self.require_node_type(site.node)?;
-                let ty = self.flow_type_at(site, ty)?;
-                let ty = match self.select_expression_place(site, ty)? {
-                    Some(_) => slot,
-                    None => self.default_owned_initializer(site, slot)?,
-                };
-
-                Some(ty)
+                Some(slot)
             }
             // uninitialized declarators take their written type
             (None, Some(written)) => {
@@ -855,6 +824,18 @@ impl CheckState<'_> {
         if let Some(target) = target {
             let site = self.visit_site(pattern.into_global_any(module))?;
             self.check_pattern(pattern.into_global(module), site.flow, site.scope, target)?;
+
+            // require a shared binding to store what shared space holds
+            if is_shared {
+                let scope = self.flow.template_scope();
+                self.push_obligation(
+                    Obligation::SharedStorage(SharedStorageObligation {
+                        source: pattern.into_global_any(module),
+                        ty: target,
+                    }),
+                    scope,
+                )?;
+            }
 
             // require irrefutable coverage outside a refutable position
             let requires_irrefutable = !self.is_refutable_pattern_position(module, id);
@@ -926,7 +907,7 @@ impl CheckState<'_> {
                     let origin = self.visit_site(pattern.into_global_any(module))?.origin();
                     self.report_type_shadowing_binding(module, value.into_any(), pattern, origin)?;
 
-                    self.check_declarator(module, *declarator, Some(*kind), false, false)?;
+                    self.check_declarator(module, *declarator, Some(*kind), false, false, false)?;
                 }
             }
         }
@@ -954,6 +935,7 @@ impl CheckState<'_> {
             )),
             use_: ValueUse::Condition,
             mode: InferMode::Regular,
+            store: StoreTarget::Exact,
         };
         self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
 
@@ -972,10 +954,7 @@ impl CheckState<'_> {
         (state.parsed.clone(), state.expanded.clone())
     }
 
-    /// Walk one body node's decorators at its typing visit.
-    ///
-    /// Ordinary decorators register their application for the pass apply.
-    /// The returned presence gates the node.
+    /// Walk one body node's decorators at its typing visit, returning the presence gating it.
     pub(in crate::sema) fn walk_body_decorators(
         &mut self,
         module: ModuleId,
@@ -988,7 +967,7 @@ impl CheckState<'_> {
 
         // walk the decorators over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
         let mut walk = WalkState::new(module, tree, self).for_body();
         let present = walk.walk_decorators(decorated)?;
         walk.flush_flows()?;
@@ -1021,7 +1000,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // walk the construct type over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
         let mut walk = WalkState::new(module, tree, self).for_body();
         walk.walk_construct_type_expression(ty)?;
 
@@ -1036,97 +1015,54 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         // walk the term over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
         let mut walk = WalkState::new(module, tree, self).for_body();
 
         walk.walk_static_term(expression)
     }
 
-    /// Walk one body annotation type at its first typing visit.
+    /// Walk one body type at its first typing visit, its elided regions closing at the site.
     pub(in crate::sema) fn walk_body_type_expression(
         &mut self,
         module: ModuleId,
         ty: dir::LocalNodeId<dir::TypeExpression>,
+        site: ElisionSite,
     ) -> CompilerResult<()> {
-        // reuse the annotation an earlier pass walked, holes and all
-        let node = ty.into_global_any(module);
-        if let Some(declared) = &self.module.declared
-            && declared.types.get_node_type_id(node).is_some()
-        {
-            return Ok(());
-        }
+        self.walk_body_type(module, ty, |walk| {
+            walk.walk_value_type_in(ty, site).map(|_| ())
+        })
+    }
 
-        // reuse a resolved commit; one still open re-walks fresh
-        if let Some(committed) = self.committed_node_type(node)
-            && self.collect_open_variables([committed])?.is_empty()
-        {
+    /// Walk one binding's annotation at its first typing visit.
+    pub(in crate::sema) fn walk_body_binding_type(
+        &mut self,
+        module: ModuleId,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
+        is_ambient: bool,
+    ) -> CompilerResult<()> {
+        self.walk_body_type(module, ty, |walk| {
+            walk.walk_binding_type(ty, is_ambient).map(|_| ())
+        })
+    }
+
+    /// Walk one annotation once per pass over the patched view.
+    fn walk_body_type(
+        &mut self,
+        module: ModuleId,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
+        walk_type: impl FnOnce(&mut WalkState<'_, '_>) -> CompilerResult<()>,
+    ) -> CompilerResult<()> {
+        // walk each type once per pass
+        if self.own_node_type(ty.into_global_any(module)).is_some() {
             return Ok(());
         }
 
         // read the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-
-        // close elided borrows at static in module positions, at frame in bodies
-        let is_body_position = self.is_body_annotation(module, ty);
-
-        // walk the annotation in its closing position
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
         let mut walk = WalkState::new(module, tree, self).for_body();
-        match is_body_position {
-            // open lifetime holes for inference in body positions
-            true => walk.walk_type_expression(ty)?,
-            // close elided lifetimes at the module in written positions
-            false => walk.walk_type_expression_in(ty, ElisionSite::Module)?,
-        };
 
-        Ok(())
-    }
-
-    /// Return whether one written annotation sits inside a function body.
-    fn is_body_annotation(
-        &self,
-        module: ModuleId,
-        ty: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> bool {
-        // walk outward to an enclosing function declaration
-        let view = self.module(module).view();
-        let mut current = view.get_parent(ty.into_any().id);
-        while let Some(parent) = current {
-            if parent.ty == dir::NodeType::Declaration {
-                let declaration = view.get(dir::LocalNodeId::<dir::Declaration>::new(parent.id));
-                if matches!(declaration, dir::Declaration::Function(_)) {
-                    return true;
-                }
-            }
-            current = view.get_parent(parent.id);
-        }
-
-        false
-    }
-
-    /// Walk one guard target type at its first typing visit.
-    ///
-    /// Guard targets describe runtime-narrowed values, so their elided
-    /// borrows close at the frame regardless of position.
-    pub(in crate::sema) fn walk_body_guard_type_expression(
-        &mut self,
-        module: ModuleId,
-        ty: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<()> {
-        // reuse a closed type an earlier walk already committed
-        if let Some(committed) = self.committed_node_type(ty.into_global_any(module))
-            && self.type_variables(committed)?.is_empty()
-        {
-            return Ok(());
-        }
-
-        // walk the guard target with its borrows closing at the frame
-        let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-        let mut walk = WalkState::new(module, tree, self).for_body();
-        walk.walk_type_expression_in(ty, ElisionSite::Body)?;
-
-        Ok(())
+        walk_type(&mut walk)
     }
 
     /// Walk explicit generic arguments at their first typing visit.
@@ -1146,7 +1082,7 @@ impl CheckState<'_> {
 
         // walk the arguments over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
         let mut walk = WalkState::new(module, tree, self).for_body();
         walk.walk_generic_arguments(arguments)?;
 
@@ -1154,21 +1090,19 @@ impl CheckState<'_> {
     }
 
     /// Return whether one declaration node holds a function value.
-    ///
-    /// A committed body answers for its own node; every other declaration reads its syntax.
     pub(in crate::sema) fn is_function_value_declaration(
         &self,
         node: dir::GlobalNodeIdAny,
         declaration: dir::LocalNodeId<dir::Declaration>,
     ) -> CompilerResult<bool> {
-        // a committed body answers for its own node
+        // answer a committed body for its node
         if self.lambdas.contains_key(&node) {
             return Ok(true);
         }
 
         // read the declaration's written form
         let (parsed, expanded) = self.patched_inputs(node.module_id);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
 
         Ok(matches!(
             tree.get(declaration),
@@ -1178,21 +1112,28 @@ impl CheckState<'_> {
         ))
     }
 
-    /// Commit one function value's body at its first typing visit.
+    /// Declare one function value and register its body at its first typing visit.
     pub(in crate::sema) fn commit_function_value(
         &mut self,
         node: dir::GlobalNodeIdAny,
-        declaration: dir::LocalNodeId<dir::Declaration>,
     ) -> CompilerResult<()> {
-        // commit each function value once
+        // read the declaration over the patched view
         let module = node.module_id;
-        if self.lambdas.contains_key(&node) || self.committed_node_type(node).is_some() {
+        let declaration = self.function_value_declaration(node)?;
+        let (parsed, expanded) = self.patched_inputs(module);
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
+
+        // walk each function value once, a walked declaration keeping its symbol type
+        let is_walked = match self
+            .module(module)
+            .declaration_symbol(declaration.into_any())
+        {
+            Some(symbol) => self.symbol_type_maybe(symbol)?.is_some(),
+            None => false,
+        };
+        if is_walked || self.lambdas.contains_key(&node) {
             return Ok(());
         }
-
-        // read the declaration over the patched view
-        let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let kind = tree.get(declaration).clone();
 
         // declare the signature, commit the body, and key it by value
@@ -1212,7 +1153,7 @@ impl CheckState<'_> {
 
         walk.flush_flows()?;
 
-        // move the body to its value expression, which owns the check
+        // move the body check to its value expression
         let Some(body) = self.functions.swap_remove(&symbol) else {
             return Err(CompilerError::Internal {
                 message: format!("function value {} has no body", self.node_label(node)),
@@ -1223,7 +1164,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Type one declaration statement, committing the bodies it owns.
+    /// Type one declaration statement, committing the bodies it declares.
     pub(in crate::sema) fn infer_declaration_statement(
         &mut self,
         site: FlowSite,
@@ -1235,15 +1176,14 @@ impl CheckState<'_> {
 
         // type a function value as its callable
         if self.is_function_value_declaration(node, declaration)? {
-            self.commit_function_value(node, declaration)?;
-            self.function_value_type(node)?;
+            self.function_value_type(node, None)?;
 
             return Ok(());
         }
 
         // read the declaration over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
         let kind = tree.get(declaration).clone();
 
         // type declaration statements as void

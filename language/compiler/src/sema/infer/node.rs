@@ -40,9 +40,25 @@ pub(in crate::sema) struct Expectation {
     pub(in crate::sema) use_: ValueUse,
     /// Literal inference applied when the target cannot contextualize the expression.
     pub(in crate::sema) mode: InferMode,
+    /// Where the checked value is stored.
+    pub(in crate::sema) store: StoreTarget,
+}
+
+/// Where one checked value is stored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) enum StoreTarget {
+    /// At the type it checks against.
+    Exact,
+    /// In an optional member, beside undefined.
+    Optional,
 }
 
 impl Expectation {
+    /// Return the target a value converts toward, absent under a cast.
+    pub(in crate::sema) fn contextual_target(self) -> Option<dir::GlobalTypeId> {
+        (self.use_ != ValueUse::Cast).then_some(self.target)
+    }
+
     /// Create an assignable value expectation.
     pub(in crate::sema) fn assignable(
         target: dir::GlobalTypeId,
@@ -55,6 +71,7 @@ impl Expectation {
             cause,
             use_,
             mode: InferMode::Regular,
+            store: StoreTarget::Exact,
         }
     }
 }
@@ -119,12 +136,19 @@ impl CheckState<'_> {
         expectation: Expectation,
         conversion: ValueConversion,
     ) -> CompilerResult<ValueCheck> {
+        // store a held value in an optional member beside undefined
+        let mut coercion = conversion.coercion.map(|coercion| *coercion);
+        if conversion.outcome == CheckOutcome::Holds && expectation.store == StoreTarget::Optional {
+            let origin = site.origin();
+            coercion = self.store_coercion(origin, source, coercion, conversion.target)?;
+        }
+
         // commit the selected runtime conversion for this authored value, a cast owning it
-        if let Some(mut coercion) = conversion.coercion {
+        if let Some(mut coercion) = coercion {
             if expectation.use_ == ValueUse::Cast {
                 coercion.origin = dir::CastOrigin::Explicit;
             }
-            self.commit_coercion(site.node, *coercion)?;
+            self.commit_coercion(site.node, coercion)?;
         }
 
         // retain a failed value check over the value the conversion related
@@ -171,16 +195,16 @@ impl CheckState<'_> {
             return Ok(check);
         }
 
-        // leave blocks, composites, and function values to convert inside their own check
-        if site.node.local_id.ty == dir::NodeType::Block
-            || self.is_composite_node(site.node)
-            || matches!(self.node_syntax(site.node), NodeForm::FunctionValue)
-        {
+        // leave blocks and contextually typed nodes to convert inside their check
+        if site.node.local_id.ty == dir::NodeType::Block || self.is_contextually_typed(site.node) {
             return Ok(check);
         }
 
-        // convert every other value at this site
+        // resolve a cast operand structurally before the cast table judges it
         let source = check.source;
+        if expectation.use_ == ValueUse::Cast {
+            self.resolve_structurally(site, source)?;
+        }
 
         self.check_value(site, source, expectation)
     }
@@ -205,7 +229,7 @@ impl CheckState<'_> {
         // remove inference barriers once the complete contextual type closes
         expectation.target = self.erase_inference_barriers_if_closed(expectation.target)?;
 
-        // check by the node's own kind
+        // check by the node kind
         let node = site.node;
         let target = expectation.target;
         let mut check = match node.local_id.ty {
@@ -310,11 +334,11 @@ impl CheckState<'_> {
         }
 
         // type a function value as its callable
-        if self.lambdas.contains_key(&node) {
-            return self.function_value_type(node);
+        if matches!(self.node_form(node), NodeForm::FunctionValue) {
+            return self.function_value_type(node, context);
         }
 
-        // infer every other node by its syntax family
+        // infer every other node by its node family
         match node.local_id.ty {
             dir::NodeType::Expression => {
                 self.infer_expression(site, use_, mode, context)?;

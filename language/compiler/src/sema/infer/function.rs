@@ -3,46 +3,83 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyCheck, Cause, CauseKind, Check, CheckState, FlowState, InferMode, Origin, Relation, Settle,
-    Verdict,
+    BodyCheck, Check, CheckState, Expectation, FlowState, InferMode, Origin, Settle, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Check one function value's body in its receiving context.
+    /// Type one function value as the callable its context takes.
     pub(in crate::sema) fn function_value_type(
         &mut self,
         node: dir::GlobalNodeIdAny,
+        context: Option<Expectation>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // type a function value once
         if let Some(callable) = self.committed_node_type(node) {
             return Ok(callable);
         }
 
-        // read the declared callable type of its body
-        let Some(body) = self.lambdas.get(&node) else {
-            return Err(CompilerError::Internal {
-                message: format!("function value {node:?} has no body"),
-            });
-        };
-        let callable = self.symbol_type(body.symbol)?;
+        // type the closure of its declaration symbol under the context
+        self.commit_function_value(node)?;
+        let symbol = self.function_value_symbol(node)?;
+        let callable = self.symbol_type(symbol)?;
+        let callable = self.contextual_form(callable, context)?;
         self.commit_node_type(node, callable)?;
         self.queue_check_function_body(node)?;
 
         Ok(callable)
     }
 
-    /// Check one function value's body in place once its slots close.
+    /// Return the declaration one function value holds, read over the patched view.
+    pub(in crate::sema) fn function_value_declaration(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<dir::LocalNodeId<dir::Declaration>> {
+        let module = node.module_id;
+        let (parsed, expanded) = self.patched_inputs(module);
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
+        match *tree.get(node.local_id.into_typed::<dir::Expression>()) {
+            dir::Expression::Declaration(declaration) => Ok(declaration),
+            _ => Err(CompilerError::Internal {
+                message: format!("function value {node:?} holds no declaration"),
+            }),
+        }
+    }
+
+    /// Return the declaration symbol of one function value.
+    pub(in crate::sema) fn function_value_symbol(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalSymbolId> {
+        let module = node.module_id;
+        let declaration = self.function_value_declaration(node)?;
+
+        self.module(module)
+            .declaration_symbol(declaration.into_any())
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("function value {node:?} has no declaration symbol"),
+            })
+    }
+
+    /// Check one function value's body in place once its parameter types close.
     pub(in crate::sema) fn queue_check_function_body(
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<()> {
-        // check a body with no open slots in place
+        // leave a checked or stalled body, and every body inside a decision
+        let Some(body) = self.lambdas.get(&node) else {
+            return Ok(());
+        };
+        if body.flow.is_some() || self.infer.is_deciding() {
+            return Ok(());
+        }
+
+        // check a body without open parameter types in place
         let slots = self.function_value_parameters(node)?;
         if slots.is_empty() {
             self.check_function_body(node)?;
         }
-        // otherwise stall the body behind its slots under the current flow
+        // otherwise stall the body behind its open parameter types
         else {
             let snapshot = self.flow.snapshot();
             if let Some(body) = self.lambdas.get_mut(&node) {
@@ -59,10 +96,8 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
-        // read the parameter slots of the committed callable
-        let Some(callable) = self.committed_node_type(node) else {
-            return Ok(SmallVec::new());
-        };
+        // read the parameter types of the declared callable
+        let callable = self.symbol_type(self.function_value_symbol(node)?)?;
         let parameters = match self.callable_signature_head(callable)? {
             Some((module, head)) => self
                 .signature_parameters(module, head.parameters)?
@@ -87,7 +122,7 @@ impl CheckState<'_> {
             });
         };
 
-        // fix the parameter slots the body reads
+        // fix the parameter types the body reads
         let roots = self.function_value_parameters(node)?;
         self.fix_variables(&roots)?;
         self.settle_variables(&roots, Settle::All)?;
@@ -117,10 +152,8 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        // read the receiver term the value carries
-        let Some(callable) = self.committed_node_type(node) else {
-            return Ok(());
-        };
+        // read the declared callable's receiver term
+        let callable = self.symbol_type(symbol)?;
         let callable = self.shallow_resolve(callable)?;
         let dir::Type::Function(function) = self.ty(callable)? else {
             return Ok(());
@@ -150,7 +183,7 @@ impl CheckState<'_> {
             if occurrence.uses.contains(dir::BindingUse::WRITE)
                 || occurrence.uses.contains(dir::BindingUse::MUTATE)
             {
-                required = required.max(dir::Access::Mutable);
+                required = required.join(dir::Access::Mutable);
             }
         }
 
@@ -158,14 +191,7 @@ impl CheckState<'_> {
 
         // require the receiver to grant the access the body takes
         let requested = self.access_literal(required)?;
-        let cause = self.intern_cause(Cause::root(origin, CauseKind::Receiver));
-        let verdict = self.constrain_type(
-            origin,
-            cause,
-            Relation::Storable,
-            requested,
-            function.receiver,
-        )?;
+        let verdict = self.constrain_access_assignable(origin, function.receiver, requested)?;
         if verdict == Verdict::Fails {
             let granted = self.receiver_mode(function.receiver)?;
             self.report_receiver_access_not_granted(origin, required, granted)?;
@@ -174,16 +200,19 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return the signature one callable type carries, with the module owning its rows.
+    /// Return the signature of one callable type, with the module that interns its rows.
     pub(in crate::sema) fn callable_signature_head(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<(ModuleId, dir::FunctionSignatureType)>> {
-        // read the signature the callable carries
+        // read the signature the callable names, a handle through its form
         let ty = self.shallow_resolve(ty)?;
         let signature = match self.ty(ty)? {
             dir::Type::Function(function) => function.signature,
             dir::Type::FunctionSignature(_) => ty,
+            dir::Type::Form(form) if matches!(form.form, dir::Form::Owned) => {
+                return self.callable_signature_head(form.value);
+            }
             _ => return Ok(None),
         };
         let head = self.signature_head(signature)?;

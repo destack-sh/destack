@@ -60,12 +60,7 @@ impl CheckState<'_> {
         if let dir::Expression::Declaration(declaration) = &expression
             && self.is_function_value_declaration(site.node, *declaration)?
         {
-            self.commit_function_value(site.node, *declaration)?;
-            let Some(symbol) = self.lambdas.get(&site.node).map(|body| body.symbol) else {
-                return Ok(CheckAttempt::NotApplicable);
-            };
-            let callable = self.symbol_type(symbol)?;
-            self.commit_node_type(site.node, callable)?;
+            let callable = self.function_value_type(site.node, Some(expectation))?;
 
             // pass a callable its context through inference barriers
             let target = self.erase_inference_barriers(expectation.target)?;
@@ -77,12 +72,11 @@ impl CheckState<'_> {
                     ..expectation
                 },
             )?;
-            self.queue_check_function_body(site.node)?;
 
             return Ok(CheckAttempt::Checked(check));
         }
 
-        // check by the expression's own syntax
+        // check by the expression kind
         match expression {
             dir::Expression::TreeExpression { .. } => {
                 let source = self.check_tree_expression(site, Some(&expectation))?;
@@ -111,7 +105,8 @@ impl CheckState<'_> {
             dir::Expression::TemplateExpression { value } => {
                 let keeps_template = expectation.mode == InferMode::Const
                     || self.contextualizes_template(expectation.target)?;
-                let source = self.template_expression_type(site, value, keeps_template)?;
+                let source =
+                    self.template_expression_type(site, value, keeps_template, Some(expectation))?;
                 self.commit_node_type(site.node, source)?;
                 let check = ValueCheck {
                     source,
@@ -133,12 +128,8 @@ impl CheckState<'_> {
             dir::Expression::Chain { expression } => {
                 self.check_chain_expression(site, expression, expectation)
             }
-            dir::Expression::ArrayExpression { .. }
-            | dir::Expression::FixedArrayExpression { .. }
-            | dir::Expression::TupleExpression { .. }
-            | dir::Expression::ObjectExpression { .. }
-            | dir::Expression::If { .. }
-            | dir::Expression::Match { .. } => self.check_composite(site, expectation),
+            // check a composite through the values it builds or branches into
+            _ if self.is_composite_node(site.node) => self.check_composite(site, expectation),
             dir::Expression::StructExpression { ty, properties } => {
                 // select the aggregate type using the expected value
                 let contextual = self.construction_value(origin, target)?;
@@ -210,14 +201,12 @@ impl CheckState<'_> {
                 Ok(CheckAttempt::Checked(ValueCheck { target, ..check }))
             }
 
-            // leave every other expression to its own inference
+            // leave every other expression to inference
             _ => Ok(CheckAttempt::NotApplicable),
         }
     }
 
     /// Check one composite through the members its context declares.
-    ///
-    /// Its values convert at those members, then the whole value converts.
     fn check_composite(
         &mut self,
         site: FlowSite,
@@ -339,7 +328,7 @@ impl CheckState<'_> {
         child: dir::LocalNodeId<dir::Expression>,
         expectation: Expectation,
     ) -> CompilerResult<CheckAttempt> {
-        // check the child and take its value as this node's own
+        // check the child and take its value as this node's value
         let module = site.node.module_id;
         let child_site = self.visit_site(child.into_global_any(module))?;
         let check = self.check_node(child_site, expectation)?;

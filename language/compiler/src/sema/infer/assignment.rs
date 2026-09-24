@@ -31,7 +31,7 @@ impl CheckState<'_> {
         left: dir::LocalNodeId<dir::AssignPattern>,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // read the assignment's own nodes
+        // read the assignment's nodes
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let left_node = left.into_global(module);
@@ -49,6 +49,7 @@ impl CheckState<'_> {
                 return self.commit_rejected_assignment(node, left_node);
             };
             let target = place.write.ty();
+            let store = place.store;
             let right_site = self.visit_site(right_node)?;
             let cause = self.intern_cause(Cause::root(
                 Origin::Node(right_node, site.scope),
@@ -58,35 +59,38 @@ impl CheckState<'_> {
             ));
             let check = self.check_node(
                 right_site,
-                Expectation::assignable(target, cause, ValueUse::Store),
+                Expectation {
+                    store,
+                    ..Expectation::assignable(target, cause, ValueUse::Store)
+                },
             )?;
             let value = check.source;
             self.commit_assign_pattern_place(site.origin(), left_node, place)?;
             self.commit_node_type(left_node.into_any(), value)?;
 
             // mark the written place assigned and drop stale narrowings
-            if let Some(assigned) = self.assigned_place(*expression) {
+            if let Some(assigned) = self.assigned_place(*expression)? {
                 self.assign_place(assigned);
             }
             self.clear_mutated_expression_narrowings(*expression);
 
             value
         } else {
-            // infer the right value on its own
+            // infer the right value alone
             let right_site = self.visit_site(right_node)?;
             self.infer_node_type(right_site, PlaceUse::Read)?
         };
 
         // select destructuring patterns against the inferred right value
         if !matches!(pattern, dir::AssignPattern::Place { .. }) {
-            // read the right value's own access
+            // read the access of the right value
             let access = self
                 .module(module)
                 .decisions_tail
                 .access_resolution(right_node)
                 .cloned();
 
-            // carry it onto the pattern so its field projections root from there
+            // root the field projections of the pattern at the right value
             if let Some(access) = access {
                 self.commit_access(left_node.into_any(), access.path().clone())?;
             }
@@ -105,7 +109,7 @@ impl CheckState<'_> {
             self.commit_node_type(left_node.into_any(), value)?;
         }
 
-        // commit the assignment's own value type
+        // commit the value type of the assignment
         self.commit_node_type(node.into_any(), value)?;
 
         Ok(())
@@ -119,7 +123,7 @@ impl CheckState<'_> {
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // read the assignment's own nodes
+        // read the assignment's nodes
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let left_node = left.into_global(module);
@@ -161,6 +165,7 @@ impl CheckState<'_> {
                 target.into_global_any(module),
                 right_node,
                 Some(write_type),
+                None,
             )?;
             self.commit_assign_pattern_place(site.origin(), left_node, place)?;
 

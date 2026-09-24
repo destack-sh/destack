@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::sema::{
-    AssignedPlace, Cause, CauseKind, CheckOutcome, CheckState, Expectation, FailedCheck, FlowSite,
-    PlaceUse, Relation, ValueUse,
+    AssignedPlace, Cause, CauseKind, CheckOutcome, CheckState, ElisionSite, Expectation,
+    FailedCheck, FlowSite, PlaceUse, Relation, StoreTarget, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -85,7 +85,7 @@ impl CheckState<'_> {
             .get(node.local_id)
             .clone();
 
-        // infer by the expression's own syntax
+        // infer by the expression kind
         match expression {
             dir::Expression::Identifier { name } => {
                 // reuse a committed resolution, else resolve the reference
@@ -126,9 +126,9 @@ impl CheckState<'_> {
             }
             dir::Expression::Block(block) => self.infer_block(site, block),
             dir::Expression::Const { body } => self.infer_transparent_expression(site, body),
-            dir::Expression::BorrowOf {
-                mutability, right, ..
-            } => self.infer_borrow_expression(site, mutability, right),
+            dir::Expression::BorrowOf { access, right, .. } => {
+                self.infer_borrow_expression(site, access, right)
+            }
             dir::Expression::If {
                 condition,
                 then_expression,
@@ -158,7 +158,7 @@ impl CheckState<'_> {
             }
             // type T
             dir::Expression::Type { value } => {
-                self.walk_body_guard_type_expression(node.module_id, value)?;
+                self.walk_body_type_expression(node.module_id, value, ElisionSite::Body)?;
                 let represented = self
                     .committed_node_type(value.into_global_any(node.module_id))
                     .ok_or_else(|| CompilerError::Internal {
@@ -170,7 +170,8 @@ impl CheckState<'_> {
                 Ok(())
             }
             dir::Expression::TemplateExpression { value } => {
-                let ty = self.template_expression_type(site, value, mode == InferMode::Const)?;
+                let ty =
+                    self.template_expression_type(site, value, mode == InferMode::Const, context)?;
                 self.commit_node_type(node.into_any(), ty)?;
 
                 Ok(())
@@ -236,6 +237,7 @@ impl CheckState<'_> {
                     .references
                     .get(node.into_any())
                     .is_some();
+
                 // reuse a committed qualified resolution
                 if let Some(resolution) = resolution {
                     self.infer_name_expression(site, &resolution, context)
@@ -294,6 +296,7 @@ impl CheckState<'_> {
                     cause,
                     use_: ValueUse::Store,
                     mode,
+                    store: StoreTarget::Exact,
                 };
 
                 // complete the confirmed construction check at its authored value
@@ -350,9 +353,9 @@ impl CheckState<'_> {
                 left,
                 operator,
                 right,
-            } => self.infer_binary_expression(site, left, operator, right),
+            } => self.infer_binary_expression(site, left, operator, right, context),
             dir::Expression::Is { value, target_type } => {
-                self.walk_body_guard_type_expression(node.module_id, target_type)?;
+                self.walk_body_type_expression(node.module_id, target_type, ElisionSite::Body)?;
 
                 self.select_type_predicate(site, value, target_type)
             }
@@ -360,7 +363,7 @@ impl CheckState<'_> {
                 expression,
                 target_type,
             } => {
-                self.walk_body_type_expression(node.module_id, target_type)?;
+                self.walk_body_type_expression(node.module_id, target_type, ElisionSite::Body)?;
 
                 self.infer_satisfies_expression(site, expression, target_type)
             }
@@ -368,13 +371,13 @@ impl CheckState<'_> {
                 expression,
                 target_type,
             } => {
-                // const assertions carry no walkable target type
+                // skip const assertions, which name no target type
                 let is_const = matches!(
                     self.module(node.module_id).view().get(target_type),
                     dir::TypeExpression::Const
                 );
                 if !is_const {
-                    self.walk_body_type_expression(node.module_id, target_type)?;
+                    self.walk_body_type_expression(node.module_id, target_type, ElisionSite::Body)?;
                 }
 
                 self.infer_as_expression(site, expression, target_type)
@@ -400,7 +403,7 @@ impl CheckState<'_> {
                     left,
                     &generic_arguments,
                     &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                    None,
+                    context,
                 )?;
 
                 Ok(())
@@ -554,16 +557,13 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the type of one template expression after checking its arguments.
-    ///
-    /// A template without substitutions reduces to a string literal.
-    /// A template with substitutions reduces to `string`, keeping its text around the span types
-    /// where the expectation asks for a template literal.
+    /// Return the type of one template expression, a template literal where the context asks.
     pub(in crate::sema) fn template_expression_type(
         &mut self,
         site: FlowSite,
         value: dir::TemplateLiteral,
         keeps_template: bool,
+        context: Option<Expectation>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // read the template's chunks and interpolations
         let string = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
@@ -592,9 +592,9 @@ impl CheckState<'_> {
         // record the calls this template renders and joins through
         self.select_template_calls(site, &rendered, string)?;
 
-        // print an unrequested template as a plain string
+        // print an unrequested template as a fresh string
         if !keeps_template {
-            return Ok(string);
+            return self.contextual_form(string, context);
         }
 
         // keep the template text around the spans
@@ -612,7 +612,9 @@ impl CheckState<'_> {
         ))?;
 
         // concatenate the template once every span prints
-        self.normalize(site.origin(), template)
+        let template = self.normalize(site.origin(), template)?;
+
+        self.contextual_form(template, context)
     }
 
     /// Return the type one interpolated value contributes to a template literal type.
@@ -648,7 +650,7 @@ impl CheckState<'_> {
         &mut self,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // ask by the target's own head
+        // ask by the head of the target
         let target = self.shallow_resolve(target)?;
         let contextualizes = match self.ty(target)? {
             dir::Type::Literal(dir::Literal::String(_)) => true,
@@ -747,10 +749,6 @@ impl CheckState<'_> {
             && binding.memory_parameter().is_none()
             && let Some(representation) = binding.constraint
         {
-            // body reads consume the value the signature must fix
-            if self.resolved_cardinality(parameter).is_none() {
-                self.report_value_read_not_fixed(site.node, parameter)?;
-            }
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
             self.commit_access_use(site.node, dir::BindingUse::READ);
             let representation = self.flow_type_at(site, representation)?;
@@ -777,7 +775,7 @@ impl CheckState<'_> {
             None => self.symbol_type(*symbol)?,
         };
 
-        // declared function reads produce fat callable values over their signatures
+        // read a declared function as a callable handle
         let ty = if matches!(self.symbol_kind(*symbol)?, dir::SymbolKind::Function)
             && matches!(self.ty(ty)?, dir::Type::FunctionSignature(_))
         {
@@ -879,7 +877,7 @@ impl CheckState<'_> {
         // walk the qualifier chain outward
         let mut current = Some(left);
         while let Some(segment) = current {
-            // read the segment's own name and its next qualifier
+            // read the segment name and its next qualifier
             let segment_node = segment.into_global(module);
             let expression = self.module(module).view().get(segment).clone();
             let next = match &expression {
@@ -892,7 +890,7 @@ impl CheckState<'_> {
                 _ => None,
             };
 
-            // decide only the segments a binding resolved
+            // decide the segments a binding resolved
             let is_bound = matches!(
                 self.module(module)
                     .resolved
@@ -926,7 +924,7 @@ impl CheckState<'_> {
             return Ok(Some(resolution.clone()));
         }
 
-        // decide by the reference's own syntax
+        // decide by the reference kind
         let module = node.module_id;
         let local = node.into_typed::<dir::Expression>().local_id;
         match self.module(module).view().get(local).clone() {
@@ -992,23 +990,13 @@ impl CheckState<'_> {
                 Ok(Some(resolution))
             }
 
-            // report a missing name
-            Some(dir::Reference::Missing) | None => {
-                let path = self
-                    .module(module)
-                    .view()
-                    .tree()
-                    .reference_path(node.local_id)
-                    .unwrap_or(dir::Path {
-                        segments: smallvec::smallvec![name],
-                    });
-                self.report_unresolved_reference(module, source.local_id, &path)?;
-                self.commit_error_node(source)?;
-
-                Ok(None)
-            }
-            // reject namespaces and projections used directly as values
-            Some(dir::Reference::Namespace { .. } | dir::Reference::Projected { .. }) => {
+            // report a missing name, a namespace, or a projection used directly as a value
+            Some(
+                dir::Reference::Missing
+                | dir::Reference::Namespace { .. }
+                | dir::Reference::Projected { .. },
+            )
+            | None => {
                 let path = self
                     .module(module)
                     .view()
