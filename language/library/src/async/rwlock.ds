@@ -11,7 +11,7 @@ export class AsyncRwLock<T> {
     private value: T;
 
     /// Create an async reader-writer lock protecting `value`.
-    constructor(value: T) {
+    constructor(&exclusive this, value: T) {
         this.value = value;
     }
 

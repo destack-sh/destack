@@ -14,7 +14,7 @@ export shared class Mutex<T> {
     private value: T;
 
     /// Create a mutex protecting `value`.
-    constructor(value: T) {
+    constructor(&exclusive this, value: T) {
         this.value = value;
     }
 

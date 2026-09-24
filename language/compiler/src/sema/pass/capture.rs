@@ -116,13 +116,8 @@ impl CheckState<'_> {
             });
         }
 
-        // build the managed frame object type
-        let shape = self.intern_object(&object_properties)?;
-        let place = self.local_place()?;
-        let ty = self.intern_type(dir::Type::Form(dir::FormType {
-            form: dir::Form::Managed { place },
-            value: shape,
-        }))?;
+        // build the frame object type, a handle by its default ownership
+        let ty = self.intern_object(&object_properties)?;
 
         // store the frame in the capture segment
         let frame = dir::CaptureFrame {
@@ -230,12 +225,20 @@ impl CheckState<'_> {
         let Some(closure) = self.module(module).view().get_parent_any(declaration) else {
             return Ok(dir::Ownership::Managed);
         };
-        let node = closure.into_global(module);
-        let Some(coercion) = self.module(module).coercions_tail.coercion(node).cloned() else {
+
+        // keep a declared nested function managed
+        if closure.ty != dir::NodeType::Expression {
             return Ok(dir::Ownership::Managed);
+        }
+
+        // read the callable form the closure expression takes
+        let node = closure.into_global(module);
+        let target = match self.module(module).coercions_tail.coercion(node).cloned() {
+            Some(coercion) => coercion.target(),
+            None => self.node_type(node)?,
         };
         let origin = Origin::Node(node, None);
-        let form = self.form_chain(origin, coercion.target())?.ownership_form();
+        let form = self.form_chain(origin, target)?.ownership_form();
 
         Ok(match form.map(|form| form.form) {
             Some(dir::Form::Owned) => dir::Ownership::Owned,

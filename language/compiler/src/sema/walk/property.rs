@@ -1052,14 +1052,24 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
-        // borrow a constructor's storage exclusively at the place its result names
+        // borrow a constructor's storage at its elided receiver
         if signature.is_constructor() {
-            let form = self.constructor_receiver_form(id)?;
+            // borrow an object's heap block as its handle grants
+            let (region, access) = if self.is_object_receiver(&scope)? {
+                let managed = self.lifetime_literal(dir::Lifetime::Managed)?;
 
-            return Ok(Some(self.intern_type(dir::Type::Form(dir::FormType {
-                form,
-                value: scope.ty,
-            }))?));
+                (
+                    self.borrow_region(id, managed, scope.ty)?,
+                    dir::Access::Mutable,
+                )
+            }
+            // borrow other storage exclusively where the construction places it
+            else {
+                (self.induce_signature_region(id)?, dir::Access::Exclusive)
+            };
+            let access = self.access_literal(access)?;
+
+            return Ok(Some(self.check.borrow_value(region, access, scope.ty)?));
         }
 
         // preserve every explicitly written receiver form
@@ -1126,14 +1136,6 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Synthesize one constructor's receiver form, its region bound at the construction.
-    fn constructor_receiver_form(&mut self, id: dir::LocalNodeIdAny) -> CompilerResult<dir::Form> {
-        let region = self.induce_signature_region(id)?;
-        let access = self.access_literal(dir::Access::Exclusive)?;
-
-        self.intern_borrow(region, access)
-    }
-
     /// Return whether one receiver scope names an object: a class, or an extension target of one.
     pub(in crate::sema) fn is_object_receiver(&mut self, scope: &Receiver) -> CompilerResult<bool> {
         Ok(scope.ownership == Some(dir::Ownership::Managed)
@@ -1153,15 +1155,20 @@ impl WalkState<'_, '_> {
         body: Option<dir::LocalNodeId<dir::Expression>>,
         receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::GlobalTypeId>)> {
-        // reject source result annotations and use the receiver result
+        // reject a non-borrow receiver and a result annotation, and use the receiver result
         if signature.is_constructor() {
-            if signature.this_form.is_some() || signature.this_parameter.is_some() {
-                let source = signature
-                    .this_parameter
-                    .map(|parameter| parameter.into_any())
-                    .unwrap_or(id.into_any());
-                self.check
-                    .report_constructor_receiver_annotation(self.module, source);
+            if let (Some(parameter), Some(binding)) = (signature.this_parameter, receiver) {
+                let is_borrow = matches!(
+                    self.check.ty(binding.receiver.ty)?,
+                    dir::Type::Form(dir::FormType {
+                        form: dir::Form::Borrowed(_),
+                        ..
+                    })
+                );
+                if !is_borrow {
+                    self.check
+                        .report_constructor_receiver_not_borrow(self.module, parameter.into_any());
+                }
             }
             if let Some(return_type) = signature.return_type {
                 self.walk_type_expression(return_type)?;

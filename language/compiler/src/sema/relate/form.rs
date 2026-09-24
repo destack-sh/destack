@@ -341,23 +341,16 @@ impl CheckState<'_> {
                     return Ok(Some(Verdict::Fails));
                 }
 
-                // decide whether the borrow lends a heap block or a constructor's receiver
+                // require the borrow to lend a heap block
                 let extent = self.region_extent(source_borrow.region)?;
                 let managed = self.lifetime_literal(dir::Lifetime::Managed)?;
-                let is_heap = self.decide_relation(origin, Relation::Equal, extent, managed)?
-                    != Verdict::Fails;
-                let is_receiver = !is_heap
-                    && self
-                        .constructed_receiver_owner(origin, extent, source_value)?
-                        .is_some();
-                if !is_heap && !is_receiver {
+                if self.decide_relation(origin, Relation::Equal, extent, managed)? == Verdict::Fails
+                {
                     return Ok(Some(Verdict::Fails));
                 }
 
-                // commit a heap borrow's extent to the managed lifetime
-                if is_heap {
-                    self.constrain_type(origin, cause, Relation::Equal, extent, managed)?;
-                }
+                // commit the borrow's extent to the managed lifetime
+                self.constrain_type(origin, cause, Relation::Equal, extent, managed)?;
 
                 // relate the object beneath a handle target
                 let target_value = match target_head {

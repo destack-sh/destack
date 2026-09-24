@@ -160,6 +160,11 @@ impl Lifetime {
         self.extents.as_slice() == [Extent::Frame]
     }
 
+    /// Return whether this lifetime is exactly managed storage.
+    pub fn is_managed(&self) -> bool {
+        self.extents.as_slice() == [Extent::Managed]
+    }
+
     /// Return whether this lifetime includes a parameter of the nearest binder.
     pub fn includes_bound(&self, index: u32) -> bool {
         self.extents

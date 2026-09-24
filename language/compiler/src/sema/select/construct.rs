@@ -731,6 +731,11 @@ impl CheckState<'_> {
                     &forms,
                 )?;
 
+                // require a receiver the owned storage binds, a managed-only one refusing it
+                if forms.contains(&dir::Form::Owned) {
+                    self.check_owned_construct_receiver(origin, node, constructor.ty, source)?;
+                }
+
                 Ok(ValueCheck {
                     source,
                     outcome: CheckOutcome::Holds,
@@ -1008,6 +1013,34 @@ impl CheckState<'_> {
         )
     }
 
+    /// Report an owned construction whose constructor receives a managed-only receiver.
+    fn check_owned_construct_receiver(
+        &mut self,
+        origin: Origin,
+        node: dir::GlobalNodeIdAny,
+        function_type: dir::GlobalTypeId,
+        produced: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // read the receiver the constructor declares
+        let Some(this) = self
+            .signature_head(function_type)?
+            .and_then(|function| function.this_parameter)
+        else {
+            return Ok(());
+        };
+
+        // accept a region parameter, which the construction binds at the owned storage
+        let region = match self.form_chain(origin, this)?.region() {
+            Some(region) => self.shallow_resolve(region)?,
+            None => return Ok(()),
+        };
+        if !matches!(self.ty(region)?, dir::Type::Parameter(_)) {
+            self.report_construct_receiver_not_assignable(node, produced, this);
+        }
+
+        Ok(())
+    }
+
     /// Bind the constructor's receiver region at the constructed class's space.
     fn construct_region_bindings(
         &mut self,
@@ -1170,11 +1203,6 @@ impl CheckState<'_> {
 
         // select the class and the constructor this construction runs
         let target = self.class_construct_target(instance.symbol, constructor, arguments)?;
-
-        // record an owned construction for the escape check at module end
-        if forms.contains(&dir::Form::Owned) {
-            self.owned_constructions.push((node, instance.symbol));
-        }
 
         // wrap the produced instance in the destination forms, replacing its own heap form
         let mut produced = signature.return_type;

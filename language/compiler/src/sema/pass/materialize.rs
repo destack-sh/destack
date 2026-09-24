@@ -39,7 +39,10 @@ impl CheckState<'_> {
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "materialize.closure", || {
                 state.materialize_instance_closure(&mut worklist)
             })
-        })
+        })?;
+
+        // resolve the types and decisions emitted by generated bodies
+        self.write_back()
     }
 
     /// Convert materialized state into one materialized DIR module.
@@ -50,7 +53,7 @@ impl CheckState<'_> {
         let diagnostics = self.collect_diagnostics()?;
         let roots = self.module.expanded.roots.clone();
         let module_state = self.module;
-        let patch = module_state.materialize_patch().clone();
+        let patch = module_state.patch.clone();
         let types = module_state.types_tail.finish();
 
         Ok((
@@ -62,6 +65,7 @@ impl CheckState<'_> {
                 generics: Arc::new(module_state.generics_tail),
                 decisions: Arc::new(module_state.decisions_tail),
                 coercions: Arc::new(module_state.coercions_tail),
+                representations: Arc::new(module_state.representations_tail),
                 roots,
             },
             diagnostics,

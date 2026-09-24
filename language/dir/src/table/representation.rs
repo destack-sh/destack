@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap as IndexMap, FxIndexSet as IndexSet};
+use destack_core::FxIndexMap as IndexMap;
 use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
@@ -72,13 +72,6 @@ impl<'a> RepresentationTable<'a> {
             .rev()
             .find_map(|segment| segment.space(symbol))
     }
-
-    /// Return whether one class's constructor escapes `this`.
-    pub fn escapes_this(&self, symbol: GlobalSymbolId) -> bool {
-        self.segments
-            .iter()
-            .any(|segment| segment.escapes_this(symbol))
-    }
 }
 
 /// The ownership one type's head defaults to.
@@ -112,8 +105,6 @@ pub struct RepresentationSegment {
     ownerships: IndexMap<GlobalTypeId, DefaultOwnership>,
     /// The space each nominal declaration's instances live in.
     spaces: IndexMap<GlobalSymbolId, Space>,
-    /// The classes whose constructors let `this` escape.
-    this_escapes: IndexSet<GlobalSymbolId>,
 }
 
 impl RepresentationSegment {
@@ -125,7 +116,6 @@ impl RepresentationSegment {
             auto: IndexMap::default(),
             ownerships: IndexMap::default(),
             spaces: IndexMap::default(),
-            this_escapes: IndexSet::default(),
         }
     }
 
@@ -169,22 +159,11 @@ impl RepresentationSegment {
         self.spaces.get(&symbol).copied()
     }
 
-    /// Record that one class's constructor escapes `this`.
-    pub fn set_escapes_this(&mut self, symbol: GlobalSymbolId) {
-        self.this_escapes.insert(symbol);
-    }
-
-    /// Return whether one class's constructor escapes `this`.
-    pub fn escapes_this(&self, symbol: GlobalSymbolId) -> bool {
-        self.this_escapes.contains(&symbol)
-    }
-
     /// Return whether the segment commits no policy.
     pub fn is_empty(&self) -> bool {
         self.copy_derivations.is_empty()
             && self.auto.is_empty()
             && self.ownerships.is_empty()
             && self.spaces.is_empty()
-            && self.this_escapes.is_empty()
     }
 }

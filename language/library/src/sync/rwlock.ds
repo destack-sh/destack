@@ -14,7 +14,7 @@ export shared class RwLock<T> {
     private value: T;
 
     /// Create a reader-writer lock protecting `value`.
-    constructor(value: T) {
+    constructor(&exclusive this, value: T) {
         this.value = value;
     }
 

@@ -11,7 +11,7 @@ export class AsyncMutex<T> {
     private value: T;
 
     /// Create an async mutex protecting `value`.
-    constructor(value: T) {
+    constructor(&exclusive this, value: T) {
         this.value = value;
     }
 
